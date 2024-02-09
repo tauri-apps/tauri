@@ -145,18 +145,18 @@ fn on_window_event<R: Runtime>(
     WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
     WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested { api } => {
+      let match_label = |target: &EventTarget| match target {
+        EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
+          label == window.label()
+        }
+        _ => false,
+      };
       let listeners = window.manager().listeners();
-      let has_js_listener =
-        listeners.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT, |target| match target {
-          EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
-            label == window.label()
-          }
-          _ => false,
-        });
+      let has_js_listener = listeners.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT, match_label);
       if has_js_listener {
         api.prevent_close();
+        manager.emit_filter(WINDOW_CLOSE_REQUESTED_EVENT, (), match_label)?;
       }
-      window.emit_to(window.label(), WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
       window.emit(WINDOW_DESTROYED_EVENT, ())?;

@@ -116,7 +116,7 @@ pub fn command(options: Options) -> Result<()> {
         .map(|(c, p)| {
           let id = c.identifier();
           if id.is_empty() {
-            dunce::simplified(&p).to_str().unwrap_or_default()
+            dunce::simplified(p).to_str().unwrap_or_default()
           } else {
             id
           }

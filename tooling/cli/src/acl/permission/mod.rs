@@ -3,8 +3,8 @@ use clap::{Parser, Subcommand};
 use crate::Result;
 
 mod add;
-mod create;
 mod ls;
+mod new;
 mod rm;
 
 #[derive(Debug, Parser)]
@@ -16,7 +16,8 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-  Create(create::Options),
+  #[clap(alias = "create")]
+  New(new::Options),
   Add(add::Options),
   #[clap(alias = "remove")]
   Rm(rm::Options),
@@ -26,7 +27,7 @@ enum Commands {
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Create(options) => create::command(options),
+    Commands::New(options) => new::command(options),
     Commands::Add(options) => add::command(options),
     Commands::Rm(options) => rm::command(options),
     Commands::Ls(options) => ls::command(options),

@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use crate::Result;
 
-mod create;
+mod new;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Manage or create capabilities for your app")]
@@ -13,11 +13,12 @@ pub struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
-  Create(create::Options),
+  #[clap(alias = "create")]
+  New(new::Options),
 }
 
 pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
-    Commands::Create(options) => create::command(options),
+    Commands::New(options) => new::command(options),
   }
 }

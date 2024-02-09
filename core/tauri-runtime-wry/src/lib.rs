@@ -2474,7 +2474,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
 
 pub struct PendingWindowResize {
   window_id: WindowId,
-  size: TaoPhysicalSize<u32>,
+  size: TaoLogicalSize<u32>,
 }
 
 struct UserMessageContext {
@@ -2758,8 +2758,8 @@ fn handle_user_message<T: UserEvent>(
             if let Some(b) = &webview.bounds {
               let window_size = window.inner_size();
               let mut bounds = b.lock().unwrap();
-              bounds.width_rate = position.x as f32 / window_size.width as f32;
-              bounds.height_rate = position.y as f32 / window_size.height as f32;
+              bounds.x_rate = position.x as f32 / window_size.width as f32;
+              bounds.y_rate = position.y as f32 / window_size.height as f32;
             }
 
             webview.set_bounds(bounds);
@@ -3069,7 +3069,12 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
           TaoWindowEvent::Resized(size) => {
-            if let Some(webviews) = windows.borrow().get(&window_id).map(|w| w.webviews.clone()) {
+            if let Some((Some(window), webviews)) = windows
+              .borrow()
+              .get(&window_id)
+              .map(|w| (w.inner.clone(), w.webviews.clone()))
+            {
+              let size = size.to_logical(window.scale_factor());
               if last_resize_time.elapsed() > RESIZE_INTERVAL {
                 *pending_resize = None;
                 resize_webviews(size, &webviews);
@@ -3125,7 +3130,7 @@ fn handle_event_loop<T: UserEvent>(
   }
 }
 
-fn resize_webviews(window_size: TaoPhysicalSize<u32>, webviews: &[WebviewWrapper]) {
+fn resize_webviews(window_size: TaoLogicalSize<u32>, webviews: &[WebviewWrapper]) {
   for webview in webviews {
     if let Some(bounds) = &webview.bounds {
       let b = bounds.lock().unwrap();
@@ -3436,14 +3441,14 @@ fn create_webview<T: UserEvent>(
       height: size.height,
     });
 
-    let window_size = window.inner_size();
+    let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
 
     if webview_attributes.auto_resize || kind == WebviewKind::WindowContent {
       Some(WebviewBounds {
-        x_rate: (position.x as f32) / window_size.width as f32,
-        y_rate: (position.y as f32) / window_size.height as f32,
-        width_rate: (size.width as f32) / window_size.width as f32,
-        height_rate: (size.height as f32) / window_size.height as f32,
+        x_rate: (position.x as f32) / window_size.width,
+        y_rate: (position.y as f32) / window_size.height,
+        width_rate: (size.width as f32) / window_size.width,
+        height_rate: (size.height as f32) / window_size.height,
       })
     } else {
       None

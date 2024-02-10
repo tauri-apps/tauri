@@ -3259,7 +3259,9 @@ fn create_webview<T: UserEvent>(
       // the content should be fully decoded when passing to WRY, which
       // will be responsible for handling the encoding based on the OS.
       let html =
-          urlencoding::decode(html_string).map_err(|e| Error::CreateWebview(Box::new(e)))?;
+          percent_encoding::percent_decode_str(html_string)
+            .decode_utf8()
+            .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
       webview_builder
           .with_html(html)

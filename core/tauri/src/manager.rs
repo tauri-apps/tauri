@@ -1012,7 +1012,8 @@ impl<R: Runtime> WindowManager<R> {
           // There is an issue with the external DataUrl where HTML containing special characters
           // are not correctly processed. A workaround is to first percent encode the html string,
           // before it processed by DataUrl.
-          if let Ok(data_url) = data_url::DataUrl::process(&urlencoding::encode(&html_string)) {
+          let encoded_string = percent_encoding::utf8_percent_encode(&html_string, percent_encoding::NON_ALPHANUMERIC).to_string();
+          if let Ok(data_url) = data_url::DataUrl::process(&encoded_string) {
               if let Ok((body, _)) = data_url.decode_to_vec() {
                   let html = String::from_utf8_lossy(&body).into_owned();
                   let mut document = tauri_utils::html::parse(html);

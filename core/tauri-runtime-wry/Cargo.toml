@@ -21,7 +21,7 @@ rand = "0.8"
 raw-window-handle = "0.5"
 tracing = { version = "0.1", optional = true }
 arboard = { version = "3", optional = true }
-urlencoding = "2.1.3"
+percent-encoding = "2.1"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
@@ -33,7 +33,6 @@ webview2-com = "0.19.1"
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.15", features = [ "v3_20" ] }
 webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] }
-percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 cocoa = "0.24"

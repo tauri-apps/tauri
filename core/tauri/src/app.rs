@@ -357,6 +357,11 @@ impl<R: Runtime> AssetResolver<R> {
   pub fn get(&self, path: String) -> Option<Asset> {
     self.manager.get_asset(path).ok()
   }
+
+  /// Iterate on all assets.
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    self.manager.asset_iter()
+  }
 }
 
 /// A handle to the currently running application.
@@ -469,26 +474,14 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
-    plugin
-      .initialize(
-        self,
-        self
-          .config()
-          .plugins
-          .0
-          .get(plugin.name())
-          .cloned()
-          .unwrap_or_default(),
-      )
-      .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))?;
-    self
-      .manager()
-      .inner
-      .plugins
-      .lock()
-      .unwrap()
-      .register(plugin);
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
+  pub fn plugin<P: Plugin<R> + 'static>(&self, plugin: P) -> crate::Result<()> {
+    let mut plugin = Box::new(plugin) as Box<dyn Plugin<R>>;
+
+    let mut store = self.manager().inner.plugins.lock().unwrap();
+    store.initialize(&mut plugin, self, &self.config().plugins)?;
+    store.register(plugin);
+
     Ok(())
   }
 
@@ -908,6 +901,7 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::run_iteration"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();
@@ -1201,7 +1195,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   pub fn plugin<P: Plugin<R> + 'static>(mut self, plugin: P) -> Self {
-    self.plugins.register(plugin);
+    self.plugins.register(Box::new(plugin));
     self
   }
 
@@ -1552,6 +1546,10 @@ impl<R: Runtime> Builder<R> {
 
   /// Builds the application.
   #[allow(clippy::type_complexity)]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "app::build", skip_all)
+  )]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
@@ -1573,16 +1571,17 @@ impl<R: Runtime> Builder<R> {
       (self.invoke_responder, self.invoke_initialization_script),
     );
 
+    let http_scheme = manager.config().tauri.security.dangerous_use_http_scheme;
+
     // set up all the windows defined in the config
     for config in manager.config().tauri.windows.clone() {
       let label = config.label.clone();
       let webview_attributes = WebviewAttributes::from(&config);
 
-      self.pending_windows.push(PendingWindow::with_config(
-        config,
-        webview_attributes,
-        label,
-      )?);
+      let mut pending = PendingWindow::with_config(config, webview_attributes, label)?;
+      pending.http_scheme = http_scheme;
+
+      self.pending_windows.push(pending);
     }
 
     #[cfg(any(windows, target_os = "linux"))]

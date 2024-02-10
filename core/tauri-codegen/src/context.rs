@@ -350,14 +350,11 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
     }
 
-    let out_path = out_dir.join("Info.plist");
     info_plist
-      .to_file_xml(&out_path)
+      .to_file_xml(out_dir.join("Info.plist"))
       .expect("failed to write Info.plist");
-
-    let info_plist_path = out_path.display().to_string();
     quote!({
-      tauri::embed_plist::embed_info_plist!(#info_plist_path);
+      tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })
   } else {
     quote!(())
@@ -473,15 +470,20 @@ fn ico_icon<P: AsRef<Path>>(
   let width = entry.width();
   let height = entry.height();
 
-  let out_path = out_dir.join(path.file_name().unwrap());
+  let icon_file_name = path.file_name().unwrap();
+  let out_path = out_dir.join(icon_file_name);
   write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon_file_name = icon_file_name.to_str().unwrap();
+  let icon = quote!(Some(
+  #root::Icon::Rgba {
+    rgba: include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)).to_vec(),
+    width: #width,
+    height: #height
+  }));
   Ok(icon)
 }
 
@@ -497,9 +499,10 @@ fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, Embe
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(Some(include_bytes!(#out_path).to_vec()));
+  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
+  let icon = quote!(::std::option::Option::Some(
+    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
+  ));
   Ok(icon)
 }
 
@@ -530,15 +533,21 @@ fn png_icon<P: AsRef<Path>>(
   let width = reader.info().width;
   let height = reader.info().height;
 
-  let out_path = out_dir.join(path.file_name().unwrap());
+  let icon_file_name = path.file_name().unwrap();
+  let out_path = out_dir.join(icon_file_name);
   write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let out_path = out_path.display().to_string();
-
-  let icon = quote!(Some(#root::Icon::Rgba { rgba: include_bytes!(#out_path).to_vec(), width: #width, height: #height }));
+  let icon_file_name = icon_file_name.to_str().unwrap();
+  let icon = quote!(Some(
+    #root::Icon::Rgba {
+      rgba: include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)).to_vec(),
+      width: #width,
+      height: #height,
+    }
+  ));
   Ok(icon)
 }
 

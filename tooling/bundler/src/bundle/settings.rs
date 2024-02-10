@@ -185,6 +185,14 @@ pub struct DebianSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to `optional`.
+  /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
+  pub priority: Option<String>,
+  /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
 }
 
 /// The macOS bundle settings.
@@ -761,7 +769,11 @@ impl Settings {
   }
 
   /// Copies external binaries to a path.
-  pub fn copy_binaries(&self, path: &Path) -> crate::Result<()> {
+  ///
+  /// Returns the list of destination paths.
+  pub fn copy_binaries(&self, path: &Path) -> crate::Result<Vec<PathBuf>> {
+    let mut paths = Vec::new();
+
     for src in self.external_binaries() {
       let src = src?;
       let dest = path.join(
@@ -771,9 +783,10 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, dest)?;
+      common::copy_file(&src, &dest)?;
+      paths.push(dest);
     }
-    Ok(())
+    Ok(paths)
   }
 
   /// Copies resources to a path.

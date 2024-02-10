@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_profile, AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+use super::{get_profile_dir, AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 use tauri_utils::display_path;
 
@@ -125,7 +125,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), get_profile(&options))
+        .out_dir(Some(triple.into()), get_profile_dir(&options).to_string())
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
@@ -203,14 +203,10 @@ fn build_dev_app<F: FnOnce(ExitStatus, ExitReason) + Send + 'static>(
     let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
-      match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-        Ok(s) if s == 0 => break,
-        _ => (),
+      if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
+        break;
       }
       let _ = io_stderr.write_all(&buf);
-      if !buf.ends_with(&[b'\r']) {
-        let _ = io_stderr.write_all(b"\n");
-      }
       lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });

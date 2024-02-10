@@ -11,5 +11,4 @@ tauri-utils = { version = "1.0.0", features = [
 schemars = { version = "0.8", features = ["url", "preserve_order"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-serde_with = "1.12"
 url = { version = "2.3", features = ["serde"] }

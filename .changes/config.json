@@ -1,6 +1,5 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
-  "timeout": 3600000,
   "changeTags": {
     "feat": "New Features",
     "enhance": "Enhancements",
@@ -272,7 +271,8 @@
     },
     "tauri-driver": {
       "path": "./tooling/webdriver",
-      "manager": "rust"
+      "manager": "rust",
+      "postversion": "cargo check"
     }
   }
 }

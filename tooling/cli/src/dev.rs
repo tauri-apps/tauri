@@ -57,7 +57,9 @@ pub struct Options {
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
-  /// Command line arguments passed to the runner. Arguments after `--` are passed to the application.
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments. Arguments after a second `--` are passed to the application
+  /// e.g. `tauri dev -- [runnerArgs] -- [appArgs]`.
   pub args: Vec<String>,
   /// Disable the file watcher
   #[clap(long)]

@@ -144,13 +144,13 @@ pub fn delete_keychain() {
     .output_ok();
 }
 
-pub fn sign(
-  path_to_sign: PathBuf,
-  identity: &str,
-  settings: &Settings,
-  is_an_executable: bool,
-) -> crate::Result<()> {
-  info!(action = "Signing"; "{} with identity \"{}\"", path_to_sign.display(), identity);
+pub struct SignTarget {
+  pub path: PathBuf,
+  pub is_an_executable: bool,
+}
+
+pub fn sign(targets: Vec<SignTarget>, identity: &str, settings: &Settings) -> crate::Result<()> {
+  info!(action = "Signing"; "with identity \"{}\"", identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     var_os("APPLE_CERTIFICATE"),
@@ -164,20 +164,24 @@ pub fn sign(
     false
   };
 
-  let res = try_sign(
-    path_to_sign,
-    identity,
-    settings,
-    is_an_executable,
-    setup_keychain,
-  );
+  info!("Signing app bundle...");
+
+  for target in targets {
+    try_sign(
+      target.path,
+      identity,
+      settings,
+      target.is_an_executable,
+      setup_keychain,
+    )?;
+  }
 
   if setup_keychain {
     // delete the keychain again after signing
     delete_keychain();
   }
 
-  res
+  Ok(())
 }
 
 fn try_sign(
@@ -187,6 +191,8 @@ fn try_sign(
   is_an_executable: bool,
   tauri_keychain: bool,
 ) -> crate::Result<()> {
+  info!(action = "Signing"; "{}", path_to_sign.display());
+
   let mut args = vec!["--force", "-s", identity];
 
   if tauri_keychain {
@@ -205,13 +211,9 @@ fn try_sign(
     args.push("runtime");
   }
 
-  if path_to_sign.is_dir() {
-    args.push("--deep");
-  }
-
   Command::new("codesign")
     .args(args)
-    .arg(path_to_sign.to_string_lossy().to_string())
+    .arg(path_to_sign)
     .output_ok()
     .context("failed to sign app")?;
 
@@ -260,7 +262,14 @@ pub fn notarize(
 
   // sign the zip file
   if let Some(identity) = &settings.macos().signing_identity {
-    sign(zip_path.clone(), identity, settings, false)?;
+    sign(
+      vec![SignTarget {
+        path: zip_path.clone(),
+        is_an_executable: false,
+      }],
+      identity,
+      settings,
+    )?;
   };
 
   let notarize_args = vec![
@@ -297,12 +306,25 @@ pub fn notarize(
       staple_app(app_bundle_path)?;
       Ok(())
     } else {
-      Err(anyhow::anyhow!("{log_message}").into())
+      if let Ok(output) = Command::new("xcrun")
+        .args(["notarytool", "log"])
+        .arg(&submit_output.id)
+        .notarytool_args(&auth)
+        .output_ok()
+      {
+        Err(
+          anyhow::anyhow!(
+            "{log_message}\nLog:\n{}",
+            String::from_utf8_lossy(&output.stdout)
+          )
+          .into(),
+        )
+      } else {
+        Err(anyhow::anyhow!("{log_message}").into())
+      }
     }
   } else {
-    return Err(
-      anyhow::anyhow!("failed to parse notarytool output as JSON: `{output_str}`").into(),
-    );
+    Err(anyhow::anyhow!("failed to parse notarytool output as JSON: `{output_str}`").into())
   }
 }
 
@@ -327,13 +349,14 @@ fn staple_app(mut app_bundle_path: PathBuf) -> crate::Result<()> {
 
 pub enum NotarizeAuth {
   AppleId {
-    apple_id: String,
-    password: String,
+    apple_id: OsString,
+    password: OsString,
+    team_id: OsString,
   },
   ApiKey {
-    key: String,
+    key: OsString,
     key_path: PathBuf,
-    issuer: String,
+    issuer: OsString,
   },
 }
 
@@ -344,11 +367,17 @@ pub trait NotarytoolCmdExt {
 impl NotarytoolCmdExt for Command {
   fn notarytool_args(&mut self, auth: &NotarizeAuth) -> &mut Self {
     match auth {
-      NotarizeAuth::AppleId { apple_id, password } => self
+      NotarizeAuth::AppleId {
+        apple_id,
+        password,
+        team_id,
+      } => self
         .arg("--apple-id")
         .arg(apple_id)
         .arg("--password")
-        .arg(password),
+        .arg(password)
+        .arg("--team-id")
+        .arg(team_id),
       NotarizeAuth::ApiKey {
         key,
         key_path,
@@ -364,31 +393,37 @@ impl NotarytoolCmdExt for Command {
   }
 }
 
-pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
-  match (var_os("APPLE_ID"), var_os("APPLE_PASSWORD")) {
-    (Some(apple_id), Some(apple_password)) => {
-      let apple_id = apple_id
-        .to_str()
-        .expect("failed to convert APPLE_ID to string")
-        .to_string();
-      let password = apple_password
-        .to_str()
-        .expect("failed to convert APPLE_PASSWORD to string")
-        .to_string();
-      Ok(NotarizeAuth::AppleId { apple_id, password })
-    }
+#[derive(Debug, thiserror::Error)]
+pub enum NotarizeAuthError {
+  #[error(
+    "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
+  )]
+  MissingTeamId,
+  #[error(transparent)]
+  Anyhow(#[from] anyhow::Error),
+}
+
+pub fn notarize_auth() -> Result<NotarizeAuth, NotarizeAuthError> {
+  match (
+    var_os("APPLE_ID"),
+    var_os("APPLE_PASSWORD"),
+    var_os("APPLE_TEAM_ID"),
+  ) {
+    (Some(apple_id), Some(password), Some(team_id)) => Ok(NotarizeAuth::AppleId {
+      apple_id,
+      password,
+      team_id,
+    }),
+    (Some(_apple_id), Some(_password), None) => Err(NotarizeAuthError::MissingTeamId),
     _ => {
       match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {
-        (Some(api_key), Some(api_issuer), Ok(key_path)) => {
-          let key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
-          let issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
+        (Some(key), Some(issuer), Ok(key_path)) => {
           Ok(NotarizeAuth::ApiKey { key, key_path: key_path.into(), issuer })
         },
-        (Some(api_key), Some(api_issuer), Err(_)) => {
-          let key = api_key.to_str().expect("failed to convert APPLE_API_KEY to string").to_string();
-          let issuer = api_issuer.to_str().expect("failed to convert APPLE_API_ISSUER to string").to_string();
-
-          let api_key_file_name = format!("AuthKey_{key}.p8");
+        (Some(key), Some(issuer), Err(_)) => {
+          let mut api_key_file_name = OsString::from("AuthKey_");
+          api_key_file_name.push(&key);
+          api_key_file_name.push(".p8");
           let mut key_path = None;
 
           let mut search_paths = vec!["./private_keys".into()];
@@ -408,16 +443,16 @@ pub fn notarize_auth() -> crate::Result<NotarizeAuth> {
           if let Some(key_path) = key_path {
           Ok(NotarizeAuth::ApiKey { key, key_path, issuer })
           } else {
-            Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name} file").into())
+            Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name:?} file").into())
           }
         }
-        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
+        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
       }
     }
   }
 }
 
-fn find_api_key(folder: PathBuf, file_name: &str) -> Option<PathBuf> {
+fn find_api_key(folder: PathBuf, file_name: &OsString) -> Option<PathBuf> {
   let path = folder.join(file_name);
   if path.exists() {
     Some(path)

@@ -280,6 +280,14 @@ pub struct DebConfig {
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
   pub desktop_template: Option<PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to `optional`.
+  /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
+  pub priority: Option<String>,
+  /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -1326,6 +1334,11 @@ pub struct SecurityConfig {
   /// vulnerable to dangerous Tauri command related attacks otherwise.
   #[serde(default, alias = "dangerous-remote-domain-ipc-access")]
   pub dangerous_remote_domain_ipc_access: Vec<RemoteDomainAccessScope>,
+  /// Sets whether the custom protocols should use `http://<scheme>.localhost` instead of the default `https://<scheme>.localhost` on Windows.
+  ///
+  /// **WARNING:** Using a `http` scheme will allow mixed content when trying to fetch `http` endpoints and is therefore less secure but will match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  #[serde(default, alias = "dangerous-use-http-scheme")]
+  pub dangerous_use_http_scheme: bool,
 }
 
 /// Defines an allowlist type.
@@ -2573,6 +2586,9 @@ impl WindowsUpdateInstallMode {
   }
 
   /// Returns the associated nsis arguments.
+  ///
+  /// [WindowsUpdateInstallMode::Passive] will return `["/P", "/R"]`
+  /// [WindowsUpdateInstallMode::Quiet] will return `["/S", "/R"]`
   pub fn nsis_args(&self) -> &'static [&'static str] {
     match self {
       Self::Passive => &["/P", "/R"],
@@ -3209,7 +3225,7 @@ mod build {
     } else if num.is_f64() {
       // guaranteed f64
       let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
+      quote! { #prefix::Number(::serde_json::Number::from_f64(#num).unwrap(/* safe to unwrap, guaranteed f64 */)) }
     } else {
       // invalid number
       quote! { #prefix::Null }
@@ -3736,6 +3752,7 @@ mod build {
       let dev_csp = opt_lit(self.dev_csp.as_ref());
       let freeze_prototype = self.freeze_prototype;
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
+      let dangerous_use_http_scheme = &self.dangerous_use_http_scheme;
       let dangerous_remote_domain_ipc_access =
         vec_lit(&self.dangerous_remote_domain_ipc_access, identity);
 
@@ -3746,7 +3763,8 @@ mod build {
         dev_csp,
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
-        dangerous_remote_domain_ipc_access
+        dangerous_remote_domain_ipc_access,
+        dangerous_use_http_scheme
       );
     }
   }
@@ -4013,6 +4031,7 @@ mod test {
         freeze_prototype: false,
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         dangerous_remote_domain_ipc_access: Vec::new(),
+        dangerous_use_http_scheme: false,
       },
       allowlist: AllowlistConfig::default(),
       system_tray: None,

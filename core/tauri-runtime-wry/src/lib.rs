@@ -175,8 +175,6 @@ pub(crate) fn send_user_message<T: UserEvent>(
         webview_id_map: context.webview_id_map.clone(),
         #[cfg(all(desktop, feature = "global-shortcut"))]
         global_shortcut_manager: context.main_thread.global_shortcut_manager.clone(),
-        #[cfg(feature = "clipboard")]
-        clipboard_manager: context.main_thread.clipboard_manager.clone(),
         windows: context.main_thread.windows.clone(),
         #[cfg(all(desktop, feature = "system-tray"))]
         system_tray_manager: context.main_thread.system_tray_manager.clone(),
@@ -244,17 +242,55 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
+#[cfg(feature = "tracing")]
+#[derive(Debug, Clone, Default)]
+pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
+
+#[cfg(feature = "tracing")]
+impl ActiveTraceSpanStore {
+  pub fn remove_window_draw(&self, window_id: WindowId) {
+    let mut store = self.0.borrow_mut();
+    if let Some(index) = store
+      .iter()
+      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
+    {
+      store.remove(index);
+    }
+  }
+}
+
+#[cfg(feature = "tracing")]
+#[derive(Debug)]
+pub enum ActiveTracingSpan {
+  WindowDraw {
+    id: WindowId,
+    span: tracing::span::EnteredSpan,
+  },
+}
+
+#[derive(Debug)]
+pub struct WindowsStore(RefCell<HashMap<WebviewId, WindowWrapper>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for WindowsStore {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for WindowsStore {}
+
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
-  pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
-  #[cfg(feature = "clipboard")]
-  pub clipboard_manager: Arc<Mutex<Clipboard>>,
-  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
+  // changing this to an Rc will cause frequent app crashes.
+  pub windows: Arc<WindowsStore>,
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_manager: SystemTrayManager,
+  #[cfg(feature = "tracing")]
+  pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -1135,7 +1171,10 @@ pub enum WindowMessage {
 
 #[derive(Debug, Clone)]
 pub enum WebviewMessage {
+  #[cfg(not(feature = "tracing"))]
   EvaluateScript(String),
+  #[cfg(feature = "tracing")]
+  EvaluateScript(String, Sender<()>, tracing::Span),
   #[allow(dead_code)]
   WebviewEvent(WebviewEvent),
   Print,
@@ -1182,8 +1221,6 @@ pub enum Message<T: 'static> {
   ),
   #[cfg(all(desktop, feature = "global-shortcut"))]
   GlobalShortcut(GlobalShortcutMessage),
-  #[cfg(feature = "clipboard")]
-  Clipboard(ClipboardMessage),
   UserEvent(T),
 }
 
@@ -1195,8 +1232,6 @@ impl<T: UserEvent> Clone for Message<T> {
       Self::Tray(i, m) => Self::Tray(*i, m.clone()),
       #[cfg(all(desktop, feature = "global-shortcut"))]
       Self::GlobalShortcut(m) => Self::GlobalShortcut(m.clone()),
-      #[cfg(feature = "clipboard")]
-      Self::Clipboard(m) => Self::Clipboard(m.clone()),
       Self::UserEvent(t) => Self::UserEvent(t.clone()),
       _ => unimplemented!(),
     }
@@ -1651,6 +1686,21 @@ impl<T: UserEvent> Dispatch<T> for WryDispatcher<T> {
     )
   }
 
+  #[cfg(feature = "tracing")]
+  fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
+    // use a channel so the EvaluateScript task uses the current span as parent
+    let (tx, rx) = channel();
+    getter!(
+      self,
+      rx,
+      Message::Webview(
+        self.window_id,
+        WebviewMessage::EvaluateScript(script.into(), tx, tracing::Span::current()),
+      )
+    )
+  }
+
+  #[cfg(not(feature = "tracing"))]
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     send_user_message(
       &self.context,
@@ -1783,7 +1833,7 @@ pub struct Wry<T: UserEvent> {
   global_shortcut_manager_handle: GlobalShortcutManagerHandle<T>,
 
   #[cfg(feature = "clipboard")]
-  clipboard_manager_handle: ClipboardManagerWrapper<T>,
+  clipboard_manager_handle: ClipboardManagerWrapper,
 
   event_loop: EventLoop<Message<T>>,
 }
@@ -1814,11 +1864,7 @@ impl<T: UserEvent> fmt::Debug for Wry<T> {
     );
 
     #[cfg(feature = "clipboard")]
-    d.field(
-      "clipboard_manager",
-      &self.context.main_thread.clipboard_manager,
-    )
-    .field("clipboard_manager_handle", &self.clipboard_manager_handle);
+    d.field("clipboard_manager_handle", &self.clipboard_manager_handle);
 
     d.finish()
   }
@@ -1937,12 +1983,9 @@ impl<T: UserEvent> Wry<T> {
     let web_context = WebContextStore::default();
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
-    let global_shortcut_manager = Arc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
+    let global_shortcut_manager = Rc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
 
-    #[cfg(feature = "clipboard")]
-    let clipboard_manager = Arc::new(Mutex::new(Clipboard::new()));
-
-    let windows = Rc::new(RefCell::new(HashMap::default()));
+    let windows = Arc::new(WindowsStore(RefCell::new(HashMap::default())));
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]
@@ -1957,11 +2000,11 @@ impl<T: UserEvent> Wry<T> {
         web_context,
         #[cfg(all(desktop, feature = "global-shortcut"))]
         global_shortcut_manager,
-        #[cfg(feature = "clipboard")]
-        clipboard_manager,
         windows,
         #[cfg(all(desktop, feature = "system-tray"))]
         system_tray_manager,
+        #[cfg(feature = "tracing")]
+        active_tracing_spans: Default::default(),
       },
     };
 
@@ -1975,7 +2018,7 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(feature = "clipboard")]
     #[allow(clippy::redundant_clone)]
     let clipboard_manager_handle = ClipboardManagerWrapper {
-      context: context.clone(),
+      clipboard: Arc::new(Mutex::new(Clipboard::new().unwrap())),
     };
 
     Ok(Self {
@@ -2008,7 +2051,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   type GlobalShortcutManager = GlobalShortcutManagerHandle<T>;
 
   #[cfg(feature = "clipboard")]
-  type ClipboardManager = ClipboardManagerWrapper<T>;
+  type ClipboardManager = ClipboardManagerWrapper;
 
   #[cfg(all(desktop, feature = "system-tray"))]
   type TrayHandler = SystemTrayHandle<T>;
@@ -2073,6 +2116,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
+      .0
       .borrow_mut()
       .insert(window_id, webview);
 
@@ -2165,13 +2209,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
 
+    #[cfg(feature = "tracing")]
+    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
+
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
 
-    #[cfg(feature = "clipboard")]
-    let clipboard_manager = self.context.main_thread.clipboard_manager.clone();
     let mut iteration = RunIteration::default();
 
     let proxy = self.event_loop.create_proxy();
@@ -2198,10 +2243,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               global_shortcut_manager: global_shortcut_manager.clone(),
               #[cfg(all(desktop, feature = "global-shortcut"))]
               global_shortcut_manager_handle: &global_shortcut_manager_handle,
-              #[cfg(feature = "clipboard")]
-              clipboard_manager: clipboard_manager.clone(),
               #[cfg(all(desktop, feature = "system-tray"))]
               system_tray_manager: system_tray_manager.clone(),
+              #[cfg(feature = "tracing")]
+              active_tracing_spans: active_tracing_spans.clone(),
             },
             web_context,
           );
@@ -2222,10 +2267,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             global_shortcut_manager: global_shortcut_manager.clone(),
             #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
-            #[cfg(feature = "clipboard")]
-            clipboard_manager: clipboard_manager.clone(),
             #[cfg(all(desktop, feature = "system-tray"))]
             system_tray_manager: system_tray_manager.clone(),
+            #[cfg(feature = "tracing")]
+            active_tracing_spans: active_tracing_spans.clone(),
           },
           web_context,
         );
@@ -2240,6 +2285,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let web_context = self.context.main_thread.web_context;
     let mut plugins = self.plugins;
 
+    #[cfg(feature = "tracing")]
+    let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
+
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager;
 
@@ -2247,9 +2295,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let global_shortcut_manager = self.context.main_thread.global_shortcut_manager.clone();
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager_handle = self.global_shortcut_manager_handle.clone();
-
-    #[cfg(feature = "clipboard")]
-    let clipboard_manager = self.context.main_thread.clipboard_manager.clone();
 
     let proxy = self.event_loop.create_proxy();
 
@@ -2268,10 +2313,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             global_shortcut_manager: global_shortcut_manager.clone(),
             #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager_handle: &global_shortcut_manager_handle,
-            #[cfg(feature = "clipboard")]
-            clipboard_manager: clipboard_manager.clone(),
             #[cfg(all(desktop, feature = "system-tray"))]
             system_tray_manager: system_tray_manager.clone(),
+            #[cfg(feature = "tracing")]
+            active_tracing_spans: active_tracing_spans.clone(),
           },
           &web_context,
         );
@@ -2291,10 +2336,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           global_shortcut_manager: global_shortcut_manager.clone(),
           #[cfg(all(desktop, feature = "global-shortcut"))]
           global_shortcut_manager_handle: &global_shortcut_manager_handle,
-          #[cfg(feature = "clipboard")]
-          clipboard_manager: clipboard_manager.clone(),
           #[cfg(all(desktop, feature = "system-tray"))]
           system_tray_manager: system_tray_manager.clone(),
+          #[cfg(feature = "tracing")]
+          active_tracing_spans: active_tracing_spans.clone(),
         },
         &web_context,
       );
@@ -2305,24 +2350,22 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub webview_id_map: WebviewIdStore,
-  pub windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  pub windows: Arc<WindowsStore>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
-  pub global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
+  pub global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(all(desktop, feature = "global-shortcut"))]
   pub global_shortcut_manager_handle: &'a GlobalShortcutManagerHandle<T>,
-  #[cfg(feature = "clipboard")]
-  pub clipboard_manager: Arc<Mutex<Clipboard>>,
   #[cfg(all(desktop, feature = "system-tray"))]
   pub system_tray_manager: SystemTrayManager,
+  #[cfg(feature = "tracing")]
+  pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 struct UserMessageContext {
-  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<WindowsStore>,
   webview_id_map: WebviewIdStore,
   #[cfg(all(desktop, feature = "global-shortcut"))]
-  global_shortcut_manager: Arc<Mutex<WryShortcutManager>>,
-  #[cfg(feature = "clipboard")]
-  clipboard_manager: Arc<Mutex<Clipboard>>,
+  global_shortcut_manager: Rc<Mutex<WryShortcutManager>>,
   #[cfg(all(desktop, feature = "system-tray"))]
   system_tray_manager: SystemTrayManager,
 }
@@ -2337,8 +2380,6 @@ fn handle_user_message<T: UserEvent>(
     webview_id_map,
     #[cfg(all(desktop, feature = "global-shortcut"))]
     global_shortcut_manager,
-    #[cfg(feature = "clipboard")]
-    clipboard_manager,
     windows,
     #[cfg(all(desktop, feature = "system-tray"))]
     system_tray_manager,
@@ -2356,7 +2397,12 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::Window(id, window_message) => {
       if let WindowMessage::UpdateMenuItem(item_id, update) = window_message {
-        if let Some(menu_items) = windows.borrow_mut().get_mut(&id).map(|w| &mut w.menu_items) {
+        if let Some(menu_items) = windows
+          .0
+          .borrow_mut()
+          .get_mut(&id)
+          .map(|w| &mut w.menu_items)
+        {
           if let Some(menu_items) = menu_items.as_mut() {
             let item = menu_items.get_mut(&item_id).expect("menu item not found");
             match update {
@@ -2371,7 +2417,7 @@ fn handle_user_message<T: UserEvent>(
           }
         }
       } else {
-        let w = windows.borrow().get(&id).map(|w| {
+        let w = windows.0.borrow().get(&id).map(|w| {
           (
             w.inner.clone(),
             w.window_event_listeners.clone(),
@@ -2590,9 +2636,22 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(id, webview_message) => match webview_message {
+      #[cfg(feature = "tracing")]
+      WebviewMessage::EvaluateScript(script, tx, span) => {
+        let _span = span.entered();
+        if let Some(WindowHandle::Webview { inner: webview, .. }) =
+          windows.0.borrow().get(&id).and_then(|w| w.inner.as_ref())
+        {
+          if let Err(e) = webview.evaluate_script(&script) {
+            debug_eprintln!("{}", e);
+          }
+        }
+        tx.send(()).unwrap();
+      }
+      #[cfg(not(feature = "tracing"))]
       WebviewMessage::EvaluateScript(script) => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
+          windows.0.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           if let Err(e) = webview.evaluate_script(&script) {
             debug_eprintln!("{}", e);
@@ -2601,7 +2660,7 @@ fn handle_user_message<T: UserEvent>(
       }
       WebviewMessage::Print => {
         if let Some(WindowHandle::Webview { inner: webview, .. }) =
-          windows.borrow().get(&id).and_then(|w| w.inner.as_ref())
+          windows.0.borrow().get(&id).and_then(|w| w.inner.as_ref())
         {
           let _ = webview.print();
         }
@@ -2610,7 +2669,7 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::CreateWebview(window_id, handler) => match handler(event_loop, web_context) {
       Ok(webview) => {
-        windows.borrow_mut().insert(window_id, webview);
+        windows.0.borrow_mut().insert(window_id, webview);
       }
       Err(e) => {
         debug_eprintln!("{}", e);
@@ -2623,7 +2682,7 @@ fn handle_user_message<T: UserEvent>(
 
         let w = Arc::new(window);
 
-        windows.borrow_mut().insert(
+        windows.0.borrow_mut().insert(
           window_id,
           WindowWrapper {
             label,
@@ -2728,13 +2787,11 @@ fn handle_user_message<T: UserEvent>(
     Message::GlobalShortcut(message) => {
       handle_global_shortcut_message(message, &global_shortcut_manager)
     }
-    #[cfg(feature = "clipboard")]
-    Message::Clipboard(message) => handle_clipboard_message(message, &clipboard_manager),
     Message::UserEvent(_) => (),
   }
 
   let it = RunIteration {
-    window_count: windows.borrow().len(),
+    window_count: windows.0.borrow().len(),
   };
   it
 }
@@ -2754,10 +2811,10 @@ fn handle_event_loop<T: UserEvent>(
     global_shortcut_manager,
     #[cfg(all(desktop, feature = "global-shortcut"))]
     global_shortcut_manager_handle,
-    #[cfg(feature = "clipboard")]
-    clipboard_manager,
     #[cfg(all(desktop, feature = "system-tray"))]
     system_tray_manager,
+    #[cfg(feature = "tracing")]
+    active_tracing_spans,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2778,6 +2835,11 @@ fn handle_event_loop<T: UserEvent>(
 
     Event::LoopDestroyed => {
       callback(RunEvent::Exit);
+    }
+
+    #[cfg(feature = "tracing")]
+    Event::RedrawRequested(id) => {
+      active_tracing_spans.remove_window_draw(id);
     }
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -2817,6 +2879,7 @@ fn handle_event_loop<T: UserEvent>(
           *webview_id_map.0.lock().unwrap().values().next().unwrap()
         };
         windows
+          .0
           .borrow()
           .get(&window_id)
           .unwrap()
@@ -2902,7 +2965,7 @@ fn handle_event_loop<T: UserEvent>(
     }
     Event::UserEvent(Message::Webview(id, WebviewMessage::WebviewEvent(event))) => {
       if let Some(event) = WindowEventWrapper::from(&event).0 {
-        let windows = windows.borrow();
+        let windows = windows.0.borrow();
         let window = windows.get(&id);
         if let Some(window) = window {
           callback(RunEvent::WindowEvent {
@@ -2923,7 +2986,7 @@ fn handle_event_loop<T: UserEvent>(
     } => {
       if let Some(window_id) = webview_id_map.get(&window_id) {
         {
-          let windows_ref = windows.borrow();
+          let windows_ref = windows.0.borrow();
           if let Some(window) = windows_ref.get(&window_id) {
             if let Some(event) = WindowEventWrapper::parse(&window.inner, &event).0 {
               let label = window.label.clone();
@@ -2947,7 +3010,7 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           WryWindowEvent::ThemeChanged(theme) => {
-            if let Some(window) = windows.borrow().get(&window_id) {
+            if let Some(window) = windows.0.borrow().get(&window_id) {
               if let Some(WindowHandle::Webview { inner, .. }) = &window.inner {
                 let theme = match theme {
                   WryTheme::Dark => wry::webview::Theme::Dark,
@@ -2962,9 +3025,9 @@ fn handle_event_loop<T: UserEvent>(
             on_close_requested(callback, window_id, windows.clone());
           }
           WryWindowEvent::Destroyed => {
-            let removed = windows.borrow_mut().remove(&window_id).is_some();
+            let removed = windows.0.borrow_mut().remove(&window_id).is_some();
             if removed {
-              let is_empty = windows.borrow().is_empty();
+              let is_empty = windows.0.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
                 callback(RunEvent::ExitRequested { tx });
@@ -2995,8 +3058,6 @@ fn handle_event_loop<T: UserEvent>(
             webview_id_map,
             #[cfg(all(desktop, feature = "global-shortcut"))]
             global_shortcut_manager,
-            #[cfg(feature = "clipboard")]
-            clipboard_manager,
             windows,
             #[cfg(all(desktop, feature = "system-tray"))]
             system_tray_manager,
@@ -3009,7 +3070,7 @@ fn handle_event_loop<T: UserEvent>(
   }
 
   let it = RunIteration {
-    window_count: windows.borrow().len(),
+    window_count: windows.0.borrow().len(),
   };
   it
 }
@@ -3017,10 +3078,10 @@ fn handle_event_loop<T: UserEvent>(
 fn on_close_requested<'a, T: UserEvent>(
   callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WebviewId,
-  windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>,
+  windows: Arc<WindowsStore>,
 ) {
   let (tx, rx) = channel();
-  let windows_ref = windows.borrow();
+  let windows_ref = windows.0.borrow();
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();
@@ -3045,8 +3106,8 @@ fn on_close_requested<'a, T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WebviewId, windows: Rc<RefCell<HashMap<WebviewId, WindowWrapper>>>) {
-  if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
+fn on_window_close(window_id: WebviewId, windows: Arc<WindowsStore>) {
+  if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
   }
 }
@@ -3123,6 +3184,14 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   let proxy = context.proxy.clone();
 
+  #[cfg(feature = "tracing")]
+  let _webview_create_span = tracing::debug_span!("wry::webview::create").entered();
+  #[cfg(feature = "tracing")]
+  let window_draw_span = tracing::debug_span!("wry::window::draw").entered();
+  #[cfg(feature = "tracing")]
+  let window_create_span =
+    tracing::debug_span!(parent: &window_draw_span, "wry::window::create").entered();
+
   let window_event_listeners = WindowEventListeners::default();
 
   #[cfg(windows)]
@@ -3154,7 +3223,23 @@ fn create_webview<T: UserEvent>(
   } else {
     None
   };
+  let focused = window_builder.inner.window.focused;
   let window = window_builder.inner.build(event_loop).unwrap();
+
+  #[cfg(feature = "tracing")]
+  {
+    drop(window_create_span);
+
+    context
+      .main_thread
+      .active_tracing_spans
+      .0
+      .borrow_mut()
+      .push(ActiveTracingSpan::WindowDraw {
+        id: window.id(),
+        span: window_draw_span,
+      });
+  }
 
   webview_id_map.insert(window.id(), window_id);
 
@@ -3163,6 +3248,7 @@ fn create_webview<T: UserEvent>(
   }
   let mut webview_builder = WebViewBuilder::new(window)
     .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    .with_focused(focused)
     .with_url(&url)
     .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(is_window_transparent)
@@ -3192,6 +3278,11 @@ fn create_webview<T: UserEvent>(
       WryTheme::Light => wry::webview::Theme::Light,
       _ => wry::webview::Theme::Light,
     });
+  }
+
+  #[cfg(windows)]
+  {
+    webview_builder = webview_builder.with_https_scheme(!pending.http_scheme);
   }
 
   if let Some(handler) = ipc_handler {

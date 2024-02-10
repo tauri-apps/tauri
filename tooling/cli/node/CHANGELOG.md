@@ -1,5 +1,103 @@
 # Changelog
 
+## \[1.5.9]
+
+### Bug Fixes
+
+- [`0a2175ea`](https://www.github.com/tauri-apps/tauri/commit/0a2175eabb736b2a4cd01ab682e08be0b5ebb2b9)([#8439](https://www.github.com/tauri-apps/tauri/pull/8439)) Expand glob patterns in workspace member paths so the CLI would watch all matching pathhs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.9`
+
+## \[1.5.8]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.8`
+
+## \[1.5.7]
+
+### Bug Fixes
+
+- [`1d5aa38a`](https://www.github.com/tauri-apps/tauri/commit/1d5aa38ae418ea31f593590b6d32cf04d3bfd8c1)([#8162](https://www.github.com/tauri-apps/tauri/pull/8162)) Fixes errors on command output, occuring when the output stream contains an invalid UTF-8 character, or ends with a multi-bytes UTF-8 character.
+- [`f26d9f08`](https://www.github.com/tauri-apps/tauri/commit/f26d9f0884f63f61b9f4d4fac15e6b251163793e)([#8263](https://www.github.com/tauri-apps/tauri/pull/8263)) Fixes an issue in the NSIS installer which caused the uninstallation to leave empty folders on the system if the `resources` feature was used.
+- [`92bc7d0e`](https://www.github.com/tauri-apps/tauri/commit/92bc7d0e16157434330a1bcf1eefda6f0f1e5f85)([#8233](https://www.github.com/tauri-apps/tauri/pull/8233)) Fixes an issue in the NSIS installer which caused the installation to take much longer than expected when many `resources` were added to the bundle.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.7`
+
+## \[1.5.6]
+
+### Bug Fixes
+
+- [`5264e41d`](https://www.github.com/tauri-apps/tauri/commit/5264e41db3763e4c2eb0c3c21bd423fb7bece3e2)([#8082](https://www.github.com/tauri-apps/tauri/pull/8082)) Downgraded `rust-minisign` to `0.7.3` to fix signing updater bundles with empty passwords.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.6`
+
+## \[1.5.5]
+
+### Enhancements
+
+- [`9bead42d`](https://www.github.com/tauri-apps/tauri/commit/9bead42dbca0fb6dd7ea0b6bfb2f2308a5c5f992)([#8059](https://www.github.com/tauri-apps/tauri/pull/8059)) Allow rotating the updater private key.
+
+### Bug Fixes
+
+- [`be8e5aa3`](https://www.github.com/tauri-apps/tauri/commit/be8e5aa3071d9bc5d0bd24647e8168f312d11c8d)([#8042](https://www.github.com/tauri-apps/tauri/pull/8042)) Fixes duplicated newlines on command outputs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.5`
+
+## \[1.5.4]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.4`
+
+## \[1.5.3]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.3`
+
+## \[1.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.2`
+
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`d6eb46cf`](https://www.github.com/tauri-apps/tauri/commit/d6eb46cf1116d147121f6b6db9d390b5e2fb238d)([#7934](https://www.github.com/tauri-apps/tauri/pull/7934)) On macOS, fix the `apple-id` option name when using `notarytools submit`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.1`
+
+## \[1.5.0]
+
+### New Features
+
+- [`e1526626`](https://www.github.com/tauri-apps/tauri/commit/e152662687ece7a62d383923a50751cc0dd34331)([#7723](https://www.github.com/tauri-apps/tauri/pull/7723)) Support Bun package manager in CLI
+
+### Enhancements
+
+- [`13279917`](https://www.github.com/tauri-apps/tauri/commit/13279917d4cae071d0ce3a686184d48af079f58a)([#7713](https://www.github.com/tauri-apps/tauri/pull/7713)) Add version of Rust Tauri CLI installed with Cargo to `tauri info` command.
+
+### Bug Fixes
+
+- [`dad4f54e`](https://www.github.com/tauri-apps/tauri/commit/dad4f54eec9773d2ea6233a7d9fd218741173823)([#7277](https://www.github.com/tauri-apps/tauri/pull/7277)) Removed the automatic version check of the CLI that ran after `tauri` commands which caused various issues.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.0`
+
 ## \[1.4.0]
 
 ### New Features

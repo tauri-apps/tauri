@@ -1,6 +1,6 @@
 [package]
 name = "tauri-macros"
-version = "1.4.0"
+version = "1.4.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "os", "filesystem", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -16,12 +16,12 @@ readme = "README.md"
 proc-macro = true
 
 [dependencies]
-proc-macro2 = "1"
+proc-macro2 = { version = "1", features = [ "span-locations" ] }
 quote = "1"
 syn = { version = "1", features = [ "full" ] }
 heck = "0.4"
-tauri-codegen = { version = "1.4.0", default-features = false, path = "../tauri-codegen" }
-tauri-utils = { version = "1.4.0", path = "../tauri-utils" }
+tauri-codegen = { version = "1.4.2", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "1.5.2", path = "../tauri-utils" }
 
 [features]
 custom-protocol = [ ]
@@ -30,3 +30,4 @@ isolation = [ "tauri-codegen/isolation" ]
 shell-scope = [ "tauri-codegen/shell-scope" ]
 config-json5 = [ "tauri-codegen/config-json5", "tauri-utils/config-json5" ]
 config-toml = [ "tauri-codegen/config-toml", "tauri-utils/config-toml" ]
+tracing = [ ]

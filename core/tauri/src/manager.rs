@@ -142,7 +142,10 @@ fn set_csp<R: Runtime>(
     let default_src = csp
       .entry("default-src".into())
       .or_insert_with(Default::default);
-    default_src.push(crate::pattern::format_real_schema(schema));
+    default_src.push(crate::pattern::format_real_schema(
+      schema,
+      manager.config().tauri.security.dangerous_use_http_scheme,
+    ));
   }
 
   Csp::DirectiveMap(csp).to_string()
@@ -189,7 +192,7 @@ fn replace_csp_nonce(
       .into_iter()
       .map(|n| format!("'nonce-{n}'"))
       .collect::<Vec<String>>();
-    let sources = csp.entry(directive.into()).or_insert_with(Default::default);
+    let sources = csp.entry(directive.into()).or_default();
     let self_source = "'self'".to_string();
     if !sources.contains(&self_source) {
       sources.push(self_source);
@@ -388,7 +391,14 @@ impl<R: Runtime> WindowManager<R> {
     match self.base_path() {
       AppUrl::Url(WindowUrl::External(url)) => Cow::Borrowed(url),
       #[cfg(windows)]
-      _ => Cow::Owned(Url::parse("https://tauri.localhost").unwrap()),
+      _ => {
+        let scheme = if self.inner.config.tauri.security.dangerous_use_http_scheme {
+          "http"
+        } else {
+          "https"
+        };
+        Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
+      }
       #[cfg(not(windows))]
       _ => Cow::Owned(Url::parse("tauri://localhost").unwrap()),
     }
@@ -429,16 +439,18 @@ impl<R: Runtime> WindowManager<R> {
     }
     .render_default(&Default::default())?;
 
+    let mut webview_attributes = pending.webview_attributes;
+
     let ipc_init = IpcJavascript {
       isolation_origin: &match self.pattern() {
         #[cfg(feature = "isolation")]
-        Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
+        Pattern::Isolation { schema, .. } => {
+          crate::pattern::format_real_schema(schema, pending.http_scheme)
+        }
         _ => "".to_string(),
       },
     }
     .render_default(&Default::default())?;
-
-    let mut webview_attributes = pending.webview_attributes;
 
     let mut window_labels = window_labels.to_vec();
     let l = label.to_string();
@@ -466,7 +478,7 @@ impl<R: Runtime> WindowManager<R> {
     if let Pattern::Isolation { schema, .. } = self.pattern() {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          isolation_src: &crate::pattern::format_real_schema(schema),
+          isolation_src: &crate::pattern::format_real_schema(schema, pending.http_scheme),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
         .render_default(&Default::default())?
@@ -491,7 +503,8 @@ impl<R: Runtime> WindowManager<R> {
     let window_origin = if window_url.scheme() == "data" {
       "null".into()
     } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
-      format!("https://{}.localhost", window_url.scheme())
+      let scheme = if pending.http_scheme { "http" } else { "https" };
+      format!("{scheme}://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",
@@ -580,6 +593,10 @@ impl<R: Runtime> WindowManager<R> {
   ) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
+      #[cfg(feature = "tracing")]
+      let _span =
+        tracing::trace_span!("ipc::request", kind = "post-message", request = request).entered();
+
       let window = Window::new(manager.clone(), window, app_handle.clone());
 
       #[cfg(feature = "isolation")]
@@ -601,9 +618,14 @@ impl<R: Runtime> WindowManager<R> {
 
       match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
+          #[cfg(feature = "tracing")]
+          let _span = tracing::trace_span!("ipc::request::handle", cmd = message.cmd).entered();
+
           let _ = window.on_message(message);
         }
         Err(e) => {
+          #[cfg(feature = "tracing")]
+          tracing::trace!("ipc::request::error {}", e);
           let error: crate::Error = e.into();
           let _ = window.eval(&format!(
             r#"console.error({})"#,
@@ -612,6 +634,10 @@ impl<R: Runtime> WindowManager<R> {
         }
       }
     })
+  }
+
+  pub fn asset_iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    self.inner.assets.iter()
   }
 
   pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
@@ -782,6 +808,19 @@ impl<R: Runtime> WindowManager<R> {
       hotkeys: &'a str,
     }
 
+    #[derive(Template)]
+    #[default_template("../scripts/core.js")]
+    struct CoreJavascript<'a> {
+      os_name: &'a str,
+      protocol_scheme: &'a str,
+    }
+
+    #[derive(Template)]
+    #[default_template("../scripts/toggle-devtools.js")]
+    struct ToggleDevtoolsScript<'a> {
+      os_name: &'a str,
+    }
+
     let bundle_script = if with_global_tauri {
       include_str!("../scripts/bundle.global.js")
     } else {
@@ -795,9 +834,13 @@ impl<R: Runtime> WindowManager<R> {
     };
 
     #[cfg(any(debug_assertions, feature = "devtools"))]
-    let hotkeys = include_str!("../scripts/toggle-devtools.js");
+    let hotkeys = ToggleDevtoolsScript {
+      os_name: std::env::consts::OS,
+    }
+    .render_default(&Default::default())?
+    .into_string();
     #[cfg(not(any(debug_assertions, feature = "devtools")))]
-    let hotkeys = "";
+    let hotkeys = String::default();
 
     InitJavascript {
       pattern_script,
@@ -813,11 +856,20 @@ impl<R: Runtime> WindowManager<R> {
           "window['_' + window.__TAURI__.transformCallback(cb) ]".into()
         )
       ),
-      core_script: include_str!("../scripts/core.js"),
+      core_script: &CoreJavascript {
+        os_name: std::env::consts::OS,
+        protocol_scheme: if self.inner.config.tauri.security.dangerous_use_http_scheme {
+          "http"
+        } else {
+          "https"
+        },
+      }
+      .render_default(&Default::default())?
+      .into_string(),
       event_initialization_script: &self.event_initialization_script(),
       plugin_initialization_script,
       freeze_prototype,
-      hotkeys,
+      hotkeys: &hotkeys,
     }
     .render_default(&Default::default())
     .map(|s| s.into_string())
@@ -915,7 +967,7 @@ impl<R: Runtime> WindowManager<R> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(app, &self.inner.config.plugins)
+      .initialize_all(app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(
@@ -1105,6 +1157,8 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
     let emit_args = WindowEmitArgs::from(event, source_window_label, payload)?;
     assert_event_name_is_valid(event);
     self

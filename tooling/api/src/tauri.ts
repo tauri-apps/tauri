@@ -17,6 +17,9 @@ declare global {
     ipc: {
       postMessage: (args: string) => void
     }
+    __TAURI__: {
+      convertFileSrc: (src: string, protocol: string) => string
+    }
   }
 }
 
@@ -127,10 +130,7 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  * @since 1.0.0
  */
 function convertFileSrc(filePath: string, protocol = 'asset'): string {
-  const path = encodeURIComponent(filePath)
-  return navigator.userAgent.includes('Windows')
-    ? `https://${protocol}.localhost/${path}`
-    : `${protocol}://localhost/${path}`
+  return window.__TAURI__.convertFileSrc(filePath, protocol)
 }
 
 export type { InvokeArgs }

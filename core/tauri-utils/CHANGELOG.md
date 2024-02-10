@@ -1,5 +1,35 @@
 # Changelog
 
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`9b230de7`](https://www.github.com/tauri-apps/tauri/commit/9b230de7bc6690c2733f5324d50b999af1f7a6ef)([#8407](https://www.github.com/tauri-apps/tauri/pull/8407)) Fix compile error when parsing config that includes float values.
+
+## \[1.5.3]
+
+### New Features
+
+- [`b3e53e72`](https://www.github.com/tauri-apps/tauri/commit/b3e53e7243311a2659b7569dddc20c56ac9f9d8e)([#8288](https://www.github.com/tauri-apps/tauri/pull/8288)) Added `Assets::iter` to iterate on all embedded assets.
+
+## \[1.5.0]
+
+### New Features
+
+- [`4dd4893d`](https://www.github.com/tauri-apps/tauri/commit/4dd4893d7d166ac3a3b6dc2e3bd2540326352a78)([#5950](https://www.github.com/tauri-apps/tauri/pull/5950)) Allow specifying resources as a map specifying source and target paths.
+
+### Enhancements
+
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Bug Fixes
+
+- [`a6b52e44`](https://www.github.com/tauri-apps/tauri/commit/a6b52e44f22844009e273fb0250368d7a463f095)([#6519](https://www.github.com/tauri-apps/tauri/pull/6519)) Fix `io::read_line` not including the new line character `\n`.
+
+### Security fixes
+
+- [`eeff1784`](https://www.github.com/tauri-apps/tauri/commit/eeff1784e1ffa568e4ba024e17dd611f8e086784)([#7367](https://www.github.com/tauri-apps/tauri/pull/7367)) Changed HTML implementation from unmaintained `kuchiki` to `kuchikiki`.
+
 ## \[1.4.0]
 
 ### New Features

@@ -53,7 +53,7 @@ pub struct Options {
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
   pub config: Option<String>,
-  /// Command line arguments passed to the runner
+  /// Command line arguments passed to the runner. Use `--` to explicitly mark the start of the arguments.
   pub args: Vec<String>,
   /// Skip prompting for values
   #[clap(long)]
@@ -320,9 +320,9 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
           // sign our path from environment variables
           let (signature_path, signature) = sign_file(&secret_key, path)?;
           if signature.keynum() != public_key.keynum() {
-            return Err(anyhow::anyhow!(
-              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`."
-            ));
+            log::warn!(
+              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key defined in `tauri.conf.json > tauri > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime."
+            );
           }
           signed_paths.push(signature_path);
         }

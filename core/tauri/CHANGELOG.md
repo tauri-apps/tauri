@@ -1,5 +1,84 @@
 # Changelog
 
+## \[1.5.4]
+
+### Enhancements
+
+- [`3c371aa8`](https://www.github.com/tauri-apps/tauri/commit/3c371aa8ee4032998f859b570702e81e26e77c6c)([#8228](https://www.github.com/tauri-apps/tauri/pull/8228)) Added `test::get_ipc_response`.
+
+### Bug Fixes
+
+- [`50a3d170`](https://www.github.com/tauri-apps/tauri/commit/50a3d170f242178d41fe7e8a3adf964541f6fe9c)([#8408](https://www.github.com/tauri-apps/tauri/pull/8408)) On Windows, fix `open` dialog `defaultPath`, when invoked from JS, not working if the path uses forward slash (`/`)
+- [`645e1dcc`](https://www.github.com/tauri-apps/tauri/commit/645e1dcc6e113564e2ddaacf9cb8338aed1a0bd0)([#8404](https://www.github.com/tauri-apps/tauri/pull/8404)) Fix NSIS updater failing to launch when using `basicUi` mode.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.3`
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-runtime@0.14.2`
+- Upgraded to `tauri-macros@1.4.3`
+
+## \[1.5.3]
+
+### Enhancements
+
+- [`b3e53e72`](https://www.github.com/tauri-apps/tauri/commit/b3e53e7243311a2659b7569dddc20c56ac9f9d8e)([#8288](https://www.github.com/tauri-apps/tauri/pull/8288)) Added `AssetResolver::iter` to iterate on all embedded assets.
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
+### Bug Fixes
+
+- [`2ba88563`](https://www.github.com/tauri-apps/tauri/commit/2ba8856343e284ed022f28cff6d16db15ad4645f)([#8095](https://www.github.com/tauri-apps/tauri/pull/8095)) Fix docs.rs build for `x86_64-apple-darwin`.
+- [`4b6a602a`](https://www.github.com/tauri-apps/tauri/commit/4b6a602a89b36f24d34d6ccd8e3c9b7ce202c9eb)([#8234](https://www.github.com/tauri-apps/tauri/pull/8234)) Escape path of the updater msi to avoid crashing on installers with spaces.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.2`
+- Upgraded to `tauri-macros@1.4.2`
+
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`21cdbb41`](https://www.github.com/tauri-apps/tauri/commit/21cdbb41a38f465148bbeb82feb3e7886c320182)([#7982](https://www.github.com/tauri-apps/tauri/pull/7982)) Set the correct `truncate` option on `OpenOptions` so that `write_file` can completely overwrite existing files.
+
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`3671edbc`](https://www.github.com/tauri-apps/tauri/commit/3671edbcff37447c95382ab4c9fd1c36a460a037)([#7937](https://www.github.com/tauri-apps/tauri/pull/7937)) Fix devtools not toggling on `ctrl+shift+i` or `cmd+alt+i` shortcuts.
+
+## \[1.5.0]
+
+### New Features
+
+- [`eeb6be54`](https://www.github.com/tauri-apps/tauri/commit/eeb6be54228f3e5463a28c68956abb06a694c010)([#7512](https://www.github.com/tauri-apps/tauri/pull/7512)) Add `tauri::Manager::emit_filter` and only serialize once when emitting to multiple windows.
+- [`6c408b73`](https://www.github.com/tauri-apps/tauri/commit/6c408b736c7aa2a0a91f0a40d45a2b7a7dedfe78)([#7269](https://www.github.com/tauri-apps/tauri/pull/7269)) Add option to specify notification sound.
+- [`fdaee9a5`](https://www.github.com/tauri-apps/tauri/commit/fdaee9a5ce988c448dd035c2050c339d275e8d15)([#7350](https://www.github.com/tauri-apps/tauri/pull/7350)) Add `tauri::plugin::Builder::register_uri_scheme_protocol`
+- [`10e362d0`](https://www.github.com/tauri-apps/tauri/commit/10e362d098c9bed48f832bad471fb2fab83ab0bb)([#7432](https://www.github.com/tauri-apps/tauri/pull/7432)) Added `UpdateBuilder::endpoints` to add request endpoints at runtime.
+- [`10e362d0`](https://www.github.com/tauri-apps/tauri/commit/10e362d098c9bed48f832bad471fb2fab83ab0bb)([#7432](https://www.github.com/tauri-apps/tauri/pull/7432)) Added `UpdateResponse::header` and `UpdateResponse::remove_header` to modify the update download request headers.
+
+### Enhancements
+
+- [`757e959e`](https://www.github.com/tauri-apps/tauri/commit/757e959eb276ed535cfddb0dea8897c56441c644)([#7344](https://www.github.com/tauri-apps/tauri/pull/7344)) Open links externally when `<base target="_blank" />` exists
+- [`c9827338`](https://www.github.com/tauri-apps/tauri/commit/c98273387c0ffbb8d0de78ce17006411a1f503ee)([#7416](https://www.github.com/tauri-apps/tauri/pull/7416)) Enhance `readDir` API error with path information.
+- [`58d6b899`](https://www.github.com/tauri-apps/tauri/commit/58d6b899e21d37bb42810890d289deb57f2273bd)([#7636](https://www.github.com/tauri-apps/tauri/pull/7636)) Add `append` option to `FsOptions` in the `fs` JS module, used in `writeTextFile` and `writeBinaryFile`, to be able to append to existing files instead of overwriting it.
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Bug Fixes
+
+- [`4bf1e85e`](https://www.github.com/tauri-apps/tauri/commit/4bf1e85e6bf85a7ec92d50c8465bc0588a6399d8)([#7722](https://www.github.com/tauri-apps/tauri/pull/7722)) Properly respect the `focused` option when creating the webview.
+- [`0797a002`](https://www.github.com/tauri-apps/tauri/commit/0797a002caad29cd8bedccf01f64bf3b45a5e528)([#7746](https://www.github.com/tauri-apps/tauri/pull/7746)) On macOS, fixed tapping on custom title bar doesn't maximize the window.
+- [`1a3dcdb8`](https://www.github.com/tauri-apps/tauri/commit/1a3dcdb8302fad511f2c1cd418fbc4cff0bd62ac)([#7185](https://www.github.com/tauri-apps/tauri/pull/7185)) On Windows, fix NSIS installers requiring administrator rights failing to be launched by updater.
+- [`fa7f9b77`](https://www.github.com/tauri-apps/tauri/commit/fa7f9b77ab8f0c890e9d7b120901610e0d3e4c46)([#7341](https://www.github.com/tauri-apps/tauri/pull/7341)) Fix updater not following endpoint redirects.
+- [`6fbd6dba`](https://www.github.com/tauri-apps/tauri/commit/6fbd6dba5290dc017ab0ba5a44cf4358b022836f)([#17](https://www.github.com/tauri-apps/tauri/pull/17)) Fix the validation of `std::env::current_exe` warn the user if AppImage is not mounted instead of panicking
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-runtime-wry@0.14.1`
+- Upgraded to `tauri-runtime@0.14.1`
+- Upgraded to `tauri-macros@1.4.1`
+
 ## \[1.4.1]
 
 ### Bug Fixes

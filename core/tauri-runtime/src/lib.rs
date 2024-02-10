@@ -252,6 +252,9 @@ pub enum Error {
   #[cfg(all(desktop, feature = "global-shortcut"))]
   #[error(transparent)]
   GlobalShortcut(Box<dyn std::error::Error + Send + Sync>),
+  #[cfg(all(desktop, feature = "clipboard"))]
+  #[error(transparent)]
+  Clipboard(Box<dyn std::error::Error + Send + Sync>),
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]

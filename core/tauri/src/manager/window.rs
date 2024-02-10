@@ -155,8 +155,8 @@ fn on_window_event<R: Runtime>(
       let has_js_listener = listeners.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT, match_label);
       if has_js_listener {
         api.prevent_close();
-        manager.emit_filter(WINDOW_CLOSE_REQUESTED_EVENT, (), match_label)?;
       }
+      manager.emit_filter(WINDOW_CLOSE_REQUESTED_EVENT, (), match_label)?;
     }
     WindowEvent::Destroyed => {
       window.emit(WINDOW_DESTROYED_EVENT, ())?;

@@ -499,17 +499,18 @@ impl<R: Runtime> WindowManager<R> {
       });
     }
 
-    let window_origin = if pending.url.scheme() == "data" {
+    let window_url = Url::parse(&pending.url).unwrap();
+    let window_origin = if window_url.scheme() == "data" {
       "null".into()
-    } else if cfg!(windows) && pending.url.scheme() != "http" && pending.url.scheme() != "https" {
+    } else if cfg!(windows) && window_url.scheme() != "http" && window_url.scheme() != "https" {
       let scheme = if pending.http_scheme { "http" } else { "https" };
-      format!("{scheme}://{}.localhost", pending.url.scheme())
+      format!("{scheme}://{}.localhost", window_url.scheme())
     } else {
       format!(
         "{}://{}{}",
-        pending.url.scheme(),
-        pending.url.host().unwrap(),
-        pending.url
+        window_url.scheme(),
+        window_url.host().unwrap(),
+        window_url
           .port()
           .map(|p| format!(":{p}"))
           .unwrap_or_default()
@@ -1006,28 +1007,34 @@ impl<R: Runtime> WindowManager<R> {
       ));
     }
 
-    #[cfg(feature = "window-data-url")]
     match (url.scheme(), tauri_utils::html::extract_html_content(url.as_str())) {
+      #[cfg(feature = "window-data-url")]
       ("data", Some(html_string)) => {
           // There is an issue with the external DataUrl where HTML containing special characters
           // are not correctly processed. A workaround is to first percent encode the html string,
           // before it processed by DataUrl.
-          let encoded_string = percent_encoding::utf8_percent_encode(&html_string, percent_encoding::NON_ALPHANUMERIC).to_string();
-          if let Ok(data_url) = data_url::DataUrl::process(&encoded_string) {
-              if let Ok((body, _)) = data_url.decode_to_vec() {
-                  let html = String::from_utf8_lossy(&body).into_owned();
+          let encoded_string = urlencoding::encode(html_string);
+          let url = data_url::DataUrl::process(&format!("data:text/html,{}", encoded_string))
+            .map_err(|_| crate::Error::InvalidWindowUrl("Failed to process data url"))
+            .and_then(|data_url| data_url.decode_to_vec().map_err(|_| crate::Error::InvalidWindowUrl("Failed to decode processed data url")))
+            .and_then(|(body, _)| {
+              let html = String::from_utf8_lossy(&body).into_owned();
                   let mut document = tauri_utils::html::parse(html);
                   if let Some(csp) = self.csp() {
                       tauri_utils::html::inject_csp(&mut document, &csp.to_string());
                   }
-                  url.set_path(&format!("text/html,{}", document.to_string()));
-              }
-          }
+              // decode back to raw html, as the content should be fully decoded
+              // when passing to wry / tauri-runtime-wry, which will be responsible
+              // for handling the encoding based on the OS.
+              let encoded_html = document.to_string();
+              Ok(percent_encoding::percent_decode_str(encoded_html.as_str()).decode_utf8_lossy().to_string())
+            }).unwrap_or(html_string.to_string());
+            pending.url = format!("data:text/html,{}", url);
       }
-      _ => {}
+      _ => {
+        pending.url = url.to_string();
+      }
   };
-
-    pending.url = url;
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {

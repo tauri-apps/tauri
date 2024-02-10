@@ -3247,28 +3247,18 @@ fn create_webview<T: UserEvent>(
     let _ = center_window(&window, window.inner_size());
   }
 
-  let url_str = url.to_string();
-
   let mut webview_builder =
       WebViewBuilder::new(window).map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   // use with_html method if html content can be extracted from url.
   // else defaults to with_url method
-  webview_builder = if let Some(html_string) = tauri_utils::html::extract_html_content(&url_str) {
-      // we run a decode here on the html_string for sanity check
-      // the content should be fully decoded when passing to WRY, which
-      // will be responsible for handling the encoding based on the OS.
-      let html =
-          percent_encoding::percent_decode_str(html_string)
-            .decode_utf8()
-            .map_err(|e| Error::CreateWebview(Box::new(e)))?;
-
+  webview_builder = if let Some(html_string) = tauri_utils::html::extract_html_content(&url) {
       webview_builder
-          .with_html(html)
+          .with_html(html_string)
           .map_err(|e| Error::CreateWebview(Box::new(e)))?
   } else {
       webview_builder
-          .with_url(&url_str)
+          .with_url(&url)
           .map_err(|e| Error::CreateWebview(Box::new(e)))?
   };
 

@@ -294,9 +294,9 @@ pub fn is_html(data_string: &str) -> bool {
 /// Temporary naive method to extract data from html data string
 pub fn extract_html_content(input: &str) -> Option<&str> {
   if input.starts_with("data:text/html,") {
-      Some(&input[15..])
+    Some(&input[15..])
   } else {
-      None
+    None
   }
 }
 

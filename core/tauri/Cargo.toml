@@ -359,8 +359,3 @@ path = "../../examples/streaming/main.rs"
 name = "isolation"
 path = "../../examples/isolation/main.rs"
 required-features = [ "isolation" ]
-
-[[example]]
-name = "data-url"
-path = "../../examples/data-url/main.rs"
-required-features = [ "window-data-url" ]

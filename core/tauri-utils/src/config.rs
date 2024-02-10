@@ -63,7 +63,7 @@ pub enum WindowUrl {
 impl fmt::Display for WindowUrl {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::External(url)=> write!(f, "{url}"),
+      Self::External(url) => write!(f, "{url}"),
       #[cfg(feature = "window-data-url")]
       Self::DataUrl(url) => write!(f, "{url}"),
       Self::App(path) => write!(f, "{}", path.display()),

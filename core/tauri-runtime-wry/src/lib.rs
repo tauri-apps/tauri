@@ -3248,24 +3248,24 @@ fn create_webview<T: UserEvent>(
   }
 
   let mut webview_builder =
-      WebViewBuilder::new(window).map_err(|e| Error::CreateWebview(Box::new(e)))?;
+    WebViewBuilder::new(window).map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   // use with_html method if html content can be extracted from url.
   // else defaults to with_url method
   webview_builder = if let Some(html_string) = tauri_utils::html::extract_html_content(&url) {
-      webview_builder
-          .with_html(html_string)
-          .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    webview_builder
+      .with_html(html_string)
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
   } else {
-      webview_builder
-          .with_url(&url)
-          .map_err(|e| Error::CreateWebview(Box::new(e)))?
+    webview_builder
+      .with_url(&url)
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
   };
 
   webview_builder = webview_builder
-      .with_focused(focused)
-      .with_transparent(is_window_transparent)
-      .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+    .with_focused(focused)
+    .with_transparent(is_window_transparent)
+    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
 
   if webview_attributes.file_drop_handler_enabled {
     webview_builder = webview_builder

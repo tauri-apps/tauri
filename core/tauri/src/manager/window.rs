@@ -131,7 +131,8 @@ impl<R: Runtime> WindowManager<R> {
 }
 
 impl<R: Runtime> Window<R> {
-  fn emit_self<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+  /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
+  fn emit_to_window<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     let window_label = self.label();
     self.emit_filter(event, payload, |target| match target {
       EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
@@ -139,6 +140,7 @@ impl<R: Runtime> Window<R> {
     })
   }
 
+  /// Checks whether has js listener for [`EventTarget::Window`] or [`EventTarget::WebviewWindow`]
   fn has_js_listener(&self, event: &str) -> bool {
     let window_label = self.label();
     let listeners = self.manager().listeners();
@@ -161,16 +163,16 @@ fn on_window_event<R: Runtime>(
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit_self(WINDOW_RESIZED_EVENT, size)?,
-    WindowEvent::Moved(position) => window.emit_self(WINDOW_MOVED_EVENT, position)?,
+    WindowEvent::Resized(size) => window.emit_to_window(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit_to_window(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested { api } => {
       if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) {
         api.prevent_close();
       }
-      window.emit_self(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit_to_window(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit_self(WINDOW_DESTROYED_EVENT, ())?;
+      window.emit_to_window(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
       let webviews_map = manager.webview.webviews_lock();
       let webviews = webviews_map.values();
@@ -180,7 +182,7 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit_self(
+    WindowEvent::Focused(focused) => window.emit_to_window(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
@@ -192,7 +194,7 @@ fn on_window_event<R: Runtime>(
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit_self(
+    } => window.emit_to_window(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
       ScaleFactorChanged {
         scale_factor: *scale_factor,
@@ -202,7 +204,7 @@ fn on_window_event<R: Runtime>(
     WindowEvent::FileDrop(event) => match event {
       FileDropEvent::Hovered { paths, position } => {
         let payload = FileDropPayload { paths, position };
-        window.emit_self(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
+        window.emit_to_window(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
       }
       FileDropEvent::Dropped { paths, position } => {
         let scopes = window.state::<Scopes>();
@@ -214,13 +216,13 @@ fn on_window_event<R: Runtime>(
           }
         }
         let payload = FileDropPayload { paths, position };
-        window.emit_self(WINDOW_FILE_DROP_EVENT, payload)?
+        window.emit_to_window(WINDOW_FILE_DROP_EVENT, payload)?
       }
-      FileDropEvent::Cancelled => window.emit_self(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
+      FileDropEvent::Cancelled => window.emit_to_window(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
     },
     WindowEvent::ThemeChanged(theme) => {
-      window.emit_self(WINDOW_THEME_CHANGED, theme.to_string())?
+      window.emit_to_window(WINDOW_THEME_CHANGED, theme.to_string())?
     }
   }
   Ok(())

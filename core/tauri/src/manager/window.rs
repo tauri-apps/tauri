@@ -130,6 +130,27 @@ impl<R: Runtime> WindowManager<R> {
   }
 }
 
+impl<R: Runtime> Window<R> {
+  /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
+  fn emit_to_window<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    let window_label = self.label();
+    self.emit_filter(event, payload, |target| match target {
+      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
+      _ => false,
+    })
+  }
+
+  /// Checks whether has js listener for [`EventTarget::Window`] or [`EventTarget::WebviewWindow`]
+  fn has_js_listener(&self, event: &str) -> bool {
+    let window_label = self.label();
+    let listeners = self.manager().listeners();
+    listeners.has_js_listener(event, |target| match target {
+      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
+      _ => false,
+    })
+  }
+}
+
 #[derive(Serialize, Clone)]
 struct FileDropPayload<'a> {
   paths: &'a Vec<PathBuf>,
@@ -142,24 +163,16 @@ fn on_window_event<R: Runtime>(
   event: &WindowEvent,
 ) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
-    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
+    WindowEvent::Resized(size) => window.emit_to_window(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit_to_window(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested { api } => {
-      let listeners = window.manager().listeners();
-      let has_js_listener =
-        listeners.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT, |target| match target {
-          EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
-            label == window.label()
-          }
-          _ => false,
-        });
-      if has_js_listener {
+      if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) {
         api.prevent_close();
       }
-      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit_to_window(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit(WINDOW_DESTROYED_EVENT, ())?;
+      window.emit_to_window(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
       let webviews_map = manager.webview.webviews_lock();
       let webviews = webviews_map.values();
@@ -169,7 +182,7 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit(
+    WindowEvent::Focused(focused) => window.emit_to_window(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
@@ -181,7 +194,7 @@ fn on_window_event<R: Runtime>(
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit(
+    } => window.emit_to_window(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
       ScaleFactorChanged {
         scale_factor: *scale_factor,
@@ -191,7 +204,7 @@ fn on_window_event<R: Runtime>(
     WindowEvent::FileDrop(event) => match event {
       FileDropEvent::Hovered { paths, position } => {
         let payload = FileDropPayload { paths, position };
-        window.emit(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
+        window.emit_to_window(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
       }
       FileDropEvent::Dropped { paths, position } => {
         let scopes = window.state::<Scopes>();
@@ -203,12 +216,14 @@ fn on_window_event<R: Runtime>(
           }
         }
         let payload = FileDropPayload { paths, position };
-        window.emit(WINDOW_FILE_DROP_EVENT, payload)?
+        window.emit_to_window(WINDOW_FILE_DROP_EVENT, payload)?
       }
-      FileDropEvent::Cancelled => window.emit(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
+      FileDropEvent::Cancelled => window.emit_to_window(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
     },
-    WindowEvent::ThemeChanged(theme) => window.emit(WINDOW_THEME_CHANGED, theme.to_string())?,
+    WindowEvent::ThemeChanged(theme) => {
+      window.emit_to_window(WINDOW_THEME_CHANGED, theme.to_string())?
+    }
   }
   Ok(())
 }

@@ -183,8 +183,8 @@ async function emit(event: string, payload?: unknown): Promise<void> {
  *
  * @example
  * ```typescript
- * import { emit } from '@tauri-apps/api/event';
- * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * import { emitTo } from '@tauri-apps/api/event';
+ * await emitTo('main', 'frontend-loaded', { loggedIn: true, token: 'authToken' });
  * ```
  *
  * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.

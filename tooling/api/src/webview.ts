@@ -297,7 +297,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * await getCurrent().emitTo('main', 'webview-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    *
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.

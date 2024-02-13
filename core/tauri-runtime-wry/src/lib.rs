@@ -2568,7 +2568,14 @@ fn handle_user_message<T: UserEvent>(
           }
           // Setters
           WindowMessage::Center => {
-            let _ = center_window(&window, inner_size(&window, &webviews, has_children));
+            if let Some(monitor) = window.current_monitor() {
+              let window_size = inner_size(&window, &webviews, has_children);
+              let screen_size = monitor.size();
+              let monitor_pos = monitor.position();
+              let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
+              let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
+              window.set_outer_position(TaoPhysicalPosition::new(x, y));
+            }
           }
           WindowMessage::RequestUserAttention(request_type) => {
             window.request_user_attention(request_type.map(|r| r.0));
@@ -3129,22 +3136,6 @@ fn on_window_close(window_id: WindowId, windows: Rc<RefCell<HashMap<WindowId, Wi
   }
 }
 
-pub fn center_window(window: &Window, window_size: TaoPhysicalSize<u32>) -> Result<()> {
-  if let Some(monitor) = window.current_monitor() {
-    let screen_size = monitor.size();
-    let monitor_pos = monitor.position();
-    let x = (screen_size.width as i32 - window_size.width as i32) / 2;
-    let y = (screen_size.height as i32 - window_size.height as i32) / 2;
-    window.set_outer_position(TaoPhysicalPosition::new(
-      monitor_pos.x + x,
-      monitor_pos.y + y,
-    ));
-    Ok(())
-  } else {
-    Err(Error::FailedToGetMonitor)
-  }
-}
-
 fn parse_proxy_url(url: &Url) -> Result<ProxyConfig> {
   let host = url.host().map(|h| h.to_string()).unwrap_or_default();
   let port = url.port().map(|p| p.to_string()).unwrap_or_default();
@@ -3199,6 +3190,47 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   }
 
+  #[cfg(desktop)]
+  if window_builder.center {
+    let monitor = if let Some(position) = &window_builder.inner.window.position {
+      event_loop.available_monitors().find(|m| {
+        let pos = m.position();
+        let (x, y) = (pos.x, pos.y);
+        let size = m.size();
+        let (width, height) = (size.width, size.height);
+
+        let position = position.to_logical(m.scale_factor());
+
+        x <= position.x
+          && position.x <= x + width as i32
+          && y <= position.y
+          && position.y <= y + height as i32
+      })
+    } else {
+      event_loop.primary_monitor()
+    };
+
+    if let Some(monitor) = monitor {
+      let desired_size = window_builder
+        .inner
+        .window
+        .inner_size
+        .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
+      let window_size = window_builder
+        .inner
+        .window
+        .inner_size_constraints
+        .clamp(desired_size, monitor.scale_factor())
+        .to_logical::<i32>(monitor.scale_factor());
+      let screen_size = monitor.size();
+      let monitor_pos = monitor.position();
+      let x = (screen_size.width as i32 - window_size.width) / 2 + monitor_pos.x;
+      let y = (screen_size.height as i32 - window_size.height) / 2 + monitor_pos.y;
+
+      window_builder = window_builder.position(x as f64, y as f64);
+    }
+  }
+
   let window = window_builder.inner.build(event_loop).unwrap();
 
   #[cfg(feature = "tracing")]
@@ -3217,10 +3249,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   context.webview_id_map.insert(window.id(), window_id);
-
-  if window_builder.center {
-    let _ = center_window(&window, window.inner_size());
-  }
 
   if let Some(handler) = after_window_creation {
     let raw = RawWindow {

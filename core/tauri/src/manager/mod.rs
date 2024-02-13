@@ -487,16 +487,11 @@ impl<R: Runtime> AppManager<R> {
 
     let listeners = self.listeners();
 
-    listeners.try_for_each_js(
-      event,
+    listeners.emit_js_filter(
       self.webview.webviews_lock().values(),
-      |webview, target| {
-        if filter(target) {
-          webview.emit_js(&emit_args, target)
-        } else {
-          Ok(())
-        }
-      },
+      event,
+      &emit_args,
+      Some(&filter),
     )?;
 
     listeners.emit_filter(emit_args, Some(filter))?;
@@ -513,12 +508,7 @@ impl<R: Runtime> AppManager<R> {
 
     let listeners = self.listeners();
 
-    listeners.try_for_each_js(
-      event,
-      self.webview.webviews_lock().values(),
-      |webview, target| webview.emit_js(&emit_args, target),
-    )?;
-
+    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())

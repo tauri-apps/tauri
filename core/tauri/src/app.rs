@@ -1428,12 +1428,8 @@ tauri::Builder::default()
   /// ```
   /// tauri::Builder::default()
   ///   .on_webview_event(|window, event| match event {
-  ///     tauri::WebviewEvent::Focused(focused) => {
-  ///       if focused {
-  ///         println!("webview focused");
-  ///       } else {
-  ///         println!("webview lost focus");
-  ///       }
+  ///     tauri::WebviewEvent::FileDrop(event) => {
+  ///       println!("{:?}", event);
   ///     }
   ///     _ => {}
   ///   });

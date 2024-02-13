@@ -2107,7 +2107,7 @@ impl<T: UserEvent> Wry<T> {
     let window_id_map = WindowIdStore::default();
 
     let context = Context {
-      window_id_map: window_id_map,
+      window_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
       main_thread: DispatcherMainThreadContext {

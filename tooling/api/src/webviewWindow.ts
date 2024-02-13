@@ -56,7 +56,7 @@ class WebviewWindow {
    * Creates a new {@link Window} hosting a {@link Webview}.
    * @example
    * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/webview'
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
    * const webview = new WebviewWindow('my-label', {
    *   url: 'https://github.com/tauri-apps/tauri'
    * });
@@ -101,7 +101,7 @@ class WebviewWindow {
    * Gets the Webview for the webview associated with the given label.
    * @example
    * ```typescript
-   * import { Webview } from '@tauri-apps/api/webview';
+   * import { Webview } from '@tauri-apps/api/webviewWindow';
    * const mainWebview = Webview.getByLabel('main');
    * ```
    *
@@ -137,7 +137,7 @@ class WebviewWindow {
    *
    * @example
    * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/webview';
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
    * const unlisten = await WebviewWindow.getCurrent().listen<string>('state-changed', (event) => {
    *   console.log(`Got error: ${payload}`);
    * });
@@ -172,7 +172,7 @@ class WebviewWindow {
    *
    * @example
    * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/webview';
+   * import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
    * const unlisten = await WebviewWindow.getCurrent().once<null>('initialized', (event) => {
    *   console.log(`Webview initialized!`);
    * });

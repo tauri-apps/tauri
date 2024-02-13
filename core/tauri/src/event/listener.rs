@@ -301,7 +301,7 @@ impl Listeners {
     webviews.try_for_each(|webview| {
       if let Some(handlers) = listeners.get(webview.label()).and_then(|s| s.get(event)) {
         for JsHandler { target, .. } in handlers {
-          if *target == EventTarget::Any || filter.as_ref().map(|f| f(&target)).unwrap_or(false) {
+          if *target == EventTarget::Any || filter.as_ref().map(|f| f(target)).unwrap_or(false) {
             webview.emit_js(emit_args, target)?;
           }
         }

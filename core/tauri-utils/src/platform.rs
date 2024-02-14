@@ -240,13 +240,10 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   let curr_dir = exe_dir.display().to_string();
 
   let parts: Vec<&str> = curr_dir.split(MAIN_SEPARATOR).collect();
-
-  if (cfg!(target_os = "windows") || parts.contains(&"target"))
-    && (parts[parts.len() - 1] == "debug" || parts[parts.len() - 1] == "release")
-    && (parts[parts.len() - 2] == "target"
-      || parts
-        .get(parts.len() - 3)
-        .map_or(false, |&dir| dir == "target"))
+  let len = parts.len();
+  if cfg!(target_os = "windows")
+    || ((len >= 2 && parts[len - 2] == "target") || (len >= 3 && parts[len - 3] == "target"))
+      && (parts[len - 1] == "debug" || parts[len - 1] == "release")
   {
     // running from the out dir or windows
     return Ok(exe_dir.to_path_buf());

@@ -1886,6 +1886,9 @@ pub struct WindowWrapper {
   has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
+  #[cfg(windows)]
+  is_window_fullscreen: bool,
+  #[cfg(windows)]
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -1896,7 +1899,6 @@ impl fmt::Debug for WindowWrapper {
     f.debug_struct("WindowWrapper")
       .field("label", &self.label)
       .field("inner", &self.inner)
-      .field("is_window_transparent", &self.is_window_transparent)
       .finish()
   }
 }
@@ -2619,6 +2621,9 @@ fn handle_user_message<T: UserEvent>(
             } else {
               window.set_fullscreen(None)
             }
+            if let Some(w) = windows.borrow_mut().get_mut(&id) {
+              w.is_window_fullscreen = fullscreen;
+            }
           }
           WindowMessage::SetFocus => {
             window.set_focus();
@@ -2844,7 +2849,12 @@ fn handle_user_message<T: UserEvent>(
     },
     Message::CreateRawWindow(window_id, handler, sender) => {
       let (label, builder) = handler();
+
+      #[cfg(windows)]
+      let is_window_fullscreen = builder.window.fullscreen.is_some();
+      #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
+
       if let Ok(window) = builder.build(event_loop) {
         webview_id_map.insert(window.id(), window_id);
 
@@ -2874,6 +2884,9 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(window.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
+            #[cfg(windows)]
+            is_window_fullscreen,
+            #[cfg(windows)]
             is_window_transparent,
             #[cfg(windows)]
             surface,
@@ -3183,7 +3196,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let window_event_listeners = WindowEventListeners::default();
 
+  #[cfg(windows)]
   let is_window_transparent = window_builder.inner.window.transparent;
+  #[cfg(windows)]
+  let is_window_fullscreen = window_builder.inner.window.fullscreen.is_some();
 
   #[cfg(target_os = "macos")]
   {
@@ -3280,6 +3296,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     inner: Some(window),
     webviews,
     window_event_listeners,
+    #[cfg(windows)]
+    is_window_fullscreen,
+    #[cfg(windows)]
     is_window_transparent,
     #[cfg(windows)]
     surface,

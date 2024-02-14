@@ -1,5 +1,25 @@
 # Changelog
 
+## \[1.5.0]
+
+### New Features
+
+- [`7aa30dec`](https://www.github.com/tauri-apps/tauri/commit/7aa30dec85a17c3d3faaf3841b93e10991b991b0)([#8620](https://www.github.com/tauri-apps/tauri/pull/8620)) Add `priority`, `section` and `changelog` options in Debian config.
+- [`89911296`](https://www.github.com/tauri-apps/tauri/commit/89911296e475d5c36f3486b9b75232505846e767)([#8259](https://www.github.com/tauri-apps/tauri/pull/8259)) On macOS, support for signing nested .dylib, .app, .xpc and .framework under predefined directories inside the bundled frameworks ("MacOS", "Frameworks", "Plugins", "Helpers", "XPCServices" and "Libraries").
+- [`8ce51cec`](https://www.github.com/tauri-apps/tauri/commit/8ce51cec3baf4ed88d80c59bf3bbe96fd369c7a0)([#7718](https://www.github.com/tauri-apps/tauri/pull/7718)) On Windows, NSIS installer now supports `/ARGS` flag to pass arguments to be used when launching the app after installation, only works if `/R` is used.
+
+### Enhancements
+
+- [`06890c70`](https://www.github.com/tauri-apps/tauri/commit/06890c70c643516b4e8037af87c8ee9103b977fa)([#8611](https://www.github.com/tauri-apps/tauri/pull/8611)) Support using socks proxy from environment when downloading files.
+
+### Bug Fixes
+
+- [`6bdba1f3`](https://www.github.com/tauri-apps/tauri/commit/6bdba1f330bedb5cdeda49eca1e295f281eb82eb)([#8585](https://www.github.com/tauri-apps/tauri/pull/8585)) Fix the `non-standard-file-perm` and `non-standard-dir-perm` issue in Debian packages
+
+### Dependencies
+
+- [`49266487`](https://www.github.com/tauri-apps/tauri/commit/4926648751ddbf764b8ffc46f3adc218afb2d472)([#8618](https://www.github.com/tauri-apps/tauri/pull/8618)) Replace `libflate` with `flate2` , this will help to provide additional functionalities and features.
+
 ## \[1.4.8]
 
 ### Enhancements

@@ -300,7 +300,10 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
         ignore_builder.add(dir.join(ignore_file));
       }
 
-      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE
+        .lines()
+        .map_while(Result::ok)
+      {
         let _ = ignore_builder.add_line(None, &line);
       }
 

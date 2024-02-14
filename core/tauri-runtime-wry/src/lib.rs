@@ -5,7 +5,7 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::rc::Rc;
+use std::{collections::BTreeMap, rc::Rc};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
@@ -269,7 +269,7 @@ pub enum ActiveTracingSpan {
 }
 
 #[derive(Debug)]
-pub struct WindowsStore(RefCell<HashMap<WebviewId, WindowWrapper>>);
+pub struct WindowsStore(RefCell<BTreeMap<WebviewId, WindowWrapper>>);
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
@@ -1985,7 +1985,8 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager = Rc::new(Mutex::new(WryShortcutManager::new(&event_loop)));
 
-    let windows = Arc::new(WindowsStore(RefCell::new(HashMap::default())));
+    let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
+
     let webview_id_map = WebviewIdStore::default();
 
     #[cfg(all(desktop, feature = "system-tray"))]

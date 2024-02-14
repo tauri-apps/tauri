@@ -2621,6 +2621,7 @@ fn handle_user_message<T: UserEvent>(
             } else {
               window.set_fullscreen(None)
             }
+            #[cfg(windows)]
             if let Some(w) = windows.borrow_mut().get_mut(&id) {
               w.is_window_fullscreen = fullscreen;
             }

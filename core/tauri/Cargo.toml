@@ -46,7 +46,7 @@ targets = [
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "reqwest" ]
+normal = [ "reqwest", "nix" ]
 
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value", "preserve_order" ] }
@@ -105,6 +105,7 @@ notify-rust = { version = "4.5", optional = true }
 gtk = { version = "0.15", features = [ "v3_20" ] }
 glib = "0.15"
 webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] }
+nix = { version = "0.26.0", default-features = false, features = [ "user", "socket", "uio" ], optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -173,7 +174,7 @@ global-shortcut = [
 ]
 clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
 dialog = [ "rfd" ]
-notification = [ "notify-rust" ]
+notification = [ "notify-rust", "nix" ]
 cli = [ "clap" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]

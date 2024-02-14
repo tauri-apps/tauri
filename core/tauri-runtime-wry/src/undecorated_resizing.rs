@@ -66,10 +66,10 @@ fn hit_test(
   let right = left + width as WindowPositions;
 
   #[rustfmt::skip]
-  let result = LEFT * (x < left + border_x) as isize
-             | RIGHT * (x >= right - border_x) as isize
-             | TOP * (y < top + border_y) as isize
-             | BOTTOM * (y >= bottom - border_y) as isize;
+  let result = (LEFT * (x < left + border_x) as isize)
+             | (RIGHT * (x >= right - border_x) as isize)
+             | (TOP * (y < top + border_y) as isize)
+             | (BOTTOM * (y >= bottom - border_y) as isize);
 
   match result {
     CLIENT => HitTestResult::Client,
@@ -146,7 +146,7 @@ mod windows {
         // if not on an edge, don't change the cursor, otherwise we cause flickering
         _ => return,
       };
-      let _ = window.set_cursor_icon(cursor);
+      window.set_cursor_icon(cursor);
     }
   }
 
@@ -170,7 +170,7 @@ mod windows {
             let padded_border = unsafe { GetSystemMetrics(SM_CXPADDEDBORDER) };
             let border_x = unsafe { GetSystemMetrics(SM_CXFRAME) + padded_border };
             let border_y = unsafe { GetSystemMetrics(SM_CYFRAME) + padded_border };
-            hit_test(size.width, size.height, x, y, border_x, border_y).change_cursor(&w);
+            hit_test(size.width, size.height, x, y, border_x, border_y).change_cursor(w);
           }
         }
       }
@@ -191,7 +191,7 @@ mod windows {
             let padded_border = unsafe { GetSystemMetrics(SM_CXPADDEDBORDER) };
             let border_x = unsafe { GetSystemMetrics(SM_CXFRAME) + padded_border };
             let border_y = unsafe { GetSystemMetrics(SM_CYFRAME) + padded_border };
-            hit_test(size.width, size.height, x, y, border_x, border_y).drag_resize_window(&w);
+            hit_test(size.width, size.height, x, y, border_x, border_y).drag_resize_window(w);
           }
         }
       }

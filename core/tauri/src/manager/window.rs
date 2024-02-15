@@ -212,7 +212,7 @@ fn on_window_event<R: Runtime>(
           if path.is_file() {
             let _ = scopes.allow_file(path);
           } else {
-            let _ = scopes.allow_directory(path, false);
+            let _ = scopes.allow_directory(path, true);
           }
         }
         let payload = FileDropPayload { paths, position };

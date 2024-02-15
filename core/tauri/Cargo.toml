@@ -96,7 +96,6 @@ encoding_rs = "0.8.31"
 sys-locale = { version = "0.2.3", optional = true }
 tracing = { version = "0.1", optional = true }
 indexmap = { version = "1", features = [ "std", "serde" ], optional = true }
-urlencoding = "2.1.3"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] }

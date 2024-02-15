@@ -174,7 +174,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
 pub struct MockDispatcher {
   id: WindowId,
   context: RuntimeContext,
-  url: url::Url,
+  url: String,
   last_evaluated_script: Arc<Mutex<Option<String>>>,
 }
 
@@ -417,7 +417,7 @@ impl<T: UserEvent> Dispatch<T> for MockDispatcher {
   }
 
   fn url(&self) -> Result<url::Url> {
-    Ok(self.url.clone())
+    self.url.parse().map_err(|_| Error::FailedToReceiveMessage)
   }
 
   fn scale_factor(&self) -> Result<f64> {

@@ -1016,7 +1016,7 @@ impl<R: Runtime> WindowManager<R> {
         // There is an issue with the external DataUrl where HTML containing special characters
         // are not correctly processed. A workaround is to first percent encode the html string,
         // before it processed by DataUrl.
-        let encoded_string = urlencoding::encode(html_string);
+        let encoded_string = percent_encoding::utf8_percent_encode(html_string, percent_encoding::NON_ALPHANUMERIC).to_string();
         let url = data_url::DataUrl::process(&format!("data:text/html,{}", encoded_string))
           .map_err(|_| crate::Error::InvalidWindowUrl("Failed to process data url"))
           .and_then(|data_url| {

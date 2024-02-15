@@ -135,7 +135,9 @@ impl<R: Runtime> Window<R> {
   fn emit_to_window<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     let window_label = self.label();
     self.emit_filter(event, payload, |target| match target {
-      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
+      EventTarget::Window { label }
+        | EventTarget::Webview { label }
+        | EventTarget::WebviewWindow { label } => label == window_label,
       _ => false,
     })
   }
@@ -145,7 +147,9 @@ impl<R: Runtime> Window<R> {
     let window_label = self.label();
     let listeners = self.manager().listeners();
     listeners.has_js_listener(event, |target| match target {
-      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
+      EventTarget::Window { label }
+        | EventTarget::Webview { label }
+        | EventTarget::WebviewWindow { label } => label == window_label,
       _ => false,
     })
   }

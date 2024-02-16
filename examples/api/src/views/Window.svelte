@@ -8,7 +8,7 @@
     EffectState,
     ProgressBarStatus
   } from '@tauri-apps/api/window'
-  import { WebviewWindow } from '@tauri-apps/api/webview'
+  import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
   const webview = WebviewWindow.getCurrent()
 

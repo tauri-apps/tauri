@@ -73,12 +73,12 @@ enum ValidByte {
 }
 
 impl ValidByte {
-  fn lower_alpha(byte: u8) -> Option<Self> {
-    byte.is_ascii_lowercase().then_some(Self::Byte(byte))
+  fn alpha_numeric(byte: u8) -> Option<Self> {
+    byte.is_ascii_alphanumeric().then_some(Self::Byte(byte))
   }
 
-  fn lower_alpha_hyphen(byte: u8) -> Option<Self> {
-    matches!(byte, b'a'..=b'z' | b'-').then_some(Self::Byte(byte))
+  fn alpha_numeric_hyphen(byte: u8) -> Option<Self> {
+    (byte.is_ascii_alphanumeric() || byte == b'-').then_some(Self::Byte(byte))
   }
 
   fn next(&self, next: u8) -> Option<ValidByte> {
@@ -87,9 +87,9 @@ impl ValidByte {
       (ValidByte::Separator, b'-') => None,
 
       (_, IDENTIFIER_SEPARATOR) => Some(ValidByte::Separator),
-      (ValidByte::Separator, next) => ValidByte::lower_alpha(next),
-      (ValidByte::Byte(b'-'), next) => ValidByte::lower_alpha(next),
-      (ValidByte::Byte(_), next) => ValidByte::lower_alpha_hyphen(next),
+      (ValidByte::Separator, next) => ValidByte::alpha_numeric(next),
+      (ValidByte::Byte(b'-'), next) => ValidByte::alpha_numeric(next),
+      (ValidByte::Byte(_), next) => ValidByte::alpha_numeric_hyphen(next),
     }
   }
 }
@@ -149,7 +149,7 @@ impl TryFrom<String> for Identifier {
     // grab the first byte only before parsing the rest
     let mut prev = bytes
       .next()
-      .and_then(ValidByte::lower_alpha)
+      .and_then(ValidByte::alpha_numeric)
       .ok_or(Self::Error::InvalidFormat)?;
 
     let mut idx = 0;
@@ -222,6 +222,8 @@ mod tests {
   #[test]
   fn format() {
     assert!(ident("prefix:base").is_ok());
+    assert!(ident("prefix3:base").is_ok());
+    assert!(ident("preFix:base").is_ok());
 
     // bad
     assert!(ident("tauri-plugin-prefix:base").is_err());

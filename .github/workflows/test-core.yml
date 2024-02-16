@@ -94,7 +94,7 @@ jobs:
       - name: test (using cross)
         if: ${{ matrix.platform.cross }}
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross
+          cargo install cross --git https://github.com/cross-rs/cross --locked
           cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
 
       - name: test (using cargo)

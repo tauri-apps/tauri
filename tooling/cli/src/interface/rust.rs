@@ -302,7 +302,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       for line in crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE
         .lines()
-        .flatten()
+        .map_while(Result::ok)
       {
         let _ = ignore_builder.add_line(None, &line);
       }

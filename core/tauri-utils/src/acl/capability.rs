@@ -60,7 +60,15 @@ pub struct Capability {
   #[serde(default)]
   pub context: CapabilityContext,
   /// List of windows that uses this capability. Can be a glob pattern.
+  ///
+  /// On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.
   pub windows: Vec<String>,
+  /// List of webviews that uses this capability. Can be a glob pattern.
+  ///
+  /// This is only required when using on multiwebview contexts, by default
+  /// all child webviews of a window that matches [`Self::windows`] are linked.
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
+  pub webviews: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms applies.

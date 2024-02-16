@@ -65,6 +65,13 @@ pub enum WindowEvent {
   ThemeChanged(Theme),
 }
 
+/// An event from a window.
+#[derive(Debug, Clone)]
+pub enum WebviewEvent {
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+}
+
 /// The file drop event payload.
 #[derive(Debug, Clone)]
 #[non_exhaustive]

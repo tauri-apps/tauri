@@ -206,7 +206,9 @@ pub use self::utils::TitleBarStyle;
 
 pub use self::event::{Event, EventId, EventTarget};
 pub use {
-  self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
+  self::app::{
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
+  },
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,
@@ -713,21 +715,23 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     #[cfg(feature = "tracing")]
     tracing::Span::current().record("target", format!("{target:?}"));
 
-    self.manager().emit_filter(event, payload, |s| match s {
-      t @ EventTarget::Window { label }
-      | t @ EventTarget::Webview { label }
-      | t @ EventTarget::WebviewWindow { label } => {
-        if let EventTarget::AnyLabel {
-          label: target_label,
-        } = &target
-        {
-          label == target_label
-        } else {
-          t == &target
-        }
-      }
-      t => t == &target,
-    })
+    match target {
+      // if targeting all, emit to all using emit without filter
+      EventTarget::Any => self.manager().emit(event, payload),
+
+      // if targeting any label, emit using emit_filter and filter labels
+      EventTarget::AnyLabel {
+        label: target_label,
+      } => self.manager().emit_filter(event, payload, |t| match t {
+        EventTarget::Window { label }
+        | EventTarget::Webview { label }
+        | EventTarget::WebviewWindow { label } => label == &target_label,
+        _ => false,
+      }),
+
+      // otherwise match same target
+      _ => self.manager().emit_filter(event, payload, |t| t == &target),
+    }
   }
 
   /// Emits an event to all [targets](EventTarget) based on the given filter.

@@ -23,8 +23,6 @@ use crate::{
   Icon, Manager, Runtime, Scopes, Window, WindowEvent,
 };
 
-use super::AppManager;
-
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
 const WINDOW_MOVED_EVENT: &str = "tauri://move";
 const WINDOW_CLOSE_REQUESTED_EVENT: &str = "tauri://close-requested";
@@ -33,9 +31,9 @@ const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
-const WINDOW_FILE_DROP_EVENT: &str = "tauri://file-drop";
-const WINDOW_FILE_DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
-const WINDOW_FILE_DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
+pub const DROP_EVENT: &str = "tauri://file-drop";
+pub const DROP_HOVER_EVENT: &str = "tauri://file-drop-hover";
+pub const DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
@@ -93,9 +91,8 @@ impl<R: Runtime> WindowManager<R> {
 
     let window_ = window.clone();
     let window_event_listeners = self.event_listeners.clone();
-    let manager = window.manager.clone();
     window.on_window_event(move |event| {
-      let _ = on_window_event(&window_, &manager, event);
+      let _ = on_window_event(&window_, event);
       for handler in window_event_listeners.iter() {
         handler(&window_, event);
       }
@@ -128,38 +125,47 @@ impl<R: Runtime> WindowManager<R> {
   }
 }
 
-#[derive(Serialize, Clone)]
-struct FileDropPayload<'a> {
-  paths: &'a Vec<PathBuf>,
-  position: &'a PhysicalPosition<f64>,
+impl<R: Runtime> Window<R> {
+  /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
+  fn emit_to_window<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    let window_label = self.label();
+    self.emit_filter(event, payload, |target| match target {
+      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
+      _ => false,
+    })
+  }
+
+  /// Checks whether has js listener for [`EventTarget::Window`] or [`EventTarget::WebviewWindow`]
+  fn has_js_listener(&self, event: &str) -> bool {
+    let window_label = self.label();
+    let listeners = self.manager().listeners();
+    listeners.has_js_listener(event, |target| match target {
+      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
+      _ => false,
+    })
+  }
 }
 
-fn on_window_event<R: Runtime>(
-  window: &Window<R>,
-  manager: &AppManager<R>,
-  event: &WindowEvent,
-) -> crate::Result<()> {
+#[derive(Serialize, Clone)]
+pub struct FileDropPayload<'a> {
+  pub paths: &'a Vec<PathBuf>,
+  pub position: &'a PhysicalPosition<f64>,
+}
+
+fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate::Result<()> {
   match event {
-    WindowEvent::Resized(size) => window.emit(WINDOW_RESIZED_EVENT, size)?,
-    WindowEvent::Moved(position) => window.emit(WINDOW_MOVED_EVENT, position)?,
+    WindowEvent::Resized(size) => window.emit_to_window(WINDOW_RESIZED_EVENT, size)?,
+    WindowEvent::Moved(position) => window.emit_to_window(WINDOW_MOVED_EVENT, position)?,
     WindowEvent::CloseRequested { api } => {
-      let listeners = window.manager().listeners();
-      let has_js_listener =
-        listeners.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT, |target| match target {
-          EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
-            label == window.label()
-          }
-          _ => false,
-        });
-      if has_js_listener {
+      if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) {
         api.prevent_close();
       }
-      window.emit(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit_to_window(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
     }
     WindowEvent::Destroyed => {
-      window.emit(WINDOW_DESTROYED_EVENT, ())?;
+      window.emit_to_window(WINDOW_DESTROYED_EVENT, ())?;
       let label = window.label();
-      let webviews_map = manager.webview.webviews_lock();
+      let webviews_map = window.manager().webview.webviews_lock();
       let webviews = webviews_map.values();
       for webview in webviews {
         webview.eval(&format!(
@@ -167,7 +173,7 @@ fn on_window_event<R: Runtime>(
         ))?;
       }
     }
-    WindowEvent::Focused(focused) => window.emit(
+    WindowEvent::Focused(focused) => window.emit_to_window(
       if *focused {
         WINDOW_FOCUS_EVENT
       } else {
@@ -179,7 +185,7 @@ fn on_window_event<R: Runtime>(
       scale_factor,
       new_inner_size,
       ..
-    } => window.emit(
+    } => window.emit_to_window(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
       ScaleFactorChanged {
         scale_factor: *scale_factor,
@@ -189,7 +195,15 @@ fn on_window_event<R: Runtime>(
     WindowEvent::FileDrop(event) => match event {
       FileDropEvent::Hovered { paths, position } => {
         let payload = FileDropPayload { paths, position };
-        window.emit(WINDOW_FILE_DROP_HOVER_EVENT, payload)?
+        if window.is_webview_window() {
+          window.emit_to(
+            EventTarget::labeled(window.label()),
+            DROP_HOVER_EVENT,
+            payload,
+          )?
+        } else {
+          window.emit_to_window(DROP_HOVER_EVENT, payload)?
+        }
       }
       FileDropEvent::Dropped { paths, position } => {
         let scopes = window.state::<Scopes>();
@@ -197,16 +211,33 @@ fn on_window_event<R: Runtime>(
           if path.is_file() {
             let _ = scopes.allow_file(path);
           } else {
-            let _ = scopes.allow_directory(path, false);
+            let _ = scopes.allow_directory(path, true);
           }
         }
         let payload = FileDropPayload { paths, position };
-        window.emit(WINDOW_FILE_DROP_EVENT, payload)?
+
+        if window.is_webview_window() {
+          window.emit_to(EventTarget::labeled(window.label()), DROP_EVENT, payload)?
+        } else {
+          window.emit_to_window(DROP_EVENT, payload)?
+        }
       }
-      FileDropEvent::Cancelled => window.emit(WINDOW_FILE_DROP_CANCELLED_EVENT, ())?,
+      FileDropEvent::Cancelled => {
+        if window.is_webview_window() {
+          window.emit_to(
+            EventTarget::labeled(window.label()),
+            DROP_CANCELLED_EVENT,
+            (),
+          )?
+        } else {
+          window.emit_to_window(DROP_CANCELLED_EVENT, ())?
+        }
+      }
       _ => unimplemented!(),
     },
-    WindowEvent::ThemeChanged(theme) => window.emit(WINDOW_THEME_CHANGED, theme.to_string())?,
+    WindowEvent::ThemeChanged(theme) => {
+      window.emit_to_window(WINDOW_THEME_CHANGED, theme.to_string())?
+    }
   }
   Ok(())
 }

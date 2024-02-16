@@ -26,7 +26,7 @@ use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
-  app::UriSchemeResponder,
+  app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
     CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
@@ -860,6 +860,14 @@ impl<R: Runtime> Webview<R> {
   /// The webview label.
   pub fn label(&self) -> &str {
     &self.webview.label
+  }
+
+  /// Registers a window event listener.
+  pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
+    self
+      .webview
+      .dispatcher
+      .on_webview_event(move |event| f(&event.clone().into()));
   }
 }
 

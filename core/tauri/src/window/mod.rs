@@ -989,6 +989,10 @@ impl<R: Runtime> Window<R> {
       .collect()
   }
 
+  pub(crate) fn is_webview_window(&self) -> bool {
+    self.webviews().iter().all(|w| w.label() == self.label())
+  }
+
   /// Runs the given closure on the main thread.
   pub fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> crate::Result<()> {
     self

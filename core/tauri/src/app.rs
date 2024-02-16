@@ -208,6 +208,14 @@ pub enum RunEvent {
     /// The detailed event.
     event: WindowEvent,
   },
+  /// An event associated with a webview.
+  #[non_exhaustive]
+  WebviewEvent {
+    /// The window label.
+    label: String,
+    /// The detailed event.
+    event: WebviewEvent,
+  },
   /// Application ready.
   Ready,
   /// Sent if the event loop is being resumed.
@@ -1841,6 +1849,10 @@ fn on_event_loop_event<R: Runtime>(
       api: ExitRequestApi(tx),
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
+      label,
+      event: event.into(),
+    },
+    RuntimeRunEvent::WebviewEvent { label, event } => RunEvent::WebviewEvent {
       label,
       event: event.into(),
     },

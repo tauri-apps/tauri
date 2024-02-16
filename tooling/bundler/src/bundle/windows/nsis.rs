@@ -68,6 +68,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
 
   if !nsis_toolset_path.exists() {
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
+    install_additional_nsis_plugins(settings, &nsis_toolset_path)?;
   } else if NSIS_REQUIRED_FILES
     .iter()
     .any(|p| !nsis_toolset_path.join(p).exists())
@@ -75,6 +76,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     warn!("NSIS directory is missing some files. Recreating it.");
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
+    install_additional_nsis_plugins(settings, &nsis_toolset_path)?;
   }
 
   build_nsis_app_installer(settings, &nsis_toolset_path, &tauri_tools_path, updater)
@@ -115,6 +117,23 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     data,
   )?;
 
+  Ok(())
+}
+
+fn install_additional_nsis_plugins(
+  settings: &Settings,
+  nsis_toolset_path: &Path,
+) -> crate::Result<()> {
+  let nsis_plugins = nsis_toolset_path.join("Plugins").join("x86-unicode");
+  if let Some(nsis) = &settings.windows().nsis {
+    if let Some(plugins) = &nsis.additional_plugins {
+      for plugin in plugins {
+        let file_name = plugin.file_name()?;
+        info!("installing additional NSIS plugin: {}", &file_name);
+        copy(plugin, nsis_plugins.join(&file_name))?;
+      }
+    }
+  }
   Ok(())
 }
 

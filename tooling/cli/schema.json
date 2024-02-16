@@ -1968,6 +1968,16 @@
             "null"
           ]
         },
+        "additionalPlugins": {
+          "description": "A list of paths to additional NSIS plugins to include.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "headerImage": {
           "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150px x 57px.",
           "type": [

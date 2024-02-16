@@ -628,6 +628,8 @@ pub enum NsisCompression {
 pub struct NsisConfig {
   /// A custom .nsi template to use.
   pub template: Option<PathBuf>,
+  /// A list of paths to additional NSIS plugins to include.
+  pub additional_plugins: Option<Vec<PathBuf>>,
   /// The path to a bitmap file to display on the header of installers pages.
   ///
   /// The recommended dimensions are 150px x 57px.

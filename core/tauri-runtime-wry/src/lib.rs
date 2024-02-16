@@ -3192,19 +3192,17 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(desktop)]
   if window_builder.center {
-    let monitor = if let Some(position) = &window_builder.inner.window.position {
+    let monitor = if let Some(window_position) = &window_builder.inner.window.position {
       event_loop.available_monitors().find(|m| {
-        let pos = m.position();
-        let (x, y) = (pos.x, pos.y);
-        let size = m.size();
-        let (width, height) = (size.width, size.height);
+        let monitor_pos = m.position();
+        let monitor_size = m.size();
 
-        let position = position.to_logical(m.scale_factor());
+        let window_position = window_position.to_logical(m.scale_factor());
 
-        x <= position.x
-          && position.x <= x + width as i32
-          && y <= position.y
-          && position.y <= y + height as i32
+        monitor_pos.x <= window_position.x
+          && window_position.x <= monitor_pos.x + monitor_size.width as i32
+          && monitor_pos.y <= window_position.y
+          && window_position.y <= monitor_pos.y + monitor_size.height as i32
       })
     } else {
       event_loop.primary_monitor()

@@ -1085,6 +1085,7 @@ struct InvokeInitializationScript<'a> {
   os_name: &'a str,
   fetch_channel_data_command: &'a str,
   use_custom_protocol: bool,
+  force_v1_protocol: bool
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`
@@ -1118,6 +1119,7 @@ impl<R: Runtime> Builder<R> {
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
         use_custom_protocol: cfg!(ipc_custom_protocol),
+        force_v1_protocol: cfg!(feature = "force-ipc-v1-protocol")
       }
       .render_default(&Default::default())
       .unwrap()

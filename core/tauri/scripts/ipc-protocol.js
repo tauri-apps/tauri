@@ -7,6 +7,7 @@
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
   const useCustomProtocol = __TEMPLATE_use_custom_protocol__
+  const forceUseV1Protocol = __TEMPLATE_force_v1_protocol__
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'postMessage', {
     value: (message) => {
@@ -25,7 +26,8 @@
         !(
           (osName === 'macos' || osName === 'ios') &&
           location.protocol === 'https:'
-        )
+        ) &&
+        !forceUseV1Protocol
       ) {
         const { contentType, data } = processIpcMessage(payload)
         fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {

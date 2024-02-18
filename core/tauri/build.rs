@@ -216,7 +216,9 @@ fn main() {
 
   alias(
     "ipc_custom_protocol",
-    target_os != "android" && (target_os != "linux" || has_feature("linux-ipc-protocol")),
+    target_os != "android" && 
+    (target_os != "linux" || has_feature("linux-ipc-protocol")) && 
+    !has_feature("force-ipc-v1-protocol"),
   );
 
   let out_dir = PathBuf::from(var("OUT_DIR").unwrap());

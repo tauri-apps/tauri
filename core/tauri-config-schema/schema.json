@@ -1095,7 +1095,14 @@
           ]
         },
         "windows": {
-          "description": "List of windows that uses this capability. Can be a glob pattern.",
+          "description": "List of windows that uses this capability. Can be a glob pattern.\n\nOn multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "webviews": {
+          "description": "List of webviews that uses this capability. Can be a glob pattern.\n\nThis is only required when using on multiwebview contexts, by default all child webviews of a window that matches [`Self::windows`] are linked.",
           "type": "array",
           "items": {
             "type": "string"

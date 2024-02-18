@@ -6,7 +6,7 @@ use super::{Error, Result};
 use crate::{AppHandle, Manager, Runtime};
 use std::path::PathBuf;
 
-/// A helper class to access the mobile camera APIs.
+/// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
 
 impl<R: Runtime> PathResolver<R> {

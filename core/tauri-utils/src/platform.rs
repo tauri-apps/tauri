@@ -322,6 +322,28 @@ fn resource_dir_from<P: AsRef<Path>>(
   res
 }
 
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  use super::*;
+
+  impl ToTokens for Target {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::platform::Target };
+
+      tokens.append_all(match self {
+        Self::MacOS => quote! { #prefix::MacOS },
+        Self::Linux => quote! { #prefix::Linux },
+        Self::Windows => quote! { #prefix::Windows },
+        Self::Android => quote! { #prefix::Android },
+        Self::Ios => quote! { #prefix::Ios },
+      });
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;

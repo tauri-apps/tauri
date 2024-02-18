@@ -13,8 +13,8 @@ use crate::{
   },
   plugin::{Plugin, PluginStore},
   runtime::{
-    window::WindowEvent as RuntimeWindowEvent, ExitRequestedEventAction,
-    RunEvent as RuntimeRunEvent,
+    window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
+    ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
@@ -62,6 +62,8 @@ pub(crate) type GlobalMenuEventListener<T> = Box<dyn Fn(&T, crate::menu::MenuEve
 pub(crate) type GlobalTrayIconEventListener<T> =
   Box<dyn Fn(&T, crate::tray::TrayIconEvent) + Send + Sync>;
 pub(crate) type GlobalWindowEventListener<R> = Box<dyn Fn(&Window<R>, &WindowEvent) + Send + Sync>;
+pub(crate) type GlobalWebviewEventListener<R> =
+  Box<dyn Fn(&Webview<R>, &WebviewEvent) + Send + Sync>;
 /// A closure that is run when the Tauri application is setting up.
 pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> Result<(), Box<dyn std::error::Error>> + Send>;
@@ -164,6 +166,22 @@ impl From<RuntimeWindowEvent> for WindowEvent {
   }
 }
 
+/// An event from a window.
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub enum WebviewEvent {
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+}
+
+impl From<RuntimeWebviewEvent> for WebviewEvent {
+  fn from(event: RuntimeWebviewEvent) -> Self {
+    match event {
+      RuntimeWebviewEvent::FileDrop(e) => Self::FileDrop(e),
+    }
+  }
+}
+
 /// An application event, triggered from the event loop.
 ///
 /// See [`App::run`](crate::App#method.run) for usage examples.
@@ -189,6 +207,14 @@ pub enum RunEvent {
     label: String,
     /// The detailed event.
     event: WindowEvent,
+  },
+  /// An event associated with a webview.
+  #[non_exhaustive]
+  WebviewEvent {
+    /// The window label.
+    label: String,
+    /// The detailed event.
+    event: WebviewEvent,
   },
   /// Application ready.
   Ready,
@@ -1043,6 +1069,9 @@ pub struct Builder<R: Runtime> {
   /// Window event handlers that listens to all windows.
   window_event_listeners: Vec<GlobalWindowEventListener<R>>,
 
+  /// Webview event handlers that listens to all webviews.
+  webview_event_listeners: Vec<GlobalWebviewEventListener<R>>,
+
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
 }
@@ -1101,6 +1130,7 @@ impl<R: Runtime> Builder<R> {
       menu: None,
       enable_macos_default_menu: true,
       window_event_listeners: Vec::new(),
+      webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
     }
   }
@@ -1400,6 +1430,27 @@ tauri::Builder::default()
     self
   }
 
+  /// Registers a webview event handler for all webviews.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .on_webview_event(|window, event| match event {
+  ///     tauri::WebviewEvent::FileDrop(event) => {
+  ///       println!("{:?}", event);
+  ///     }
+  ///     _ => {}
+  ///   });
+  /// ```
+  #[must_use]
+  pub fn on_webview_event<F: Fn(&Webview<R>, &WebviewEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.webview_event_listeners.push(Box::new(handler));
+    self
+  }
+
   /// Registers a URI scheme protocol available to all webviews.
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
@@ -1544,6 +1595,7 @@ tauri::Builder::default()
       self.uri_scheme_protocols,
       self.state,
       self.window_event_listeners,
+      self.webview_event_listeners,
       #[cfg(desktop)]
       HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
@@ -1797,6 +1849,10 @@ fn on_event_loop_event<R: Runtime>(
       api: ExitRequestApi(tx),
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
+      label,
+      event: event.into(),
+    },
+    RuntimeRunEvent::WebviewEvent { label, event } => RunEvent::WebviewEvent {
       label,
       event: event.into(),
     },

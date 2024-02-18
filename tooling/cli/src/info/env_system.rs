@@ -43,6 +43,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "Microsoft.VisualStudio.Component.Windows10SDK.*",
       "-format",
       "json",
+      "-utf8",
     ])
     .output()?;
 
@@ -57,6 +58,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "Microsoft.VisualStudio.Component.Windows11SDK.*",
       "-format",
       "json",
+      "-utf8",
     ])
     .output()?;
 

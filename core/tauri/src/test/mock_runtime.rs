@@ -61,6 +61,7 @@ pub struct RuntimeContext {
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
+  next_webview_event_id: Arc<AtomicU32>,
 }
 
 // SAFETY: we ensure this type is only used on the main thread.
@@ -99,6 +100,10 @@ impl RuntimeContext {
 
   fn next_window_event_id(&self) -> WindowEventId {
     self.next_window_event_id.fetch_add(1, Ordering::Relaxed)
+  }
+
+  fn next_webview_event_id(&self) -> WindowEventId {
+    self.next_webview_event_id.fetch_add(1, Ordering::Relaxed)
   }
 }
 
@@ -458,6 +463,13 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
 
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()> {
     self.context.send_message(Message::Task(Box::new(f)))
+  }
+
+  fn on_webview_event<F: Fn(&tauri_runtime::window::WebviewEvent) + Send + 'static>(
+    &self,
+    f: F,
+  ) -> tauri_runtime::WebviewEventId {
+    self.context.next_window_event_id()
   }
 
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()> {
@@ -922,6 +934,7 @@ impl MockRuntime {
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
+      next_webview_event_id: Default::default(),
     };
     Self {
       is_running,

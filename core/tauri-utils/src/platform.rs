@@ -380,6 +380,6 @@ mod tests {
     #[cfg(target_os = "linux")]
     assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/lib/my-app"));
     #[cfg(windows)]
-    assert_eq!(resource_dir, path.parent().unwrap());
+    assert_eq!(resource_dir.unwrap(), path.parent().unwrap());
   }
 }

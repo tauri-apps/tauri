@@ -283,6 +283,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
             // the channel data command is the only command that uses a custom protocol on Linux
             if webview.manager().webview.invoke_responder.is_none()
               && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+              || cfg!(feature = "force-ipc-v1-protocol")
             {
               fn responder_eval<R: Runtime>(
                 webview: &crate::Webview<R>,
@@ -314,6 +315,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
               match &response {
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
+                    && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
                   {
                     let _ = Channel::from_callback_fn(webview, callback).send(v);

@@ -15,8 +15,6 @@ fn main() {
   for cmd in [
     "plugin:event|listen",
     "plugin:webview|create_webview_window",
-    "plugin:window|internal_on_mousemove",
-    "plugin:window|internal_on_mousedown",
   ] {
     context.resolved_acl().allowed_commands.insert(
       CommandKey {

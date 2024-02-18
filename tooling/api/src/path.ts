@@ -581,7 +581,7 @@ async function resolve(...paths: string[]): Promise<string> {
  * ```typescript
  * import { normalize, appDataDir } from '@tauri-apps/api/path';
  * const appDataDirPath = await appDataDir();
- * const path = await normalize(appDataDirPath, '..', 'users', 'tauri', 'avatar.png');
+ * const path = await normalize(`${appDataDirPath}/../users/tauri/avatar.png`);
  * ```
  *
  * @since 1.0.0

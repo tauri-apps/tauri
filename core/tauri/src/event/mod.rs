@@ -238,7 +238,7 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
         for (let i = listeners.length - 1; i >= 0; i--) {{
           const listener = listeners[i]
-          if ((listener.target.kind === 'Global' && target.kind === 'Global') || (listener.target.kind === target.kind && listener.target.label === target.label)) {{
+          if (listener.target.kind === 'Any' || (listener.target.kind === target.kind && listener.target.label === target.label)) {{
             eventData.id = listener.id
             listener.handler(eventData)
           }}

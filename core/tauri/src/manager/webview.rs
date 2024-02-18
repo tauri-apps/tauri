@@ -12,20 +12,26 @@ use std::{
 
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-use tauri_runtime::webview::{DetachedWebview, PendingWebview};
+use tauri_runtime::{
+  webview::{DetachedWebview, PendingWebview},
+  window::FileDropEvent,
+};
 use tauri_utils::config::WebviewUrl;
 use url::Url;
 
 use crate::{
-  app::{OnPageLoad, UriSchemeResponder},
+  app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
   ipc::{InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, Manager, Runtime, Webview, Window,
+  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
 };
 
-use super::AppManager;
+use super::{
+  window::{FileDropPayload, DROP_CANCELLED_EVENT, DROP_EVENT, DROP_HOVER_EVENT},
+  AppManager,
+};
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
 // and we do not get a secure context without the custom protocol that proxies to the dev server
@@ -73,6 +79,8 @@ pub struct WebviewManager<R: Runtime> {
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
   /// The webview protocols available to all webviews.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
+  /// Webview event listeners to all webviews.
+  pub event_listeners: Arc<Vec<GlobalWebviewEventListener<R>>>,
 
   /// Responder for invoke calls.
   pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
@@ -557,6 +565,15 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> Webview<R> {
     let webview = Webview::new(window, webview);
 
+    let webview_event_listeners = self.event_listeners.clone();
+    let webview_ = webview.clone();
+    webview.on_webview_event(move |event| {
+      let _ = on_webview_event(&webview_, event);
+      for handler in webview_event_listeners.iter() {
+        handler(&webview_, event);
+      }
+    });
+
     // insert the webview into our manager
     {
       self
@@ -599,4 +616,44 @@ impl<R: Runtime> WebviewManager<R> {
   pub fn labels(&self) -> HashSet<String> {
     self.webviews_lock().keys().cloned().collect()
   }
+}
+
+impl<R: Runtime> Webview<R> {
+  /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
+  fn emit_to_webview<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    let window_label = self.label();
+    self.emit_filter(event, payload, |target| match target {
+      EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
+        label == window_label
+      }
+      _ => false,
+    })
+  }
+}
+
+fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> crate::Result<()> {
+  match event {
+    WebviewEvent::FileDrop(event) => match event {
+      FileDropEvent::Hovered { paths, position } => {
+        let payload = FileDropPayload { paths, position };
+        webview.emit_to_webview(DROP_HOVER_EVENT, payload)?
+      }
+      FileDropEvent::Dropped { paths, position } => {
+        let scopes = webview.state::<Scopes>();
+        for path in paths {
+          if path.is_file() {
+            let _ = scopes.allow_file(path);
+          } else {
+            let _ = scopes.allow_directory(path, false);
+          }
+        }
+        let payload = FileDropPayload { paths, position };
+        webview.emit_to_webview(DROP_EVENT, payload)?
+      }
+      FileDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
+      _ => unimplemented!(),
+    },
+  }
+
+  Ok(())
 }

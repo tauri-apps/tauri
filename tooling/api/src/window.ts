@@ -34,7 +34,8 @@ import {
   once
 } from './event'
 import { invoke } from './core'
-import { WebviewWindow } from './webview'
+import { WebviewWindow } from './webviewWindow'
+import type { FileDropEvent, FileDropPayload } from './webview'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -458,7 +459,7 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * await getCurrent().emit('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -1717,6 +1718,76 @@ class Window {
   /* eslint-enable */
 
   /**
+   * Listen to a file drop event.
+   * The listener is triggered when the user hovers the selected files on the webview,
+   * drops the files or cancels the operation.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from "@tauri-apps/api/webview";
+   * const unlisten = await getCurrent().onFileDropEvent((event) => {
+   *  if (event.payload.type === 'hover') {
+   *    console.log('User hovering', event.payload.paths);
+   *  } else if (event.payload.type === 'drop') {
+   *    console.log('User dropped', event.payload.paths);
+   *  } else {
+   *    console.log('File drop cancelled');
+   *  }
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onFileDropEvent(
+    handler: EventCallback<FileDropEvent>
+  ): Promise<UnlistenFn> {
+    const unlistenFileDrop = await this.listen<FileDropPayload>(
+      TauriEvent.FILE_DROP,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'drop',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenFileHover = await this.listen<FileDropPayload>(
+      TauriEvent.FILE_DROP_HOVER,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'hover',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenCancel = await this.listen<null>(
+      TauriEvent.FILE_DROP_CANCELLED,
+      (event) => {
+        handler({ ...event, payload: { type: 'cancel' } })
+      }
+    )
+
+    return () => {
+      unlistenFileDrop()
+      unlistenFileHover()
+      unlistenCancel()
+    }
+  }
+
+  /**
    * Listen to window focus change.
    *
    * @example
@@ -2200,5 +2271,7 @@ export type {
   TitleBarStyle,
   ScaleFactorChanged,
   WindowOptions,
-  Color
+  Color,
+  FileDropEvent,
+  FileDropPayload
 }

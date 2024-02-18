@@ -4966,9 +4966,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.35.2"
+version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3016c47c9b6f7029a9da7cd48af8352327226bba0e955f3c92e2966651365a9"
+checksum = "3a9e7b81968555303086ef882a0c213896a76099de4ed0b86a798775c2d54304"
 dependencies = [
  "base64",
  "block",
@@ -4992,7 +4992,7 @@ dependencies = [
  "objc",
  "objc_id",
  "once_cell",
- "raw-window-handle 0.5.2",
+ "raw-window-handle 0.6.0",
  "serde",
  "serde_json",
  "sha2",

@@ -40,6 +40,7 @@
             "enable": false,
             "scope": []
           },
+          "capabilities": [],
           "dangerousDisableAssetCspModification": false,
           "freezePrototype": false,
           "pattern": {
@@ -158,6 +159,7 @@
               "enable": false,
               "scope": []
             },
+            "capabilities": [],
             "dangerousDisableAssetCspModification": false,
             "freezePrototype": false,
             "pattern": {
@@ -878,6 +880,14 @@
               "$ref": "#/definitions/PatternKind"
             }
           ]
+        },
+        "capabilities": {
+          "description": "List of capabilities that are enabled on the application.\n\nIf the list is empty, all capabilities are included.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CapabilityEntry"
+          }
         }
       },
       "additionalProperties": false
@@ -1037,6 +1047,271 @@
               }
             }
           }
+        }
+      ]
+    },
+    "CapabilityEntry": {
+      "description": "A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.",
+      "anyOf": [
+        {
+          "description": "An inlined capability.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Capability"
+            }
+          ]
+        },
+        {
+          "description": "Reference to a capability identifier.",
+          "type": "string"
+        }
+      ]
+    },
+    "Capability": {
+      "description": "a grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
+      "type": "object",
+      "required": [
+        "identifier",
+        "permissions",
+        "windows"
+      ],
+      "properties": {
+        "identifier": {
+          "description": "Identifier of the capability.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the capability.",
+          "default": "",
+          "type": "string"
+        },
+        "context": {
+          "description": "Execution context of the capability.\n\nAt runtime, Tauri filters the IPC command together with the context to determine whether it is allowed or not and its scope.",
+          "default": "local",
+          "allOf": [
+            {
+              "$ref": "#/definitions/CapabilityContext"
+            }
+          ]
+        },
+        "windows": {
+          "description": "List of windows that uses this capability. Can be a glob pattern.\n\nOn multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "webviews": {
+          "description": "List of webviews that uses this capability. Can be a glob pattern.\n\nThis is only required when using on multiwebview contexts, by default all child webviews of a window that matches [`Self::windows`] are linked.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "description": "List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PermissionEntry"
+          }
+        },
+        "platforms": {
+          "description": "Target platforms this capability applies. By default all platforms applies.",
+          "default": [
+            "linux",
+            "macOS",
+            "windows",
+            "android",
+            "iOS"
+          ],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Target"
+          }
+        }
+      }
+    },
+    "CapabilityContext": {
+      "description": "Context of the capability.",
+      "oneOf": [
+        {
+          "description": "Capability refers to local URL usage.",
+          "type": "string",
+          "enum": [
+            "local"
+          ]
+        },
+        {
+          "description": "Capability refers to remote usage.",
+          "type": "object",
+          "required": [
+            "remote"
+          ],
+          "properties": {
+            "remote": {
+              "type": "object",
+              "required": [
+                "domains"
+              ],
+              "properties": {
+                "domains": {
+                  "description": "Remote domains this capability refers to. Can use glob patterns.",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "PermissionEntry": {
+      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`] or an object that references a permission and extends its scope.",
+      "anyOf": [
+        {
+          "description": "Reference a permission or permission set by identifier.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Identifier"
+            }
+          ]
+        },
+        {
+          "description": "Reference a permission or permission set by identifier and extends its scope.",
+          "type": "object",
+          "required": [
+            "identifier"
+          ],
+          "properties": {
+            "identifier": {
+              "description": "Identifier of the permission or permission set.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Identifier"
+                }
+              ]
+            },
+            "allow": {
+              "description": "Data that defines what is allowed by the scope.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/Value"
+              }
+            },
+            "deny": {
+              "description": "Data that defines what is denied by the scope.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/Value"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Identifier": {
+      "type": "string"
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      ]
+    },
+    "Number": {
+      "description": "A valid ACL number.",
+      "anyOf": [
+        {
+          "description": "Represents an [`i64`].",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "Represents a [`f64`].",
+          "type": "number",
+          "format": "double"
+        }
+      ]
+    },
+    "Target": {
+      "description": "Platform target.",
+      "oneOf": [
+        {
+          "description": "MacOS.",
+          "type": "string",
+          "enum": [
+            "macOS"
+          ]
+        },
+        {
+          "description": "Windows.",
+          "type": "string",
+          "enum": [
+            "windows"
+          ]
+        },
+        {
+          "description": "Linux.",
+          "type": "string",
+          "enum": [
+            "linux"
+          ]
+        },
+        {
+          "description": "Android.",
+          "type": "string",
+          "enum": [
+            "android"
+          ]
+        },
+        {
+          "description": "iOS.",
+          "type": "string",
+          "enum": [
+            "iOS"
+          ]
         }
       ]
     },

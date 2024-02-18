@@ -6,7 +6,7 @@
 
 use std::{
   fmt::Display,
-  path::{PathBuf, MAIN_SEPARATOR},
+  path::{Path, PathBuf, MAIN_SEPARATOR},
 };
 
 use serde::{Deserialize, Serialize};
@@ -221,6 +221,28 @@ pub fn target_triple() -> crate::Result<String> {
   Ok(format!("{arch}-{os}"))
 }
 
+#[cfg(not(test))]
+fn is_cargo_output_directory(path: &Path) -> bool {
+  path.join(".cargo-lock").exists()
+}
+
+#[cfg(test)]
+const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"];
+
+#[cfg(test)]
+fn is_cargo_output_directory(path: &Path) -> bool {
+  let last_component = path
+    .components()
+    .last()
+    .unwrap()
+    .as_os_str()
+    .to_str()
+    .unwrap();
+  CARGO_OUTPUT_DIRECTORIES
+    .iter()
+    .any(|dirname| &last_component == dirname)
+}
+
 /// Computes the resource directory of the current environment.
 ///
 /// On Windows, it's the path to the executable.
@@ -233,17 +255,32 @@ pub fn target_triple() -> crate::Result<String> {
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
-#[allow(unused_variables)]
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   let exe = current_exe()?;
-  let exe_dir = exe.parent().expect("failed to get exe directory");
+  resource_dir_from(exe, package_info, env)
+}
+
+#[allow(unused_variables)]
+fn resource_dir_from<P: AsRef<Path>>(
+  exe: P,
+  package_info: &PackageInfo,
+  env: &Env,
+) -> crate::Result<PathBuf> {
+  let exe_dir = exe.as_ref().parent().expect("failed to get exe directory");
   let curr_dir = exe_dir.display().to_string();
 
-  if curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}debug").as_str())
-    || curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}release").as_str())
-    || cfg!(target_os = "windows")
+  let parts: Vec<&str> = curr_dir.split(MAIN_SEPARATOR).collect();
+  let len = parts.len();
+
+  // Check if running from the Cargo output directory, which means it's an executable in a development machine
+  // We check if the binary is inside a `target` folder which can be either `target/$profile` or `target/$triple/$profile`
+  // and see if there's a .cargo-lock file along the executable
+  // This ensures the check is safer so it doesn't affect apps in production
+  // Windows also includes the resources in the executable folder so we check that too
+  if cfg!(target_os = "windows")
+    || ((len >= 2 && parts[len - 2] == "target") || (len >= 3 && parts[len - 3] == "target"))
+      && is_cargo_output_directory(exe_dir)
   {
-    // running from the out dir or windows
     return Ok(exe_dir.to_path_buf());
   }
 
@@ -283,4 +320,66 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   }
 
   res
+}
+
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  use super::*;
+
+  impl ToTokens for Target {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::platform::Target };
+
+      tokens.append_all(match self {
+        Self::MacOS => quote! { #prefix::MacOS },
+        Self::Linux => quote! { #prefix::Linux },
+        Self::Windows => quote! { #prefix::Windows },
+        Self::Android => quote! { #prefix::Android },
+        Self::Ios => quote! { #prefix::Ios },
+      });
+    }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+
+  use crate::{Env, PackageInfo};
+
+  #[test]
+  fn resolve_resource_dir() {
+    let package_info = PackageInfo {
+      name: "MyApp".into(),
+      version: "1.0.0".parse().unwrap(),
+      authors: "",
+      description: "",
+      crate_name: "",
+    };
+    let env = Env::default();
+
+    let path = PathBuf::from("/path/to/target/aarch64-apple-darwin/debug/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env).unwrap();
+    assert_eq!(resource_dir, path.parent().unwrap());
+
+    let path = PathBuf::from("/path/to/target/custom-profile/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env).unwrap();
+    assert_eq!(resource_dir, path.parent().unwrap());
+
+    let path = PathBuf::from("/path/to/target/release/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env).unwrap();
+    assert_eq!(resource_dir, path.parent().unwrap());
+
+    let path = PathBuf::from("/path/to/target/unknown-profile/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env);
+    #[cfg(target_os = "macos")]
+    assert!(resource_dir.is_err());
+    #[cfg(target_os = "linux")]
+    assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/lib/my-app"));
+    #[cfg(windows)]
+    assert_eq!(resource_dir.unwrap(), path.parent().unwrap());
+  }
 }

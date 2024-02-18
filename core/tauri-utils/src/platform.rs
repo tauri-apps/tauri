@@ -257,7 +257,7 @@ fn is_cargo_output_directory(path: &Path) -> bool {
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   let exe = current_exe()?;
-  resource_dir_from(&exe, package_info, env)
+  resource_dir_from(exe, package_info, env)
 }
 
 #[allow(unused_variables)]

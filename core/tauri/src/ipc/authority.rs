@@ -178,6 +178,7 @@ impl RuntimeAuthority {
     plugin: &str,
     command_name: &str,
     window: &str,
+    webview: &str,
     origin: &Origin,
   ) -> String {
     fn print_references(resolved: &ResolvedCommand) -> String {
@@ -235,10 +236,16 @@ impl RuntimeAuthority {
         .iter()
         .find(|(cmd, _)| origin.matches(&cmd.context))
       {
-        if resolved.windows.iter().any(|w| w.matches(window)) {
+        if resolved.webviews.iter().any(|w| w.matches(webview))
+          || resolved.windows.iter().any(|w| w.matches(window))
+        {
           "allowed".to_string()
         } else {
-          format!("{plugin}.{command_name} not allowed on window {window}, expected one of {}, referenced by {}", resolved.windows.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "), print_references(resolved))
+          format!("{plugin}.{command_name} not allowed on window {window}, webview {webview}, allowed windows: {}, allowed webviews: {}, referenced by {}",
+            resolved.windows.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
+            resolved.webviews.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
+            print_references(resolved)
+          )
         }
       } else {
         let permission_error_detail = if let Some(manifest) = self.acl.get(plugin) {
@@ -305,6 +312,7 @@ impl RuntimeAuthority {
     &self,
     command: &str,
     window: &str,
+    webview: &str,
     origin: &Origin,
   ) -> Option<&ResolvedCommand> {
     if self
@@ -319,7 +327,10 @@ impl RuntimeAuthority {
         .iter()
         .find(|(cmd, _)| cmd.name == command && origin.matches(&cmd.context))
         .map(|(_cmd, resolved)| resolved)
-        .filter(|resolved| resolved.windows.iter().any(|w| w.matches(window)))
+        .filter(|resolved| {
+          resolved.webviews.iter().any(|w| w.matches(webview))
+            || resolved.windows.iter().any(|w| w.matches(window))
+        })
     }
   }
 }
@@ -555,6 +566,7 @@ mod tests {
       context: ExecutionContext::Local,
     };
     let window = "main-*";
+    let webview = "other-*";
 
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
@@ -576,6 +588,41 @@ mod tests {
       authority.resolve_access(
         &command.name,
         &window.replace('*', "something"),
+        webview,
+        &Origin::Local
+      ),
+      Some(&resolved_cmd)
+    );
+  }
+
+  #[test]
+  fn webview_glob_pattern_matches() {
+    let command = CommandKey {
+      name: "my-command".into(),
+      context: ExecutionContext::Local,
+    };
+    let window = "other-*";
+    let webview = "main-*";
+
+    let resolved_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      webviews: vec![Pattern::new(webview).unwrap()],
+      ..Default::default()
+    };
+    let allowed_commands = [(command.clone(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(Resolved {
+      allowed_commands,
+      ..Default::default()
+    });
+
+    assert_eq!(
+      authority.resolve_access(
+        &command.name,
+        window,
+        &webview.replace('*', "something"),
         &Origin::Local
       ),
       Some(&resolved_cmd)
@@ -592,6 +639,7 @@ mod tests {
       },
     };
     let window = "main";
+    let webview = "main";
 
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
@@ -614,6 +662,7 @@ mod tests {
       authority.resolve_access(
         &command.name,
         window,
+        webview,
         &Origin::Remote {
           domain: domain.into()
         }
@@ -632,6 +681,7 @@ mod tests {
       },
     };
     let window = "main";
+    let webview = "main";
 
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
@@ -654,6 +704,7 @@ mod tests {
       authority.resolve_access(
         &command.name,
         window,
+        webview,
         &Origin::Remote {
           domain: domain.replace('*', "studio")
         }
@@ -669,6 +720,7 @@ mod tests {
       context: ExecutionContext::Local,
     };
     let window = "main";
+    let webview = "main";
 
     let resolved_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
@@ -691,6 +743,7 @@ mod tests {
       .resolve_access(
         &command.name,
         window,
+        webview,
         &Origin::Remote {
           domain: "tauri.app".into()
         }
@@ -705,6 +758,7 @@ mod tests {
       context: ExecutionContext::Local,
     };
     let window = "main";
+    let webview = "main";
     let windows = vec![Pattern::new(window).unwrap()];
     let allowed_commands = [(
       command.clone(),
@@ -735,7 +789,7 @@ mod tests {
     );
 
     assert!(authority
-      .resolve_access(&command.name, window, &Origin::Local)
+      .resolve_access(&command.name, window, webview, &Origin::Local)
       .is_none());
   }
 }

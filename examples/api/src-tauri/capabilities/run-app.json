@@ -7,6 +7,7 @@
     "main-*"
   ],
   "permissions": [
+    "app-menu:default",
     "sample:allow-ping-scoped",
     "sample:global-scope",
     "path:default",

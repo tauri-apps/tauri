@@ -6,12 +6,11 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, FrontendDist, HookCommand, MERGE_CONFIG_EXTENSION_NAME},
-    resolve_merge_config,
+    config::{get as get_config, ConfigHandle, FrontendDist, HookCommand},
     updater_signature::{secret_key as updater_secret_key, sign_file},
   },
   interface::{AppInterface, AppSettings, Interface},
-  CommandExt, Result,
+  CommandExt, ConfigValue, Result,
 };
 use anyhow::{bail, Context};
 use base64::Engine;
@@ -57,7 +56,7 @@ pub struct Options {
   pub bundles: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Command line arguments passed to the runner. Use `--` to explicitly mark the start of the arguments.
   pub args: Vec<String>,
   /// Skip prompting for values
@@ -75,14 +74,14 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(target, options.config.as_deref())?;
+  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
 
   let mut interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),
     options.target.clone(),
   )?;
 
-  setup(target, &interface, &mut options, false)?;
+  setup(&interface, &mut options, config.clone(), false)?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -267,27 +266,20 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 }
 
 pub fn setup(
-  target: Target,
   interface: &AppInterface,
   options: &mut Options,
+  config: ConfigHandle,
   mobile: bool,
 ) -> Result<()> {
-  let (merge_config, merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
-
-  let config = get_config(target, options.config.as_deref())?;
-
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
 
-  let bundle_identifier_source = match config_.find_bundle_identifier_overwriter() {
-    Some(source) if source == MERGE_CONFIG_EXTENSION_NAME => merge_config_path.unwrap_or(source),
-    Some(source) => source,
-    None => "tauri.conf.json".into(),
-  };
+  let bundle_identifier_source = config_
+    .find_bundle_identifier_overwriter()
+    .unwrap_or_else(|| "tauri.conf.json".into());
 
   if config_.identifier == "com.tauri.dev" {
     error!(

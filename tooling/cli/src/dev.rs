@@ -6,11 +6,12 @@ use crate::{
   helpers::{
     app_paths::{app_dir, tauri_dir},
     command_env,
-    config::{get as get_config, reload as reload_config, BeforeDevCommand, FrontendDist},
-    resolve_merge_config,
+    config::{
+      get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
+    },
   },
   interface::{AppInterface, DevProcess, ExitReason, Interface},
-  CommandExt, Result,
+  CommandExt, ConfigValue, Result,
 };
 
 use anyhow::{bail, Context};
@@ -59,7 +60,7 @@ pub struct Options {
   pub exit_on_panic: bool,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -100,14 +101,14 @@ fn command_internal(mut options: Options) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(target, options.config.as_deref())?;
+  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
 
   let mut interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),
     options.target.clone(),
   )?;
 
-  setup(target, &interface, &mut options, false)?;
+  setup(&interface, &mut options, config, false)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -160,16 +161,11 @@ pub fn local_ip_address(force: bool) -> &'static IpAddr {
 }
 
 pub fn setup(
-  target: Target,
   interface: &AppInterface,
   options: &mut Options,
+  config: ConfigHandle,
   mobile: bool,
 ) -> Result<()> {
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
-
-  let config = get_config(target, options.config.as_deref())?;
-
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -344,15 +340,26 @@ pub fn setup(
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 
-        if let Some(c) = &options.config {
-          let mut c: tauri_utils::config::Config = serde_json::from_str(c)?;
-          c.build.dev_url = dev_url.clone();
-          options.config = Some(serde_json::to_string(&c).unwrap());
+        if let Some(c) = &mut options.config {
+          if let Some(build) = c
+            .0
+            .as_object_mut()
+            .and_then(|root| root.get_mut("build"))
+            .and_then(|build| build.as_object_mut())
+          {
+            build.insert("devUrl".into(), server_url.into());
+          }
         } else {
-          options.config = Some(format!(r#"{{ "build": {{ "devUrl": "{server_url}" }} }}"#))
+          options
+            .config
+            .replace(crate::ConfigValue(serde_json::json!({
+              "build": {
+                "devUrl": server_url
+              }
+            })));
         }
 
-        reload_config(options.config.as_deref())?;
+        reload_config(options.config.as_ref().map(|c| &c.0))?;
       }
     }
   }

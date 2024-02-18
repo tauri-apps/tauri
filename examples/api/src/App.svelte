@@ -1,5 +1,5 @@
 <script>
-  import { onMount, tick } from "svelte";
+  import { onMount, tick } from 'svelte'
   import { writable } from 'svelte/store'
   import { invoke } from '@tauri-apps/api/core'
 
@@ -13,7 +13,7 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.ctrlKey && event.key === 'b') {
-      invoke('toggle_menu')
+      invoke('plugin:app-menu|toggle')
     }
   })
 
@@ -81,7 +81,7 @@
 
   // Console
   let messages = writable([])
-  let consoleTextEl;
+  let consoleTextEl
   async function onMessage(value) {
     messages.update((r) => [
       ...r,
@@ -90,10 +90,10 @@
           `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
           (typeof value === 'string' ? value : JSON.stringify(value, null, 1)) +
           '</pre>'
-      },
+      }
     ])
-     await tick();
-    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight;
+    await tick()
+    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
   }
 
   // this function is renders HTML without sanitizing it so it's insecure
@@ -106,10 +106,10 @@
           `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
           html +
           '</pre>'
-      },
+      }
     ])
-    await tick();
-    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight;
+    await tick()
+    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
   }
 
   function clear() {
@@ -329,13 +329,16 @@
                 hover:bg-hoverOverlay dark:hover:bg-darkHoverOverlay
                 active:bg-hoverOverlay/25 dark:active:bg-darkHoverOverlay/25
           "
-          on:keypress={(e) => e.key === "Enter"? clear() : {} }
+          on:keypress={(e) => (e.key === 'Enter' ? clear() : {})}
           on:click={clear}
         >
           <div class="i-codicon-clear-all" />
         </div>
       </div>
-      <div bind:this={consoleTextEl} class="px-2 overflow-y-auto all:font-mono code-block all:text-xs select-text mr-2">
+      <div
+        bind:this={consoleTextEl}
+        class="px-2 overflow-y-auto all:font-mono code-block all:text-xs select-text mr-2"
+      >
         {#each $messages as r}
           {@html r.html}
         {/each}

@@ -17,11 +17,26 @@ const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
 
 /// Plugin identifier.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
   inner: String,
   separator: Option<NonZeroU8>,
+}
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for Identifier {
+  fn schema_name() -> String {
+    "Identifier".to_string()
+  }
+
+  fn schema_id() -> std::borrow::Cow<'static, str> {
+    // Include the module, in case a type with the same name is in another module/crate
+    std::borrow::Cow::Borrowed(concat!(module_path!(), "::Identifier"))
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(gen)
+  }
 }
 
 impl AsRef<str> for Identifier {
@@ -260,5 +275,21 @@ mod tests {
   fn prefix() {
     assert_eq!(ident("prefix:base").unwrap().get_prefix(), Some("prefix"));
     assert_eq!(ident("base").unwrap().get_prefix(), None);
+  }
+}
+
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  use super::*;
+
+  impl ToTokens for Identifier {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let s = self.get();
+      tokens
+        .append_all(quote! { ::tauri::utils::acl::Identifier::try_from(#s.to_string()).unwrap() })
+    }
   }
 }

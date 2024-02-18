@@ -567,6 +567,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     out_dir.join(PLUGIN_MANIFESTS_FILE_NAME),
     serde_json::to_string(&plugin_manifests)?,
   )?;
+
   let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
     parse_capabilities(pattern)?
   } else {

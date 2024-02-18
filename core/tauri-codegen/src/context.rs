@@ -15,7 +15,7 @@ use tauri_utils::acl::capability::Capability;
 use tauri_utils::acl::plugin::Manifest;
 use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{Config, FrontendDist, PatternKind};
+use tauri_utils::config::{CapabilityEntry, Config, FrontendDist, PatternKind};
 use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
@@ -381,12 +381,33 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
-  let capabilities: BTreeMap<String, Capability> = if capabilities_file_path.exists() {
+  let mut capabilities_from_files: BTreeMap<String, Capability> = if capabilities_file_path.exists()
+  {
     let capabilities_file =
       std::fs::read_to_string(capabilities_file_path).expect("failed to read capabilities");
     serde_json::from_str(&capabilities_file).expect("failed to parse capabilities")
   } else {
     Default::default()
+  };
+
+  let capabilities = if config.app.security.capabilities.is_empty() {
+    capabilities_from_files
+  } else {
+    let mut capabilities = BTreeMap::new();
+    for capability_entry in &config.app.security.capabilities {
+      match capability_entry {
+        CapabilityEntry::Inlined(capability) => {
+          capabilities.insert(capability.identifier.clone(), capability.clone());
+        }
+        CapabilityEntry::Reference(id) => {
+          let capability = capabilities_from_files
+            .remove(id)
+            .unwrap_or_else(|| panic!("capability with identifier {id} not found"));
+          capabilities.insert(id.clone(), capability);
+        }
+      }
+    }
+    capabilities
   };
 
   let resolved_acl = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");

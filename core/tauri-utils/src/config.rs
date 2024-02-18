@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
@@ -1519,7 +1519,7 @@ pub struct AssetProtocolConfig {
 ///
 /// See more: <https://tauri.app/v1/api/config#securityconfig>
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -1558,6 +1558,22 @@ pub struct SecurityConfig {
   /// The pattern to use.
   #[serde(default)]
   pub pattern: PatternKind,
+  /// List of capabilities that are enabled on the application.
+  ///
+  /// If the list is empty, all capabilities are included.
+  #[serde(default)]
+  pub capabilities: Vec<CapabilityEntry>,
+}
+
+/// A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum CapabilityEntry {
+  /// An inlined capability.
+  Inlined(Capability),
+  /// Reference to a capability identifier.
+  Reference(String),
 }
 
 /// The application pattern.
@@ -2450,6 +2466,22 @@ mod build {
     }
   }
 
+  impl ToTokens for CapabilityEntry {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::CapabilityEntry };
+
+      tokens.append_all(match self {
+        Self::Inlined(capability) => {
+          quote! { #prefix::Inlined(#capability) }
+        }
+        Self::Reference(id) => {
+          let id = str_lit(id);
+          quote! { #prefix::Reference(#id) }
+        }
+      });
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
@@ -2458,6 +2490,7 @@ mod build {
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
       let asset_protocol = &self.asset_protocol;
       let pattern = &self.pattern;
+      let capabilities = vec_lit(&self.capabilities, identity);
 
       literal_struct!(
         tokens,
@@ -2467,7 +2500,8 @@ mod build {
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
         asset_protocol,
-        pattern
+        pattern,
+        capabilities
       );
     }
   }
@@ -2606,6 +2640,7 @@ mod test {
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         asset_protocol: AssetProtocolConfig::default(),
         pattern: Default::default(),
+        capabilities: Vec::new(),
       },
       tray_icon: None,
       macos_private_api: false,

@@ -613,10 +613,13 @@ mod tests {
       .into_iter()
       .collect();
 
-    let authority = RuntimeAuthority::new(Resolved {
-      allowed_commands,
-      ..Default::default()
-    });
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
 
     assert_eq!(
       authority.resolve_access(

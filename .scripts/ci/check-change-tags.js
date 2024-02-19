@@ -69,7 +69,9 @@ function checkChangeFiles(changeFiles) {
 const [_bin, _script, ...files] = process.argv
 
 if (files.length > 0) {
-  checkChangeFiles(files.filter((f) => f.toLowerCase() !== 'readme.md'))
+  checkChangeFiles(
+    files.filter((f) => f.toLowerCase() !== '.changes/readme.md')
+  )
 } else {
   const changeFiles = fs
     .readdirSync('.changes')

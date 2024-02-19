@@ -111,7 +111,9 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   // add plugin init code to main.rs or lib.rs
-  let plugin_init_fn = if metadata.builder {
+  let plugin_init_fn = if plugin == "stronghold" {
+    "Builder::new(|pass| todo!()).build()"
+  } else if metadata.builder {
     "Builder::new().build()"
   } else {
     "init()"

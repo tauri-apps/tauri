@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.3]
+
+### New features
+
+- [`7aa30dec`](https://www.github.com/tauri-apps/tauri/commit/7aa30dec85a17c3d3faaf3841b93e10991b991b0)([#8620](https://www.github.com/tauri-apps/tauri/pull/8620)) Add `priority`, `section` and `changelog` options in Debian config.
+
 ## \[1.5.2]
 
 ### Bug Fixes

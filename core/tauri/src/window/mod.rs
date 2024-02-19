@@ -651,7 +651,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
@@ -863,7 +863,7 @@ pub struct Window<R: Runtime> {
   #[cfg(desktop)]
   pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
   /// Whether this window is a Webview window (hosts only a single webview) or a container for multiple webviews
-  pub(crate) webview_window: bool,
+  pub(crate) is_webview_window: bool,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -872,14 +872,16 @@ impl<R: Runtime> std::fmt::Debug for Window<R> {
       .field("window", &self.window)
       .field("manager", &self.manager)
       .field("app_handle", &self.app_handle)
-      .field("webview_window", &self.webview_window)
+      .field("is_webview_window", &self.is_webview_window)
       .finish()
   }
 }
 
-unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for Window<R> {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.window.dispatcher.raw_window_handle().unwrap()
+impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    self.window.dispatcher.window_handle()
   }
 }
 
@@ -891,7 +893,7 @@ impl<R: Runtime> Clone for Window<R> {
       app_handle: self.app_handle.clone(),
       #[cfg(desktop)]
       menu: self.menu.clone(),
-      webview_window: self.webview_window,
+      is_webview_window: self.is_webview_window,
     }
   }
 }
@@ -946,7 +948,7 @@ impl<R: Runtime> Window<R> {
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
-    webview_window: bool,
+    is_webview_window: bool,
   ) -> Self {
     Self {
       window,
@@ -954,7 +956,7 @@ impl<R: Runtime> Window<R> {
       app_handle,
       #[cfg(desktop)]
       menu: Arc::new(std::sync::Mutex::new(menu)),
-      webview_window,
+      is_webview_window,
     }
   }
 
@@ -1418,11 +1420,16 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_window)
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
+          Ok(unsafe {
+            use objc::*;
+            let ns_window: cocoa::base::id =
+              objc::msg_send![h.ns_view.as_ptr() as cocoa::base::id, window];
+            ns_window as *mut _
+          })
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1435,11 +1442,11 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle {
-          Ok(h.ns_view)
+        if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
+          Ok(h.ns_view.as_ptr())
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1452,11 +1459,11 @@ impl<R: Runtime> Window<R> {
     self
       .window
       .dispatcher
-      .raw_window_handle()
+      .window_handle()
       .map_err(Into::into)
       .and_then(|handle| {
-        if let raw_window_handle::RawWindowHandle::Win32(h) = handle {
-          Ok(HWND(h.hwnd as _))
+        if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
+          Ok(HWND(h.hwnd.get()))
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1650,7 +1657,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {

@@ -62,7 +62,15 @@ pub struct Capability {
   #[serde(default)]
   pub context: CapabilityContext,
   /// List of windows that uses this capability. Can be a glob pattern.
+  ///
+  /// On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.
   pub windows: Vec<String>,
+  /// List of webviews that uses this capability. Can be a glob pattern.
+  ///
+  /// This is only required when using on multiwebview contexts, by default
+  /// all child webviews of a window that matches [`Self::windows`] are linked.
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
+  pub webviews: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms applies.
@@ -91,7 +99,7 @@ pub enum CapabilityContext {
   /// Capability refers to remote usage.
   Remote {
     /// Remote domains this capability refers to. Can use glob patterns.
-    domains: Vec<String>,
+    urls: Vec<String>,
   },
 }
 
@@ -151,9 +159,9 @@ mod build {
       let prefix = quote! { ::tauri::utils::acl::capability::CapabilityContext };
 
       tokens.append_all(match self {
-        Self::Remote { domains } => {
-          let domains = vec_lit(domains, str_lit);
-          quote! { #prefix::Remote { domains: #domains } }
+        Self::Remote { urls } => {
+          let urls = vec_lit(urls, str_lit);
+          quote! { #prefix::Remote { urls: #urls } }
         }
         Self::Local => {
           quote! { #prefix::Local }

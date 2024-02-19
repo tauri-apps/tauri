@@ -11,11 +11,11 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
-    flock, resolve_merge_config,
+    flock,
   },
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
-  Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -51,7 +51,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Whether to split the APKs and AABs per ABIs.
   #[clap(long)]
   pub split_per_abi: bool,
@@ -81,11 +81,8 @@ impl From<Options> for BuildOptions {
   }
 }
 
-pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
-
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
 
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
@@ -98,7 +95,7 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
-    options.config.as_deref(),
+    options.config.as_ref().map(|c| &c.0),
   )?;
   let (interface, app, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -178,12 +175,7 @@ fn run_build(
     options.aab = true;
   }
 
-  crate::build::setup(
-    tauri_utils::platform::Target::Android,
-    &interface,
-    &mut build_options,
-    true,
-  )?;
+  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,

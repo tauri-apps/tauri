@@ -1,6 +1,5 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 59
 expression: resolved
 ---
 Resolved {
@@ -29,6 +28,7 @@ Resolved {
                     is_recursive: false,
                 },
             ],
+            webviews: [],
             scope: None,
         },
     },

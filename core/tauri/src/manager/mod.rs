@@ -21,7 +21,7 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{AppHandle, GlobalWindowEventListener, OnPageLoad},
+  app::{AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener, OnPageLoad},
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder, RuntimeAuthority},
   plugin::PluginStore,
@@ -231,6 +231,7 @@ impl<R: Runtime> AppManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
+    webiew_event_listeners: Vec<GlobalWebviewEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
       String,
       crate::app::GlobalMenuEventListener<Window<R>>,
@@ -255,6 +256,7 @@ impl<R: Runtime> AppManager<R> {
         invoke_handler,
         on_page_load,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
+        event_listeners: Arc::new(webiew_event_listeners),
         invoke_responder,
         invoke_initialization_script,
       },
@@ -485,16 +487,11 @@ impl<R: Runtime> AppManager<R> {
 
     let listeners = self.listeners();
 
-    listeners.try_for_each_js(
-      event,
+    listeners.emit_js_filter(
       self.webview.webviews_lock().values(),
-      |webview, target| {
-        if filter(target) {
-          webview.emit_js(&emit_args, target)
-        } else {
-          Ok(())
-        }
-      },
+      event,
+      &emit_args,
+      Some(&filter),
     )?;
 
     listeners.emit_filter(emit_args, Some(filter))?;
@@ -511,12 +508,7 @@ impl<R: Runtime> AppManager<R> {
 
     let listeners = self.listeners();
 
-    listeners.try_for_each_js(
-      event,
-      self.webview.webviews_lock().values(),
-      |webview, target| webview.emit_js(&emit_args, target),
-    )?;
-
+    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -645,6 +637,7 @@ mod test {
       None,
       Default::default(),
       StateManager::new(),
+      Default::default(),
       Default::default(),
       Default::default(),
       (None, "".into()),

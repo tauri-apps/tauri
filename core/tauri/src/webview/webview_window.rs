@@ -864,9 +864,11 @@ impl<R: Runtime> PartialEq for WebviewWindow<R> {
   }
 }
 
-unsafe impl<R: Runtime> raw_window_handle::HasRawWindowHandle for WebviewWindow<R> {
-  fn raw_window_handle(&self) -> raw_window_handle::RawWindowHandle {
-    self.webview.window().raw_window_handle()
+impl<R: Runtime> raw_window_handle::HasWindowHandle for WebviewWindow<R> {
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+    self.webview.window().window_handle()
   }
 }
 
@@ -874,7 +876,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let webview = command.message.webview();
-    if webview.window().webview_window {
+    if webview.window().is_webview_window {
       Ok(Self { webview })
     } else {
       Err(InvokeError::from_anyhow(anyhow::anyhow!(

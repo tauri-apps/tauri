@@ -106,8 +106,6 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("toggle_maximize", false),
       // internal
       ("internal_toggle_maximize", true),
-      ("internal_on_mousemove", true),
-      ("internal_on_mousedown", true),
     ],
   ),
   (

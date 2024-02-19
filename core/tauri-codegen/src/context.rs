@@ -9,10 +9,9 @@ use std::{ffi::OsStr, str::FromStr};
 
 use base64::Engine;
 use proc_macro2::TokenStream;
-use quote::{quote, TokenStreamExt};
+use quote::quote;
 use sha2::{Digest, Sha256};
 
-use syn::Attribute;
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::plugin::Manifest;
 use tauri_utils::acl::resolved::Resolved;
@@ -35,23 +34,8 @@ pub struct ContextData {
   pub config: Config,
   pub config_parent: PathBuf,
   pub root: TokenStream,
-  pub capabilities: Option<Capabilities>,
-}
-
-/// Additional capabilities to include.
-pub enum Capabilities {
-  /// Capabilities from Rust tokens.
-  FromTokens(Vec<CapabilityToken>),
-  /// Capabilities from files.
-  FromFiles(Vec<PathBuf>),
-}
-
-/// Capability that was parsed from a stream of Rust tokens.
-pub struct CapabilityToken {
-  /// Attributes.
-  pub attrs: Vec<Attribute>,
-  /// Path to the capability file.
-  pub path: String,
+  /// Additional capabilities to include.
+  pub capabilities: Option<Vec<PathBuf>>,
 }
 
 fn map_core_assets(
@@ -411,7 +395,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let capabilities = if config.app.security.capabilities.is_empty() {
+  let mut capabilities = if config.app.security.capabilities.is_empty() {
     capabilities_from_files
   } else {
     let mut capabilities = BTreeMap::new();
@@ -438,56 +422,29 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     identity,
   );
 
-  let runtime_authority = match additional_capabilities {
-    Some(Capabilities::FromFiles(paths)) => {
-      let mut capabilities = capabilities;
-
-      for path in paths {
-        let capability = CapabilityFile::load(&path)
-          .unwrap_or_else(|e| panic!("failed to read capability {}: {e}", path.display()));
-        match capability {
-          CapabilityFile::Capability(c) => {
-            capabilities.insert(c.identifier.clone(), c);
-          }
-          CapabilityFile::List {
-            capabilities: capabilities_list,
-          } => {
-            capabilities.extend(
-              capabilities_list
-                .into_iter()
-                .map(|c| (c.identifier.clone(), c)),
-            );
-          }
+  if let Some(paths) = additional_capabilities {
+    for path in paths {
+      let capability = CapabilityFile::load(&path)
+        .unwrap_or_else(|e| panic!("failed to read capability {}: {e}", path.display()));
+      match capability {
+        CapabilityFile::Capability(c) => {
+          capabilities.insert(c.identifier.clone(), c);
+        }
+        CapabilityFile::List {
+          capabilities: capabilities_list,
+        } => {
+          capabilities.extend(
+            capabilities_list
+              .into_iter()
+              .map(|c| (c.identifier.clone(), c)),
+          );
         }
       }
-
-      let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
-      quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved))
     }
-    Some(Capabilities::FromTokens(tokens)) => {
-      let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+  }
 
-      let mut additions = quote!();
-
-      for CapabilityToken { attrs, path } in tokens {
-        let path = path.as_str();
-        additions.append_all(quote!(
-          #(#attrs),*
-          authority.add_capability(include_str!(#path).parse().expect("invalid capability file")).expect("failed to add capability");
-        ));
-      }
-
-      quote!({
-        let mut authority = #root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved);
-        #additions
-        authority
-      })
-    }
-    None => {
-      let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
-      quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved))
-    }
-  };
+  let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+  let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]

@@ -65,6 +65,13 @@ pub enum WindowEvent {
   ThemeChanged(Theme),
 }
 
+/// An event from a window.
+#[derive(Debug, Clone)]
+pub enum WebviewEvent {
+  /// An event associated with the file drop action.
+  FileDrop(FileDropEvent),
+}
+
 /// The file drop event payload.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
@@ -453,7 +460,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 }
 
 /// Identifier of a window.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WindowId(u32);
 
 impl From<u32> for WindowId {

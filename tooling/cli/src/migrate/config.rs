@@ -61,6 +61,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
         description: "permissions that were migrated from v1".into(),
         context: CapabilityContext::Local,
         windows: vec!["main".into()],
+        webviews: vec![],
         permissions,
         platforms: vec![
           Target::Linux,

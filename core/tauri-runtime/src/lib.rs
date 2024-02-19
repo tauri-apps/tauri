@@ -12,7 +12,7 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use raw_window_handle::RawDisplayHandle;
+use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::{ProgressBarState, Theme};
@@ -27,7 +27,7 @@ pub mod window;
 use monitor::Monitor;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
+  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
 };
 use window::{WindowBuilder, WindowId};
 
@@ -38,6 +38,7 @@ use http::{
 };
 
 pub type WindowEventId = u32;
+pub type WebviewEventId = u32;
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -166,6 +167,13 @@ pub enum RunEvent<T: UserEvent> {
     /// The detailed event.
     event: WindowEvent,
   },
+  /// An event associated with a webview.
+  WebviewEvent {
+    /// The webview label.
+    label: String,
+    /// The detailed event.
+    event: WebviewEvent,
+  },
   /// Application ready.
   Ready,
   /// Sent if the event loop is being resumed.
@@ -233,7 +241,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
-  fn raw_display_handle(&self) -> RawDisplayHandle;
+  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
@@ -348,7 +356,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
+  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
@@ -361,6 +369,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
+
+  /// Registers a webview event handler.
+  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId;
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
@@ -525,7 +536,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   fn default_vbox(&self) -> Result<gtk::Box>;
 
   /// Raw window handle.
-  fn raw_window_handle(&self) -> Result<raw_window_handle::RawWindowHandle>;
+  fn window_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError>;
 
   /// Returns the current window theme.
   fn theme(&self) -> Result<Theme>;

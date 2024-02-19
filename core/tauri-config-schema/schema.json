@@ -1095,7 +1095,14 @@
           ]
         },
         "windows": {
-          "description": "List of windows that uses this capability. Can be a glob pattern.",
+          "description": "List of windows that uses this capability. Can be a glob pattern.\n\nOn multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "webviews": {
+          "description": "List of webviews that uses this capability. Can be a glob pattern.\n\nThis is only required when using on multiwebview contexts, by default all child webviews of a window that matches [`Self::windows`] are linked.",
           "type": "array",
           "items": {
             "type": "string"
@@ -1144,10 +1151,10 @@
             "remote": {
               "type": "object",
               "required": [
-                "domains"
+                "urls"
               ],
               "properties": {
-                "domains": {
+                "urls": {
                   "description": "Remote domains this capability refers to. Can use glob patterns.",
                   "type": "array",
                   "items": {
@@ -2444,6 +2451,27 @@
         },
         "desktopTemplate": {
           "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section": {
+          "description": "Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "priority": {
+          "description": "Change the priority of the Debian Package. By default, it is set to `optional`. Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "changelog": {
+          "description": "Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes",
           "type": [
             "string",
             "null"

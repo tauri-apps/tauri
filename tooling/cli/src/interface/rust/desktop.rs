@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  get_profile, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
+  get_profile_dir, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
 };
 use crate::CommandExt;
 use tauri_utils::display_path;
@@ -169,7 +169,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), get_profile(&options))
+        .out_dir(Some(triple.into()), get_profile_dir(&options).to_string())
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())

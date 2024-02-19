@@ -285,27 +285,48 @@ impl Listeners {
     })
   }
 
-  pub(crate) fn try_for_each_js<'a, R, I, F>(
+  pub(crate) fn emit_js_filter<'a, R, I, F>(
     &self,
-    event: &str,
     mut webviews: I,
-    callback: F,
+    event: &str,
+    emit_args: &EmitArgs,
+    filter: Option<&F>,
   ) -> crate::Result<()>
   where
     R: Runtime,
     I: Iterator<Item = &'a Webview<R>>,
-    F: Fn(&Webview<R>, &EventTarget) -> crate::Result<()>,
+    F: Fn(&EventTarget) -> bool,
   {
     let listeners = self.inner.js_event_listeners.lock().unwrap();
     webviews.try_for_each(|webview| {
       if let Some(handlers) = listeners.get(webview.label()).and_then(|s| s.get(event)) {
         for JsHandler { target, .. } in handlers {
-          callback(webview, target)?;
+          if *target == EventTarget::Any || filter.as_ref().map(|f| f(target)).unwrap_or(false) {
+            webview.emit_js(emit_args, target)?;
+          }
         }
       }
 
       Ok(())
     })
+  }
+
+  pub(crate) fn emit_js<'a, R, I>(
+    &self,
+    webviews: I,
+    event: &str,
+    emit_args: &EmitArgs,
+  ) -> crate::Result<()>
+  where
+    R: Runtime,
+    I: Iterator<Item = &'a Webview<R>>,
+  {
+    self.emit_js_filter(
+      webviews,
+      event,
+      emit_args,
+      None::<&&dyn Fn(&EventTarget) -> bool>,
+    )
   }
 }
 

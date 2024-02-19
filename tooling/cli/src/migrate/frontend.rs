@@ -43,6 +43,10 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
               let new = "@tauri-apps/api/core".to_string();
               log::info!("Replacing `{original}` with `{new}` on {}", path.display());
               new
+            } else if module == "window" {
+              let new = "@tauri-apps/api/webviewWindow".to_string();
+              log::info!("Replacing `{original}` with `{new}` on {}", path.display());
+              new
             } else if CORE_API_MODULES.contains(&module) {
               original.to_string()
             } else {

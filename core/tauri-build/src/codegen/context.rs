@@ -9,7 +9,7 @@ use std::{
   io::{BufWriter, Write},
   path::{Path, PathBuf},
 };
-use tauri_codegen::{context_codegen, Capabilities, ContextData};
+use tauri_codegen::{context_codegen, ContextData};
 use tauri_utils::config::FrontendDist;
 
 // TODO docs
@@ -137,7 +137,7 @@ impl CodegenContext {
       // it's very hard to have a build script for unit tests, so assume this is always called from
       // outside the tauri crate, making the ::tauri root valid.
       root: quote::quote!(::tauri),
-      capabilities: self.capabilities.map(Capabilities::FromFiles),
+      capabilities: self.capabilities,
     })?;
 
     // get the full output file path

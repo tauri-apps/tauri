@@ -148,6 +148,10 @@ pub enum Error {
   /// Failed to deserialize scope object.
   #[error("error deserializing scope: {0}")]
   CannotDeserializeScope(Box<dyn std::error::Error + Send + Sync>),
+
+  /// Failed to get a raw handle.
+  #[error(transparent)]
+  RawHandleError(#[from] raw_window_handle::HandleError),
 }
 
 /// `Result<T, ::tauri::Error>`

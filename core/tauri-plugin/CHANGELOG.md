@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`dd7571a7`](https://www.github.com/tauri-apps/tauri/commit/dd7571a7808676c8063a4983b9c6687dfaf03a09)([#8815](https://www.github.com/tauri-apps/tauri/pull/8815)) Do not generate JSON schema and markdown reference file if the plugin does not define any permissions and delete those files if they exist.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Bug Fixes

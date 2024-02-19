@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-beta.2"
+version = "2.0.0-beta.3"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -50,10 +50,10 @@ uuid = { version = "1", features = [ "v4" ], optional = true }
 url = { version = "2.4" }
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "2.0.0-beta.1", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-beta.1", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-beta.1", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.0.0-beta.1", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "2.0.0-beta.2", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-beta.2", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-beta.2", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "2.0.0-beta.2", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -111,14 +111,14 @@ swift-rs = "1.0.6"
 
 [build-dependencies]
 heck = "0.4"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-beta.1" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.1", features = [ "build" ] }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-beta.2" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.2", features = [ "build" ] }
 
 [dev-dependencies]
 proptest = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio = { version = "1", features = [ "full" ] }
@@ -150,7 +150,7 @@ devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
 process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch-dangerous-allow-symlink-macos" ]
 macos-private-api = [
   "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry/macos-private-api",
+  "tauri-runtime-wry/macos-private-api"
 ]
 webview-data-url = [ "data-url" ]
 protocol-asset = [ "http-range" ]

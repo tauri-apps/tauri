@@ -1,5 +1,22 @@
 # Changelog
 
+## \[2.0.0-beta.2]
+
+### What's Changed
+
+- [`76ce9f61`](https://www.github.com/tauri-apps/tauri/commit/76ce9f61dd3c5bdd589c7557543894e1f770dd16)([#3002](https://www.github.com/tauri-apps/tauri/pull/3002)) Enhance centering a newly created window, it will no longer jump to center after being visible.
+- [`16e550ec`](https://www.github.com/tauri-apps/tauri/commit/16e550ec1503765158cdc3bb2a20e70ec710e981)([#8844](https://www.github.com/tauri-apps/tauri/pull/8844)) Add `WebviewEvent`, `RunEvent::WebviewEvent` and `WebviewDispatch::on_webview_event`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-runtime@2.0.0-beta.2`
+- [`2f55bfec`](https://www.github.com/tauri-apps/tauri/commit/2f55bfecbf0244f3b5aa1ad7622182fca3fcdcbb)([#8795](https://www.github.com/tauri-apps/tauri/pull/8795)) Update `wry` to 0.36.
+
+### Breaking Changes
+
+- [`2f55bfec`](https://www.github.com/tauri-apps/tauri/commit/2f55bfecbf0244f3b5aa1ad7622182fca3fcdcbb)([#8795](https://www.github.com/tauri-apps/tauri/pull/8795)) Update raw-window-handle to 0.6.
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies

@@ -337,11 +337,11 @@ fn resolve_command(
     CapabilityContext::Local => {
       vec![ExecutionContext::Local]
     }
-    CapabilityContext::Remote { domains } => domains
+    CapabilityContext::Remote { urls } => urls
       .iter()
-      .map(|domain| ExecutionContext::Remote {
-        domain: Pattern::new(domain)
-          .unwrap_or_else(|e| panic!("invalid glob pattern for remote domain {domain}: {e}")),
+      .map(|url| ExecutionContext::Remote {
+        url: Pattern::new(url)
+          .unwrap_or_else(|e| panic!("invalid glob pattern for remote URL {url}: {e}")),
       })
       .collect(),
   };

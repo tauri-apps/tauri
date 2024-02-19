@@ -189,8 +189,8 @@ pub enum ExecutionContext {
   Local,
   /// Remote URL is tring to use the IPC.
   Remote {
-    /// The domain trying to access the IPC (glob pattern).
-    domain: Pattern,
+    /// The URL trying to access the IPC (glob pattern).
+    url: Pattern,
   },
 }
 
@@ -212,9 +212,9 @@ mod build_ {
         Self::Local => {
           quote! { #prefix::Local }
         }
-        Self::Remote { domain } => {
-          let domain = domain.as_str();
-          quote! { #prefix::Remote { domain: #domain.parse().unwrap() } }
+        Self::Remote { url } => {
+          let url = url.as_str();
+          quote! { #prefix::Remote { url: #url.parse().unwrap() } }
         }
       });
     }

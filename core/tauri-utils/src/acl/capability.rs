@@ -97,7 +97,7 @@ pub enum CapabilityContext {
   /// Capability refers to remote usage.
   Remote {
     /// Remote domains this capability refers to. Can use glob patterns.
-    domains: Vec<String>,
+    urls: Vec<String>,
   },
 }
 
@@ -116,9 +116,9 @@ mod build {
       let prefix = quote! { ::tauri::utils::acl::capability::CapabilityContext };
 
       tokens.append_all(match self {
-        Self::Remote { domains } => {
-          let domains = vec_lit(domains, str_lit);
-          quote! { #prefix::Remote { domains: #domains } }
+        Self::Remote { urls } => {
+          let urls = vec_lit(urls, str_lit);
+          quote! { #prefix::Remote { urls: #urls } }
         }
         Self::Local => {
           quote! { #prefix::Local }

@@ -86,6 +86,8 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
     }));
   }
 
+  let mut definitions = Vec::new();
+
   if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionEntry") {
     let permission_entry_any_of_schemas = obj.subschemas().any_of.as_mut().unwrap();
 
@@ -96,16 +98,19 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
 
       for (plugin, manifest) in plugin_manifests {
         if let Some(global_scope_schema) = &manifest.global_scope_schema {
-          let global_scope_schema_def: Schema = serde_json::from_value(global_scope_schema.clone())
-            .unwrap_or_else(|e| panic!("invalid JSON schema for plugin {plugin}: {e}"));
+          let global_scope_schema_def: RootSchema =
+            serde_json::from_value(global_scope_schema.clone())
+              .unwrap_or_else(|e| panic!("invalid JSON schema for plugin {plugin}: {e}"));
 
           let global_scope_schema = Schema::Object(SchemaObject {
             array: Some(Box::new(ArrayValidation {
-              items: Some(global_scope_schema_def.into()),
+              items: Some(Schema::Object(global_scope_schema_def.schema).into()),
               ..Default::default()
             })),
             ..Default::default()
           });
+
+          definitions.push(global_scope_schema_def.definitions);
 
           let mut required = BTreeSet::new();
           required.insert("identifier".to_string());
@@ -168,6 +173,10 @@ fn capabilities_schema(plugin_manifests: &BTreeMap<String, Manifest>) -> RootSch
         permission_entry_any_of_schemas.push(scope_extended_schema_obj.into());
       };
     }
+  }
+
+  for definitions_map in definitions {
+    schema.definitions.extend(definitions_map);
   }
 
   schema

@@ -26,14 +26,16 @@
 use super::{super::common, freedesktop};
 use crate::Settings;
 use anyhow::Context;
+use flate2::{write::GzEncoder, Compression};
 use heck::AsKebabCase;
-use libflate::gzip;
 use log::info;
+use tar::HeaderMode;
 use walkdir::WalkDir;
 
 use std::{
   fs::{self, File},
   io::{self, Write},
+  os::unix::fs::MetadataExt,
   path::{Path, PathBuf},
 };
 
@@ -121,8 +123,28 @@ pub fn generate_data(
     .with_context(|| "Failed to create icon files")?;
   freedesktop::generate_desktop_file(settings, &settings.deb().desktop_template, &data_dir)
     .with_context(|| "Failed to create desktop file")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
 
   Ok((data_dir, icons))
+}
+
+/// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
+/// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  if let Some(changelog_src_path) = &settings.deb().changelog {
+    let mut src_file = File::open(changelog_src_path)?;
+    let bin_name = settings.main_binary_name();
+    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
+
+    let changelog_file = common::create_file(&dest_path)?;
+    let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
+    io::copy(&mut src_file, &mut gzip_encoder)?;
+
+    let mut changelog_file = gzip_encoder.finish()?;
+    changelog_file.flush()?;
+  }
+  Ok(())
 }
 
 /// Generates the debian control file and stores it under the `control_dir`.
@@ -142,7 +164,17 @@ fn generate_control_file(
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
+
   writeln!(file, "Maintainer: {authors}")?;
+  if let Some(section) = &settings.deb().section {
+    writeln!(file, "Section: {}", section)?;
+  }
+  if let Some(priority) = &settings.deb().priority {
+    writeln!(file, "Priority: {}", priority)?;
+  } else {
+    writeln!(file, "Priority: optional")?;
+  }
+
   if !settings.homepage_url().is_empty() {
     writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
@@ -167,7 +199,6 @@ fn generate_control_file(
       writeln!(file, " {line}")?;
     }
   }
-  writeln!(file, "Priority: optional")?;
   file.flush()?;
   Ok(())
 }
@@ -236,20 +267,15 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       continue;
     }
     let dest_path = src_path.strip_prefix(src_dir)?;
+    let stat = fs::metadata(src_path)?;
+    let mut header = tar::Header::new_gnu();
+    header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
+    header.set_mtime(stat.mtime() as u64);
+
     if entry.file_type().is_dir() {
-      let stat = fs::metadata(src_path)?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
       tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
     } else {
       let mut src_file = fs::File::open(src_path)?;
-      let stat = src_file.metadata()?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
       tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
     }
   }
@@ -264,9 +290,9 @@ fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
   let dest_path = src_dir.with_extension("tar.gz");
   let dest_file = common::create_file(&dest_path)?;
-  let gzip_encoder = gzip::Encoder::new(dest_file)?;
+  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
   let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-  let mut dest_file = gzip_encoder.finish().into_result()?;
+  let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;
   Ok(dest_path)
 }

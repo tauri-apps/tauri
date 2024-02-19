@@ -157,7 +157,7 @@ mod windows {
     request: &str,
   ) -> bool {
     if let Some(args) = request.strip_prefix(MESSAGE_MOUSEMOVE) {
-      if let Some(window) = context.main_thread.windows.borrow().get(&window_id) {
+      if let Some(window) = context.main_thread.windows.0.borrow().get(&window_id) {
         if let Some(w) = window.inner.as_ref() {
           if !w.is_decorated()
             && w.is_resizable()
@@ -178,7 +178,7 @@ mod windows {
       return true;
     }
     if let Some(args) = request.strip_prefix(MESSAGE_MOUSEDOWN) {
-      if let Some(window) = context.main_thread.windows.borrow().get(&window_id) {
+      if let Some(window) = context.main_thread.windows.0.borrow().get(&window_id) {
         if let Some(w) = window.inner.as_ref() {
           if !w.is_decorated()
             && w.is_resizable()

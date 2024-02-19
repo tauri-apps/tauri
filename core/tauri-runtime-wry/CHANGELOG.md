@@ -47,10 +47,6 @@
 
 - [`d621d343`](https://www.github.com/tauri-apps/tauri/commit/d621d3437ce3947175eecf345b2c6d1c4c7ce020)([#8607](https://www.github.com/tauri-apps/tauri/pull/8607)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
 
-### Bug Fixes
-
-- [`0d0501cb`](https://www.github.com/tauri-apps/tauri/commit/0d0501cb7b5e767c51a3697a148acfe84211a7ad)([#8394](https://www.github.com/tauri-apps/tauri/pull/8394)) Use `arboard` instead of `tao` clipboard implementation to prevent a crash.
-
 ### What's Changed
 
 - [`cb640c8e`](https://www.github.com/tauri-apps/tauri/commit/cb640c8e949a3d78d78162e2e61b51bf8afae983)([#8393](https://www.github.com/tauri-apps/tauri/pull/8393)) Fix `RunEvent::WindowEvent(event: WindowEvent::FileDrop(FileDropEvent))` never triggered and always prevent default OS behavior when `disable_file_drop_handler` is not used.
@@ -219,6 +215,25 @@
 
 - Support `with_webview` for Android platform alowing execution of JNI code in context.
   - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+
+## \[0.14.4]
+
+### Bug Fixes
+
+- [`24210735`](https://www.github.com/tauri-apps/tauri/commit/2421073576a6d45783176be57b0188668558aff7)([#8117](https://www.github.com/tauri-apps/tauri/pull/8117)) Fixes a crash on macOS when accessing the windows map.
+- [`510b6226`](https://www.github.com/tauri-apps/tauri/commit/510b62261c70331ce3f5bfd24137dac1bc4a0bbe)([#8822](https://www.github.com/tauri-apps/tauri/pull/8822)) Add missing `arboard` feature flag to prevent panics in wayland session.
+
+## \[0.14.3]
+
+### Bug Fixes
+
+- [`0d0501cb`](https://www.github.com/tauri-apps/tauri/commit/0d0501cb7b5e767c51a3697a148acfe84211a7ad)([#8394](https://www.github.com/tauri-apps/tauri/pull/8394)) Use `arboard` instead of `tao` clipboard implementation to prevent a crash.
+- [`b2f83f03`](https://www.github.com/tauri-apps/tauri/commit/b2f83f03a872baa91e2b6bbb22a3e7a5cd975dc0)([#8402](https://www.github.com/tauri-apps/tauri/pull/8402)) Use `Arc` instead of `Rc` to prevent crashes on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-runtime@0.14.2`
 
 ## \[0.14.2]
 

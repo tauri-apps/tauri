@@ -356,7 +356,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
+  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);

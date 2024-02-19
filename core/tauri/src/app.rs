@@ -1002,7 +1002,7 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
-  pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent)>(&mut self, mut callback: F) {
+  pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
 

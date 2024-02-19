@@ -460,7 +460,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 }
 
 /// Identifier of a window.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WindowId(u32);
 
 impl From<u32> for WindowId {

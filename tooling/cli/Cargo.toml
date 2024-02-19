@@ -1,5 +1,5 @@
 [workspace]
-members = [ "node" ]
+members = ["node"]
 
 [package]
 name = "tauri-cli"
@@ -20,7 +20,7 @@ include = [
   "*.rs",
   "tauri.gitignore",
   "tauri-dev-watcher.gitignore",
-  "LICENSE*"
+  "LICENSE*",
 ]
 
 [package.metadata.binstall]
@@ -67,35 +67,42 @@ handlebars = "5.0"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.21.5"
-ureq = { version = "2.8", default-features = false, features = [ "gzip" ] }
+ureq = { version = "2.9.1", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1.0"
 regex = "1.10.2"
 unicode-width = "0.1"
 zeroize = "1.6"
-heck = { version = "0.4", features = [ "unicode" ] }
+heck = { version = "0.4", features = ["unicode"] }
 dialoguer = "0.11"
-url = { version = "2.4", features = [ "serde" ] }
+url = { version = "2.4", features = ["serde"] }
 os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.4"
-log = { version = "0.4.20", features = [ "kv_unstable", "kv_unstable_std" ] }
+log = { version = "0.4.20", features = ["kv_unstable", "kv_unstable_std"] }
 env_logger = "0.10.0"
 icns = { package = "tauri-icns", version = "0.1" }
-image = { version = "0.24", default-features = false, features = [ "ico" ] }
-axum = { version = "0.6.20", features = [ "ws" ] }
+image = { version = "0.24", default-features = false, features = ["ico"] }
+axum = { version = "0.6.20", features = ["ws"] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
-tokio = { version = "1", features = [ "macros", "sync" ] }
+tokio = { version = "1", features = ["macros", "sync"] }
 common-path = "1"
 serde-value = "0.7.0"
 itertools = "0.11"
 local-ip-address = "0.5"
 css-color = "0.2"
 resvg = "0.36.0"
+glob = "0.3"
 
 [target."cfg(windows)".dependencies]
-winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }
+winapi = { version = "0.3", features = [
+  "handleapi",
+  "processenv",
+  "winbase",
+  "wincon",
+  "winnt",
+] }
 cc = "1"
 
 [target."cfg(unix)".dependencies]

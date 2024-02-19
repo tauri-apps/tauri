@@ -12,6 +12,7 @@
 )]
 
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
+
 use tauri_runtime::{
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -97,7 +98,7 @@ use std::{
   cell::RefCell,
   collections::{
     hash_map::Entry::{Occupied, Vacant},
-    HashMap,
+    BTreeMap, HashMap,
   },
   fmt,
   ops::Deref,
@@ -357,11 +358,23 @@ pub enum ActiveTracingSpan {
   },
 }
 
+#[derive(Debug)]
+pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for WindowsStore {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for WindowsStore {}
+
 #[derive(Debug, Clone)]
 pub struct DispatcherMainThreadContext<T: UserEvent> {
   pub window_target: EventLoopWindowTarget<Message<T>>,
   pub web_context: WebContextStore,
-  pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
+  // changing this to an Rc will cause frequent app crashes.
+  pub windows: Arc<WindowsStore>,
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
 }
@@ -2115,7 +2128,7 @@ impl<T: UserEvent> Wry<T> {
     let main_thread_id = current_thread().id();
     let web_context = WebContextStore::default();
 
-    let windows = Rc::new(RefCell::new(HashMap::default()));
+    let windows = Arc::new(WindowsStore(RefCell::new(BTreeMap::default())));
     let window_id_map = WindowIdStore::default();
 
     let context = Context {
@@ -2216,6 +2229,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
+      .0
       .borrow_mut()
       .insert(window_id, window);
 
@@ -2247,6 +2261,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .context
       .main_thread
       .windows
+      .0
       .borrow()
       .get(&window_id)
       .and_then(|w| w.inner.clone());
@@ -2266,6 +2281,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         .context
         .main_thread
         .windows
+        .0
         .borrow_mut()
         .get_mut(&window_id)
         .map(|w| {
@@ -2329,7 +2345,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, mut callback: F) {
+  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) {
     use tao::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let window_id_map = self.context.window_id_map.clone();
@@ -2431,15 +2447,15 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 }
 
 pub struct EventLoopIterationContext<'a, T: UserEvent> {
-  pub callback: &'a mut (dyn FnMut(RunEvent<T>)),
+  pub callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   pub window_id_map: WindowIdStore,
-  pub windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
+  pub windows: Arc<WindowsStore>,
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
 }
 
 struct UserMessageContext {
-  windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
+  windows: Arc<WindowsStore>,
   window_id_map: WindowIdStore,
 }
 
@@ -2469,7 +2485,7 @@ fn handle_user_message<T: UserEvent>(
       }
     },
     Message::Window(id, window_message) => {
-      let w = windows.borrow().get(&id).map(|w| {
+      let w = windows.0.borrow().get(&id).map(|w| {
         (
           w.inner.clone(),
           w.webviews.clone(),
@@ -2616,7 +2632,7 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(None)
             }
             #[cfg(windows)]
-            if let Some(w) = windows.borrow_mut().get_mut(&id) {
+            if let Some(w) = windows.0.borrow_mut().get_mut(&id) {
               w.is_window_fullscreen = fullscreen;
             }
           }
@@ -2672,7 +2688,7 @@ fn handle_user_message<T: UserEvent>(
     }
 
     Message::Webview(window_id, webview_id, webview_message) => {
-      let webview_handle = windows.borrow().get(&window_id).map(|w| {
+      let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
         (
           w.inner.clone(),
           w.webviews.iter().find(|w| w.id == webview_id).cloned(),
@@ -2710,7 +2726,7 @@ fn handle_user_message<T: UserEvent>(
             let _ = webview.print();
           }
           WebviewMessage::Close => {
-            windows.borrow_mut().get_mut(&window_id).map(|window| {
+            windows.0.borrow_mut().get_mut(&window_id).map(|window| {
               if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
                 window.webviews.remove(i);
               }
@@ -2827,13 +2843,14 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::CreateWebview(window_id, handler) => {
       let window = windows
+        .0
         .borrow()
         .get(&window_id)
         .and_then(|w| w.inner.clone());
       if let Some(window) = window {
         match handler(&window) {
           Ok(webview) => {
-            windows.borrow_mut().get_mut(&window_id).map(|w| {
+            windows.0.borrow_mut().get_mut(&window_id).map(|w| {
               w.webviews.push(webview);
               w
             });
@@ -2846,7 +2863,7 @@ fn handle_user_message<T: UserEvent>(
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
       Ok(webview) => {
-        windows.borrow_mut().insert(window_id, webview);
+        windows.0.borrow_mut().insert(window_id, webview);
       }
       Err(e) => {
         debug_eprintln!("{}", e);
@@ -2881,7 +2898,7 @@ fn handle_user_message<T: UserEvent>(
           None
         };
 
-        windows.borrow_mut().insert(
+        windows.0.borrow_mut().insert(
           window_id,
           WindowWrapper {
             label,
@@ -2945,7 +2962,7 @@ fn handle_event_loop<T: UserEvent>(
     Event::RedrawRequested(id) => {
       #[cfg(windows)]
       if let Some(window_id) = window_id_map.get(&id) {
-        let mut windows_ref = windows.borrow_mut();
+        let mut windows_ref = windows.0.borrow_mut();
         if let Some(window) = windows_ref.get_mut(&window_id) {
           if window.is_window_transparent {
             if let Some(surface) = &mut window.surface {
@@ -2966,7 +2983,7 @@ fn handle_event_loop<T: UserEvent>(
       webview_id,
       WebviewMessage::WebviewEvent(event),
     )) => {
-      let windows_ref = windows.borrow();
+      let windows_ref = windows.0.borrow();
       if let Some(window) = windows_ref.get(&window_id) {
         if let Some(webview) = window.webviews.iter().find(|w| w.id == webview_id) {
           let label = webview.label.clone();
@@ -2993,7 +3010,7 @@ fn handle_event_loop<T: UserEvent>(
       WebviewMessage::SynthesizedWindowEvent(event),
     )) => {
       if let Some(event) = WindowEventWrapper::from(event).0 {
-        let windows_ref = windows.borrow();
+        let windows_ref = windows.0.borrow();
         let window = windows_ref.get(&window_id);
         if let Some(window) = window {
           let label = window.label.clone();
@@ -3020,7 +3037,7 @@ fn handle_event_loop<T: UserEvent>(
     } => {
       if let Some(window_id) = window_id_map.get(&window_id) {
         {
-          let windows_ref = windows.borrow();
+          let windows_ref = windows.0.borrow();
           if let Some(window) = windows_ref.get(&window_id) {
             if let Some(event) = WindowEventWrapper::parse(window, &event).0 {
               let label = window.label.clone();
@@ -3044,7 +3061,7 @@ fn handle_event_loop<T: UserEvent>(
         match event {
           #[cfg(windows)]
           TaoWindowEvent::ThemeChanged(theme) => {
-            if let Some(window) = windows.borrow().get(&window_id) {
+            if let Some(window) = windows.0.borrow().get(&window_id) {
               for webview in &window.webviews {
                 let theme = match theme {
                   TaoTheme::Dark => wry::Theme::Dark,
@@ -3059,9 +3076,9 @@ fn handle_event_loop<T: UserEvent>(
             on_close_requested(callback, window_id, windows.clone());
           }
           TaoWindowEvent::Destroyed => {
-            let removed = windows.borrow_mut().remove(&window_id).is_some();
+            let removed = windows.0.borrow_mut().remove(&window_id).is_some();
             if removed {
-              let is_empty = windows.borrow().is_empty();
+              let is_empty = windows.0.borrow().is_empty();
               if is_empty {
                 let (tx, rx) = channel();
                 callback(RunEvent::ExitRequested { code: None, tx });
@@ -3076,7 +3093,12 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
           TaoWindowEvent::Resized(size) => {
-            if let Some(webviews) = windows.borrow().get(&window_id).map(|w| w.webviews.clone()) {
+            if let Some(webviews) = windows
+              .0
+              .borrow()
+              .get(&window_id)
+              .map(|w| w.webviews.clone())
+            {
               for webview in webviews {
                 if let Some(bounds) = &webview.bounds {
                   let b = bounds.lock().unwrap();
@@ -3135,13 +3157,13 @@ fn handle_event_loop<T: UserEvent>(
   }
 }
 
-fn on_close_requested<T: UserEvent>(
-  callback: &mut (dyn FnMut(RunEvent<T>)),
+fn on_close_requested<'a, T: UserEvent>(
+  callback: &'a mut (dyn FnMut(RunEvent<T>) + 'static),
   window_id: WindowId,
-  windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>,
+  windows: Arc<WindowsStore>,
 ) {
   let (tx, rx) = channel();
-  let windows_ref = windows.borrow();
+  let windows_ref = windows.0.borrow();
   if let Some(w) = windows_ref.get(&window_id) {
     let label = w.label.clone();
     let window_event_listeners = w.window_event_listeners.clone();
@@ -3166,8 +3188,8 @@ fn on_close_requested<T: UserEvent>(
   }
 }
 
-fn on_window_close(window_id: WindowId, windows: Rc<RefCell<HashMap<WindowId, WindowWrapper>>>) {
-  if let Some(window_wrapper) = windows.borrow_mut().get_mut(&window_id) {
+fn on_window_close(window_id: WindowId, windows: Arc<WindowsStore>) {
+  if let Some(window_wrapper) = windows.0.borrow_mut().get_mut(&window_id) {
     window_wrapper.inner = None;
     #[cfg(windows)]
     window_wrapper.surface.take();

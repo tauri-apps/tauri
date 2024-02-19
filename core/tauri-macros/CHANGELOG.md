@@ -141,6 +141,13 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.4.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-codegen@1.4.2`
+
 ## \[1.4.2]
 
 ### Enhancements

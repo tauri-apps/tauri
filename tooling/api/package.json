@@ -45,21 +45,21 @@
   "devDependencies": {
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "11.1.5",
-    "@types/node": "20.9.0",
+    "@types/node": "20.10.5",
     "@typescript-eslint/eslint-plugin": "6.10.0",
     "@typescript-eslint/parser": "6.10.0",
-    "eslint": "8.53.0",
+    "eslint": "8.56.0",
     "eslint-config-prettier": "9.0.0",
-    "eslint-plugin-import": "2.29.0",
+    "eslint-plugin-import": "2.29.1",
     "eslint-plugin-n": "16.3.0",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
     "eslint-plugin-security": "2.1.0",
     "fast-glob": "3.3.2",
-    "prettier": "3.0.3",
+    "prettier": "3.1.1",
     "rollup": "4.3.0",
     "tslib": "2.6.2",
-    "typescript": "5.2.2"
+    "typescript": "5.3.3"
   },
   "engines": {
     "node": ">= 18",

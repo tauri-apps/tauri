@@ -69,6 +69,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
+use ipc::RuntimeAuthority;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -76,6 +77,8 @@ pub use swift_rs;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
+
+pub use url::Url;
 
 pub(crate) mod app;
 pub mod async_runtime;
@@ -191,7 +194,6 @@ use std::{
   fmt::{self, Debug},
   sync::MutexGuard,
 };
-use utils::acl::resolved::Resolved;
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -206,7 +208,9 @@ pub use self::utils::TitleBarStyle;
 
 pub use self::event::{Event, EventId, EventTarget};
 pub use {
-  self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
+  self::app::{
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
+  },
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,
@@ -428,7 +432,7 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  pub(crate) resolved_acl: Resolved,
+  pub(crate) runtime_authority: RuntimeAuthority,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -525,8 +529,8 @@ impl<A: Assets> Context<A> {
   /// This API is unstable.
   #[doc(hidden)]
   #[inline(always)]
-  pub fn resolved_acl(&mut self) -> &mut Resolved {
-    &mut self.resolved_acl
+  pub fn runtime_authority_mut(&mut self) -> &mut RuntimeAuthority {
+    &mut self.runtime_authority
   }
 
   /// Create a new [`Context`] from the minimal required items.
@@ -540,7 +544,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    resolved_acl: Resolved,
+    runtime_authority: RuntimeAuthority,
   ) -> Self {
     Self {
       config,
@@ -552,7 +556,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
-      resolved_acl,
+      runtime_authority,
     }
   }
 
@@ -713,21 +717,23 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     #[cfg(feature = "tracing")]
     tracing::Span::current().record("target", format!("{target:?}"));
 
-    self.manager().emit_filter(event, payload, |s| match s {
-      t @ EventTarget::Window { label }
-      | t @ EventTarget::Webview { label }
-      | t @ EventTarget::WebviewWindow { label } => {
-        if let EventTarget::AnyLabel {
-          label: target_label,
-        } = &target
-        {
-          label == target_label
-        } else {
-          t == &target
-        }
-      }
-      t => t == &target,
-    })
+    match target {
+      // if targeting all, emit to all using emit without filter
+      EventTarget::Any => self.manager().emit(event, payload),
+
+      // if targeting any label, emit using emit_filter and filter labels
+      EventTarget::AnyLabel {
+        label: target_label,
+      } => self.manager().emit_filter(event, payload, |t| match t {
+        EventTarget::Window { label }
+        | EventTarget::Webview { label }
+        | EventTarget::WebviewWindow { label } => label == &target_label,
+        _ => false,
+      }),
+
+      // otherwise match same target
+      _ => self.manager().emit_filter(event, payload, |t| t == &target),
+    }
   }
 
   /// Emits an event to all [targets](EventTarget) based on the given filter.
@@ -798,7 +804,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch a single webview window from the manager.
   fn get_webview_window(&self, label: &str) -> Option<WebviewWindow<R>> {
     self.manager().get_webview(label).and_then(|webview| {
-      if webview.window().webview_window {
+      if webview.window().is_webview_window {
         Some(WebviewWindow { webview })
       } else {
         None
@@ -813,7 +819,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .webviews()
       .into_iter()
       .filter_map(|(label, webview)| {
-        if webview.window().webview_window {
+        if webview.window().is_webview_window {
           Some((label, WebviewWindow { webview }))
         } else {
           None
@@ -959,6 +965,28 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The path resolver.
   fn path(&self) -> &crate::path::PathResolver<R> {
     self.state::<crate::path::PathResolver<R>>().inner()
+  }
+
+  /// Adds a capability to the app.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(feature = "beta")]
+  ///     app.add_capability(include_str!("../capabilities/beta.json"));
+  ///     Ok(())
+  ///   });
+  /// ```
+  fn add_capability(&self, capability: &'static str) -> Result<()> {
+    self
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .add_capability(capability.parse().expect("invalid capability"))
   }
 }
 

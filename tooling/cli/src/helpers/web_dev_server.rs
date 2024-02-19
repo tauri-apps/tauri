@@ -123,11 +123,13 @@ pub fn start<P: AsRef<Path>>(path: P, ip: IpAddr, port: Option<u16>) -> crate::R
 }
 
 async fn handler(uri: Uri, state: Arc<State>) -> impl IntoResponse {
-  let uri = uri.to_string();
+  // Frontend files should not contain query parameters. This seems to be how vite handles it.
+  let uri = uri.path();
+
   let uri = if uri == "/" {
-    &uri
+    uri
   } else {
-    uri.strip_prefix('/').unwrap_or(&uri)
+    uri.strip_prefix('/').unwrap_or(uri)
   };
 
   let file = std::fs::read(state.serve_dir.join(uri))

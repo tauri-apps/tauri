@@ -41,6 +41,8 @@ pub struct ResolvedCommand {
   pub referenced_by: Vec<ResolvedCommandReference>,
   /// The list of window label patterns that was resolved for this command.
   pub windows: Vec<glob::Pattern>,
+  /// The list of webview label patterns that was resolved for this command.
+  pub webviews: Vec<glob::Pattern>,
   /// The reference of the scope that is associated with this command. See [`Resolved#structfield.scopes`].
   pub scope: Option<ScopeKey>,
 }
@@ -49,6 +51,7 @@ impl fmt::Debug for ResolvedCommand {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("ResolvedCommand")
       .field("windows", &self.windows)
+      .field("webviews", &self.webviews)
       .field("scope", &self.scope)
       .finish()
   }
@@ -74,11 +77,8 @@ pub struct CommandKey {
 }
 
 /// Resolved access control list.
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Resolved {
-  /// ACL plugin manifests.
-  #[cfg(debug_assertions)]
-  pub acl: BTreeMap<String, Manifest>,
   /// The commands that are allowed. Map each command with its context to a [`ResolvedCommand`].
   pub allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
   /// The commands that are denied. Map each command with its context to a [`ResolvedCommand`].
@@ -89,21 +89,10 @@ pub struct Resolved {
   pub global_scope: BTreeMap<String, ResolvedScope>,
 }
 
-impl fmt::Debug for Resolved {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    f.debug_struct("Resolved")
-      .field("allowed_commands", &self.allowed_commands)
-      .field("denied_commands", &self.denied_commands)
-      .field("command_scope", &self.command_scope)
-      .field("global_scope", &self.global_scope)
-      .finish()
-  }
-}
-
 impl Resolved {
   /// Resolves the ACL for the given plugin permissions and app capabilities.
   pub fn resolve(
-    acl: BTreeMap<String, Manifest>,
+    acl: &BTreeMap<String, Manifest>,
     capabilities: BTreeMap<String, Capability>,
     target: Target,
   ) -> Result<Self, Error> {
@@ -120,67 +109,25 @@ impl Resolved {
         continue;
       }
 
-      for permission_entry in &capability.permissions {
-        let permission_id = permission_entry.identifier();
-        let permission_name = permission_id.get_base();
-
-        if let Some(plugin_name) = permission_id.get_prefix() {
-          let permissions = get_permissions(plugin_name, permission_name, &acl)?;
-
-          let mut resolved_scope = Scopes::default();
-          let mut commands = Commands::default();
-
-          if let PermissionEntry::ExtendedPermission {
-            identifier: _,
-            scope,
-          } = permission_entry
-          {
-            if let Some(allow) = scope.allow.clone() {
-              resolved_scope
-                .allow
-                .get_or_insert_with(Default::default)
-                .extend(allow);
-            }
-            if let Some(deny) = scope.deny.clone() {
-              resolved_scope
-                .deny
-                .get_or_insert_with(Default::default)
-                .extend(deny);
-            }
-          }
-
-          for permission in permissions {
-            if let Some(allow) = permission.scope.allow.clone() {
-              resolved_scope
-                .allow
-                .get_or_insert_with(Default::default)
-                .extend(allow);
-            }
-            if let Some(deny) = permission.scope.deny.clone() {
-              resolved_scope
-                .deny
-                .get_or_insert_with(Default::default)
-                .extend(deny);
-            }
-
-            commands.allow.extend(permission.commands.allow.clone());
-            commands.deny.extend(permission.commands.deny.clone());
-          }
-
+      with_resolved_permissions(
+        capability,
+        acl,
+        |ResolvedPermission {
+           plugin_name,
+           permission_name,
+           commands,
+           scope,
+         }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
             // global scope
             global_scope
               .entry(plugin_name.to_string())
               .or_default()
-              .push(resolved_scope);
+              .push(scope);
           } else {
-            let has_scope = resolved_scope.allow.is_some() || resolved_scope.deny.is_some();
-            if has_scope {
+            let scope_id = if scope.allow.is_some() || scope.deny.is_some() {
               current_scope_id += 1;
-              command_scopes.insert(current_scope_id, resolved_scope);
-            }
-
-            let scope_id = if has_scope {
+              command_scopes.insert(current_scope_id, scope);
               Some(current_scope_id)
             } else {
               None
@@ -208,8 +155,8 @@ impl Resolved {
               );
             }
           }
-        }
-      }
+        },
+      )?;
     }
 
     // resolve scopes
@@ -261,8 +208,6 @@ impl Resolved {
       .collect();
 
     let resolved = Self {
-      #[cfg(debug_assertions)]
-      acl,
       allowed_commands: allowed_commands
         .into_iter()
         .map(|(key, cmd)| {
@@ -271,7 +216,8 @@ impl Resolved {
             ResolvedCommand {
               #[cfg(debug_assertions)]
               referenced_by: cmd.referenced_by,
-              windows: parse_window_patterns(cmd.windows)?,
+              windows: parse_glob_patterns(cmd.windows)?,
+              webviews: parse_glob_patterns(cmd.webviews)?,
               scope: cmd.resolved_scope_key,
             },
           ))
@@ -285,7 +231,8 @@ impl Resolved {
             ResolvedCommand {
               #[cfg(debug_assertions)]
               referenced_by: cmd.referenced_by,
-              windows: parse_window_patterns(cmd.windows)?,
+              windows: parse_glob_patterns(cmd.windows)?,
+              webviews: parse_glob_patterns(cmd.webviews)?,
               scope: cmd.resolved_scope_key,
             },
           ))
@@ -299,12 +246,87 @@ impl Resolved {
   }
 }
 
-fn parse_window_patterns(windows: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
+fn parse_glob_patterns(raw: HashSet<String>) -> Result<Vec<glob::Pattern>, Error> {
+  let mut raw = raw.into_iter().collect::<Vec<_>>();
+  raw.sort();
+
   let mut patterns = Vec::new();
-  for window in windows {
-    patterns.push(glob::Pattern::new(&window)?);
+  for pattern in raw {
+    patterns.push(glob::Pattern::new(&pattern)?);
   }
+
   Ok(patterns)
+}
+
+struct ResolvedPermission<'a> {
+  plugin_name: &'a str,
+  permission_name: &'a str,
+  commands: Commands,
+  scope: Scopes,
+}
+
+fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>)>(
+  capability: &Capability,
+  acl: &BTreeMap<String, Manifest>,
+  mut f: F,
+) -> Result<(), Error> {
+  for permission_entry in &capability.permissions {
+    let permission_id = permission_entry.identifier();
+    let permission_name = permission_id.get_base();
+
+    if let Some(plugin_name) = permission_id.get_prefix() {
+      let permissions = get_permissions(plugin_name, permission_name, acl)?;
+
+      let mut resolved_scope = Scopes::default();
+      let mut commands = Commands::default();
+
+      if let PermissionEntry::ExtendedPermission {
+        identifier: _,
+        scope,
+      } = permission_entry
+      {
+        if let Some(allow) = scope.allow.clone() {
+          resolved_scope
+            .allow
+            .get_or_insert_with(Default::default)
+            .extend(allow);
+        }
+        if let Some(deny) = scope.deny.clone() {
+          resolved_scope
+            .deny
+            .get_or_insert_with(Default::default)
+            .extend(deny);
+        }
+      }
+
+      for permission in permissions {
+        if let Some(allow) = permission.scope.allow.clone() {
+          resolved_scope
+            .allow
+            .get_or_insert_with(Default::default)
+            .extend(allow);
+        }
+        if let Some(deny) = permission.scope.deny.clone() {
+          resolved_scope
+            .deny
+            .get_or_insert_with(Default::default)
+            .extend(deny);
+        }
+
+        commands.allow.extend(permission.commands.allow.clone());
+        commands.deny.extend(permission.commands.deny.clone());
+      }
+
+      f(ResolvedPermission {
+        plugin_name,
+        permission_name,
+        commands,
+        scope: resolved_scope,
+      });
+    }
+  }
+
+  Ok(())
 }
 
 #[derive(Debug, Default)]
@@ -312,6 +334,7 @@ struct ResolvedCommandTemp {
   #[cfg(debug_assertions)]
   pub referenced_by: Vec<ResolvedCommandReference>,
   pub windows: HashSet<String>,
+  pub webviews: HashSet<String>,
   pub scope: Vec<ScopeKey>,
   pub resolved_scope_key: Option<ScopeKey>,
 }
@@ -327,11 +350,11 @@ fn resolve_command(
     CapabilityContext::Local => {
       vec![ExecutionContext::Local]
     }
-    CapabilityContext::Remote { domains } => domains
+    CapabilityContext::Remote { urls } => urls
       .iter()
-      .map(|domain| ExecutionContext::Remote {
-        domain: Pattern::new(domain)
-          .unwrap_or_else(|e| panic!("invalid glob pattern for remote domain {domain}: {e}")),
+      .map(|url| ExecutionContext::Remote {
+        url: Pattern::new(url)
+          .unwrap_or_else(|e| panic!("invalid glob pattern for remote URL {url}: {e}")),
       })
       .collect(),
   };
@@ -351,6 +374,8 @@ fn resolve_command(
     });
 
     resolved.windows.extend(capability.windows.clone());
+    resolved.webviews.extend(capability.webviews.clone());
+
     if let Some(id) = scope_id {
       resolved.scope.push(id);
     }
@@ -456,6 +481,10 @@ mod build {
         let w = window.as_str();
         quote!(#w.parse().unwrap())
       });
+      let webviews = vec_lit(&self.webviews, |window| {
+        let w = window.as_str();
+        quote!(#w.parse().unwrap())
+      });
       let scope = opt_lit(self.scope.as_ref());
 
       #[cfg(debug_assertions)]
@@ -465,6 +494,7 @@ mod build {
           ::tauri::utils::acl::resolved::ResolvedCommand,
           referenced_by,
           windows,
+          webviews,
           scope
         )
       }
@@ -473,6 +503,7 @@ mod build {
         tokens,
         ::tauri::utils::acl::resolved::ResolvedCommand,
         windows,
+        webviews,
         scope
       )
     }
@@ -493,14 +524,6 @@ mod build {
 
   impl ToTokens for Resolved {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      #[cfg(debug_assertions)]
-      let acl = map_lit(
-        quote! { ::std::collections::BTreeMap },
-        &self.acl,
-        str_lit,
-        identity,
-      );
-
       let allowed_commands = map_lit(
         quote! { ::std::collections::BTreeMap },
         &self.allowed_commands,
@@ -529,19 +552,6 @@ mod build {
         identity,
       );
 
-      #[cfg(debug_assertions)]
-      {
-        literal_struct!(
-          tokens,
-          ::tauri::utils::acl::resolved::Resolved,
-          acl,
-          allowed_commands,
-          denied_commands,
-          command_scope,
-          global_scope
-        )
-      }
-      #[cfg(not(debug_assertions))]
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::Resolved,

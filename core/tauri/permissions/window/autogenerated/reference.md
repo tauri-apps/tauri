@@ -72,22 +72,6 @@ Enables the inner_size command without any pre-configured scope.
 
 Denies the inner_size command without any pre-configured scope.
 
-## allow-internal-on-mousedown
-
-Enables the internal_on_mousedown command without any pre-configured scope.
-
-## deny-internal-on-mousedown
-
-Denies the internal_on_mousedown command without any pre-configured scope.
-
-## allow-internal-on-mousemove
-
-Enables the internal_on_mousemove command without any pre-configured scope.
-
-## deny-internal-on-mousemove
-
-Denies the internal_on_mousemove command without any pre-configured scope.
-
 ## allow-internal-toggle-maximize
 
 Enables the internal_toggle_maximize command without any pre-configured scope.

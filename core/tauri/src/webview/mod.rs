@@ -26,7 +26,7 @@ use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
-  app::UriSchemeResponder,
+  app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
     CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
@@ -861,6 +861,14 @@ impl<R: Runtime> Webview<R> {
   pub fn label(&self) -> &str {
     &self.webview.label
   }
+
+  /// Registers a window event listener.
+  pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
+    self
+      .webview
+      .dispatcher
+      .on_webview_event(move |event| f(&event.clone().into()));
+  }
 }
 
 /// Desktop webview setters and actions.
@@ -875,7 +883,7 @@ impl<R: Runtime> Webview<R> {
 
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
-    if self.window.webview_window {
+    if self.window.is_webview_window {
       self.window.close()
     } else {
       self.webview.dispatcher.close()?;
@@ -886,7 +894,7 @@ impl<R: Runtime> Webview<R> {
 
   /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
-    if self.window.webview_window {
+    if self.window.is_webview_window {
       self.window.set_size(size.into())
     } else {
       self
@@ -899,7 +907,7 @@ impl<R: Runtime> Webview<R> {
 
   /// Sets this webviews's position.
   pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    if self.window.webview_window {
+    if self.window.is_webview_window {
       self.window.set_position(position.into())
     } else {
       self
@@ -920,7 +928,7 @@ impl<R: Runtime> Webview<R> {
   /// - For child webviews, returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the parent window.
   /// - For webview window, returns the inner position of the window.
   pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
-    if self.window.webview_window {
+    if self.window.is_webview_window {
       self.window.inner_position()
     } else {
       self.webview.dispatcher.position().map_err(Into::into)
@@ -929,7 +937,7 @@ impl<R: Runtime> Webview<R> {
 
   /// Returns the physical size of the webviews's client area.
   pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
-    if self.window.webview_window {
+    if self.window.is_webview_window {
       self.window.inner_size()
     } else {
       self.webview.dispatcher.size().map_err(Into::into)
@@ -1105,15 +1113,19 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        domain: current_url
-          .domain()
-          .map(|d| d.to_string())
-          .unwrap_or_default(),
+        url: current_url.to_string(),
       }
     };
     let resolved_acl = manager
       .runtime_authority
-      .resolve_access(&request.cmd, &message.webview.webview.label, &acl_origin)
+      .lock()
+      .unwrap()
+      .resolve_access(
+        &request.cmd,
+        message.webview.label(),
+        message.webview.window().label(),
+        &acl_origin,
+      )
       .cloned();
 
     let mut invoke = Invoke {
@@ -1132,14 +1144,19 @@ fn main() {
       if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
         #[cfg(debug_assertions)]
         {
-          invoke
-            .resolver
-            .reject(manager.runtime_authority.resolve_access_message(
-              plugin,
-              &command_name,
-              &invoke.message.webview.webview.label,
-              &acl_origin,
-            ));
+          invoke.resolver.reject(
+            manager
+              .runtime_authority
+              .lock()
+              .unwrap()
+              .resolve_access_message(
+                plugin,
+                &command_name,
+                invoke.message.webview.window().label(),
+                invoke.message.webview.label(),
+                &acl_origin,
+              ),
+          );
         }
         #[cfg(not(debug_assertions))]
         invoke

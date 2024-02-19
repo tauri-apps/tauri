@@ -28,6 +28,7 @@ Resolved {
                     is_recursive: false,
                 },
             ],
+            webviews: [],
             scope: Some(
                 9188997750422900590,
             ),
@@ -56,6 +57,7 @@ Resolved {
                     is_recursive: false,
                 },
             ],
+            webviews: [],
             scope: Some(
                 1349364295896631601,
             ),
@@ -84,6 +86,7 @@ Resolved {
                     is_recursive: false,
                 },
             ],
+            webviews: [],
             scope: Some(
                 8031926490300119127,
             ),

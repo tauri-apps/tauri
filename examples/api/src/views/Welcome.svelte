@@ -17,7 +17,7 @@
   })
 
   function contextMenu() {
-    invoke('popup_context_menu')
+    invoke('plugin:app-menu|popup')
   }
 </script>
 

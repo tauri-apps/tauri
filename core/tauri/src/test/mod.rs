@@ -55,7 +55,7 @@ use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
-  ipc::{InvokeBody, InvokeError, InvokeResponse},
+  ipc::{InvokeBody, InvokeError, InvokeResponse, RuntimeAuthority},
   webview::InvokeRequest,
   App, Builder, Context, Pattern, Webview,
 };
@@ -126,14 +126,7 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
     },
     _info_plist: (),
     pattern: Pattern::Brownfield(std::marker::PhantomData),
-    resolved_acl: Resolved {
-      #[cfg(debug_assertions)]
-      acl: Default::default(),
-      allowed_commands: Default::default(),
-      denied_commands: Default::default(),
-      command_scope: Default::default(),
-      global_scope: Default::default(),
-    },
+    runtime_authority: RuntimeAuthority::new(Default::default(), Resolved::default()),
   }
 }
 

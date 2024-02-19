@@ -27,7 +27,7 @@ pub mod window;
 use monitor::Monitor;
 use window::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
+  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
 };
 use window::{WindowBuilder, WindowId};
 
@@ -38,6 +38,7 @@ use http::{
 };
 
 pub type WindowEventId = u32;
+pub type WebviewEventId = u32;
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -165,6 +166,13 @@ pub enum RunEvent<T: UserEvent> {
     label: String,
     /// The detailed event.
     event: WindowEvent,
+  },
+  /// An event associated with a webview.
+  WebviewEvent {
+    /// The webview label.
+    label: String,
+    /// The detailed event.
+    event: WebviewEvent,
   },
   /// Application ready.
   Ready,
@@ -348,7 +356,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
+  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
@@ -361,6 +369,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
+
+  /// Registers a webview event handler.
+  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId;
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;

@@ -1,6 +1,5 @@
 ---
 source: core/tests/acl/src/lib.rs
-assertion_line: 59
 expression: resolved
 ---
 Resolved {
@@ -8,9 +7,33 @@ Resolved {
         CommandKey {
             name: "plugin:fs|read_dir",
             context: Remote {
-                domain: Pattern {
-                    original: "tauri.app",
+                url: Pattern {
+                    original: "https://tauri.app",
                     tokens: [
+                        Char(
+                            'h',
+                        ),
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                        Char(
+                            's',
+                        ),
+                        Char(
+                            ':',
+                        ),
+                        Char(
+                            '/',
+                        ),
+                        Char(
+                            '/',
+                        ),
                         Char(
                             't',
                         ),
@@ -63,14 +86,39 @@ Resolved {
                     is_recursive: false,
                 },
             ],
+            webviews: [],
             scope: None,
         },
         CommandKey {
             name: "plugin:fs|read_file",
             context: Remote {
-                domain: Pattern {
-                    original: "tauri.app",
+                url: Pattern {
+                    original: "https://tauri.app",
                     tokens: [
+                        Char(
+                            'h',
+                        ),
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            't',
+                        ),
+                        Char(
+                            'p',
+                        ),
+                        Char(
+                            's',
+                        ),
+                        Char(
+                            ':',
+                        ),
+                        Char(
+                            '/',
+                        ),
+                        Char(
+                            '/',
+                        ),
                         Char(
                             't',
                         ),
@@ -123,6 +171,7 @@ Resolved {
                     is_recursive: false,
                 },
             ],
+            webviews: [],
             scope: None,
         },
     },

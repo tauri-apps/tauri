@@ -4149,6 +4149,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "syn 2.0.49",
  "tauri-utils",
  "thiserror",
  "time",

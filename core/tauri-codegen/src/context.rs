@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::collections::BTreeMap;
+use std::convert::identity;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
@@ -11,7 +12,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
-use tauri_utils::acl::capability::Capability;
+use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::plugin::Manifest;
 use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
@@ -20,6 +21,7 @@ use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node,
 };
 use tauri_utils::platform::Target;
+use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
@@ -32,6 +34,8 @@ pub struct ContextData {
   pub config: Config,
   pub config_parent: PathBuf,
   pub root: TokenStream,
+  /// Additional capabilities to include.
+  pub capabilities: Option<Vec<PathBuf>>,
 }
 
 fn map_core_assets(
@@ -126,6 +130,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config,
     config_parent,
     root,
+    capabilities: additional_capabilities,
   } = data;
 
   let target = std::env::var("TARGET")
@@ -390,7 +395,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     Default::default()
   };
 
-  let capabilities = if config.app.security.capabilities.is_empty() {
+  let mut capabilities = if config.app.security.capabilities.is_empty() {
     capabilities_from_files
   } else {
     let mut capabilities = BTreeMap::new();
@@ -410,7 +415,36 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     capabilities
   };
 
-  let resolved_acl = Resolved::resolve(acl, capabilities, target).expect("failed to resolve ACL");
+  let acl_tokens = map_lit(
+    quote! { ::std::collections::BTreeMap },
+    &acl,
+    str_lit,
+    identity,
+  );
+
+  if let Some(paths) = additional_capabilities {
+    for path in paths {
+      let capability = CapabilityFile::load(&path)
+        .unwrap_or_else(|e| panic!("failed to read capability {}: {e}", path.display()));
+      match capability {
+        CapabilityFile::Capability(c) => {
+          capabilities.insert(c.identifier.clone(), c);
+        }
+        CapabilityFile::List {
+          capabilities: capabilities_list,
+        } => {
+          capabilities.extend(
+            capabilities_list
+              .into_iter()
+              .map(|c| (c.identifier.clone(), c)),
+          );
+        }
+      }
+    }
+  }
+
+  let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+  let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
@@ -422,7 +456,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
-      #resolved_acl
+      #runtime_authority
     );
     #with_tray_icon_code
     context

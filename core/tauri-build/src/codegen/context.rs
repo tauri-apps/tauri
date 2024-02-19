@@ -7,7 +7,7 @@ use std::{
   env::var,
   fs::{create_dir_all, File},
   io::{BufWriter, Write},
-  path::PathBuf,
+  path::{Path, PathBuf},
 };
 use tauri_codegen::{context_codegen, ContextData};
 use tauri_utils::config::FrontendDist;
@@ -20,6 +20,7 @@ pub struct CodegenContext {
   dev: bool,
   config_path: PathBuf,
   out_file: PathBuf,
+  capabilities: Option<Vec<PathBuf>>,
 }
 
 impl Default for CodegenContext {
@@ -28,6 +29,7 @@ impl Default for CodegenContext {
       dev: false,
       config_path: PathBuf::from("tauri.conf.json"),
       out_file: PathBuf::from("tauri-build-context.rs"),
+      capabilities: None,
     }
   }
 }
@@ -71,6 +73,16 @@ impl CodegenContext {
   #[must_use]
   pub fn dev(mut self) -> Self {
     self.dev = true;
+    self
+  }
+
+  /// Adds a capability file to the generated context.
+  #[must_use]
+  pub fn capability<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self
+      .capabilities
+      .get_or_insert_with(Default::default)
+      .push(path.as_ref().to_path_buf());
     self
   }
 
@@ -125,6 +137,7 @@ impl CodegenContext {
       // it's very hard to have a build script for unit tests, so assume this is always called from
       // outside the tauri crate, making the ::tauri root valid.
       root: quote::quote!(::tauri),
+      capabilities: self.capabilities,
     })?;
 
     // get the full output file path

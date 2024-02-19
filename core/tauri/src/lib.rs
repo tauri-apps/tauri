@@ -69,6 +69,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
+use ipc::RuntimeAuthority;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -193,7 +194,6 @@ use std::{
   fmt::{self, Debug},
   sync::MutexGuard,
 };
-use utils::acl::resolved::Resolved;
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -432,7 +432,7 @@ pub struct Context<A: Assets> {
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  pub(crate) resolved_acl: Resolved,
+  pub(crate) runtime_authority: RuntimeAuthority,
 }
 
 impl<A: Assets> fmt::Debug for Context<A> {
@@ -529,8 +529,8 @@ impl<A: Assets> Context<A> {
   /// This API is unstable.
   #[doc(hidden)]
   #[inline(always)]
-  pub fn resolved_acl(&mut self) -> &mut Resolved {
-    &mut self.resolved_acl
+  pub fn runtime_authority_mut(&mut self) -> &mut RuntimeAuthority {
+    &mut self.runtime_authority
   }
 
   /// Create a new [`Context`] from the minimal required items.
@@ -544,7 +544,7 @@ impl<A: Assets> Context<A> {
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    resolved_acl: Resolved,
+    runtime_authority: RuntimeAuthority,
   ) -> Self {
     Self {
       config,
@@ -556,7 +556,7 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
-      resolved_acl,
+      runtime_authority,
     }
   }
 

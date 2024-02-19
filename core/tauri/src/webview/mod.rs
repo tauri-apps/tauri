@@ -1118,6 +1118,8 @@ fn main() {
     };
     let resolved_acl = manager
       .runtime_authority
+      .lock()
+      .unwrap()
       .resolve_access(
         &request.cmd,
         message.webview.label(),
@@ -1142,15 +1144,19 @@ fn main() {
       if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
         #[cfg(debug_assertions)]
         {
-          invoke
-            .resolver
-            .reject(manager.runtime_authority.resolve_access_message(
-              plugin,
-              &command_name,
-              invoke.message.webview.window().label(),
-              invoke.message.webview.label(),
-              &acl_origin,
-            ));
+          invoke.resolver.reject(
+            manager
+              .runtime_authority
+              .lock()
+              .unwrap()
+              .resolve_access_message(
+                plugin,
+                &command_name,
+                invoke.message.webview.window().label(),
+                invoke.message.webview.label(),
+                &acl_origin,
+              ),
+          );
         }
         #[cfg(not(debug_assertions))]
         invoke

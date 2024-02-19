@@ -175,7 +175,7 @@ pub struct Asset {
 
 #[default_runtime(crate::Wry, wry)]
 pub struct AppManager<R: Runtime> {
-  pub runtime_authority: RuntimeAuthority,
+  pub runtime_authority: Mutex<RuntimeAuthority>,
   pub window: window::WindowManager<R>,
   pub webview: webview::WebviewManager<R>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -245,7 +245,7 @@ impl<R: Runtime> AppManager<R> {
     }
 
     Self {
-      runtime_authority: context.runtime_authority,
+      runtime_authority: Mutex::new(context.runtime_authority),
       window: window::WindowManager {
         windows: Mutex::default(),
         default_icon: context.default_window_icon,

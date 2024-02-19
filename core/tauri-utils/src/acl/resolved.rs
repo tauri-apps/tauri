@@ -338,6 +338,7 @@ struct ResolvedCommandTemp {
   pub scope: Vec<ScopeKey>,
   pub resolved_scope_key: Option<ScopeKey>,
 }
+
 fn resolve_command(
   commands: &mut BTreeMap<CommandKey, ResolvedCommandTemp>,
   command: String,

@@ -651,7 +651,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
@@ -1657,7 +1657,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {

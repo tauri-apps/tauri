@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`83a68deb`](https://www.github.com/tauri-apps/tauri/commit/83a68deb5676d39cd4728d2e140f6b46d5f787ed)([#8797](https://www.github.com/tauri-apps/tauri/pull/8797)) Update app template following capabilities configuration change.
+
+### Bug Fixes
+
+- [`aa06a053`](https://www.github.com/tauri-apps/tauri/commit/aa06a0534cf224038866e0ddd6910ea873b2574d)([#8810](https://www.github.com/tauri-apps/tauri/pull/8810)) Fix `tauri plugin android init` printing invalid code that has a missing closing `"`.
+- [`3cee26a5`](https://www.github.com/tauri-apps/tauri/commit/3cee26a58ab44639a12c7816f4096655daa327a4)([#8865](https://www.github.com/tauri-apps/tauri/pull/8865)) On Windows, fixed `tauri info` fails to detect the build tool when the system language is CJK.
+- [`052e8b43`](https://www.github.com/tauri-apps/tauri/commit/052e8b4311d9f0f963a2866163be27bfd8f70c60)([#8838](https://www.github.com/tauri-apps/tauri/pull/8838)) Downgrade minisign dependency fixing updater signing key bug and prevent it from happening in the future.
+- [`fb0d9971`](https://www.github.com/tauri-apps/tauri/commit/fb0d997117367e3387896bcd0fba004579475c40)([#8783](https://www.github.com/tauri-apps/tauri/pull/8783)) Fixes a regression on the `--config` argument not accepting file paths.
+- [`baca704d`](https://www.github.com/tauri-apps/tauri/commit/baca704d4b5fae239fc320d10140f35bd705bfbb)([#8768](https://www.github.com/tauri-apps/tauri/pull/8768)) Do not migrate updater configuration if the active flag is set to false.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-bundler@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Enhancements

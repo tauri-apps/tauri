@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`83a68deb`](https://www.github.com/tauri-apps/tauri/commit/83a68deb5676d39cd4728d2e140f6b46d5f787ed)([#8797](https://www.github.com/tauri-apps/tauri/pull/8797)) Added a new configuration option `tauri.conf.json > app > security > capabilities` to reference existing capabilities and inline new ones. If it is empty, all capabilities are still included preserving the current behavior.
+- [`edb11c13`](https://www.github.com/tauri-apps/tauri/commit/edb11c138def2e317099db432479e3ca5dbf803f)([#8781](https://www.github.com/tauri-apps/tauri/pull/8781)) Added `Attributes::plugin()` to register a plugin that is inlined in the application crate.
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) Added `CodegenContext::capability` to include a capability file dynamically.
+
+### Bug Fixes
+
+- [`0e8e9cd0`](https://www.github.com/tauri-apps/tauri/commit/0e8e9cd064627e734adf8f62e571dc5f4e8f4d9f)([#8906](https://www.github.com/tauri-apps/tauri/pull/8906)) Fixes the capability schema not resolving inner definitions.
+- [`19fb5f0b`](https://www.github.com/tauri-apps/tauri/commit/19fb5f0b20479885bf8bc4fdd8c431052420191d)([#8782](https://www.github.com/tauri-apps/tauri/pull/8782)) Fix generating invalid schema files.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-codegen@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Enhancements

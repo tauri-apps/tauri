@@ -1113,10 +1113,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        domain: current_url
-          .domain()
-          .map(|d| d.to_string())
-          .unwrap_or_default(),
+        url: current_url.to_string(),
       }
     };
     let resolved_acl = manager

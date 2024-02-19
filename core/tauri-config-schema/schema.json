@@ -1151,10 +1151,10 @@
             "remote": {
               "type": "object",
               "required": [
-                "domains"
+                "urls"
               ],
               "properties": {
-                "domains": {
+                "urls": {
                   "description": "Remote domains this capability refers to. Can use glob patterns.",
                   "type": "array",
                   "items": {

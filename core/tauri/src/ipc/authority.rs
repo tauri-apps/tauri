@@ -35,8 +35,8 @@ pub enum Origin {
   Local,
   /// Remote origin.
   Remote {
-    /// Remote origin domain.
-    domain: String,
+    /// Remote URL.
+    url: String,
   },
 }
 
@@ -44,7 +44,7 @@ impl Display for Origin {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
       Self::Local => write!(f, "local"),
-      Self::Remote { domain } => write!(f, "remote: {domain}"),
+      Self::Remote { url } => write!(f, "remote: {url}"),
     }
   }
 }
@@ -53,12 +53,9 @@ impl Origin {
   fn matches(&self, context: &ExecutionContext) -> bool {
     match (self, context) {
       (Self::Local, ExecutionContext::Local) => true,
-      (
-        Self::Remote { domain },
-        ExecutionContext::Remote {
-          domain: domain_pattern,
-        },
-      ) => domain_pattern.matches(domain),
+      (Self::Remote { url }, ExecutionContext::Remote { url: url_pattern }) => {
+        url_pattern.matches(url)
+      }
       _ => false,
     }
   }
@@ -292,7 +289,7 @@ impl RuntimeAuthority {
               .map(|(cmd, resolved)| {
                 let context = match &cmd.context {
                   ExecutionContext::Local => "[local]".to_string(),
-                  ExecutionContext::Remote { domain } => format!("[remote: {}]", domain.as_str()),
+                  ExecutionContext::Remote { url } => format!("[remote: {}]", url.as_str()),
                 };
                 format!(
                   "- context: {context}, referenced by: {}",
@@ -634,11 +631,11 @@ mod tests {
 
   #[test]
   fn remote_domain_matches() {
-    let domain = "tauri.app";
+    let url = "https://tauri.app";
     let command = CommandKey {
       name: "my-command".into(),
       context: ExecutionContext::Remote {
-        domain: Pattern::new(domain).unwrap(),
+        url: Pattern::new(url).unwrap(),
       },
     };
     let window = "main";
@@ -666,9 +663,7 @@ mod tests {
         &command.name,
         window,
         webview,
-        &Origin::Remote {
-          domain: domain.into()
-        }
+        &Origin::Remote { url: url.into() }
       ),
       Some(&resolved_cmd)
     );
@@ -676,11 +671,11 @@ mod tests {
 
   #[test]
   fn remote_domain_glob_pattern_matches() {
-    let domain = "tauri.*";
+    let url = "http://tauri.*";
     let command = CommandKey {
       name: "my-command".into(),
       context: ExecutionContext::Remote {
-        domain: Pattern::new(domain).unwrap(),
+        url: Pattern::new(url).unwrap(),
       },
     };
     let window = "main";
@@ -709,7 +704,7 @@ mod tests {
         window,
         webview,
         &Origin::Remote {
-          domain: domain.replace('*', "studio")
+          url: url.replace('*', "studio")
         }
       ),
       Some(&resolved_cmd)
@@ -748,7 +743,7 @@ mod tests {
         window,
         webview,
         &Origin::Remote {
-          domain: "tauri.app".into()
+          url: "https://tauri.app".into()
         }
       )
       .is_none());

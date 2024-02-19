@@ -104,10 +104,6 @@
 
 - [`d621d343`](https://www.github.com/tauri-apps/tauri/commit/d621d3437ce3947175eecf345b2c6d1c4c7ce020)([#8607](https://www.github.com/tauri-apps/tauri/pull/8607)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
 
-### Bug Fixes
-
-- [`50a3d170`](https://www.github.com/tauri-apps/tauri/commit/50a3d170f242178d41fe7e8a3adf964541f6fe9c)([#8408](https://www.github.com/tauri-apps/tauri/pull/8408)) On Windows, fix `open` dialog `defaultPath`, when invoked from JS, not working if the path uses forward slash (`/`)
-
 ### What's Changed
 
 - [`cb640c8e`](https://www.github.com/tauri-apps/tauri/commit/cb640c8e949a3d78d78162e2e61b51bf8afae983)([#8393](https://www.github.com/tauri-apps/tauri/pull/8393)) Fix `RunEvent::WindowEvent(event: WindowEvent::FileDrop(FileDropEvent))` never triggered and always prevent default OS behavior when `disable_file_drop_handler` is not used.
@@ -542,6 +538,44 @@
   - [b4622ea4](https://www.github.com/tauri-apps/tauri/commit/b4622ea4d32720bc3bb2a8c740bb70cfe32fed93) refactor(app): run setup and window creation when event loop is ready ([#4914](https://www.github.com/tauri-apps/tauri/pull/4914)) on 2022-08-11
 - Export types required by the `mobile_entry_point` macro.
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
+
+## \[1.6.0]
+
+### New Features
+
+- [`6e488378`](https://www.github.com/tauri-apps/tauri/commit/6e48837860203582d2ef8e59d4524f98511a14c0)([#8474](https://www.github.com/tauri-apps/tauri/pull/8474)) Re-export `Url` type.
+
+### Enhancements
+
+- [`8ce51cec`](https://www.github.com/tauri-apps/tauri/commit/8ce51cec3baf4ed88d80c59bf3bbe96fd369c7a0)([#7718](https://www.github.com/tauri-apps/tauri/pull/7718)) On Windows, retain command line args when relaunching the app after an update. Supports NSIS and WiX (without elevated update task).
+
+### Bug Fixes
+
+- [`cc3d8e77`](https://www.github.com/tauri-apps/tauri/commit/cc3d8e77313672f25520e278bbe8fae1b275a735)([#8539](https://www.github.com/tauri-apps/tauri/pull/8539)) Fixes a deadlock when reading a stdout or stderr line returns an error.
+- [`b546b42d`](https://www.github.com/tauri-apps/tauri/commit/b546b42db7e75a59232367dd6212fe3b75bb4c6d)([#8577](https://www.github.com/tauri-apps/tauri/pull/8577)) Preserve the order of JS object/map keys in IPC calls. This also fixes issues with the JS `http` module when calling to servers that required a specific order of `FormBody` contents.
+- [`8f8729d9`](https://www.github.com/tauri-apps/tauri/commit/8f8729d91843acd2bd2a24731db865d690dd9ab1)([#8312](https://www.github.com/tauri-apps/tauri/pull/8312)) On macOS, allow cancelling maximization when doubleclick happens on `data-tauri-drag-region` by simply keeping the left moust button pressed and then moving the mouse away of the starting position of the click, which is consistent with the native behavior of macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.4`
+
+## \[1.5.4]
+
+### Enhancements
+
+- [`3c371aa8`](https://www.github.com/tauri-apps/tauri/commit/3c371aa8ee4032998f859b570702e81e26e77c6c)([#8228](https://www.github.com/tauri-apps/tauri/pull/8228)) Added `test::get_ipc_response`.
+
+### Bug Fixes
+
+- [`50a3d170`](https://www.github.com/tauri-apps/tauri/commit/50a3d170f242178d41fe7e8a3adf964541f6fe9c)([#8408](https://www.github.com/tauri-apps/tauri/pull/8408)) On Windows, fix `open` dialog `defaultPath`, when invoked from JS, not working if the path uses forward slash (`/`)
+- [`645e1dcc`](https://www.github.com/tauri-apps/tauri/commit/645e1dcc6e113564e2ddaacf9cb8338aed1a0bd0)([#8404](https://www.github.com/tauri-apps/tauri/pull/8404)) Fix NSIS updater failing to launch when using `basicUi` mode.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.3`
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-runtime@0.14.2`
+- Upgraded to `tauri-macros@1.4.3`
 
 ## \[1.5.3]
 

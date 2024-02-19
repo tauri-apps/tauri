@@ -118,7 +118,7 @@ tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.1", features = [
 proptest = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio = { version = "1", features = [ "full" ] }
@@ -150,7 +150,7 @@ devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
 process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch-dangerous-allow-symlink-macos" ]
 macos-private-api = [
   "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry/macos-private-api"
+  "tauri-runtime-wry/macos-private-api",
 ]
 webview-data-url = [ "data-url" ]
 protocol-asset = [ "http-range" ]

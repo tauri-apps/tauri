@@ -366,6 +366,28 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.5.10]
+
+### Bug Fixes
+
+- [`b0f27814`](https://www.github.com/tauri-apps/tauri/commit/b0f27814b90ded2f1ed44b7852080eedbff0d9e4)([#8776](https://www.github.com/tauri-apps/tauri/pull/8776)) Fix `fail to rename app` when using `--profile dev`.
+- [`0bff8c32`](https://www.github.com/tauri-apps/tauri/commit/0bff8c325d004fdead2023f58e0f5fd73a9c22ba)([#8697](https://www.github.com/tauri-apps/tauri/pull/8697)) Fix the built-in dev server failing to serve files when URL had queries `?` and other url components.
+- [`67d7877f`](https://www.github.com/tauri-apps/tauri/commit/67d7877f27f265c133a70d48a46c83ffff31d571)([#8520](https://www.github.com/tauri-apps/tauri/pull/8520)) The cli now also watches cargo workspace members if the tauri folder is the workspace root.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.10`
+
+## \[1.5.9]
+
+### Bug Fixes
+
+- [`0a2175ea`](https://www.github.com/tauri-apps/tauri/commit/0a2175eabb736b2a4cd01ab682e08be0b5ebb2b9)([#8439](https://www.github.com/tauri-apps/tauri/pull/8439)) Expand glob patterns in workspace member paths so the CLI would watch all matching pathhs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.9`
+
 ## \[1.5.8]
 
 ### Dependencies

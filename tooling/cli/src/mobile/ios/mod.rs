@@ -33,7 +33,6 @@ use std::{
   env::set_var,
   fs::create_dir_all,
   path::{Path, PathBuf},
-  process::exit,
   thread::sleep,
   time::Duration,
 };
@@ -114,17 +113,17 @@ pub fn get_config(
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
         .ok()
         .or_else(|| config.bundle.ios.development_team.clone())
-        .unwrap_or_else(|| {
+        .or_else(|| {
           let teams = find_development_teams().unwrap_or_default();
           match teams.len() {
             0 => {
-              log::error!("No code signing certificates found. You must add one and set the certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. To list the available certificates, run `tauri info`.");
-              exit(1);
+              log::warn!("No code signing certificates found. You must add one and set the certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. To list the available certificates, run `tauri info`.");
+              None
             }
-            1 => teams.first().unwrap().id.clone(),
+            1 => Some(teams.first().unwrap().id.clone()),
             _ => {
-              log::error!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
-              exit(1);
+              log::warn!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
+              None
             }
           }
         }),

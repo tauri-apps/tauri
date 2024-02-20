@@ -1766,7 +1766,7 @@ tauri::Builder::default()
   /// Listen to an event on this window webview only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F)
+  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {

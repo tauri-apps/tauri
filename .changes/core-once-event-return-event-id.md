@@ -2,4 +2,4 @@
 'tauri': 'patch:enhance'
 ---
 
-Let once event listener return the event id.
+Return an id when using from `Manager::once_any`, `App::once`, `Window::once`, `Webview::once`, `WebviewWindow::once` and `fs::Scope::once`.

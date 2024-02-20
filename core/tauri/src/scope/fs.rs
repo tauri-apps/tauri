@@ -201,7 +201,7 @@ impl Scope {
   }
 
   /// Listen to an event on this scope and immediately unlisten.
-  pub fn once<F: FnOnce(&Event) + Send + 'static>(&self, f: F) {
+  pub fn once<F: FnOnce(&Event) + Send + 'static>(&self, f: F) -> ScopeEventId {
     let listerners = self.event_listeners.clone();
     let handler = std::cell::Cell::new(Some(f));
     let id = self.next_event_id();
@@ -212,6 +212,7 @@ impl Scope {
         .expect("attempted to call handler more than once");
       handler(event)
     });
+    id
   }
 
   /// Removes an event listener on this scope.

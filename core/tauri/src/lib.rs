@@ -655,7 +655,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Listens once to an emitted event to any [target](EventTarget) .
   ///
   /// See [`Self::listen_any`] for more information.
-  fn once_any<F>(&self, event: impl Into<String>, handler: F)
+  fn once_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {

@@ -469,7 +469,7 @@ impl<R: Runtime> AppManager<R> {
     event: String,
     target: EventTarget,
     handler: F,
-  ) {
+  ) -> EventId {
     assert_event_name_is_valid(&event);
     self.listeners().once(event, target, handler)
   }

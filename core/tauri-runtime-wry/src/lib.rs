@@ -2758,7 +2758,6 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             {
-              use wry::WebViewExtUnix;
               if let Some(container) = new_parent_window.default_vbox() {
                 webview.inner.reparent(container);
                 new_parent_window_webviews.push(webview);

@@ -638,7 +638,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   pub fn transient_for(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.transient_for(&parent.webview.window)?;
+    self.window_builder = self
+      .window_builder
+      .transient_for(&parent.webview.window())?;
     Ok(self)
   }
 

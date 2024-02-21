@@ -3775,12 +3775,13 @@ fn create_webview<T: UserEvent>(
     let controller = webview.controller();
     let proxy = context.proxy.clone();
     let proxy_ = proxy.clone();
+    let window_id_ = window_id.clone();
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let _ = proxy.send_event(Message::Webview(
-            *window_id.lock().unwrap(),
+            *window_id_.lock().unwrap(),
             id,
             WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
           ));

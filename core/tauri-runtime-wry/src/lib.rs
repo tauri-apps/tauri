@@ -3677,7 +3677,7 @@ fn create_webview<T: UserEvent>(
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
     kind,
-    window_id,
+    window_id.clone(),
     id,
     context.clone(),
     label.clone(),

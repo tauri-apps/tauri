@@ -159,7 +159,6 @@ mod desktop_commands {
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
 
-  #[cfg(any(debug_assertions, feature = "devtools"))]
   #[command(root = "crate")]
   pub async fn reparent<R: Runtime>(
     webview: crate::Webview<R>,

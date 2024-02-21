@@ -123,7 +123,7 @@ impl<'a> Builder<'a> {
   }
 }
 
-fn cfg_alias(alias: &str, has_feature: bool) {
+pub(crate) fn cfg_alias(alias: &str, has_feature: bool) {
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }

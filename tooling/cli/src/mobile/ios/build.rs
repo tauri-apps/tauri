@@ -181,7 +181,7 @@ fn run_build(
   options
     .features
     .get_or_insert(Vec::new())
-    .push("custom-protocol".into());
+    .push("tauri/custom-protocol".into());
 
   let mut out_files = Vec::new();
 

@@ -4,7 +4,8 @@
 
 fn main() {
   let mut codegen = tauri_build::CodegenContext::new();
-  if !cfg!(feature = "custom-protocol") {
+
+  if std::env::var("DEBUG") == Ok("true".to_string()) {
     codegen = codegen.dev();
   }
 

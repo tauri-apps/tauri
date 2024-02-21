@@ -43,9 +43,6 @@ features = [
 path = "../../../core/tauri"
 features = ["test"]
 
-[features]
-custom-protocol = [ "tauri/custom-protocol" ]
-
 # default to small, optimized release binaries
 [profile.release]
 panic = "abort"

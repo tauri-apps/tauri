@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.3]
+
+### Enhancements
+
+- [`a029b9f7`](https://www.github.com/tauri-apps/tauri/commit/a029b9f77e432533a403c292940fa3efba68692c)([#8910](https://www.github.com/tauri-apps/tauri/pull/8910)) Setting up code signing is no longer required on iOS when using the simulator.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.3`
+
 ## \[2.0.0-beta.2]
 
 ### Enhancements

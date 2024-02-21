@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.2]
+
+### Breaking Changes
+
+- [`361ec37f`](https://www.github.com/tauri-apps/tauri/commit/361ec37fd4a5caa5b6630b9563ef079f53c6c336)([#8932](https://www.github.com/tauri-apps/tauri/pull/8932)) Removed the `unityUri` option from the progress bar state, no longer required.
+
 ## \[2.0.0-beta.1]
 
 ### New Features

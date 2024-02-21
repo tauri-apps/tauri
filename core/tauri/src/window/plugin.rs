@@ -13,14 +13,13 @@ use crate::{
 mod desktop_commands {
   use serde::Deserialize;
   use tauri_runtime::ResizeDirection;
-  use tauri_utils::ProgressBarState;
 
   use super::*;
   use crate::{
     command,
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
-    window::WindowBuilder,
+    window::{ProgressBarState, WindowBuilder},
     AppHandle, CursorIcon, Icon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Window,
   };

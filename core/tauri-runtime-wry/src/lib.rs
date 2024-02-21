@@ -21,9 +21,9 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WebviewEvent,
     WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
   },
-  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
-  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
-  WebviewEventId, WindowDispatch, WindowEventId,
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
+  ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType,
+  UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
@@ -59,9 +59,7 @@ use tao::{
 };
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{
-  config::WindowConfig, debug_eprintln, ProgressBarState, ProgressBarStatus, Theme,
-};
+use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
 use wry::{
   FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, Url, WebContext, WebView,
   WebViewBuilder,
@@ -675,7 +673,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
       state: progress_state
         .status
         .map(|state| ProgressStateWrapper::from(state).0),
-      unity_uri: progress_state.unity_uri,
+      desktop_filename: progress_state.desktop_filename,
     })
   }
 }

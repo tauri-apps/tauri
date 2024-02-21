@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### Enhancements
+
+- [`3fb414b6`](https://www.github.com/tauri-apps/tauri/commit/3fb414b61ad7cfce67751230826fddfb39effec5)([#8914](https://www.github.com/tauri-apps/tauri/pull/8914)) Return an id when using from `Manager::once_any`, `App::once`, `Window::once`, `Webview::once`, `WebviewWindow::once` and `fs::Scope::once`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-runtime@2.0.0-beta.3`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.3`
+- Upgraded to `tauri-macros@2.0.0-beta.3`
+- Upgraded to `tauri-build@2.0.0-beta.3`
+
+### Breaking Changes
+
+- [`361ec37f`](https://www.github.com/tauri-apps/tauri/commit/361ec37fd4a5caa5b6630b9563ef079f53c6c336)([#8932](https://www.github.com/tauri-apps/tauri/pull/8932)) Moved `ProgressBarState` from `tauri-utils` to the `tauri::window` module and removed the `unity_uri` field.
+
 ## \[2.0.0-beta.3]
 
 ### New Features

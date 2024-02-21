@@ -586,7 +586,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   pub fn owner(mut self, owner: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.owner(&owner.webview.window)?;
+    self.window_builder = self.window_builder.owner(&owner.webview.window())?;
     Ok(self)
   }
 

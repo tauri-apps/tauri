@@ -3833,7 +3833,7 @@ fn create_ipc_handler<T: UserEvent>(
   Box::new(move |request| {
     #[cfg(windows)]
     if _kind == WebviewKind::WindowContent
-      && undecorated_resizing::handle_request(context.clone(), window_id, &request)
+      && undecorated_resizing::handle_request(context.clone(), *window_id.lock().unwrap(), &request)
     {
       return;
     }

@@ -10,6 +10,7 @@ use tauri_runtime::{
   webview::PendingWebview,
   window::dpi::{PhysicalPosition, PhysicalSize},
 };
+use tauri_utils::ProgressBarStatus;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
 use crate::{
@@ -1908,16 +1909,35 @@ tauri::Builder::default()
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
   /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
-  pub fn set_progress_bar(
-    &self,
-    progress_state: crate::utils::ProgressBarState,
-  ) -> crate::Result<()> {
+  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
     self
       .window
       .dispatcher
-      .set_progress_bar(progress_state)
+      .set_progress_bar(crate::utils::ProgressBarState {
+        status: progress_state.status,
+        progress: progress_state.progress,
+        desktop_filename: self
+          .config()
+          .product_name
+          .as_ref()
+          .map(|name| format!("{}.desktop", heck::AsKebabCase(name))),
+      })
       .map_err(Into::into)
   }
+}
+
+/// Progress bar state.
+#[cfg(desktop)]
+#[cfg_attr(
+  docsrs,
+  doc(cfg(any(target_os = "macos", target_os = "linux", windows)))
+)]
+#[derive(serde::Deserialize)]
+pub struct ProgressBarState {
+  /// The progress bar status.
+  pub status: Option<ProgressBarStatus>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
 }
 
 /// Event system APIs.

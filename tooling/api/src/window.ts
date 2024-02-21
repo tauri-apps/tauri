@@ -192,10 +192,6 @@ export interface ProgressBarState {
    * The progress bar progress. This can be a value ranging from `0` to `100`
    */
   progress?: number
-  /**
-   * The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
-   */
-  unityUri?: string
 }
 
 /**

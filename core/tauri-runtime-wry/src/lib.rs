@@ -675,7 +675,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
       state: progress_state
         .status
         .map(|state| ProgressStateWrapper::from(state).0),
-      unity_uri: progress_state.unity_uri,
+      desktop_filename: progress_state.desktop_filename,
     })
   }
 }

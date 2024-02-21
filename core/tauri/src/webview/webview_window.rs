@@ -1484,7 +1484,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **iOS / Android:** Unsupported.
   pub fn set_progress_bar(
     &self,
-    progress_state: crate::utils::ProgressBarState,
+    progress_state: crate::window::ProgressBarState,
   ) -> crate::Result<()> {
     self.webview.window().set_progress_bar(progress_state)
   }

@@ -10,7 +10,6 @@ use tauri_runtime::{
   webview::PendingWebview,
   window::dpi::{PhysicalPosition, PhysicalSize},
 };
-use tauri_utils::ProgressBarStatus;
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
 use crate::{
@@ -21,7 +20,7 @@ use crate::{
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
-    RuntimeHandle, WindowDispatch,
+    ProgressBarStatus, RuntimeHandle, WindowDispatch,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -1913,7 +1912,7 @@ tauri::Builder::default()
     self
       .window
       .dispatcher
-      .set_progress_bar(crate::utils::ProgressBarState {
+      .set_progress_bar(crate::runtime::ProgressBarState {
         status: progress_state.status,
         progress: progress_state.progress,
         desktop_filename: Some(format!(

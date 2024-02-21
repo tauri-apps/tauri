@@ -422,31 +422,3 @@ pub fn display_path<P: AsRef<Path>>(p: P) -> String {
     .display()
     .to_string()
 }
-
-/// Progress bar status.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ProgressBarStatus {
-  /// Hide progress bar.
-  None,
-  /// Normal state.
-  Normal,
-  /// Indeterminate state. **Treated as Normal on Linux and macOS**
-  Indeterminate,
-  /// Paused state. **Treated as Normal on Linux**
-  Paused,
-  /// Error state. **Treated as Normal on Linux**
-  Error,
-}
-
-/// Progress Bar State
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProgressBarState {
-  /// The progress bar status.
-  pub status: Option<ProgressBarStatus>,
-  /// The progress bar progress. This can be a value ranging from `0` to `100`
-  pub progress: Option<u64>,
-  /// The `.desktop` filename with the Unity desktop window manager, for example `myapp.desktop` **Linux Only**
-  pub desktop_filename: Option<String>,
-}

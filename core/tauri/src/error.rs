@@ -40,6 +40,9 @@ pub enum Error {
   /// Webview label must be unique.
   #[error("a webview with label `{0}` already exists")]
   WebviewLabelAlreadyExists(String),
+  /// Webview label must be different than the parent window label.
+  #[error("invalid child webview label, it cannot match the parent window label")]
+  WebviewLabelCannotMatchWindow,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),

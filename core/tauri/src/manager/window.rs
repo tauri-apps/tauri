@@ -79,7 +79,6 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     app_handle: AppHandle<R>,
     window: DetachedWindow<EventLoopMessage, R>,
-    multiwebview: bool,
     #[cfg(desktop)] menu: Option<crate::window::WindowMenu<R>>,
   ) -> Window<R> {
     let window = Window::new(
@@ -88,7 +87,6 @@ impl<R: Runtime> WindowManager<R> {
       app_handle,
       #[cfg(desktop)]
       menu,
-      multiwebview,
     );
 
     let window_ = window.clone();
@@ -197,7 +195,7 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
     WindowEvent::FileDrop(event) => match event {
       FileDropEvent::Hovered { paths, position } => {
         let payload = FileDropPayload { paths, position };
-        if window.is_webview_window {
+        if window.is_webview_window() {
           window.emit_to(
             EventTarget::labeled(window.label()),
             DROP_HOVER_EVENT,
@@ -218,14 +216,14 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
         }
         let payload = FileDropPayload { paths, position };
 
-        if window.is_webview_window {
+        if window.is_webview_window() {
           window.emit_to(EventTarget::labeled(window.label()), DROP_EVENT, payload)?
         } else {
           window.emit_to_window(DROP_EVENT, payload)?
         }
       }
       FileDropEvent::Cancelled => {
-        if window.is_webview_window {
+        if window.is_webview_window() {
           window.emit_to(
             EventTarget::labeled(window.label()),
             DROP_CANCELLED_EVENT,

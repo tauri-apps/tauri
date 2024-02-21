@@ -3789,6 +3789,7 @@ dependencies = [
  "tauri-runtime",
  "tauri-utils",
  "tracing",
+ "url",
  "webkit2gtk",
  "webview2-com",
  "windows 0.52.0",

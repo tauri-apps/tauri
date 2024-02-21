@@ -47,7 +47,7 @@ serde = { version = "1.0", features = [ "derive", "rc" ] }
 tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
 uuid = { version = "1", features = [ "v4" ], optional = true }
-url = { version = "2.4" }
+url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
 tauri-runtime = { version = "2.0.0-beta.3", path = "../tauri-runtime" }

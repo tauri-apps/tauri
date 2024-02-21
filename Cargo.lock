@@ -3789,6 +3789,7 @@ dependencies = [
  "tauri-runtime",
  "tauri-utils",
  "tracing",
+ "url",
  "webkit2gtk",
  "webview2-com",
  "windows 0.52.0",
@@ -4935,9 +4936,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.36.0"
+version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a9e7b81968555303086ef882a0c213896a76099de4ed0b86a798775c2d54304"
+checksum = "8b717040ba9771fd88eb428c6ea6b555f8e734ff8534f02c13e8f10d97f5935e"
 dependencies = [
  "base64",
  "block",
@@ -4961,6 +4962,7 @@ dependencies = [
  "objc",
  "objc_id",
  "once_cell",
+ "percent-encoding",
  "raw-window-handle 0.6.0",
  "serde",
  "serde_json",
@@ -4969,7 +4971,6 @@ dependencies = [
  "tao-macros",
  "thiserror",
  "tracing",
- "url",
  "webkit2gtk",
  "webkit2gtk-sys",
  "webview2-com",

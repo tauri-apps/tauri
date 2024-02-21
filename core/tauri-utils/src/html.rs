@@ -286,6 +286,20 @@ pub fn inline_isolation(document: &NodeRef, dir: &Path) {
   }
 }
 
+/// Temporary naive method to check if a string is a html
+pub fn is_html(data_string: &str) -> bool {
+  data_string.contains('<') && data_string.contains('>')
+}
+
+/// Temporary naive method to extract data from html data string
+pub fn extract_html_content(input: &str) -> Option<&str> {
+  if input.starts_with("data:text/html,") {
+      Some(&input[15..])
+  } else {
+      None
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use kuchiki::traits::*;

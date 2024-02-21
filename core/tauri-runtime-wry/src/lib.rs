@@ -3456,10 +3456,20 @@ fn create_webview<T: UserEvent>(
     }
   };
 
-  let mut webview_builder = builder
+  // use with_html method if html content can be extracted from url.
+  // else defaults to with_url method
+  let mut webview_builder = if let Some(html_string) = tauri_utils::html::extract_html_content(&url) {
+    builder
+      .with_html(html_string)
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  } else {
+    builder
+      .with_url(&url)
+      .map_err(|e| Error::CreateWebview(Box::new(e)))?
+  };
+
+  webview_builder = webview_builder
     .with_focused(window.is_focused())
-    .with_url(&url)
-    .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
 

@@ -2746,7 +2746,6 @@ fn handle_user_message<T: UserEvent>(
             }
             #[cfg(windows)]
             {
-              use wry::WebViewExtWindows;
               webview.inner.reparent(new_parent_window.hwnd());
               new_parent_window_webviews.push(webview);
             }

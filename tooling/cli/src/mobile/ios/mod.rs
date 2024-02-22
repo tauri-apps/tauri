@@ -110,7 +110,7 @@ pub fn get_config(
 ) -> (AppleConfig, AppleMetadata) {
   let ios_options = cli_options.clone();
   if let Some(features) = features {
-    android_options
+    ios_options
       .features
       .get_or_insert(Vec::new())
       .extend_from_slice(features);

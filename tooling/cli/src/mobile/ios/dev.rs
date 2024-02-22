@@ -131,7 +131,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let (config, _metadata) = get_config(
       &app,
       tauri_config_,
-      dev_options.as_ref(),
+      dev_options.features.as_ref(),
       &Default::default(),
     );
     (interface, app, config)

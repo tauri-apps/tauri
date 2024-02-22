@@ -1085,14 +1085,21 @@
           "default": "",
           "type": "string"
         },
-        "context": {
-          "description": "Execution context of the capability.\n\nAt runtime, Tauri filters the IPC command together with the context to determine whether it is allowed or not and its scope.",
-          "default": "local",
-          "allOf": [
+        "remote": {
+          "description": "Configure remote URLs that can use the capability permissions.",
+          "anyOf": [
             {
-              "$ref": "#/definitions/CapabilityContext"
+              "$ref": "#/definitions/CapabilityRemote"
+            },
+            {
+              "type": "null"
             }
           ]
+        },
+        "local": {
+          "description": "Whether this capability is enabled for local app URLs or not. Defaults to `true`.",
+          "default": true,
+          "type": "boolean"
         },
         "windows": {
           "description": "List of windows that uses this capability. Can be a glob pattern.\n\nOn multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.",
@@ -1131,42 +1138,21 @@
         }
       }
     },
-    "CapabilityContext": {
-      "description": "Context of the capability.",
-      "oneOf": [
-        {
-          "description": "Capability refers to local URL usage.",
-          "type": "string",
-          "enum": [
-            "local"
-          ]
-        },
-        {
-          "description": "Capability refers to remote usage.",
-          "type": "object",
-          "required": [
-            "remote"
-          ],
-          "properties": {
-            "remote": {
-              "type": "object",
-              "required": [
-                "urls"
-              ],
-              "properties": {
-                "urls": {
-                  "description": "Remote domains this capability refers to. Can use glob patterns.",
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              }
-            }
-          },
-          "additionalProperties": false
+    "CapabilityRemote": {
+      "description": "Configuration for remote URLs that are associated with the capability.",
+      "type": "object",
+      "required": [
+        "urls"
+      ],
+      "properties": {
+        "urls": {
+          "description": "Remote domains this capability refers to. Can use glob patterns.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
-      ]
+      }
     },
     "PermissionEntry": {
       "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`] or an object that references a permission and extends its scope.",

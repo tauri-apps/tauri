@@ -200,6 +200,14 @@ Enables the primary_monitor command without any pre-configured scope.
 
 Denies the primary_monitor command without any pre-configured scope.
 
+## allow-reparent
+
+Enables the reparent command without any pre-configured scope.
+
+## deny-reparent
+
+Denies the reparent command without any pre-configured scope.
+
 ## allow-request-user-attention
 
 Enables the request_user_attention command without any pre-configured scope.

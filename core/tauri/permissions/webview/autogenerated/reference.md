@@ -32,6 +32,14 @@ Enables the print command without any pre-configured scope.
 
 Denies the print command without any pre-configured scope.
 
+## allow-reparent
+
+Enables the reparent command without any pre-configured scope.
+
+## deny-reparent
+
+Denies the reparent command without any pre-configured scope.
+
 ## allow-set-webview-focus
 
 Enables the set_webview_focus command without any pre-configured scope.

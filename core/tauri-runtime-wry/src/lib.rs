@@ -2837,7 +2837,7 @@ fn handle_user_message<T: UserEvent>(
 
           // Getters
           WebviewMessage::Url(tx) => {
-            tx.send(webview.url()).unwrap();
+            tx.send(webview.url().parse().unwrap()).unwrap();
           }
           WebviewMessage::Position(tx) => {
             let bounds = webview.bounds();
@@ -3475,7 +3475,6 @@ fn create_webview<T: UserEvent>(
   let mut webview_builder = builder
     .with_focused(window.is_focused())
     .with_url(&url)
-    .unwrap()
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
 

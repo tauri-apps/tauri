@@ -131,6 +131,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut env = env()?;
   configure_cargo(&app, Some((&mut env, &config)))?;
 
+  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+
   // run an initial build to initialize plugins
   Target::all().values().next().unwrap().build(
     &config,
@@ -164,7 +166,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   interface: AppInterface,
   mut options: Options,
-  mut build_options: BuildOptions,
+  build_options: BuildOptions,
   tauri_config: ConfigHandle,
   profile: Profile,
   config: &AndroidConfig,
@@ -176,8 +178,6 @@ fn run_build(
     options.apk = true;
     options.aab = true;
   }
-
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,

@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### Enhancements
+
+- [`b5eb6472`](https://www.github.com/tauri-apps/tauri/commit/b5eb64728aeb410d3f3068608a94762655c4690f)([#8940](https://www.github.com/tauri-apps/tauri/pull/8940)) Enable Hight DPI awareness for NSIS installer so it is not blurry on some systems.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-codegen@2.0.0-beta.4`
+
 ## \[2.0.0-beta.3]
 
 ### Dependencies

@@ -47,7 +47,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let license = settings
     .license_file()
-    .map(|l| std::fs::read_to_string(l).expect("failed to read license"))
+    .and_then(|l| std::fs::read_to_string(l).ok())
+    .or_else(|| settings.license())
     .unwrap_or_default();
   let mut builder = rpm::PackageBuilder::new(name, version, &license, arch, summary)
     .epoch(epoch)

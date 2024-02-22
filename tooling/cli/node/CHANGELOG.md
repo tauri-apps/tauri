@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### Bug Fixes
+
+- [`e538ba58`](https://www.github.com/tauri-apps/tauri/commit/e538ba586c5b8b50955586c8ef2704adb5d7cc43)([#8949](https://www.github.com/tauri-apps/tauri/pull/8949)) Fixes android and iOS process spawning not working on Node.js.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.4`
+
+### Breaking Changes
+
+- [`a76fb118`](https://www.github.com/tauri-apps/tauri/commit/a76fb118ce2de22e1bdb4216bf0ac01dfc3e5799)([#8950](https://www.github.com/tauri-apps/tauri/pull/8950)) Changed the capability format to allow configuring both `remote: { urls: Vec<String> }` and `local: bool (default: true)` instead of choosing one on the `context` field.
+
 ## \[2.0.0-beta.3]
 
 ### Enhancements

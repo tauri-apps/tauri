@@ -45,11 +45,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let license = settings
-    .license_file()
-    .and_then(|l| std::fs::read_to_string(l).ok())
-    .or_else(|| settings.license())
-    .unwrap_or_default();
+  let license = settings.license().unwrap_or_default();
   let mut builder = rpm::PackageBuilder::new(name, version, &license, arch, summary)
     .epoch(epoch)
     .release(release);

@@ -159,6 +159,19 @@ mod desktop_commands {
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
 
+  #[command(root = "crate")]
+  pub async fn reparent<R: Runtime>(
+    webview: crate::Webview<R>,
+    label: Option<String>,
+    window: String,
+  ) -> crate::Result<()> {
+    let webview = get_webview(webview, label)?;
+    if let Some(window) = webview.manager.get_window(&window) {
+      webview.reparent(&window)?;
+    }
+    Ok(())
+  }
+
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[command(root = "crate")]
   pub async fn internal_toggle_devtools<R: Runtime>(
@@ -227,6 +240,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
             desktop_commands::print,
+            desktop_commands::reparent,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
           ]);

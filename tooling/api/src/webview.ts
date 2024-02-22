@@ -31,6 +31,7 @@ import {
 } from './event'
 import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
+import { WebviewWindow } from './webviewWindow'
 
 interface FileDropPayload {
   paths: string[]
@@ -471,6 +472,23 @@ class Webview {
   async setFocus(): Promise<void> {
     return invoke('plugin:webview|set_webview_focus', {
       label: this.label
+    })
+  }
+
+  /**
+   * Moves this webview to the given label.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().reparent('other-window');
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async reparent(window: Window | WebviewWindow | string): Promise<void> {
+    return invoke('plugin:webview|set_webview_focus', {
+      label: this.label,
+      window: typeof window === 'string' ? window : window.label
     })
   }
 

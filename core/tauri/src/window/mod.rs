@@ -333,7 +333,7 @@ tauri::Builder::default()
       .webviews_lock()
       .values()
       .map(|w| WebviewLabelDef {
-        window_label: w.window.label().to_string(),
+        window_label: w.window().label().to_string(),
         label: w.label().to_string(),
       })
       .collect::<Vec<_>>();
@@ -984,7 +984,7 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window() == self)
+      .filter(|w| &w.window() == self)
       .cloned()
       .collect()
   }

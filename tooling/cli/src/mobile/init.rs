@@ -182,7 +182,7 @@ pub fn exec(
     Target::Android => match AndroidEnv::new() {
       Ok(_env) => {
         let (config, metadata) =
-          super::android::get_config(&app, tauri_config_, &Default::default());
+          super::android::get_config(&app, tauri_config_, None, &Default::default());
         map.insert("android", &config);
         super::android::project::gen(
           &config,
@@ -209,7 +209,8 @@ pub fn exec(
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
-      let (config, metadata) = super::ios::get_config(&app, tauri_config_, &Default::default());
+      let (config, metadata) =
+        super::ios::get_config(&app, tauri_config_, None, &Default::default());
       map.insert("apple", &config);
       super::ios::project::gen(
         &config,

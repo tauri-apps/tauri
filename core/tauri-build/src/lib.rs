@@ -15,7 +15,6 @@
 use anyhow::Context;
 pub use anyhow::Result;
 use cargo_toml::Manifest;
-use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
   acl::build::parse_capabilities,

@@ -20,6 +20,7 @@ pub fn command() -> Result<()> {
     get_config(
       &get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
       tauri_config_,
+      None,
       &Default::default(),
     )
   };

@@ -96,9 +96,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
     let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
     let app = get_app(tauri_config_, &interface);
-    let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
+    let (config, _metadata) = get_config(
+      &app,
+      tauri_config_,
+      build_options.features.as_ref(),
+      &Default::default(),
+    );
     (interface, app, config)
   };
 

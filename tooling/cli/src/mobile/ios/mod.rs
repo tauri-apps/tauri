@@ -105,9 +105,16 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
+  features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AppleConfig, AppleMetadata) {
   let ios_options = cli_options.clone();
+  if let Some(features) = features {
+    android_options
+      .features
+      .get_or_insert(Vec::new())
+      .extend_from_slice(&features);
+  }
 
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)

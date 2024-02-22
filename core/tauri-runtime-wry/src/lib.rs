@@ -3354,16 +3354,17 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .window
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
+      let scale_factor = monitor.scale_factor();
       let window_size = window_builder
         .inner
         .window
         .inner_size_constraints
-        .clamp(desired_size, monitor.scale_factor())
-        .to_logical::<i32>(monitor.scale_factor());
-      let screen_size = monitor.size();
-      let monitor_pos = monitor.position();
-      let x = (screen_size.width as i32 - window_size.width) / 2 + monitor_pos.x;
-      let y = (screen_size.height as i32 - window_size.height) / 2 + monitor_pos.y;
+        .clamp(desired_size, scale_factor)
+        .to_logical::<i32>(scale_factor);
+      let screen_size = monitor.size().to_logical::<i32>(scale_factor);
+      let monitor_pos = monitor.position().to_logical::<i32>(scale_factor);
+      let x = (screen_size.width - window_size.width) / 2 + monitor_pos.x;
+      let y = (screen_size.height - window_size.height) / 2 + monitor_pos.y;
 
       window_builder = window_builder.position(x as f64, y as f64);
     }

@@ -108,7 +108,7 @@ pub fn get_config(
   features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AppleConfig, AppleMetadata) {
-  let ios_options = cli_options.clone();
+  let mut ios_options = cli_options.clone();
   if let Some(features) = features {
     ios_options
       .features

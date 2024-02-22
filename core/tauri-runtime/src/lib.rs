@@ -449,6 +449,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Executes javascript on the window this [`WindowDispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+
+  /// Moves the webview to the given window.
+  fn reparent(&self, window_id: WindowId) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.

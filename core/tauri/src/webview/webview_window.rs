@@ -572,7 +572,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
   /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
   pub fn parent(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.parent(&parent.webview.window)?;
+    self.window_builder = self.window_builder.parent(&parent.webview.window())?;
     Ok(self)
   }
 
@@ -586,7 +586,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   pub fn owner(mut self, owner: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.owner(&owner.webview.window)?;
+    self.window_builder = self.window_builder.owner(&owner.webview.window())?;
     Ok(self)
   }
 
@@ -638,7 +638,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   pub fn transient_for(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.transient_for(&parent.webview.window)?;
+    self.window_builder = self
+      .window_builder
+      .transient_for(&parent.webview.window())?;
     Ok(self)
   }
 
@@ -868,7 +870,9 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for WebviewWindow<R> {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    self.webview.window().window_handle()
+    Ok(unsafe {
+      raw_window_handle::WindowHandle::borrow_raw(self.webview.window().window_handle()?.as_raw())
+    })
   }
 }
 

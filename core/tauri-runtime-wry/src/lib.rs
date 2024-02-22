@@ -170,7 +170,11 @@ macro_rules! webview_getter {
     getter!(
       $self,
       rx,
-      Message::Webview($self.window_id, $self.webview_id, $message(tx))
+      Message::Webview(
+        *$self.window_id.lock().unwrap(),
+        $self.webview_id,
+        $message(tx)
+      )
     )
   }};
 }
@@ -280,7 +284,7 @@ impl<T: UserEvent> Context<T> {
     let detached_webview = webview_id.map(|id| DetachedWebview {
       label: label.clone(),
       dispatcher: WryWebviewDispatcher {
-        window_id,
+        window_id: Arc::new(Mutex::new(window_id)),
         webview_id: id,
         context: self.clone(),
       },
@@ -304,6 +308,9 @@ impl<T: UserEvent> Context<T> {
 
     let webview_id = self.next_webview_id();
 
+    let window_id_wrapper = Arc::new(Mutex::new(window_id));
+    let window_id_wrapper_ = window_id_wrapper.clone();
+
     send_user_message(
       self,
       Message::CreateWebview(
@@ -312,7 +319,7 @@ impl<T: UserEvent> Context<T> {
           create_webview(
             WebviewKind::WindowChild,
             window,
-            window_id,
+            window_id_wrapper_,
             webview_id,
             &context,
             pending,
@@ -322,7 +329,7 @@ impl<T: UserEvent> Context<T> {
     )?;
 
     let dispatcher = WryWebviewDispatcher {
-      window_id,
+      window_id: window_id_wrapper,
       webview_id,
       context: self.clone(),
     };
@@ -1170,6 +1177,7 @@ pub enum WebviewMessage {
   SetPosition(Position),
   SetSize(Size),
   SetFocus,
+  Reparent(WindowId),
   // Getters
   Url(Sender<Url>),
   Position(Sender<PhysicalPosition<i32>>),
@@ -1220,7 +1228,7 @@ impl<T: UserEvent> Clone for Message<T> {
 /// The Tauri [`WebviewDispatch`] for [`Wry`].
 #[derive(Debug, Clone)]
 pub struct WryWebviewDispatcher<T: UserEvent> {
-  window_id: WindowId,
+  window_id: Arc<Mutex<WindowId>>,
   webview_id: WebviewId,
   context: Context<T>,
 }
@@ -1235,7 +1243,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WindowEventId {
     let id = self.context.next_webview_event_id();
     let _ = self.context.proxy.send_event(Message::Webview(
-      self.window_id,
+      *self.window_id.lock().unwrap(),
       self.webview_id,
       WebviewMessage::AddEventListener(id, Box::new(f)),
     ));
@@ -1246,7 +1254,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::WithWebview(Box::new(move |webview| f(Box::new(webview)))),
       ),
@@ -1258,7 +1266,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     let _ = send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::OpenDevTools,
       ),
@@ -1270,7 +1278,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     let _ = send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::CloseDevTools,
       ),
@@ -1303,7 +1311,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Navigate(url),
       ),
@@ -1313,14 +1321,22 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn print(&self) -> Result<()> {
     send_user_message(
       &self.context,
-      Message::Webview(self.window_id, self.webview_id, WebviewMessage::Print),
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::Print,
+      ),
     )
   }
 
   fn close(&self) -> Result<()> {
     send_user_message(
       &self.context,
-      Message::Webview(self.window_id, self.webview_id, WebviewMessage::Close),
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::Close,
+      ),
     )
   }
 
@@ -1328,7 +1344,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::SetSize(size),
       ),
@@ -1339,7 +1355,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::SetPosition(position),
       ),
@@ -1349,8 +1365,27 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   fn set_focus(&self) -> Result<()> {
     send_user_message(
       &self.context,
-      Message::Webview(self.window_id, self.webview_id, WebviewMessage::SetFocus),
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetFocus,
+      ),
     )
+  }
+
+  fn reparent(&self, window_id: WindowId) -> Result<()> {
+    let mut current_window_id = self.window_id.lock().unwrap();
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *current_window_id,
+        self.webview_id,
+        WebviewMessage::Reparent(window_id),
+      ),
+    )?;
+
+    *current_window_id = window_id;
+    Ok(())
   }
 
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
@@ -1361,7 +1396,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       self,
       rx,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into(), tx, tracing::Span::current()),
       )
@@ -1373,7 +1408,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Webview(
-        self.window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
       ),
@@ -2235,7 +2270,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let detached_webview = webview_id.map(|id| DetachedWebview {
       label: label.clone(),
       dispatcher: WryWebviewDispatcher {
-        window_id,
+        window_id: Arc::new(Mutex::new(window_id)),
         webview_id: id,
         context: self.context.clone(),
       },
@@ -2265,12 +2300,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .get(&window_id)
       .and_then(|w| w.inner.clone());
     if let Some(window) = window {
+      let window_id_wrapper = Arc::new(Mutex::new(window_id));
+
       let webview_id = self.context.next_webview_id();
 
       let webview = create_webview(
         WebviewKind::WindowChild,
         &window,
-        window_id,
+        window_id_wrapper.clone(),
         webview_id,
         &self.context,
         pending,
@@ -2290,7 +2327,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         });
 
       let dispatcher = WryWebviewDispatcher {
-        window_id,
+        window_id: window_id_wrapper,
         webview_id,
         context: self.context.clone(),
       };
@@ -2685,87 +2722,33 @@ fn handle_user_message<T: UserEvent>(
         }
       }
     }
-
     Message::Webview(window_id, webview_id, webview_message) => {
-      let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
-        (
-          w.inner.clone(),
-          w.webviews.iter().find(|w| w.id == webview_id).cloned(),
-        )
-      });
-      if let Some((Some(window), Some(webview))) = webview_handle {
-        match webview_message {
-          WebviewMessage::WebviewEvent(_) => { /* already handled */ }
-          WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
+      if let WebviewMessage::Reparent(new_parent_window_id) = webview_message {
+        let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
+          w.webviews
+            .iter()
+            .position(|w| w.id == webview_id)
+            .map(|webview_index| w.webviews.remove(webview_index))
+        });
 
-          WebviewMessage::AddEventListener(id, listener) => {
-            webview
-              .webview_event_listeners
-              .lock()
-              .unwrap()
-              .insert(id, listener);
-          }
-
-          #[cfg(all(feature = "tracing", not(target_os = "android")))]
-          WebviewMessage::EvaluateScript(script, tx, span) => {
-            let _span = span.entered();
-            if let Err(e) = webview.evaluate_script(&script) {
-              debug_eprintln!("{}", e);
+        if let Some(webview) = webview_handle {
+          if let Some((Some(new_parent_window), new_parent_window_webviews)) = windows
+            .0
+            .borrow_mut()
+            .get_mut(&new_parent_window_id)
+            .map(|w| (w.inner.clone(), &mut w.webviews))
+          {
+            #[cfg(target_os = "macos")]
+            {
+              use wry::WebViewExtMacOS;
+              webview.inner.reparent(new_parent_window.ns_window() as _);
+              new_parent_window_webviews.push(webview);
             }
-            tx.send(()).unwrap();
-          }
-          #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
-          WebviewMessage::EvaluateScript(script) => {
-            if let Err(e) = webview.evaluate_script(&script) {
-              debug_eprintln!("{}", e);
+            #[cfg(windows)]
+            {
+              webview.inner.reparent(new_parent_window.hwnd());
+              new_parent_window_webviews.push(webview);
             }
-          }
-          WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
-          WebviewMessage::Print => {
-            let _ = webview.print();
-          }
-          WebviewMessage::Close => {
-            windows.0.borrow_mut().get_mut(&window_id).map(|window| {
-              if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
-                window.webviews.remove(i);
-              }
-              window
-            });
-          }
-          WebviewMessage::SetSize(size) => {
-            let mut bounds = webview.bounds();
-            let size = size.to_logical(window.scale_factor());
-            bounds.width = size.width;
-            bounds.height = size.height;
-
-            if let Some(b) = &webview.bounds {
-              let window_size = window.inner_size();
-              let mut bounds = b.lock().unwrap();
-              bounds.width_rate = size.width as f32 / window_size.width as f32;
-              bounds.height_rate = size.height as f32 / window_size.height as f32;
-            }
-
-            webview.set_bounds(bounds);
-          }
-          WebviewMessage::SetPosition(position) => {
-            let mut bounds = webview.bounds();
-            let position = position.to_logical(window.scale_factor());
-            bounds.x = position.x;
-            bounds.y = position.y;
-
-            if let Some(b) = &webview.bounds {
-              let window_size = window.inner_size();
-              let mut bounds = b.lock().unwrap();
-              bounds.width_rate = position.x as f32 / window_size.width as f32;
-              bounds.height_rate = position.y as f32 / window_size.height as f32;
-            }
-
-            webview.set_bounds(bounds);
-          }
-          WebviewMessage::SetFocus => {
-            webview.focus();
-          }
-          WebviewMessage::WithWebview(f) => {
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",
@@ -2774,68 +2757,163 @@ fn handle_user_message<T: UserEvent>(
               target_os = "openbsd"
             ))]
             {
-              f(webview.webview());
+              if let Some(container) = new_parent_window.default_vbox() {
+                webview.inner.reparent(container);
+                new_parent_window_webviews.push(webview);
+              }
             }
-            #[cfg(target_os = "macos")]
-            {
-              use wry::WebViewExtMacOS;
-              f(Webview {
-                webview: webview.webview(),
-                manager: webview.manager(),
-                ns_window: webview.ns_window(),
+          }
+        }
+      } else {
+        let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
+          (
+            w.inner.clone(),
+            w.webviews.iter().find(|w| w.id == webview_id).cloned(),
+          )
+        });
+        if let Some((Some(window), Some(webview))) = webview_handle {
+          match webview_message {
+            WebviewMessage::WebviewEvent(_) => { /* already handled */ }
+            WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
+            WebviewMessage::Reparent(_window_id) => { /* already handled */ }
+            WebviewMessage::AddEventListener(id, listener) => {
+              webview
+                .webview_event_listeners
+                .lock()
+                .unwrap()
+                .insert(id, listener);
+            }
+
+            #[cfg(all(feature = "tracing", not(target_os = "android")))]
+            WebviewMessage::EvaluateScript(script, tx, span) => {
+              let _span = span.entered();
+              if let Err(e) = webview.evaluate_script(&script) {
+                debug_eprintln!("{}", e);
+              }
+              tx.send(()).unwrap();
+            }
+            #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+            WebviewMessage::EvaluateScript(script) => {
+              if let Err(e) = webview.evaluate_script(&script) {
+                debug_eprintln!("{}", e);
+              }
+            }
+            WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
+            WebviewMessage::Print => {
+              let _ = webview.print();
+            }
+            WebviewMessage::Close => {
+              windows.0.borrow_mut().get_mut(&window_id).map(|window| {
+                if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
+                  window.webviews.remove(i);
+                }
+                window
               });
             }
-            #[cfg(target_os = "ios")]
-            {
-              use tao::platform::ios::WindowExtIOS;
-              use wry::WebViewExtIOS;
+            WebviewMessage::SetSize(size) => {
+              let mut bounds = webview.bounds();
+              let size = size.to_logical(window.scale_factor());
+              bounds.width = size.width;
+              bounds.height = size.height;
 
-              f(Webview {
-                webview: webview.inner.webview(),
-                manager: webview.inner.manager(),
-                view_controller: window.ui_view_controller() as cocoa::base::id,
-              });
-            }
-            #[cfg(windows)]
-            {
-              f(Webview {
-                controller: webview.controller(),
-              });
-            }
-            #[cfg(target_os = "android")]
-            {
-              f(webview.handle())
-            }
-          }
+              if let Some(b) = &webview.bounds {
+                let window_size = window.inner_size();
+                let mut bounds = b.lock().unwrap();
+                bounds.width_rate = size.width as f32 / window_size.width as f32;
+                bounds.height_rate = size.height as f32 / window_size.height as f32;
+              }
 
-          #[cfg(any(debug_assertions, feature = "devtools"))]
-          WebviewMessage::OpenDevTools => {
-            webview.open_devtools();
-          }
-          #[cfg(any(debug_assertions, feature = "devtools"))]
-          WebviewMessage::CloseDevTools => {
-            webview.close_devtools();
-          }
-          #[cfg(any(debug_assertions, feature = "devtools"))]
-          WebviewMessage::IsDevToolsOpen(tx) => {
-            tx.send(webview.is_devtools_open()).unwrap();
-          }
+              webview.set_bounds(bounds);
+            }
+            WebviewMessage::SetPosition(position) => {
+              let mut bounds = webview.bounds();
+              let position = position.to_logical(window.scale_factor());
+              bounds.x = position.x;
+              bounds.y = position.y;
 
-          // Getters
-          WebviewMessage::Url(tx) => {
-            tx.send(webview.url().parse().unwrap()).unwrap();
-          }
-          WebviewMessage::Position(tx) => {
-            let bounds = webview.bounds();
-            let position =
-              LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
-            tx.send(position).unwrap();
-          }
-          WebviewMessage::Size(tx) => {
-            let bounds = webview.bounds();
-            let size =
-              LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
-            tx.send(size).unwrap();
+              if let Some(b) = &webview.bounds {
+                let window_size = window.inner_size();
+                let mut bounds = b.lock().unwrap();
+                bounds.width_rate = position.x as f32 / window_size.width as f32;
+                bounds.height_rate = position.y as f32 / window_size.height as f32;
+              }
+
+              webview.set_bounds(bounds);
+            }
+            // Getters
+            WebviewMessage::Url(tx) => {
+              tx.send(webview.url().parse().unwrap()).unwrap();
+            }
+            WebviewMessage::Position(tx) => {
+              let bounds = webview.bounds();
+              let position =
+                LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
+              tx.send(position).unwrap();
+            }
+            WebviewMessage::Size(tx) => {
+              let bounds = webview.bounds();
+              let size =
+                LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
+              tx.send(size).unwrap();
+            }
+            WebviewMessage::SetFocus => {
+              webview.focus();
+            }
+            WebviewMessage::WithWebview(f) => {
+              #[cfg(any(
+                target_os = "linux",
+                target_os = "dragonfly",
+                target_os = "freebsd",
+                target_os = "netbsd",
+                target_os = "openbsd"
+              ))]
+              {
+                f(webview.webview());
+              }
+              #[cfg(target_os = "macos")]
+              {
+                use wry::WebViewExtMacOS;
+                f(Webview {
+                  webview: webview.webview(),
+                  manager: webview.manager(),
+                  ns_window: webview.ns_window(),
+                });
+              }
+              #[cfg(target_os = "ios")]
+              {
+                use tao::platform::ios::WindowExtIOS;
+                use wry::WebViewExtIOS;
+
+                f(Webview {
+                  webview: webview.inner.webview(),
+                  manager: webview.inner.manager(),
+                  view_controller: window.ui_view_controller() as cocoa::base::id,
+                });
+              }
+              #[cfg(windows)]
+              {
+                f(Webview {
+                  controller: webview.controller(),
+                });
+              }
+              #[cfg(target_os = "android")]
+              {
+                f(webview.handle())
+              }
+            }
+
+            #[cfg(any(debug_assertions, feature = "devtools"))]
+            WebviewMessage::OpenDevTools => {
+              webview.open_devtools();
+            }
+            #[cfg(any(debug_assertions, feature = "devtools"))]
+            WebviewMessage::CloseDevTools => {
+              webview.close_devtools();
+            }
+            #[cfg(any(debug_assertions, feature = "devtools"))]
+            WebviewMessage::IsDevToolsOpen(tx) => {
+              tx.send(webview.is_devtools_open()).unwrap();
+            }
           }
         }
       }
@@ -3341,7 +3419,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     webviews.push(create_webview(
       WebviewKind::WindowContent,
       &window,
-      window_id,
+      Arc::new(Mutex::new(window_id)),
       webview_id,
       context,
       webview,
@@ -3390,7 +3468,7 @@ enum WebviewKind {
   WindowChild,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct WebviewBounds {
   x_rate: f32,
   y_rate: f32,
@@ -3401,7 +3479,7 @@ struct WebviewBounds {
 fn create_webview<T: UserEvent>(
   kind: WebviewKind,
   window: &Window,
-  window_id: WindowId,
+  window_id: Arc<Mutex<WindowId>>,
   id: WebviewId,
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
@@ -3470,6 +3548,7 @@ fn create_webview<T: UserEvent>(
 
   if webview_attributes.file_drop_handler_enabled {
     let proxy = context.proxy.clone();
+    let window_id_ = window_id.clone();
     webview_builder = webview_builder.with_file_drop_handler(move |event| {
       let event = match event {
         WryFileDropEvent::Hovered {
@@ -3496,7 +3575,7 @@ fn create_webview<T: UserEvent>(
         WebviewMessage::WebviewEvent(WebviewEvent::FileDrop(event))
       };
 
-      let _ = proxy.send_event(Message::Webview(window_id, id, message));
+      let _ = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));
       true
     });
   }
@@ -3598,7 +3677,7 @@ fn create_webview<T: UserEvent>(
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
     kind,
-    window_id,
+    window_id.clone(),
     id,
     context.clone(),
     label.clone(),
@@ -3696,12 +3775,13 @@ fn create_webview<T: UserEvent>(
     let controller = webview.controller();
     let proxy = context.proxy.clone();
     let proxy_ = proxy.clone();
+    let window_id_ = window_id.clone();
     let mut token = EventRegistrationToken::default();
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy_.send_event(Message::Webview(
-            window_id,
+          let _ = proxy.send_event(Message::Webview(
+            *window_id_.lock().unwrap(),
             id,
             WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
           ));
@@ -3714,8 +3794,8 @@ fn create_webview<T: UserEvent>(
     unsafe {
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy.send_event(Message::Webview(
-            window_id,
+          let _ = proxy_.send_event(Message::Webview(
+            *window_id.lock().unwrap(),
             id,
             WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
           ));
@@ -3745,7 +3825,7 @@ fn create_webview<T: UserEvent>(
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
   _kind: WebviewKind,
-  window_id: WindowId,
+  window_id: Arc<Mutex<WindowId>>,
   webview_id: WebviewId,
   context: Context<T>,
   label: String,
@@ -3754,7 +3834,7 @@ fn create_ipc_handler<T: UserEvent>(
   Box::new(move |request| {
     #[cfg(windows)]
     if _kind == WebviewKind::WindowContent
-      && undecorated_resizing::handle_request(context.clone(), window_id, &request)
+      && undecorated_resizing::handle_request(context.clone(), *window_id.lock().unwrap(), &request)
     {
       return;
     }
@@ -3764,7 +3844,7 @@ fn create_ipc_handler<T: UserEvent>(
         DetachedWebview {
           label: label.clone(),
           dispatcher: WryWebviewDispatcher {
-            window_id,
+            window_id: window_id.clone(),
             webview_id,
             context: context.clone(),
           },

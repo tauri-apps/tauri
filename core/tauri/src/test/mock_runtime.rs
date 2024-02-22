@@ -540,6 +540,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   fn set_focus(&self) -> Result<()> {
     Ok(())
   }
+
+  fn reparent(&self, window_id: WindowId) -> Result<()> {
+    Ok(())
+  }
 }
 
 impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {

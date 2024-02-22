@@ -3282,8 +3282,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .inner_size_constraints
         .clamp(desired_size, monitor.scale_factor())
         .to_logical::<i32>(monitor.scale_factor());
-      let screen_size = monitor.size();
-      let monitor_pos = monitor.position();
+      let scale_factor = monitor.scale_factor();
+      let screen_size = monitor.size().to_logical::<i32>(scale_factor);
+      let monitor_pos = monitor.position().to_logical::<i32>(scale_factor);
       let x = (screen_size.width as i32 - window_size.width) / 2 + monitor_pos.x;
       let y = (screen_size.height as i32 - window_size.height) / 2 + monitor_pos.y;
 

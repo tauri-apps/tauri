@@ -113,7 +113,7 @@ pub fn get_config(
     android_options
       .features
       .get_or_insert(Vec::new())
-      .extend_from_slice(&features);
+      .extend_from_slice(features);
   }
 
   let raw = RawAppleConfig {

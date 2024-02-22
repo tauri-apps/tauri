@@ -15,9 +15,21 @@ pub fn command() -> Result<()> {
   let tauri_dir = tauri_dir();
   let app_dir = app_dir();
 
-  config::migrate(&tauri_dir)?;
+  let plugins = config::migrate(&tauri_dir)?;
   manifest::migrate(&tauri_dir)?;
   frontend::migrate(app_dir, &tauri_dir)?;
+
+  // Add plugins
+  if let Some(plugins) = plugins {
+    for plugin in plugins {
+      crate::add::command(crate::add::Options {
+        plugin,
+        branch: None,
+        tag: None,
+        rev: None,
+      })?
+    }
+  }
 
   Ok(())
 }

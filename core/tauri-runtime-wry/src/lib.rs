@@ -60,8 +60,9 @@ use tao::{
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
+use url::Url;
 use wry::{
-  FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, Url, WebContext, WebView,
+  FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
   WebViewBuilder,
 };
 
@@ -2822,7 +2823,7 @@ fn handle_user_message<T: UserEvent>(
 
           // Getters
           WebviewMessage::Url(tx) => {
-            tx.send(webview.url()).unwrap();
+            tx.send(webview.url().parse().unwrap()).unwrap();
           }
           WebviewMessage::Position(tx) => {
             let bounds = webview.bounds();
@@ -3459,7 +3460,6 @@ fn create_webview<T: UserEvent>(
   let mut webview_builder = builder
     .with_focused(window.is_focused())
     .with_url(&url)
-    .unwrap() // safe to unwrap because we validate the URL beforehand
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse);
 

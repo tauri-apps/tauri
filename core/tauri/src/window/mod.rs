@@ -988,7 +988,7 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| &w.window() == self)
+      .filter(|w| w.window_label() == self.label())
       .cloned()
       .collect()
   }

@@ -971,10 +971,21 @@ impl<R: Runtime> Window<R> {
     position: P,
     size: S,
   ) -> crate::Result<Webview<R>> {
+    use std::sync::mpsc::channel;
+
     if webview_builder.label == self.label() {
       return Err(crate::Error::WebviewLabelCannotMatchWindow);
     }
-    webview_builder.build(self.clone(), position.into(), size.into())
+
+    let (tx, rx) = channel();
+    let position = position.into();
+    let size = size.into();
+    let window_ = self.clone();
+    self.run_on_main_thread(move || {
+      let res = webview_builder.build(window_, position, size);
+      tx.send(res.map_err(Into::into)).unwrap();
+    })?;
+    rx.recv().unwrap()
   }
 
   /// List of webviews associated with this window.

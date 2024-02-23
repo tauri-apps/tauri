@@ -948,6 +948,10 @@ impl<R: Runtime> Webview<R> {
       .expect("could not locate webview parent window")
   }
 
+  pub(crate) fn window_label(&self) -> String {
+    self.window_label.lock().unwrap().clone()
+  }
+
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
   ///
   /// The closure is executed on the main thread.

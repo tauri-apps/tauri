@@ -20,7 +20,7 @@ use crate::{
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
-    ProgressBarStatus, RuntimeHandle, WindowDispatch,
+    RuntimeHandle, WindowDispatch,
   },
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
@@ -984,7 +984,7 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| &w.window() == self)
+      .filter(|w| w.window_label() == self.label())
       .cloned()
       .collect()
   }
@@ -1944,7 +1944,7 @@ tauri::Builder::default()
 #[derive(serde::Deserialize)]
 pub struct ProgressBarState {
   /// The progress bar status.
-  pub status: Option<ProgressBarStatus>,
+  pub status: Option<crate::runtime::ProgressBarStatus>,
   /// The progress bar progress. This can be a value ranging from `0` to `100`
   pub progress: Option<u64>,
 }

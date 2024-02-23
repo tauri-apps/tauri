@@ -7,7 +7,7 @@ use crate::Result;
 use serde_json::{Map, Value};
 use tauri_utils::{
   acl::{
-    capability::{Capability, CapabilityContext, PermissionEntry},
+    capability::{Capability, PermissionEntry},
     Scopes, Value as AclValue,
   },
   platform::Target,
@@ -59,7 +59,8 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
       serde_json::to_string_pretty(&Capability {
         identifier: "migrated".to_string(),
         description: "permissions that were migrated from v1".into(),
-        context: CapabilityContext::Local,
+        local: true,
+        remote: None,
         windows: vec!["main".into()],
         webviews: vec![],
         permissions,

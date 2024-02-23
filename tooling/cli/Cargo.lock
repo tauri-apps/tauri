@@ -459,9 +459,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.10.0"
+version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2324a8dabdfe7ecbc0ec64686fbaf0121ebdfafb2848c15ac49301aa6a85a535"
+checksum = "099563294a8f548dc70c2e5aecf61039c54e2af64526c0af348f2da41a6da622"
 dependencies = [
  "colored",
  "core-foundation",
@@ -481,6 +481,7 @@ dependencies = [
  "once-cell-regex",
  "openssl",
  "os_info",
+ "os_pipe",
  "path_abs",
  "serde",
  "serde_json",
@@ -4639,7 +4640,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0-beta.3"
+version = "2.0.1-beta.0"
 dependencies = [
  "anyhow",
  "ar",
@@ -4667,7 +4668,7 @@ dependencies = [
  "strsim 0.10.0",
  "tar",
  "tauri-icns",
- "tauri-utils 2.0.0-beta.3",
+ "tauri-utils 2.0.0-beta.4",
  "tempfile",
  "thiserror",
  "time",
@@ -4681,7 +4682,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.3"
+version = "2.0.0-beta.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -4732,7 +4733,7 @@ dependencies = [
  "tauri-bundler",
  "tauri-icns",
  "tauri-utils 1.5.3",
- "tauri-utils 2.0.0-beta.3",
+ "tauri-utils 2.0.0-beta.4",
  "thiserror",
  "tokio",
  "toml 0.8.10",
@@ -4798,7 +4799,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.3"
+version = "2.0.0-beta.4"
 dependencies = [
  "aes-gcm",
  "ctor",

@@ -34,6 +34,7 @@
     ".changes/fix-tauri-build-unix.md",
     ".changes/fix-webview-close.md",
     ".changes/fix-window-center-monitor-scale.md",
+    ".changes/fix-window-destroy-deadlock.md",
     ".changes/handle-empty-permissions.md",
     ".changes/inline-plugins.md",
     ".changes/ios-signing-optional.md",

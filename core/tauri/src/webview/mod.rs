@@ -924,6 +924,7 @@ impl<R: Runtime> Webview<R> {
   /// Move the webview to the given window.
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     self.webview.dispatcher.reparent(window.window.id)?;
+    *self.window_label.lock().unwrap() = window.label().to_string();
     Ok(())
   }
 

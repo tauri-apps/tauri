@@ -93,9 +93,9 @@ export type WebviewLabel = string
  * import { Window } from "@tauri-apps/api/window"
  * import { Webview } from "@tauri-apps/api/webview"
  *
- * // loading embedded asset:
- * const appWindow = new Window('uniqueLabel')
+ * const appWindow = new Window('uniqueLabel');
  *
+ * // loading embedded asset:
  * const webview = new Webview(appWindow, 'theUniqueLabel', {
  *   url: 'path/to/page.html'
  * });
@@ -112,9 +112,9 @@ export type WebviewLabel = string
  * });
  *
  * // emit an event to the backend
- * await webview.emit("some event", "data");
+ * await webview.emit("some-event", "data");
  * // listen to an event from the backend
- * const unlisten = await webview.listen("event name", e => {});
+ * const unlisten = await webview.listen("event-name", e => {});
  * unlisten();
  * ```
  *
@@ -136,7 +136,7 @@ class Webview {
    * import { Window } from '@tauri-apps/api/window'
    * import { Webview } from '@tauri-apps/api/webview'
    * const appWindow = new Window('my-label')
-   * const webview = new Window(appWindow, 'my-label', {
+   * const webview = new Webview(appWindow, 'my-label', {
    *   url: 'https://github.com/tauri-apps/tauri'
    * });
    * webview.once('tauri://created', function () {

@@ -159,6 +159,7 @@ config-toml = [ "tauri-macros/config-toml" ]
 icon-ico = [ "infer", "ico" ]
 icon-png = [ "infer", "png" ]
 macos-proxy = [ "tauri-runtime-wry/macos-proxy" ]
+os-plugins = [ ]
 
 [[example]]
 name = "commands"

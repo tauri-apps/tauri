@@ -2723,6 +2723,15 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(window_id, webview_id, webview_message) => {
+      #[cfg(any(
+        target_os = "macos",
+        windows,
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       if let WebviewMessage::Reparent(new_parent_window_id) = webview_message {
         let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
           w.webviews

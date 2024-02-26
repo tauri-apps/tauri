@@ -1753,7 +1753,7 @@ tauri::Builder::default()
   }
 }
 
-// enhance core `.plugin()` for mobile and desktop
+// Enhance core `.plugin()` for mobile and desktop
 impl<R: Runtime> Builder<R> {
   /// same behavior like `.plugin()` but skips on non desktop builds and ignores `target_os`
   pub fn plugin_desktop<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
@@ -1762,7 +1762,7 @@ impl<R: Runtime> Builder<R> {
     #[cfg(not(desktop))]
     self
   }
-  /// same behavior like `.plugin()` but skips on non mobile builds and ignores `target_os`
+  /// Same behavior like `.plugin()` but skips on non mobile builds and ignores `target_os`
   pub fn plugin_mobile<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(mobile)]
     return self.plugin(plugin);
@@ -1771,17 +1771,17 @@ impl<R: Runtime> Builder<R> {
   }
 }
 
-// enhance `.plugin()` with `os-plugins` flag for os specific plugins
+// Enhance `.plugin()` with `os-plugins` flag for os specific plugins
 #[cfg(feature = "os-plugins")]
 impl<R: Runtime> Builder<R> {
-  /// same behavior like `.plugin()` but skips on non windows builds
+  /// Same behavior like `.plugin()` but skips on non windows builds
   pub fn plugin_windows<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(target_os = "windows")]
     return self.plugin(plugin);
     #[cfg(not(target_os = "windows"))]
     self
   }
-  /// same behavior like `.plugin()` but skips on non linux builds
+  /// Same behavior like `.plugin()` but skips on non linux builds
   pub fn plugin_linux<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(any(
       target_os = "linux",
@@ -1800,21 +1800,21 @@ impl<R: Runtime> Builder<R> {
     )))]
     self
   }
-  /// same behavior like `.plugin()` but skips on non macos builds
+  /// Same behavior like `.plugin()` but skips on non macos builds
   pub fn plugin_macos<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(target_os = "macos")]
     return self.plugin(plugin);
     #[cfg(not(target_os = "macos"))]
     self
   }
-  /// same behavior like `.plugin()` but skips on non android builds
+  /// Same behavior like `.plugin()` but skips on non android builds
   pub fn plugin_android<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(target_os = "android")]
     return self.plugin(plugin);
     #[cfg(not(target_os = "android"))]
     self
   }
-  /// same behavior like `.plugin()` but skips on non ios builds
+  /// Same behavior like `.plugin()` but skips on non ios builds
   pub fn plugin_ios<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(target_os = "ios")]
     return self.plugin(plugin);

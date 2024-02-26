@@ -12,6 +12,9 @@ use tauri_runtime::{
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
+#[cfg(desktop)]
+pub use crate::runtime::ProgressBarStatus;
+
 use crate::{
   app::AppHandle,
   event::{Event, EventId, EventTarget},
@@ -1939,7 +1942,7 @@ tauri::Builder::default()
 #[derive(serde::Deserialize)]
 pub struct ProgressBarState {
   /// The progress bar status.
-  pub status: Option<crate::runtime::ProgressBarStatus>,
+  pub status: Option<ProgressBarStatus>,
   /// The progress bar progress. This can be a value ranging from `0` to `100`
   pub progress: Option<u64>,
 }

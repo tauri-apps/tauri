@@ -2854,7 +2854,6 @@ fn handle_user_message<T: UserEvent>(
           }
           // Getters
           WebviewMessage::Url(tx) => {
-            println!("url getter");
             tx.send(webview.url().parse().unwrap()).unwrap();
           }
           WebviewMessage::Position(tx) => {

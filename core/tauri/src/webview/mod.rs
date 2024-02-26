@@ -606,7 +606,7 @@ tauri::Builder::default()
       .webviews_lock()
       .values()
       .map(|w| WebviewLabelDef {
-        window_label: w.window.label().to_string(),
+        window_label: w.window().label().to_string(),
         label: w.label().to_string(),
       })
       .collect::<Vec<_>>();
@@ -794,7 +794,10 @@ fn main() {
 /// Webview.
 #[default_runtime(crate::Wry, wry)]
 pub struct Webview<R: Runtime> {
-  pub(crate) window: Window<R>,
+  window_label: Arc<Mutex<String>>,
+  /// The manager to associate this webview with.
+  pub(crate) manager: Arc<AppManager<R>>,
+  pub(crate) app_handle: AppHandle<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
 }
@@ -802,7 +805,7 @@ pub struct Webview<R: Runtime> {
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Window")
-      .field("window", &self.window)
+      .field("window_label", &self.window_label)
       .field("webview", &self.webview)
       .finish()
   }
@@ -811,7 +814,9 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
 impl<R: Runtime> Clone for Webview<R> {
   fn clone(&self) -> Self {
     Self {
-      window: self.window.clone(),
+      window_label: self.window_label.clone(),
+      manager: self.manager.clone(),
+      app_handle: self.app_handle.clone(),
       webview: self.webview.clone(),
     }
   }
@@ -836,7 +841,12 @@ impl<R: Runtime> PartialEq for Webview<R> {
 impl<R: Runtime> Webview<R> {
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(window: Window<R>, webview: DetachedWebview<EventLoopMessage, R>) -> Self {
-    Self { window, webview }
+    Self {
+      window_label: Arc::new(Mutex::new(window.label().into())),
+      manager: window.manager.clone(),
+      app_handle: window.app_handle.clone(),
+      webview,
+    }
   }
 
   /// Initializes a webview builder with the given window label and URL to load on the webview.
@@ -883,8 +893,9 @@ impl<R: Runtime> Webview<R> {
 
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
-    if self.window.is_webview_window {
-      self.window.close()
+    let window = self.window();
+    if window.is_webview_window {
+      window.close()
     } else {
       self.webview.dispatcher.close()?;
       self.manager().on_webview_close(self.label());
@@ -894,8 +905,9 @@ impl<R: Runtime> Webview<R> {
 
   /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
-    if self.window.is_webview_window {
-      self.window.set_size(size.into())
+    let window = self.window();
+    if window.is_webview_window {
+      window.set_size(size.into())
     } else {
       self
         .webview
@@ -907,8 +919,9 @@ impl<R: Runtime> Webview<R> {
 
   /// Sets this webviews's position.
   pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    if self.window.is_webview_window {
-      self.window.set_position(position.into())
+    let window = self.window();
+    if window.is_webview_window {
+      window.set_position(position.into())
     } else {
       self
         .webview
@@ -923,13 +936,23 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.set_focus().map_err(Into::into)
   }
 
+  /// Move the webview to the given window.
+  pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
+    let current_window = self.window();
+    if !current_window.is_webview_window {
+      self.webview.dispatcher.reparent(window.window.id)?;
+    }
+    Ok(())
+  }
+
   /// Returns the webview position.
   ///
   /// - For child webviews, returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the parent window.
   /// - For webview window, returns the inner position of the window.
   pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
-    if self.window.is_webview_window {
-      self.window.inner_position()
+    let window = self.window();
+    if window.is_webview_window {
+      window.inner_position()
     } else {
       self.webview.dispatcher.position().map_err(Into::into)
     }
@@ -937,8 +960,9 @@ impl<R: Runtime> Webview<R> {
 
   /// Returns the physical size of the webviews's client area.
   pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
-    if self.window.is_webview_window {
-      self.window.inner_size()
+    let window = self.window();
+    if window.is_webview_window {
+      window.inner_size()
     } else {
       self.webview.dispatcher.size().map_err(Into::into)
     }
@@ -948,8 +972,15 @@ impl<R: Runtime> Webview<R> {
 /// Webview APIs.
 impl<R: Runtime> Webview<R> {
   /// The window that is hosting this webview.
-  pub fn window(&self) -> &Window<R> {
-    &self.window
+  pub fn window(&self) -> Window<R> {
+    self
+      .manager
+      .get_window(&self.window_label.lock().unwrap())
+      .expect("could not locate webview parent window")
+  }
+
+  pub(crate) fn window_label(&self) -> String {
+    self.window_label.lock().unwrap().clone()
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
@@ -1099,7 +1130,7 @@ fn main() {
     );
 
     #[cfg(mobile)]
-    let app_handle = self.window.app_handle.clone();
+    let app_handle = self.app_handle.clone();
 
     let message = InvokeMessage::new(
       self,
@@ -1201,7 +1232,7 @@ fn main() {
           if let Err(e) = crate::plugin::mobile::run_command(
             plugin,
             &app_handle,
-            message.command,
+            heck::AsLowerCamelCase(message.command).to_string(),
             payload,
             move |response| match response {
               Ok(r) => resolver_.resolve(r),
@@ -1415,7 +1446,7 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.window.manager.listen(
+    self.manager.listen(
       event.into(),
       EventTarget::Webview {
         label: self.label().to_string(),
@@ -1454,7 +1485,7 @@ tauri::Builder::default()
   "####
   )]
   pub fn unlisten(&self, id: EventId) {
-    self.window.manager.unlisten(id)
+    self.manager.unlisten(id)
   }
 
   /// Listen to an event on this webview only once.
@@ -1464,7 +1495,7 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.window.manager.once(
+    self.manager.once(
       event.into(),
       EventTarget::Webview {
         label: self.label().to_string(),
@@ -1478,19 +1509,19 @@ impl<R: Runtime> Manager<R> for Webview<R> {}
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {
-    &self.window.manager
+    &self.manager
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.window.manager.clone()
+    self.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.window.app_handle.runtime()
+    self.app_handle.runtime()
   }
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
-    &self.window.app_handle
+    &self.app_handle
   }
 }
 

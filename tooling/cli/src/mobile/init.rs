@@ -38,14 +38,8 @@ pub fn command(
 ) -> Result<()> {
   let wrapper = TextWrapper::default();
 
-  exec(
-    target,
-    &wrapper,
-    ci || var_os("CI").is_some(),
-    reinstall_deps,
-    skip_targets_install,
-  )
-  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  exec(target, &wrapper, ci, reinstall_deps, skip_targets_install)
+    .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 

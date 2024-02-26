@@ -22,16 +22,16 @@ use std::{collections::HashMap, process::Command};
 #[clap(about = "Add a tauri plugin to the project")]
 pub struct Options {
   /// The plugin to add.
-  plugin: String,
+  pub plugin: String,
   /// Git tag to use.
   #[clap(short, long)]
-  tag: Option<String>,
+  pub tag: Option<String>,
   /// Git rev to use.
   #[clap(short, long)]
-  rev: Option<String>,
+  pub rev: Option<String>,
   /// Git branch to use.
   #[clap(short, long)]
-  branch: Option<String>,
+  pub branch: Option<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {

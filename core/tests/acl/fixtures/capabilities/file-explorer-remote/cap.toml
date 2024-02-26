@@ -2,5 +2,6 @@ identifier = "run-app"
 description = "app capability"
 windows = ["main"]
 permissions = ["fs:read", "fs:allow-app"]
-[context.remote]
+local = false
+[remote]
 urls = ["https://tauri.app"]

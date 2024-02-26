@@ -60,6 +60,9 @@ pub struct Options {
   /// Open Xcode
   #[clap(short, long)]
   pub open: bool,
+  /// Skip prompting for values
+  #[clap(long, env = "CI")]
+  pub ci: bool,
 }
 
 impl From<Options> for BuildOptions {
@@ -72,7 +75,7 @@ impl From<Options> for BuildOptions {
       bundles: None,
       config: options.config,
       args: Vec::new(),
-      ci: false,
+      ci: options.ci,
     }
   }
 }

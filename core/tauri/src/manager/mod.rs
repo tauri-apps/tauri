@@ -528,7 +528,8 @@ impl<R: Runtime> AppManager<R> {
   }
 
   pub(crate) fn on_window_close(&self, label: &str) {
-    if let Some(window) = self.window.windows_lock().remove(label) {
+    let window = self.window.windows_lock().remove(label);
+    if let Some(window) = window {
       for webview in window.webviews() {
         self.webview.webviews_lock().remove(webview.label());
       }

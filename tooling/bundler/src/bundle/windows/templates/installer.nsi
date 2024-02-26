@@ -1,4 +1,5 @@
 Unicode true
+ManifestDPIAware true
 ; Set the compression algorithm. Default is LZMA.
 !if "{{compression}}" == ""
   SetCompressor /SOLID lzma

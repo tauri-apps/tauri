@@ -60,12 +60,11 @@ pub struct Options {
   /// Command line arguments passed to the runner. Use `--` to explicitly mark the start of the arguments.
   pub args: Vec<String>,
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   pub ci: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
-  options.ci = options.ci || std::env::var("CI").is_ok();
   let ci = options.ci;
 
   let target = options

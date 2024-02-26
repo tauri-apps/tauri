@@ -244,11 +244,13 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
       }
     }
 
-    match invoke_message.unwrap_or_else(|| {
+    let message = invoke_message.unwrap_or_else(|| {
       #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("ipc::request::deserialize").entered();
       serde_json::from_str::<Message>(&message).map_err(Into::into)
-    }) {
+    });
+
+    match message {
       Ok(message) => {
         let request = InvokeRequest {
           cmd: message.cmd,

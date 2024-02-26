@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Bug Fixes
+
+- [`6edc563c`](https://www.github.com/tauri-apps/tauri/commit/6edc563cf9ca26b4622c3135d92e493a5d5bd6e8)([#8953](https://www.github.com/tauri-apps/tauri/pull/8953)) Fixes a deadlock when the window is destroyed.
+
+## \[2.0.0-beta.5]
+
+### New Features
+
+- [`fdcaf935`](https://www.github.com/tauri-apps/tauri/commit/fdcaf935fa75ecfa2806939c4faad4fe9e880386)([#8939](https://www.github.com/tauri-apps/tauri/pull/8939)) Added the `reparent` function to the webview API.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.4`
+- Upgraded to `tauri-build@2.0.0-beta.4`
+- Upgraded to `tauri-runtime@2.0.0-beta.4`
+- Upgraded to `tauri-macros@2.0.0-beta.4`
+
 ## \[2.0.0-beta.4]
 
 ### Enhancements

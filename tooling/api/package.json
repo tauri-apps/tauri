@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-beta.2",
+  "version": "2.0.0-beta.3",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",

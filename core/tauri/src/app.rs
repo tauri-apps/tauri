@@ -1755,7 +1755,7 @@ tauri::Builder::default()
 
 // Enhance core `.plugin()` for mobile and desktop
 impl<R: Runtime> Builder<R> {
-  /// same behavior like `.plugin()` but skips on non desktop builds and ignores `target_os`
+  /// Same behavior like `.plugin()` but skips on non desktop builds and ignores `target_os`
   pub fn plugin_desktop<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(desktop)]
     return self.plugin(plugin);

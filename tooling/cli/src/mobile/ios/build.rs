@@ -152,7 +152,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_build(
   interface: AppInterface,
-  mut options: Options,
+  options: Options,
   mut build_options: BuildOptions,
   tauri_config: ConfigHandle,
   config: &AppleConfig,

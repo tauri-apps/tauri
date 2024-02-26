@@ -23,7 +23,7 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let tauri_dir = tauri_dir();
   let plugin_manifests_path = tauri_dir
-    .join("capabilities")
+    .join("gen")
     .join("schemas")
     .join("plugin-manifests.json");
 

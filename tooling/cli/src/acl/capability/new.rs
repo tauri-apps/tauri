@@ -5,20 +5,13 @@
 use std::{collections::HashSet, path::PathBuf};
 
 use clap::Parser;
+use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
 use crate::{
+  acl::FileFormat,
   helpers::{app_paths::tauri_dir, prompts},
   Result,
 };
-
-#[derive(serde::Serialize)]
-struct Capability {
-  identifier: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  description: Option<String>,
-  windows: HashSet<String>,
-  permissions: HashSet<String>,
-}
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]
@@ -34,9 +27,9 @@ pub struct Options {
   /// Capability permissions
   #[clap(long)]
   permission: Option<Vec<String>>,
-  /// Use toml for the capability file.
-  #[clap(long)]
-  toml: bool,
+  /// Output file format.
+  #[clap(long, default_value_t = FileFormat::Json)]
+  format: FileFormat,
   /// The output file.
   #[clap(short, long)]
   out: Option<PathBuf>,
@@ -92,9 +85,22 @@ pub fn command(options: Options) -> Result<()> {
 
   let capability = Capability {
     identifier,
-    description,
+    description: description.unwrap_or_default(),
+    remote: None,
+    local: true,
     windows,
-    permissions,
+    webviews: Vec::new(),
+    permissions: permissions
+      .into_iter()
+      .map(|p| {
+        PermissionEntry::PermissionRef(
+          p.clone()
+            .try_into()
+            .unwrap_or_else(|_| panic!("invalid permission {}", p)),
+        )
+      })
+      .collect(),
+    platforms: Vec::new(),
   };
 
   let path = match options.out {
@@ -102,8 +108,11 @@ pub fn command(options: Options) -> Result<()> {
     None => {
       let dir = tauri_dir();
       let capabilities_dir = dir.join("capabilities");
-      let extension = if options.toml { "toml" } else { "conf.json" };
-      capabilities_dir.join(format!("{}.{extension}", capability.identifier))
+      capabilities_dir.join(format!(
+        "{}.{}",
+        capability.identifier,
+        options.format.extension()
+      ))
     }
   };
 
@@ -124,12 +133,7 @@ pub fn command(options: Options) -> Result<()> {
     std::fs::create_dir_all(parent)?;
   }
 
-  let contents = if options.toml {
-    toml_edit::ser::to_string_pretty(&capability)?
-  } else {
-    serde_json::to_string_pretty(&capability)?
-  };
-  std::fs::write(&path, contents)?;
+  std::fs::write(&path, options.format.serialize(&capability)?)?;
 
   log::info!(action = "Created"; "capability at {}", dunce::simplified(&path).display());
 

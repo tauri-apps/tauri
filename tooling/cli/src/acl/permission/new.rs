@@ -2,28 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{collections::HashSet, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::Parser;
 
 use crate::{
+  acl::FileFormat,
   helpers::{app_paths::tauri_dir_opt, prompts},
   Result,
 };
 
-#[derive(serde::Serialize)]
-struct Commands {
-  allow: HashSet<String>,
-  deny: HashSet<String>,
-}
-
-#[derive(serde::Serialize)]
-struct Permission {
-  identifier: String,
-  #[serde(skip_serializing_if = "Option::is_none")]
-  description: Option<String>,
-  commands: Commands,
-}
+use tauri_utils::acl::{plugin::PermissionFile, Commands, Permission};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]
@@ -39,9 +28,9 @@ pub struct Options {
   /// List of commands to deny
   #[clap(short, long, use_value_delimiter = true)]
   deny: Option<Vec<String>>,
-  /// Use toml for the permission file.
-  #[clap(long)]
-  toml: bool,
+  /// Output file format.
+  #[clap(long, default_value_t = FileFormat::Json)]
+  format: FileFormat,
   /// The output file.
   #[clap(short, long)]
   out: Option<PathBuf>,
@@ -59,19 +48,21 @@ pub fn command(options: Options) -> Result<()> {
       .and_then(|d| if d.is_empty() { None } else { Some(d) }),
   };
 
-  let allow: HashSet<String> = options
+  let allow: Vec<String> = options
     .allow
     .map(FromIterator::from_iter)
     .unwrap_or_default();
-  let deny: HashSet<String> = options
+  let deny: Vec<String> = options
     .deny
     .map(FromIterator::from_iter)
     .unwrap_or_default();
 
   let permission = Permission {
+    version: None,
     identifier,
     description,
     commands: Commands { allow, deny },
+    scope: Default::default(),
   };
 
   let path = match options.out {
@@ -82,8 +73,11 @@ pub fn command(options: Options) -> Result<()> {
         None => std::env::current_dir()?,
       };
       let permissions_dir = dir.join("permissions");
-      let extension = if options.toml { "toml" } else { "conf.json" };
-      permissions_dir.join(format!("{}.{extension}", permission.identifier))
+      permissions_dir.join(format!(
+        "{}.{}",
+        permission.identifier,
+        options.format.extension()
+      ))
     }
   };
 
@@ -104,12 +98,14 @@ pub fn command(options: Options) -> Result<()> {
     std::fs::create_dir_all(parent)?;
   }
 
-  let contents = if options.toml {
-    toml_edit::ser::to_string_pretty(&permission)?
-  } else {
-    serde_json::to_string_pretty(&permission)?
-  };
-  std::fs::write(&path, contents)?;
+  std::fs::write(
+    &path,
+    options.format.serialize(&PermissionFile {
+      default: None,
+      set: Vec::new(),
+      permission: vec![permission],
+    })?,
+  )?;
 
   log::info!(action = "Created"; "permission at {}", dunce::simplified(&path).display());
 

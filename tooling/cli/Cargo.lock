@@ -4112,6 +4112,7 @@ version = "1.0.113"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69801b70b1c3dac963ecb03a364ba0ceda9cf60c71cfe475e99864759c8b8a79"
 dependencies = [
+ "indexmap 2.2.3",
  "itoa 1.0.10",
  "ryu",
  "serde",
@@ -4697,6 +4698,7 @@ dependencies = [
  "ctrlc",
  "dialoguer",
  "duct",
+ "dunce",
  "env_logger",
  "glob",
  "handlebars 5.1.0",
@@ -4737,7 +4739,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "toml 0.8.10",
- "toml_edit 0.21.1",
+ "toml_edit 0.22.6",
  "unicode-width",
  "ureq",
  "url",
@@ -5099,17 +5101,6 @@ dependencies = [
  "indexmap 2.2.3",
  "serde",
  "serde_spanned",
- "toml_datetime",
- "winnow 0.5.40",
-]
-
-[[package]]
-name = "toml_edit"
-version = "0.21.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8534fd7f78b5405e860340ad6575217ce99f38d4d5c8f2442cb5ecb50090e1"
-dependencies = [
- "indexmap 2.2.3",
  "toml_datetime",
  "winnow 0.5.40",
 ]

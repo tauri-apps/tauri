@@ -52,12 +52,12 @@ anyhow = "1.0"
 tauri-bundler = { version = "2.0.1-beta.0", default-features = false, path = "../bundler" }
 colored = "2.0"
 serde = { version = "1.0", features = [ "derive" ] }
-serde_json = "1.0"
+serde_json = { version = "1.0", features = [ "preserve_order" ] }
 notify = "6.1"
 notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
-toml_edit = "0.21"
+toml_edit = { version = "0.22", features = [ "serde" ] }
 json-patch = "1.2"
 tauri-utils = { version = "2.0.0-beta.4", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
@@ -93,6 +93,7 @@ itertools = "0.11"
 local-ip-address = "0.5"
 css-color = "0.2"
 resvg = "0.36.0"
+dunce = "1"
 glob = "0.3"
 
 [target."cfg(windows)".dependencies]

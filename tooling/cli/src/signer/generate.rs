@@ -23,13 +23,11 @@ pub struct Options {
   #[clap(short, long)]
   force: bool,
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  options.ci = options.ci || std::env::var("CI").is_ok();
-
   if options.ci && options.password.is_none() {
     log::warn!("Generating new private key without password. For security reasons, we recommend setting a password instead.");
     options.password.replace("".into());

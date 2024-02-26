@@ -63,7 +63,7 @@ pub struct Cli {
 #[clap(about = "Initialize iOS target in the project")]
 pub struct InitOptions {
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
   /// Reinstall dependencies
   #[clap(short, long)]

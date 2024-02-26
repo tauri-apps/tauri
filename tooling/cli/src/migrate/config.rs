@@ -19,7 +19,7 @@ use std::{
   path::Path,
 };
 
-pub fn migrate(tauri_dir: &Path) -> Result<Option<HashSet<String>>> {
+pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
   if let Ok((mut config, config_path)) =
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
@@ -38,7 +38,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<Option<HashSet<String>>> {
     .into_iter()
     .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
     .collect();
-    permissions.extend(migrated.permissions);
+    permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
     create_dir_all(&capabilities_path)?;
@@ -61,15 +61,16 @@ pub fn migrate(tauri_dir: &Path) -> Result<Option<HashSet<String>>> {
       })?,
     )?;
 
-    return Ok(Some(migrated.plugins));
+    return Ok(migrated);
   }
 
-  Ok(None)
+  Ok(Default::default())
 }
 
-struct MigratedConfig {
-  permissions: Vec<PermissionEntry>,
-  plugins: HashSet<String>,
+#[derive(Default)]
+pub struct MigratedConfig {
+  pub permissions: Vec<PermissionEntry>,
+  pub plugins: HashSet<String>,
 }
 
 fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
@@ -516,37 +517,28 @@ fn process_updater(
   Ok(())
 }
 
+const KNOWN_PLUGINS: &[&str] = &[
+  "fs",
+  "shell",
+  "dialog",
+  "http",
+  "notification",
+  "global-shortcut",
+  "os",
+  "process",
+  "clipboard-manager",
+];
+
 fn plugins_from_permissions(permissions: &Vec<PermissionEntry>) -> HashSet<String> {
   let mut plugins = HashSet::new();
 
   for permission in permissions {
     let permission = permission.identifier().get();
-    if permission.starts_with("fs") {
-      plugins.insert("fs".into());
-    }
-    if permission.starts_with("dialog") {
-      plugins.insert("dialog".into());
-    }
-    if permission.starts_with("http") {
-      plugins.insert("http".into());
-    }
-    if permission.starts_with("os") {
-      plugins.insert("os".into());
-    }
-    if permission.starts_with("notification") {
-      plugins.insert("notification".into());
-    }
-    if permission.starts_with("global-shortcut") {
-      plugins.insert("global-shortcut".into());
-    }
-    if permission.starts_with("process") {
-      plugins.insert("process".into());
-    }
-    if permission.starts_with("clipboard-manager") {
-      plugins.insert("clipboard-manager".into());
-    }
-    if permission.starts_with("os") {
-      plugins.insert("os".into());
+    for plugin in KNOWN_PLUGINS {
+      if permission.starts_with(plugin) {
+        plugins.insert(plugin.to_string());
+        break;
+      }
     }
   }
 

@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### Breaking Changes
+
+- [`a76fb118`](https://www.github.com/tauri-apps/tauri/commit/a76fb118ce2de22e1bdb4216bf0ac01dfc3e5799)([#8950](https://www.github.com/tauri-apps/tauri/pull/8950)) Changed the capability format to allow configuring both `remote: { urls: Vec<String> }` and `local: bool (default: true)` instead of choosing one on the `context` field.
+
+## \[2.0.0-beta.3]
+
+### Breaking Changes
+
+- [`361ec37f`](https://www.github.com/tauri-apps/tauri/commit/361ec37fd4a5caa5b6630b9563ef079f53c6c336)([#8932](https://www.github.com/tauri-apps/tauri/pull/8932)) Moved `ProgressBarState` from `tauri-utils` to the `tauri::window` module and removed the `unity_uri` field.
+
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`0cb0a15c`](https://www.github.com/tauri-apps/tauri/commit/0cb0a15ce22af3d649cf219ac04188c14c5f4905)([#8789](https://www.github.com/tauri-apps/tauri/pull/8789)) Add `webviews` array on the capability for usage on multiwebview contexts.
+- [`83a68deb`](https://www.github.com/tauri-apps/tauri/commit/83a68deb5676d39cd4728d2e140f6b46d5f787ed)([#8797](https://www.github.com/tauri-apps/tauri/pull/8797)) Added a new configuration option `tauri.conf.json > app > security > capabilities` to reference existing capabilities and inline new ones. If it is empty, all capabilities are still included preserving the current behavior.
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) The `Context` struct now includes the runtime authority instead of the resolved ACL. This does not impact most applications.
+- [`28fb036c`](https://www.github.com/tauri-apps/tauri/commit/28fb036ce476c6f22815c35385f923135212c6f3)([#8852](https://www.github.com/tauri-apps/tauri/pull/8852)) Enhance resource directory resolution on development.
+- [`dd7571a7`](https://www.github.com/tauri-apps/tauri/commit/dd7571a7808676c8063a4983b9c6687dfaf03a09)([#8815](https://www.github.com/tauri-apps/tauri/pull/8815)) Do not generate JSON schema and markdown reference file if the plugin does not define any permissions and delete those files if they exist.
+- [`5618f6d2`](https://www.github.com/tauri-apps/tauri/commit/5618f6d2ffc9ebf40710145538b06bebfa55f878)([#8856](https://www.github.com/tauri-apps/tauri/pull/8856)) Relax requirements on plugin's identifiers to be alphanumeric and `-` instead of only lower alpha and `-`.
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) Refactored the capability types and resolution algorithm.
+
+### Bug Fixes
+
+- [`ae0fe47c`](https://www.github.com/tauri-apps/tauri/commit/ae0fe47c4c35fa87c77acf42af32ef3f0615cb08)([#8774](https://www.github.com/tauri-apps/tauri/pull/8774)) Fix compile error when `tauri.conf.json` had `bundle > license` set.
+
+### Breaking Changes
+
+- [`f284f9c5`](https://www.github.com/tauri-apps/tauri/commit/f284f9c545deeb77d15b6e8b1d0d05f49c40634c)([#8898](https://www.github.com/tauri-apps/tauri/pull/8898)) Changed the capability `remote` configuration to take a list of `urls` instead of `domains` for more flexibility.
+
 ## \[2.0.0-beta.1]
 
 ### Enhancements

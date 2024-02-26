@@ -13,14 +13,14 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId,
   },
   window::{WindowBuilder, WindowBuilderBase},
-  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, Result, RunEvent,
-  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
-  WindowDispatch, WindowEventId,
+  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
+  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
+  WebviewDispatch, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, ProgressBarState, Theme};
+use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 
 #[cfg(windows)]
@@ -538,6 +538,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn set_focus(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn reparent(&self, window_id: WindowId) -> Result<()> {
     Ok(())
   }
 }

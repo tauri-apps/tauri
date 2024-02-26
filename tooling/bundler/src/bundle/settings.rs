@@ -894,17 +894,14 @@ impl Settings {
     }
   }
 
+  /// Returns the bundle license.
+  pub fn license(&self) -> Option<String> {
+    self.bundle_settings.license.clone()
+  }
+
   /// Returns the bundle license file.
   pub fn license_file(&self) -> Option<PathBuf> {
-    self.bundle_settings.license_file.clone().or_else(|| {
-      self.bundle_settings.license.as_deref().map(|l| {
-        let p = self
-          .project_out_directory()
-          .join(format!("{}-license", self.bundle_identifier()));
-        std::fs::write(&p, l).expect("failed to write license to a temp file");
-        p
-      })
-    })
+    self.bundle_settings.license_file.clone()
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.

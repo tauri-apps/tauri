@@ -164,14 +164,6 @@ fn get_response<R: Runtime>(
   if let Some(handler) = &web_resource_request_handler {
     handler(request, &mut response);
   }
-  // if it's an HTML file, we need to set the CSP meta tag on Linux
-  #[cfg(target_os = "linux")]
-  if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-    let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-    let html = String::from_utf8_lossy(response.body());
-    let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-    *response.body_mut() = body.as_bytes().to_vec().into();
-  }
 
   Ok(response)
 }

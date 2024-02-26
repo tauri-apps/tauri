@@ -159,7 +159,7 @@ impl Listeners {
     event: String,
     target: EventTarget,
     handler: F,
-  ) {
+  ) -> EventId {
     let self_ = self.clone();
     let handler = Cell::new(Some(handler));
 
@@ -170,7 +170,7 @@ impl Listeners {
         .expect("attempted to call handler more than once");
       handler(event);
       self_.unlisten(id);
-    });
+    })
   }
 
   /// Removes an event listener.

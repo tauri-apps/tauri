@@ -459,9 +459,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.8.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7110143b830dfc731cd21cee98f6d7b490078005dda4e26b966afd83e918954"
+checksum = "9b4151a9a0e09e3acc2695c326cfdcf0b5ce5b04ab617cea6405a085f639b001"
 dependencies = [
  "colored",
  "core-foundation",
@@ -481,6 +481,7 @@ dependencies = [
  "once-cell-regex",
  "openssl",
  "os_info",
+ "os_pipe",
  "path_abs",
  "serde",
  "serde_json",
@@ -1869,7 +1870,7 @@ dependencies = [
  "iana-time-zone-haiku",
  "js-sys",
  "wasm-bindgen",
- "windows-core 0.52.0",
+ "windows-core",
 ]
 
 [[package]]
@@ -4640,7 +4641,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0-beta.1"
+version = "2.0.1-beta.0"
 dependencies = [
  "anyhow",
  "ar",
@@ -4668,7 +4669,7 @@ dependencies = [
  "strsim 0.10.0",
  "tar",
  "tauri-icns",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils 2.0.0-beta.4",
  "tempfile",
  "thiserror",
  "time",
@@ -4682,7 +4683,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.4"
 dependencies = [
  "anyhow",
  "axum",
@@ -4734,7 +4735,7 @@ dependencies = [
  "tauri-bundler",
  "tauri-icns",
  "tauri-utils 1.5.3",
- "tauri-utils 2.0.0-beta.1",
+ "tauri-utils 2.0.0-beta.4",
  "thiserror",
  "tokio",
  "toml 0.8.10",
@@ -4800,7 +4801,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.4"
 dependencies = [
  "aes-gcm",
  "ctor",
@@ -5682,21 +5683,12 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.51.1"
+version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca229916c5ee38c2f2bc1e9d8f04df975b4bd93f9955dc69fabb5d91270045c9"
+checksum = "e48a53791691ab099e5e2ad123536d0fff50652600abaf43bbf952894110d0be"
 dependencies = [
- "windows-core 0.51.1",
- "windows-targets 0.48.5",
-]
-
-[[package]]
-name = "windows-core"
-version = "0.51.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1f8cf84f35d2db49a46868f947758c7a1138116f7fac3bc844f43ade1292e64"
-dependencies = [
- "windows-targets 0.48.5",
+ "windows-core",
+ "windows-targets 0.52.0",
 ]
 
 [[package]]

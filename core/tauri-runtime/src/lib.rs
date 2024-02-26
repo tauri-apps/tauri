@@ -15,7 +15,7 @@
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::{ProgressBarState, Theme};
+use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
@@ -39,6 +39,34 @@ use http::{
 
 pub type WindowEventId = u32;
 pub type WebviewEventId = u32;
+
+/// Progress bar status.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProgressBarStatus {
+  /// Hide progress bar.
+  None,
+  /// Normal state.
+  Normal,
+  /// Indeterminate state. **Treated as Normal on Linux and macOS**
+  Indeterminate,
+  /// Paused state. **Treated as Normal on Linux**
+  Paused,
+  /// Error state. **Treated as Normal on Linux**
+  Error,
+}
+
+/// Progress Bar State
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressBarState {
+  /// The progress bar status.
+  pub status: Option<ProgressBarStatus>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
+  /// The `.desktop` filename with the Unity desktop window manager, for example `myapp.desktop` **Linux Only**
+  pub desktop_filename: Option<String>,
+}
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -421,6 +449,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Executes javascript on the window this [`WindowDispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+
+  /// Moves the webview to the given window.
+  fn reparent(&self, window_id: WindowId) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.

@@ -1,5 +1,45 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### New Features
+
+- [`fdcaf935`](https://www.github.com/tauri-apps/tauri/commit/fdcaf935fa75ecfa2806939c4faad4fe9e880386)([#8939](https://www.github.com/tauri-apps/tauri/pull/8939)) Added the `reparent` function to the webview API.
+
+### Bug Fixes
+
+- [`6e3bd4b9`](https://www.github.com/tauri-apps/tauri/commit/6e3bd4b9f815ddde8b5eaf9f69991d4de80bb584)([#8942](https://www.github.com/tauri-apps/tauri/pull/8942)) Fix window centering not taking monitor scale into account
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-runtime@2.0.0-beta.4`
+- [`d75713ac`](https://www.github.com/tauri-apps/tauri/commit/d75713ac6c6115534e520303f5c38aa78704de69)([#8936](https://www.github.com/tauri-apps/tauri/pull/8936)) Upgraded to `wry@0.37.0`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-runtime@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### What's Changed
+
+- [`76ce9f61`](https://www.github.com/tauri-apps/tauri/commit/76ce9f61dd3c5bdd589c7557543894e1f770dd16)([#3002](https://www.github.com/tauri-apps/tauri/pull/3002)) Enhance centering a newly created window, it will no longer jump to center after being visible.
+- [`16e550ec`](https://www.github.com/tauri-apps/tauri/commit/16e550ec1503765158cdc3bb2a20e70ec710e981)([#8844](https://www.github.com/tauri-apps/tauri/pull/8844)) Add `WebviewEvent`, `RunEvent::WebviewEvent` and `WebviewDispatch::on_webview_event`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-runtime@2.0.0-beta.2`
+- [`2f55bfec`](https://www.github.com/tauri-apps/tauri/commit/2f55bfecbf0244f3b5aa1ad7622182fca3fcdcbb)([#8795](https://www.github.com/tauri-apps/tauri/pull/8795)) Update `wry` to 0.36.
+
+### Breaking Changes
+
+- [`2f55bfec`](https://www.github.com/tauri-apps/tauri/commit/2f55bfecbf0244f3b5aa1ad7622182fca3fcdcbb)([#8795](https://www.github.com/tauri-apps/tauri/pull/8795)) Update raw-window-handle to 0.6.
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies

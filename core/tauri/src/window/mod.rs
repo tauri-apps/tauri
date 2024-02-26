@@ -333,7 +333,7 @@ tauri::Builder::default()
       .webviews_lock()
       .values()
       .map(|w| WebviewLabelDef {
-        window_label: w.window.label().to_string(),
+        window_label: w.window().label().to_string(),
         label: w.label().to_string(),
       })
       .collect::<Vec<_>>();
@@ -988,7 +988,7 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window() == self)
+      .filter(|w| w.window_label() == self.label())
       .cloned()
       .collect()
   }
@@ -1908,16 +1908,40 @@ tauri::Builder::default()
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
   /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
-  pub fn set_progress_bar(
-    &self,
-    progress_state: crate::utils::ProgressBarState,
-  ) -> crate::Result<()> {
+  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
     self
       .window
       .dispatcher
-      .set_progress_bar(progress_state)
+      .set_progress_bar(crate::runtime::ProgressBarState {
+        status: progress_state.status,
+        progress: progress_state.progress,
+        desktop_filename: Some(format!(
+          "{}.desktop",
+          heck::AsKebabCase(
+            self
+              .config()
+              .product_name
+              .as_deref()
+              .unwrap_or_else(|| self.package_info().crate_name)
+          )
+        )),
+      })
       .map_err(Into::into)
   }
+}
+
+/// Progress bar state.
+#[cfg(desktop)]
+#[cfg_attr(
+  docsrs,
+  doc(cfg(any(target_os = "macos", target_os = "linux", windows)))
+)]
+#[derive(serde::Deserialize)]
+pub struct ProgressBarState {
+  /// The progress bar status.
+  pub status: Option<crate::runtime::ProgressBarStatus>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
 }
 
 /// Event system APIs.
@@ -1992,7 +2016,7 @@ tauri::Builder::default()
   /// Listen to an event on this window only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F)
+  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {

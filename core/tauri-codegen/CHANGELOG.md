@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`83a68deb`](https://www.github.com/tauri-apps/tauri/commit/83a68deb5676d39cd4728d2e140f6b46d5f787ed)([#8797](https://www.github.com/tauri-apps/tauri/pull/8797)) Added a new configuration option `tauri.conf.json > app > security > capabilities` to reference existing capabilities and inline new ones. If it is empty, all capabilities are still included preserving the current behavior.
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) The `generate_context` proc macro now accepts a `capabilities` attribute where the value is an array of file paths that can be [conditionally compiled](https://doc.rust-lang.org/reference/conditional-compilation.html). These capabilities are added to the application along the capabilities defined in the Tauri configuration file.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies

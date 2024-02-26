@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-codegen@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-codegen@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) The `generate_context` proc macro now accepts a `capabilities` attribute where the value is an array of file paths that can be [conditionally compiled](https://doc.rust-lang.org/reference/conditional-compilation.html). These capabilities are added to the application along the capabilities defined in the Tauri configuration file.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-codegen@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies

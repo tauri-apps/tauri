@@ -1769,11 +1769,6 @@ impl<R: Runtime> Builder<R> {
     #[cfg(not(mobile))]
     self
   }
-}
-
-// Enhance `.plugin()` with `os-plugins` flag for os specific plugins
-#[cfg(feature = "os-plugins")]
-impl<R: Runtime> Builder<R> {
   /// Same behavior like `.plugin()` but skips on non windows builds
   pub fn plugin_windows<P: Plugin<R> + 'static>(self, #[allow(unused)] plugin: P) -> Self {
     #[cfg(target_os = "windows")]

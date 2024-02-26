@@ -14,24 +14,12 @@ use tauri_utils::{
 };
 
 use std::{
+  collections::HashSet,
   fs::{create_dir_all, write},
   path::Path,
 };
 
-macro_rules! move_allowlist_object {
-  ($plugins: ident, $value: expr, $plugin: literal, $field: literal) => {{
-    if $value != Default::default() {
-      $plugins
-        .entry($plugin)
-        .or_insert_with(|| Value::Object(Default::default()))
-        .as_object_mut()
-        .unwrap()
-        .insert($field.into(), serde_json::to_value($value.clone())?);
-    }
-  }};
-}
-
-pub fn migrate(tauri_dir: &Path) -> Result<()> {
+pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
   if let Ok((mut config, config_path)) =
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
@@ -50,7 +38,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
     .into_iter()
     .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
     .collect();
-    permissions.extend(migrated.permissions);
+    permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
     create_dir_all(&capabilities_path)?;
@@ -73,18 +61,23 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
         ],
       })?,
     )?;
+
+    return Ok(migrated);
   }
 
-  Ok(())
+  Ok(Default::default())
 }
 
-struct MigratedConfig {
-  permissions: Vec<PermissionEntry>,
+#[derive(Default)]
+pub struct MigratedConfig {
+  pub permissions: Vec<PermissionEntry>,
+  pub plugins: HashSet<String>,
 }
 
 fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
   let mut migrated = MigratedConfig {
     permissions: Vec::new(),
+    plugins: HashSet::new(),
   };
 
   if let Some(config) = config.as_object_mut() {
@@ -101,8 +94,9 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
     if let Some(tauri_config) = config.get_mut("tauri").and_then(|c| c.as_object_mut()) {
       // allowlist
       if let Some(allowlist) = tauri_config.remove("allowlist") {
-        let allowlist = process_allowlist(tauri_config, &mut plugins, allowlist)?;
+        let allowlist = process_allowlist(tauri_config, allowlist)?;
         let permissions = allowlist_to_permissions(allowlist);
+        migrated.plugins = plugins_from_permissions(&permissions);
         migrated.permissions = permissions;
       }
 
@@ -178,8 +172,11 @@ fn process_build(config: &mut Map<String, Value>) {
     if let Some(dist_dir) = build_config.remove("distDir") {
       build_config.insert("frontendDist".into(), dist_dir);
     }
-    if let Some(dist_dir) = build_config.remove("devPath") {
-      build_config.insert("devUrl".into(), dist_dir);
+    if let Some(dev_path) = build_config.remove("devPath") {
+      let is_url = url::Url::parse(dev_path.as_str().unwrap_or_default()).is_ok();
+      if is_url {
+        build_config.insert("devUrl".into(), dev_path);
+      }
     }
     if let Some(with_global_tauri) = build_config.remove("withGlobalTauri") {
       config
@@ -282,12 +279,9 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
 
 fn process_allowlist(
   tauri_config: &mut Map<String, Value>,
-  plugins: &mut Map<String, Value>,
   allowlist: Value,
 ) -> Result<tauri_utils_v1::config::AllowlistConfig> {
   let allowlist: tauri_utils_v1::config::AllowlistConfig = serde_json::from_value(allowlist)?;
-
-  move_allowlist_object!(plugins, allowlist.shell.open, "shell", "open");
 
   if allowlist.protocol.asset_scope != Default::default() {
     let security = tauri_config
@@ -522,6 +516,34 @@ fn process_updater(
   }
 
   Ok(())
+}
+
+const KNOWN_PLUGINS: &[&str] = &[
+  "fs",
+  "shell",
+  "dialog",
+  "http",
+  "notification",
+  "global-shortcut",
+  "os",
+  "process",
+  "clipboard-manager",
+];
+
+fn plugins_from_permissions(permissions: &Vec<PermissionEntry>) -> HashSet<String> {
+  let mut plugins = HashSet::new();
+
+  for permission in permissions {
+    let permission = permission.identifier().get();
+    for plugin in KNOWN_PLUGINS {
+      if permission.starts_with(plugin) {
+        plugins.insert(plugin.to_string());
+        break;
+      }
+    }
+  }
+
+  plugins
 }
 
 #[cfg(test)]
@@ -844,6 +866,24 @@ mod test {
         .zip(original_connect_src.iter())
         .all(|(a, b)| a == b),
       "connect-src migration failed"
+    );
+  }
+
+  #[test]
+  fn migrate_invalid_url_dev_path() {
+    let original = serde_json::json!({
+      "build": {
+        "devPath": "../src",
+        "distDir": "../src"
+      }
+    });
+
+    let migrated = migrate(&original);
+
+    assert!(migrated["build"].get("devUrl").is_none());
+    assert_eq!(
+      migrated["build"]["distDir"],
+      original["build"]["frontendDist"]
     );
   }
 }

@@ -1232,7 +1232,7 @@ fn main() {
           if let Err(e) = crate::plugin::mobile::run_command(
             plugin,
             &app_handle,
-            message.command,
+            heck::AsLowerCamelCase(message.command).to_string(),
             payload,
             move |response| match response {
               Ok(r) => resolver_.resolve(r),

@@ -20,8 +20,3 @@ tauri-build = {{ tauri_build_dep }}
 [dependencies]
 tauri = {{ tauri_example_dep }}
 tauri-plugin-{{ plugin_name }} = { path = "../../../" }
-
-[features]
-# this feature is used for production builds or when `devUrl` points to the filesystem
-# DO NOT REMOVE!!
-custom-protocol = [ "tauri/custom-protocol" ]

@@ -187,11 +187,6 @@ fn run_build(
     cli_options,
   )?;
 
-  options
-    .features
-    .get_or_insert(Vec::new())
-    .push("tauri/custom-protocol".into());
-
   let mut out_files = Vec::new();
 
   call_for_targets_with_fallback(

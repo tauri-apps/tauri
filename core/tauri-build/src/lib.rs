@@ -409,6 +409,12 @@ impl Attributes {
   }
 }
 
+pub fn dev() -> bool {
+  std::env::var("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
+    == "true"
+}
+
 /// Run all build time helpers for your Tauri Application.
 ///
 /// The current helpers include the following:
@@ -489,7 +495,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     mobile::generate_gradle_files(project_dir)?;
   }
 
-  cfg_alias("dev", std::env::var("DEBUG") == Ok("true".to_string()));
+  cfg_alias("dev", dev());
 
   let ws_path = get_workspace_dir()?;
   let mut manifest =

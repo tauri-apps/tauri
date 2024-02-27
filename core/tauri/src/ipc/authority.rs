@@ -438,24 +438,18 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
     command
-      .plugin
-      .ok_or_else(|| {
-        InvokeError::from_anyhow(anyhow::anyhow!(
-          "global scope not available for app commands"
-        ))
-      })
-      .and_then(|plugin| {
-        command
-          .message
-          .webview
-          .manager()
-          .runtime_authority
-          .lock()
-          .unwrap()
-          .scope_manager
-          .get_global_scope_typed(command.message.webview.app_handle(), plugin)
-          .map_err(InvokeError::from_error)
-      })
+      .message
+      .webview
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .scope_manager
+      .get_global_scope_typed(
+        command.message.webview.app_handle(),
+        command.plugin.unwrap_or_default(),
+      )
+      .map_err(InvokeError::from_error)
       .map(GlobalScope)
   }
 }
@@ -490,7 +484,7 @@ impl ScopeManager {
   pub(crate) fn get_global_scope_typed<R: Runtime, T: ScopeObject>(
     &self,
     app: &AppHandle<R>,
-    plugin: &str,
+    key: &str,
   ) -> crate::Result<ScopeValue<T>> {
     match self.global_scope_cache.try_get::<ScopeValue<T>>() {
       Some(cached) => Ok(cached.clone()),
@@ -498,7 +492,7 @@ impl ScopeManager {
         let mut allow: Vec<T> = Vec::new();
         let mut deny: Vec<T> = Vec::new();
 
-        if let Some(global_scope) = self.global_scope.get(plugin) {
+        if let Some(global_scope) = self.global_scope.get(key) {
           for allowed in &global_scope.allow {
             allow.push(
               T::deserialize(app, allowed.clone())

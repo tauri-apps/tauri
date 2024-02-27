@@ -7,7 +7,14 @@
     "main-*"
   ],
   "permissions": [
-    "allow-log-operation",
+    {
+      "identifier": "allow-log-operation",
+      "allow": [
+        {
+          "event": "tauri-click"
+        }
+      ]
+    },
     "allow-perform-request",
     "app-menu:default",
     "sample:allow-ping-scoped",

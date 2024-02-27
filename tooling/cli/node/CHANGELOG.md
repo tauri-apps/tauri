@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.0.0-beta.5]
+
+### New Features
+
+- [`06d63d67`](https://www.github.com/tauri-apps/tauri/commit/06d63d67a061459dd533ddcae755922427a6dfc5)([#8827](https://www.github.com/tauri-apps/tauri/pull/8827)) Add new subcommands for managing permissions and cababilities:
+
+  - `tauri permission new`
+  - `tauri permission add`
+  - `tauri permission rm`
+  - `tauri permission ls`
+  - `tauri capability new`
+
+### Enhancements
+
+- [`9be314f0`](https://www.github.com/tauri-apps/tauri/commit/9be314f07a4ca5d14433d41919492f3e91b5536a)([#8951](https://www.github.com/tauri-apps/tauri/pull/8951)) Add plugins to `Cargo.toml` when using `tauri migrate`
+
+### Bug Fixes
+
+- [`cbd9755e`](https://www.github.com/tauri-apps/tauri/commit/cbd9755e0926a7e47e59deb50f4bb93d621791a5)([#8977](https://www.github.com/tauri-apps/tauri/pull/8977)) Fixes process logs not showing on `ios dev`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.5`
+
 ## \[2.0.0-beta.4]
 
 ### Bug Fixes

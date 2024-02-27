@@ -10,7 +10,7 @@ use serde::de::DeserializeOwned;
 use state::TypeMap;
 
 use tauri_utils::acl::capability::CapabilityFile;
-use tauri_utils::acl::plugin::Manifest;
+use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::Value;
 use tauri_utils::acl::{
   resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
@@ -24,7 +24,7 @@ use super::{CommandArg, CommandItem};
 
 /// The runtime authority used to authorize IPC execution based on the Access Control List.
 pub struct RuntimeAuthority {
-  acl: BTreeMap<String, crate::utils::acl::plugin::Manifest>,
+  acl: BTreeMap<String, crate::utils::acl::manifest::Manifest>,
   allowed_commands: BTreeMap<CommandKey, ResolvedCommand>,
   denied_commands: BTreeMap<CommandKey, ResolvedCommand>,
   pub(crate) scope_manager: ScopeManager,
@@ -81,6 +81,10 @@ impl RuntimeAuthority {
         global_scope_cache: Default::default(),
       },
     }
+  }
+
+  pub(crate) fn has_app_manifest(&self) -> bool {
+    self.acl.contains_key("")
   }
 
   #[doc(hidden)]
@@ -173,7 +177,7 @@ impl RuntimeAuthority {
   #[cfg(debug_assertions)]
   pub(crate) fn resolve_access_message(
     &self,
-    plugin: &str,
+    key: &str,
     command_name: &str,
     window: &str,
     webview: &str,
@@ -189,7 +193,7 @@ impl RuntimeAuthority {
     }
 
     fn has_permissions_allowing_command(
-      manifest: &crate::utils::acl::plugin::Manifest,
+      manifest: &crate::utils::acl::manifest::Manifest,
       set: &crate::utils::acl::PermissionSet,
       command: &str,
     ) -> bool {
@@ -213,14 +217,25 @@ impl RuntimeAuthority {
       false
     }
 
-    let command = format!("plugin:{plugin}|{command_name}");
+    let command = if key.is_empty() {
+      command_name.to_string()
+    } else {
+      format!("plugin:{key}|{command_name}")
+    };
+
+    let command_pretty_name = if key.is_empty() {
+      command_name.to_string()
+    } else {
+      format!("{key}.{command_name}")
+    };
+
     if let Some((_cmd, resolved)) = self
       .denied_commands
       .iter()
       .find(|(cmd, _)| cmd.name == command && origin.matches(&cmd.context))
     {
       format!(
-        "{plugin}.{command_name} denied on origin {origin}, referenced by: {}",
+        "{command_pretty_name} denied on origin {origin}, referenced by: {}",
         print_references(resolved)
       )
     } else {
@@ -239,14 +254,14 @@ impl RuntimeAuthority {
         {
           "allowed".to_string()
         } else {
-          format!("{plugin}.{command_name} not allowed on window {window}, webview {webview}, allowed windows: {}, allowed webviews: {}, referenced by {}",
+          format!("{command_pretty_name} not allowed on window {window}, webview {webview}, allowed windows: {}, allowed webviews: {}, referenced by {}",
             resolved.windows.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
             resolved.webviews.iter().map(|w| w.as_str()).collect::<Vec<_>>().join(", "),
             print_references(resolved)
           )
         }
       } else {
-        let permission_error_detail = if let Some(manifest) = self.acl.get(plugin) {
+        let permission_error_detail = if let Some(manifest) = self.acl.get(key) {
           let mut permissions_referencing_command = Vec::new();
 
           if let Some(default) = &manifest.default_permission {
@@ -271,7 +286,11 @@ impl RuntimeAuthority {
             "Permissions associated with this command: {}",
             permissions_referencing_command
               .iter()
-              .map(|p| format!("{plugin}:{p}"))
+              .map(|p| if key.is_empty() {
+                p.to_string()
+              } else {
+                format!("{key}:{p}")
+              })
               .collect::<Vec<_>>()
               .join(", ")
           )
@@ -280,10 +299,10 @@ impl RuntimeAuthority {
         };
 
         if command_matches.is_empty() {
-          format!("{plugin}.{command_name} not allowed. {permission_error_detail}")
+          format!("{command_pretty_name} not allowed. {permission_error_detail}")
         } else {
           format!(
-            "{plugin}.{command_name} not allowed on origin [{}]. Please create a capability that has this origin on the context field.\n\nFound matches for: {}\n\n{permission_error_detail}",
+            "{command_pretty_name} not allowed on origin [{}]. Please create a capability that has this origin on the context field.\n\nFound matches for: {}\n\n{permission_error_detail}",
             origin,
             command_matches
               .iter()

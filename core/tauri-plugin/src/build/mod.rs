@@ -99,7 +99,8 @@ impl<'a> Builder<'a> {
     }
 
     println!("cargo:rerun-if-changed=permissions");
-    let permissions = acl::build::define_permissions("./permissions/**/*.*", &name, &out_dir)?;
+    let permissions =
+      acl::build::define_permissions("./permissions/**/*.*", &name, &out_dir, |_| true)?;
 
     if permissions.is_empty() {
       let _ = std::fs::remove_file(format!(

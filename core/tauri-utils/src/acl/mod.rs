@@ -18,7 +18,7 @@ pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 pub mod build;
 pub mod capability;
 pub mod identifier;
-pub mod plugin;
+pub mod manifest;
 pub mod resolved;
 pub mod value;
 
@@ -87,27 +87,20 @@ pub enum Error {
     set: String,
   },
 
-  /// Plugin has no default permission.
-  #[error("plugin {plugin} has no default permission")]
-  MissingDefaultPermission {
-    /// Plugin name.
-    plugin: String,
-  },
-
-  /// Unknown plugin.
-  #[error("unknown plugin {plugin}, expected one of {available}")]
-  UnknownPlugin {
-    /// Plugin name.
-    plugin: String,
-    /// Available plugins.
+  /// Unknown ACL manifest.
+  #[error("unknown ACL for {key}, expected one of {available}")]
+  UnknownManifest {
+    /// Manifest key.
+    key: String,
+    /// Available manifest keys.
     available: String,
   },
 
   /// Unknown permission.
-  #[error("unknown permission {permission} for plugin {plugin}")]
+  #[error("unknown permission {permission} for {key}")]
   UnknownPermission {
-    /// Plugin name.
-    plugin: String,
+    /// Manifest key.
+    key: String,
 
     /// Permission identifier.
     permission: String,

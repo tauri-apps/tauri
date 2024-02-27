@@ -19,7 +19,7 @@ use schemars::{
 
 use super::{
   capability::{Capability, CapabilityFile},
-  plugin::PermissionFile,
+  manifest::PermissionFile,
   PERMISSION_SCHEMA_FILE_NAME,
 };
 
@@ -50,10 +50,11 @@ const CAPABILITIES_SCHEMA_FOLDER_NAME: &str = "schemas";
 const CORE_PLUGIN_PERMISSIONS_TOKEN: &str = "__CORE_PLUGIN__";
 
 /// Write the permissions to a temporary directory and pass it to the immediate consuming crate.
-pub fn define_permissions(
+pub fn define_permissions<F: Fn(&Path) -> bool>(
   pattern: &str,
   pkg_name: &str,
   out_dir: &Path,
+  filter_fn: F,
 ) -> Result<Vec<PermissionFile>, Error> {
   let permission_files = glob::glob(pattern)?
     .flatten()
@@ -65,6 +66,7 @@ pub fn define_permissions(
         .map(|e| PERMISSION_FILE_EXTENSIONS.contains(&e))
         .unwrap_or_default()
     })
+    .filter(|p| filter_fn(p))
     // filter schemas
     .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();

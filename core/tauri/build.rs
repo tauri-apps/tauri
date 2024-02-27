@@ -358,6 +358,7 @@ permissions = [{default_permissions}]
         .to_string_lossy(),
       &format!("tauri:{plugin}"),
       out_dir,
+      |_| true,
     )
     .unwrap_or_else(|e| panic!("failed to define permissions for {plugin}: {e}"));
 

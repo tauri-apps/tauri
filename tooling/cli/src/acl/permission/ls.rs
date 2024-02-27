@@ -6,7 +6,7 @@ use clap::Parser;
 
 use crate::{helpers::app_paths::tauri_dir, Result};
 use colored::Colorize;
-use tauri_utils::acl::plugin::Manifest;
+use tauri_utils::acl::manifest::Manifest;
 
 use std::{collections::BTreeMap, fs::read_to_string};
 
@@ -22,26 +22,32 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   let tauri_dir = tauri_dir();
-  let plugin_manifests_path = tauri_dir
+  let acl_manifests_path = tauri_dir
     .join("gen")
     .join("schemas")
-    .join("plugin-manifests.json");
+    .join("acl-manifests.json");
 
-  if plugin_manifests_path.exists() {
-    let plugin_manifest_json = read_to_string(&plugin_manifests_path)?;
+  if acl_manifests_path.exists() {
+    let plugin_manifest_json = read_to_string(&acl_manifests_path)?;
     let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json)?;
 
-    for (plugin, manifest) in acl {
+    for (key, manifest) in acl {
       if options
         .plugin
         .as_ref()
-        .map(|p| p != &plugin)
+        .map(|p| p != &key)
         .unwrap_or_default()
       {
         continue;
       }
 
       let mut permissions = Vec::new();
+
+      let prefix = if key.is_empty() {
+        "".to_string()
+      } else {
+        format!("{}:", key.magenta())
+      };
 
       if let Some(default) = manifest.default_permission {
         if options
@@ -51,8 +57,7 @@ pub fn command(options: Options) -> Result<()> {
           .unwrap_or(true)
         {
           permissions.push(format!(
-            "{}:{}\n{}\nPermissions: {}",
-            plugin.magenta(),
+            "{prefix}{}\n{}\nPermissions: {}",
             "default".cyan(),
             default.description,
             default
@@ -73,8 +78,7 @@ pub fn command(options: Options) -> Result<()> {
           .unwrap_or(true)
         {
           permissions.push(format!(
-            "{}:{}\n{}\nPermissions: {}",
-            plugin.magenta(),
+            "{prefix}{}\n{}\nPermissions: {}",
             set.identifier.cyan(),
             set.description,
             set
@@ -95,8 +99,7 @@ pub fn command(options: Options) -> Result<()> {
           .unwrap_or(true)
         {
           permissions.push(format!(
-            "{}:{}{}{}{}",
-            plugin.magenta(),
+            "{prefix}{}{}{}{}",
             permission.identifier.cyan(),
             permission
               .description

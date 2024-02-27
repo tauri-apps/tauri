@@ -7,6 +7,8 @@
     "main-*"
   ],
   "permissions": [
+    "allow-log-operation",
+    "allow-perform-request",
     "app-menu:default",
     "sample:allow-ping-scoped",
     "sample:global-scope",

@@ -16,7 +16,7 @@ use crate::platform::Target;
 
 use super::{
   capability::{Capability, PermissionEntry},
-  plugin::Manifest,
+  manifest::Manifest,
   Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
 
@@ -113,17 +113,14 @@ impl Resolved {
         capability,
         acl,
         |ResolvedPermission {
-           plugin_name,
+           key,
            permission_name,
            commands,
            scope,
          }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
             // global scope
-            global_scope
-              .entry(plugin_name.to_string())
-              .or_default()
-              .push(scope);
+            global_scope.entry(key.to_string()).or_default().push(scope);
           } else {
             let scope_id = if scope.allow.is_some() || scope.deny.is_some() {
               current_scope_id += 1;
@@ -136,7 +133,11 @@ impl Resolved {
             for allowed_command in &commands.allow {
               resolve_command(
                 &mut allowed_commands,
-                format!("plugin:{plugin_name}|{allowed_command}"),
+                if key.is_empty() {
+                  allowed_command.to_string()
+                } else {
+                  format!("plugin:{key}|{allowed_command}")
+                },
                 capability,
                 scope_id,
                 #[cfg(debug_assertions)]
@@ -147,7 +148,11 @@ impl Resolved {
             for denied_command in &commands.deny {
               resolve_command(
                 &mut denied_commands,
-                format!("plugin:{plugin_name}|{denied_command}"),
+                if key.is_empty() {
+                  denied_command.to_string()
+                } else {
+                  format!("plugin:{key}|{denied_command}")
+                },
                 capability,
                 scope_id,
                 #[cfg(debug_assertions)]
@@ -193,7 +198,7 @@ impl Resolved {
 
     let global_scope = global_scope
       .into_iter()
-      .map(|(plugin_name, scopes)| {
+      .map(|(key, scopes)| {
         let mut resolved_scope = ResolvedScope::default();
         for scope in scopes {
           if let Some(allow) = scope.allow {
@@ -203,7 +208,7 @@ impl Resolved {
             resolved_scope.deny.extend(deny);
           }
         }
-        (plugin_name, resolved_scope)
+        (key, resolved_scope)
       })
       .collect();
 
@@ -259,7 +264,7 @@ fn parse_glob_patterns(raw: HashSet<String>) -> Result<Vec<glob::Pattern>, Error
 }
 
 struct ResolvedPermission<'a> {
-  plugin_name: &'a str,
+  key: &'a str,
   permission_name: &'a str,
   commands: Commands,
   scope: Scopes,
@@ -274,56 +279,56 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>)>(
     let permission_id = permission_entry.identifier();
     let permission_name = permission_id.get_base();
 
-    if let Some(plugin_name) = permission_id.get_prefix() {
-      let permissions = get_permissions(plugin_name, permission_name, acl)?;
+    let key = permission_id.get_prefix().unwrap_or_default();
 
-      let mut resolved_scope = Scopes::default();
-      let mut commands = Commands::default();
+    let permissions = get_permissions(key, permission_name, acl)?;
 
-      if let PermissionEntry::ExtendedPermission {
-        identifier: _,
-        scope,
-      } = permission_entry
-      {
-        if let Some(allow) = scope.allow.clone() {
-          resolved_scope
-            .allow
-            .get_or_insert_with(Default::default)
-            .extend(allow);
-        }
-        if let Some(deny) = scope.deny.clone() {
-          resolved_scope
-            .deny
-            .get_or_insert_with(Default::default)
-            .extend(deny);
-        }
+    let mut resolved_scope = Scopes::default();
+    let mut commands = Commands::default();
+
+    if let PermissionEntry::ExtendedPermission {
+      identifier: _,
+      scope,
+    } = permission_entry
+    {
+      if let Some(allow) = scope.allow.clone() {
+        resolved_scope
+          .allow
+          .get_or_insert_with(Default::default)
+          .extend(allow);
       }
-
-      for permission in permissions {
-        if let Some(allow) = permission.scope.allow.clone() {
-          resolved_scope
-            .allow
-            .get_or_insert_with(Default::default)
-            .extend(allow);
-        }
-        if let Some(deny) = permission.scope.deny.clone() {
-          resolved_scope
-            .deny
-            .get_or_insert_with(Default::default)
-            .extend(deny);
-        }
-
-        commands.allow.extend(permission.commands.allow.clone());
-        commands.deny.extend(permission.commands.deny.clone());
+      if let Some(deny) = scope.deny.clone() {
+        resolved_scope
+          .deny
+          .get_or_insert_with(Default::default)
+          .extend(deny);
       }
-
-      f(ResolvedPermission {
-        plugin_name,
-        permission_name,
-        commands,
-        scope: resolved_scope,
-      });
     }
+
+    for permission in permissions {
+      if let Some(allow) = permission.scope.allow.clone() {
+        resolved_scope
+          .allow
+          .get_or_insert_with(Default::default)
+          .extend(allow);
+      }
+      if let Some(deny) = permission.scope.deny.clone() {
+        resolved_scope
+          .deny
+          .get_or_insert_with(Default::default)
+          .extend(deny);
+      }
+
+      commands.allow.extend(permission.commands.allow.clone());
+      commands.deny.extend(permission.commands.deny.clone());
+    }
+
+    f(ResolvedPermission {
+      key,
+      permission_name,
+      commands,
+      scope: resolved_scope,
+    });
   }
 
   Ok(())
@@ -406,12 +411,16 @@ fn get_permission_set_permissions<'a>(
 }
 
 fn get_permissions<'a>(
-  plugin_name: &'a str,
+  key: &'a str,
   permission_name: &'a str,
   acl: &'a BTreeMap<String, Manifest>,
 ) -> Result<Vec<&'a Permission>, Error> {
-  let manifest = acl.get(plugin_name).ok_or_else(|| Error::UnknownPlugin {
-    plugin: plugin_name.to_string(),
+  let manifest = acl.get(key).ok_or_else(|| Error::UnknownManifest {
+    key: if key.is_empty() {
+      "app manifest".to_string()
+    } else {
+      key.to_string()
+    },
     available: acl.keys().cloned().collect::<Vec<_>>().join(", "),
   })?;
 
@@ -420,7 +429,11 @@ fn get_permissions<'a>(
       .default_permission
       .as_ref()
       .ok_or_else(|| Error::UnknownPermission {
-        plugin: plugin_name.to_string(),
+        key: if key.is_empty() {
+          "app manifest".to_string()
+        } else {
+          key.to_string()
+        },
         permission: permission_name.to_string(),
       })
       .and_then(|default| get_permission_set_permissions(manifest, default))
@@ -430,7 +443,11 @@ fn get_permissions<'a>(
     Ok(vec![permission])
   } else {
     Err(Error::UnknownPermission {
-      plugin: plugin_name.to_string(),
+      key: if key.is_empty() {
+        "app manifest".to_string()
+      } else {
+        key.to_string()
+      },
       permission: permission_name.to_string(),
     })
   }

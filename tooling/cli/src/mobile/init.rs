@@ -18,7 +18,6 @@ use cargo_mobile2::{
   util::{
     self,
     cli::{Report, TextWrapper},
-    relativize_path,
   },
 };
 use handlebars::{
@@ -26,7 +25,7 @@ use handlebars::{
 };
 
 use std::{
-  env::{current_dir, var, var_os},
+  env::{var, var_os},
   path::PathBuf,
 };
 
@@ -87,7 +86,6 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<App> {
-  let current_dir = current_dir()?;
   let tauri_config = get_tauri_config(target.platform_target(), None)?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();

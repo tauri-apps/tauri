@@ -804,7 +804,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch a single webview window from the manager.
   fn get_webview_window(&self, label: &str) -> Option<WebviewWindow<R>> {
     self.manager().get_webview(label).and_then(|webview| {
-      if webview.window().is_webview_window {
+      if webview.window().is_webview_window() {
         Some(WebviewWindow { webview })
       } else {
         None
@@ -819,7 +819,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .webviews()
       .into_iter()
       .filter_map(|(label, webview)| {
-        if webview.window().is_webview_window {
+        if webview.window().is_webview_window() {
           Some((label, WebviewWindow { webview }))
         } else {
           None

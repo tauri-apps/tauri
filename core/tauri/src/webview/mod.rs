@@ -894,7 +894,7 @@ impl<R: Runtime> Webview<R> {
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.close()
     } else {
       self.webview.dispatcher.close()?;
@@ -906,7 +906,7 @@ impl<R: Runtime> Webview<R> {
   /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.set_size(size.into())
     } else {
       self
@@ -920,7 +920,7 @@ impl<R: Runtime> Webview<R> {
   /// Sets this webviews's position.
   pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.set_position(position.into())
     } else {
       self
@@ -939,10 +939,13 @@ impl<R: Runtime> Webview<R> {
   /// Move the webview to the given window.
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     let current_window = self.window();
-    if !current_window.is_webview_window {
+    if current_window.is_webview_window() || window.is_webview_window() {
+      Err(crate::Error::CannotReparentWebviewWindow)
+    } else {
       self.webview.dispatcher.reparent(window.window.id)?;
+      *self.window_label.lock().unwrap() = window.label().to_string();
+      Ok(())
     }
-    Ok(())
   }
 
   /// Returns the webview position.
@@ -951,7 +954,7 @@ impl<R: Runtime> Webview<R> {
   /// - For webview window, returns the inner position of the window.
   pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.inner_position()
     } else {
       self.webview.dispatcher.position().map_err(Into::into)
@@ -961,7 +964,7 @@ impl<R: Runtime> Webview<R> {
   /// Returns the physical size of the webviews's client area.
   pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.inner_size()
     } else {
       self.webview.dispatcher.size().map_err(Into::into)

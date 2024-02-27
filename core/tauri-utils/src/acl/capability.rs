@@ -56,11 +56,12 @@ pub struct Capability {
   /// Description of the capability.
   #[serde(default)]
   pub description: String,
-  /// Execution context of the capability.
-  ///
-  /// At runtime, Tauri filters the IPC command together with the context to determine whether it is allowed or not and its scope.
-  #[serde(default)]
-  pub context: CapabilityContext,
+  /// Configure remote URLs that can use the capability permissions.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
+  pub remote: Option<CapabilityRemote>,
+  /// Whether this capability is enabled for local app URLs or not. Defaults to `true`.
+  #[serde(default = "default_capability_local")]
+  pub local: bool,
   /// List of windows that uses this capability. Can be a glob pattern.
   ///
   /// On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.
@@ -74,8 +75,12 @@ pub struct Capability {
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms applies.
-  #[serde(default = "default_platforms")]
+  #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
   pub platforms: Vec<Target>,
+}
+
+fn default_capability_local() -> bool {
+  true
 }
 
 fn default_platforms() -> Vec<Target> {
@@ -88,19 +93,13 @@ fn default_platforms() -> Vec<Target> {
   ]
 }
 
-/// Context of the capability.
+/// Configuration for remote URLs that are associated with the capability.
 #[derive(Debug, Default, Clone, Serialize, Deserialize, Eq, PartialEq, PartialOrd, Ord, Hash)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
-pub enum CapabilityContext {
-  /// Capability refers to local URL usage.
-  #[default]
-  Local,
-  /// Capability refers to remote usage.
-  Remote {
-    /// Remote domains this capability refers to. Can use glob patterns.
-    urls: Vec<String>,
-  },
+pub struct CapabilityRemote {
+  /// Remote domains this capability refers to. Can use glob patterns.
+  pub urls: Vec<String>,
 }
 
 /// Capability formats accepted in a capability file.
@@ -154,19 +153,14 @@ mod build {
   use super::*;
   use crate::{literal_struct, tokens::*};
 
-  impl ToTokens for CapabilityContext {
+  impl ToTokens for CapabilityRemote {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::acl::capability::CapabilityContext };
-
-      tokens.append_all(match self {
-        Self::Remote { urls } => {
-          let urls = vec_lit(urls, str_lit);
-          quote! { #prefix::Remote { urls: #urls } }
-        }
-        Self::Local => {
-          quote! { #prefix::Local }
-        }
-      });
+      let urls = vec_lit(&self.urls, str_lit);
+      literal_struct!(
+        tokens,
+        ::tauri::utils::acl::capability::CapabilityRemote,
+        urls
+      );
     }
   }
 
@@ -192,7 +186,8 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
       let description = str_lit(&self.description);
-      let context = &self.context;
+      let remote = &self.remote;
+      let local = self.local;
       let windows = vec_lit(&self.windows, str_lit);
       let permissions = vec_lit(&self.permissions, identity);
       let platforms = vec_lit(&self.platforms, identity);
@@ -202,7 +197,8 @@ mod build {
         ::tauri::utils::acl::capability::Capability,
         identifier,
         description,
-        context,
+        remote,
+        local,
         windows,
         permissions,
         platforms

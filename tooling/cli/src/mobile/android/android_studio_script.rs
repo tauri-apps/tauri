@@ -49,6 +49,7 @@ pub fn command(options: Options) -> Result<()> {
     let (config, metadata) = get_config(
       &get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
       tauri_config_,
+      None,
       &cli_options,
     );
     (config, metadata, cli_options)

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::helpers::prompts::input;
 use crate::Result;
 use crate::{
   helpers::{resolve_tauri_path, template},
@@ -9,7 +10,6 @@ use crate::{
 };
 use anyhow::Context;
 use clap::Parser;
-use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
@@ -18,10 +18,8 @@ use std::{
   collections::BTreeMap,
   env::current_dir,
   ffi::OsStr,
-  fmt::Display,
   fs::{create_dir_all, remove_dir_all, File, OpenOptions},
   path::{Component, Path, PathBuf},
-  str::FromStr,
 };
 
 pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
@@ -145,7 +143,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let plugin_id = if options.android || options.mobile {
-      let plugin_id = request_input(
+      let plugin_id = input(
         "What should be the Android Package ID for your plugin?",
         Some(format!("com.plugin.{}", plugin_name)),
         false,
@@ -218,6 +216,10 @@ pub fn command(mut options: Options) -> Result<()> {
     )
     .with_context(|| "failed to render plugin Android template")?;
   }
+
+  std::fs::create_dir(template_target_path.join("permissions"))
+    .with_context(|| "failed to create `permissions` directory")?;
+
   Ok(())
 }
 
@@ -276,31 +278,5 @@ pub fn generate_android_out_file(
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)
-  }
-}
-
-pub fn request_input<T>(
-  prompt: &str,
-  initial: Option<T>,
-  skip: bool,
-  allow_empty: bool,
-) -> Result<Option<T>>
-where
-  T: Clone + FromStr + Display + ToString,
-  T::Err: Display + std::fmt::Debug,
-{
-  if skip {
-    Ok(initial)
-  } else {
-    let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme)
-      .with_prompt(prompt)
-      .allow_empty(allow_empty);
-
-    if let Some(v) = initial {
-      builder = builder.with_initial_text(v.to_string());
-    }
-
-    builder.interact_text().map(Some).map_err(Into::into)
   }
 }

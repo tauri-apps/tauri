@@ -122,6 +122,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_webview_position", false),
       ("set_webview_focus", false),
       ("print", false),
+      ("reparent", false),
       // internal
       ("internal_toggle_devtools", true),
     ],
@@ -204,8 +205,12 @@ fn alias(alias: &str, has_feature: bool) {
 }
 
 fn main() {
-  alias("custom_protocol", has_feature("custom-protocol"));
-  alias("dev", !has_feature("custom-protocol"));
+  let custom_protocol = has_feature("custom-protocol");
+  let dev = !custom_protocol;
+  alias("custom_protocol", custom_protocol);
+  alias("dev", dev);
+
+  println!("cargo:dev={}", dev);
 
   let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";

@@ -192,10 +192,6 @@ export interface ProgressBarState {
    * The progress bar progress. This can be a value ranging from `0` to `100`
    */
   progress?: number
-  /**
-   * The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
-   */
-  unityUri?: string
 }
 
 /**
@@ -239,14 +235,9 @@ export type WindowLabel = string
  *
  * @example
  * ```typescript
- * // loading embedded asset:
- * const appWindow = new Window('theUniqueLabel', {
- *   url: 'path/to/page.html'
- * });
- * // alternatively, load a remote URL:
- * const appWindow = new Window('theUniqueLabel', {
- *   url: 'https://github.com/tauri-apps/tauri'
- * });
+ * import { Window } from "@tauri-apps/api/window"
+ *
+ * const appWindow = new Window('theUniqueLabel');
  *
  * appWindow.once('tauri://created', function () {
  *  // window successfully created
@@ -256,9 +247,9 @@ export type WindowLabel = string
  * });
  *
  * // emit an event to the backend
- * await appWindow.emit("some event", "data");
+ * await appWindow.emit("some-event", "data");
  * // listen to an event from the backend
- * const unlisten = await appWindow.listen("event name", e => {});
+ * const unlisten = await appWindow.listen("event-name", e => {});
  * unlisten();
  * ```
  *
@@ -276,9 +267,7 @@ class Window {
    * @example
    * ```typescript
    * import { Window } from '@tauri-apps/api/window';
-   * const appWindow = new Window('my-label', {
-   *   url: 'https://github.com/tauri-apps/tauri'
-   * });
+   * const appWindow = new Window('my-label');
    * appWindow.once('tauri://created', function () {
    *  // window successfully created
    * });

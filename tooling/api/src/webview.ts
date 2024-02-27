@@ -31,6 +31,7 @@ import {
 } from './event'
 import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
+import { WebviewWindow } from './webviewWindow'
 
 interface FileDropPayload {
   paths: string[]
@@ -92,9 +93,9 @@ export type WebviewLabel = string
  * import { Window } from "@tauri-apps/api/window"
  * import { Webview } from "@tauri-apps/api/webview"
  *
- * // loading embedded asset:
- * const appWindow = new Window('uniqueLabel')
+ * const appWindow = new Window('uniqueLabel');
  *
+ * // loading embedded asset:
  * const webview = new Webview(appWindow, 'theUniqueLabel', {
  *   url: 'path/to/page.html'
  * });
@@ -111,9 +112,9 @@ export type WebviewLabel = string
  * });
  *
  * // emit an event to the backend
- * await webview.emit("some event", "data");
+ * await webview.emit("some-event", "data");
  * // listen to an event from the backend
- * const unlisten = await webview.listen("event name", e => {});
+ * const unlisten = await webview.listen("event-name", e => {});
  * unlisten();
  * ```
  *
@@ -135,7 +136,7 @@ class Webview {
    * import { Window } from '@tauri-apps/api/window'
    * import { Webview } from '@tauri-apps/api/webview'
    * const appWindow = new Window('my-label')
-   * const webview = new Window(appWindow, 'my-label', {
+   * const webview = new Webview(appWindow, 'my-label', {
    *   url: 'https://github.com/tauri-apps/tauri'
    * });
    * webview.once('tauri://created', function () {
@@ -471,6 +472,23 @@ class Webview {
   async setFocus(): Promise<void> {
     return invoke('plugin:webview|set_webview_focus', {
       label: this.label
+    })
+  }
+
+  /**
+   * Moves this webview to the given label.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().reparent('other-window');
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async reparent(window: Window | WebviewWindow | string): Promise<void> {
+    return invoke('plugin:webview|set_webview_focus', {
+      label: this.label,
+      window: typeof window === 'string' ? window : window.label
     })
   }
 

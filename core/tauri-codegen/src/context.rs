@@ -40,7 +40,6 @@ pub struct ContextData {
 
 fn map_core_assets(
   options: &AssetOptions,
-  target: Target,
 ) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
   #[cfg(feature = "isolation")]
   let pattern = tauri_utils::html::PatternObject::from(&options.pattern);
@@ -52,10 +51,6 @@ fn map_core_assets(
       #[allow(clippy::collapsible_if)]
       if csp {
         let document = parse_html(String::from_utf8_lossy(input).into_owned());
-
-        if target == Target::Linux {
-          ::tauri_utils::html::inject_csp_token(&document);
-        }
 
         inject_nonce_token(&document, &dangerous_disable_asset_csp_modification);
 
@@ -176,7 +171,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
               path
             )
           }
-          EmbeddedAssets::new(assets_path, &options, map_core_assets(&options, target))?
+          EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
         }
         FrontendDist::Files(files) => EmbeddedAssets::new(
           files
@@ -184,7 +179,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
             .map(|p| config_parent.join(p))
             .collect::<Vec<_>>(),
           &options,
-          map_core_assets(&options, target),
+          map_core_assets(&options),
         )?,
         _ => unimplemented!(),
       },

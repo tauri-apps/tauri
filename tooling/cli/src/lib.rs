@@ -14,6 +14,7 @@
 use anyhow::Context;
 pub use anyhow::Result;
 
+mod acl;
 mod add;
 mod build;
 mod completions;
@@ -145,6 +146,8 @@ enum Commands {
   Icon(icon::Options),
   Signer(signer::Cli),
   Completions(completions::Options),
+  Permission(acl::permission::Cli),
+  Capability(acl::capability::Cli),
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -247,6 +250,8 @@ where
     Commands::Plugin(cli) => plugin::command(cli)?,
     Commands::Signer(cli) => signer::command(cli)?,
     Commands::Completions(options) => completions::command(options, cli_)?,
+    Commands::Permission(options) => acl::permission::command(options)?,
+    Commands::Capability(options) => acl::capability::command(options)?,
     Commands::Android(c) => mobile::android::command(c, cli.verbose)?,
     #[cfg(target_os = "macos")]
     Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,

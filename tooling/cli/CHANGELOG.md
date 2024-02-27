@@ -1,5 +1,60 @@
 # Changelog
 
+## \[2.0.0-beta.5]
+
+### New Features
+
+- [`06d63d67`](https://www.github.com/tauri-apps/tauri/commit/06d63d67a061459dd533ddcae755922427a6dfc5)([#8827](https://www.github.com/tauri-apps/tauri/pull/8827)) Add new subcommands for managing permissions and cababilities:
+
+  - `tauri permission new`
+  - `tauri permission add`
+  - `tauri permission rm`
+  - `tauri permission ls`
+  - `tauri capability new`
+
+### Breaking Changes
+
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
+
+### Enhancements
+
+- [`9be314f0`](https://www.github.com/tauri-apps/tauri/commit/9be314f07a4ca5d14433d41919492f3e91b5536a)([#8951](https://www.github.com/tauri-apps/tauri/pull/8951)) Add plugins to `Cargo.toml` when using `tauri migrate`
+
+### Bug Fixes
+
+- [`cbd9755e`](https://www.github.com/tauri-apps/tauri/commit/cbd9755e0926a7e47e59deb50f4bb93d621791a5)([#8977](https://www.github.com/tauri-apps/tauri/pull/8977)) Fixes process logs not showing on `ios dev`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+- Upgraded to `tauri-bundler@2.0.1-beta.1`
+
+## \[2.0.0-beta.4]
+
+### Bug Fixes
+
+- [`e538ba58`](https://www.github.com/tauri-apps/tauri/commit/e538ba586c5b8b50955586c8ef2704adb5d7cc43)([#8949](https://www.github.com/tauri-apps/tauri/pull/8949)) Fixes android and iOS process spawning not working on Node.js.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.0`
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+
+### Breaking Changes
+
+- [`a76fb118`](https://www.github.com/tauri-apps/tauri/commit/a76fb118ce2de22e1bdb4216bf0ac01dfc3e5799)([#8950](https://www.github.com/tauri-apps/tauri/pull/8950)) Changed the capability format to allow configuring both `remote: { urls: Vec<String> }` and `local: bool (default: true)` instead of choosing one on the `context` field.
+
+## \[2.0.0-beta.3]
+
+### Enhancements
+
+- [`a029b9f7`](https://www.github.com/tauri-apps/tauri/commit/a029b9f77e432533a403c292940fa3efba68692c)([#8910](https://www.github.com/tauri-apps/tauri/pull/8910)) Setting up code signing is no longer required on iOS when using the simulator.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-bundler@2.0.0-beta.3`
+
 ## \[2.0.0-beta.2]
 
 ### Enhancements

@@ -190,6 +190,8 @@ pub fn gen(
       &dest.join("project.yml").to_string_lossy(),
     ],
   )
+  .stdout_file(os_pipe::dup_stdout().unwrap())
+  .stderr_file(os_pipe::dup_stderr().unwrap())
   .run()
   .with_context(|| "failed to run `xcodegen`")?;
 
@@ -201,6 +203,8 @@ pub fn gen(
         &format!("--project-directory={}", dest.display()),
       ],
     )
+    .stdout_file(os_pipe::dup_stdout().unwrap())
+    .stderr_file(os_pipe::dup_stderr().unwrap())
     .run()
     .with_context(|| "failed to run `pod install`")?;
   }

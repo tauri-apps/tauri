@@ -15,7 +15,6 @@
 use anyhow::Context;
 pub use anyhow::Result;
 use cargo_toml::Manifest;
-use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
   acl::build::parse_capabilities,
@@ -205,15 +204,6 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
     }
   }
   Ok(())
-}
-
-// checks if the given Cargo feature is enabled.
-fn has_feature(feature: &str) -> bool {
-  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
-  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
-    .map(|x| x == "1")
-    .unwrap_or(false)
 }
 
 // creates a cfg alias if `has_feature` is true.
@@ -419,6 +409,12 @@ impl Attributes {
   }
 }
 
+pub fn dev() -> bool {
+  std::env::var("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
+    == "true"
+}
+
 /// Run all build time helpers for your Tauri Application.
 ///
 /// The current helpers include the following:
@@ -499,7 +495,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     mobile::generate_gradle_files(project_dir)?;
   }
 
-  cfg_alias("dev", !has_feature("custom-protocol"));
+  cfg_alias("dev", dev());
 
   let ws_path = get_workspace_dir()?;
   let mut manifest =

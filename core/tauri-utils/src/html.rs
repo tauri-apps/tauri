@@ -23,8 +23,6 @@ use crate::config::{DisabledCspModificationKind, PatternKind};
 #[cfg(feature = "isolation")]
 use crate::pattern::isolation::IsolationJavascriptCodegen;
 
-/// The token used on the CSP tag content.
-pub const CSP_TOKEN: &str = "__TAURI_CSP__";
 /// The token used for script nonces.
 pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
 /// The token used for style nonces.
@@ -168,11 +166,6 @@ pub fn inject_csp(document: &NodeRef, csp: &str) {
   });
 }
 
-/// Injects a content security policy token to the HTML.
-pub fn inject_csp_token(document: &NodeRef) {
-  inject_csp(document, CSP_TOKEN)
-}
-
 fn create_csp_meta_tag(csp: &str) -> NodeRef {
   NodeRef::new_element(
     QualName::new(None, ns!(html), LocalName::from("meta")),
@@ -298,12 +291,12 @@ mod tests {
     ];
     for html in htmls {
       let document = kuchiki::parse_html().one(html);
-      super::inject_csp_token(&document);
+      let csp = "csp-string";
+      super::inject_csp(&document, csp);
       assert_eq!(
         document.to_string(),
         format!(
-          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{}"></head><body></body></html>"#,
-          super::CSP_TOKEN
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#,
         )
       );
     }

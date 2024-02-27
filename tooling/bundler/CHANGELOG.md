@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.0.1-beta.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+
+## \[2.0.1-beta.0]
+
+### Bug Fixes
+
+- [`84c783f6`](https://www.github.com/tauri-apps/tauri/commit/84c783f6bc46827032666b0cba100ed37560240c)([#8948](https://www.github.com/tauri-apps/tauri/pull/8948)) Fix NSIS installer always containing a license page even though `licenseFile` option is not set in the config.
+- [`84c783f6`](https://www.github.com/tauri-apps/tauri/commit/84c783f6bc46827032666b0cba100ed37560240c)([#8948](https://www.github.com/tauri-apps/tauri/pull/8948)) Don't fallback to `licenseFile` and use only `license` field when building RPM.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+
 ## \[2.0.0-beta.2]
 
 ### Dependencies

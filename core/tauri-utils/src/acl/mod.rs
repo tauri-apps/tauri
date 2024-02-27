@@ -11,6 +11,9 @@ use thiserror::Error;
 
 pub use self::{identifier::*, value::*};
 
+/// Known filename of the permission schema JSON file
+pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
+
 #[cfg(feature = "build")]
 pub mod build;
 pub mod capability;
@@ -142,6 +145,12 @@ pub struct Scopes {
   pub deny: Option<Vec<Value>>,
 }
 
+impl Scopes {
+  fn is_empty(&self) -> bool {
+    self.allow.is_none() && self.deny.is_none()
+  }
+}
+
 /// Descriptions of explicit privileges of commands.
 ///
 /// It can enable commands to be accessible in the frontend of the application.
@@ -151,12 +160,14 @@ pub struct Scopes {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Permission {
   /// The version of the permission.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub version: Option<NonZeroU64>,
 
   /// A unique identifier for the permission.
   pub identifier: String,
 
   /// Human-readable description of what the permission does.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
 
   /// Allowed or denied commands when using this permission.
@@ -164,7 +175,7 @@ pub struct Permission {
   pub commands: Commands,
 
   /// Allowed or denied scoped when using this permission.
-  #[serde(default)]
+  #[serde(default, skip_serializing_if = "Scopes::is_empty")]
   pub scope: Scopes,
 }
 

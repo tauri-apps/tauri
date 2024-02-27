@@ -15,7 +15,7 @@ use glob::Pattern;
 use crate::platform::Target;
 
 use super::{
-  capability::{Capability, CapabilityContext, PermissionEntry},
+  capability::{Capability, PermissionEntry},
   plugin::Manifest,
   Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
 };
@@ -346,18 +346,18 @@ fn resolve_command(
   scope_id: Option<ScopeKey>,
   #[cfg(debug_assertions)] referenced_by_permission_identifier: String,
 ) {
-  let contexts = match &capability.context {
-    CapabilityContext::Local => {
-      vec![ExecutionContext::Local]
-    }
-    CapabilityContext::Remote { urls } => urls
-      .iter()
-      .map(|url| ExecutionContext::Remote {
+  let mut contexts = Vec::new();
+  if capability.local {
+    contexts.push(ExecutionContext::Local);
+  }
+  if let Some(remote) = &capability.remote {
+    contexts.extend(remote.urls.iter().map(|url| {
+      ExecutionContext::Remote {
         url: Pattern::new(url)
           .unwrap_or_else(|e| panic!("invalid glob pattern for remote URL {url}: {e}")),
-      })
-      .collect(),
-  };
+      }
+    }));
+  }
 
   for context in contexts {
     let resolved = commands

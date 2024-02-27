@@ -1,5 +1,66 @@
 # Changelog
 
+### Breaking Changes
+
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
+
+## \[2.0.0-beta.7]
+
+### Enhancements
+
+- [`bc5b5e67`](https://www.github.com/tauri-apps/tauri/commit/bc5b5e671a546512f823f1c157421b4c3311dfc0)([#8984](https://www.github.com/tauri-apps/tauri/pull/8984)) Do not include a CSP tag in the application HTML and rely on the custom protocol response header instead.
+
+### Bug Fixes
+
+- [`6cb601d4`](https://www.github.com/tauri-apps/tauri/commit/6cb601d42e2af75aa818371b8b8f7d5b2e77dc90)([#8983](https://www.github.com/tauri-apps/tauri/pull/8983)) Convert the command name to camelCase when executing a mobile plugin command.
+- [`60bf11ab`](https://www.github.com/tauri-apps/tauri/commit/60bf11abcbec8d0362aa256e2293985bfd62620f)([#8986](https://www.github.com/tauri-apps/tauri/pull/8986)) Export `ProgressBarStatus`, regression introduced in `2.0.0-beta.4`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+- Upgraded to `tauri-runtime@2.0.0-beta.5`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.5`
+- Upgraded to `tauri-macros@2.0.0-beta.5`
+- Upgraded to `tauri-build@2.0.0-beta.5`
+
+## \[2.0.0-beta.6]
+
+### Bug Fixes
+
+- [`6edc563c`](https://www.github.com/tauri-apps/tauri/commit/6edc563cf9ca26b4622c3135d92e493a5d5bd6e8)([#8953](https://www.github.com/tauri-apps/tauri/pull/8953)) Fixes a deadlock when the window is destroyed.
+
+## \[2.0.0-beta.5]
+
+### New Features
+
+- [`fdcaf935`](https://www.github.com/tauri-apps/tauri/commit/fdcaf935fa75ecfa2806939c4faad4fe9e880386)([#8939](https://www.github.com/tauri-apps/tauri/pull/8939)) Added the `reparent` function to the webview API.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.4`
+- Upgraded to `tauri-build@2.0.0-beta.4`
+- Upgraded to `tauri-runtime@2.0.0-beta.4`
+- Upgraded to `tauri-macros@2.0.0-beta.4`
+
+## \[2.0.0-beta.4]
+
+### Enhancements
+
+- [`3fb414b6`](https://www.github.com/tauri-apps/tauri/commit/3fb414b61ad7cfce67751230826fddfb39effec5)([#8914](https://www.github.com/tauri-apps/tauri/pull/8914)) Return an id when using from `Manager::once_any`, `App::once`, `Window::once`, `Webview::once`, `WebviewWindow::once` and `fs::Scope::once`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-runtime@2.0.0-beta.3`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.3`
+- Upgraded to `tauri-macros@2.0.0-beta.3`
+- Upgraded to `tauri-build@2.0.0-beta.3`
+
+### Breaking Changes
+
+- [`361ec37f`](https://www.github.com/tauri-apps/tauri/commit/361ec37fd4a5caa5b6630b9563ef079f53c6c336)([#8932](https://www.github.com/tauri-apps/tauri/pull/8932)) Moved `ProgressBarState` from `tauri-utils` to the `tauri::window` module and removed the `unity_uri` field.
+
 ## \[2.0.0-beta.3]
 
 ### New Features

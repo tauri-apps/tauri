@@ -464,7 +464,7 @@ impl Rust {
   ) {
     features
       .get_or_insert(Vec::new())
-      .push("custom-protocol".into());
+      .push("tauri/custom-protocol".into());
     shared_options(mobile, args, features, &self.app_settings);
   }
 

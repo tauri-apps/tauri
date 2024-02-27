@@ -57,6 +57,7 @@ pub struct Capability {
   #[serde(default)]
   pub description: String,
   /// Configure remote URLs that can use the capability permissions.
+  #[serde(default, skip_serializing_if = "Option::is_none")]
   pub remote: Option<CapabilityRemote>,
   /// Whether this capability is enabled for local app URLs or not. Defaults to `true`.
   #[serde(default = "default_capability_local")]
@@ -74,7 +75,7 @@ pub struct Capability {
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms applies.
-  #[serde(default = "default_platforms")]
+  #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
   pub platforms: Vec<Target>,
 }
 

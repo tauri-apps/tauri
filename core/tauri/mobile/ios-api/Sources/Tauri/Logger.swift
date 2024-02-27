@@ -37,11 +37,19 @@ public class Logger {
   }
 
   public static func debug(_ items: Any..., category: String = "app") {
+    #if DEBUG
+    Logger.log(items, category: category, type: OSLogType.default)
+    #else
     Logger.log(items, category: category, type: OSLogType.debug)
+    #endif
   }
 
   public static func info(_ items: Any..., category: String = "app") {
+    #if DEBUG
+    Logger.log(items, category: category, type: OSLogType.default)
+    #else
     Logger.log(items, category: category, type: OSLogType.info)
+    #endif
   }
 
   public static func error(_ items: Any..., category: String = "app") {

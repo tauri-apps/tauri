@@ -57,7 +57,7 @@ pub struct Cli {
 #[clap(about = "Initialize Android target in the project")]
 pub struct InitOptions {
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
   /// Skips installing rust toolchains via rustup
   #[clap(long)]
@@ -96,9 +96,16 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
+  features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AndroidConfig, AndroidMetadata) {
-  let android_options = cli_options.clone();
+  let mut android_options = cli_options.clone();
+  if let Some(features) = features {
+    android_options
+      .features
+      .get_or_insert(Vec::new())
+      .extend_from_slice(features);
+  }
 
   let raw = RawAndroidConfig {
     features: android_options.features.clone(),

@@ -71,7 +71,7 @@
         true)
 
         const action = () => {
-          window.window.__TAURI_INTERNALS__.ipc({
+          window.__TAURI_INTERNALS__.ipc({
             cmd,
             callback,
             error,

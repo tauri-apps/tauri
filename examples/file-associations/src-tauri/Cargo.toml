@@ -15,5 +15,4 @@ tauri = { path = "../../../core/tauri", features = [] }
 url = "2"
 
 [features]
-default = [ "custom-protocol" ]
-custom-protocol = [ "tauri/custom-protocol" ]
+default = [ "tauri/custom-protocol" ]

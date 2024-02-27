@@ -1887,7 +1887,7 @@ pub struct WebviewWrapper {
   webview_event_listeners: WebviewEventListeners,
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
-  bounds: Arc<Mutex<Option<WebviewBounds>>>,
+  bounds: Option<Arc<Mutex<WebviewBounds>>>,
 }
 
 impl Deref for WebviewWrapper {
@@ -2723,6 +2723,15 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::Webview(window_id, webview_id, webview_message) => {
+      #[cfg(any(
+        target_os = "macos",
+        windows,
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       if let WebviewMessage::Reparent(new_parent_window_id) = webview_message {
         let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
           w.webviews
@@ -2764,170 +2773,158 @@ fn handle_user_message<T: UserEvent>(
             }
           }
         }
-      } else {
-        let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
-          (
-            w.inner.clone(),
-            w.webviews.iter().find(|w| w.id == webview_id).cloned(),
-          )
-        });
-        if let Some((Some(window), Some(webview))) = webview_handle {
-          match webview_message {
-            WebviewMessage::WebviewEvent(_) => { /* already handled */ }
-            WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
-            WebviewMessage::Reparent(_window_id) => { /* already handled */ }
-            WebviewMessage::AddEventListener(id, listener) => {
-              webview
-                .webview_event_listeners
-                .lock()
-                .unwrap()
-                .insert(id, listener);
+
+        return;
+      }
+
+      let webview_handle = windows.0.borrow().get(&window_id).map(|w| {
+        (
+          w.inner.clone(),
+          w.webviews.iter().find(|w| w.id == webview_id).cloned(),
+        )
+      });
+      if let Some((Some(window), Some(webview))) = webview_handle {
+        match webview_message {
+          WebviewMessage::WebviewEvent(_) => { /* already handled */ }
+          WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
+          WebviewMessage::Reparent(_window_id) => { /* already handled */ }
+          WebviewMessage::AddEventListener(id, listener) => {
+            webview
+              .webview_event_listeners
+              .lock()
+              .unwrap()
+              .insert(id, listener);
+          }
+
+          #[cfg(all(feature = "tracing", not(target_os = "android")))]
+          WebviewMessage::EvaluateScript(script, tx, span) => {
+            let _span = span.entered();
+            if let Err(e) = webview.evaluate_script(&script) {
+              debug_eprintln!("{}", e);
+            }
+            tx.send(()).unwrap();
+          }
+          #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
+          WebviewMessage::EvaluateScript(script) => {
+            if let Err(e) = webview.evaluate_script(&script) {
+              debug_eprintln!("{}", e);
+            }
+          }
+          WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
+          WebviewMessage::Print => {
+            let _ = webview.print();
+          }
+          WebviewMessage::Close => {
+            windows.0.borrow_mut().get_mut(&window_id).map(|window| {
+              if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
+                window.webviews.remove(i);
+              }
+              window
+            });
+          }
+          WebviewMessage::SetSize(size) => {
+            let mut bounds = webview.bounds();
+            let size = size.to_logical(window.scale_factor());
+            bounds.width = size.width;
+            bounds.height = size.height;
+
+            if let Some(b) = &webview.bounds {
+              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+              let mut bounds = b.lock().unwrap();
+              bounds.width_rate = size.width as f32 / window_size.width;
+              bounds.height_rate = size.height as f32 / window_size.height;
             }
 
-            #[cfg(all(feature = "tracing", not(target_os = "android")))]
-            WebviewMessage::EvaluateScript(script, tx, span) => {
-              let _span = span.entered();
-              if let Err(e) = webview.evaluate_script(&script) {
-                debug_eprintln!("{}", e);
-              }
-              tx.send(()).unwrap();
+            webview.set_bounds(bounds);
+          }
+          WebviewMessage::SetPosition(position) => {
+            let mut bounds = webview.bounds();
+            let position = position.to_logical(window.scale_factor());
+            bounds.x = position.x;
+            bounds.y = position.y;
+
+            if let Some(b) = &webview.bounds {
+              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+              let mut bounds = b.lock().unwrap();
+
+              bounds.x_rate = position.x as f32 / window_size.width;
+              bounds.y_rate = position.y as f32 / window_size.height;
             }
-            #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
-            WebviewMessage::EvaluateScript(script) => {
-              if let Err(e) = webview.evaluate_script(&script) {
-                debug_eprintln!("{}", e);
-              }
+
+            webview.set_bounds(bounds);
+          }
+          // Getters
+          WebviewMessage::Url(tx) => {
+            tx.send(webview.url().parse().unwrap()).unwrap();
+          }
+          WebviewMessage::Position(tx) => {
+            let bounds = webview.bounds();
+            let position =
+              LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
+            tx.send(position).unwrap();
+          }
+          WebviewMessage::Size(tx) => {
+            let bounds = webview.bounds();
+            let size =
+              LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
+            tx.send(size).unwrap();
+          }
+          WebviewMessage::SetFocus => {
+            webview.focus();
+          }
+          WebviewMessage::WithWebview(f) => {
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            {
+              f(webview.webview());
             }
-            WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
-            WebviewMessage::Print => {
-              let _ = webview.print();
-            }
-            WebviewMessage::Close => {
-              windows.0.borrow_mut().get_mut(&window_id).map(|window| {
-                if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
-                  window.webviews.remove(i);
-                }
-                window
+            #[cfg(target_os = "macos")]
+            {
+              use wry::WebViewExtMacOS;
+              f(Webview {
+                webview: webview.webview(),
+                manager: webview.manager(),
+                ns_window: webview.ns_window(),
               });
             }
-            WebviewMessage::SetSize(size) => {
-              let mut bounds = webview.bounds();
-              let size = size.to_logical(window.scale_factor());
-              bounds.width = size.width;
-              bounds.height = size.height;
+            #[cfg(target_os = "ios")]
+            {
+              use tao::platform::ios::WindowExtIOS;
+              use wry::WebViewExtIOS;
 
-              {
-                let mut bounds_guard = webview.bounds.lock().unwrap();
-                let webview_bounds = bounds_guard.get_or_insert_with(|| WebviewBounds {
-                  x_rate: 1.,
-                  y_rate: 1.,
-                  width_rate: 1.,
-                  height_rate: 1.,
-                });
-                let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-
-                webview_bounds.width_rate = size.width as f32 / window_size.width;
-                webview_bounds.height_rate = size.height as f32 / window_size.height;
-              }
-
-              webview.set_bounds(bounds);
+              f(Webview {
+                webview: webview.inner.webview(),
+                manager: webview.inner.manager(),
+                view_controller: window.ui_view_controller() as cocoa::base::id,
+              });
             }
-            WebviewMessage::SetPosition(position) => {
-              let mut bounds = webview.bounds();
-              let position = position.to_logical(window.scale_factor());
-              bounds.x = position.x;
-              bounds.y = position.y;
-
-              {
-                let mut bounds_guard = webview.bounds.lock().unwrap();
-                let webview_bounds = bounds_guard.get_or_insert_with(|| WebviewBounds {
-                  x_rate: 1.,
-                  y_rate: 1.,
-                  width_rate: 1.,
-                  height_rate: 1.,
-                });
-                let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-
-                webview_bounds.x_rate = position.x as f32 / window_size.width;
-                webview_bounds.y_rate = position.y as f32 / window_size.height;
-              }
-
-              webview.set_bounds(bounds);
+            #[cfg(windows)]
+            {
+              f(Webview {
+                controller: webview.controller(),
+              });
             }
-            // Getters
-            WebviewMessage::Url(tx) => {
-              tx.send(webview.url().parse().unwrap()).unwrap();
+            #[cfg(target_os = "android")]
+            {
+              f(webview.handle())
             }
-            WebviewMessage::Position(tx) => {
-              let bounds = webview.bounds();
-              let position =
-                LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
-              tx.send(position).unwrap();
-            }
-            WebviewMessage::Size(tx) => {
-              let bounds = webview.bounds();
-              let size =
-                LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
-              tx.send(size).unwrap();
-            }
-            WebviewMessage::SetFocus => {
-              webview.focus();
-            }
-            WebviewMessage::WithWebview(f) => {
-              #[cfg(any(
-                target_os = "linux",
-                target_os = "dragonfly",
-                target_os = "freebsd",
-                target_os = "netbsd",
-                target_os = "openbsd"
-              ))]
-              {
-                f(webview.webview());
-              }
-              #[cfg(target_os = "macos")]
-              {
-                use wry::WebViewExtMacOS;
-                f(Webview {
-                  webview: webview.webview(),
-                  manager: webview.manager(),
-                  ns_window: webview.ns_window(),
-                });
-              }
-              #[cfg(target_os = "ios")]
-              {
-                use tao::platform::ios::WindowExtIOS;
-                use wry::WebViewExtIOS;
-
-                f(Webview {
-                  webview: webview.inner.webview(),
-                  manager: webview.inner.manager(),
-                  view_controller: window.ui_view_controller() as cocoa::base::id,
-                });
-              }
-              #[cfg(windows)]
-              {
-                f(Webview {
-                  controller: webview.controller(),
-                });
-              }
-              #[cfg(target_os = "android")]
-              {
-                f(webview.handle())
-              }
-            }
-
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            WebviewMessage::OpenDevTools => {
-              webview.open_devtools();
-            }
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            WebviewMessage::CloseDevTools => {
-              webview.close_devtools();
-            }
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            WebviewMessage::IsDevToolsOpen(tx) => {
-              tx.send(webview.is_devtools_open()).unwrap();
-            }
+          }
+          #[cfg(any(debug_assertions, feature = "devtools"))]
+          WebviewMessage::OpenDevTools => {
+            webview.open_devtools();
+          }
+          #[cfg(any(debug_assertions, feature = "devtools"))]
+          WebviewMessage::CloseDevTools => {
+            webview.close_devtools();
+          }
+          #[cfg(any(debug_assertions, feature = "devtools"))]
+          WebviewMessage::IsDevToolsOpen(tx) => {
+            tx.send(webview.is_devtools_open()).unwrap();
           }
         }
       }
@@ -3193,7 +3190,8 @@ fn handle_event_loop<T: UserEvent>(
             {
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
-                if let Some(b) = &*webview.bounds.lock().unwrap() {
+                if let Some(bounds) = &webview.bounds {
+                  let b = bounds.lock().unwrap();
                   webview.set_bounds(wry::Rect {
                     x: (size.width * b.x_rate) as i32,
                     y: (size.height * b.y_rate) as i32,
@@ -3835,7 +3833,7 @@ fn create_webview<T: UserEvent>(
     } else {
       web_context_key
     },
-    bounds: Arc::new(Mutex::new(webview_bounds)),
+    bounds: webview_bounds.map(|b| Arc::new(Mutex::new(b))),
   })
 }
 

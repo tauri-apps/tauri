@@ -1153,8 +1153,8 @@ fn main() {
       .unwrap()
       .resolve_access(
         &request.cmd,
-        message.webview.label(),
         message.webview.window().label(),
+        message.webview.label(),
         &acl_origin,
       )
       .cloned();

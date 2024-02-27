@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.5]
+
+### Enhancements
+
+- [`bc5b5e67`](https://www.github.com/tauri-apps/tauri/commit/bc5b5e671a546512f823f1c157421b4c3311dfc0)([#8984](https://www.github.com/tauri-apps/tauri/pull/8984)) Do not include a CSP tag in the application HTML and rely on the custom protocol response header instead.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+
 ## \[2.0.0-beta.4]
 
 ### Dependencies

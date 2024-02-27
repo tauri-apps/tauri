@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const COMMANDS: &[&str] = &["ping"];
-
 fn main() {
-  tauri_plugin::Builder::new(COMMANDS)
+  tauri_plugin::Builder::new()
     .android_path("android")
     .ios_path("ios")
     .build();

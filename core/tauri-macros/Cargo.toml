@@ -20,6 +20,7 @@ proc-macro2 = { version = "1", features = [ "span-locations" ] }
 quote = "1"
 syn = { version = "2", features = [ "full" ] }
 heck = "0.4"
+serde_json = "1"
 tauri-codegen = { version = "2.0.0-beta.5", default-features = false, path = "../tauri-codegen" }
 tauri-utils = { version = "2.0.0-beta.5", path = "../tauri-utils" }
 

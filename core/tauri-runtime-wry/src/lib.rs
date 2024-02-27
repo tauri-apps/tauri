@@ -2019,7 +2019,7 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(feature = "clipboard")]
     #[allow(clippy::redundant_clone)]
     let clipboard_manager_handle = ClipboardManagerWrapper {
-      clipboard: Arc::new(Mutex::new(Clipboard::new().unwrap())),
+      clipboard: Arc::new(Mutex::new(Clipboard::new())),
     };
 
     Ok(Self {

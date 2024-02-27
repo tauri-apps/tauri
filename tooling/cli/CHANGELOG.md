@@ -12,6 +12,10 @@
   - `tauri permission ls`
   - `tauri capability new`
 
+### Breaking Changes
+
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
+
 ### Enhancements
 
 - [`9be314f0`](https://www.github.com/tauri-apps/tauri/commit/9be314f07a4ca5d14433d41919492f3e91b5536a)([#8951](https://www.github.com/tauri-apps/tauri/pull/8951)) Add plugins to `Cargo.toml` when using `tauri migrate`

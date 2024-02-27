@@ -233,12 +233,12 @@ pub fn generate_schema<P: AsRef<Path>>(
 
 /// Generate a markdown documentation page containing the list of permissions of the plugin.
 pub fn generate_docs(permissions: &[PermissionFile], out_dir: &Path) -> Result<(), Error> {
-  let mut docs = "# Permissions\n\n".to_string();
+  let mut docs = "| Permission | Description |\n|------|-----|\n".to_string();
 
   fn docs_from(id: &str, description: Option<&str>) -> String {
-    let mut docs = format!("## {id}");
+    let mut docs = format!("|`{id}`");
     if let Some(d) = description {
-      docs.push_str(&format!("\n\n{d}"));
+      docs.push_str(&format!("|{d}|"));
     }
     docs
   }
@@ -246,12 +246,12 @@ pub fn generate_docs(permissions: &[PermissionFile], out_dir: &Path) -> Result<(
   for permission in permissions {
     for set in &permission.set {
       docs.push_str(&docs_from(&set.identifier, Some(&set.description)));
-      docs.push_str("\n\n");
+      docs.push('\n');
     }
 
     if let Some(default) = &permission.default {
       docs.push_str(&docs_from("default", default.description.as_deref()));
-      docs.push_str("\n\n");
+      docs.push('\n');
     }
 
     for permission in &permission.permission {
@@ -259,7 +259,7 @@ pub fn generate_docs(permissions: &[PermissionFile], out_dir: &Path) -> Result<(
         &permission.identifier,
         permission.description.as_deref(),
       ));
-      docs.push_str("\n\n");
+      docs.push('\n');
     }
   }
 

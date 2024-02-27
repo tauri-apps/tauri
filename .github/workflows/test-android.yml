@@ -83,9 +83,15 @@ jobs:
             examples/api/src-tauri
 
       - name: build CLI
-        run: |
-          cargo build --manifest-path ./tooling/cli/Cargo.toml
-          echo "$PWD/tooling/cli/target/debug" >> $GITHUB_PATH
+        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
+      
+      - name: move CLI to cargo bin dir
+        if: matrix.os != "windows-latest"
+        run: mv ./tooling/cli/target/debug/cargo-tauri $HOME/.cargo/bin
+          
+      - name: move CLI to cargo bin dir
+        if: matrix.os == "windows-latest"
+        run: mv ./tooling/cli/target/debug/cargo-tauri.exe $HOME/.cargo/bin
 
       - name: build Tauri API
         working-directory: ./tooling/api

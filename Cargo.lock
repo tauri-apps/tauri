@@ -3616,7 +3616,7 @@ checksum = "69758bda2e78f098e4ccb393021a0963bb3442eac05f135c30f61b7370bbafae"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.8"
+version = "2.0.0-beta.7"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3674,7 +3674,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.5"
 dependencies = [
  "anyhow",
  "cargo_toml",

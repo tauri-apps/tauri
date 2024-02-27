@@ -390,7 +390,7 @@ pub fn app_manifest_permissions(
     Vec::new()
   } else {
     tauri_utils::acl::build::autogenerate_command_permissions(
-      &Path::new("./permissions"),
+      Path::new("./permissions"),
       manifest.commands,
       "",
       false,

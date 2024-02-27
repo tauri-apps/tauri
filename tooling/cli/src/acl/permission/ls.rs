@@ -6,7 +6,7 @@ use clap::Parser;
 
 use crate::{helpers::app_paths::tauri_dir, Result};
 use colored::Colorize;
-use tauri_utils::acl::manifest::Manifest;
+use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
 
 use std::{collections::BTreeMap, fs::read_to_string};
 
@@ -43,7 +43,7 @@ pub fn command(options: Options) -> Result<()> {
 
       let mut permissions = Vec::new();
 
-      let prefix = if key.is_empty() {
+      let prefix = if key == APP_ACL_KEY {
         "".to_string()
       } else {
         format!("{}:", key.magenta())

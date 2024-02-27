@@ -17,7 +17,7 @@ pub use anyhow::Result;
 use cargo_toml::Manifest;
 
 use tauri_utils::{
-  acl::build::parse_capabilities,
+  acl::{build::parse_capabilities, APP_ACL_KEY},
   config::{BundleResources, Config, WebviewInstallMode},
   resources::{external_binaries, ResourcePaths},
 };
@@ -493,7 +493,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let mut acl_manifests = acl::get_manifests_from_plugins()?;
   acl_manifests.insert(
-    "".into(),
+    APP_ACL_KEY.into(),
     acl::app_manifest_permissions(
       &out_dir,
       attributes.app_manifest,

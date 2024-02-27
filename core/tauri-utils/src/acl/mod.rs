@@ -13,6 +13,8 @@ pub use self::{identifier::*, value::*};
 
 /// Known filename of the permission schema JSON file
 pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
+/// Known ACL key for the app permissions.
+pub const APP_ACL_KEY: &str = "__app-acl__";
 
 #[cfg(feature = "build")]
 pub mod build;

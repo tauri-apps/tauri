@@ -17,7 +17,7 @@ use crate::platform::Target;
 use super::{
   capability::{Capability, PermissionEntry},
   manifest::Manifest,
-  Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value,
+  Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value, APP_ACL_KEY,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
@@ -133,7 +133,7 @@ impl Resolved {
             for allowed_command in &commands.allow {
               resolve_command(
                 &mut allowed_commands,
-                if key.is_empty() {
+                if key == APP_ACL_KEY {
                   allowed_command.to_string()
                 } else {
                   format!("plugin:{key}|{allowed_command}")
@@ -148,7 +148,7 @@ impl Resolved {
             for denied_command in &commands.deny {
               resolve_command(
                 &mut denied_commands,
-                if key.is_empty() {
+                if key == APP_ACL_KEY {
                   denied_command.to_string()
                 } else {
                   format!("plugin:{key}|{denied_command}")
@@ -279,7 +279,7 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>)>(
     let permission_id = permission_entry.identifier();
     let permission_name = permission_id.get_base();
 
-    let key = permission_id.get_prefix().unwrap_or_default();
+    let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);
 
     let permissions = get_permissions(key, permission_name, acl)?;
 
@@ -416,7 +416,7 @@ fn get_permissions<'a>(
   acl: &'a BTreeMap<String, Manifest>,
 ) -> Result<Vec<&'a Permission>, Error> {
   let manifest = acl.get(key).ok_or_else(|| Error::UnknownManifest {
-    key: if key.is_empty() {
+    key: if key == APP_ACL_KEY {
       "app manifest".to_string()
     } else {
       key.to_string()
@@ -429,7 +429,7 @@ fn get_permissions<'a>(
       .default_permission
       .as_ref()
       .ok_or_else(|| Error::UnknownPermission {
-        key: if key.is_empty() {
+        key: if key == APP_ACL_KEY {
           "app manifest".to_string()
         } else {
           key.to_string()
@@ -443,7 +443,7 @@ fn get_permissions<'a>(
     Ok(vec![permission])
   } else {
     Err(Error::UnknownPermission {
-      key: if key.is_empty() {
+      key: if key == APP_ACL_KEY {
         "app manifest".to_string()
       } else {
         key.to_string()

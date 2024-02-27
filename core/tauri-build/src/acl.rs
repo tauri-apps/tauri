@@ -21,6 +21,7 @@ use tauri_utils::{
   acl::{
     capability::{Capability, CapabilityFile},
     manifest::Manifest,
+    APP_ACL_KEY,
   },
   platform::Target,
 };
@@ -105,7 +106,7 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
   let mut schema = schema_for!(CapabilityFile);
 
   fn schema_from(key: &str, id: &str, description: Option<&str>) -> Schema {
-    let command_name = if key.is_empty() {
+    let command_name = if key == APP_ACL_KEY {
       id.to_string()
     } else {
       format!("{key}:{id}")
@@ -462,7 +463,7 @@ pub fn validate_capabilities(
       let (key, permission_name) = permission_id
         .get()
         .split_once(':')
-        .unwrap_or_else(|| ("", permission_id.get()));
+        .unwrap_or_else(|| (APP_ACL_KEY, permission_id.get()));
 
       let permission_exists = acl_manifests
         .get(key)
@@ -479,7 +480,7 @@ pub fn validate_capabilities(
       if !permission_exists {
         let mut available_permissions = Vec::new();
         for (key, manifest) in acl_manifests {
-          let prefix = if key.is_empty() {
+          let prefix = if key == APP_ACL_KEY {
             "".to_string()
           } else {
             format!("{key}:")

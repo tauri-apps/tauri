@@ -22,7 +22,10 @@ use tauri_runtime::{
   window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
 };
-use tauri_utils::config::{WebviewUrl, WindowConfig};
+use tauri_utils::{
+  acl::APP_ACL_KEY,
+  config::{WebviewUrl, WindowConfig},
+};
 pub use url::Url;
 
 use crate::{
@@ -1183,7 +1186,7 @@ fn main() {
       {
         let (key, command_name) = plugin_command
           .clone()
-          .unwrap_or_else(|| ("", request.cmd.clone()));
+          .unwrap_or_else(|| (APP_ACL_KEY, request.cmd.clone()));
         invoke.resolver.reject(
           manager
             .runtime_authority

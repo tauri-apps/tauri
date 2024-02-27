@@ -11,11 +11,11 @@ use state::TypeMap;
 
 use tauri_utils::acl::capability::CapabilityFile;
 use tauri_utils::acl::manifest::Manifest;
-use tauri_utils::acl::Value;
 use tauri_utils::acl::{
   resolved::{CommandKey, Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
   ExecutionContext,
 };
+use tauri_utils::acl::{Value, APP_ACL_KEY};
 
 use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
 use crate::{AppHandle, Manager};
@@ -84,7 +84,7 @@ impl RuntimeAuthority {
   }
 
   pub(crate) fn has_app_manifest(&self) -> bool {
-    self.acl.contains_key("")
+    self.acl.contains_key(APP_ACL_KEY)
   }
 
   #[doc(hidden)]
@@ -217,13 +217,13 @@ impl RuntimeAuthority {
       false
     }
 
-    let command = if key.is_empty() {
+    let command = if key == APP_ACL_KEY {
       command_name.to_string()
     } else {
       format!("plugin:{key}|{command_name}")
     };
 
-    let command_pretty_name = if key.is_empty() {
+    let command_pretty_name = if key == APP_ACL_KEY {
       command_name.to_string()
     } else {
       format!("{key}.{command_name}")
@@ -286,7 +286,7 @@ impl RuntimeAuthority {
             "Permissions associated with this command: {}",
             permissions_referencing_command
               .iter()
-              .map(|p| if key.is_empty() {
+              .map(|p| if key == APP_ACL_KEY {
                 p.to_string()
               } else {
                 format!("{key}:{p}")
@@ -447,7 +447,7 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<T> {
       .scope_manager
       .get_global_scope_typed(
         command.message.webview.app_handle(),
-        command.plugin.unwrap_or_default(),
+        command.plugin.unwrap_or(APP_ACL_KEY),
       )
       .map_err(InvokeError::from_error)
       .map(GlobalScope)

@@ -107,27 +107,9 @@ pub fn exec(
   let mut args = std::env::args_os();
   let mut binary = args
     .next()
-    .map(|bin| {
-      let path = PathBuf::from(&bin);
-      if path.exists() {
-        let absolute_path = util::prefix_path(&current_dir, path);
-        return relativize_path(absolute_path, &ide_run_cwd).into_os_string();
-      }
-      bin
-    })
     .unwrap_or_else(|| std::ffi::OsString::from("cargo"));
   let mut build_args = Vec::new();
   for arg in args {
-    let path = PathBuf::from(&arg);
-    if path.exists() {
-      let absolute_path = util::prefix_path(&current_dir, path);
-      build_args.push(
-        relativize_path(absolute_path, &ide_run_cwd)
-          .to_string_lossy()
-          .into_owned(),
-      );
-      continue;
-    }
     let is_mobile_cmd_arg = arg == "android" || arg == "ios";
     build_args.push(arg.to_string_lossy().into_owned());
     if is_mobile_cmd_arg {

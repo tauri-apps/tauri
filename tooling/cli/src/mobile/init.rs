@@ -4,7 +4,7 @@
 
 use super::{get_app, Target};
 use crate::{
-  helpers::{app_paths::tauri_dir, config::get as get_tauri_config, template::JsonMap},
+  helpers::{config::get as get_tauri_config, template::JsonMap},
   interface::{AppInterface, Interface},
   Result,
 };

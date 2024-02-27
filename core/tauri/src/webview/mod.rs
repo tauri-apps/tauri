@@ -574,7 +574,7 @@ tauri::Builder::default()
           if let PageLoadEvent::Finished = event {
             match w.unlisten_all_js() {
               Ok(_) => {
-                println!("Clear all residual js listeners when page load.")
+                // println!("Clear all residual js listeners when page load.")
               }
               Err(e) => {
                 println!("Failed to clear residual js listeners when page load: {e}")

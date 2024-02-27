@@ -230,6 +230,24 @@ pub fn unlisten_js_script(
   )
 }
 
+pub fn unlisten_all_js_script(listeners_object_name: &str) -> String {
+  format!(
+    r#"
+      (function () {{
+          var listenersObjectName = '{}';
+          if (window[listenersObjectName]) {{
+              for (var prop in window[listenersObjectName]) {{
+                  if (window[listenersObjectName].hasOwnProperty(prop)) {{
+                      window[listenersObjectName][prop] = undefined;
+                  }}
+              }}
+          }}
+        }})();
+      "#,
+    listeners_object_name
+  )
+}
+
 pub fn event_initialization_script(function: &str, listeners: &str) -> String {
   format!(
     "

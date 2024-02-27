@@ -271,6 +271,18 @@ impl Listeners {
     }
   }
 
+  pub(crate) fn unlisten_all_js(&self, source_webview_label: &str) {
+    let inner_listeners = self.inner.as_ref();
+    let mut js_listeners = inner_listeners.js_event_listeners.lock().unwrap();
+    js_listeners
+      .iter_mut()
+      .for_each(|(webview_label, listener)| {
+        if webview_label == source_webview_label {
+          listener.clear()
+        }
+      })
+  }
+
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
     &self,
     event: &str,

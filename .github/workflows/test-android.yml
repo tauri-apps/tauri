@@ -95,12 +95,12 @@ jobs:
 
       - name: init Android Studio project
         working-directory: ./examples/api
-        run: ../../tooling/cli/target/debug/cargo-tauri android init
+        run: $(realpath ../../tooling/cli/target/debug/cargo-tauri) android init
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: build APK
         working-directory: ./examples/api
-        run: ../../tooling/cli/target/debug/cargo-tauri android build
+        run: $(realpath ../../tooling/cli/target/debug/cargo-tauri) android build
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

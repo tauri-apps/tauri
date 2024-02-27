@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.6`
+
+### Breaking Changes
+
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
+
 ## \[2.0.0-beta.5]
 
 ### New Features

@@ -121,6 +121,22 @@ pub enum BundleType {
   Updater,
 }
 
+impl BundleType {
+  /// All bundle types.
+  fn all() -> &'static [Self] {
+    &[
+      BundleType::Deb,
+      BundleType::Rpm,
+      BundleType::AppImage,
+      BundleType::Msi,
+      BundleType::Nsis,
+      BundleType::App,
+      BundleType::Dmg,
+      BundleType::Updater,
+    ]
+  }
+}
+
 impl Display for BundleType {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     write!(
@@ -274,7 +290,7 @@ impl BundleTarget {
   #[allow(dead_code)]
   pub fn to_vec(&self) -> Vec<BundleType> {
     match self {
-      Self::All => vec![],
+      Self::All => BundleType::all().to_vec(),
       Self::List(list) => list.clone(),
       Self::One(i) => vec![i.clone()],
     }

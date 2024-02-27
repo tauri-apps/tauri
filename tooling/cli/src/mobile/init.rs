@@ -95,13 +95,6 @@ pub fn exec(
 
   let (handlebars, mut map) = handlebars(&app);
 
-  // the CWD used when the the IDE runs the android-studio-script or the xcode-script
-  let ide_run_cwd = if target == Target::Android {
-    tauri_dir()
-  } else {
-    tauri_dir().join("gen/apple")
-  };
-
   let mut args = std::env::args_os();
   let mut binary = args
     .next()

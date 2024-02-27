@@ -360,7 +360,7 @@ fn parse_permissions(paths: Vec<PathBuf>) -> Result<Vec<PermissionFile>, Error> 
 /// Autogenerate permission files for a list of commands.
 pub fn autogenerate_command_permissions(
   path: &Path,
-  commands: &[impl AsRef<str>],
+  commands: &[&str],
   license_header: &str,
   schema_ref: bool,
 ) {
@@ -388,7 +388,6 @@ pub fn autogenerate_command_permissions(
   };
 
   for command in commands {
-    let command = command.as_ref();
     let slugified_command = command.replace('_', "-");
     let toml = format!(
       r###"{license_header}# Automatically generated - DO NOT EDIT!

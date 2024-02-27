@@ -8,8 +8,6 @@ use syn::{
   Attribute, Ident, Path, Token,
 };
 
-use std::path::PathBuf;
-
 struct CommandDef {
   path: Path,
   attrs: Vec<Attribute>,
@@ -70,15 +68,6 @@ impl From<Handler> for proc_macro::TokenStream {
   ) -> Self {
     let cmd = format_ident!("__tauri_cmd__");
     let invoke = format_ident!("__tauri_invoke__");
-
-    let commands_path = PathBuf::from(std::env::var("OUT_DIR").expect("missing OUT_DIR env var"))
-      .join("commands.json");
-    let commands_json =
-      serde_json::to_string(&commands.iter().map(|c| c.to_string()).collect::<Vec<_>>()).unwrap();
-    if commands_json != std::fs::read_to_string(&commands_path).unwrap_or_default() {
-      let _ = std::fs::write(commands_path, commands_json);
-    }
-
     let (paths, attrs): (Vec<Path>, Vec<Vec<Attribute>>) = command_defs
       .into_iter()
       .map(|def| (def.path, def.attrs))

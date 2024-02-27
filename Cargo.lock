@@ -3738,7 +3738,6 @@ dependencies = [
  "heck",
  "proc-macro2",
  "quote",
- "serde_json",
  "syn 2.0.49",
  "tauri-codegen",
  "tauri-utils",

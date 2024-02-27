@@ -336,6 +336,7 @@ pub fn inline_plugins(
         &plugin_out_dir,
         plugin.commands,
         "",
+        false,
       );
       tauri_utils::acl::build::define_permissions(
         &plugin_out_dir.join("*").to_string_lossy(),
@@ -388,7 +389,12 @@ pub fn app_manifest_permissions(
   let mut permission_files = if manifest.commands.is_empty() {
     Vec::new()
   } else {
-    tauri_utils::acl::build::autogenerate_command_permissions(&app_out_dir, manifest.commands, "");
+    tauri_utils::acl::build::autogenerate_command_permissions(
+      &Path::new("./permissions"),
+      manifest.commands,
+      "",
+      false,
+    );
     tauri_utils::acl::build::define_permissions(
       &app_out_dir.join("*").to_string_lossy(),
       pkg_name,

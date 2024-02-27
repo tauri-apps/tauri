@@ -96,7 +96,7 @@ jobs:
       - name: init Android Studio project
         working-directory: ./examples/api
         run: |
-          mv ./../tooling/cli/target/debug/cargo-tauri cargo-tauri
+          mv ../../tooling/cli/target/debug/cargo-tauri cargo-tauri
           cargo-tauri android init
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}

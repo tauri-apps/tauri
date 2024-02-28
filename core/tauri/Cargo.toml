@@ -21,6 +21,7 @@ features = [
   "custom-protocol",
   "tray-icon",
   "devtools",
+  "image-png",
   "protocol-asset",
   "test"
 ]

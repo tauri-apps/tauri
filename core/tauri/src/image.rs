@@ -136,6 +136,7 @@ impl<'a> From<Image<'a>> for crate::runtime::Icon<'a> {
   }
 }
 
+#[cfg(desktop)]
 impl TryFrom<Image<'_>> for muda::Icon {
   type Error = crate::Error;
 
@@ -144,7 +145,7 @@ impl TryFrom<Image<'_>> for muda::Icon {
   }
 }
 
-#[cfg(feature = "tray-icon")]
+#[cfg(all(desktop, feature = "tray-icon"))]
 impl TryFrom<Image<'_>> for tray_icon::Icon {
   type Error = crate::Error;
 
@@ -153,9 +154,10 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   }
 }
 
+#[cfg(desktop)]
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
-pub(crate) enum JsIcon<'a> {
+pub enum JsIcon<'a> {
   Path(std::path::PathBuf),
   Bytes(&'a [u8]),
   Rgba {
@@ -165,6 +167,7 @@ pub(crate) enum JsIcon<'a> {
   },
 }
 
+#[cfg(desktop)]
 impl<'a> TryFrom<JsIcon<'a>> for Image<'a> {
   type Error = crate::Error;
 

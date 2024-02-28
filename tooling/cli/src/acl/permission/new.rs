@@ -12,7 +12,7 @@ use crate::{
   Result,
 };
 
-use tauri_utils::acl::{plugin::PermissionFile, Commands, Permission};
+use tauri_utils::acl::{manifest::PermissionFile, Commands, Permission};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]

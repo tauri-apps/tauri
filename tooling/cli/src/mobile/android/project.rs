@@ -212,10 +212,8 @@ fn generate_out_file(
   }
 
   if path.file_name().unwrap() == OsStr::new("BuildTask.kt") {
-    return options.truncate(true).create(true).open(path).map(Some);
-  }
-
-  if !path.exists() {
+    options.truncate(true).create(true).open(path).map(Some)
+  } else if !path.exists() {
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)

@@ -13,7 +13,7 @@ use quote::quote;
 use sha2::{Digest, Sha256};
 
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
-use tauri_utils::acl::plugin::Manifest;
+use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::assets::AssetKey;
 use tauri_utils::config::{CapabilityEntry, Config, FrontendDist, PatternKind};
@@ -25,7 +25,7 @@ use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
 
-const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
+const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
@@ -371,7 +371,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     }
   };
 
-  let acl_file_path = out_dir.join(PLUGIN_MANIFESTS_FILE_NAME);
+  let acl_file_path = out_dir.join(ACL_MANIFESTS_FILE_NAME);
   let acl: BTreeMap<String, Manifest> = if acl_file_path.exists() {
     let acl_file =
       std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");

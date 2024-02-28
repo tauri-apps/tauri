@@ -22,7 +22,10 @@ use tauri_runtime::{
   window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
 };
-use tauri_utils::config::{WebviewUrl, WindowConfig};
+use tauri_utils::{
+  acl::APP_ACL_KEY,
+  config::{WebviewUrl, WindowConfig},
+};
 pub use url::Url;
 
 use crate::{
@@ -897,7 +900,7 @@ impl<R: Runtime> Webview<R> {
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.close()
     } else {
       self.webview.dispatcher.close()?;
@@ -909,7 +912,7 @@ impl<R: Runtime> Webview<R> {
   /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.set_size(size.into())
     } else {
       self
@@ -923,7 +926,7 @@ impl<R: Runtime> Webview<R> {
   /// Sets this webviews's position.
   pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.set_position(position.into())
     } else {
       self
@@ -942,10 +945,13 @@ impl<R: Runtime> Webview<R> {
   /// Move the webview to the given window.
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     let current_window = self.window();
-    if !current_window.is_webview_window {
+    if current_window.is_webview_window() || window.is_webview_window() {
+      Err(crate::Error::CannotReparentWebviewWindow)
+    } else {
       self.webview.dispatcher.reparent(window.window.id)?;
+      *self.window_label.lock().unwrap() = window.label().to_string();
+      Ok(())
     }
-    Ok(())
   }
 
   /// Returns the webview position.
@@ -954,7 +960,7 @@ impl<R: Runtime> Webview<R> {
   /// - For webview window, returns the inner position of the window.
   pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.inner_position()
     } else {
       self.webview.dispatcher.position().map_err(Into::into)
@@ -964,7 +970,7 @@ impl<R: Runtime> Webview<R> {
   /// Returns the physical size of the webviews's client area.
   pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
     let window = self.window();
-    if window.is_webview_window {
+    if window.is_webview_window() {
       window.inner_size()
     } else {
       self.webview.dispatcher.size().map_err(Into::into)
@@ -1150,17 +1156,18 @@ fn main() {
         url: current_url.to_string(),
       }
     };
-    let resolved_acl = manager
-      .runtime_authority
-      .lock()
-      .unwrap()
-      .resolve_access(
-        &request.cmd,
-        message.webview.label(),
-        message.webview.window().label(),
-        &acl_origin,
-      )
-      .cloned();
+    let (resolved_acl, has_app_acl_manifest) = {
+      let runtime_authority = manager.runtime_authority.lock().unwrap();
+      let acl = runtime_authority
+        .resolve_access(
+          &request.cmd,
+          message.webview.window().label(),
+          message.webview.label(),
+          &acl_origin,
+        )
+        .cloned();
+      (acl, runtime_authority.has_app_manifest())
+    };
 
     let mut invoke = Invoke {
       message,
@@ -1168,37 +1175,46 @@ fn main() {
       acl: resolved_acl,
     };
 
-    if let Some((plugin, command_name)) = request.cmd.strip_prefix("plugin:").map(|raw_command| {
+    let plugin_command = request.cmd.strip_prefix("plugin:").map(|raw_command| {
       let mut tokens = raw_command.split('|');
       // safe to unwrap: split always has a least one item
       let plugin = tokens.next().unwrap();
       let command = tokens.next().map(|c| c.to_string()).unwrap_or_default();
       (plugin, command)
-    }) {
-      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
-        #[cfg(debug_assertions)]
-        {
-          invoke.resolver.reject(
-            manager
-              .runtime_authority
-              .lock()
-              .unwrap()
-              .resolve_access_message(
-                plugin,
-                &command_name,
-                invoke.message.webview.window().label(),
-                invoke.message.webview.label(),
-                &acl_origin,
-              ),
-          );
-        }
-        #[cfg(not(debug_assertions))]
-        invoke
-          .resolver
-          .reject(format!("Command {} not allowed by ACL", request.cmd));
-        return;
-      }
+    });
 
+    // we only check ACL on plugin commands or if the app defined its ACL manifest
+    if (plugin_command.is_some() || has_app_acl_manifest)
+      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+      && invoke.acl.is_none()
+    {
+      #[cfg(debug_assertions)]
+      {
+        let (key, command_name) = plugin_command
+          .clone()
+          .unwrap_or_else(|| (APP_ACL_KEY, request.cmd.clone()));
+        invoke.resolver.reject(
+          manager
+            .runtime_authority
+            .lock()
+            .unwrap()
+            .resolve_access_message(
+              key,
+              &command_name,
+              invoke.message.webview.window().label(),
+              invoke.message.webview.label(),
+              &acl_origin,
+            ),
+        );
+      }
+      #[cfg(not(debug_assertions))]
+      invoke
+        .resolver
+        .reject(format!("Command {} not allowed by ACL", request.cmd));
+      return;
+    }
+
+    if let Some((plugin, command_name)) = plugin_command {
       invoke.message.command = command_name;
 
       let command = invoke.message.command.clone();

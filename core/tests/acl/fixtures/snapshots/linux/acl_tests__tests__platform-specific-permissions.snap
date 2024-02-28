@@ -1,0 +1,65 @@
+---
+source: core/tests/acl/src/lib.rs
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        CommandKey {
+            name: "plugin:os|spawn",
+            context: Local,
+        }: ResolvedCommand {
+            windows: [
+                Pattern {
+                    original: "main",
+                    tokens: [
+                        Char(
+                            'm',
+                        ),
+                        Char(
+                            'a',
+                        ),
+                        Char(
+                            'i',
+                        ),
+                        Char(
+                            'n',
+                        ),
+                    ],
+                    is_recursive: false,
+                },
+            ],
+            webviews: [],
+            scope: Some(
+                8031926490300119127,
+            ),
+        },
+    },
+    denied_commands: {},
+    command_scope: {
+        8031926490300119127: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "command": String(
+                            "apt",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "command": String(
+                            "servo",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+    global_scope: {
+        "os": ResolvedScope {
+            allow: [],
+            deny: [],
+        },
+    },
+}

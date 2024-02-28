@@ -6,5 +6,5 @@ identifier = "allow-home-dir"
 description = "Allows read access to the complete $HOME folder."
 commands.allow = ["readDirectory", "readFile"]
 
-[[scope.allow]]
+[[permission.scope.allow]]
 path = "$HOME/**"

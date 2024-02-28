@@ -74,7 +74,7 @@ pub struct Capability {
   pub webviews: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,
-  /// Target platforms this capability applies. By default all platforms applies.
+  /// Target platforms this capability applies. By default all platforms are affected by this capability.
   #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
   pub platforms: Vec<Target>,
 }

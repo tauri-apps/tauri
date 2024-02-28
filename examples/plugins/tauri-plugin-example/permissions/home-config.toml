@@ -5,5 +5,5 @@ version = 1
 identifier = "deny-home-dir-config"
 description = "Denies read access to the complete $HOME folder."
 
-[[scope.deny]]
+[[permission.scope.deny]]
 path = "$HOME/.config"

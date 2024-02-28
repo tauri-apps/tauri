@@ -63,6 +63,7 @@ pub fn command(options: Options) -> Result<()> {
     description,
     commands: Commands { allow, deny },
     scope: Default::default(),
+    platforms: Default::default(),
   };
 
   let path = match options.out {

@@ -1123,7 +1123,7 @@
           }
         },
         "platforms": {
-          "description": "Target platforms this capability applies. By default all platforms applies.",
+          "description": "Target platforms this capability applies. By default all platforms are affected by this capability.",
           "default": [
             "linux",
             "macOS",

@@ -1,12 +1,22 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-codegen@2.0.0-beta.6`
+
+### Breaking Changes
+
+- [`3657ad82`](https://www.github.com/tauri-apps/tauri/commit/3657ad82f88ce528551d032d521c52eed3f396b4)([#9008](https://www.github.com/tauri-apps/tauri/pull/9008)) Allow defining permissions for the application commands via `tauri_build::Attributes::app_manifest`.
+
 ## \[2.0.0-beta.5]
 
 ### Breaking Changes
 
 - [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
 - [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) Removed `tauri_build::CodegenContext::dev()` and added `tauri_build::dev()`.
-
 
 ### Dependencies
 

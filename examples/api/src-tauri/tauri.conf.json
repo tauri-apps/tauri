@@ -12,7 +12,6 @@
   "app": {
     "withGlobalTauri": true,
     "macOSPrivateApi": true,
-    "trayIcon": { "iconPath": "../../.icons/32x32.png" },
     "security": {
       "pattern": {
         "use": "isolation",

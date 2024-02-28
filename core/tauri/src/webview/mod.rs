@@ -575,7 +575,7 @@ tauri::Builder::default()
       .replace(Box::new(move |url, event| {
         if let Some(w) = manager_.get_webview(&label_) {
           if let PageLoadEvent::Finished = event {
-            let _ = w.unlisten_all_js();
+            w.unlisten_all_js();
           }
           if let Some(handler) = self.on_page_load_handler.as_ref() {
             handler(w, PageLoadPayload { url: &url, event });
@@ -1321,10 +1321,9 @@ fn main() {
   }
 
   /// Unregister all JS event listeners.
-  pub(crate) fn unlisten_all_js(&self) -> crate::Result<()> {
-    let listeners: &crate::event::Listeners = self.manager().listeners();
+  pub(crate) fn unlisten_all_js(&self) {
+    let listeners = self.manager().listeners();
     listeners.unlisten_all_js(self.label());
-    Ok(())
   }
 
   pub(crate) fn emit_js(&self, emit_args: &EmitArgs, target: &EventTarget) -> crate::Result<()> {

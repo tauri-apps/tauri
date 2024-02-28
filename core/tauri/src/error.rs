@@ -40,6 +40,9 @@ pub enum Error {
   /// Webview label must be unique.
   #[error("a webview with label `{0}` already exists")]
   WebviewLabelAlreadyExists(String),
+  /// Cannot use the webview reparent function on webview windows.
+  #[error("cannot reparent when using a WebviewWindow")]
+  CannotReparentWebviewWindow,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),

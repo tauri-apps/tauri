@@ -12,7 +12,7 @@ mod tests {
   };
 
   use tauri_utils::{
-    acl::{build::parse_capabilities, plugin::Manifest, resolved::Resolved},
+    acl::{build::parse_capabilities, manifest::Manifest, resolved::Resolved},
     platform::Target,
   };
 
@@ -29,6 +29,7 @@ mod tests {
         &format!("{}/*.toml", plugin_path.display()),
         plugin,
         &out_dir,
+        |_| true,
       )
       .expect("failed to define permissions");
       let manifest = Manifest::new(permission_files, None);

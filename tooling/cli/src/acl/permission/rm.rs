@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use clap::Parser;
-use tauri_utils::acl::{plugin::PermissionFile, PERMISSION_SCHEMA_FILE_NAME};
+use tauri_utils::acl::{manifest::PermissionFile, PERMISSION_SCHEMA_FILE_NAME};
 
 use crate::{acl::FileFormat, helpers::app_paths::tauri_dir_opt, Result};
 

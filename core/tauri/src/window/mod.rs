@@ -866,7 +866,7 @@ pub struct Window<R: Runtime> {
   #[cfg(desktop)]
   pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
   /// Whether this window is a Webview window (hosts only a single webview) or a container for multiple webviews
-  pub(crate) is_webview_window: bool,
+  is_webview_window: bool,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -981,7 +981,17 @@ impl<R: Runtime> Window<R> {
     position: P,
     size: S,
   ) -> crate::Result<Webview<R>> {
-    webview_builder.build(self.clone(), position.into(), size.into())
+    use std::sync::mpsc::channel;
+
+    let (tx, rx) = channel();
+    let position = position.into();
+    let size = size.into();
+    let window_ = self.clone();
+    self.run_on_main_thread(move || {
+      let res = webview_builder.build(window_, position, size);
+      tx.send(res.map_err(Into::into)).unwrap();
+    })?;
+    rx.recv().unwrap()
   }
 
   /// List of webviews associated with this window.
@@ -994,6 +1004,10 @@ impl<R: Runtime> Window<R> {
       .filter(|w| w.window_label() == self.label())
       .cloned()
       .collect()
+  }
+
+  pub(crate) fn is_webview_window(&self) -> bool {
+    self.is_webview_window
   }
 
   /// Runs the given closure on the main thread.

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.14.5]
+
+### What's Changed
+
+- [`d42668ce`](https://www.github.com/tauri-apps/tauri/commit/d42668ce17494ab778f436aaa9b216d6db3f0b31)([#9003](https://www.github.com/tauri-apps/tauri/pull/9003)) Fix panic during intialization on wayland when using `clipboard` feature, instead propagate the error during API usage.
+
 ## \[0.14.4]
 
 ### Bug Fixes

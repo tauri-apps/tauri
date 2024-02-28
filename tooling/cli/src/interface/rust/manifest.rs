@@ -84,7 +84,7 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
   f
 }
 
-pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
+pub fn read_manifest(manifest_path: &Path) -> crate::Result<(Document, String)> {
   let mut manifest_str = String::new();
 
   let mut manifest_file = File::open(manifest_path)
@@ -95,7 +95,7 @@ pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
     .parse::<Document>()
     .with_context(|| "failed to parse Cargo.toml")?;
 
-  Ok(manifest)
+  Ok((manifest, manifest_str))
 }
 
 pub fn toml_array(features: &HashSet<String>) -> Array {
@@ -265,9 +265,9 @@ fn inject_features(
   Ok(persist)
 }
 
-pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
+pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
   let manifest_path = tauri_dir().join("Cargo.toml");
-  let mut manifest = read_manifest(&manifest_path)?;
+  let (mut manifest, original_manifest_str) = read_manifest(&manifest_path)?;
 
   let mut dependencies = Vec::new();
 
@@ -303,31 +303,36 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
     .unwrap()
     .features;
 
-  if persist {
+  let new_manifest_str = manifest
+    .to_string()
+    // apply some formatting fixes
+    .replace(r#"" ,features =["#, r#"", features = ["#)
+    .replace(r#"" , features"#, r#"", features"#)
+    .replace("]}", "] }")
+    .replace("={", "= {")
+    .replace("=[", "= [")
+    .replace(r#"",""#, r#"", ""#);
+
+  if persist && original_manifest_str != new_manifest_str {
     let mut manifest_file =
       File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
-    manifest_file.write_all(
-      manifest
-        .to_string()
-        // apply some formatting fixes
-        .replace(r#"" ,features =["#, r#"", features = ["#)
-        .replace(r#"" , features"#, r#"", features"#)
-        .replace("]}", "] }")
-        .replace("={", "= {")
-        .replace("=[", "= [")
-        .replace(r#"",""#, r#"", ""#)
-        .as_bytes(),
-    )?;
+    manifest_file.write_all(new_manifest_str.as_bytes())?;
     manifest_file.flush()?;
-    Ok(Manifest {
-      inner: manifest,
-      tauri_features,
-    })
+    Ok((
+      Manifest {
+        inner: manifest,
+        tauri_features,
+      },
+      true,
+    ))
   } else {
-    Ok(Manifest {
-      inner: manifest,
-      tauri_features,
-    })
+    Ok((
+      Manifest {
+        inner: manifest,
+        tauri_features,
+      },
+      false,
+    ))
   }
 }
 

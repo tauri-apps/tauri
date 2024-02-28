@@ -99,6 +99,7 @@ jobs:
           cargo update -p serde_json --precise 1.0.97
           cargo update -p petgraph --precise 0.6.3
           cargo update -p os_str_bytes --precise 6.5.1
+          cargo update -p thread_local --precise 1.1.7
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

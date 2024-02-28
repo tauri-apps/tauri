@@ -186,18 +186,20 @@ impl<'a> TryFrom<JsIcon<'a>> for Image<'a> {
       } => Ok(Self::new(rgba, width, height)),
 
       #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
-      _ => Err(Error::new(
-        ErrorKind::InvalidInput,
-        format!(
-          "expected RGBA image data, found {}",
-          match img {
-            JsIcon::Path(_) => "a file path",
-            JsIcon::Bytes(_) => "raw bytes",
-            _ => unreachable!(),
-          }
-        ),
-      ))
-      .map_err(Into::into),
+      _ => Err(
+        Error::new(
+          ErrorKind::InvalidInput,
+          format!(
+            "expected RGBA image data, found {}",
+            match img {
+              JsIcon::Path(_) => "a file path",
+              JsIcon::Bytes(_) => "raw bytes",
+              _ => unreachable!(),
+            }
+          ),
+        )
+        .into(),
+      ),
     }
   }
 }

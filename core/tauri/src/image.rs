@@ -14,7 +14,7 @@ pub struct Image<'a> {
 }
 
 impl<'a> Image<'a> {
-  /// Creates a new Image using RGBA data, in row-major order from top to bottom, and with specified height and width.
+  /// Creates a new Image using RGBA data, in row-major order from top to bottom, and with specified width and height.
   pub const fn new(rgba: &'a [u8], width: u32, height: u32) -> Self {
     Self {
       rgba: Cow::Borrowed(rgba),

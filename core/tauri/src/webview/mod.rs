@@ -22,7 +22,10 @@ use tauri_runtime::{
   window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
 };
-use tauri_utils::config::{WebviewUrl, WindowConfig};
+use tauri_utils::{
+  acl::APP_ACL_KEY,
+  config::{WebviewUrl, WindowConfig},
+};
 pub use url::Url;
 
 use crate::{
@@ -1150,17 +1153,18 @@ fn main() {
         url: current_url.to_string(),
       }
     };
-    let resolved_acl = manager
-      .runtime_authority
-      .lock()
-      .unwrap()
-      .resolve_access(
-        &request.cmd,
-        message.webview.window().label(),
-        message.webview.label(),
-        &acl_origin,
-      )
-      .cloned();
+    let (resolved_acl, has_app_acl_manifest) = {
+      let runtime_authority = manager.runtime_authority.lock().unwrap();
+      let acl = runtime_authority
+        .resolve_access(
+          &request.cmd,
+          message.webview.window().label(),
+          message.webview.label(),
+          &acl_origin,
+        )
+        .cloned();
+      (acl, runtime_authority.has_app_manifest())
+    };
 
     let mut invoke = Invoke {
       message,
@@ -1168,37 +1172,46 @@ fn main() {
       acl: resolved_acl,
     };
 
-    if let Some((plugin, command_name)) = request.cmd.strip_prefix("plugin:").map(|raw_command| {
+    let plugin_command = request.cmd.strip_prefix("plugin:").map(|raw_command| {
       let mut tokens = raw_command.split('|');
       // safe to unwrap: split always has a least one item
       let plugin = tokens.next().unwrap();
       let command = tokens.next().map(|c| c.to_string()).unwrap_or_default();
       (plugin, command)
-    }) {
-      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
-        #[cfg(debug_assertions)]
-        {
-          invoke.resolver.reject(
-            manager
-              .runtime_authority
-              .lock()
-              .unwrap()
-              .resolve_access_message(
-                plugin,
-                &command_name,
-                invoke.message.webview.window().label(),
-                invoke.message.webview.label(),
-                &acl_origin,
-              ),
-          );
-        }
-        #[cfg(not(debug_assertions))]
-        invoke
-          .resolver
-          .reject(format!("Command {} not allowed by ACL", request.cmd));
-        return;
-      }
+    });
 
+    // we only check ACL on plugin commands or if the app defined its ACL manifest
+    if (plugin_command.is_some() || has_app_acl_manifest)
+      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+      && invoke.acl.is_none()
+    {
+      #[cfg(debug_assertions)]
+      {
+        let (key, command_name) = plugin_command
+          .clone()
+          .unwrap_or_else(|| (APP_ACL_KEY, request.cmd.clone()));
+        invoke.resolver.reject(
+          manager
+            .runtime_authority
+            .lock()
+            .unwrap()
+            .resolve_access_message(
+              key,
+              &command_name,
+              invoke.message.webview.window().label(),
+              invoke.message.webview.label(),
+              &acl_origin,
+            ),
+        );
+      }
+      #[cfg(not(debug_assertions))]
+      invoke
+        .resolver
+        .reject(format!("Command {} not allowed by ACL", request.cmd));
+      return;
+    }
+
+    if let Some((plugin, command_name)) = plugin_command {
       invoke.message.command = command_name;
 
       let command = invoke.message.command.clone();

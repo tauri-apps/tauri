@@ -158,7 +158,7 @@ mod build {
 
       literal_struct!(
         tokens,
-        ::tauri::utils::acl::plugin::Manifest,
+        ::tauri::utils::acl::manifest::Manifest,
         default_permission,
         permissions,
         permission_sets,

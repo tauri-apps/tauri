@@ -22,7 +22,7 @@ impl<'a> Image<'a> {
   /// Creates a new image using the provided png bytes.
   #[cfg(feature = "image-png")]
   #[cfg_attr(docsrs, doc(cfg(feature = "image-png")))]
-  pub fn from_png_bytes<'b>(bytes: &'b [u8]) -> std::io::Result<Self> {
+  pub fn from_png_bytes(bytes: &[u8]) -> std::io::Result<Self> {
     let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
     let mut reader = decoder.read_info()?;
     let mut buffer = Vec::new();
@@ -39,7 +39,7 @@ impl<'a> Image<'a> {
   /// Creates a new image using the provided ico bytes.
   #[cfg(feature = "image-ico")]
   #[cfg_attr(docsrs, doc(cfg(feature = "image-ico")))]
-  pub fn from_ico_bytes<'b>(bytes: &'b [u8]) -> std::io::Result<Self> {
+  pub fn from_ico_bytes(bytes: &[u8]) -> std::io::Result<Self> {
     let icon_dir = ico::IconDir::read(std::io::Cursor::new(&bytes))?;
     let first = icon_dir.entries().first().ok_or_else(|| {
       Error::new(
@@ -62,8 +62,8 @@ impl<'a> Image<'a> {
   /// Only `ico` and `png` are supported (based on activated feature flag).
   #[cfg(any(feature = "image-ico", feature = "image-png"))]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "image-ico", feature = "image-png"))))]
-  pub fn from_bytes<'b>(bytes: &'b [u8]) -> std::io::Result<Self> {
-    let extension = infer::get(&bytes)
+  pub fn from_bytes(bytes: &[u8]) -> std::io::Result<Self> {
+    let extension = infer::get(bytes)
       .expect("could not determine icon extension")
       .extension();
 

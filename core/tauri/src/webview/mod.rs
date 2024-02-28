@@ -572,14 +572,7 @@ tauri::Builder::default()
       .replace(Box::new(move |url, event| {
         if let Some(w) = manager_.get_webview(&label_) {
           if let PageLoadEvent::Finished = event {
-            match w.unlisten_all_js() {
-              Ok(_) => {
-                // println!("Clear all residual js listeners when page load.")
-              }
-              Err(e) => {
-                println!("Failed to clear residual js listeners when page load: {e}")
-              }
-            };
+            let _ = w.unlisten_all_js();
           }
           if let Some(handler) = self.on_page_load_handler.as_ref() {
             handler(w, PageLoadPayload { url: &url, event });
@@ -1315,10 +1308,6 @@ fn main() {
   pub(crate) fn unlisten_all_js(&self) -> crate::Result<()> {
     let listeners: &crate::event::Listeners = self.manager().listeners();
     listeners.unlisten_all_js(self.label());
-    self.eval(&crate::event::unlisten_all_js_script(
-      listeners.listeners_object_name(),
-    ))?;
-
     Ok(())
   }
 

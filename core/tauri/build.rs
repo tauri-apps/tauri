@@ -325,6 +325,7 @@ fn define_permissions(out_dir: &Path) {
       &commands_dir,
       &commands.iter().map(|(cmd, _)| *cmd).collect::<Vec<_>>(),
       license_header,
+      false,
     );
     let default_permissions = commands
       .iter()
@@ -358,6 +359,7 @@ permissions = [{default_permissions}]
         .to_string_lossy(),
       &format!("tauri:{plugin}"),
       out_dir,
+      |_| true,
     )
     .unwrap_or_else(|e| panic!("failed to define permissions for {plugin}: {e}"));
 

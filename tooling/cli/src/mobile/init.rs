@@ -24,10 +24,7 @@ use handlebars::{
   Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, RenderErrorReason,
 };
 
-use std::{
-  env::{var, var_os},
-  path::PathBuf,
-};
+use std::{env::var_os, path::PathBuf};
 
 pub fn command(
   target: Target,
@@ -96,49 +93,48 @@ pub fn exec(
   let (handlebars, mut map) = handlebars(&app);
 
   let mut args = std::env::args_os();
-  let mut binary = args
-    .next()
-    .unwrap_or_else(|| std::ffi::OsString::from("cargo"));
-  let mut build_args = Vec::new();
-  for arg in args {
-    let is_mobile_cmd_arg = arg == "android" || arg == "ios";
-    build_args.push(arg.to_string_lossy().into_owned());
-    if is_mobile_cmd_arg {
-      break;
-    }
-  }
-  build_args.push(target.ide_build_script_name().into());
 
-  let binary_path = PathBuf::from(&binary);
-  let bin_stem = binary_path.file_stem().unwrap().to_string_lossy();
-  let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
-  if r.is_match(&bin_stem) {
-    if let Some(npm_execpath) = var_os("npm_execpath").map(PathBuf::from) {
-      let manager_stem = npm_execpath.file_stem().unwrap().to_os_string();
-      let is_npm = manager_stem == "npm-cli";
-      let is_npx = manager_stem == "npx-cli";
-      binary = if is_npm {
-        "npm".into()
-      } else if is_npx {
-        "npx".into()
-      } else {
-        manager_stem
-      };
-      if !(build_args.is_empty() || is_npx) {
-        // remove script path, we'll use `npm_lifecycle_event` instead
-        build_args.remove(0);
+  let (binary, mut build_args) = args
+    .next()
+    .map(|bin| {
+      let bin_path = PathBuf::from(&bin);
+      let mut build_args = vec!["tauri"];
+
+      if let Some(bin_stem) = bin_path.file_stem() {
+        let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
+        if r.is_match(&bin_stem.to_string_lossy()) {
+          if let Some(npm_execpath) = var_os("npm_execpath") {
+            let manager_stem = PathBuf::from(&npm_execpath)
+              .file_stem()
+              .unwrap()
+              .to_os_string();
+            let is_npm = manager_stem == "npm-cli";
+            let binary = if is_npm {
+              "npm".into()
+            } else if manager_stem == "npx-cli" {
+              "npx".into()
+            } else {
+              manager_stem
+            };
+
+            if is_npm {
+              build_args.insert(0, "run");
+              build_args.insert(1, "--");
+            }
+
+            return (binary, build_args);
+          }
+        } else if !cfg!(debug_assertions) && bin_stem == "cargo-tauri" {
+          return (std::ffi::OsString::from("cargo"), build_args);
+        }
       }
-      if is_npm {
-        build_args.insert(0, "--".into());
-      }
-      if !is_npx {
-        build_args.insert(0, var("npm_lifecycle_event").unwrap());
-      }
-      if is_npm {
-        build_args.insert(0, "run".into());
-      }
-    }
-  }
+
+      (bin, build_args)
+    })
+    .unwrap_or_else(|| (std::ffi::OsString::from("cargo"), vec!["tauri"]));
+
+  build_args.push(target.command_name());
+  build_args.push(target.ide_build_script_name());
 
   map.insert("tauri-binary", binary.to_string_lossy());
   map.insert("tauri-binary-args", &build_args);

@@ -568,17 +568,20 @@ tauri::Builder::default()
       }));
     }
 
-    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
-      let label = pending.label.clone();
-      let manager = manager.manager_owned();
-      pending
-        .on_page_load_handler
-        .replace(Box::new(move |url, event| {
-          if let Some(w) = manager.get_webview(&label) {
-            on_page_load_handler(w, PageLoadPayload { url: &url, event });
+    let label_ = pending.label.clone();
+    let manager_ = manager.manager_owned();
+    pending
+      .on_page_load_handler
+      .replace(Box::new(move |url, event| {
+        if let Some(w) = manager_.get_webview(&label_) {
+          if let PageLoadEvent::Finished = event {
+            w.unlisten_all_js();
           }
-        }));
-    }
+          if let Some(handler) = self.on_page_load_handler.as_ref() {
+            handler(w, PageLoadPayload { url: &url, event });
+          }
+        }
+      }));
 
     manager.manager().webview.prepare_webview(
       manager,
@@ -1315,6 +1318,12 @@ fn main() {
     listeners.unlisten_js(id);
 
     Ok(())
+  }
+
+  /// Unregister all JS event listeners.
+  pub(crate) fn unlisten_all_js(&self) {
+    let listeners = self.manager().listeners();
+    listeners.unlisten_all_js(self.label());
   }
 
   pub(crate) fn emit_js(&self, emit_args: &EmitArgs, target: &EventTarget) -> crate::Result<()> {

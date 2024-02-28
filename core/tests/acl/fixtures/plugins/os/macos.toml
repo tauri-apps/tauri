@@ -1,0 +1,7 @@
+
+[[permission]]
+identifier = "allow-library-folder-macos"
+platforms = ["macOS"]
+description = "Allows access to the $HOME/Library folder on maOS"
+[[permission.scope.allow]]
+path = "$HOME/Library/**"

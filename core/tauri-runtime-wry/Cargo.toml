@@ -1,25 +1,22 @@
 [package]
 name = "tauri-runtime-wry"
-version = "0.14.4"
-authors = ["Tauri Programme within The Commons Conservancy"]
-categories = ["gui", "web-programming"]
+version = "0.14.5"
+authors = [ "Tauri Programme within The Commons Conservancy" ]
+categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wry bindings to the Tauri runtime"
 edition = "2021"
 rust-version = "1.60"
-exclude = ["CHANGELOG.md", "/target"]
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [dependencies]
-wry = { version = "0.24.6", default-features = false, features = [
-  "file-drop",
-  "protocol",
-] }
+wry = { version = "0.24.6", default-features = false, features = [ "file-drop", "protocol" ] }
 tauri-runtime = { version = "0.14.2", path = "../tauri-runtime" }
 tauri-utils = { version = "1.5.3", path = "../tauri-utils" }
-uuid = { version = "1", features = ["v4"] }
+uuid = { version = "1", features = [ "v4" ] }
 rand = "0.8"
 raw-window-handle = "0.5"
 tracing = { version = "0.1", optional = true }
@@ -28,29 +25,29 @@ arboard = { version = "3", optional = true }
 [target."cfg(windows)".dependencies]
 webview2-com = "0.19.1"
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.39.0"
-features = ["Win32_Foundation"]
+  [target."cfg(windows)".dependencies.windows]
+  version = "0.39.0"
+  features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.15", features = ["v3_20"] }
-webkit2gtk = { version = "0.18.2", features = ["v2_22"] }
+gtk = { version = "0.15", features = [ "v3_20" ] }
+webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
 cocoa = "0.24"
 
 [features]
-dox = ["wry/dox"]
-devtools = ["wry/devtools", "tauri-runtime/devtools"]
-system-tray = ["tauri-runtime/system-tray", "wry/tray"]
+dox = [ "wry/dox" ]
+devtools = [ "wry/devtools", "tauri-runtime/devtools" ]
+system-tray = [ "tauri-runtime/system-tray", "wry/tray" ]
 macos-private-api = [
   "wry/fullscreen",
   "wry/transparent",
-  "tauri-runtime/macos-private-api",
+  "tauri-runtime/macos-private-api"
 ]
-objc-exception = ["wry/objc-exception"]
-global-shortcut = ["tauri-runtime/global-shortcut"]
-clipboard = ["tauri-runtime/clipboard", "arboard/wayland-data-control"]
-linux-headers = ["wry/linux-headers", "webkit2gtk/v2_36"]
-tracing = ["dep:tracing", "wry/tracing"]
+objc-exception = [ "wry/objc-exception" ]
+global-shortcut = [ "tauri-runtime/global-shortcut" ]
+clipboard = [ "tauri-runtime/clipboard", "arboard/wayland-data-control" ]
+linux-headers = [ "wry/linux-headers", "webkit2gtk/v2_36" ]
+tracing = [ "dep:tracing", "wry/tracing" ]

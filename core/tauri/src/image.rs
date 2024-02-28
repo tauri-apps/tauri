@@ -77,24 +77,23 @@ impl<'a> Image<'a> {
       #[cfg(feature = "image-png")]
       "png" => Self::from_png_bytes(bytes),
       _ => {
-        #[cfg(all(feature = "image-png", feature = "image-ico"))]
-        let supported = "'ico' or 'png'";
-        #[cfg(all(
-          not(all(feature = "image-ico", feature = "image-png")),
-          feature = "image-ico"
-        ))]
-        let supported = "'ico'";
-        #[cfg(all(
-          not(all(feature = "image-ico", feature = "image-png")),
-          feature = "image-png"
-        ))]
-        let supported = "'png'";
-        #[cfg(not(any(feature = "image-png", feature = "image-ico")))]
-        let supported = "''";
+        let supported = [
+          #[cfg(feature = "image-png")]
+          "'png'",
+          #[cfg(feature = "image-ico")]
+          "'ico'",
+        ];
 
         Err(Error::new(
           ErrorKind::InvalidInput,
-          format!("Unexpected image format, expected {supported}, found '{extension}'"),
+          format!(
+            "Unexpected image format, expected {}, found '{extension}'. Please check the `image-*` Cargo features on the tauri crate to see if Tauri has optional support for this format.",
+            if supported.len() == 0 {
+              "''".to_string()
+            } else {
+              supported.join(" or ")
+            }
+          ),
         ))
       }
     }

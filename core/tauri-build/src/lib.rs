@@ -492,14 +492,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   manifest::check(&config, &mut manifest)?;
 
   let mut acl_manifests = acl::get_manifests_from_plugins()?;
-  acl_manifests.insert(
-    APP_ACL_KEY.into(),
-    acl::app_manifest_permissions(
-      &out_dir,
-      attributes.app_manifest,
-      &attributes.inlined_plugins,
-    )?,
-  );
+  let app_manifest = acl::app_manifest_permissions(
+    &out_dir,
+    attributes.app_manifest,
+    &attributes.inlined_plugins,
+  )?;
+  if app_manifest.default_permission.is_some()
+    || !app_manifest.permission_sets.is_empty()
+    || !app_manifest.permissions.is_empty()
+  {
+    acl_manifests.insert(APP_ACL_KEY.into(), app_manifest);
+  }
   acl_manifests.extend(acl::inline_plugins(&out_dir, attributes.inlined_plugins)?);
 
   std::fs::write(

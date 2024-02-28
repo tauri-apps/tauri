@@ -88,7 +88,7 @@ impl<'a> Image<'a> {
           ErrorKind::InvalidInput,
           format!(
             "Unexpected image format, expected {}, found '{extension}'. Please check the `image-*` Cargo features on the tauri crate to see if Tauri has optional support for this format.",
-            if supported.len() == 0 {
+            if supported.is_empty() {
               "''".to_string()
             } else {
               supported.join(" or ")

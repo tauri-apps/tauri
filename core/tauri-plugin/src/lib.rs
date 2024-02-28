@@ -22,4 +22,5 @@ mod runtime;
 pub use build::*;
 #[cfg(feature = "runtime")]
 #[cfg_attr(docsrs, doc(feature = "runtime"))]
+#[allow(unused)]
 pub use runtime::*;

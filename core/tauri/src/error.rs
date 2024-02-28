@@ -82,7 +82,7 @@ pub enum Error {
   #[error("invalid glob pattern: {0}")]
   GlobPattern(#[from] glob::PatternError),
   /// Error decoding PNG image.
-  #[cfg(feature = "icon-png")]
+  #[cfg(feature = "image-png")]
   #[error("failed to decode PNG: {0}")]
   PngDecode(#[from] png::DecodingError),
   /// The Window's raw handle is invalid for the platform.

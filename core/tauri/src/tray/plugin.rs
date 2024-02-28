@@ -8,22 +8,24 @@ use serde::Deserialize;
 
 use crate::{
   command,
+  image::JsIcon,
   ipc::Channel,
   menu::{plugin::ItemKind, Menu, Submenu},
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, IconDto, Manager, Runtime,
+  AppHandle, Manager, Runtime,
 };
 
 use super::TrayIcon;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TrayIconOptions {
+struct TrayIconOptions<'a> {
   id: Option<String>,
   menu: Option<(ResourceId, ItemKind)>,
-  icon: Option<IconDto>,
+  #[serde(borrow)]
+  icon: Option<JsIcon<'a>>,
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
@@ -34,7 +36,7 @@ struct TrayIconOptions {
 #[command(root = "crate")]
 fn new<R: Runtime>(
   app: AppHandle<R>,
-  options: TrayIconOptions,
+  options: TrayIconOptions<'_>,
   handler: Channel,
 ) -> crate::Result<(ResourceId, String)> {
   let mut builder = if let Some(id) = options.id {
@@ -63,7 +65,7 @@ fn new<R: Runtime>(
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(icon.into());
+    builder = builder.icon(icon.try_into()?);
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -92,11 +94,15 @@ fn new<R: Runtime>(
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  icon: Option<IconDto>,
+  icon: Option<JsIcon<'_>>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
-  tray.set_icon(icon.map(Into::into))
+  let icon = match icon {
+    Some(i) => Some(i.try_into()?),
+    None => None,
+  };
+  tray.set_icon(icon)
 }
 
 #[command(root = "crate")]

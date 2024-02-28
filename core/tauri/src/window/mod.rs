@@ -38,7 +38,7 @@ use crate::{
     window::dpi::{Position, Size},
     UserAttentionType,
   },
-  CursorIcon, Icon,
+  CursorIcon, Image,
 };
 
 use serde::Serialize;
@@ -632,8 +632,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   }
 
   /// Sets the window icon.
-  pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.icon(icon.try_into()?)?;
+  pub fn icon(mut self, icon: Image<'a>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.icon(icon.into())?;
     Ok(self)
   }
 
@@ -1819,11 +1819,11 @@ tauri::Builder::default()
   }
 
   /// Sets this window' icon.
-  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+  pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self
       .window
       .dispatcher
-      .set_icon(icon.try_into()?)
+      .set_icon(icon.into())
       .map_err(Into::into)
   }
 

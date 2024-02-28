@@ -486,11 +486,7 @@ fn ico_icon<P: AsRef<Path>>(
   })?;
 
   let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::Icon::Rgba {
-    rgba: include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)).to_vec(),
-    width: #width,
-    height: #height
-  });
+  let icon = quote!(#root::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
   Ok(icon)
 }
 
@@ -548,11 +544,7 @@ fn png_icon<P: AsRef<Path>>(
   })?;
 
   let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::Icon::Rgba {
-    rgba: include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)).to_vec(),
-    width: #width,
-    height: #height,
-  });
+  let icon = quote!(#root::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
   Ok(icon)
 }
 

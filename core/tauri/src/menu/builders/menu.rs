@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::*, Icon, Manager, Runtime};
+use crate::{menu::*, Image, Manager, Runtime};
 
 /// A builder type for [`Menu`]
 ///
@@ -13,11 +13,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 /// tauri::Builder::default()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
-///     # let icon1 = tauri::Icon::Rgba {
-///     #   rgba: Vec::new(),
-///     #   width: 0,
-///     #   height: 0,
-///     # };
+///     # let icon1 = tauri::Image::new(&[], 0, 0);
 ///     let menu = MenuBuilder::new(handle)
 ///       .item(&MenuItem::new(handle, "MenuItem 1", true, None::<&str>)?)
 ///       .items(&[
@@ -99,7 +95,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   }
 
   /// Add an [IconMenuItem] to the menu.
-  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Icon) -> Self {
+  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Image<'_>) -> Self {
     self.items.push(
       IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None::<&str>)
         .map(|i| i.kind()),
@@ -285,7 +281,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   }
 
   /// Add About app menu item to the menu.
-  pub fn about(mut self, metadata: Option<AboutMetadata>) -> Self {
+  pub fn about(mut self, metadata: Option<AboutMetadata<'_>>) -> Self {
     self
       .items
       .push(PredefinedMenuItem::about(self.manager, None, metadata).map(|i| i.kind()));

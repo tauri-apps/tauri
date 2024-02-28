@@ -14,7 +14,7 @@
 
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
-use std::{fmt::Debug, sync::mpsc::Sender};
+use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
@@ -162,9 +162,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Window icon.
 #[derive(Debug, Clone)]
-pub struct Icon {
+pub struct Icon<'a> {
   /// RGBA bytes of the icon.
-  pub rgba: Vec<u8>,
+  pub rgba: Cow<'a, [u8]>,
   /// Icon width.
   pub width: u32,
   /// Icon height.

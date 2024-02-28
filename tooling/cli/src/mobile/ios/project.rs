@@ -155,7 +155,7 @@ pub fn gen(
       let mut options = OpenOptions::new();
       options.write(true);
 
-      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+      if !path.exists() {
         options.create(true).open(path).map(Some)
       } else {
         Ok(None)

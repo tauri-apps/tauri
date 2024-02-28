@@ -20,14 +20,6 @@ tiny_http = "0.11"
 log = "0.4"
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 
-[target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-tauri-plugin-cli = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
-
-[patch.crates-io]
-tauri = { path = "../../../core/tauri" }
-tauri-build = { path = "../../../core/tauri-build" }
-tauri-plugin = { path = "../../../core/tauri-plugin" }
-
 [dependencies.tauri]
 path = "../../../core/tauri"
 features = [

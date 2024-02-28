@@ -47,7 +47,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
-        handle.plugin(tauri_plugin_cli::init())?;
         handle.plugin(menu_plugin::init())?;
       }
 

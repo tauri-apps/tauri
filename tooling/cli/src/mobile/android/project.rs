@@ -203,7 +203,7 @@ fn generate_out_file(
   }
 
   let mut options = fs::OpenOptions::new();
-  options.write(true);
+  options.write(true).truncate(true);
 
   #[cfg(unix)]
   if path.file_name().unwrap() == OsStr::new("gradlew") {

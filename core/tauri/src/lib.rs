@@ -398,12 +398,26 @@ impl<A: Assets> Context<A> {
     self.default_window_icon.as_ref()
   }
 
-  /// The icon to use on the system tray UI.
+  /// Set the default window icon Tauri should use when creating windows.
+  #[inline(always)]
+  pub fn set_default_window_icon(&mut self, icon: Option<Image<'static>>) {
+    self.default_window_icon = icon;
+  }
+
+  /// The icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
   pub fn tray_icon(&self) -> Option<&Image<'_>> {
     self.tray_icon.as_ref()
+  }
+
+  /// Set the icon to use on the tray icon.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  #[inline(always)]
+  pub fn set_tray_icon(&mut self, icon: Option<Image<'static>>) {
+    self.tray_icon = icon;
   }
 
   /// Package information.
@@ -460,14 +474,6 @@ impl<A: Assets> Context<A> {
       pattern,
       runtime_authority,
     }
-  }
-
-  /// Sets the app tray icon.
-  #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-  #[inline(always)]
-  pub fn set_tray_icon(&mut self, icon: Image<'static>) {
-    self.tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.

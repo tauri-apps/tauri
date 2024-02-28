@@ -278,10 +278,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       let ext = tray_icon_icon_path.extension();
       if ext.map_or(false, |e| e == "ico") {
         ico_icon(&root, &out_dir, tray_icon_icon_path)
-          .map(|i| quote!(context.set_tray_icon(#i);))?
+          .map(|i| quote!(context.set_tray_icon(Some(#i));))?
       } else if ext.map_or(false, |e| e == "png") {
         png_icon(&root, &out_dir, tray_icon_icon_path)
-          .map(|i| quote!(context.set_tray_icon(#i);))?
+          .map(|i| quote!(context.set_tray_icon(Some(#i));))?
       } else {
         quote!(compile_error!(
           "The tray icon extension must be either `.ico` or `.png`."

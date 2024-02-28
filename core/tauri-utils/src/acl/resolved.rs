@@ -112,6 +112,7 @@ impl Resolved {
       with_resolved_permissions(
         capability,
         acl,
+        target,
         |ResolvedPermission {
            plugin_name,
            permission_name,
@@ -268,6 +269,7 @@ struct ResolvedPermission<'a> {
 fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>)>(
   capability: &Capability,
   acl: &BTreeMap<String, Manifest>,
+  target: Target,
   mut f: F,
 ) -> Result<(), Error> {
   for permission_entry in &capability.permissions {
@@ -275,7 +277,10 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>)>(
     let permission_name = permission_id.get_base();
 
     if let Some(plugin_name) = permission_id.get_prefix() {
-      let permissions = get_permissions(plugin_name, permission_name, acl)?;
+      let permissions = get_permissions(plugin_name, permission_name, acl)?
+        .into_iter()
+        .filter(|p| p.platforms.contains(&target))
+        .collect::<Vec<_>>();
 
       let mut resolved_scope = Scopes::default();
       let mut commands = Commands::default();

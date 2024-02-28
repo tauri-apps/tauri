@@ -9,6 +9,8 @@ use serde::{Deserialize, Serialize};
 use std::num::NonZeroU64;
 use thiserror::Error;
 
+use crate::platform::Target;
+
 pub use self::{identifier::*, value::*};
 
 /// Known filename of the permission schema JSON file
@@ -177,6 +179,20 @@ pub struct Permission {
   /// Allowed or denied scoped when using this permission.
   #[serde(default, skip_serializing_if = "Scopes::is_empty")]
   pub scope: Scopes,
+
+  /// Target platforms this permission applies. By default all platforms are affected by this permission.
+  #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
+  pub platforms: Vec<Target>,
+}
+
+fn default_platforms() -> Vec<Target> {
+  vec![
+    Target::Linux,
+    Target::MacOS,
+    Target::Windows,
+    Target::Android,
+    Target::Ios,
+  ]
 }
 
 /// A set of direct permissions grouped together under a new name.
@@ -257,6 +273,8 @@ mod build_ {
       let description = opt_str_lit(self.description.as_ref());
       let commands = &self.commands;
       let scope = &self.scope;
+      let platforms = vec_lit(&self.platforms, identity);
+
       literal_struct!(
         tokens,
         ::tauri::utils::acl::Permission,
@@ -264,7 +282,8 @@ mod build_ {
         identifier,
         description,
         commands,
-        scope
+        scope,
+        platforms
       )
     }
   }

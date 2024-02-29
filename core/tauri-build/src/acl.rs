@@ -434,9 +434,9 @@ pub fn app_manifest_permissions(
       &app_out_dir,
       // filter out directories containing inlined plugins
       |p| {
-        inlined_plugins_permissions
+        !inlined_plugins_permissions
           .iter()
-          .any(|inlined_path| p.strip_prefix(inlined_path).is_err())
+          .any(|inlined_path| p.starts_with(inlined_path))
       },
     )?);
   }

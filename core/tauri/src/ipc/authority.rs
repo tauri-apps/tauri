@@ -164,34 +164,31 @@ impl CapabilityBuilder {
       .try_into()
       .unwrap_or_else(|_| panic!("invalid permission identifier '{permission}'"));
 
+    let allowed_scope = allowed
+      .into_iter()
+      .map(|a| {
+        serde_json::to_value(a)
+          .expect("failed to serialize scope")
+          .into()
+      })
+      .collect();
+    let denied_scope = denied
+      .into_iter()
+      .map(|a| {
+        serde_json::to_value(a)
+          .expect("failed to serialize scope")
+          .into()
+      })
+      .collect();
+    let scope = Scopes {
+      allow: Some(allowed_scope),
+      deny: Some(denied_scope),
+    };
+
     self
       .0
       .permissions
-      .push(PermissionEntry::ExtendedPermission {
-        identifier,
-        scope: Scopes {
-          allow: Some(
-            allowed
-              .into_iter()
-              .map(|a| {
-                serde_json::to_value(a)
-                  .expect("failed to serialize scope")
-                  .into()
-              })
-              .collect(),
-          ),
-          deny: Some(
-            denied
-              .into_iter()
-              .map(|a| {
-                serde_json::to_value(a)
-                  .expect("failed to serialize scope")
-                  .into()
-              })
-              .collect(),
-          ),
-        },
-      });
+      .push(PermissionEntry::ExtendedPermission { identifier, scope });
     self
   }
 }

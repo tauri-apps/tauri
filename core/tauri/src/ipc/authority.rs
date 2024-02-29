@@ -106,9 +106,9 @@ impl CapabilityBuilder {
     self
   }
 
-  /// Do not apply this capability on local app URLs.
-  pub fn skip_local(mut self) -> Self {
-    self.0.local = false;
+  /// Whether this capability is applied on local app URLs or not. Defaults to `true`.
+  pub fn local(mut self, local: bool) -> Self {
+    self.0.local = local;
     self
   }
 
@@ -118,9 +118,24 @@ impl CapabilityBuilder {
     self
   }
 
+  /// Link this capability to the a list of window labels.
+  pub fn windows(mut self, windows: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    self.0.windows.extend(windows.into_iter().map(|w| w.into()));
+    self
+  }
+
   /// Link this capability to the given webview label.
   pub fn webview(mut self, webview: impl Into<String>) -> Self {
     self.0.webviews.push(webview.into());
+    self
+  }
+
+  /// Link this capability to the a list of window labels.
+  pub fn webviews(mut self, webviews: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    self
+      .0
+      .webviews
+      .extend(webviews.into_iter().map(|w| w.into()));
     self
   }
 

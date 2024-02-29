@@ -40,7 +40,7 @@ impl FromStr for BundleFormat {
 impl ValueEnum for BundleFormat {
   fn value_variants<'a>() -> &'a [Self] {
     static VARIANTS: OnceLock<Vec<BundleFormat>> = OnceLock::new();
-    VARIANTS.get_or_init(|| PackageType::all().iter().map(|t| Self(t.clone())).collect())
+    VARIANTS.get_or_init(|| PackageType::all().iter().map(|t| Self(*t)).collect())
   }
 
   fn to_possible_value(&self) -> Option<PossibleValue> {

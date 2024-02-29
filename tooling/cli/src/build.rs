@@ -14,14 +14,39 @@ use crate::{
 };
 use anyhow::{bail, Context};
 use base64::Engine;
-use clap::{ArgAction, Parser};
+use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
 use std::{
   env::{set_current_dir, var},
   path::{Path, PathBuf},
   process::Command,
+  str::FromStr,
+  sync::OnceLock,
 };
 use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
 use tauri_utils::platform::Target;
+
+#[derive(Debug, Clone)]
+pub struct BundleFormat(PackageType);
+
+impl FromStr for BundleFormat {
+  type Err = anyhow::Error;
+  fn from_str(s: &str) -> Result<Self> {
+    PackageType::from_short_name(s)
+      .map(Self)
+      .ok_or_else(|| anyhow::anyhow!("unknown bundle format {s}"))
+  }
+}
+
+impl ValueEnum for BundleFormat {
+  fn value_variants<'a>() -> &'a [Self] {
+    static VARIANTS: OnceLock<Vec<BundleFormat>> = OnceLock::new();
+    VARIANTS.get_or_init(|| PackageType::all().iter().map(|t| Self(t.clone())).collect())
+  }
+
+  fn to_possible_value(&self) -> Option<PossibleValue> {
+    Some(PossibleValue::new(self.0.short_name()))
+  }
+}
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -47,11 +72,9 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
   ///
-  /// Each bundle must be one of `deb`, `rpm`, `appimage`, `msi`, `app` or `dmg` on MacOS and `updater` on all platforms.
-  ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
   #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
-  pub bundles: Option<Vec<String>>,
+  pub bundles: Option<Vec<BundleFormat>>,
   /// Skip the bundling step even if `bundle > active` is `true` in tauri config.
   #[clap(long)]
   pub no_bundle: bool,
@@ -206,15 +229,7 @@ fn bundle<A: AppSettings>(
   }
 
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
-    bundles
-      .iter()
-      .filter_map(|bundle| {
-        PackageType::from_short_name(bundle).or_else(|| {
-          log::warn!("Unsupported bundle format: {bundle}");
-          None
-        })
-      })
-      .collect::<Vec<_>>()
+    bundles.iter().map(|bundle| bundle.0).collect::<Vec<_>>()
   } else {
     config
       .bundle

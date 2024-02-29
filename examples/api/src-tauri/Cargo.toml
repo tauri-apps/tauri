@@ -24,8 +24,8 @@ tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 path = "../../../core/tauri"
 features = [
   "protocol-asset",
-  "icon-ico",
-  "icon-png",
+  "image-ico",
+  "image-png",
   "isolation",
   "macos-private-api",
   "tray-icon"

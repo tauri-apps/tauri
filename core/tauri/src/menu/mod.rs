@@ -21,7 +21,7 @@ pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
-use crate::{AppHandle, Icon, Runtime};
+use crate::{AppHandle, Image, Runtime};
 pub use muda::MenuId;
 
 macro_rules! run_item_main_thread {
@@ -166,7 +166,7 @@ gen_wrappers!(
 
 /// Application metadata for the [`PredefinedMenuItem::about`].
 #[derive(Debug, Clone, Default)]
-pub struct AboutMetadata {
+pub struct AboutMetadata<'a> {
   /// Sets the application name.
   pub name: Option<String>,
   /// The application version.
@@ -220,14 +220,14 @@ pub struct AboutMetadata {
   /// ## Platform-specific
   ///
   /// - **Windows:** Unsupported.
-  pub icon: Option<Icon>,
+  pub icon: Option<Image<'a>>,
 }
 
 /// A builder type for [`AboutMetadata`].
 #[derive(Clone, Debug, Default)]
-pub struct AboutMetadataBuilder(AboutMetadata);
+pub struct AboutMetadataBuilder<'a>(AboutMetadata<'a>);
 
-impl AboutMetadataBuilder {
+impl<'a> AboutMetadataBuilder<'a> {
   /// Create a new about metdata builder.
   pub fn new() -> Self {
     Default::default()
@@ -316,20 +316,27 @@ impl AboutMetadataBuilder {
   /// ## Platform-specific
   ///
   /// - **Windows:** Unsupported.
-  pub fn icon(mut self, icon: Option<Icon>) -> Self {
+  pub fn icon(mut self, icon: Option<Image<'a>>) -> Self {
     self.0.icon = icon;
     self
   }
 
   /// Construct the final [`AboutMetadata`]
-  pub fn build(self) -> AboutMetadata {
+  pub fn build(self) -> AboutMetadata<'a> {
     self.0
   }
 }
 
-impl From<AboutMetadata> for muda::AboutMetadata {
-  fn from(value: AboutMetadata) -> Self {
-    Self {
+impl TryFrom<AboutMetadata<'_>> for muda::AboutMetadata {
+  type Error = crate::Error;
+
+  fn try_from(value: AboutMetadata<'_>) -> Result<Self, Self::Error> {
+    let icon = match value.icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+
+    Ok(Self {
       authors: value.authors,
       name: value.name,
       version: value.version,
@@ -340,8 +347,8 @@ impl From<AboutMetadata> for muda::AboutMetadata {
       website: value.website,
       website_label: value.website_label,
       credits: value.credits,
-      icon: value.icon.and_then(|i| i.try_into().ok()),
-    }
+      icon,
+    })
   }
 }
 
@@ -753,15 +760,6 @@ pub(crate) mod sealed {
       window: crate::Window<R>,
       position: Option<P>,
     ) -> crate::Result<()>;
-  }
-}
-
-impl TryFrom<crate::Icon> for muda::Icon {
-  type Error = crate::Error;
-
-  fn try_from(value: crate::Icon) -> Result<Self, Self::Error> {
-    let value: crate::runtime::Icon = value.try_into()?;
-    muda::Icon::from_rgba(value.rgba, value.width, value.height).map_err(Into::into)
   }
 }
 

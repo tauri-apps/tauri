@@ -20,7 +20,7 @@ use tauri_runtime::{
 
 use crate::{
   app::GlobalWindowEventListener, sealed::ManagerBase, AppHandle, EventLoopMessage, EventTarget,
-  Icon, Manager, Runtime, Scopes, Window, WindowEvent,
+  Image, Manager, Runtime, Scopes, Window, WindowEvent,
 };
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
@@ -37,7 +37,7 @@ pub const DROP_CANCELLED_EVENT: &str = "tauri://file-drop-cancelled";
 
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
-  pub default_icon: Option<Icon>,
+  pub default_icon: Option<Image<'static>>,
   /// Window event listeners to all windows.
   pub event_listeners: Arc<Vec<GlobalWindowEventListener<R>>>,
 }
@@ -66,9 +66,7 @@ impl<R: Runtime> WindowManager<R> {
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.default_icon.clone() {
-        pending.window_builder = pending
-          .window_builder
-          .icon(default_window_icon.try_into()?)?;
+        pending.window_builder = pending.window_builder.icon(default_window_icon.into())?;
       }
     }
 

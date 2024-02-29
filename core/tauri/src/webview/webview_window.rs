@@ -21,7 +21,7 @@ use crate::{
     },
     UserAttentionType,
   },
-  Icon,
+  Image,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
@@ -529,7 +529,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   }
 
   /// Sets the window icon.
-  pub fn icon(mut self, icon: crate::Icon) -> crate::Result<Self> {
+  pub fn icon(mut self, icon: Image<'a>) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon)?;
     Ok(self)
   }
@@ -1420,7 +1420,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Sets this window' icon.
-  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+  pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self.webview.window().set_icon(icon)
   }
 

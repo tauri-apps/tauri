@@ -337,15 +337,20 @@ impl<R: Runtime> PredefinedMenuItem<R> {
   pub fn about<M: Manager<R>>(
     manager: &M,
     text: Option<&str>,
-    metadata: Option<AboutMetadata>,
+    metadata: Option<AboutMetadata<'_>>,
   ) -> crate::Result<Self> {
     let handle = manager.app_handle();
     let app_handle = handle.clone();
 
     let text = text.map(|t| t.to_owned());
 
+    let metadata = match metadata {
+      Some(m) => Some(m.try_into()?),
+      None => None,
+    };
+
     let item = run_main_thread!(handle, || {
-      let item = muda::PredefinedMenuItem::about(text.as_deref(), metadata.map(Into::into));
+      let item = muda::PredefinedMenuItem::about(text.as_deref(), metadata);
       PredefinedMenuItemInner {
         id: item.id().clone(),
         inner: Some(item),

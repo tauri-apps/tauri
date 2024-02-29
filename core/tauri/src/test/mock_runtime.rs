@@ -391,7 +391,7 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  fn icon(self, icon: Icon) -> Result<Self> {
+  fn icon(self, icon: Icon<'_>) -> Result<Self> {
     Ok(self)
   }
 
@@ -869,7 +869,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(())
   }
 
-  fn set_icon(&self, icon: Icon) -> Result<()> {
+  fn set_icon(&self, icon: Icon<'_>) -> Result<()> {
     Ok(())
   }
 

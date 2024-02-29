@@ -20,7 +20,7 @@ use crate::{
   utils::config::Config,
   utils::{assets::Assets, Env},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, EventLoopMessage, Icon, Manager, Monitor, Runtime, Scopes,
+  Context, DeviceEventFilter, EventLoopMessage, Image, Manager, Monitor, Runtime, Scopes,
   StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
@@ -633,7 +633,7 @@ macro_rules! shared_app_impl {
         })
       }
       /// Returns the default window icon.
-      pub fn default_window_icon(&self) -> Option<&Icon> {
+      pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()
       }
 

@@ -19,7 +19,6 @@ use super::{CallbackFn, InvokeBody, InvokeResponse};
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 
-#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
@@ -162,7 +161,6 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
   })
 }
 
-#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
   if let Some(webview) = manager.get_webview(label) {
     #[cfg(feature = "tracing")]
@@ -374,15 +372,21 @@ fn parse_invoke_request<R: Runtime>(
     .decode_utf8_lossy()
     .to_string();
 
-  // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
-  #[cfg(all(feature = "isolation", ipc_custom_protocol))]
-  if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
-    #[cfg(feature = "tracing")]
-    let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
+  // on Android and on Linux (without the linux-ipc-protocol Cargo feature) we cannot read the request body
+  // so we must ignore it because some commands use the IPC for faster response
+  let has_payload = !body.is_empty();
 
-    body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
-      .and_then(|raw| crypto_keys.decrypt(raw))
-      .map_err(|e| e.to_string())?;
+  #[cfg(feature = "isolation")]
+  if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
+    // if the platform does not support request body, we ignore it
+    if has_payload {
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
+
+      body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
+        .and_then(|raw| crypto_keys.decrypt(raw))
+        .map_err(|e| e.to_string())?;
+    }
   }
 
   let callback = CallbackFn(
@@ -420,12 +424,12 @@ fn parse_invoke_request<R: Runtime>(
   let body = if content_type == mime::APPLICATION_OCTET_STREAM {
     body.into()
   } else if content_type == mime::APPLICATION_JSON {
-    if cfg!(ipc_custom_protocol) {
+    // if the platform does not support request body, we ignore it
+    if has_payload {
       serde_json::from_slice::<serde_json::Value>(&body)
         .map_err(|e| e.to_string())?
         .into()
     } else {
-      // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
       serde_json::Value::Object(Default::default()).into()
     }
   } else {

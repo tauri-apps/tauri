@@ -496,12 +496,9 @@ impl<R: Runtime> WebviewManager<R> {
       manager,
     )?;
 
-    #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
-    {
-      pending.ipc_handler = Some(crate::ipc::protocol::message_handler(
-        manager.manager_owned(),
-      ));
-    }
+    pending.ipc_handler = Some(crate::ipc::protocol::message_handler(
+      manager.manager_owned(),
+    ));
 
     // in `windows`, we need to force a data_directory
     // but we do respect user-specification

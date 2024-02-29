@@ -217,11 +217,6 @@ fn main() {
   alias("desktop", !mobile);
   alias("mobile", mobile);
 
-  alias(
-    "ipc_custom_protocol",
-    target_os != "android" && (target_os != "linux" || has_feature("linux-ipc-protocol")),
-  );
-
   let out_dir = PathBuf::from(var("OUT_DIR").unwrap());
 
   let checked_features_out_path = out_dir.join("checked_features");

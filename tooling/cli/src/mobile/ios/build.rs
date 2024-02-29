@@ -73,6 +73,7 @@ impl From<Options> for BuildOptions {
       target: None,
       features: options.features,
       bundles: None,
+      no_bundle: false,
       config: options.config,
       args: Vec::new(),
       ci: options.ci,

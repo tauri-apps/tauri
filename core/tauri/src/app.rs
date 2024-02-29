@@ -1084,7 +1084,7 @@ struct InvokeInitializationScript<'a> {
   process_ipc_message_fn: &'a str,
   os_name: &'a str,
   fetch_channel_data_command: &'a str,
-  use_custom_protocol: bool,
+  linux_ipc_protocol_enabled: bool,
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`
@@ -1117,7 +1117,7 @@ impl<R: Runtime> Builder<R> {
         process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
-        use_custom_protocol: cfg!(ipc_custom_protocol),
+        linux_ipc_protocol_enabled: cfg!(feature = "linux-ipc-protocol"),
       }
       .render_default(&Default::default())
       .unwrap()

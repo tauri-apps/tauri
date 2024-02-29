@@ -21,7 +21,6 @@ use crate::{webview::Webview, Runtime, StateManager};
 mod authority;
 pub(crate) mod channel;
 mod command;
-#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 

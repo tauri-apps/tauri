@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-beta.8]
+
+### New Features
+
+- [`d7f56fef`](https://www.github.com/tauri-apps/tauri/commit/d7f56fef85cac3af4e2dbac1eac40e5567b1f160)([#9014](https://www.github.com/tauri-apps/tauri/pull/9014)) Allow defining a permission that only applies to a set of target platforms via the `platforms` configuration option.
+
+### Bug Fixes
+
+- [`e1d5b790`](https://www.github.com/tauri-apps/tauri/commit/e1d5b7906369a40df19e8ee86c56f90a27d6357c)([#8995](https://www.github.com/tauri-apps/tauri/pull/8995)) Fixes capability webview label check.
+- [`222a96b7`](https://www.github.com/tauri-apps/tauri/commit/222a96b74b145fb48d3f0c109897962d56fae57a)([#8999](https://www.github.com/tauri-apps/tauri/pull/8999)) Fixes `Window::add_child` deadlock.
+- [`e4463f08`](https://www.github.com/tauri-apps/tauri/commit/e4463f08145c044bd37dc1c6f5f39e6a572ace3e)([#8930](https://www.github.com/tauri-apps/tauri/pull/8930)) Clear JS event listeneres on page load, which fixes zombie listeners when the page reloads.
+- [`222a96b7`](https://www.github.com/tauri-apps/tauri/commit/222a96b74b145fb48d3f0c109897962d56fae57a)([#8999](https://www.github.com/tauri-apps/tauri/pull/8999)) Fixes `Webview::reparent` not updating the webview parent window reference.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.6`
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.6`
+- Upgraded to `tauri-runtime@2.0.0-beta.6`
+- Upgraded to `tauri-macros@2.0.0-beta.6`
+
+### Breaking Changes
+
+- [`3657ad82`](https://www.github.com/tauri-apps/tauri/commit/3657ad82f88ce528551d032d521c52eed3f396b4)([#9008](https://www.github.com/tauri-apps/tauri/pull/9008)) Allow defining permissions for the application commands via `tauri_build::Attributes::app_manifest`.
+
 ### Breaking Changes
 
 - [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.

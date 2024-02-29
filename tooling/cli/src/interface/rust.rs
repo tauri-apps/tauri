@@ -121,7 +121,7 @@ impl Interface for Rust {
       watcher
         .watcher()
         .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
-      let manifest = rewrite_manifest(config)?;
+      let (manifest, _modified) = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
       loop {
@@ -535,38 +535,34 @@ impl Rust {
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(self.app_settings.target, &event_path) {
-              match reload_config(config.as_ref()) {
-                Ok(config) => {
-                  info!("Tauri configuration changed. Rewriting manifest...");
-                  *self.app_settings.manifest.lock().unwrap() =
-                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
-                }
-                Err(err) => {
-                  let p = process.lock().unwrap();
-                  if p.is_building_app() {
-                    p.kill().with_context(|| "failed to kill app process")?;
-                  }
-                  error!("{}", err);
+              if let Ok(config) = reload_config(config.as_ref()) {
+                let (manifest, modified) =
+                  rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+                if modified {
+                  *self.app_settings.manifest.lock().unwrap() = manifest;
+                  // no need to run the watcher logic, the manifest was modified
+                  // and it will trigger the watcher again
+                  continue;
                 }
               }
-            } else {
-              info!(
-                "File {} changed. Rebuilding application...",
-                display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
-              );
-              // When tauri.conf.json is changed, rewrite_manifest will be called
-              // which will trigger the watcher again
-              // So the app should only be started when a file other than tauri.conf.json is changed
-              let mut p = process.lock().unwrap();
-              p.kill().with_context(|| "failed to kill app process")?;
-              // wait for the process to exit
-              loop {
-                if let Ok(Some(_)) = p.try_wait() {
-                  break;
-                }
-              }
-              *p = run(self)?;
             }
+
+            log::info!(
+              "File {} changed. Rebuilding application...",
+              display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
+            );
+
+            let mut p = process.lock().unwrap();
+            p.kill().with_context(|| "failed to kill app process")?;
+
+            // wait for the process to exit
+            // note that on mobile, kill() already waits for the process to exit (duct implementation)
+            loop {
+              if !matches!(p.try_wait(), Ok(None)) {
+                break;
+              }
+            }
+            *p = run(self)?;
           }
         }
       }

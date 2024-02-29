@@ -12,7 +12,7 @@ mod tests {
   };
 
   use tauri_utils::{
-    acl::{build::parse_capabilities, plugin::Manifest, resolved::Resolved},
+    acl::{build::parse_capabilities, manifest::Manifest, resolved::Resolved},
     platform::Target,
   };
 
@@ -29,6 +29,7 @@ mod tests {
         &format!("{}/*.toml", plugin_path.display()),
         plugin,
         &out_dir,
+        |_| true,
       )
       .expect("failed to define permissions");
       let manifest = Manifest::new(permission_files, None);
@@ -40,14 +41,21 @@ mod tests {
 
   #[test]
   fn resolve_acl() {
-    let mut settings = insta::Settings::clone_current();
-    settings.set_snapshot_path("../fixtures/snapshots");
-    let _guard = settings.bind_to_scope();
-
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixtures_path = manifest_dir.join("fixtures").join("capabilities");
     for fixture_path in read_dir(fixtures_path).expect("failed to read fixtures") {
       let fixture_entry = fixture_path.expect("failed to read fixture entry");
+
+      let mut settings = insta::Settings::clone_current();
+      settings.set_snapshot_path(
+        if fixture_entry.path().file_name().unwrap() == "platform-specific-permissions" {
+          Path::new("../fixtures/snapshots").join(Target::current().to_string())
+        } else {
+          Path::new("../fixtures/snapshots").to_path_buf()
+        },
+      );
+      let _guard = settings.bind_to_scope();
+
       let fixture_plugins_str = read_to_string(fixture_entry.path().join("required-plugins.json"))
         .expect("failed to read fixture required-plugins.json file");
       let fixture_plugins: Vec<String> = serde_json::from_str(&fixture_plugins_str)

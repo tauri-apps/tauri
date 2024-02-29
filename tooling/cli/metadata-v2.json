@@ -5,5 +5,5 @@
   },
   "tauri": "2.0.0-beta.8",
   "tauri-build": "2.0.0-beta.6",
-  "tauri-plugin": "2.0.0-beta.5"
+  "tauri-plugin": "2.0.0-beta.6"
 }

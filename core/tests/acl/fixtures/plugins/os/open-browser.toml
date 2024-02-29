@@ -1,0 +1,28 @@
+[[permission]]
+identifier = "allow-servo-linux"
+platforms = ["linux"]
+description = "Allows starting servo on Linux"
+commands.allow = ["spawn"]
+[[permission.scope.allow]]
+command = "servo"
+
+[[permission]]
+identifier = "allow-edge-windows"
+platforms = ["windows"]
+description = "Allows starting edge on Windows"
+commands.allow = ["spawn"]
+[[permission.scope.allow]]
+command = "edge"
+
+[[permission]]
+identifier = "allow-safari-macos"
+platforms = ["macOS"]
+description = "Allows starting safari on macOS"
+commands.allow = ["spawn"]
+[[permission.scope.allow]]
+command = "safari"
+
+[[set]]
+identifier = "open-browser"
+description = "allows opening a URL on the platform browser"
+permissions = ["allow-servo-linux", "allow-edge-windows", "allow-safari-macos"]

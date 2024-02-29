@@ -21,7 +21,6 @@ pub trait DevProcess {
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
   fn wait(&self) -> std::io::Result<ExitStatus>;
   fn manually_killed_process(&self) -> bool;
-  fn is_building_app(&self) -> bool;
 }
 
 pub trait AppSettings {

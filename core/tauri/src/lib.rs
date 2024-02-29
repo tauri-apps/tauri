@@ -34,8 +34,8 @@
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
-//! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
-//! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
+//! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
+//! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //!
 //! ## Cargo allowlist features
@@ -94,6 +94,7 @@ mod vibrancy;
 pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
+mod image;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(desktop)]
@@ -188,7 +189,7 @@ pub use tauri_runtime_wry::{tao, wry};
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
   collections::HashMap,
   fmt::{self, Debug},
@@ -211,6 +212,7 @@ pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
   },
+  self::image::Image,
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,
@@ -331,92 +333,6 @@ macro_rules! tauri_build_context {
 
 pub use pattern::Pattern;
 
-/// A icon definition.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum Icon {
-  /// Icon from file path.
-  #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-  #[cfg_attr(docsrs, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
-  File(std::path::PathBuf),
-  /// Icon from raw RGBA bytes. Width and height is parsed at runtime.
-  #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-  #[cfg_attr(docsrs, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
-  Raw(Vec<u8>),
-  /// Icon from raw RGBA bytes.
-  Rgba {
-    /// RGBA bytes of the icon image.
-    rgba: Vec<u8>,
-    /// Icon width.
-    width: u32,
-    /// Icon height.
-    height: u32,
-  },
-}
-
-impl TryFrom<Icon> for runtime::Icon {
-  type Error = Error;
-
-  fn try_from(icon: Icon) -> Result<Self> {
-    #[allow(irrefutable_let_patterns)]
-    if let Icon::Rgba {
-      rgba,
-      width,
-      height,
-    } = icon
-    {
-      Ok(Self {
-        rgba,
-        width,
-        height,
-      })
-    } else {
-      #[cfg(not(any(feature = "icon-ico", feature = "icon-png")))]
-      panic!("unexpected Icon variant");
-      #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-      {
-        let bytes = match icon {
-          Icon::File(p) => std::fs::read(p)?,
-          Icon::Raw(r) => r,
-          Icon::Rgba { .. } => unreachable!(),
-        };
-        let extension = infer::get(&bytes)
-          .expect("could not determine icon extension")
-          .extension();
-        match extension {
-        #[cfg(feature = "icon-ico")]
-        "ico" => {
-          let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))?;
-          let entry = &icon_dir.entries()[0];
-          Ok(Self {
-            rgba: entry.decode()?.rgba_data().to_vec(),
-            width: entry.width(),
-            height: entry.height(),
-          })
-        }
-        #[cfg(feature = "icon-png")]
-        "png" => {
-          let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-          let mut reader = decoder.read_info()?;
-          let mut buffer = Vec::new();
-          while let Ok(Some(row)) = reader.next_row() {
-            buffer.extend(row.data());
-          }
-          Ok(Self {
-            rgba: buffer,
-            width: reader.info().width,
-            height: reader.info().height,
-          })
-        }
-        _ => panic!(
-          "image `{extension}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags"
-        ),
-      }
-      }
-    }
-  }
-}
-
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability
@@ -425,10 +341,10 @@ impl TryFrom<Icon> for runtime::Icon {
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Box<A>,
-  pub(crate) default_window_icon: Option<Icon>,
+  pub(crate) default_window_icon: Option<Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
-  pub(crate) tray_icon: Option<Icon>,
+  pub(crate) tray_icon: Option<Image<'static>>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -478,30 +394,30 @@ impl<A: Assets> Context<A> {
 
   /// The default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon(&self) -> Option<&Icon> {
+  pub fn default_window_icon(&self) -> Option<&Image<'_>> {
     self.default_window_icon.as_ref()
   }
 
-  /// A mutable reference to the default window icon Tauri should use when creating windows.
+  /// Set the default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.default_window_icon
+  pub fn set_default_window_icon(&mut self, icon: Option<Image<'static>>) {
+    self.default_window_icon = icon;
   }
 
-  /// The icon to use on the system tray UI.
+  /// The icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn tray_icon(&self) -> Option<&Icon> {
+  pub fn tray_icon(&self) -> Option<&Image<'_>> {
     self.tray_icon.as_ref()
   }
 
-  /// A mutable reference to the icon to use on the tray icon.
+  /// Set the icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.tray_icon
+  pub fn set_tray_icon(&mut self, icon: Option<Image<'static>>) {
+    self.tray_icon = icon;
   }
 
   /// Package information.
@@ -539,7 +455,7 @@ impl<A: Assets> Context<A> {
   pub fn new(
     config: Config,
     assets: Box<A>,
-    default_window_icon: Option<Icon>,
+    default_window_icon: Option<Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
     info_plist: (),
@@ -558,14 +474,6 @@ impl<A: Assets> Context<A> {
       pattern,
       runtime_authority,
     }
-  }
-
-  /// Sets the app tray icon.
-  #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-  #[inline(always)]
-  pub fn set_tray_icon(&mut self, icon: Icon) {
-    self.tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.
@@ -804,7 +712,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch a single webview window from the manager.
   fn get_webview_window(&self, label: &str) -> Option<WebviewWindow<R>> {
     self.manager().get_webview(label).and_then(|webview| {
-      if webview.window().is_webview_window {
+      if webview.window().is_webview_window() {
         Some(WebviewWindow { webview })
       } else {
         None
@@ -819,7 +727,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .webviews()
       .into_iter()
       .filter_map(|(label, webview)| {
-        if webview.window().is_webview_window {
+        if webview.window().is_webview_window() {
           Some((label, WebviewWindow { webview }))
         } else {
           None
@@ -1014,40 +922,6 @@ pub(crate) mod sealed {
     fn manager_owned(&self) -> Arc<AppManager<R>>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
-  }
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub(crate) enum IconDto {
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  File(std::path::PathBuf),
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  Raw(Vec<u8>),
-  Rgba {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-  },
-}
-
-impl From<IconDto> for Icon {
-  fn from(icon: IconDto) -> Self {
-    match icon {
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::File(path) => Self::File(path),
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::Raw(raw) => Self::Raw(raw),
-      IconDto::Rgba {
-        rgba,
-        width,
-        height,
-      } => Self::Rgba {
-        rgba,
-        width,
-        height,
-      },
-    }
   }
 }
 

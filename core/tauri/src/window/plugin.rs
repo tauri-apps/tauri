@@ -11,7 +11,6 @@ use crate::{
 
 #[cfg(desktop)]
 mod desktop_commands {
-  use serde::Deserialize;
   use tauri_runtime::ResizeDirection;
 
   use super::*;
@@ -20,43 +19,9 @@ mod desktop_commands {
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
     window::{ProgressBarState, WindowBuilder},
-    AppHandle, CursorIcon, Icon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
+    AppHandle, CursorIcon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Window,
   };
-
-  #[derive(Deserialize)]
-  #[serde(untagged)]
-  pub enum IconDto {
-    #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-    File(std::path::PathBuf),
-    #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-    Raw(Vec<u8>),
-    Rgba {
-      rgba: Vec<u8>,
-      width: u32,
-      height: u32,
-    },
-  }
-
-  impl From<IconDto> for Icon {
-    fn from(icon: IconDto) -> Self {
-      match icon {
-        #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-        IconDto::File(path) => Self::File(path),
-        #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-        IconDto::Raw(raw) => Self::Raw(raw),
-        IconDto::Rgba {
-          rgba,
-          width,
-          height,
-        } => Self::Rgba {
-          rgba,
-          width,
-          height,
-        },
-      }
-    }
-  }
 
   #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
@@ -169,10 +134,10 @@ mod desktop_commands {
   pub async fn set_icon<R: Runtime>(
     window: Window<R>,
     label: Option<String>,
-    value: IconDto,
+    value: crate::image::JsIcon<'_>,
   ) -> crate::Result<()> {
     get_window(window, label)?
-      .set_icon(value.into())
+      .set_icon(value.try_into()?)
       .map_err(Into::into)
   }
 

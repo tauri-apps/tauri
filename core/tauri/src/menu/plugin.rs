@@ -13,11 +13,12 @@ use tauri_runtime::window::dpi::Position;
 use super::{sealed::ContextMenuBase, *};
 use crate::{
   command,
+  image::JsIcon,
   ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
   resources::{ResourceId, ResourceTable},
   sealed::ManagerBase,
-  AppHandle, IconDto, Manager, RunEvent, Runtime, State, Webview, Window,
+  AppHandle, Manager, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
 
@@ -33,7 +34,7 @@ pub(crate) enum ItemKind {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AboutMetadata {
+pub(crate) struct AboutMetadata<'a> {
   pub name: Option<String>,
   pub version: Option<String>,
   pub short_version: Option<String>,
@@ -44,12 +45,20 @@ pub(crate) struct AboutMetadata {
   pub website: Option<String>,
   pub website_label: Option<String>,
   pub credits: Option<String>,
-  pub icon: Option<IconDto>,
+  #[serde(borrow)]
+  pub icon: Option<JsIcon<'a>>,
 }
 
-impl From<AboutMetadata> for super::AboutMetadata {
-  fn from(value: AboutMetadata) -> Self {
-    Self {
+impl<'a> TryFrom<AboutMetadata<'a>> for super::AboutMetadata<'a> {
+  type Error = crate::Error;
+
+  fn try_from(value: AboutMetadata<'a>) -> Result<Self, Self::Error> {
+    let icon = match value.icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+
+    Ok(Self {
       name: value.name,
       version: value.version,
       short_version: value.short_version,
@@ -60,14 +69,14 @@ impl From<AboutMetadata> for super::AboutMetadata {
       website: value.website,
       website_label: value.website_label,
       credits: value.credits,
-      icon: value.icon.map(Into::into),
-    }
+      icon,
+    })
   }
 }
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Deserialize)]
-enum Predefined {
+enum Predefined<'a> {
   Separator,
   Copy,
   Cut,
@@ -83,19 +92,21 @@ enum Predefined {
   ShowAll,
   CloseWindow,
   Quit,
-  About(Option<AboutMetadata>),
+  #[serde(borrow)]
+  About(Option<AboutMetadata<'a>>),
   Services,
 }
 
 #[derive(Deserialize)]
-struct SubmenuPayload {
+struct SubmenuPayload<'a> {
   id: Option<MenuId>,
   text: String,
   enabled: Option<bool>,
-  items: Vec<MenuItemPayloadKind>,
+  #[serde(borrow)]
+  items: Vec<MenuItemPayloadKind<'a>>,
 }
 
-impl SubmenuPayload {
+impl<'a> SubmenuPayload<'a> {
   pub fn create_item<R: Runtime>(
     self,
     webview: &Webview<R>,
@@ -159,23 +170,25 @@ impl CheckMenuItemPayload {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum Icon {
+enum Icon<'a> {
   Native(NativeIcon),
-  Icon(IconDto),
+  #[serde(borrow)]
+  Icon(JsIcon<'a>),
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct IconMenuItemPayload {
+struct IconMenuItemPayload<'a> {
   handler: Option<JavaScriptChannelId>,
   id: Option<MenuId>,
   text: String,
-  icon: Icon,
+  #[serde(borrow)]
+  icon: Icon<'a>,
   enabled: Option<bool>,
   accelerator: Option<String>,
 }
 
-impl IconMenuItemPayload {
+impl<'a> IconMenuItemPayload<'a> {
   pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<IconMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       IconMenuItemBuilder::with_id(id, self.text)
@@ -190,7 +203,7 @@ impl IconMenuItemPayload {
     }
     builder = match self.icon {
       Icon::Native(native_icon) => builder.native_icon(native_icon),
-      Icon::Icon(icon) => builder.icon(icon.into()),
+      Icon::Icon(icon) => builder.icon(icon.try_into()?),
     };
 
     let item = builder.build(webview)?;
@@ -249,12 +262,13 @@ impl MenuItemPayload {
 }
 
 #[derive(Deserialize)]
-struct PredefinedMenuItemPayload {
-  item: Predefined,
+struct PredefinedMenuItemPayload<'a> {
+  #[serde(borrow)]
+  item: Predefined<'a>,
   text: Option<String>,
 }
 
-impl PredefinedMenuItemPayload {
+impl<'a> PredefinedMenuItemPayload<'a> {
   pub fn create_item<R: Runtime>(
     self,
     webview: &Webview<R>,
@@ -276,7 +290,11 @@ impl PredefinedMenuItemPayload {
       Predefined::CloseWindow => PredefinedMenuItem::close_window(webview, self.text.as_deref()),
       Predefined::Quit => PredefinedMenuItem::quit(webview, self.text.as_deref()),
       Predefined::About(metadata) => {
-        PredefinedMenuItem::about(webview, self.text.as_deref(), metadata.map(Into::into))
+        let metadata = match metadata {
+          Some(m) => Some(m.try_into()?),
+          None => None,
+        };
+        PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
       }
       Predefined::Services => PredefinedMenuItem::services(webview, self.text.as_deref()),
     }
@@ -285,16 +303,19 @@ impl PredefinedMenuItemPayload {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum MenuItemPayloadKind {
+enum MenuItemPayloadKind<'a> {
   ExistingItem((ResourceId, ItemKind)),
-  Predefined(PredefinedMenuItemPayload),
+  #[serde(borrow)]
+  Predefined(PredefinedMenuItemPayload<'a>),
   Check(CheckMenuItemPayload),
-  Submenu(SubmenuPayload),
-  Icon(IconMenuItemPayload),
+  #[serde(borrow)]
+  Submenu(SubmenuPayload<'a>),
+  #[serde(borrow)]
+  Icon(IconMenuItemPayload<'a>),
   MenuItem(MenuItemPayload),
 }
 
-impl MenuItemPayloadKind {
+impl<'a> MenuItemPayloadKind<'a> {
   pub fn with_item<T, R: Runtime, F: FnOnce(&dyn IsMenuItem<R>) -> crate::Result<T>>(
     self,
     webview: &Webview<R>,
@@ -316,16 +337,18 @@ impl MenuItemPayloadKind {
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct NewOptions {
+struct NewOptions<'a> {
   id: Option<MenuId>,
   text: Option<String>,
   enabled: Option<bool>,
   checked: Option<bool>,
   accelerator: Option<String>,
-  #[serde(rename = "item")]
-  predefined_item: Option<Predefined>,
-  icon: Option<Icon>,
-  items: Option<Vec<MenuItemPayloadKind>>,
+  #[serde(borrow, rename = "item")]
+  predefined_item: Option<Predefined<'a>>,
+  #[serde(borrow)]
+  icon: Option<Icon<'a>>,
+  #[serde(borrow)]
+  items: Option<Vec<MenuItemPayloadKind<'a>>>,
 }
 
 #[command(root = "crate")]
@@ -333,7 +356,7 @@ fn new<R: Runtime>(
   app: AppHandle<R>,
   webview: Webview<R>,
   kind: ItemKind,
-  options: Option<NewOptions>,
+  options: Option<NewOptions<'_>>,
   channels: State<'_, MenuChannels>,
   handler: Channel,
 ) -> crate::Result<(ResourceId, MenuId)> {
@@ -441,7 +464,7 @@ fn append<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
-  items: Vec<MenuItemPayloadKind>,
+  items: Vec<MenuItemPayloadKind<'_>>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   match kind {
@@ -468,7 +491,7 @@ fn prepend<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
-  items: Vec<MenuItemPayloadKind>,
+  items: Vec<MenuItemPayloadKind<'_>>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   match kind {
@@ -495,7 +518,7 @@ fn insert<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
-  items: Vec<MenuItemPayloadKind>,
+  items: Vec<MenuItemPayloadKind<'_>>,
   mut position: usize,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
@@ -822,13 +845,14 @@ fn set_checked<R: Runtime>(app: AppHandle<R>, rid: ResourceId, checked: bool) ->
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  icon: Option<Icon>,
+  icon: Option<Icon<'_>>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
+
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
-    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.into())),
+    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.try_into()?)),
     None => {
       icon_item.set_icon(None)?;
       icon_item.set_native_icon(None)?;

@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### New Features
+
+- [`d7f56fef`](https://www.github.com/tauri-apps/tauri/commit/d7f56fef85cac3af4e2dbac1eac40e5567b1f160)([#9014](https://www.github.com/tauri-apps/tauri/pull/9014)) Allow defining a permission that only applies to a set of target platforms via the `platforms` configuration option.
+
+### Enhancements
+
+- [`04440edc`](https://www.github.com/tauri-apps/tauri/commit/04440edce870f9d06055616034941d79443d5a87)([#9019](https://www.github.com/tauri-apps/tauri/pull/9019)) Changed plugin markdown docs generation to table format.
+
+### Breaking Changes
+
+- [`3657ad82`](https://www.github.com/tauri-apps/tauri/commit/3657ad82f88ce528551d032d521c52eed3f396b4)([#9008](https://www.github.com/tauri-apps/tauri/pull/9008)) Allow defining permissions for the application commands via `tauri_build::Attributes::app_manifest`.
+
 ## \[2.0.0-beta.5]
 
 ### Enhancements

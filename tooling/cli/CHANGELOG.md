@@ -1,5 +1,22 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Bug Fixes
+
+- [`f5f3ed5f`](https://www.github.com/tauri-apps/tauri/commit/f5f3ed5f6faa0b51e83244acc15e9006299a03ba)([#9009](https://www.github.com/tauri-apps/tauri/pull/9009)) Fixes Android and iOS project initialization when the Tauri CLI is on a different disk partition.
+- [`d7d03c71`](https://www.github.com/tauri-apps/tauri/commit/d7d03c7197212f3a5bebe08c929417d60927eb89)([#9017](https://www.github.com/tauri-apps/tauri/pull/9017)) Fixes dev watcher on mobile dev.
+- [`b658ded6`](https://www.github.com/tauri-apps/tauri/commit/b658ded614cfc169228cb22ad5bfc64478dfe161)([#9015](https://www.github.com/tauri-apps/tauri/pull/9015)) Fixes truncation of existing BuildTask.kt when running `tauri android init`.
+
+### What's Changed
+
+- [`3657ad82`](https://www.github.com/tauri-apps/tauri/commit/3657ad82f88ce528551d032d521c52eed3f396b4)([#9008](https://www.github.com/tauri-apps/tauri/pull/9008)) Updates to new ACL manifest path.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-bundler@2.0.1-beta.2`
+
 ## \[2.0.0-beta.5]
 
 ### New Features

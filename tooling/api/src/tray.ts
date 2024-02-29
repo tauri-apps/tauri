@@ -51,11 +51,11 @@ export interface TrayIconOptions {
   /**
    * The tray icon which could be icon bytes or path to the icon file.
    *
-   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
-   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
   icon?: string | Uint8Array | number[]

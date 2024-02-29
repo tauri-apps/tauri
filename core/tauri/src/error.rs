@@ -40,6 +40,9 @@ pub enum Error {
   /// Webview label must be unique.
   #[error("a webview with label `{0}` already exists")]
   WebviewLabelAlreadyExists(String),
+  /// Cannot use the webview reparent function on webview windows.
+  #[error("cannot reparent when using a WebviewWindow")]
+  CannotReparentWebviewWindow,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
@@ -79,7 +82,7 @@ pub enum Error {
   #[error("invalid glob pattern: {0}")]
   GlobPattern(#[from] glob::PatternError),
   /// Error decoding PNG image.
-  #[cfg(feature = "icon-png")]
+  #[cfg(feature = "image-png")]
   #[error("failed to decode PNG: {0}")]
   PngDecode(#[from] png::DecodingError),
   /// The Window's raw handle is invalid for the platform.

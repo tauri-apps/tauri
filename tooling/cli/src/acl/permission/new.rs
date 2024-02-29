@@ -12,7 +12,7 @@ use crate::{
   Result,
 };
 
-use tauri_utils::acl::{plugin::PermissionFile, Commands, Permission};
+use tauri_utils::acl::{manifest::PermissionFile, Commands, Permission};
 
 #[derive(Debug, Parser)]
 #[clap(about = "Create a new permission file")]
@@ -63,6 +63,7 @@ pub fn command(options: Options) -> Result<()> {
     description,
     commands: Commands { allow, deny },
     scope: Default::default(),
+    platforms: Default::default(),
   };
 
   let path = match options.out {

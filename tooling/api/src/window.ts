@@ -1383,11 +1383,11 @@ class Window {
    * await getCurrent().setIcon('/tauri/awesome.png');
    * ```
    *
-   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
-   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    *
    * @param icon Icon bytes or path to the icon file.

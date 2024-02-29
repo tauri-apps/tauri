@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Bug Fixes
+
+- [`222a96b7`](https://www.github.com/tauri-apps/tauri/commit/222a96b74b145fb48d3f0c109897962d56fae57a)([#8999](https://www.github.com/tauri-apps/tauri/pull/8999)) Fixes auto resize and positioning when using the multiwebview mode.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-runtime@2.0.0-beta.6`
+
 ## \[2.0.0-beta.5]
 
 ### Dependencies

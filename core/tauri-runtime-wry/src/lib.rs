@@ -418,16 +418,12 @@ impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
 /// Wrapper around a [`tao::window::Icon`] that can be created from an [`Icon`].
 pub struct TaoIcon(pub TaoWindowIcon);
 
-fn icon_err<E: std::error::Error + Send + Sync + 'static>(e: E) -> Error {
-  Error::InvalidIcon(Box::new(e))
-}
-
-impl TryFrom<Icon> for TaoIcon {
+impl TryFrom<Icon<'_>> for TaoIcon {
   type Error = Error;
-  fn try_from(icon: Icon) -> std::result::Result<Self, Self::Error> {
-    TaoWindowIcon::from_rgba(icon.rgba, icon.width, icon.height)
+  fn try_from(icon: Icon<'_>) -> std::result::Result<Self, Self::Error> {
+    TaoWindowIcon::from_rgba(icon.rgba.to_vec(), icon.width, icon.height)
       .map(Self)
-      .map_err(icon_err)
+      .map_err(|e| Error::InvalidIcon(Box::new(e)))
   }
 }
 
@@ -2829,10 +2825,10 @@ fn handle_user_message<T: UserEvent>(
             bounds.height = size.height;
 
             if let Some(b) = &webview.bounds {
-              let window_size = window.inner_size();
+              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
               let mut bounds = b.lock().unwrap();
-              bounds.width_rate = size.width as f32 / window_size.width as f32;
-              bounds.height_rate = size.height as f32 / window_size.height as f32;
+              bounds.width_rate = size.width as f32 / window_size.width;
+              bounds.height_rate = size.height as f32 / window_size.height;
             }
 
             webview.set_bounds(bounds);
@@ -2844,10 +2840,11 @@ fn handle_user_message<T: UserEvent>(
             bounds.y = position.y;
 
             if let Some(b) = &webview.bounds {
-              let window_size = window.inner_size();
+              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
               let mut bounds = b.lock().unwrap();
-              bounds.width_rate = position.x as f32 / window_size.width as f32;
-              bounds.height_rate = position.y as f32 / window_size.height as f32;
+
+              bounds.x_rate = position.x as f32 / window_size.width;
+              bounds.y_rate = position.y as f32 / window_size.height;
             }
 
             webview.set_bounds(bounds);
@@ -2913,7 +2910,6 @@ fn handle_user_message<T: UserEvent>(
               f(webview.handle())
             }
           }
-
           #[cfg(any(debug_assertions, feature = "devtools"))]
           WebviewMessage::OpenDevTools => {
             webview.open_devtools();
@@ -2940,6 +2936,7 @@ fn handle_user_message<T: UserEvent>(
           Ok(webview) => {
             windows.0.borrow_mut().get_mut(&window_id).map(|w| {
               w.webviews.push(webview);
+              w.has_children.store(true, Ordering::Relaxed);
               w
             });
           }
@@ -3181,20 +3178,21 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
           TaoWindowEvent::Resized(size) => {
-            if let Some(webviews) = windows
+            if let Some((Some(window), webviews)) = windows
               .0
               .borrow()
               .get(&window_id)
-              .map(|w| w.webviews.clone())
+              .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
+              let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
                 if let Some(bounds) = &webview.bounds {
                   let b = bounds.lock().unwrap();
                   webview.set_bounds(wry::Rect {
-                    x: (size.width as f32 * b.x_rate) as i32,
-                    y: (size.height as f32 * b.y_rate) as i32,
-                    width: (size.width as f32 * b.width_rate) as u32,
-                    height: (size.height as f32 * b.height_rate) as u32,
+                    x: (size.width * b.x_rate) as i32,
+                    y: (size.height * b.y_rate) as i32,
+                    width: (size.width * b.width_rate) as u32,
+                    height: (size.height * b.height_rate) as u32,
                   });
                 }
               }
@@ -3594,7 +3592,8 @@ fn create_webview<T: UserEvent>(
 
   if let Some(navigation_handler) = pending.navigation_handler {
     webview_builder = webview_builder.with_navigation_handler(move |url| {
-      Url::parse(&url)
+      url
+        .parse()
         .map(|url| navigation_handler(&url))
         .unwrap_or(true)
     });
@@ -3610,14 +3609,14 @@ fn create_webview<T: UserEvent>(
       height: size.height,
     });
 
-    let window_size = window.inner_size();
+    let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
 
     if webview_attributes.auto_resize {
       Some(WebviewBounds {
-        x_rate: (position.x as f32) / window_size.width as f32,
-        y_rate: (position.y as f32) / window_size.height as f32,
-        width_rate: (size.width as f32) / window_size.width as f32,
-        height_rate: (size.height as f32) / window_size.height as f32,
+        x_rate: (position.x as f32) / window_size.width,
+        y_rate: (position.y as f32) / window_size.height,
+        width_rate: (size.width as f32) / window_size.width,
+        height_rate: (size.height as f32) / window_size.height,
       })
     } else {
       None
@@ -3647,7 +3646,7 @@ fn create_webview<T: UserEvent>(
 
   if let Some(page_load_handler) = pending.on_page_load_handler {
     webview_builder = webview_builder.with_on_page_load_handler(move |event, url| {
-      let _ = Url::parse(&url).map(|url| {
+      let _ = url.parse().map(|url| {
         page_load_handler(
           url,
           match event {

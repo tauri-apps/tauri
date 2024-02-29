@@ -15,7 +15,7 @@ const CRATE_TYPES: [&str; 3] = ["lib", "staticlib", "cdylib"];
 
 pub fn migrate(tauri_dir: &Path) -> Result<()> {
   let manifest_path = tauri_dir.join("Cargo.toml");
-  let mut manifest = read_manifest(&manifest_path)?;
+  let (mut manifest, _) = read_manifest(&manifest_path)?;
   migrate_manifest(&mut manifest)?;
 
   let mut manifest_file =

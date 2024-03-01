@@ -45,7 +45,7 @@ fn from_path<R: Runtime>(app: AppHandle<R>, image: JsImage<'_>) -> crate::Result
 }
 
 #[command(root = "crate")]
-fn rgba<'a, R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
+fn rgba<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
   let resources_table = app.resources_table();
   let image = resources_table.get::<Image<'_>>(rid)?;
   Ok(image.rgba().to_vec())

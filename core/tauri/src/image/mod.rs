@@ -211,7 +211,7 @@ impl<'a> JsImage<'a> {
           ErrorKind::InvalidInput,
           format!(
             "expected RGBA image data, found {}",
-            match img {
+            match self {
               JsImage::Path(_) => "a file path",
               JsImage::Bytes(_) => "raw bytes",
               _ => unreachable!(),

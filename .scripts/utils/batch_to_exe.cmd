@@ -1,10 +1,10 @@
-: Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+: Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 : SPDX-License-Identifier: Apache-2.0
 : SPDX-License-Identifier: MIT
 
 @ECHO OFF
 
-REM Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+REM Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 REM SPDX-License-Identifier: Apache-2.0
 REM SPDX-License-Identifier: MIT
 

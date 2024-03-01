@@ -135,7 +135,10 @@ impl<'a> Image<'a> {
   /// This will allocate.
   pub fn to_owned(self) -> Image<'static> {
     Image {
-      rgba: Cow::Owned(self.rgba.to_vec()),
+      rgba: match self.rgba {
+        Cow::Owned(v) => Cow::Owned(v),
+        Cow::Borrowed(v) => Cow::Owned(v.to_vec()),
+      },
       height: self.height,
       width: self.width,
     }
@@ -190,29 +193,17 @@ impl<'a> JsImage<'a> {
         let resources_table = app.resources_table();
         resources_table.get::<Image<'static>>(rid)
       }
-      _ => self.try_into().map(Arc::new),
-    }
-  }
-}
-
-impl<'a> TryFrom<JsImage<'a>> for Image<'a> {
-  type Error = crate::Error;
-
-  fn try_from(img: JsImage<'a>) -> Result<Self, Self::Error> {
-    match img {
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      JsImage::Path(path) => Self::from_path(path).map_err(Into::into),
+      Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
 
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      JsImage::Bytes(bytes) => Self::from_bytes(bytes).map_err(Into::into),
+      Self::Bytes(bytes) => Image::from_bytes(bytes).map(Arc::new).map_err(Into::into),
 
-      JsImage::Rgba {
+      Self::Rgba {
         rgba,
         width,
         height,
-      } => Ok(Self::new(rgba, width, height)),
-
-      JsImage::Resource(_) => unreachable!(),
+      } => Ok(Arc::new(Image::new(rgba, width, height))),
 
       #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
       _ => Err(

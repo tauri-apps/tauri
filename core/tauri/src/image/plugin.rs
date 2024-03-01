@@ -5,46 +5,41 @@
 use crate::plugin::{Builder, TauriPlugin};
 use crate::{command, AppHandle, Image, Manager, ResourceId, Runtime};
 
+use std::sync::Arc;
+
 use super::JsImage;
 
 #[command(root = "crate")]
-fn new<R: Runtime>(app: AppHandle<R>, image: JsImage<'_>) -> crate::Result<ResourceId> {
-  let image: Image<'_> = image.try_into()?;
-  let image = image.to_owned();
+fn new<R: Runtime>(
+  app: AppHandle<R>,
+  rgba: Vec<u8>,
+  width: u32,
+  height: u32,
+) -> crate::Result<ResourceId> {
+  let image = JsImage::Rgba {
+    rgba: &rgba,
+    width,
+    height,
+  }
+  .into_img(&app)?;
   let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
+  let rid = resources_table.add(Arc::try_unwrap(image).unwrap().to_owned());
   Ok(rid)
 }
+
 #[command(root = "crate")]
-fn from_png_bytes<R: Runtime>(app: AppHandle<R>, image: JsImage<'_>) -> crate::Result<ResourceId> {
-  let image: Image<'_> = image.try_into()?;
-  let image = image.to_owned();
+fn from_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
+  let image = JsImage::Bytes(&bytes).into_img(&app)?;
   let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
+  let rid = resources_table.add(Arc::try_unwrap(image).unwrap().to_owned());
   Ok(rid)
 }
+
 #[command(root = "crate")]
-fn from_ico_bytes<R: Runtime>(app: AppHandle<R>, image: JsImage<'_>) -> crate::Result<ResourceId> {
-  let image: Image<'_> = image.try_into()?;
-  let image = image.to_owned();
+fn from_path<R: Runtime>(app: AppHandle<R>, path: std::path::PathBuf) -> crate::Result<ResourceId> {
+  let image = JsImage::Path(path).into_img(&app)?.to_owned();
   let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
-  Ok(rid)
-}
-#[command(root = "crate")]
-fn from_bytes<R: Runtime>(app: AppHandle<R>, image: JsImage<'_>) -> crate::Result<ResourceId> {
-  let image: Image<'_> = image.try_into()?;
-  let image = image.to_owned();
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
-  Ok(rid)
-}
-#[command(root = "crate")]
-fn from_path<R: Runtime>(app: AppHandle<R>, image: JsImage<'_>) -> crate::Result<ResourceId> {
-  let image: Image<'_> = image.try_into()?;
-  let image = image.to_owned();
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
+  let rid = resources_table.add(Arc::try_unwrap(image).unwrap());
   Ok(rid)
 }
 
@@ -73,14 +68,7 @@ fn height<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<u32> 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("image")
     .invoke_handler(crate::generate_handler![
-      new,
-      from_png_bytes,
-      from_ico_bytes,
-      from_bytes,
-      from_path,
-      rgba,
-      width,
-      height
+      new, from_bytes, from_path, rgba, width, height
     ])
     .build()
 }

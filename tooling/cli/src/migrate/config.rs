@@ -14,7 +14,7 @@ use tauri_utils::{
 };
 
 use std::{
-  collections::HashSet,
+  collections::{BTreeMap, HashSet},
   fs::{create_dir_all, write},
   path::Path,
 };
@@ -443,7 +443,11 @@ fn allowlist_to_permissions(
       .scope
       .0
       .into_iter()
-      .map(|p| AclValue::String(p.to_string()))
+      .map(|p| {
+        let mut map = BTreeMap::new();
+        map.insert("url".to_string(), AclValue::String(p.to_string()));
+        AclValue::Map(map)
+      })
       .collect::<Vec<_>>();
 
     permissions.push(PermissionEntry::ExtendedPermission {

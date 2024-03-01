@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use crate::{
   command,
-  image::JsIcon,
+  image::JsImage,
   ipc::Channel,
   menu::{plugin::ItemKind, Menu, Submenu},
   plugin::{Builder, TauriPlugin},
@@ -25,7 +25,7 @@ struct TrayIconOptions<'a> {
   id: Option<String>,
   menu: Option<(ResourceId, ItemKind)>,
   #[serde(borrow)]
-  icon: Option<JsIcon<'a>>,
+  icon: Option<JsImage<'a>>,
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
@@ -65,7 +65,7 @@ fn new<R: Runtime>(
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(icon.try_into()?);
+    builder = builder.icon(icon.into_img(&app)?.as_ref().clone());
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -94,12 +94,12 @@ fn new<R: Runtime>(
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  icon: Option<JsIcon<'_>>,
+  icon: Option<JsImage<'_>>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   let icon = match icon {
-    Some(i) => Some(i.try_into()?),
+    Some(i) => Some(i.into_img(&app)?.as_ref().clone()),
     None => None,
   };
   tray.set_icon(icon)

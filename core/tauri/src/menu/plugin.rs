@@ -13,7 +13,7 @@ use tauri_runtime::window::dpi::Position;
 use super::{sealed::ContextMenuBase, *};
 use crate::{
   command,
-  image::JsIcon,
+  image::JsImage,
   ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
   resources::{ResourceId, ResourceTable},
@@ -46,29 +46,30 @@ pub(crate) struct AboutMetadata<'a> {
   pub website_label: Option<String>,
   pub credits: Option<String>,
   #[serde(borrow)]
-  pub icon: Option<JsIcon<'a>>,
+  pub icon: Option<JsImage<'a>>,
 }
 
-impl<'a> TryFrom<AboutMetadata<'a>> for super::AboutMetadata<'a> {
-  type Error = crate::Error;
-
-  fn try_from(value: AboutMetadata<'a>) -> Result<Self, Self::Error> {
-    let icon = match value.icon {
-      Some(i) => Some(i.try_into()?),
+impl<'a> AboutMetadata<'a> {
+  pub fn into_metdata<R: Runtime, M: Manager<R>>(
+    self,
+    app: &M,
+  ) -> crate::Result<super::AboutMetadata<'a>> {
+    let icon = match self.icon {
+      Some(i) => Some(i.into_img(app)?.as_ref().clone()),
       None => None,
     };
 
-    Ok(Self {
-      name: value.name,
-      version: value.version,
-      short_version: value.short_version,
-      authors: value.authors,
-      comments: value.comments,
-      copyright: value.copyright,
-      license: value.license,
-      website: value.website,
-      website_label: value.website_label,
-      credits: value.credits,
+    Ok(super::AboutMetadata {
+      name: self.name,
+      version: self.version,
+      short_version: self.short_version,
+      authors: self.authors,
+      comments: self.comments,
+      copyright: self.copyright,
+      license: self.license,
+      website: self.website,
+      website_label: self.website_label,
+      credits: self.credits,
       icon,
     })
   }
@@ -173,7 +174,7 @@ impl CheckMenuItemPayload {
 enum Icon<'a> {
   Native(NativeIcon),
   #[serde(borrow)]
-  Icon(JsIcon<'a>),
+  Icon(JsImage<'a>),
 }
 
 #[derive(Deserialize)]
@@ -203,7 +204,7 @@ impl<'a> IconMenuItemPayload<'a> {
     }
     builder = match self.icon {
       Icon::Native(native_icon) => builder.native_icon(native_icon),
-      Icon::Icon(icon) => builder.icon(icon.try_into()?),
+      Icon::Icon(icon) => builder.icon(icon.into_img(webview)?.as_ref().clone()),
     };
 
     let item = builder.build(webview)?;
@@ -291,7 +292,7 @@ impl<'a> PredefinedMenuItemPayload<'a> {
       Predefined::Quit => PredefinedMenuItem::quit(webview, self.text.as_deref()),
       Predefined::About(metadata) => {
         let metadata = match metadata {
-          Some(m) => Some(m.try_into()?),
+          Some(m) => Some(m.into_metdata(webview)?),
           None => None,
         };
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
@@ -852,7 +853,7 @@ fn set_icon<R: Runtime>(
 
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
-    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.try_into()?)),
+    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.into_img(&app)?.as_ref().clone())),
     None => {
       icon_item.set_icon(None)?;
       icon_item.set_native_icon(None)?;

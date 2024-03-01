@@ -36,6 +36,7 @@ import {
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
 import type { FileDropEvent, FileDropPayload } from './webview'
+import { Image, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -1393,10 +1394,12 @@ class Window {
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(icon: string | Uint8Array): Promise<void> {
+  async setIcon(
+    icon: string | Image | Uint8Array | ArrayBuffer | number[]
+  ): Promise<void> {
     return invoke('plugin:window|set_icon', {
       label: this.label,
-      value: typeof icon === 'string' ? icon : Array.from(icon)
+      value: transformImage(icon)
     })
   }
 

@@ -4,6 +4,7 @@
 
 import { MenuItemBase, newMenu } from './base'
 import { invoke } from '../core'
+import { Image } from '../image'
 
 /** A metadata for the about predefined menu item. */
 export interface AboutMetadata {
@@ -76,7 +77,7 @@ export interface AboutMetadata {
    *
    * - **Windows:** Unsupported.
    */
-  icon?: string | Uint8Array
+  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
 }
 
 /** Options for creating a new predefined menu item. */

@@ -10,6 +10,7 @@
     "webview:default",
     "app:default",
     "resources:default",
+    "image:default",
     "menu:default",
     "tray:default"
   ]

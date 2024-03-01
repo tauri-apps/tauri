@@ -215,6 +215,7 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         uses: peter-evans/repository-dispatch@v1
         with:
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           event-type: publish-js-cli
           client-payload: >-
             {"releaseId": "${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}" }
@@ -225,4 +226,5 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         uses: peter-evans/repository-dispatch@v1
         with:
+          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
           event-type: publish-clirs

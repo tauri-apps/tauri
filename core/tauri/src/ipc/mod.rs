@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -24,7 +24,10 @@ mod command;
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 
-pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority, ScopeObject, ScopeValue};
+pub use authority::{
+  CapabilityBuilder, CommandScope, GlobalScope, Origin, RuntimeAuthority, RuntimeCapability,
+  ScopeObject, ScopeValue,
+};
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{private, CommandArg, CommandItem};
 

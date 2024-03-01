@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -22,10 +22,7 @@ use tauri_runtime::{
   window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
 };
-use tauri_utils::{
-  acl::APP_ACL_KEY,
-  config::{WebviewUrl, WindowConfig},
-};
+use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
@@ -1192,7 +1189,7 @@ fn main() {
       {
         let (key, command_name) = plugin_command
           .clone()
-          .unwrap_or_else(|| (APP_ACL_KEY, request.cmd.clone()));
+          .unwrap_or_else(|| (tauri_utils::acl::APP_ACL_KEY, request.cmd.clone()));
         invoke.resolver.reject(
           manager
             .runtime_authority

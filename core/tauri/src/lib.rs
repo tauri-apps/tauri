@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -69,7 +69,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use ipc::RuntimeAuthority;
+use ipc::{RuntimeAuthority, RuntimeCapability};
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -888,13 +888,13 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///     Ok(())
   ///   });
   /// ```
-  fn add_capability(&self, capability: &'static str) -> Result<()> {
+  fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()
       .runtime_authority
       .lock()
       .unwrap()
-      .add_capability(capability.parse().expect("invalid capability"))
+      .add_capability(capability)
   }
 }
 

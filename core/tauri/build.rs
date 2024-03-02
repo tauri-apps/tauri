@@ -142,6 +142,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     &[
       ("new", true),
       ("from_bytes", true),
+      ("from_png_bytes", true),
+      ("from_ico_bytes", true),
       ("from_path", true),
       ("rgba", true),
       ("width", true),

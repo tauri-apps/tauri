@@ -5,10 +5,6 @@
 use crate::plugin::{Builder, TauriPlugin};
 use crate::{command, AppHandle, Image, Manager, ResourceId, Runtime};
 
-use std::sync::Arc;
-
-use super::JsImage;
-
 #[command(root = "crate")]
 fn new<R: Runtime>(
   app: AppHandle<R>,
@@ -16,31 +12,40 @@ fn new<R: Runtime>(
   width: u32,
   height: u32,
 ) -> crate::Result<ResourceId> {
-  let image = JsImage::Rgba {
-    rgba: &rgba,
-    width,
-    height,
-  }
-  .into_img(&app)?;
+  let image = Image::new_owned(rgba, width, height);
   let mut resources_table = app.resources_table();
-  let rid = resources_table.add(Arc::try_unwrap(image).unwrap().to_owned());
+  let rid = resources_table.add(image);
   Ok(rid)
 }
 
+#[cfg(any(feature = "image-ico", feature = "image-png"))]
 #[command(root = "crate")]
 fn from_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
-  let image = JsImage::Bytes(&bytes).into_img(&app)?;
+  let image = Image::from_bytes(&bytes)?.to_owned();
   let mut resources_table = app.resources_table();
-  let rid = resources_table.add(Arc::try_unwrap(image).unwrap().to_owned());
+  let rid = resources_table.add(image);
   Ok(rid)
 }
 
+#[cfg(not(any(feature = "image-ico", feature = "image-png")))]
+#[command(root = "crate")]
+fn from_bytes<R: Runtime>() -> std::result::Result<(), &'static str> {
+  Err("from_bytes is only supported if the `image-ico` or `image-png` Cargo features are enabled")
+}
+
+#[cfg(any(feature = "image-ico", feature = "image-png"))]
 #[command(root = "crate")]
 fn from_path<R: Runtime>(app: AppHandle<R>, path: std::path::PathBuf) -> crate::Result<ResourceId> {
-  let image = JsImage::Path(path).into_img(&app)?.to_owned();
+  let image = Image::from_path(path)?.to_owned();
   let mut resources_table = app.resources_table();
-  let rid = resources_table.add(Arc::try_unwrap(image).unwrap());
+  let rid = resources_table.add(image);
   Ok(rid)
+}
+
+#[cfg(not(any(feature = "image-ico", feature = "image-png")))]
+#[command(root = "crate")]
+fn from_path<R: Runtime>() -> std::result::Result<(), &'static str> {
+  Err("from_path is only supported if the `image-ico` or `image-png` Cargo features are enabled")
 }
 
 #[command(root = "crate")]

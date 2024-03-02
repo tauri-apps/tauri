@@ -20,6 +20,19 @@ pub struct Image<'a> {
 
 impl Resource for Image<'static> {}
 
+impl Image<'static> {
+  /// Creates a new Image using RGBA data, in row-major order from top to bottom, and with specified width and height.
+  ///
+  /// Similar to [`Self::new`] but avoids cloning the rgba data to get an owned Image.
+  pub const fn new_owned(rgba: Vec<u8>, width: u32, height: u32) -> Self {
+    Self {
+      rgba: Cow::Owned(rgba),
+      width,
+      height,
+    }
+  }
+}
+
 impl<'a> Image<'a> {
   /// Creates a new Image using RGBA data, in row-major order from top to bottom, and with specified width and height.
   pub const fn new(rgba: &'a [u8], width: u32, height: u32) -> Self {

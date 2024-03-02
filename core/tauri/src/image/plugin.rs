@@ -29,8 +29,38 @@ fn from_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<Re
 
 #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
 #[command(root = "crate")]
-fn from_bytes<R: Runtime>() -> std::result::Result<(), &'static str> {
+fn from_bytes() -> std::result::Result<(), &'static str> {
   Err("from_bytes is only supported if the `image-ico` or `image-png` Cargo features are enabled")
+}
+
+#[cfg(feature = "image-ico")]
+#[command(root = "crate")]
+fn from_ico_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
+  let image = Image::from_ico_bytes(&bytes)?.to_owned();
+  let mut resources_table = app.resources_table();
+  let rid = resources_table.add(image);
+  Ok(rid)
+}
+
+#[cfg(not(feature = "image-ico"))]
+#[command(root = "crate")]
+fn from_ico_bytes() -> std::result::Result<(), &'static str> {
+  Err("from_ico_bytes is only supported if the `image-ico` Cargo feature is enabled")
+}
+
+#[cfg(feature = "image-png")]
+#[command(root = "crate")]
+fn from_png_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
+  let image = Image::from_png_bytes(&bytes)?.to_owned();
+  let mut resources_table = app.resources_table();
+  let rid = resources_table.add(image);
+  Ok(rid)
+}
+
+#[cfg(not(feature = "image-png"))]
+#[command(root = "crate")]
+fn from_png_bytes() -> std::result::Result<(), &'static str> {
+  Err("from_png_bytes is only supported if the `image-ico` Cargo feature is enabled")
 }
 
 #[cfg(any(feature = "image-ico", feature = "image-png"))]
@@ -44,7 +74,7 @@ fn from_path<R: Runtime>(app: AppHandle<R>, path: std::path::PathBuf) -> crate::
 
 #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
 #[command(root = "crate")]
-fn from_path<R: Runtime>() -> std::result::Result<(), &'static str> {
+fn from_path() -> std::result::Result<(), &'static str> {
   Err("from_path is only supported if the `image-ico` or `image-png` Cargo features are enabled")
 }
 
@@ -73,7 +103,14 @@ fn height<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<u32> 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("image")
     .invoke_handler(crate::generate_handler![
-      new, from_bytes, from_path, rgba, width, height
+      new,
+      from_bytes,
+      from_ico_bytes,
+      from_png_bytes,
+      from_path,
+      rgba,
+      width,
+      height
     ])
     .build()
 }

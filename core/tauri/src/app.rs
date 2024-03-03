@@ -870,6 +870,7 @@ impl<R: Runtime> App<R> {
     self.handle.plugin(crate::webview::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;
     self.handle.plugin(crate::resources::plugin::init())?;
+    self.handle.plugin(crate::image::plugin::init())?;
     #[cfg(desktop)]
     self.handle.plugin(crate::menu::plugin::init())?;
     #[cfg(all(desktop, feature = "tray-icon"))]

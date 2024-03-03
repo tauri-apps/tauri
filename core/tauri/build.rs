@@ -137,6 +137,19 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("app_hide", false),
     ],
   ),
+  (
+    "image",
+    &[
+      ("new", true),
+      ("from_bytes", true),
+      ("from_png_bytes", true),
+      ("from_ico_bytes", true),
+      ("from_path", true),
+      ("rgba", true),
+      ("width", true),
+      ("height", true),
+    ],
+  ),
   ("resources", &[("close", true)]),
   (
     "menu",

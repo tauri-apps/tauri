@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+pub mod plugin;
+
 use std::borrow::Cow;
 use std::io::{Error, ErrorKind};
+use std::sync::Arc;
+
+use crate::{Manager, Resource, ResourceId, Runtime};
 
 /// An RGBA Image in row-major order from top to bottom.
 #[derive(Debug, Clone)]
@@ -11,6 +16,21 @@ pub struct Image<'a> {
   rgba: Cow<'a, [u8]>,
   width: u32,
   height: u32,
+}
+
+impl Resource for Image<'static> {}
+
+impl Image<'static> {
+  /// Creates a new Image using RGBA data, in row-major order from top to bottom, and with specified width and height.
+  ///
+  /// Similar to [`Self::new`] but avoids cloning the rgba data to get an owned Image.
+  pub const fn new_owned(rgba: Vec<u8>, width: u32, height: u32) -> Self {
+    Self {
+      rgba: Cow::Owned(rgba),
+      width,
+      height,
+    }
+  }
 }
 
 impl<'a> Image<'a> {
@@ -123,6 +143,19 @@ impl<'a> Image<'a> {
   pub fn height(&self) -> u32 {
     self.height
   }
+
+  /// Convert into a 'static owned [`Image`].
+  /// This will allocate.
+  pub fn to_owned(self) -> Image<'static> {
+    Image {
+      rgba: match self.rgba {
+        Cow::Owned(v) => Cow::Owned(v),
+        Cow::Borrowed(v) => Cow::Owned(v.to_vec()),
+      },
+      height: self.height,
+      width: self.width,
+    }
+  }
 }
 
 impl<'a> From<Image<'a>> for crate::runtime::Icon<'a> {
@@ -153,12 +186,12 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   }
 }
 
-#[cfg(desktop)]
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
-pub enum JsIcon<'a> {
+pub enum JsImage<'a> {
   Path(std::path::PathBuf),
   Bytes(&'a [u8]),
+  Resource(ResourceId),
   Rgba {
     rgba: &'a [u8],
     width: u32,
@@ -166,23 +199,24 @@ pub enum JsIcon<'a> {
   },
 }
 
-#[cfg(desktop)]
-impl<'a> TryFrom<JsIcon<'a>> for Image<'a> {
-  type Error = crate::Error;
-
-  fn try_from(img: JsIcon<'a>) -> Result<Self, Self::Error> {
-    match img {
+impl<'a> JsImage<'a> {
+  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'a>>> {
+    match self {
+      Self::Resource(rid) => {
+        let resources_table = app.resources_table();
+        resources_table.get::<Image<'static>>(rid)
+      }
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      JsIcon::Path(path) => Self::from_path(path).map_err(Into::into),
+      Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
 
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      JsIcon::Bytes(bytes) => Self::from_bytes(bytes).map_err(Into::into),
+      Self::Bytes(bytes) => Image::from_bytes(bytes).map(Arc::new).map_err(Into::into),
 
-      JsIcon::Rgba {
+      Self::Rgba {
         rgba,
         width,
         height,
-      } => Ok(Self::new(rgba, width, height)),
+      } => Ok(Arc::new(Image::new(rgba, width, height))),
 
       #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
       _ => Err(
@@ -190,9 +224,9 @@ impl<'a> TryFrom<JsIcon<'a>> for Image<'a> {
           ErrorKind::InvalidInput,
           format!(
             "expected RGBA image data, found {}",
-            match img {
-              JsIcon::Path(_) => "a file path",
-              JsIcon::Bytes(_) => "raw bytes",
+            match self {
+              JsImage::Path(_) => "a file path",
+              JsImage::Bytes(_) => "raw bytes",
               _ => unreachable!(),
             }
           ),

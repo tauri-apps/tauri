@@ -23,6 +23,7 @@ import * as path from './path'
 import * as dpi from './dpi'
 import * as tray from './tray'
 import * as menu from './menu'
+import * as image from './image'
 
 export {
   app,
@@ -34,5 +35,6 @@ export {
   webview,
   webviewWindow,
   tray,
-  menu
+  menu,
+  image
 }

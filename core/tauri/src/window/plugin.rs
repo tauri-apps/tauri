@@ -134,10 +134,11 @@ mod desktop_commands {
   pub async fn set_icon<R: Runtime>(
     window: Window<R>,
     label: Option<String>,
-    value: crate::image::JsIcon<'_>,
+    value: crate::image::JsImage<'_>,
   ) -> crate::Result<()> {
-    get_window(window, label)?
-      .set_icon(value.try_into()?)
+    let window = get_window(window, label)?;
+    window
+      .set_icon(value.into_img(&window)?.as_ref().clone())
       .map_err(Into::into)
   }
 

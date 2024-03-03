@@ -4,6 +4,7 @@
 
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
+import { Image, transformImage } from './image'
 
 /**
  * Describes a tray event emitted when a tray icon is clicked
@@ -58,7 +59,7 @@ export interface TrayIconOptions {
    * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  icon?: string | Uint8Array | number[]
+  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -132,10 +133,7 @@ export class TrayIcon extends Resource {
       options.menu = [options.menu.rid, options.menu.kind]
     }
     if (options?.icon) {
-      options.icon =
-        typeof options.icon === 'string'
-          ? options.icon
-          : Array.from(options.icon)
+      options.icon = transformImage(options.icon)
     }
 
     const handler = new Channel<TrayIconEvent>()
@@ -150,11 +148,22 @@ export class TrayIcon extends Resource {
     }).then(([rid, id]) => new TrayIcon(rid, id))
   }
 
-  /** Sets a new tray icon. If `null` is provided, it will remove the icon. */
-  async setIcon(icon: string | Uint8Array | null): Promise<void> {
+  /**
+   *  Sets a new tray icon. If `null` is provided, it will remove the icon.
+   *
+   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   */
+  async setIcon(
+    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null
+  ): Promise<void> {
     let trayIcon = null
     if (icon) {
-      trayIcon = typeof icon === 'string' ? icon : Array.from(icon)
+      trayIcon = transformImage(icon)
     }
     return invoke('plugin:tray|set_icon', { rid: this.rid, icon: trayIcon })
   }

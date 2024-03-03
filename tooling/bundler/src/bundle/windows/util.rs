@@ -167,9 +167,8 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 
 #[cfg(target_os = "windows")]
 pub fn os_bitness<'a>() -> Option<&'a str> {
-  use windows_sys::Win32::System::{
-    Diagnostics::Debug::{PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL},
-    SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO},
+  use windows_sys::Win32::System::SystemInformation::{
+    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
   };
 
   let mut system_info: SYSTEM_INFO = unsafe { std::mem::zeroed() };

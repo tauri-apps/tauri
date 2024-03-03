@@ -85,7 +85,7 @@ impl Source {
         let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
         let scale = size as f32 / svg.size().height();
         resvg::render(
-          &svg,
+          svg,
           tiny_skia::Transform::from_scale(scale, scale),
           &mut pixmap.as_mut(),
         );

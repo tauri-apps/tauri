@@ -18,21 +18,21 @@ exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
 tauri-utils = { version = "2.0.0-beta.6", path = "../../core/tauri-utils", features = [ "resources" ] }
-image = "0.24.7"
+image = "0.24.9"
 flate2 = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-strsim = "0.10.0"
+strsim = "0.11.0"
 tar = "0.4.40"
 walkdir = "2"
-handlebars = "5.0"
-tempfile = "3.8.1"
-log = { version = "0.4.20", features = [ "kv_unstable" ] }
+handlebars = "5.1"
+tempfile = "3.10.1"
+log = { version = "0.4.21", features = [ "kv_unstable" ] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = { version = "2.9.1", default-features = false, features = [ "socks-proxy" ] }
+ureq = { version = "2.9.6", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
@@ -44,11 +44,11 @@ dunce = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
 bitness = "0.4"
-winreg = "0.51"
+winreg = "0.52"
 glob = "0.3"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
-  version = "0.48"
+  version = "0.52"
   features = [
   "Win32_System_SystemInformation",
   "Win32_System_Diagnostics_Debug"

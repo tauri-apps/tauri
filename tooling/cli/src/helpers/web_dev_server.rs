@@ -7,7 +7,7 @@ use axum::{
   http::{header::CONTENT_TYPE, StatusCode, Uri},
   response::IntoResponse,
   routing::get,
-  Router, Server,
+  serve, Router,
 };
 use html5ever::{namespace_url, ns, LocalName, QualName};
 use kuchiki::{traits::TendrilSink, NodeRef};
@@ -73,48 +73,43 @@ pub fn start<P: AsRef<Path>>(path: P, ip: IpAddr, port: Option<u16>) -> crate::R
           1430
         });
 
-        let (server, server_url) = loop {
+        let (listener, server_url) = loop {
           let server_url = SocketAddr::new(ip, port);
-          let server = Server::try_bind(&server_url);
-
-          if !auto_port {
-            break (server, server_url);
+          if let Ok(listener) = tokio::net::TcpListener::bind(server_url).await {
+            break (Some(listener), server_url);
           }
 
-          if server.is_ok() {
-            break (server, server_url);
+          if !auto_port {
+            break (None, server_url);
           }
 
           port += 1;
         };
 
-        let state = Arc::new(State {
-          serve_dir,
-          tx,
-          address: server_url,
-        });
-        let state_ = state.clone();
-        let router = Router::new()
-          .fallback(move |uri| handler(uri, state_))
-          .route(
-            "/__tauri_cli",
-            get(move |ws: WebSocketUpgrade| async move {
-              ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
-            }),
-          );
+        if let Some(listener) = listener {
+          let state = Arc::new(State {
+            serve_dir,
+            tx,
+            address: server_url,
+          });
+          let state_ = state.clone();
+          let router = Router::new()
+            .fallback(move |uri| handler(uri, state_))
+            .route(
+              "/__tauri_cli",
+              get(move |ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
+              }),
+            );
 
-        match server {
-          Ok(server) => {
-            server_url_tx.send(Ok(server_url)).unwrap();
-            server.serve(router.into_make_service()).await.unwrap();
-          }
-          Err(e) => {
-            server_url_tx
-              .send(Err(anyhow::anyhow!(
-                "failed to start development server on {server_url}: {e}"
-              )))
-              .unwrap();
-          }
+          server_url_tx.send(Ok(server_url)).unwrap();
+          serve(listener, router).await.unwrap();
+        } else {
+          server_url_tx
+            .send(Err(anyhow::anyhow!(
+              "failed to start development server on {server_url}"
+            )))
+            .unwrap();
         }
       })
   });

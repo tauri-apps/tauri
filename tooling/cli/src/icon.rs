@@ -23,7 +23,6 @@ use image::{
   imageops::FilterType,
   open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba,
 };
-use resvg::usvg::{fontdb, TreeParsing, TreeTextToPath};
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
 
@@ -61,21 +60,21 @@ pub struct Options {
 }
 
 enum Source {
-  Svg(resvg::Tree),
+  Svg(resvg::usvg::Tree),
   DynamicImage(DynamicImage),
 }
 
 impl Source {
   fn width(&self) -> u32 {
     match self {
-      Self::Svg(svg) => svg.size.width() as u32,
+      Self::Svg(svg) => svg.size().width() as u32,
       Self::DynamicImage(i) => i.width(),
     }
   }
 
   fn height(&self) -> u32 {
     match self {
-      Self::Svg(svg) => svg.size.height() as u32,
+      Self::Svg(svg) => svg.size().height() as u32,
       Self::DynamicImage(i) => i.height(),
     }
   }
@@ -84,8 +83,9 @@ impl Source {
     match self {
       Self::Svg(svg) => {
         let mut pixmap = tiny_skia::Pixmap::new(size, size).unwrap();
-        let scale = size as f32 / svg.size.height();
-        svg.render(
+        let scale = size as f32 / svg.size().height();
+        resvg::render(
+          svg,
           tiny_skia::Transform::from_scale(scale, scale),
           &mut pixmap.as_mut(),
         );
@@ -125,13 +125,8 @@ pub fn command(options: Options) -> Result<()> {
           ..Default::default()
         };
 
-        let mut fontdb = fontdb::Database::new();
-        fontdb.load_system_fonts();
-
         let svg_data = std::fs::read(&input).unwrap();
-        let mut tree = usvg::Tree::from_data(&svg_data, &opt).unwrap();
-        tree.convert_text(&fontdb);
-        resvg::Tree::from_usvg(&tree)
+        usvg::Tree::from_data(&svg_data, &opt, &Default::default()).unwrap()
       };
 
       Source::Svg(rtree)

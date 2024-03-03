@@ -546,7 +546,7 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
-      Ok(())
+    Ok(())
   }
 }
 

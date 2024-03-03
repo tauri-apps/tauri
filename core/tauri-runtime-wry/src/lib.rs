@@ -1174,6 +1174,7 @@ pub enum WebviewMessage {
   SetSize(Size),
   SetFocus,
   Reparent(WindowId),
+  SetAutoResize(bool),
   // Getters
   Url(Sender<Url>),
   Position(Sender<PhysicalPosition<i32>>),
@@ -1382,6 +1383,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
     *current_window_id = window_id;
     Ok(())
+  }
+
+  fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetAutoResize(auto_resize),
+      ),
+    )
   }
 
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
@@ -1883,7 +1895,7 @@ pub struct WebviewWrapper {
   webview_event_listeners: WebviewEventListeners,
   // the key of the WebContext if it's not shared
   context_key: Option<PathBuf>,
-  bounds: Option<Arc<Mutex<WebviewBounds>>>,
+  bounds: Arc<Mutex<Option<WebviewBounds>>>,
 }
 
 impl Deref for WebviewWrapper {
@@ -2824,11 +2836,10 @@ fn handle_user_message<T: UserEvent>(
             bounds.width = size.width;
             bounds.height = size.height;
 
-            if let Some(b) = &webview.bounds {
+            if let Some(b) = &mut *webview.bounds.lock().unwrap() {
               let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-              let mut bounds = b.lock().unwrap();
-              bounds.width_rate = size.width as f32 / window_size.width;
-              bounds.height_rate = size.height as f32 / window_size.height;
+              b.width_rate = size.width as f32 / window_size.width;
+              b.height_rate = size.height as f32 / window_size.height;
             }
 
             webview.set_bounds(bounds);
@@ -2839,12 +2850,10 @@ fn handle_user_message<T: UserEvent>(
             bounds.x = position.x;
             bounds.y = position.y;
 
-            if let Some(b) = &webview.bounds {
+            if let Some(b) = &mut *webview.bounds.lock().unwrap() {
               let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-              let mut bounds = b.lock().unwrap();
-
-              bounds.x_rate = position.x as f32 / window_size.width;
-              bounds.y_rate = position.y as f32 / window_size.height;
+              b.x_rate = position.x as f32 / window_size.width;
+              b.y_rate = position.y as f32 / window_size.height;
             }
 
             webview.set_bounds(bounds);
@@ -2867,6 +2876,20 @@ fn handle_user_message<T: UserEvent>(
           }
           WebviewMessage::SetFocus => {
             webview.focus();
+          }
+          WebviewMessage::SetAutoResize(auto_resize) => {
+            let bounds = webview.bounds();
+            let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+            *webview.bounds.lock().unwrap() = if auto_resize {
+              Some(WebviewBounds {
+                x_rate: (bounds.x as f32) / window_size.width,
+                y_rate: (bounds.y as f32) / window_size.height,
+                width_rate: (bounds.width as f32) / window_size.width,
+                height_rate: (bounds.height as f32) / window_size.height,
+              })
+            } else {
+              None
+            };
           }
           WebviewMessage::WithWebview(f) => {
             #[cfg(any(
@@ -3186,8 +3209,7 @@ fn handle_event_loop<T: UserEvent>(
             {
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
-                if let Some(bounds) = &webview.bounds {
-                  let b = bounds.lock().unwrap();
+                if let Some(b) = &*webview.bounds.lock().unwrap() {
                   webview.set_bounds(wry::Rect {
                     x: (size.width * b.x_rate) as i32,
                     y: (size.height * b.y_rate) as i32,
@@ -3427,6 +3449,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   if let Some(webview) = webview {
     webviews.push(create_webview(
+      #[cfg(feature = "unstable")]
+      WebviewKind::WindowChild,
+      #[cfg(not(feature = "unstable"))]
       WebviewKind::WindowContent,
       &window,
       Arc::new(Mutex::new(window_id)),
@@ -3622,6 +3647,24 @@ fn create_webview<T: UserEvent>(
       None
     }
   } else {
+    #[cfg(feature = "unstable")]
+    {
+      let window_size = window.inner_size().to_logical::<u32>(window.scale_factor());
+
+      webview_builder = webview_builder.with_bounds(wry::Rect {
+        x: 0,
+        y: 0,
+        width: window_size.width,
+        height: window_size.height,
+      });
+      Some(WebviewBounds {
+        x_rate: 0.,
+        y_rate: 0.,
+        width_rate: 1.,
+        height_rate: 1.,
+      })
+    }
+    #[cfg(not(feature = "unstable"))]
     None
   };
 
@@ -3829,7 +3872,7 @@ fn create_webview<T: UserEvent>(
     } else {
       web_context_key
     },
-    bounds: webview_bounds.map(|b| Arc::new(Mutex::new(b))),
+    bounds: Arc::new(Mutex::new(webview_bounds)),
   })
 }
 

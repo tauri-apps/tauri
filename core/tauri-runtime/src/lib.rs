@@ -452,6 +452,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Moves the webview to the given window.
   fn reparent(&self, window_id: WindowId) -> Result<()>;
+
+  /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+  fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.

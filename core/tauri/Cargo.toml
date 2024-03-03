@@ -127,7 +127,7 @@ http-range = "0.1.5"
 
 [features]
 default = [ "wry", "compression", "objc-exception", "common-controls-v6" ]
-unstable = [ ]
+unstable = [ "tauri-runtime-wry/unstable" ]
 common-controls-v6 = [ "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
 tray-icon = [ "dep:tray-icon" ]
 tracing = [

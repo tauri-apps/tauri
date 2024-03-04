@@ -1446,23 +1446,6 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
-/// External command access definition.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RemoteDomainAccessScope {
-  /// The URL scheme to allow. By default, all schemas are allowed.
-  pub scheme: Option<String>,
-  /// The domain to allow.
-  pub domain: String,
-  /// The list of window labels this scope applies to.
-  pub windows: Vec<String>,
-  /// The list of plugins that are allowed in this scope.
-  /// The names should be without the `tauri-plugin-` prefix, for example `"store"` for `tauri-plugin-store`.
-  #[serde(default)]
-  pub plugins: Vec<String>,
-}
-
 /// Protocol scope definition.
 /// It is a list of glob patterns that restrict the API access from the webview.
 ///
@@ -2469,24 +2452,6 @@ mod build {
           quote! { #prefix::List(#directives) }
         }
       });
-    }
-  }
-
-  impl ToTokens for RemoteDomainAccessScope {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-      let scheme = opt_str_lit(self.scheme.as_ref());
-      let domain = str_lit(&self.domain);
-      let windows = vec_lit(&self.windows, str_lit);
-      let plugins = vec_lit(&self.plugins, str_lit);
-
-      literal_struct!(
-        tokens,
-        ::tauri::utils::config::RemoteDomainAccessScope,
-        scheme,
-        domain,
-        windows,
-        plugins
-      );
     }
   }
 

@@ -115,6 +115,43 @@ Resolved {
                     4,
                 ),
             },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "external",
+                        tokens: [
+                            Char(
+                                'e',
+                            ),
+                            Char(
+                                'x',
+                            ),
+                            Char(
+                                't',
+                            ),
+                            Char(
+                                'e',
+                            ),
+                            Char(
+                                'r',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'l',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: None,
+            },
         ],
         "plugin:fs|read_file": [
             ResolvedCommand {
@@ -171,6 +208,43 @@ Resolved {
                     2,
                 ),
             },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "external",
+                        tokens: [
+                            Char(
+                                'e',
+                            ),
+                            Char(
+                                'x',
+                            ),
+                            Char(
+                                't',
+                            ),
+                            Char(
+                                'e',
+                            ),
+                            Char(
+                                'r',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'l',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: None,
+            },
         ],
     },
     denied_commands: {},
@@ -180,7 +254,7 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$HOME/.config/**",
+                            "$CONFIG/*",
                         ),
                     },
                 ),
@@ -204,15 +278,7 @@ Resolved {
                     },
                 ),
             ],
-            deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**/*.key",
-                        ),
-                    },
-                ),
-            ],
+            deny: [],
         },
         3: ResolvedScope {
             allow: [
@@ -252,13 +318,6 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
                             "$APP",
                         ),
                     },
@@ -275,7 +334,7 @@ Resolved {
                 Map(
                     {
                         "path": String(
-                            "$APP/*.db",
+                            "$HOME",
                         ),
                     },
                 ),

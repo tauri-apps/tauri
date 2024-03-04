@@ -1155,14 +1155,12 @@ fn main() {
     };
     let (resolved_acl, has_app_acl_manifest) = {
       let runtime_authority = manager.runtime_authority.lock().unwrap();
-      let acl = runtime_authority
-        .resolve_access(
-          &request.cmd,
-          message.webview.window().label(),
-          message.webview.label(),
-          &acl_origin,
-        )
-        .cloned();
+      let acl = runtime_authority.resolve_access(
+        &request.cmd,
+        message.webview.window().label(),
+        message.webview.label(),
+        &acl_origin,
+      );
       (acl, runtime_authority.has_app_manifest())
     };
 

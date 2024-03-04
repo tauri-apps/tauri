@@ -4,60 +4,60 @@ expression: resolved
 ---
 Resolved {
     allowed_commands: {
-        CommandKey {
-            name: "plugin:fs|read_dir",
-            context: Local,
-        }: ResolvedCommand {
-            windows: [
-                Pattern {
-                    original: "main",
-                    tokens: [
-                        Char(
-                            'm',
-                        ),
-                        Char(
-                            'a',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'n',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-            ],
-            webviews: [],
-            scope: None,
-        },
-        CommandKey {
-            name: "plugin:fs|read_file",
-            context: Local,
-        }: ResolvedCommand {
-            windows: [
-                Pattern {
-                    original: "main",
-                    tokens: [
-                        Char(
-                            'm',
-                        ),
-                        Char(
-                            'a',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'n',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-            ],
-            webviews: [],
-            scope: None,
-        },
+        "plugin:fs|read_dir": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: None,
+            },
+        ],
+        "plugin:fs|read_file": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: None,
+            },
+        ],
     },
     denied_commands: {},
     command_scope: {},

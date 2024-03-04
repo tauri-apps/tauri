@@ -4,39 +4,39 @@ expression: resolved
 ---
 Resolved {
     allowed_commands: {
-        CommandKey {
-            name: "plugin:os|spawn",
-            context: Local,
-        }: ResolvedCommand {
-            windows: [
-                Pattern {
-                    original: "main",
-                    tokens: [
-                        Char(
-                            'm',
-                        ),
-                        Char(
-                            'a',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'n',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-            ],
-            webviews: [],
-            scope: Some(
-                7912899488978770657,
-            ),
-        },
+        "plugin:os|spawn": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    1,
+                ),
+            },
+        ],
     },
     denied_commands: {},
     command_scope: {
-        7912899488978770657: ResolvedScope {
+        1: ResolvedScope {
             allow: [
                 Map(
                     {

@@ -165,7 +165,7 @@ pub struct Invoke<R: Runtime> {
   pub resolver: InvokeResolver<R>,
 
   /// Resolved ACL for this IPC invoke.
-  pub acl: Option<ResolvedCommand>,
+  pub acl: Option<Vec<ResolvedCommand>>,
 }
 
 /// Error response from an [`InvokeMessage`].

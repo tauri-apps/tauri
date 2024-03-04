@@ -33,7 +33,7 @@ pub struct CommandItem<'a, R: Runtime> {
   pub message: &'a InvokeMessage<R>,
 
   /// The resolved ACL for this command.
-  pub acl: &'a Option<ResolvedCommand>,
+  pub acl: &'a Option<Vec<ResolvedCommand>>,
 }
 
 /// Trait implemented by command arguments to derive a value from a [`CommandItem`].

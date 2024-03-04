@@ -70,7 +70,6 @@ fn ping<R: tauri::Runtime>(
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
     .setup(|app, api| {
-      println!("global scope: {:?}", api.scope::<SampleScope>());
       #[cfg(mobile)]
       let sample = mobile::init(app, api)?;
       #[cfg(desktop)]

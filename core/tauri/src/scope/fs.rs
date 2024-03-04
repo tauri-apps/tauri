@@ -298,6 +298,14 @@ impl Scope {
   /// Determines if the given path is allowed on this scope.
   pub fn is_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
     let path = path.as_ref();
+    let path = if path.is_symlink() {
+      match std::fs::read_link(path) {
+        Ok(p) => p,
+        Err(_) => return false,
+      }
+    } else {
+      path.to_path_buf()
+    };
     let path = if !path.exists() {
       crate::Result::Ok(path.to_path_buf())
     } else {

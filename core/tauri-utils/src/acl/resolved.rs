@@ -192,8 +192,7 @@ impl Resolved {
   }
 }
 
-fn parse_glob_patterns(raw: Vec<String>) -> Result<Vec<glob::Pattern>, Error> {
-  let mut raw = raw.into_iter().collect::<Vec<_>>();
+fn parse_glob_patterns(mut raw: Vec<String>) -> Result<Vec<glob::Pattern>, Error> {
   raw.sort();
 
   let mut patterns = Vec::new();

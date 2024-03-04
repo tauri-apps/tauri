@@ -6,7 +6,7 @@ use std::{
   collections::HashMap,
   str::FromStr,
   sync::{
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicU32, AtomicUsize, Ordering},
     Arc, Mutex,
   },
 };
@@ -132,18 +132,26 @@ impl Channel {
   }
 
   pub(crate) fn from_callback_fn<R: Runtime>(webview: Webview<R>, callback: CallbackFn) -> Self {
+    let counter = AtomicUsize::new(0);
+
     Channel::new_with_id(callback.0, move |body| {
       let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
+
       webview
         .state::<ChannelDataIpcQueue>()
         .0
         .lock()
         .unwrap()
         .insert(data_id, body);
+
+      let i = counter.fetch_add(1, Ordering::Relaxed);
+
       webview.eval(&format!(
-        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then(window['_' + {}]).catch(console.error)",
+        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",
         callback.0
-      ))
+      ))?;
+
+      Ok(())
     })
   }
 

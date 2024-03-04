@@ -146,7 +146,7 @@ fn get_response<R: Runtime>(
           .body(response.body.to_vec().into())?
       }
       Err(e) => {
-        tauri_utils::debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
+        log::error!("Failed to request {}: {}", url.as_str(), e);
         return Err(Box::new(e));
       }
     }

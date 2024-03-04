@@ -18,7 +18,6 @@ use anyhow::Context;
 use glob::glob;
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::{Deserialize, Deserializer};
@@ -445,7 +444,7 @@ fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
         }
         Err(err) => {
           // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
-          error!("Error watching {}: {}", p.display(), err.to_string());
+          log::error!("Error watching {}: {}", p.display(), err.to_string());
           watch_folders.push(p);
         }
       };
@@ -511,10 +510,10 @@ impl Rust {
     .unwrap();
     for path in watch_folders {
       if !ignore_matcher.is_ignore(&path, true) {
-        info!("Watching {} for changes...", display_path(&path));
+        log::info!("Watching {} for changes...", display_path(&path));
         lookup(&path, |file_type, p| {
           if p != path {
-            debug!("Watching {} for changes...", display_path(&p));
+            log::debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
               &p,
               if file_type.is_dir() {

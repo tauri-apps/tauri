@@ -29,7 +29,7 @@ tar = "0.4.40"
 walkdir = "2"
 handlebars = "5.1"
 tempfile = "3.10.1"
-log = { version = "0.4.21", features = [ "kv_unstable" ] }
+log = { version = "0.4.21", features = [ "kv" ] }
 dirs-next = "2.0"
 os_pipe = "1"
 ureq = { version = "2.9.6", default-features = false, features = [ "socks-proxy" ] }

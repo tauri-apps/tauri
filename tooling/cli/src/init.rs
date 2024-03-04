@@ -21,7 +21,6 @@ use anyhow::Context;
 use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
-use log::warn;
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
@@ -155,7 +154,7 @@ pub fn command(mut options: Options) -> Result<()> {
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))?;
 
   if template_target_path.exists() && !options.force {
-    warn!(
+    log::warn!(
       "Tauri dir ({:?}) not empty. Run `init --force` to overwrite.",
       template_target_path
     );

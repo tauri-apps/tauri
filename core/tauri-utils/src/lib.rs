@@ -22,8 +22,6 @@ use std::{
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use log::warn;
-
 pub mod acl;
 pub mod assets;
 pub mod config;
@@ -320,7 +318,7 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          log::warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }
       env
@@ -386,34 +384,6 @@ pub enum Error {
   #[cfg(feature = "resources")]
   #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
   NotAllowedToWalkDir(std::path::PathBuf),
-}
-
-/// Suppresses the unused-variable warnings of the given inputs.
-///
-/// This does not move any values. Instead, it just suppresses the warning by taking a
-/// reference to the value.
-#[macro_export]
-macro_rules! consume_unused_variable {
-  ($($arg:expr),*) => {
-    $(
-      let _ = &$arg;
-    )*
-    ()
-  };
-}
-
-/// Prints to the standard error, with a newline.
-///
-/// Equivalent to the [`eprintln!`] macro, except that it's only effective for debug builds.
-#[macro_export]
-macro_rules! debug_eprintln {
-  () => ($crate::debug_eprintln!(""));
-  ($($arg:tt)*) => {
-    #[cfg(debug_assertions)]
-    eprintln!($($arg)*);
-    #[cfg(not(debug_assertions))]
-    $crate::consume_unused_variable!($($arg)*);
-  };
 }
 
 /// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.

@@ -8,7 +8,6 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use log::info;
 use sha2::Digest;
 use zip::ZipArchive;
 
@@ -69,7 +68,7 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
-  info!(action = "Downloading"; "{}", url);
+  log::info!(action = "Downloading"; "{}", url);
 
   let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
   let response = agent.get(url).call().map_err(Box::new)?;
@@ -92,7 +91,7 @@ pub fn download_and_verify(
   hash_algorithm: HashAlgorithm,
 ) -> crate::Result<Vec<u8>> {
   let data = download(url)?;
-  info!("validating hash");
+  log::info!("validating hash");
   verify_hash(&data, hash, hash_algorithm)?;
   Ok(data)
 }

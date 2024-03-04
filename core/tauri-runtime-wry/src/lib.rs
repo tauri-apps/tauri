@@ -59,7 +59,7 @@ use tao::{
 };
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, debug_eprintln, Theme};
+use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 use wry::{
   FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
@@ -2808,14 +2808,14 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::EvaluateScript(script, tx, span) => {
             let _span = span.entered();
             if let Err(e) = webview.evaluate_script(&script) {
-              debug_eprintln!("{}", e);
+              log::error!("{}", e);
             }
             tx.send(()).unwrap();
           }
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScript(script) => {
             if let Err(e) = webview.evaluate_script(&script) {
-              debug_eprintln!("{}", e);
+              log::error!("{}", e);
             }
           }
           WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
@@ -2964,7 +2964,7 @@ fn handle_user_message<T: UserEvent>(
             });
           }
           Err(e) => {
-            debug_eprintln!("{}", e);
+            log::error!("{}", e);
           }
         }
       }
@@ -2974,7 +2974,7 @@ fn handle_user_message<T: UserEvent>(
         windows.0.borrow_mut().insert(window_id, webview);
       }
       Err(e) => {
-        debug_eprintln!("{}", e);
+        log::error!("{}", e);
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {

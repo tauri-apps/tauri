@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use json_patch::merge;
-use log::error;
 use serde_json::Value as JsonValue;
 
 pub use tauri_utils::{config::*, platform::Target};
@@ -158,9 +157,9 @@ fn get_internal(
       for error in errors {
         let path = error.instance_path.clone().into_vec().join(" > ");
         if path.is_empty() {
-          error!("`{}` error: {}", config_file_name, error);
+          log::error!("`{}` error: {}", config_file_name, error);
         } else {
-          error!("`{}` error on `{}`: {}", config_file_name, path, error);
+          log::error!("`{}` error on `{}`: {}", config_file_name, path, error);
         }
       }
       if !reload {

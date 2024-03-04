@@ -6,7 +6,6 @@
 mod wix;
 
 use crate::Settings;
-use log::warn;
 
 use std::{self, path::PathBuf};
 
@@ -35,7 +34,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     .iter()
     .any(|p| !wix_path.join(p).exists())
   {
-    warn!("WixTools directory is missing some files. Recreating it.");
+    log::warn!("WixTools directory is missing some files. Recreating it.");
     std::fs::remove_dir_all(&wix_path)?;
     wix::get_and_extract_wix(&wix_path)?;
   }

@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use log::debug;
-
 use std::{
   ffi::OsStr,
   fs::{self, File},
@@ -173,14 +171,14 @@ impl CommandExt for Command {
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+    log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.status().map_err(Into::into)
   }
 
   fn output_ok(&mut self) -> crate::Result<Output> {
     let program = self.get_program().to_string_lossy().into_owned();
-    debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+    log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());
@@ -198,7 +196,7 @@ impl CommandExt for Command {
         match stdout.read_line(&mut line) {
           Ok(0) => break,
           Ok(_) => {
-            debug!(action = "stdout"; "{}", line.trim_end());
+            log::debug!(action = "stdout"; "{}", line.trim_end());
             lines.extend(line.as_bytes().to_vec());
           }
           Err(_) => (),
@@ -217,7 +215,7 @@ impl CommandExt for Command {
         match stderr.read_line(&mut line) {
           Ok(0) => break,
           Ok(_) => {
-            debug!(action = "stderr"; "{}", line.trim_end());
+            log::debug!(action = "stderr"; "{}", line.trim_end());
             lines.extend(line.as_bytes().to_vec());
           }
           Err(_) => (),

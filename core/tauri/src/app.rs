@@ -40,7 +40,7 @@ use tauri_runtime::{
   },
   RuntimeInitArgs,
 };
-use tauri_utils::{debug_eprintln, PackageInfo};
+use tauri_utils::PackageInfo;
 
 use std::{
   borrow::Cow,
@@ -402,7 +402,7 @@ impl<R: Runtime> AppHandle<R> {
   /// Exits the app by triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`].
   pub fn exit(&self, exit_code: i32) {
     if let Err(e) = self.runtime_handle.request_exit(exit_code) {
-      debug_eprintln!("failed to exit: {}", e);
+      log::error!("failed to exit: {}", e);
       self.cleanup_before_exit();
       std::process::exit(exit_code);
     }

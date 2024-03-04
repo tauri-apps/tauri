@@ -2096,7 +2096,7 @@ mod build {
   impl ToTokens for Color {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let Color(r, g, b, a) = self;
-      tokens.append_all(quote! {::tauri::utils::Color(#r,#g,#b,#a)});
+      tokens.append_all(quote! {::tauri::utils::config::Color(#r,#g,#b,#a)});
     }
   }
   impl ToTokens for WindowEffectsConfig {

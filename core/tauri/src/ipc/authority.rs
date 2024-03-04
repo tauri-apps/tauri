@@ -761,7 +761,7 @@ mod tests {
 
     assert_eq!(
       authority.resolve_access(
-        &command,
+        command,
         &window.replace('*', "something"),
         webview,
         &Origin::Local
@@ -795,7 +795,7 @@ mod tests {
 
     assert_eq!(
       authority.resolve_access(
-        &command,
+        command,
         window,
         &webview.replace('*', "something"),
         &Origin::Local
@@ -832,7 +832,7 @@ mod tests {
 
     assert_eq!(
       authority.resolve_access(
-        &command,
+        command,
         window,
         webview,
         &Origin::Remote { url: url.into() }
@@ -869,7 +869,7 @@ mod tests {
 
     assert_eq!(
       authority.resolve_access(
-        &command,
+        command,
         window,
         webview,
         &Origin::Remote {
@@ -902,7 +902,7 @@ mod tests {
 
     assert!(authority
       .resolve_access(
-        &command,
+        command,
         window,
         webview,
         &Origin::Remote {
@@ -947,7 +947,7 @@ mod tests {
     );
 
     assert!(authority
-      .resolve_access(&command, window, webview, &Origin::Local)
+      .resolve_access(command, window, webview, &Origin::Local)
       .is_none());
   }
 }

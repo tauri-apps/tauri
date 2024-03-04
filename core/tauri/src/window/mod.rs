@@ -404,7 +404,6 @@ tauri::Builder::default()
       let window = app_manager.window.attach_window(
         self.manager.app_handle().clone(),
         detached_window.clone(),
-        detached_window.webview.is_some(),
         #[cfg(desktop)]
         window_menu,
       );
@@ -865,8 +864,6 @@ pub struct Window<R: Runtime> {
   // The menu set for this window
   #[cfg(desktop)]
   pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
-  /// Whether this window is a Webview window (hosts only a single webview) or a container for multiple webviews
-  is_webview_window: bool,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -875,7 +872,6 @@ impl<R: Runtime> std::fmt::Debug for Window<R> {
       .field("window", &self.window)
       .field("manager", &self.manager)
       .field("app_handle", &self.app_handle)
-      .field("is_webview_window", &self.is_webview_window)
       .finish()
   }
 }
@@ -896,7 +892,6 @@ impl<R: Runtime> Clone for Window<R> {
       app_handle: self.app_handle.clone(),
       #[cfg(desktop)]
       menu: self.menu.clone(),
-      is_webview_window: self.is_webview_window,
     }
   }
 }
@@ -951,7 +946,6 @@ impl<R: Runtime> Window<R> {
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
-    is_webview_window: bool,
   ) -> Self {
     Self {
       window,
@@ -959,7 +953,6 @@ impl<R: Runtime> Window<R> {
       app_handle,
       #[cfg(desktop)]
       menu: Arc::new(std::sync::Mutex::new(menu)),
-      is_webview_window,
     }
   }
 
@@ -1007,7 +1000,7 @@ impl<R: Runtime> Window<R> {
   }
 
   pub(crate) fn is_webview_window(&self) -> bool {
-    self.is_webview_window
+    self.webviews().iter().all(|w| w.label() == self.label())
   }
 
   /// Runs the given closure on the main thread.

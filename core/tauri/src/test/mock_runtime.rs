@@ -544,6 +544,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   fn reparent(&self, window_id: WindowId) -> Result<()> {
     Ok(())
   }
+
+  fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
+    Ok(())
+  }
 }
 
 impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {

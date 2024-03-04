@@ -267,7 +267,7 @@ pub fn generate_android_out_file(
   options.write(true);
 
   #[cfg(unix)]
-  if path.file_name().unwrap() == OsStr::new("gradlew") {
+  if path.file_name().unwrap() == std::ffi::OsStr::new("gradlew") {
     use std::os::unix::fs::OpenOptionsExt;
     options.mode(0o755);
   }

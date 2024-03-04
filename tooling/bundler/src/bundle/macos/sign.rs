@@ -301,7 +301,7 @@ pub fn notarize(
       submit_output.status, submit_output.id, submit_output.message
     );
     if submit_output.status == "Accepted" {
-      log::log::info!(action = "Notarizing"; "{}", log_message);
+      log::info!(action = "Notarizing"; "{}", log_message);
       staple_app(app_bundle_path)?;
       Ok(())
     } else if let Ok(output) = Command::new("xcrun")

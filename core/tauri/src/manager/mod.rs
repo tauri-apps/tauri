@@ -13,7 +13,6 @@ use serde::Serialize;
 use url::Url;
 
 use tauri_macros::default_runtime;
-use tauri_utils::debug_eprintln;
 use tauri_utils::{
   assets::{AssetKey, CspHash},
   config::{Csp, CspDirectiveSources},
@@ -67,7 +66,7 @@ fn set_csp<R: Runtime>(
             acc.style.push(hash.into());
           }
           _csp_hash => {
-            debug_eprintln!("Unknown CspHash variant encountered: {:?}", _csp_hash);
+            log::debug!("Unknown CspHash variant encountered: {:?}", _csp_hash);
           }
         }
 
@@ -362,14 +361,14 @@ impl<R: Runtime> AppManager<R> {
     let asset_response = assets
       .get(&path.as_str().into())
       .or_else(|| {
-        debug_eprintln!("Asset `{path}` not found; fallback to {path}.html");
+        log::debug!("Asset `{path}` not found; fallback to {path}.html");
         let fallback = format!("{}.html", path.as_str()).into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
         asset
       })
       .or_else(|| {
-        debug_eprintln!(
+        log::debug!(
           "Asset `{}` not found; fallback to {}/index.html",
           path,
           path
@@ -380,7 +379,7 @@ impl<R: Runtime> AppManager<R> {
         asset
       })
       .or_else(|| {
-        debug_eprintln!("Asset `{}` not found; fallback to index.html", path);
+        log::debug!("Asset `{}` not found; fallback to index.html", path);
         let fallback = AssetKey::from("index.html");
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -412,7 +411,7 @@ impl<R: Runtime> AppManager<R> {
         })
       }
       Err(e) => {
-        debug_eprintln!("{:?}", e); // TODO log::error!
+        log::error!("{:?}", e);
         Err(Box::new(e))
       }
     }

@@ -19,7 +19,6 @@ use tauri_utils::display_path;
 
 use anyhow::Context;
 use handlebars::{to_json, Handlebars};
-use log::{info, warn};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
@@ -79,7 +78,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
     .iter()
     .any(|p| !nsis_toolset_path.join(p).exists())
   {
-    warn!("NSIS directory is missing some files. Recreating it.");
+    log::warn!("NSIS directory is missing some files. Recreating it.");
     std::fs::remove_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else {
@@ -91,7 +90,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
       .collect::<Vec<_>>();
 
     if !mismatched.is_empty() {
-      warn!("NSIS directory contains mis-hashed files. Redownloading them.");
+      log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
       for (path, url, hash, hash_algorithim) in mismatched {
         let data = download_and_verify(url, hash, *hash_algorithim)?;
         write(nsis_toolset_path.join(path), data)?;
@@ -104,12 +103,12 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
 
 // Gets NSIS and verifies the download via Sha1
 fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> crate::Result<()> {
-  info!("Verifying NSIS package");
+  log::info!("Verifying NSIS package");
 
   #[cfg(target_os = "windows")]
   {
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
-    info!("extracting NSIS");
+    log::info!("extracting NSIS");
     extract_zip(&data, _tauri_tools_path)?;
     rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
@@ -117,7 +116,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   let nsis_plugins = nsis_toolset_path.join("Plugins");
 
   let data = download(NSIS_APPLICATIONID_URL)?;
-  info!("extracting NSIS ApplicationID plugin");
+  log::info!("extracting NSIS ApplicationID plugin");
   extract_zip(&data, &nsis_plugins)?;
 
   create_dir_all(nsis_plugins.join("x86-unicode"))?;
@@ -181,10 +180,10 @@ fn build_nsis_app_installer(
     }
   };
 
-  info!("Target: {}", arch);
+  log::info!("Target: {}", arch);
 
   #[cfg(not(target_os = "windows"))]
-  info!("Code signing is currently only supported on Windows hosts, skipping...");
+  log::info!("Code signing is currently only supported on Windows hosts, skipping...");
 
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
@@ -489,7 +488,7 @@ fn build_nsis_app_installer(
   ));
   create_dir_all(nsis_installer_path.parent().unwrap())?;
 
-  info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
+  log::info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
 
   #[cfg(target_os = "windows")]
   let mut nsis_cmd = Command::new(_nsis_toolset_path.join("makensis.exe"));

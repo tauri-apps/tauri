@@ -14,7 +14,6 @@ use std::{
 
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
-use log::info;
 use serde::Deserialize;
 
 const KEYCHAIN_ID: &str = "tauri-build.keychain";
@@ -32,7 +31,7 @@ pub fn setup_keychain(
 ) -> crate::Result<()> {
   // we delete any previous version of our keychain if present
   delete_keychain();
-  info!("setup keychain from environment variables...");
+  log::info!("setup keychain from environment variables...");
 
   let keychain_list_output = Command::new("security")
     .args(["list-keychain", "-d", "user"])
@@ -150,7 +149,7 @@ pub struct SignTarget {
 }
 
 pub fn sign(targets: Vec<SignTarget>, identity: &str, settings: &Settings) -> crate::Result<()> {
-  info!(action = "Signing"; "with identity \"{}\"", identity);
+  log::info!(action = "Signing"; "with identity \"{}\"", identity);
 
   let setup_keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
     var_os("APPLE_CERTIFICATE"),
@@ -164,7 +163,7 @@ pub fn sign(targets: Vec<SignTarget>, identity: &str, settings: &Settings) -> cr
     false
   };
 
-  info!("Signing app bundle...");
+  log::info!("Signing app bundle...");
 
   for target in targets {
     try_sign(
@@ -191,7 +190,7 @@ fn try_sign(
   is_an_executable: bool,
   tauri_keychain: bool,
 ) -> crate::Result<()> {
-  info!(action = "Signing"; "{}", path_to_sign.display());
+  log::info!(action = "Signing"; "{}", path_to_sign.display());
 
   let mut args = vec!["--force", "-s", identity];
 
@@ -201,7 +200,7 @@ fn try_sign(
   }
 
   if let Some(entitlements_path) = &settings.macos().entitlements {
-    info!("using entitlements file at {}", entitlements_path);
+    log::info!("using entitlements file at {}", entitlements_path);
     args.push("--entitlements");
     args.push(entitlements_path);
   }
@@ -283,7 +282,7 @@ pub fn notarize(
     "json",
   ];
 
-  info!(action = "Notarizing"; "{}", app_bundle_path.display());
+  log::info!(action = "Notarizing"; "{}", app_bundle_path.display());
 
   let output = Command::new("xcrun")
     .args(notarize_args)
@@ -302,7 +301,7 @@ pub fn notarize(
       submit_output.status, submit_output.id, submit_output.message
     );
     if submit_output.status == "Accepted" {
-      log::info!(action = "Notarizing"; "{}", log_message);
+      log::log::info!(action = "Notarizing"; "{}", log_message);
       staple_app(app_bundle_path)?;
       Ok(())
     } else if let Ok(output) = Command::new("xcrun")

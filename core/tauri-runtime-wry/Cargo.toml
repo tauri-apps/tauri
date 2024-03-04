@@ -21,6 +21,7 @@ raw-window-handle = "0.6"
 http = "0.2"
 url = "2"
 tracing = { version = "0.1", optional = true }
+log = "0.4"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.28"

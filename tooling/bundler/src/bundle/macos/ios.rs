@@ -17,7 +17,6 @@ use crate::{bundle::common, Settings};
 
 use anyhow::Context;
 use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
-use log::{info, warn};
 
 use std::{
   collections::BTreeSet,
@@ -30,7 +29,7 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  warn!("iOS bundle support is still experimental.");
+  log::warn!("iOS bundle support is still experimental.");
 
   let app_product_name = format!("{}.app", settings.product_name());
 
@@ -39,7 +38,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join("bundle/ios")
     .join(&app_product_name);
 
-  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
+  log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)

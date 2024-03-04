@@ -16,7 +16,6 @@ use crate::{
 
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
-use log::{error, info, warn};
 use shared_child::SharedChild;
 use tauri_utils::platform::Target;
 
@@ -214,7 +213,7 @@ pub fn setup(
           );
         }
       }
-      info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
+      log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
       env.extend(interface.env());
 
@@ -270,7 +269,7 @@ pub fn setup(
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
           if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
-            error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
+            log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
@@ -401,11 +400,11 @@ pub fn setup(
         }
 
         if i % 3 == 1 {
-          warn!("Waiting for your frontend dev server to start on {url}...",);
+          log::warn!("Waiting for your frontend dev server to start on {url}...",);
         }
         i += 1;
         if i == max_attempts {
-          error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
+          log::error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
           exit(1);
         }
         std::thread::sleep(sleep_interval);

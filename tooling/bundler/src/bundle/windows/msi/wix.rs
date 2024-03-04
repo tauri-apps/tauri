@@ -17,7 +17,6 @@ use crate::bundle::{
 };
 use anyhow::{bail, Context};
 use handlebars::{to_json, Handlebars};
-use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -223,11 +222,11 @@ fn generate_guid(key: &[u8]) -> Uuid {
 
 // Specifically goes and gets Wix and verifies the download via Sha256
 pub fn get_and_extract_wix(path: &Path) -> crate::Result<()> {
-  info!("Verifying wix package");
+  log::info!("Verifying wix package");
 
   let data = download_and_verify(WIX_URL, WIX_SHA256, HashAlgorithm::Sha256)?;
 
-  info!("extracting WIX");
+  log::info!("extracting WIX");
 
   extract_zip(&data, path)
 }
@@ -331,7 +330,7 @@ fn run_candle(
 
   let candle_exe = wix_toolset_path.join("candle.exe");
 
-  info!(action = "Running"; "candle for {:?}", wxs_file_path);
+  log::info!(action = "Running"; "candle for {:?}", wxs_file_path);
   let mut cmd = Command::new(candle_exe);
   for ext in extensions {
     cmd.arg("-ext");
@@ -400,7 +399,7 @@ pub fn build_wix_app_installer(
   let app_version = convert_version(settings.version_string())?;
 
   // target only supports x64.
-  info!("Target: {}", arch);
+  log::info!("Target: {}", arch);
 
   let main_binary = settings
     .binaries()
@@ -789,7 +788,7 @@ pub fn build_wix_app_installer(
       app_installer_output_path(settings, &language, settings.version_string(), updater)?;
     create_dir_all(msi_path.parent().unwrap())?;
 
-    info!(action = "Running"; "light to produce {}", display_path(&msi_path));
+    log::info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
     run_light(
       wix_toolset_path,

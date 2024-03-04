@@ -6,7 +6,6 @@
 use crate::Settings;
 
 use anyhow::Context;
-use log::info;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
 use std::{
   env,
@@ -43,7 +42,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::create_dir_all(&package_dir)?;
   let package_path = base_dir.join(&package_name);
 
-  info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
+  log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
   let license = settings.license().unwrap_or_default();
   let mut builder = rpm::PackageBuilder::new(name, version, &license, arch, summary)

@@ -30,7 +30,6 @@ use super::{
 use crate::Settings;
 
 use anyhow::Context;
-use log::{info, warn};
 
 use std::{
   ffi::OsStr,
@@ -60,7 +59,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join("bundle/macos")
     .join(&app_product_name);
 
-  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
+  log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
@@ -130,7 +129,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         if matches!(e, NotarizeAuthError::MissingTeamId) {
           return Err(anyhow::anyhow!("{e}").into());
         } else {
-          warn!("skipping app notarization, {}", e.to_string());
+          log::warn!("skipping app notarization, {}", e.to_string());
         }
       }
     }

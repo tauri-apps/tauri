@@ -136,7 +136,7 @@ pub fn parse_capabilities(
       CapabilityFile::Capability(capability) => {
         capabilities_map.insert(capability.identifier.clone(), capability);
       }
-      CapabilityFile::List { capabilities } => {
+      CapabilityFile::List(capabilities) | CapabilityFile::NamedList { capabilities } => {
         for capability in capabilities {
           capabilities_map.insert(capability.identifier.clone(), capability);
         }

@@ -439,6 +439,7 @@ mod build {
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::ResolvedCommand,
+        context,
         windows,
         webviews,
         scope_id

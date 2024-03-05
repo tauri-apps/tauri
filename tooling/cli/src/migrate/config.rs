@@ -649,7 +649,7 @@ mod test {
         },
         "pattern": { "use": "brownfield" },
         "security": {
-          "csp": "default-src: 'self' tauri:"
+          "csp": "default-src 'self' tauri:"
         }
       }
     });

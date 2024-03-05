@@ -10,8 +10,6 @@ use std::sync::Arc;
 
 use crate::{manager::webview::PROCESS_IPC_MESSAGE_FN, webview::UriSchemeProtocolHandler};
 
-const CSP: &str = "default-src: 'none'";
-
 pub fn get(assets: Arc<EmbeddedAssets>, aes_gcm_key: [u8; 32]) -> UriSchemeProtocolHandler {
   Box::new(move |request, responder| {
     let response = match request_to_path(&request).as_str() {
@@ -25,7 +23,6 @@ pub fn get(assets: Arc<EmbeddedAssets>, aes_gcm_key: [u8; 32]) -> UriSchemeProto
           match template.render(asset.as_ref(), &Default::default()) {
             Ok(asset) => http::Response::builder()
               .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
-              .header("Content-Security-Policy", CSP)
               .body(asset.into_string().as_bytes().to_vec()),
             Err(_) => http::Response::builder()
               .status(http::StatusCode::INTERNAL_SERVER_ERROR)

@@ -425,7 +425,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         CapabilityFile::Capability(c) => {
           capabilities.insert(c.identifier.clone(), c);
         }
-        CapabilityFile::List {
+        CapabilityFile::List(capabilities_list)
+        | CapabilityFile::NamedList {
           capabilities: capabilities_list,
         } => {
           capabilities.extend(

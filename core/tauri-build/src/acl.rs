@@ -168,8 +168,8 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
   if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionEntry") {
     let permission_entry_any_of_schemas = obj.subschemas().any_of.as_mut().unwrap();
 
-    if let Schema::Object(mut scope_extended_schema_obj) =
-      permission_entry_any_of_schemas.remove(permission_entry_any_of_schemas.len() - 1)
+    if let Schema::Object(scope_extended_schema_obj) =
+      permission_entry_any_of_schemas.last_mut().unwrap()
     {
       let mut global_scope_one_of = Vec::new();
 
@@ -246,8 +246,6 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
             one_of: Some(global_scope_one_of),
             ..Default::default()
           }));
-
-        permission_entry_any_of_schemas.push(scope_extended_schema_obj.into());
       };
     }
   }

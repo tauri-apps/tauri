@@ -110,7 +110,9 @@ pub enum CapabilityFile {
   /// A single capability.
   Capability(Capability),
   /// A list of capabilities.
-  List {
+  List(Vec<Capability>),
+  /// A list of capabilities.
+  NamedList {
     /// The list of capabilities.
     capabilities: Vec<Capability>,
   },
@@ -135,11 +137,9 @@ impl FromStr for CapabilityFile {
   type Err = super::Error;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    match s.chars().next() {
-      Some('[') => toml::from_str(s).map_err(Into::into),
-      Some('{') => serde_json::from_str(s).map_err(Into::into),
-      _ => Err(super::Error::UnknownCapabilityFormat(s.into())),
-    }
+    serde_json::from_str(s)
+      .or_else(|_| toml::from_str(s))
+      .map_err(Into::into)
   }
 }
 

@@ -46,16 +46,17 @@ struct CspHashStrings {
 /// Sets the CSP value to the asset HTML if needed (on Linux).
 /// Returns the CSP string for access on the response header (on Windows and macOS).
 #[allow(clippy::borrowed_box)]
-fn set_csp<R: Runtime>(
+pub(crate) fn set_csp<R: Runtime>(
   asset: &mut String,
-  assets: &Box<dyn Assets>,
+  assets: &impl std::borrow::Borrow<dyn Assets>,
   asset_path: &AssetKey,
   manager: &AppManager<R>,
   csp: Csp,
-) -> String {
+) -> HashMap<String, CspDirectiveSources> {
   let mut csp = csp.into();
   let hash_strings =
     assets
+      .borrow()
       .csp_hashes(asset_path)
       .fold(CspHashStrings::default(), |mut acc, hash| {
         match hash {
@@ -98,15 +99,7 @@ fn set_csp<R: Runtime>(
     );
   }
 
-  #[cfg(feature = "isolation")]
-  if let Pattern::Isolation { schema, .. } = &*manager.pattern {
-    let default_src = csp
-      .entry("default-src".into())
-      .or_insert_with(Default::default);
-    default_src.push(crate::pattern::format_real_schema(schema));
-  }
-
-  Csp::DirectiveMap(csp).to_string()
+  csp
 }
 
 // inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
@@ -396,7 +389,17 @@ impl<R: Runtime> AppManager<R> {
         let final_data = if is_html {
           let mut asset = String::from_utf8_lossy(&asset).into_owned();
           if let Some(csp) = self.csp() {
-            csp_header.replace(set_csp(&mut asset, &self.assets, &asset_path, self, csp));
+            #[allow(unused_mut)]
+            let mut csp_map = set_csp(&mut asset, &self.assets, &asset_path, self, csp);
+            #[cfg(feature = "isolation")]
+            if let Pattern::Isolation { schema, .. } = &*self.pattern {
+              let default_src = csp_map
+                .entry("default-src".into())
+                .or_insert_with(Default::default);
+              default_src.push(crate::pattern::format_real_schema(schema));
+            }
+
+            csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
           }
 
           asset.as_bytes().to_vec()

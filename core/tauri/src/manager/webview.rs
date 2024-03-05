@@ -313,7 +313,12 @@ impl<R: Runtime> WebviewManager<R> {
       crypto_keys,
     } = &*app_manager.pattern
     {
-      let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
+      let protocol = crate::protocol::isolation::get(
+        manager.manager_owned(),
+        schema,
+        assets.clone(),
+        *crypto_keys.aes_gcm().raw(),
+      );
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });

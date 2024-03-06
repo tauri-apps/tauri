@@ -2,4 +2,4 @@
 'tauri-cli': patch:bug
 ---
 
-taurignore ignoreing folders not working for watch
+Fix `.taurignore` failing to ignore in some cases.

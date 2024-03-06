@@ -14,7 +14,7 @@ rust-version = { workspace = true }
 
 [dependencies]
 sha2 = "0.10"
-base64 = "0.21"
+base64 = "0.22"
 proc-macro2 = "1"
 quote = "1"
 syn = "2"

@@ -263,7 +263,11 @@ struct IgnoreMatcher(Vec<Gitignore>);
 impl IgnoreMatcher {
   fn is_ignore(&self, path: &Path, is_dir: bool) -> bool {
     for gitignore in &self.0 {
-      if gitignore.matched(path, is_dir).is_ignore() {
+      if path.starts_with(gitignore.path())
+        && gitignore
+          .matched_path_or_any_parents(path, is_dir)
+          .is_ignore()
+      {
         return true;
       }
     }

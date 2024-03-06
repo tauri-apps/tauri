@@ -2765,9 +2765,7 @@ fn handle_user_message<T: UserEvent>(
               webview.inner.reparent(new_parent_window.ns_window() as _)
             };
             #[cfg(windows)]
-            let reparent_result = {
-              webview.inner.reparent(new_parent_window.hwnd());
-            };
+            let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
 
             #[cfg(any(
               target_os = "linux",

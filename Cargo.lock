@@ -163,6 +163,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9d297deb1925b89f2ccc13d7635fa0714f12c87adce1c75356b39ca9b7178567"
 
 [[package]]
+name = "base64"
+version = "0.22.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9475866fec1451be56a3c2400fd081ff546538961565ccb5b7142cbd22bc7a51"
+
+[[package]]
 name = "bit-set"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2514,7 +2520,7 @@ version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5699cc8a63d1aa2b1ee8e12b9ad70ac790d65788cd36101fa37f87ea46c4cef"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "indexmap 2.2.3",
  "line-wrap",
  "quick-xml",
@@ -2862,7 +2868,7 @@ version = "0.11.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6920094eb85afde5e4a138be3f2de8bbdf28000f0029e72c45025a56b042251"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "bytes",
  "encoding_rs",
  "futures-core",
@@ -2971,7 +2977,7 @@ version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c74cae0a4cf6ccbbf5f359f08efdf8ee7e1dc532573bf0db71968cb56b1448c"
 dependencies = [
- "base64",
+ "base64 0.21.7",
 ]
 
 [[package]]
@@ -3212,7 +3218,7 @@ version = "3.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "15d167997bd841ec232f5b2b8e0e26606df2e7caa4c31b95ea9ca52b200bd270"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "chrono",
  "hex",
  "indexmap 1.9.3",
@@ -3462,7 +3468,7 @@ version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1bbdb58577b6301f8d17ae2561f32002a5bae056d444e0f69e611e504a276204"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "serde",
  "serde_json",
 ]
@@ -3588,7 +3594,7 @@ checksum = "e1fc403891a21bcfb7c37834ba66a547a8f402146eba7265b5a6d88059c9ff2f"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.8"
+version = "2.0.0-beta.9"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3645,7 +3651,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3667,9 +3673,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
- "base64",
+ "base64 0.22.0",
  "brotli",
  "ico",
  "json-patch",
@@ -3704,7 +3710,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3716,7 +3722,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
  "anyhow",
  "glob",
@@ -3731,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
  "gtk",
  "http",
@@ -3747,7 +3753,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3770,7 +3776,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.6"
+version = "2.0.0-beta.7"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -4909,7 +4915,7 @@ version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b717040ba9771fd88eb428c6ea6b555f8e734ff8534f02c13e8f10d97f5935e"
 dependencies = [
- "base64",
+ "base64 0.21.7",
  "block",
  "cfg_aliases 0.1.1",
  "cocoa",

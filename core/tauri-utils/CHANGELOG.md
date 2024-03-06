@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.7]
+
+### Bug Fixes
+
+- [`86fa339de`](https://www.github.com/tauri-apps/tauri/commit/86fa339de7b176efafa9b3e89f94dcad5fcd03da)([#9071](https://www.github.com/tauri-apps/tauri/pull/9071)) Fix compile time error in context generation when using `app.windows.windowEffects.color`
+- [`6c0683224`](https://www.github.com/tauri-apps/tauri/commit/6c068322460300e9d56a4fac5b018d4c437daa9e)([#9068](https://www.github.com/tauri-apps/tauri/pull/9068)) Fixes scope resolution grouping scopes for all windows.
+- [`c68218b36`](https://www.github.com/tauri-apps/tauri/commit/c68218b362c417b62e56c7a2b5b32c13fe035a83)([#8990](https://www.github.com/tauri-apps/tauri/pull/8990)) Fix `BundleTarget::to_vec` returning an empty vec for `BundleTarget::All` variant.
+- [`c68218b36`](https://www.github.com/tauri-apps/tauri/commit/c68218b362c417b62e56c7a2b5b32c13fe035a83)([#8990](https://www.github.com/tauri-apps/tauri/pull/8990)) Add `BundleType::all` method to return all possible `BundleType` variants.
+
+### Breaking Changes
+
+- [`9aa0d6e95`](https://www.github.com/tauri-apps/tauri/commit/9aa0d6e959269a9d99ff474e7f12bd397ea75fcd)([#9069](https://www.github.com/tauri-apps/tauri/pull/9069)) Removed `debug_eprintln!` and `consume_unused_variable` macros.
+- [`bb23511ea`](https://www.github.com/tauri-apps/tauri/commit/bb23511ea80bcaffbdebf057301e463fff268c90)([#9079](https://www.github.com/tauri-apps/tauri/pull/9079)) Changed `CapabiltyFile::List` enum variant to be a tuple-struct and added `CapabiltyFile::NamedList`. This allows more flexibility when parsing capabilties from JSON files.
+
 ## \[2.0.0-beta.6]
 
 ### New Features

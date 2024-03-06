@@ -1,15 +1,40 @@
 {
   "$schema": "../../../core/tauri-config-schema/schema.json",
+  "productName": "Tauri API",
+  "version": "1.0.0",
+  "identifier": "com.tauri.api",
   "build": {
-    "distDir": "../dist",
-    "devPath": "http://localhost:5173",
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:1420",
     "beforeDevCommand": "yarn dev",
-    "beforeBuildCommand": "yarn build",
-    "withGlobalTauri": true
+    "beforeBuildCommand": "yarn build"
   },
-  "package": {
-    "productName": "Tauri API",
-    "version": "1.0.0"
+  "app": {
+    "withGlobalTauri": true,
+    "macOSPrivateApi": true,
+    "security": {
+      "pattern": {
+        "use": "isolation",
+        "options": {
+          "dir": "../isolation-dist/"
+        }
+      },
+      "csp": {
+        "default-src": "'self' customprotocol: asset:",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": ["https://fonts.gstatic.com"],
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
+      },
+      "freezePrototype": true,
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": ["$APPDATA/db/**", "$RESOURCE/**"],
+          "deny": ["$APPDATA/db/*.stronghold"]
+        }
+      }
+    }
   },
   "plugins": {
     "cli": {
@@ -26,11 +51,7 @@
           "name": "theme",
           "takesValue": true,
           "description": "App theme",
-          "possibleValues": [
-            "light",
-            "dark",
-            "system"
-          ]
+          "possibleValues": ["light", "dark", "system"]
         },
         {
           "short": "v",
@@ -52,64 +73,22 @@
       }
     }
   },
-  "tauri": {
-    "pattern": {
-      "use": "isolation",
-      "options": {
-        "dir": "../isolation-dist/"
-      }
-    },
-    "macOSPrivateApi": true,
-    "bundle": {
-      "active": true,
-      "identifier": "com.tauri.api",
-      "icon": [
-        "../../.icons/32x32.png",
-        "../../.icons/128x128.png",
-        "../../.icons/128x128@2x.png",
-        "../../.icons/icon.icns",
-        "../../.icons/icon.ico"
-      ],
-      "windows": {
-        "wix": {
-          "language": {
-            "en-US": {},
-            "pt-BR": {
-              "localePath": "locales/pt-BR.wxl"
-            }
+  "bundle": {
+    "active": true,
+    "icon": [
+      "../../.icons/32x32.png",
+      "../../.icons/128x128.png",
+      "../../.icons/128x128@2x.png",
+      "../../.icons/icon.icns",
+      "../../.icons/icon.ico"
+    ],
+    "windows": {
+      "wix": {
+        "language": {
+          "en-US": {},
+          "pt-BR": {
+            "localePath": "locales/pt-BR.wxl"
           }
-        }
-      },
-      "updater": {
-        "active": true,
-        "pubkey": "asdasd",
-        "windows": {
-          "installMode": "passive"
-        }
-      }
-    },
-    "windows": [],
-    "security": {
-      "csp": {
-        "default-src": "'self' customprotocol: asset:",
-        "connect-src": "ipc: http://ipc.localhost",
-        "font-src": [
-          "https://fonts.gstatic.com"
-        ],
-        "img-src": "'self' asset: http://asset.localhost blob: data:",
-        "style-src": "'unsafe-inline' 'self' https://fonts.googleapis.com"
-      },
-      "freezePrototype": true,
-      "assetProtocol": {
-        "enable": true,
-        "scope": {
-          "allow": [
-            "$APPDATA/db/**",
-            "$RESOURCE/**"
-          ],
-          "deny": [
-            "$APPDATA/db/*.stronghold"
-          ]
         }
       }
     }

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -36,26 +36,6 @@ pub enum Pattern<A: Assets = EmbeddedAssets> {
     /// Cryptographically secure keys
     crypto_keys: Box<tauri_utils::pattern::isolation::Keys>,
   },
-}
-
-impl<A: Assets> Clone for Pattern<A> {
-  fn clone(&self) -> Self {
-    match self {
-      Self::Brownfield(a) => Self::Brownfield(*a),
-      #[cfg(feature = "isolation")]
-      Self::Isolation {
-        assets,
-        schema,
-        key,
-        crypto_keys,
-      } => Self::Isolation {
-        assets: assets.clone(),
-        schema: schema.clone(),
-        key: key.clone(),
-        crypto_keys: crypto_keys.clone(),
-      },
-    }
-  }
 }
 
 /// The shape of the JavaScript Pattern config

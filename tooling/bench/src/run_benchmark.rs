@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -276,7 +276,7 @@ fn main() -> Result<()> {
 
   let target_dir = utils::target_dir();
 
-  env::set_current_dir(&utils::bench_root_path())?;
+  env::set_current_dir(utils::bench_root_path())?;
 
   let format =
     time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]Z").unwrap();

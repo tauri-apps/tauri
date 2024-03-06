@@ -1,22 +1,19 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::borrow::Cow;
+use std::{borrow::Cow, sync::Arc};
 
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 
 use crate::{
-  manager::{WindowManager, PROXY_DEV_SERVER},
-  window::{UriSchemeProtocolHandler, WebResourceRequestHandler},
+  manager::{webview::PROXY_DEV_SERVER, AppManager},
+  webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Runtime,
 };
 
 #[cfg(all(dev, mobile))]
-use std::{
-  collections::HashMap,
-  sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 #[cfg(all(dev, mobile))]
 #[derive(Clone)]
@@ -27,7 +24,7 @@ struct CachedResponse {
 }
 
 pub fn get<R: Runtime>(
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: Arc<AppManager<R>>,
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
@@ -60,6 +57,7 @@ pub fn get<R: Runtime>(
         HttpResponse::builder()
           .status(StatusCode::BAD_REQUEST)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
+          .header("Access-Control-Allow-Origin", &window_origin)
           .body(e.to_string().as_bytes().to_vec())
           .unwrap(),
       ),
@@ -69,7 +67,7 @@ pub fn get<R: Runtime>(
 
 fn get_response<R: Runtime>(
   request: Request<Vec<u8>>,
-  manager: &WindowManager<R>,
+  #[allow(unused_variables)] manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
   #[cfg(all(dev, mobile))] (url, response_cache): (
@@ -148,7 +146,7 @@ fn get_response<R: Runtime>(
           .body(response.body.to_vec().into())?
       }
       Err(e) => {
-        tauri_utils::debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
+        log::error!("Failed to request {}: {}", url.as_str(), e);
         return Err(Box::new(e));
       }
     }
@@ -165,14 +163,6 @@ fn get_response<R: Runtime>(
   };
   if let Some(handler) = &web_resource_request_handler {
     handler(request, &mut response);
-  }
-  // if it's an HTML file, we need to set the CSP meta tag on Linux
-  #[cfg(all(not(dev), target_os = "linux"))]
-  if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-    let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-    let html = String::from_utf8_lossy(response.body());
-    let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-    *response.body_mut() = body.as_bytes().to_vec().into();
   }
 
   Ok(response)

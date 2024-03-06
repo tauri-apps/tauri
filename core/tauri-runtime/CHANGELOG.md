@@ -1,5 +1,149 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+
+## \[2.0.0-beta.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+
+## \[2.0.0-beta.4]
+
+### New Features
+
+- [`fdcaf935`](https://www.github.com/tauri-apps/tauri/commit/fdcaf935fa75ecfa2806939c4faad4fe9e880386)([#8939](https://www.github.com/tauri-apps/tauri/pull/8939)) Added the `reparent` function to the webview API.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### What's Changed
+
+- [`16e550ec`](https://www.github.com/tauri-apps/tauri/commit/16e550ec1503765158cdc3bb2a20e70ec710e981)([#8844](https://www.github.com/tauri-apps/tauri/pull/8844)) Add `WebviewEvent`, `RunEvent::WebviewEvent` and `WebviewDispatch::on_webview_event`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+
+### Breaking Changes
+
+- [`2f55bfec`](https://www.github.com/tauri-apps/tauri/commit/2f55bfecbf0244f3b5aa1ad7622182fca3fcdcbb)([#8795](https://www.github.com/tauri-apps/tauri/pull/8795)) Update raw-window-handle to 0.6.
+
+## \[2.0.0-beta.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.1`
+
+## \[2.0.0-beta.0]
+
+### New Features
+
+- [`af610232`](https://www.github.com/tauri-apps/tauri/commit/af6102327376884364b2075b468bdf08ee0d02aa)([#8710](https://www.github.com/tauri-apps/tauri/pull/8710)) Added `Window::destroy` to force close a window.
+- [`c77b4032`](https://www.github.com/tauri-apps/tauri/commit/c77b40324ea9bf580871fc11aed69ba0c9b6b8cf)([#8280](https://www.github.com/tauri-apps/tauri/pull/8280)) Add multiwebview support behind the `unstable` feature flag. See `WindowBuilder` and `WebviewBuilder` for more information.
+- [`00e15675`](https://www.github.com/tauri-apps/tauri/commit/00e1567584721644797b587205187f9cbe4e5cd1)([#8708](https://www.github.com/tauri-apps/tauri/pull/8708)) Added `RuntimeHandle::request_exit` function.
+
+### Bug Fixes
+
+- [`95da1a27`](https://www.github.com/tauri-apps/tauri/commit/95da1a27476e01e06f6ce0335df8535b662dd9c4)([#8713](https://www.github.com/tauri-apps/tauri/pull/8713)) Fix calling `set_activation_policy` when the event loop is running.
+
+### What's Changed
+
+- [`9eaeb5a8`](https://www.github.com/tauri-apps/tauri/commit/9eaeb5a8cd95ae24b5e66205bdc2763cb7f965ce)([#8622](https://www.github.com/tauri-apps/tauri/pull/8622)) Added `WindowBuilder::transient_for` and Renamed `WindowBuilder::owner_window` to `WindowBuilder::owner` and `WindowBuilder::parent_window` to `WindowBuilder::parent`.
+- [`7f033f6d`](https://www.github.com/tauri-apps/tauri/commit/7f033f6dcd54c69a4193765a5c1584755ba92c61)([#8537](https://www.github.com/tauri-apps/tauri/pull/8537)) Add `Window::start_resize_dragging` and `ResizeDirection` enum.
+- [`6639a579`](https://www.github.com/tauri-apps/tauri/commit/6639a579c76d45210f33a72d37e21d4c5a9d334b)([#8441](https://www.github.com/tauri-apps/tauri/pull/8441)) Added the `WindowConfig::proxy_url` `WebviewBuilder::proxy_url() / WebviewWindowBuilder::proxy_url()` options when creating a webview.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.0`
+
+### Breaking Changes
+
+- [`9eaeb5a8`](https://www.github.com/tauri-apps/tauri/commit/9eaeb5a8cd95ae24b5e66205bdc2763cb7f965ce)([#8622](https://www.github.com/tauri-apps/tauri/pull/8622)) Changed `WindowBuilder::with_config` to take a reference to a `WindowConfig` instead of an owned value.
+
+## \[1.0.0-alpha.8]
+
+### New Features
+
+- [`29ced5ce`](https://www.github.com/tauri-apps/tauri/commit/29ced5ceec40b2934094ade2db9a8855f294e1d1)([#8159](https://www.github.com/tauri-apps/tauri/pull/8159)) Added download event closure via `PendingWindow::download_handler`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+
+## \[1.0.0-alpha.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.12`
+
+## \[1.0.0-alpha.6]
+
+### Dependencies
+
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Update dependencies.
+
+## \[1.0.0-alpha.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+
+## \[1.0.0-alpha.4]
+
+### New Features
+
+- [`74d2464d`](https://www.github.com/tauri-apps/tauri/commit/74d2464d0e490fae341ad73bdf2964cf215fe6c5)([#8116](https://www.github.com/tauri-apps/tauri/pull/8116)) Added `on_page_load` hook for `PendingWindow`.
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+- [`9580df1d`](https://www.github.com/tauri-apps/tauri/commit/9580df1d7b027befb9e5f025ea2cbaf2dcc82c8e)([#8084](https://www.github.com/tauri-apps/tauri/pull/8084)) Upgrade `gtk` to 0.18.
+- [`c7c2507d`](https://www.github.com/tauri-apps/tauri/commit/c7c2507da16a9beb71bf06745fe7ac1325ab7c2a)([#8035](https://www.github.com/tauri-apps/tauri/pull/8035)) Update `windows` to version `0.51` and `webview2-com` to version `0.27`
+
+## \[1.0.0-alpha.3]
+
+### New Features
+
+- [`c085adda`](https://www.github.com/tauri-apps/tauri/commit/c085addab58ba851398373c6fd13f9cb026d71e8)([#8009](https://www.github.com/tauri-apps/tauri/pull/8009)) Added `set_progress_bar` to `Window`.
+- [`c1ec0f15`](https://www.github.com/tauri-apps/tauri/commit/c1ec0f155118527361dd5645d920becbc8afd569)([#7933](https://www.github.com/tauri-apps/tauri/pull/7933)) Added `Window::set_always_on_bottom` and the `always_on_bottom` option when creating a window.
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+
+### Enhancements
+
+- [`46dcb941`](https://www.github.com/tauri-apps/tauri/commit/46dcb94110ac16d0d4328fa149bb86975b658f59)([#8006](https://www.github.com/tauri-apps/tauri/pull/8006)) Include mobile on docs.rs targets.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`2558fab8`](https://www.github.com/tauri-apps/tauri/commit/2558fab861006936296e8511e43ccd69a38f61b0)([#7939](https://www.github.com/tauri-apps/tauri/pull/7939)) Added `WindowEventId` type and Changed `Dispatch::on_window_event` return type from `Uuid` to `WindowEventId`
+
+## \[1.0.0-alpha.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+
 ## \[1.0.0-alpha.1]
 
 ### Enhancements
@@ -83,6 +227,22 @@
 - First mobile alpha release!
   - Bumped due to a bump in tauri-utils.
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[0.14.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+
+## \[0.14.1]
+
+### Enhancements
+
+- [`9aa34ada`](https://www.github.com/tauri-apps/tauri/commit/9aa34ada5769dbefa7dfe5f7a6288b3d20b294e4)([#7645](https://www.github.com/tauri-apps/tauri/pull/7645)) Add setting to switch to `http://<scheme>.localhost/` for custom protocols on Windows.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
 
 ## \[0.14.0]
 

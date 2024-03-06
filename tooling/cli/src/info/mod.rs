@@ -1,10 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::Result;
 use clap::Parser;
-use colored::Colorize;
+use colored::{ColoredString, Colorize};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use serde::Deserialize;
 use std::{
@@ -39,40 +39,6 @@ fn version_metadata() -> Result<VersionMetadata> {
     .map_err(Into::into)
 }
 
-#[cfg(not(debug_assertions))]
-pub(crate) fn cli_current_version() -> Result<String> {
-  version_metadata().map(|meta| meta.js_cli.version)
-}
-
-#[cfg(not(debug_assertions))]
-pub(crate) fn cli_upstream_version() -> Result<String> {
-  let upstream_metadata = match ureq::get(
-    "https://raw.githubusercontent.com/tauri-apps/tauri/dev/tooling/cli/metadata-v2.json",
-  )
-  .timeout(std::time::Duration::from_secs(3))
-  .call()
-  {
-    Ok(r) => r,
-    Err(ureq::Error::Status(code, _response)) => {
-      let message = format!("Unable to find updates at the moment. Code: {}", code);
-      return Err(anyhow::Error::msg(message));
-    }
-    Err(ureq::Error::Transport(transport)) => {
-      let message = format!(
-        "Unable to find updates at the moment. Error: {:?}",
-        transport.kind()
-      );
-      return Err(anyhow::Error::msg(message));
-    }
-  };
-
-  upstream_metadata
-    .into_string()
-    .and_then(|meta_str| Ok(serde_json::from_str::<VersionMetadata>(&meta_str)))
-    .and_then(|json| Ok(json.unwrap().js_cli.version))
-    .map_err(|e| anyhow::Error::new(e))
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub enum Status {
   Neutral = 0,
@@ -80,6 +46,18 @@ pub enum Status {
   Success,
   Warning,
   Error,
+}
+
+impl Status {
+  fn color<S: AsRef<str>>(&self, s: S) -> ColoredString {
+    let s = s.as_ref();
+    match self {
+      Status::Neutral => s.normal(),
+      Status::Success => s.green(),
+      Status::Warning => s.yellow(),
+      Status::Error => s.red(),
+    }
+  }
 }
 
 impl Display for Status {
@@ -97,15 +75,55 @@ impl Display for Status {
   }
 }
 
+#[derive(Default)]
+pub enum ActionResult {
+  Full {
+    description: String,
+    status: Status,
+  },
+  Description(String),
+  #[default]
+  None,
+}
+
+impl From<String> for ActionResult {
+  fn from(value: String) -> Self {
+    ActionResult::Description(value)
+  }
+}
+
+impl From<(String, Status)> for ActionResult {
+  fn from(value: (String, Status)) -> Self {
+    ActionResult::Full {
+      description: value.0,
+      status: value.1,
+    }
+  }
+}
+
+impl From<Option<String>> for ActionResult {
+  fn from(value: Option<String>) -> Self {
+    value.map(ActionResult::Description).unwrap_or_default()
+  }
+}
+
+impl From<Option<(String, Status)>> for ActionResult {
+  fn from(value: Option<(String, Status)>) -> Self {
+    value
+      .map(|v| ActionResult::Full {
+        description: v.0,
+        status: v.1,
+      })
+      .unwrap_or_default()
+  }
+}
+
 pub struct SectionItem {
   /// If description is none, the item is skipped
   description: Option<String>,
   status: Status,
-  /// This closure return will be assigned to status and description
-  action: Box<dyn FnMut() -> Option<(String, Status)>>,
-  /// This closure return will be assigned to status and description
-  action_if_err: Box<dyn FnMut() -> Option<(String, Status)>>,
-  has_action_if_err: bool,
+  action: Option<Box<dyn FnMut() -> ActionResult>>,
+  action_if_err: Option<Box<dyn FnMut() -> ActionResult>>,
 }
 
 impl Display for SectionItem {
@@ -121,29 +139,66 @@ impl Display for SectionItem {
 }
 
 impl SectionItem {
-  fn new<
-    F1: FnMut() -> Option<(String, Status)> + 'static,
-    F2: FnMut() -> Option<(String, Status)> + 'static,
-  >(
-    action: F1,
-    action_if_err: F2,
-    has_action_if_err: bool,
-  ) -> Self {
+  fn new() -> Self {
     Self {
-      action: Box::new(action),
-      action_if_err: Box::new(action_if_err),
-      has_action_if_err,
+      action: None,
+      action_if_err: None,
       description: None,
       status: Status::Neutral,
     }
   }
-  fn run(&mut self, interactive: bool) -> Status {
-    if let Some(ret) = (self.action)() {
-      self.description = Some(ret.0);
-      self.status = ret.1;
-    }
 
-    if self.status == Status::Error && interactive && self.has_action_if_err {
+  fn action<F: FnMut() -> ActionResult + 'static>(mut self, action: F) -> Self {
+    self.action = Some(Box::new(action));
+    self
+  }
+
+  // fn action_if_err<F: FnMut() -> ActionResult + 'static>(mut self, action: F) -> Self {
+  //   self.action_if_err = Some(Box::new(action));
+  //   self
+  // }
+
+  fn description<S: AsRef<str>>(mut self, description: S) -> Self {
+    self.description = Some(description.as_ref().to_string());
+    self
+  }
+
+  fn run_action(&mut self) {
+    let mut res = ActionResult::None;
+    if let Some(action) = &mut self.action {
+      res = action();
+    }
+    self.apply_action_result(res);
+  }
+
+  fn run_action_if_err(&mut self) {
+    let mut res = ActionResult::None;
+    if let Some(action) = &mut self.action_if_err {
+      res = action();
+    }
+    self.apply_action_result(res);
+  }
+
+  fn apply_action_result(&mut self, result: ActionResult) {
+    match result {
+      ActionResult::Full {
+        description,
+        status,
+      } => {
+        self.description = Some(description);
+        self.status = status;
+      }
+      ActionResult::Description(description) => {
+        self.description = Some(description);
+      }
+      ActionResult::None => {}
+    }
+  }
+
+  fn run(&mut self, interactive: bool) -> Status {
+    self.run_action();
+
+    if self.status == Status::Error && interactive && self.action_if_err.is_some() {
       if let Some(description) = &self.description {
         let confirmed = Confirm::with_theme(&ColorfulTheme::default())
           .with_prompt(format!(
@@ -153,13 +208,11 @@ impl SectionItem {
           .interact()
           .unwrap_or(false);
         if confirmed {
-          if let Some(ret) = (self.action_if_err)() {
-            self.description = Some(ret.0);
-            self.status = ret.1;
-          }
+          self.run_action_if_err()
         }
       }
     }
+
     self.status
   }
 }
@@ -182,12 +235,7 @@ impl Section<'_> {
     }
 
     let status_str = format!("[{status}]");
-    let status = match status {
-      Status::Neutral => status_str.normal(),
-      Status::Success => status_str.green(),
-      Status::Warning => status_str.yellow(),
-      Status::Error => status_str.red(),
-    };
+    let status = status.color(status_str);
 
     println!();
     println!("{} {}", status, self.label.bold().yellow());
@@ -200,7 +248,9 @@ impl Section<'_> {
 }
 
 #[derive(Debug, Parser)]
-#[clap(about = "Shows information about Tauri dependencies and project configuration")]
+#[clap(
+  about = "Show a concise list of information about the environment, Rust, Node.js and their versions as well as a few relevant project configurations"
+)]
 pub struct Options {
   /// Interactive mode to apply automatic fixes.
   #[clap(long)]
@@ -229,7 +279,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   environment.items.extend(env_system::items());
   environment.items.extend(env_rust::items());
-  let (items, yarn_version) = env_nodejs::items(&metadata);
+  let items = env_nodejs::items(&metadata);
   environment.items.extend(items);
 
   let mut packages = Section {
@@ -242,7 +292,7 @@ pub fn command(options: Options) -> Result<()> {
     .extend(packages_rust::items(app_dir, tauri_dir.as_deref()));
   packages
     .items
-    .extend(packages_nodejs::items(app_dir, &metadata, yarn_version));
+    .extend(packages_nodejs::items(app_dir, &metadata));
 
   let mut app = Section {
     label: "App",

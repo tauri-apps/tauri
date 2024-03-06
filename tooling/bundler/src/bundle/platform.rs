@@ -1,13 +1,12 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::common::CommandExt;
-use log::warn;
 use std::process::Command;
 
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -46,7 +45,7 @@ pub fn target_triple() -> Result<String, crate::Error> {
       .target_arch
       .expect("could not find `target_arch` when running `rustc --print cfg`."),
     Err(err) => {
-      warn!(
+      log::warn!(
       "failed to determine target arch using rustc, error: `{}`. The fallback is the architecture of the machine that compiled this crate.",
       err,
     );

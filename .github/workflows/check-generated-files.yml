@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -25,14 +25,13 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       schema: ${{ steps.filter.outputs.schema }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v2
         id: filter
         with:
           filters: |
             api:
               - 'tooling/api/src/**'
-              - 'tooling/api/docs/js-api.json'
               - 'core/tauri/scripts/bundle.global.js'
             schema:
               - 'core/tauri-utils/src/config.rs'
@@ -44,28 +43,23 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: build api
         working-directory: tooling/api
         run: yarn && yarn build
       - name: check api
-        run: |
-          git restore tooling/api/docs/js-api.json
-          ./.scripts/ci/has-diff.sh
+        run: ./.scripts/ci/has-diff.sh
 
   schema:
     runs-on: ubuntu-latest
     needs: changes
     if: needs.changes.outputs.schema == 'true'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
 
       - name: install Linux dependencies
         run: |
@@ -77,10 +71,7 @@ jobs:
           workspaces: core -> ../target
 
       - name: generate schema.json
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./core/tauri-config-schema/Cargo.toml
+        run: cargo build --manifest-path ./core/tauri-config-schema/Cargo.toml
 
       - name: check schema
         run: ./.scripts/ci/has-diff.sh

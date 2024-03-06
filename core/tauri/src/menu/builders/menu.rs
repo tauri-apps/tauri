@@ -1,8 +1,8 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::*, Icon, Manager, Runtime};
+use crate::{menu::*, Image, Manager, Runtime};
 
 /// A builder type for [`Menu`]
 ///
@@ -13,16 +13,12 @@ use crate::{menu::*, Icon, Manager, Runtime};
 /// tauri::Builder::default()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
-///     # let icon1 = tauri::Icon::Rgba {
-///     #   rgba: Vec::new(),
-///     #   width: 0,
-///     #   height: 0,
-///     # };
+///     # let icon1 = tauri::Image::new(&[], 0, 0);
 ///     let menu = MenuBuilder::new(handle)
-///       .item(&MenuItem::new(handle, "MenuItem 1", true, None))
+///       .item(&MenuItem::new(handle, "MenuItem 1", true, None::<&str>)?)
 ///       .items(&[
-///         &CheckMenuItem::new(handle, "CheckMenuItem 1", true, true, None),
-///         &IconMenuItem::new(handle, "IconMenuItem 1", true, Some(icon1), None),
+///         &CheckMenuItem::new(handle, "CheckMenuItem 1", true, true, None::<&str>)?,
+///         &IconMenuItem::new(handle, "IconMenuItem 1", true, Some(icon1), None::<&str>)?,
 ///       ])
 ///       .separator()
 ///       .cut()
@@ -40,7 +36,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 pub struct MenuBuilder<'m, R: Runtime, M: Manager<R>> {
   id: Option<MenuId>,
   manager: &'m M,
-  items: Vec<MenuItemKind<R>>,
+  items: Vec<crate::Result<MenuItemKind<R>>>,
 }
 
 impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
@@ -70,7 +66,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
 
   /// Add this item to the menu.
   pub fn item(mut self, item: &dyn IsMenuItem<R>) -> Self {
-    self.items.push(item.kind());
+    self.items.push(Ok(item.kind()));
     self
   }
 
@@ -86,23 +82,24 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn text<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S) -> Self {
     self
       .items
-      .push(MenuItem::with_id(self.manager, id, text, true, None).kind());
+      .push(MenuItem::with_id(self.manager, id, text, true, None::<&str>).map(|i| i.kind()));
     self
   }
 
   /// Add a [CheckMenuItem] to the menu.
   pub fn check<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S) -> Self {
-    self
-      .items
-      .push(CheckMenuItem::with_id(self.manager, id, text, true, true, None).kind());
+    self.items.push(
+      CheckMenuItem::with_id(self.manager, id, text, true, true, None::<&str>).map(|i| i.kind()),
+    );
     self
   }
 
   /// Add an [IconMenuItem] to the menu.
-  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Icon) -> Self {
-    self
-      .items
-      .push(IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None).kind());
+  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Image<'_>) -> Self {
+    self.items.push(
+      IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None::<&str>)
+        .map(|i| i.kind()),
+    );
     self
   }
 
@@ -118,7 +115,8 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
     icon: NativeIcon,
   ) -> Self {
     self.items.push(
-      IconMenuItem::with_id_and_native_icon(self.manager, id, text, true, Some(icon), None).kind(),
+      IconMenuItem::with_id_and_native_icon(self.manager, id, text, true, Some(icon), None::<&str>)
+        .map(|i| i.kind()),
     );
     self
   }
@@ -127,7 +125,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn separator(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::separator(self.manager).kind());
+      .push(PredefinedMenuItem::separator(self.manager).map(|i| i.kind()));
     self
   }
 
@@ -135,7 +133,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn copy(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::copy(self.manager, None).kind());
+      .push(PredefinedMenuItem::copy(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -143,7 +141,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn cut(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::cut(self.manager, None).kind());
+      .push(PredefinedMenuItem::cut(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -151,7 +149,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn paste(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::paste(self.manager, None).kind());
+      .push(PredefinedMenuItem::paste(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -159,7 +157,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn select_all(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::select_all(self.manager, None).kind());
+      .push(PredefinedMenuItem::select_all(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -171,7 +169,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn undo(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::undo(self.manager, None).kind());
+      .push(PredefinedMenuItem::undo(self.manager, None).map(|i| i.kind()));
     self
   }
   /// Add Redo menu item to the menu.
@@ -182,7 +180,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn redo(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::redo(self.manager, None).kind());
+      .push(PredefinedMenuItem::redo(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -194,7 +192,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn minimize(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::minimize(self.manager, None).kind());
+      .push(PredefinedMenuItem::minimize(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -206,7 +204,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn maximize(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::maximize(self.manager, None).kind());
+      .push(PredefinedMenuItem::maximize(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -218,7 +216,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn fullscreen(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::fullscreen(self.manager, None).kind());
+      .push(PredefinedMenuItem::fullscreen(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -230,7 +228,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn hide(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::hide(self.manager, None).kind());
+      .push(PredefinedMenuItem::hide(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -242,7 +240,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn hide_others(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::hide_others(self.manager, None).kind());
+      .push(PredefinedMenuItem::hide_others(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -254,7 +252,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn show_all(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::show_all(self.manager, None).kind());
+      .push(PredefinedMenuItem::show_all(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -266,7 +264,7 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn close_window(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::close_window(self.manager, None).kind());
+      .push(PredefinedMenuItem::close_window(self.manager, None).map(|i| i.kind()));
     self
   }
 
@@ -278,15 +276,15 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn quit(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::quit(self.manager, None).kind());
+      .push(PredefinedMenuItem::quit(self.manager, None).map(|i| i.kind()));
     self
   }
 
   /// Add About app menu item to the menu.
-  pub fn about(mut self, metadata: Option<AboutMetadata>) -> Self {
+  pub fn about(mut self, metadata: Option<AboutMetadata<'_>>) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::about(self.manager, None, metadata).kind());
+      .push(PredefinedMenuItem::about(self.manager, None, metadata).map(|i| i.kind()));
     self
   }
 
@@ -298,29 +296,23 @@ impl<'m, R: Runtime, M: Manager<R>> MenuBuilder<'m, R, M> {
   pub fn services(mut self) -> Self {
     self
       .items
-      .push(PredefinedMenuItem::services(self.manager, None).kind());
+      .push(PredefinedMenuItem::services(self.manager, None).map(|i| i.kind()));
     self
   }
 
   /// Builds this menu
   pub fn build(self) -> crate::Result<Menu<R>> {
-    if self.items.is_empty() {
-      Ok(if let Some(id) = self.id {
-        Menu::with_id(self.manager, id)
-      } else {
-        Menu::new(self.manager)
-      })
+    let menu = if let Some(id) = self.id {
+      Menu::with_id(self.manager, id)?
     } else {
-      let items = self
-        .items
-        .iter()
-        .map(|i| i as &dyn IsMenuItem<R>)
-        .collect::<Vec<_>>();
-      if let Some(id) = self.id {
-        Menu::with_id_and_items(self.manager, id, &items)
-      } else {
-        Menu::with_items(self.manager, &items)
-      }
+      Menu::new(self.manager)?
+    };
+
+    for item in self.items {
+      let item = item?;
+      menu.append(&item)?;
     }
+
+    Ok(menu)
   }
 }

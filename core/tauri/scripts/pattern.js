@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,7 +15,7 @@
     return Object.freeze(object)
   }
 
-  Object.defineProperty(window, '__TAURI_PATTERN__', {
+  Object.defineProperty(window.__TAURI_INTERNALS__, '__TAURI_PATTERN__', {
     value: __tauriDeepFreeze(__TEMPLATE_pattern__)
   })
 })()

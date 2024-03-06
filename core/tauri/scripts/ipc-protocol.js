@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,46 +6,33 @@
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
-  const useCustomProtocol = __TEMPLATE_use_custom_protocol__
+  const linuxIpcProtocolEnabled = __TEMPLATE_linux_ipc_protocol_enabled__
+  let customProtocolIpcFailed = false
 
-  Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {
-    value: (message) => {
-      const {
-        cmd,
-        callback,
-        error,
-        payload,
-        options
-      } = message
+  // on Linux we only use the custom-protocol-based IPC if the the linux-ipc-protocol Cargo feature is enabled
+  // on Android we never use it because Android does not have support to reading the request body
+  const canUseCustomProtocol =
+    osName === 'linux' ? linuxIpcProtocolEnabled : osName !== 'android'
 
-      // use custom protocol for IPC if:
-      // - the flag is set to true or
-      // - the command is the fetch data command or
-      // - when not on Linux/Android
-      // AND
-      // - when not on macOS with an https URL
-      if (
-        (
-          useCustomProtocol ||
-          cmd === fetchChannelDataCommand ||
-          !(osName === 'linux' || osName === 'android')
-        ) &&
-        !((osName === 'macos' || osName === 'ios') && location.protocol === 'https:')
-      ) {
-        const {
-          contentType,
-          data
-        } = processIpcMessage(payload)
-        fetch(window.__TAURI__.convertFileSrc(cmd, 'ipc'), {
-          method: 'POST',
-          body: data,
-          headers: {
-            'Content-Type': contentType,
-            'Tauri-Callback': callback,
-            'Tauri-Error': error,
-            ...options?.headers
-          }
-        }).then((response) => {
+  function sendIpcMessage(message) {
+    const { cmd, callback, error, payload, options } = message
+
+    if (
+      !customProtocolIpcFailed &&
+      (canUseCustomProtocol || cmd === fetchChannelDataCommand)
+    ) {
+      const { contentType, data } = processIpcMessage(payload)
+      fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
+        method: 'POST',
+        body: data,
+        headers: {
+          'Content-Type': contentType,
+          'Tauri-Callback': callback,
+          'Tauri-Error': error,
+          ...options?.headers
+        }
+      })
+        .then((response) => {
           const cb = response.ok ? callback : error
           // we need to split here because on Android the content-type gets duplicated
           switch ((response.headers.get('content-type') || '').split(',')[0]) {
@@ -56,26 +43,36 @@
             default:
               return response.arrayBuffer().then((r) => [cb, r])
           }
-        }).then(([cb, data]) => {
+        })
+        .then(([cb, data]) => {
           if (window[`_${cb}`]) {
             window[`_${cb}`](data)
           } else {
-            console.warn(`[TAURI] Couldn't find callback id {cb} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`)
+            console.warn(
+              `[TAURI] Couldn't find callback id {cb} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
+            )
           }
         })
-      } else {
-        // otherwise use the postMessage interface
-        const {
-          data
-        } = processIpcMessage({
-          cmd,
-          callback,
-          error,
-          options,
-          payload
+        .catch(() => {
+          // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
+          // so we need to fallback to the postMessage interface
+          customProtocolIpcFailed = true
+          sendIpcMessage(message)
         })
-        window.ipc.postMessage(data)
-      }
+    } else {
+      // otherwise use the postMessage interface
+      const { data } = processIpcMessage({
+        cmd,
+        callback,
+        error,
+        options,
+        payload
+      })
+      window.ipc.postMessage(data)
     }
+  }
+
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'postMessage', {
+    value: sendIpcMessage
   })
 })()

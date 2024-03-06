@@ -1,9 +1,9 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{
-  get_profile, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
+  get_profile_dir, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
 };
 use crate::CommandExt;
 use tauri_utils::display_path;
@@ -61,10 +61,6 @@ impl DevProcess for DevChild {
 
   fn manually_killed_process(&self) -> bool {
     self.manually_killed_app.load(Ordering::Relaxed)
-  }
-
-  fn is_building_app(&self) -> bool {
-    self.app_child.lock().unwrap().is_none()
   }
 }
 
@@ -169,7 +165,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), get_profile(&options))
+        .out_dir(Some(triple.into()), get_profile_dir(&options).to_string())
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
@@ -247,14 +243,10 @@ fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
     let mut io_stderr = std::io::stderr();
     loop {
       buf.clear();
-      match tauri_utils::io::read_line(&mut stderr, &mut buf) {
-        Ok(s) if s == 0 => break,
-        _ => (),
+      if let Ok(0) = tauri_utils::io::read_line(&mut stderr, &mut buf) {
+        break;
       }
       let _ = io_stderr.write_all(&buf);
-      if !buf.ends_with(&[b'\r']) {
-        let _ = io_stderr.write_all(b"\n");
-      }
       lines.push(String::from_utf8_lossy(&buf).into_owned());
     }
   });

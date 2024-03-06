@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -20,13 +20,13 @@ use tauri_utils::display_path;
 pub use self::{
   category::AppCategory,
   settings::{
-    BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings, PackageType,
-    Settings, SettingsBuilder, UpdaterSettings,
+    AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
+    PackageSettings, PackageType, Position, RpmSettings, Settings, SettingsBuilder, Size,
+    UpdaterSettings,
   },
 };
 #[cfg(target_os = "macos")]
 use anyhow::Context;
-use log::{info, warn};
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{fmt::Write, path::PathBuf};
@@ -43,10 +43,12 @@ pub struct Bundle {
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
 pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
-  let package_types = settings.package_types()?;
+  let mut package_types = settings.package_types()?;
   if package_types.is_empty() {
     return Ok(Vec::new());
   }
+
+  package_types.sort_by_key(|a| a.priority());
 
   let mut bundles: Vec<Bundle> = Vec::new();
 
@@ -58,7 +60,31 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     .replace("darwin", "macos");
 
   if target_os != std::env::consts::OS {
-    warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+    log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+  }
+
+  #[cfg(target_os = "windows")]
+  {
+    // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
+    for bin in settings.binaries() {
+      let bin_path = settings.binary_path(bin);
+      windows::sign::try_sign(&bin_path, &settings)?;
+    }
+
+    // Sign the sidecar binaries
+    for bin in settings.external_binaries() {
+      let path = bin?;
+      let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
+
+      if !skip && windows::sign::verify(&path)? {
+        log::info!(
+          "sidecar at \"{}\" already signed. Skipping...",
+          path.display()
+        )
+      } else {
+        windows::sign::try_sign(&path, &settings)?;
+      }
+    }
   }
 
   for package_type in &package_types {
@@ -103,17 +129,18 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
             p,
             PackageType::AppImage
               | PackageType::MacOsBundle
+              | PackageType::Dmg
               | PackageType::Nsis
               | PackageType::WindowsMsi
           )
         }) {
-          warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
+          log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
           continue;
         }
         updater_bundle::bundle_project(&settings, &bundles)?
       }
       _ => {
-        warn!("ignoring {}", package_type.short_name());
+        log::warn!("ignoring {}", package_type.short_name());
         continue;
       }
     };
@@ -135,7 +162,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
         .map(|b| b.bundle_paths)
       {
         for app_bundle_path in &app_bundle_paths {
-          info!(action = "Cleaning"; "{}", app_bundle_path.display());
+          log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
             true => std::fs::remove_dir_all(app_bundle_path),
             false => std::fs::remove_file(app_bundle_path),
@@ -173,7 +200,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       }
     }
 
-    info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
+    log::info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
 
     Ok(bundles)
   } else {

@@ -1,11 +1,12 @@
 {
-  "name": "svelte-app",
+  "name": "api",
+  "private": true,
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --clearScreen false",
+    "dev": "vite",
     "build": "vite build",
-    "serve": "vite preview",
+    "preview": "vite preview",
     "tauri": "node ../../tooling/cli/node/tauri.js"
   },
   "dependencies": {
@@ -15,10 +16,10 @@
   "devDependencies": {
     "@iconify-json/codicon": "^1.1.10",
     "@iconify-json/ph": "^1.1.1",
-    "@sveltejs/vite-plugin-svelte": "^1.0.1",
     "internal-ip": "^7.0.0",
-    "svelte": "^3.49.0",
     "unocss": "^0.39.3",
-    "vite": "^3.2.7"
+    "@sveltejs/vite-plugin-svelte": "^2.4.6",
+    "svelte": "^4.2.1",
+    "vite": "^4.5.2"
   }
 }

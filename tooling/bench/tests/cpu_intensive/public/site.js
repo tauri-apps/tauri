@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -21,7 +21,7 @@ const onMessage = (message) => {
 
   if (message.data.status === 'done') {
     // tell tauri that we are done
-    window.__TAURI__.invoke('app_completed_successfully')
+    window.__TAURI__.core.invoke('app_completed_successfully')
   }
 
   status.innerHTML = `${prefix} Found <code>${message.data.count}</code> prime numbers in <code>${message.data.time}ms</code>`

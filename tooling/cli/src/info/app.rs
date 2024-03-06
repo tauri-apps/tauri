@@ -1,8 +1,8 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{SectionItem, Status};
+use super::SectionItem;
 use crate::helpers::framework;
 use std::{
   fs::read_to_string,
@@ -17,60 +17,40 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
       let config_guard = config.lock().unwrap();
       let config = config_guard.as_ref().unwrap();
 
-      let bundle_or_build = if config.tauri.bundle.active {
-        "bundle".to_string()
+      let bundle_or_build = if config.bundle.active {
+        "bundle"
       } else {
-        "build".to_string()
+        "build"
       };
-      items.push(SectionItem::new(
-        move || Some((format!("build-type: {bundle_or_build}"), Status::Neutral)),
-        || None,
-        false,
-      ));
+      items.push(SectionItem::new().description(format!("build-type: {bundle_or_build}")));
 
       let csp = config
-        .tauri
+        .app
         .security
         .csp
         .clone()
         .map(|c| c.to_string())
         .unwrap_or_else(|| "unset".to_string());
-      items.push(SectionItem::new(
-        move || Some((format!("CSP: {csp}"), Status::Neutral)),
-        || None,
-        false,
-      ));
+      items.push(SectionItem::new().description(format!("CSP: {csp}")));
 
-      let dist_dir = config.build.dist_dir.to_string();
-      items.push(SectionItem::new(
-        move || Some((format!("distDir: {dist_dir}"), Status::Neutral)),
-        || None,
-        false,
-      ));
+      if let Some(frontend_dist) = &config.build.frontend_dist {
+        items.push(SectionItem::new().description(format!("frontendDist: {frontend_dist}")));
+      }
 
-      let dev_path = config.build.dev_path.to_string();
-      items.push(SectionItem::new(
-        move || Some((format!("devPath: {dev_path}"), Status::Neutral)),
-        || None,
-        false,
-      ));
+      if let Some(dev_url) = &config.build.dev_url {
+        items.push(SectionItem::new().description(format!("devUrl: {dev_url}")));
+      }
 
       if let Some(app_dir) = app_dir {
         if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
           let (framework, bundler) = framework::infer_from_package_json(&package_json);
+
           if let Some(framework) = framework {
-            items.push(SectionItem::new(
-              move || Some((format!("framework: {framework}"), Status::Neutral)),
-              || None,
-              false,
-            ));
+            items.push(SectionItem::new().description(format!("framework: {framework}")));
           }
+
           if let Some(bundler) = bundler {
-            items.push(SectionItem::new(
-              move || Some((format!("bundler: {bundler}"), Status::Neutral)),
-              || None,
-              false,
-            ));
+            items.push(SectionItem::new().description(format!("bundler: {bundler}")));
           }
         }
       }

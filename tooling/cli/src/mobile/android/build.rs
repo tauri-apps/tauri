@@ -1,26 +1,26 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{
   configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, open_and_wait, MobileTarget,
+  log_finished, open_and_wait, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
-    flock, resolve_merge_config,
+    flock,
   },
-  interface::{AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
-  Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
 use anyhow::Context;
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
   target::TargetTrait,
@@ -29,7 +29,10 @@ use tauri_mobile::{
 use std::env::{set_current_dir, set_var};
 
 #[derive(Debug, Clone, Parser)]
-#[clap(about = "Android build")]
+#[clap(
+  about = "Build your app in release mode for Android and generate APKs and AABs",
+  long_about = "Build your app in release mode for Android and generate APKs and AABs. It makes use of the `build.frontendDist` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.frontendDist`."
+)]
 pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
@@ -48,7 +51,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// JSON string or path to JSON file to merge with tauri.conf.json
   #[clap(short, long)]
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   /// Whether to split the APKs and AABs per ABIs.
   #[clap(long)]
   pub split_per_abi: bool,
@@ -61,6 +64,9 @@ pub struct Options {
   /// Open Android Studio
   #[clap(short, long)]
   pub open: bool,
+  /// Skip prompting for values
+  #[clap(long, env = "CI")]
+  pub ci: bool,
 }
 
 impl From<Options> for BuildOptions {
@@ -71,29 +77,45 @@ impl From<Options> for BuildOptions {
       target: None,
       features: options.features,
       bundles: None,
+      no_bundle: false,
       config: options.config,
       args: Vec::new(),
-      ci: false,
+      ci: options.ci,
     }
   }
 }
 
-pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
+pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
 
-  let (merge_config, _merge_config_path) = resolve_merge_config(&options.config)?;
-  options.config = merge_config;
+  let mut build_options: BuildOptions = options.clone().into();
+  build_options.target = Some(
+    Target::all()
+      .get(Target::DEFAULT_KEY)
+      .unwrap()
+      .triple
+      .into(),
+  );
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
-    options.config.as_deref(),
+    options.config.as_ref().map(|c| &c.0),
   )?;
-  let (app, config, metadata) = {
+  let (interface, app, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app = get_app(tauri_config_);
-    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
-    (app, config, metadata)
+
+    let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
+
+    let app = get_app(tauri_config_, &interface);
+    let (config, metadata) = get_config(
+      &app,
+      tauri_config_,
+      build_options.features.as_ref(),
+      &Default::default(),
+    );
+    (interface, app, config, metadata)
   };
 
   set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
@@ -113,6 +135,8 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut env = env()?;
   configure_cargo(&app, Some((&mut env, &config)))?;
 
+  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+
   // run an initial build to initialize plugins
   Target::all().values().next().unwrap().build(
     &config,
@@ -120,16 +144,14 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
     &env,
     noise_level,
     true,
-    if options.debug {
-      Profile::Debug
-    } else {
-      Profile::Release
-    },
+    profile,
   )?;
 
   let open = options.open;
-  run_build(
+  let _handle = run_build(
+    interface,
     options,
+    build_options,
     tauri_config,
     profile,
     &config,
@@ -144,33 +166,22 @@ pub fn command(mut options: Options, noise_level: NoiseLevel) -> Result<()> {
   Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_build(
+  interface: AppInterface,
   mut options: Options,
+  build_options: BuildOptions,
   tauri_config: ConfigHandle,
   profile: Profile,
   config: &AndroidConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
-) -> Result<()> {
+) -> Result<OptionsHandle> {
   if !(options.apk || options.aab) {
     // if the user didn't specify the format to build, we'll do both
     options.apk = true;
     options.aab = true;
   }
-
-  let mut build_options: BuildOptions = options.clone().into();
-  build_options.target = Some(
-    Target::all()
-      .get(Target::DEFAULT_KEY)
-      .unwrap()
-      .triple
-      .into(),
-  );
-  let interface = crate::build::setup(
-    tauri_utils::platform::Target::Android,
-    &mut build_options,
-    true,
-  )?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
@@ -189,22 +200,10 @@ fn run_build(
     noise_level,
     vars: Default::default(),
   };
-  let _handle = write_options(
-    &tauri_config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .tauri
-      .bundle
-      .identifier,
+  let handle = write_options(
+    &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
     cli_options,
   )?;
-
-  options
-    .features
-    .get_or_insert(Vec::new())
-    .push("custom-protocol".into());
 
   inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
@@ -237,7 +236,7 @@ fn run_build(
   log_finished(apk_outputs, "APK");
   log_finished(aab_outputs, "AAB");
 
-  Ok(())
+  Ok(handle)
 }
 
 fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {

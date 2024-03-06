@@ -1,4 +1,5 @@
 [workspace]
+resolver = "2"
 members = [
   # core
   "core/tauri",
@@ -9,11 +10,12 @@ members = [
   "core/tauri-build",
   "core/tauri-codegen",
   "core/tauri-config-schema",
+  "core/tauri-plugin",
 
   # integration tests
   "core/tests/restart",
+  "core/tests/acl",
 ]
-resolver = "2"
 
 exclude = [
   # examples that can be compiled with the tauri CLI
@@ -22,6 +24,7 @@ exclude = [
   "examples/web/core",
   "examples/file-associations/src-tauri",
   "examples/workspace",
+  "examples/plugins/tauri-plugin-example",
 ]
 
 [workspace.package]
@@ -31,7 +34,7 @@ repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 
 # default to small, optimized workspace release binaries
 [profile.release]

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -109,6 +109,9 @@ pub trait Assets: Send + Sync + 'static {
   /// Get the content of the passed [`AssetKey`].
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
 
+  /// Iterator for the assets.
+  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_>;
+
   /// Gets the hashes for the CSP tag of the HTML on the given path.
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
 }
@@ -161,6 +164,10 @@ impl Assets for EmbeddedAssets {
       .get(key.as_ref())
       .copied()
       .map(|a| Cow::Owned(a.to_vec()))
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    Box::new(self.assets.into_iter())
   }
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {

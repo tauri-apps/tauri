@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -20,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
           cache: yarn
           cache-dependency-path: tooling/cli/node/yarn.lock
       - name: install deps via yarn
@@ -40,15 +40,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v3
         with:
-          node-version: '14'
+          node-version: '18'
           cache: yarn
           cache-dependency-path: tooling/api/yarn.lock
 
       - name: install deps via yarn
         working-directory: ./tooling/api/
         run: yarn
+      - name: run ts:check
+        working-directory: ./tooling/api/
+        run: yarn ts:check
       - name: run lint
         working-directory: ./tooling/api/
         run: yarn lint

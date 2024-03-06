@@ -1,0 +1,9 @@
+"$schema" = "schemas/schema.json"
+
+[[permission]]
+version = 1
+identifier = "deny-home-dir-config"
+description = "Denies read access to the complete $HOME folder."
+
+[[permission.scope.deny]]
+path = "$HOME/.config"

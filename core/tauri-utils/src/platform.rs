@@ -1,20 +1,28 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! Platform helper functions.
 
-use std::path::{PathBuf, MAIN_SEPARATOR};
+use std::{
+  fmt::Display,
+  path::{Path, PathBuf, MAIN_SEPARATOR},
+};
+
+use serde::{Deserialize, Serialize};
 
 use crate::{Env, PackageInfo};
 
 mod starting_binary;
 
 /// Platform target.
-#[derive(PartialEq, Eq, Copy, Clone)]
+#[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum Target {
   /// MacOS.
-  Darwin,
+  #[serde(rename = "macOS")]
+  MacOS,
   /// Windows.
   Windows,
   /// Linux.
@@ -22,14 +30,31 @@ pub enum Target {
   /// Android.
   Android,
   /// iOS.
+  #[serde(rename = "iOS")]
   Ios,
+}
+
+impl Display for Target {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "{}",
+      match self {
+        Self::MacOS => "macOS",
+        Self::Windows => "windows",
+        Self::Linux => "linux",
+        Self::Android => "android",
+        Self::Ios => "iOS",
+      }
+    )
+  }
 }
 
 impl Target {
   /// Parses the target from the given target triple.
   pub fn from_triple(target: &str) -> Self {
     if target.contains("darwin") {
-      Self::Darwin
+      Self::MacOS
     } else if target.contains("windows") {
       Self::Windows
     } else if target.contains("android") {
@@ -44,9 +69,13 @@ impl Target {
   /// Gets the current build target.
   pub fn current() -> Self {
     if cfg!(target_os = "macos") {
-      Self::Darwin
+      Self::MacOS
     } else if cfg!(target_os = "windows") {
       Self::Windows
+    } else if cfg!(target_os = "ios") {
+      Self::Ios
+    } else if cfg!(target_os = "android") {
+      Self::Android
     } else {
       Self::Linux
     }
@@ -192,6 +221,28 @@ pub fn target_triple() -> crate::Result<String> {
   Ok(format!("{arch}-{os}"))
 }
 
+#[cfg(not(test))]
+fn is_cargo_output_directory(path: &Path) -> bool {
+  path.join(".cargo-lock").exists()
+}
+
+#[cfg(test)]
+const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"];
+
+#[cfg(test)]
+fn is_cargo_output_directory(path: &Path) -> bool {
+  let last_component = path
+    .components()
+    .last()
+    .unwrap()
+    .as_os_str()
+    .to_str()
+    .unwrap();
+  CARGO_OUTPUT_DIRECTORIES
+    .iter()
+    .any(|dirname| &last_component == dirname)
+}
+
 /// Computes the resource directory of the current environment.
 ///
 /// On Windows, it's the path to the executable.
@@ -204,17 +255,32 @@ pub fn target_triple() -> crate::Result<String> {
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
-#[allow(unused_variables)]
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   let exe = current_exe()?;
-  let exe_dir = exe.parent().expect("failed to get exe directory");
+  resource_dir_from(exe, package_info, env)
+}
+
+#[allow(unused_variables)]
+fn resource_dir_from<P: AsRef<Path>>(
+  exe: P,
+  package_info: &PackageInfo,
+  env: &Env,
+) -> crate::Result<PathBuf> {
+  let exe_dir = exe.as_ref().parent().expect("failed to get exe directory");
   let curr_dir = exe_dir.display().to_string();
 
-  if curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}debug").as_str())
-    || curr_dir.ends_with(format!("{MAIN_SEPARATOR}target{MAIN_SEPARATOR}release").as_str())
-    || cfg!(target_os = "windows")
+  let parts: Vec<&str> = curr_dir.split(MAIN_SEPARATOR).collect();
+  let len = parts.len();
+
+  // Check if running from the Cargo output directory, which means it's an executable in a development machine
+  // We check if the binary is inside a `target` folder which can be either `target/$profile` or `target/$triple/$profile`
+  // and see if there's a .cargo-lock file along the executable
+  // This ensures the check is safer so it doesn't affect apps in production
+  // Windows also includes the resources in the executable folder so we check that too
+  if cfg!(target_os = "windows")
+    || ((len >= 2 && parts[len - 2] == "target") || (len >= 3 && parts[len - 3] == "target"))
+      && is_cargo_output_directory(exe_dir)
   {
-    // running from the out dir or windows
     return Ok(exe_dir.to_path_buf());
   }
 
@@ -256,86 +322,64 @@ pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<Path
   res
 }
 
-#[cfg(windows)]
-pub use windows_platform::{get_function_impl, is_windows_7, windows_version};
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
 
-#[cfg(windows)]
-mod windows_platform {
-  use std::{iter::once, os::windows::prelude::OsStrExt};
-  use windows::{
-    core::{PCSTR, PCWSTR},
-    Win32::{
-      Foundation::FARPROC,
-      System::{
-        LibraryLoader::{GetProcAddress, LoadLibraryW},
-        SystemInformation::OSVERSIONINFOW,
-      },
-    },
-  };
+  use super::*;
 
-  /// Checks if we're running on Windows 7.
-  pub fn is_windows_7() -> bool {
-    if let Some(v) = windows_version() {
-      // windows 7 is 6.1
-      if v.0 == 6 && v.1 == 1 {
-        return true;
-      }
-    }
-    false
-  }
+  impl ToTokens for Target {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::platform::Target };
 
-  fn encode_wide(string: impl AsRef<std::ffi::OsStr>) -> Vec<u16> {
-    string.as_ref().encode_wide().chain(once(0)).collect()
-  }
-
-  /// Helper function to dynamically load function pointer.
-  /// `library` and `function` must be null-terminated.
-  pub fn get_function_impl(library: &str, function: &str) -> Option<FARPROC> {
-    let library = encode_wide(library);
-    assert_eq!(function.chars().last(), Some('\0'));
-    let function = PCSTR::from_raw(function.as_ptr());
-
-    // Library names we will use are ASCII so we can use the A version to avoid string conversion.
-    let module = unsafe { LoadLibraryW(PCWSTR::from_raw(library.as_ptr())) }.unwrap_or_default();
-    if module.is_invalid() {
-      None
-    } else {
-      Some(unsafe { GetProcAddress(module, function) })
+      tokens.append_all(match self {
+        Self::MacOS => quote! { #prefix::MacOS },
+        Self::Linux => quote! { #prefix::Linux },
+        Self::Windows => quote! { #prefix::Windows },
+        Self::Android => quote! { #prefix::Android },
+        Self::Ios => quote! { #prefix::Ios },
+      });
     }
   }
+}
 
-  macro_rules! get_function {
-    ($lib:expr, $func:ident) => {
-      get_function_impl(concat!($lib, '\0'), concat!(stringify!($func), '\0'))
-        .map(|f| unsafe { std::mem::transmute::<windows::Win32::Foundation::FARPROC, $func>(f) })
+#[cfg(test)]
+mod tests {
+  use std::path::PathBuf;
+
+  use crate::{Env, PackageInfo};
+
+  #[test]
+  fn resolve_resource_dir() {
+    let package_info = PackageInfo {
+      name: "MyApp".into(),
+      version: "1.0.0".parse().unwrap(),
+      authors: "",
+      description: "",
+      crate_name: "",
     };
-  }
+    let env = Env::default();
 
-  /// Returns a tuple of (major, minor, buildnumber) for the Windows version.
-  pub fn windows_version() -> Option<(u32, u32, u32)> {
-    type RtlGetVersion = unsafe extern "system" fn(*mut OSVERSIONINFOW) -> i32;
-    let handle = get_function!("ntdll.dll", RtlGetVersion);
-    if let Some(rtl_get_version) = handle {
-      unsafe {
-        let mut vi = OSVERSIONINFOW {
-          dwOSVersionInfoSize: 0,
-          dwMajorVersion: 0,
-          dwMinorVersion: 0,
-          dwBuildNumber: 0,
-          dwPlatformId: 0,
-          szCSDVersion: [0; 128],
-        };
+    let path = PathBuf::from("/path/to/target/aarch64-apple-darwin/debug/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env).unwrap();
+    assert_eq!(resource_dir, path.parent().unwrap());
 
-        let status = (rtl_get_version)(&mut vi as _);
+    let path = PathBuf::from("/path/to/target/custom-profile/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env).unwrap();
+    assert_eq!(resource_dir, path.parent().unwrap());
 
-        if status >= 0 {
-          Some((vi.dwMajorVersion, vi.dwMinorVersion, vi.dwBuildNumber))
-        } else {
-          None
-        }
-      }
-    } else {
-      None
-    }
+    let path = PathBuf::from("/path/to/target/release/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env).unwrap();
+    assert_eq!(resource_dir, path.parent().unwrap());
+
+    let path = PathBuf::from("/path/to/target/unknown-profile/app");
+    let resource_dir = super::resource_dir_from(&path, &package_info, &env);
+    #[cfg(target_os = "macos")]
+    assert!(resource_dir.is_err());
+    #[cfg(target_os = "linux")]
+    assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/lib/my-app"));
+    #[cfg(windows)]
+    assert_eq!(resource_dir.unwrap(), path.parent().unwrap());
   }
 }

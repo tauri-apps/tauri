@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,19 +6,20 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   menu::{Menu, MenuItem},
   tray::{ClickType, TrayIconBuilder},
-  Manager, Runtime, WindowBuilder, WindowUrl,
+  Manager, Runtime, WebviewUrl,
 };
 
 pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
-  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None);
-  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None);
-  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None);
-  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None);
+  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None::<&str>)?;
+  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None::<&str>)?;
+  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None::<&str>)?;
+  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None::<&str>)?;
   #[cfg(target_os = "macos")]
-  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None);
-  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None);
-  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None);
-  let remove_tray_i = MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None);
+  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None::<&str>)?;
+  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None::<&str>)?;
+  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+  let remove_tray_i =
+    MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None::<&str>)?;
   let menu1 = Menu::with_items(
     app,
     &[
@@ -53,7 +54,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         app.remove_tray_by_id("tray-1");
       }
       "toggle" => {
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = app.get_webview_window("main") {
           let new_title = if window.is_visible().unwrap_or_default() {
             let _ = window.hide();
             "Show"
@@ -66,9 +67,11 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
         }
       }
       "new-window" => {
-        let _ = WindowBuilder::new(app, "new", WindowUrl::App("index.html".into()))
-          .title("Tauri")
-          .build();
+        let _webview =
+          tauri::WebviewWindowBuilder::new(app, "new", WebviewUrl::App("index.html".into()))
+            .title("Tauri")
+            .build()
+            .unwrap();
       }
       #[cfg(target_os = "macos")]
       "set-title" => {
@@ -78,11 +81,14 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
       }
       i @ "icon-1" | i @ "icon-2" => {
         if let Some(tray) = app.tray_by_id("tray-1") {
-          let _ = tray.set_icon(Some(tauri::Icon::Raw(if i == "icon-1" {
-            include_bytes!("../../../.icons/icon.ico").to_vec()
+          let icon = if i == "icon-1" {
+            tauri::Image::from_bytes(include_bytes!("../../../.icons/icon.ico"))
           } else {
-            include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec()
-          })));
+            tauri::Image::from_bytes(include_bytes!(
+              "../../../.icons/tray_icon_with_transparency.png"
+            ))
+          };
+          let _ = tray.set_icon(Some(icon.unwrap()));
         }
       }
       "switch-menu" => {
@@ -101,10 +107,10 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
 
       _ => {}
     })
-    .on_tray_event(|tray, event| {
+    .on_tray_icon_event(|tray, event| {
       if event.click_type == ClickType::Left {
         let app = tray.app_handle();
-        if let Some(window) = app.get_window("main") {
+        if let Some(window) = app.get_webview_window("main") {
           let _ = window.show();
           let _ = window.set_focus();
         }

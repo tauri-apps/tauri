@@ -1,7 +1,8 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::helpers::prompts::input;
 use crate::Result;
 use crate::{
   helpers::{resolve_tauri_path, template},
@@ -9,45 +10,49 @@ use crate::{
 };
 use anyhow::Context;
 use clap::Parser;
-use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
-use heck::{AsKebabCase, ToKebabCase, ToPascalCase, ToSnakeCase};
+use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
-use log::warn;
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  ffi::OsStr,
-  fmt::Display,
   fs::{create_dir_all, remove_dir_all, File, OpenOptions},
   path::{Component, Path, PathBuf},
-  str::FromStr,
 };
 
 pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 
 #[derive(Debug, Parser)]
-#[clap(about = "Initializes a Tauri plugin project")]
+#[clap(about = "Initialize a Tauri plugin project on an existing directory")]
 pub struct Options {
-  /// Name of your Tauri plugin
-  #[clap(short = 'n', long = "name")]
-  plugin_name: String,
+  /// Name of your Tauri plugin.
+  /// If not specified, it will be infered from the current directory.
+  pub(crate) plugin_name: Option<String>,
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
-  no_api: bool,
+  pub(crate) no_api: bool,
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(long, hide(true))]
-  tauri: bool,
+  pub(crate) tauri: bool,
   /// Set target directory for init
   #[clap(short, long)]
   #[clap(default_value_t = current_dir().expect("failed to read cwd").display().to_string())]
-  directory: String,
+  pub(crate) directory: String,
   /// Path of the Tauri project to use (relative to the cwd)
   #[clap(short, long)]
-  tauri_path: Option<PathBuf>,
+  pub(crate) tauri_path: Option<PathBuf>,
   /// Author name
   #[clap(short, long)]
-  author: Option<String>,
+  pub(crate) author: Option<String>,
+  /// Whether to initialize an Android project for the plugin.
+  #[clap(long)]
+  pub(crate) android: bool,
+  /// Whether to initialize an iOS project for the plugin.
+  #[clap(long)]
+  pub(crate) ios: bool,
+  /// Whether to initialize Android and iOS projects for the plugin.
+  #[clap(long)]
+  pub(crate) mobile: bool,
 }
 
 impl Options {
@@ -64,15 +69,18 @@ impl Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.load();
-  let template_target_path = PathBuf::from(options.directory).join(format!(
-    "tauri-plugin-{}",
-    AsKebabCase(&options.plugin_name)
-  ));
+
+  let plugin_name = match options.plugin_name {
+    None => super::infer_plugin_name(&options.directory)?,
+    Some(name) => name,
+  };
+
+  let template_target_path = PathBuf::from(options.directory);
   let metadata = crates_metadata()?;
-  if template_target_path.exists() {
-    warn!("Plugin dir ({:?}) not empty.", template_target_path);
+  if std::fs::read_dir(&template_target_path)?.count() > 0 {
+    log::warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
-    let (tauri_dep, tauri_example_dep, tauri_build_dep) =
+    let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
       if let Some(tauri_path) = options.tauri_path {
         (
           format!(
@@ -84,15 +92,26 @@ pub fn command(mut options: Options) -> Result<()> {
             resolve_tauri_path(&tauri_path, "core/tauri")
           ),
           format!(
-            "{{  path = {:?} }}",
+            "{{  path = {:?}, default-features = false }}",
             resolve_tauri_path(&tauri_path, "core/tauri-build")
+          ),
+          format!(
+            r#"{{  path = {:?}, features = ["build"] }}"#,
+            resolve_tauri_path(&tauri_path, "core/tauri-plugin")
           ),
         )
       } else {
         (
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
           format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+          format!(
+            r#"{{ version = "{}", default-features = false }}"#,
+            metadata.tauri_build
+          ),
+          format!(
+            r#"{{ version = "{}", features = ["build"] }}"#,
+            metadata.tauri_plugin
+          ),
         )
       };
 
@@ -101,17 +120,18 @@ pub fn command(mut options: Options) -> Result<()> {
     handlebars.register_escape_fn(handlebars::no_escape);
 
     let mut data = BTreeMap::new();
-    plugin_name_data(&mut data, &options.plugin_name);
+    plugin_name_data(&mut data, &plugin_name);
     data.insert("tauri_dep", to_json(tauri_dep));
     data.insert("tauri_example_dep", to_json(tauri_example_dep));
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
+    data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
     data.insert("author", to_json(options.author));
 
     if options.tauri {
       data.insert(
         "license_header",
         to_json(
-          "// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+          "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
              // SPDX-License-Identifier: Apache-2.0
              // SPDX-License-Identifier: MIT\n\n"
             .replace("  ", "")
@@ -120,15 +140,20 @@ pub fn command(mut options: Options) -> Result<()> {
       );
     }
 
-    let plugin_id = request_input(
-      "What should be the Android Package ID for your plugin?",
-      Some(format!("com.plugin.{}", options.plugin_name)),
-      false,
-      false,
-    )?
-    .unwrap();
+    let plugin_id = if options.android || options.mobile {
+      let plugin_id = input(
+        "What should be the Android Package ID for your plugin?",
+        Some(format!("com.plugin.{}", plugin_name)),
+        false,
+        false,
+      )?
+      .unwrap();
 
-    data.insert("android_package_id", to_json(&plugin_id));
+      data.insert("android_package_id", to_json(&plugin_id));
+      Some(plugin_id)
+    } else {
+      None
+    };
 
     let mut created_dirs = Vec::new();
     template::render_with_generator(
@@ -157,13 +182,18 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "android" => {
-              return generate_android_out_file(
-                &path,
-                &template_target_path,
-                &plugin_id.replace('.', "/"),
-                &mut created_dirs,
-              );
+              if options.android || options.mobile {
+                return generate_android_out_file(
+                  &path,
+                  &template_target_path,
+                  &plugin_id.as_ref().unwrap().replace('.', "/"),
+                  &mut created_dirs,
+                );
+              } else {
+                return Ok(None);
+              }
             }
+            "ios" if !(options.ios || options.mobile) => return Ok(None),
             "webview-dist" | "webview-src" | "package.json" => {
               if options.no_api {
                 return Ok(None);
@@ -184,6 +214,10 @@ pub fn command(mut options: Options) -> Result<()> {
     )
     .with_context(|| "failed to render plugin Android template")?;
   }
+
+  std::fs::create_dir(template_target_path.join("permissions"))
+    .with_context(|| "failed to create `permissions` directory")?;
+
   Ok(())
 }
 
@@ -233,40 +267,14 @@ pub fn generate_android_out_file(
   options.write(true);
 
   #[cfg(unix)]
-  if path.file_name().unwrap() == OsStr::new("gradlew") {
+  if path.file_name().unwrap() == std::ffi::OsStr::new("gradlew") {
     use std::os::unix::fs::OpenOptionsExt;
     options.mode(0o755);
   }
 
-  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+  if !path.exists() {
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)
-  }
-}
-
-pub fn request_input<T>(
-  prompt: &str,
-  initial: Option<T>,
-  skip: bool,
-  allow_empty: bool,
-) -> Result<Option<T>>
-where
-  T: Clone + FromStr + Display + ToString,
-  T::Err: Display + std::fmt::Debug,
-{
-  if skip {
-    Ok(initial)
-  } else {
-    let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme);
-    builder.with_prompt(prompt);
-    builder.allow_empty(allow_empty);
-
-    if let Some(v) = initial {
-      builder.with_initial_text(v.to_string());
-    }
-
-    builder.interact_text().map(Some).map_err(Into::into)
   }
 }

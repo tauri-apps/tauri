@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -14,6 +14,7 @@
 #![allow(clippy::deprecated_semver)]
 
 use std::{
+  ffi::OsString,
   fmt::Display,
   path::{Path, PathBuf},
 };
@@ -21,6 +22,7 @@ use std::{
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+pub mod acl;
 pub mod assets;
 pub mod config;
 pub mod html;
@@ -30,6 +32,11 @@ pub mod platform;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
+#[cfg(feature = "build")]
+pub mod tokens;
+
+#[cfg(feature = "build")]
+pub mod build;
 
 /// Application pattern.
 pub mod pattern;
@@ -124,6 +131,12 @@ mod window_effects {
     MicaDark,
     /// Mica effect with light mode **Windows 11 Only**
     MicaLight,
+    /// Tabbed effect that matches the system dark perefence **Windows 11 Only**
+    Tabbed,
+    /// Tabbed effect with dark mode but only if dark mode is enabled on the system **Windows 11 Only**
+    TabbedDark,
+    /// Tabbed effect with light mode **Windows 11 Only**
+    TabbedLight,
     /// **Windows 7/10/11(22H1) Only**
     ///
     /// ## Notes
@@ -157,7 +170,7 @@ mod window_effects {
 pub use window_effects::{WindowEffect, WindowEffectState};
 
 /// How the window title bar should be displayed on macOS.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum TitleBarStyle {
   /// A normal title bar.
@@ -275,13 +288,13 @@ pub struct Env {
   #[cfg(target_os = "linux")]
   pub appdir: Option<std::ffi::OsString>,
   /// The command line arguments of the current process.
-  pub args: Vec<String>,
+  pub args_os: Vec<OsString>,
 }
 
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
-    let args = std::env::args().skip(1).collect();
+    let args_os = std::env::args_os().skip(1).collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {
@@ -289,7 +302,7 @@ impl Default for Env {
         appimage: std::env::var_os("APPIMAGE"),
         #[cfg(target_os = "linux")]
         appdir: std::env::var_os("APPDIR"),
-        args,
+        args_os,
       };
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
@@ -305,14 +318,14 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          panic!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          log::warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }
       env
     }
     #[cfg(not(target_os = "linux"))]
     {
-      Self { args }
+      Self { args_os }
     }
   }
 }
@@ -371,34 +384,6 @@ pub enum Error {
   #[cfg(feature = "resources")]
   #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
   NotAllowedToWalkDir(std::path::PathBuf),
-}
-
-/// Suppresses the unused-variable warnings of the given inputs.
-///
-/// This does not move any values. Instead, it just suppresses the warning by taking a
-/// reference to the value.
-#[macro_export]
-macro_rules! consume_unused_variable {
-  ($($arg:expr),*) => {
-    $(
-      let _ = &$arg;
-    )*
-    ()
-  };
-}
-
-/// Prints to the standard error, with a newline.
-///
-/// Equivalent to the [`eprintln!`] macro, except that it's only effective for debug builds.
-#[macro_export]
-macro_rules! debug_eprintln {
-  () => ($crate::debug_eprintln!(""));
-  ($($arg:tt)*) => {
-    #[cfg(debug_assertions)]
-    eprintln!($($arg)*);
-    #[cfg(not(debug_assertions))]
-    $crate::consume_unused_variable!($($arg)*);
-  };
 }
 
 /// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.

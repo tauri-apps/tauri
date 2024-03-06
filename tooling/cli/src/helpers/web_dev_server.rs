@@ -1,13 +1,13 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use axum::{
   extract::{ws::WebSocket, WebSocketUpgrade},
-  http::{header::CONTENT_TYPE, Request, StatusCode},
+  http::{header::CONTENT_TYPE, StatusCode, Uri},
   response::IntoResponse,
   routing::get,
-  Router, Server,
+  serve, Router,
 };
 use html5ever::{namespace_url, ns, LocalName, QualName};
 use kuchiki::{traits::TendrilSink, NodeRef};
@@ -31,11 +31,7 @@ struct State {
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(
-  path: P,
-  ip: IpAddr,
-  port: Option<u16>,
-) -> crate::Result<SocketAddr> {
+pub fn start<P: AsRef<Path>>(path: P, ip: IpAddr, port: Option<u16>) -> crate::Result<SocketAddr> {
   let serve_dir = path.as_ref().to_path_buf();
 
   let (server_url_tx, server_url_rx) = std::sync::mpsc::channel();
@@ -52,7 +48,7 @@ pub fn start_dev_server<P: AsRef<Path>>(
         let serve_dir_ = serve_dir.clone();
         thread::spawn(move || {
           let (tx, rx) = sync_channel(1);
-          let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+          let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
             if let Ok(events) = r {
               tx.send(events).unwrap()
             }
@@ -73,65 +69,47 @@ pub fn start_dev_server<P: AsRef<Path>>(
 
         let mut auto_port = false;
         let mut port = port.unwrap_or_else(|| {
-          std::env::var("TAURI_DEV_SERVER_PORT")
-            .unwrap_or_else(|_| {
-              auto_port = true;
-              "1430".to_string()
-            })
-            .parse()
-            .unwrap()
+          auto_port = true;
+          1430
         });
 
-        let (server, server_url) = loop {
+        let (listener, server_url) = loop {
           let server_url = SocketAddr::new(ip, port);
-          let server = Server::try_bind(&server_url);
-
-          if !auto_port {
-            break (server, server_url);
+          if let Ok(listener) = tokio::net::TcpListener::bind(server_url).await {
+            break (Some(listener), server_url);
           }
 
-          if server.is_ok() {
-            break (server, server_url);
+          if !auto_port {
+            break (None, server_url);
           }
 
           port += 1;
         };
 
-        let state = Arc::new(State {
-          serve_dir,
-          tx,
-          address: server_url,
-        });
-        let router = Router::new()
-          .fallback(
-            Router::new().nest(
-              "/",
-              get({
-                let state = state.clone();
-                move |req| handler(req, state)
-              })
-              .handle_error(|_error| async move { StatusCode::INTERNAL_SERVER_ERROR }),
-            ),
-          )
-          .route(
-            "/__tauri_cli",
-            get(move |ws: WebSocketUpgrade| async move {
-              ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
-            }),
-          );
+        if let Some(listener) = listener {
+          let state = Arc::new(State {
+            serve_dir,
+            tx,
+            address: server_url,
+          });
+          let state_ = state.clone();
+          let router = Router::new()
+            .fallback(move |uri| handler(uri, state_))
+            .route(
+              "/__tauri_cli",
+              get(move |ws: WebSocketUpgrade| async move {
+                ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
+              }),
+            );
 
-        match server {
-          Ok(server) => {
-            server_url_tx.send(Ok(server_url)).unwrap();
-            server.serve(router.into_make_service()).await.unwrap();
-          }
-          Err(e) => {
-            server_url_tx
-              .send(Err(anyhow::anyhow!(
-                "failed to start development server on {server_url}: {e}"
-              )))
-              .unwrap();
-          }
+          server_url_tx.send(Ok(server_url)).unwrap();
+          serve(listener, router).await.unwrap();
+        } else {
+          server_url_tx
+            .send(Err(anyhow::anyhow!(
+              "failed to start development server on {server_url}"
+            )))
+            .unwrap();
         }
       })
   });
@@ -139,12 +117,14 @@ pub fn start_dev_server<P: AsRef<Path>>(
   server_url_rx.recv().unwrap()
 }
 
-async fn handler<T>(req: Request<T>, state: Arc<State>) -> impl IntoResponse {
-  let uri = req.uri().to_string();
+async fn handler(uri: Uri, state: Arc<State>) -> impl IntoResponse {
+  // Frontend files should not contain query parameters. This seems to be how vite handles it.
+  let uri = uri.path();
+
   let uri = if uri == "/" {
-    &uri
+    uri
   } else {
-    uri.strip_prefix('/').unwrap_or(&uri)
+    uri.strip_prefix('/').unwrap_or(uri)
   };
 
   let file = std::fs::read(state.serve_dir.join(uri))

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -9,7 +9,6 @@ use crate::helpers::{
 
 use anyhow::Context;
 use itertools::Itertools;
-use log::info;
 use toml_edit::{Array, Document, InlineTable, Item, TableLike, Value};
 
 use std::{
@@ -84,7 +83,7 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
   f
 }
 
-pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
+pub fn read_manifest(manifest_path: &Path) -> crate::Result<(Document, String)> {
   let mut manifest_str = String::new();
 
   let mut manifest_file = File::open(manifest_path)
@@ -95,7 +94,7 @@ pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
     .parse::<Document>()
     .with_context(|| "failed to parse Cargo.toml")?;
 
-  Ok(manifest)
+  Ok((manifest, manifest_str))
 }
 
 pub fn toml_array(features: &HashSet<String>) -> Array {
@@ -246,7 +245,7 @@ fn inject_features(
         .and_then(|v| v.as_bool())
         .unwrap_or_default()
       {
-        info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", dependency.features.iter().join(", "));
+        log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Expected features: [{}]", dependency.features.iter().join(", "));
       } else {
         let all_cli_managed_features = dependency.all_cli_managed_features.clone();
         let is_managed_feature: Box<dyn Fn(&str) -> bool> =
@@ -265,15 +264,15 @@ fn inject_features(
   Ok(persist)
 }
 
-pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
+pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
   let manifest_path = tauri_dir().join("Cargo.toml");
-  let mut manifest = read_manifest(&manifest_path)?;
+  let (mut manifest, original_manifest_str) = read_manifest(&manifest_path)?;
 
   let mut dependencies = Vec::new();
 
   // tauri-build
   let mut tauri_build_features = HashSet::new();
-  if let PatternKind::Isolation { .. } = config.tauri.pattern {
+  if let PatternKind::Isolation { .. } = config.app.security.pattern {
     tauri_build_features.insert("isolation".to_string());
   }
   dependencies.push(DependencyAllowlist {
@@ -284,12 +283,11 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
   });
 
   // tauri
-  let tauri_features =
-    HashSet::from_iter(config.tauri.features().into_iter().map(|f| f.to_string()));
+  let tauri_features = HashSet::from_iter(config.app.features().into_iter().map(|f| f.to_string()));
   dependencies.push(DependencyAllowlist {
     name: "tauri".into(),
     kind: DependencyKind::Normal,
-    all_cli_managed_features: crate::helpers::config::TauriConfig::all_features()
+    all_cli_managed_features: crate::helpers::config::AppConfig::all_features()
       .into_iter()
       .filter(|f| f != &"tray-icon")
       .collect(),
@@ -304,31 +302,36 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<Manifest> {
     .unwrap()
     .features;
 
-  if persist {
+  let new_manifest_str = manifest
+    .to_string()
+    // apply some formatting fixes
+    .replace(r#"" ,features =["#, r#"", features = ["#)
+    .replace(r#"" , features"#, r#"", features"#)
+    .replace("]}", "] }")
+    .replace("={", "= {")
+    .replace("=[", "= [")
+    .replace(r#"",""#, r#"", ""#);
+
+  if persist && original_manifest_str != new_manifest_str {
     let mut manifest_file =
       File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
-    manifest_file.write_all(
-      manifest
-        .to_string()
-        // apply some formatting fixes
-        .replace(r#"" ,features =["#, r#"", features = ["#)
-        .replace(r#"" , features"#, r#"", features"#)
-        .replace("]}", "] }")
-        .replace("={", "= {")
-        .replace("=[", "= [")
-        .replace(r#"",""#, r#"", ""#)
-        .as_bytes(),
-    )?;
+    manifest_file.write_all(new_manifest_str.as_bytes())?;
     manifest_file.flush()?;
-    Ok(Manifest {
-      inner: manifest,
-      tauri_features,
-    })
+    Ok((
+      Manifest {
+        inner: manifest,
+        tauri_features,
+      },
+      true,
+    ))
   } else {
-    Ok(Manifest {
-      inner: manifest,
-      tauri_features,
-    })
+    Ok((
+      Manifest {
+        inner: manifest,
+        tauri_features,
+      },
+      false,
+    ))
   }
 }
 
@@ -414,7 +417,7 @@ mod tests {
     DependencyAllowlist {
       name: "tauri-build".into(),
       kind: DependencyKind::Build,
-      all_cli_managed_features: crate::helpers::config::TauriConfig::all_features(),
+      all_cli_managed_features: crate::helpers::config::AppConfig::all_features(),
       features,
     }
   }
@@ -431,7 +434,7 @@ mod tests {
 "#,
       vec![
         tauri_dependency(HashSet::from_iter(
-          crate::helpers::config::TauriConfig::all_features()
+          crate::helpers::config::AppConfig::all_features()
             .iter()
             .map(|f| f.to_string()),
         )),

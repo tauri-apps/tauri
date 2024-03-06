@@ -1,6 +1,5 @@
 {
   "gitSiteUrl": "https://www.github.com/tauri-apps/tauri/",
-  "timeout": 3600000,
   "changeTags": {
     "feat": "New Features",
     "enhance": "Enhancements",
@@ -214,6 +213,12 @@
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"]
     },
+    "tauri-plugin": {
+      "path": "./core/tauri-plugin",
+      "manager": "rust",
+      "dependencies": ["tauri-utils"],
+      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+    },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",
@@ -271,7 +276,8 @@
     },
     "tauri-driver": {
       "path": "./tooling/webdriver",
-      "manager": "rust"
+      "manager": "rust",
+      "postversion": "cargo check"
     }
   }
 }

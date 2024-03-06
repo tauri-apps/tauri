@@ -1,39 +1,44 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 import Foundation
 import UIKit
 
-let CHANNEL_PREFIX = "__CHANNEL__:"
-
-@objc public class Invoke: NSObject, JSValueContainer, BridgedJSValueContainer {
-  public var dictionaryRepresentation: NSDictionary {
-    return data as NSDictionary
-  }
-
-  public static var jsDateFormatter: ISO8601DateFormatter = {
-    return ISO8601DateFormatter()
-  }()
-
-  public var command: String
-  var callback: UInt64
-  var error: UInt64
-  public var data: JSObject
-  var sendResponse: (UInt64, JsonValue?) -> Void
-  var sendChannelData: (UInt64, JsonValue) -> Void
+@objc public class Invoke: NSObject {
+  public let command: String
+  let callback: UInt64
+  let error: UInt64
+  let data: String
+  let sendResponse: (UInt64, String?) -> Void
+  let sendChannelData: (UInt64, String) -> Void
 
   public init(
     command: String, callback: UInt64, error: UInt64,
-    sendResponse: @escaping (UInt64, JsonValue?) -> Void,
-    sendChannelData: @escaping (UInt64, JsonValue) -> Void, data: JSObject?
+    sendResponse: @escaping (UInt64, String?) -> Void,
+    sendChannelData: @escaping (UInt64, String) -> Void, data: String
   ) {
     self.command = command
     self.callback = callback
     self.error = error
-    self.data = data ?? [:]
+    self.data = data
     self.sendResponse = sendResponse
     self.sendChannelData = sendChannelData
+  }
+
+  public func parseArgs<T: Decodable>(_ type: T.Type) throws -> T {
+    let jsonData = self.data.data(using: .utf8)!
+    let decoder = JSONDecoder()
+    decoder.userInfo[channelDataKey] = sendChannelData
+    return try decoder.decode(type, from: jsonData)
+  }
+
+  func serialize(_ data: JsonValue) -> String {
+    do {
+      return try data.jsonRepresentation() ?? "\"Failed to serialize payload\""
+    } catch {
+      return "\"\(error)\""
+    }
   }
 
   public func resolve() {
@@ -45,15 +50,33 @@ let CHANNEL_PREFIX = "__CHANNEL__:"
   }
 
   public func resolve(_ data: JsonValue) {
-    sendResponse(callback, data)
+    sendResponse(callback, serialize(data))
+  }
+
+  public func resolve<T: Encodable>(_ data: T) {
+    do {
+      let json = try JSONEncoder().encode(data)
+      sendResponse(callback, String(decoding: json, as: UTF8.self))
+    } catch {
+      sendResponse(self.error, "\"\(error)\"")
+    }
   }
 
   public func reject(
-    _ message: String, _ code: String? = nil, _ error: Error? = nil, _ data: JsonValue? = nil
+    _ message: String, code: String? = nil, error: Error? = nil, data: JsonValue? = nil
   ) {
     let payload: NSMutableDictionary = [
-      "message": message, "code": code ?? "", "error": error ?? "",
+      "message": message
     ]
+
+    if let code = code {
+      payload["code"] = code
+    }
+
+    if let error = error {
+      payload["error"] = error
+    }
+
     if let data = data {
       switch data {
       case .dictionary(let dict):
@@ -62,7 +85,8 @@ let CHANNEL_PREFIX = "__CHANNEL__:"
         }
       }
     }
-    sendResponse(self.error, .dictionary(payload as! JsonObject))
+
+    sendResponse(self.error, serialize(.dictionary(payload as! JsonObject)))
   }
 
   public func unimplemented() {
@@ -70,7 +94,7 @@ let CHANNEL_PREFIX = "__CHANNEL__:"
   }
 
   public func unimplemented(_ message: String) {
-    sendResponse(error, .dictionary(["message": message]))
+    reject(message)
   }
 
   public func unavailable() {
@@ -78,22 +102,6 @@ let CHANNEL_PREFIX = "__CHANNEL__:"
   }
 
   public func unavailable(_ message: String) {
-    sendResponse(error, .dictionary(["message": message]))
-  }
-
-  public func getChannel(_ key: String) -> Channel? {
-    let channelDef = getString(key, "")
-    let components = channelDef.components(separatedBy: CHANNEL_PREFIX)
-    if components.count < 2 {
-      return nil
-    }
-    guard let channelId = UInt64(components[1]) else {
-      return nil
-    }
-    return Channel(
-      id: channelId,
-      handler: { (res: JsonValue) -> Void in
-        self.sendChannelData(channelId, res)
-      })
+    reject(message)
   }
 }

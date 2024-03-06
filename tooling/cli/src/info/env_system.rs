@@ -1,9 +1,8 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::SectionItem;
-use super::Status;
+use super::{SectionItem, Status};
 use colored::Colorize;
 #[cfg(windows)]
 use serde::Deserialize;
@@ -44,6 +43,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "Microsoft.VisualStudio.Component.Windows10SDK.*",
       "-format",
       "json",
+      "-utf8",
     ])
     .output()?;
 
@@ -58,6 +58,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "Microsoft.VisualStudio.Component.Windows11SDK.*",
       "-format",
       "json",
+      "-utf8",
     ])
     .output()?;
 
@@ -177,74 +178,55 @@ fn is_xcode_command_line_tools_installed() -> bool {
 
 pub fn items() -> Vec<SectionItem> {
   vec![
-    SectionItem::new(
-      || {
-        let os_info = os_info::get();
-        Some((
-          format!(
-            "OS: {} {} {:?}",
-            os_info.os_type(),
-            os_info.version(),
-            os_info.bitness()
-          ),
-          Status::Neutral,
-        ))
-      },
-      || None,
-      false,
-    ),
+    SectionItem::new().action(|| {
+      let os_info = os_info::get();
+      format!(
+        "OS: {} {} {:?}",
+        os_info.os_type(),
+        os_info.version(),
+        os_info.bitness()
+      ).into()
+    }),
     #[cfg(windows)]
-    SectionItem::new(
-      || {
-        let error = || {
-          format!(
-            "Webview2: {}\nVisit {}",
-            "not installed!".red(),
-            "https://developer.microsoft.com/en-us/microsoft-edge/webview2/".cyan()
-          )
-        };
-        Some(
-          webview2_version()
-            .map(|v| {
-              v.map(|v| (format!("WebView2: {}", v), Status::Success))
-                .unwrap_or_else(|| (error(), Status::Error))
-            })
-            .unwrap_or_else(|_| (error(), Status::Error)),
-        )
-      },
-      || None,
-      false,
-    ),
+    SectionItem::new().action(|| {
+      let error = format!(
+          "Webview2: {}\nVisit {}",
+          "not installed!".red(),
+          "https://developer.microsoft.com/en-us/microsoft-edge/webview2/".cyan()
+        );
+      webview2_version()
+        .map(|v| {
+          v.map(|v| (format!("WebView2: {}", v), Status::Success))
+            .unwrap_or_else(|| (error.clone(), Status::Error))
+        })
+        .unwrap_or_else(|_| (error, Status::Error)).into()
+    }),
     #[cfg(windows)]
-    SectionItem::new(
-      || {
-        let build_tools = build_tools_version().unwrap_or_default();
-        if build_tools.is_empty() {
-          Some((
+    SectionItem::new().action(|| {
+      let build_tools = build_tools_version().unwrap_or_default();
+      if build_tools.is_empty() {
+        (
             format!(
               "Couldn't detect any Visual Studio or VS Build Tools instance with MSVC and SDK components. Download from {}",
               "https://aka.ms/vs/17/release/vs_BuildTools.exe".cyan()
             ),
             Status::Error,
-          ))
-        } else {
-          Some((
-            format!(
-              "MSVC: {}{}",
-              if build_tools.len() > 1 {
-                format!("\n  {} ", "-".cyan())
-              } else {
-                "".into()
-              },
-              build_tools.join(format!("\n  {} ", "-".cyan()).as_str()),
-            ),
-            Status::Success,
-          ))
-        }
-      },
-      || None,
-      false,
-    ),
+          ).into()
+      } else {
+        (
+          format!(
+            "MSVC: {}{}",
+            if build_tools.len() > 1 {
+              format!("\n  {} ", "-".cyan())
+            } else {
+              "".into()
+            },
+            build_tools.join(format!("\n  {} ", "-".cyan()).as_str()),
+          ),
+          Status::Success,
+        ).into()
+      }
+    }),
     #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
@@ -252,9 +234,7 @@ pub fn items() -> Vec<SectionItem> {
       target_os = "openbsd",
       target_os = "netbsd"
     ))]
-    SectionItem::new(
-      || {
-        Some(
+    SectionItem::new().action(|| {
           webkit2gtk_ver()
             .map(|v| (format!("webkit2gtk-4.1: {v}"), Status::Success))
             .unwrap_or_else(|| {
@@ -266,11 +246,8 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Error,
               )
-            }),
-        )
+            }).into()
       },
-      || None,
-      false,
     ),
     #[cfg(any(
       target_os = "linux",
@@ -279,9 +256,7 @@ pub fn items() -> Vec<SectionItem> {
       target_os = "openbsd",
       target_os = "netbsd"
     ))]
-    SectionItem::new(
-      || {
-        Some(
+    SectionItem::new().action(|| {
           rsvg2_ver()
             .map(|v| (format!("rsvg2: {v}"), Status::Success))
             .unwrap_or_else(|| {
@@ -293,16 +268,12 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Error,
               )
-            }),
-        )
+            }).into()
       },
-      || None,
-      false,
     ),
     #[cfg(target_os = "macos")]
-    SectionItem::new(
-      || {
-        Some(if is_xcode_command_line_tools_installed() {
+    SectionItem::new().action(|| {
+        if is_xcode_command_line_tools_installed() {
           (
             "Xcode Command Line Tools: installed".into(),
             Status::Success,
@@ -316,10 +287,8 @@ pub fn items() -> Vec<SectionItem> {
             ),
             Status::Error,
           )
-        })
+        }.into()
       },
-      || None,
-      false,
     ),
   ]
 }

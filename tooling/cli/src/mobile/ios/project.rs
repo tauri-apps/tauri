@@ -1,17 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
-use std::{
-  ffi::{OsStr, OsString},
-  fs::{create_dir_all, OpenOptions},
-  path::{Component, PathBuf},
-};
-use tauri_mobile::{
+use cargo_mobile2::{
   apple::{
     config::{Config, Metadata},
     deps, rust_version_check,
@@ -20,6 +13,13 @@ use tauri_mobile::{
   config::app::DEFAULT_ASSET_DIR,
   target::TargetTrait as _,
   util::{self, cli::TextWrapper},
+};
+use handlebars::Handlebars;
+use include_dir::{include_dir, Dir};
+use std::{
+  ffi::{OsStr, OsString},
+  fs::{create_dir_all, OpenOptions},
+  path::{Component, PathBuf},
 };
 
 const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/ios");
@@ -155,7 +155,7 @@ pub fn gen(
       let mut options = OpenOptions::new();
       options.write(true);
 
-      if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+      if !path.exists() {
         options.create(true).open(path).map(Some)
       } else {
         Ok(None)
@@ -190,6 +190,8 @@ pub fn gen(
       &dest.join("project.yml").to_string_lossy(),
     ],
   )
+  .stdout_file(os_pipe::dup_stdout().unwrap())
+  .stderr_file(os_pipe::dup_stderr().unwrap())
   .run()
   .with_context(|| "failed to run `xcodegen`")?;
 
@@ -201,6 +203,8 @@ pub fn gen(
         &format!("--project-directory={}", dest.display()),
       ],
     )
+    .stdout_file(os_pipe::dup_stdout().unwrap())
+    .stderr_file(os_pipe::dup_stderr().unwrap())
     .run()
     .with_context(|| "failed to run `pod install`")?;
   }

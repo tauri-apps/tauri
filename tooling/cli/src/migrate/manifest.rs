@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,11 +11,11 @@ use toml_edit::{Document, Entry, Item, Table, TableLike, Value};
 
 use std::{fs::File, io::Write, path::Path};
 
-const CRATE_TYPES: &[&str] = &["staticlib", "cdylib", "rlib"];
+const CRATE_TYPES: [&str; 3] = ["lib", "staticlib", "cdylib"];
 
 pub fn migrate(tauri_dir: &Path) -> Result<()> {
   let manifest_path = tauri_dir.join("Cargo.toml");
-  let mut manifest = read_manifest(&manifest_path)?;
+  let (mut manifest, _) = read_manifest(&manifest_path)?;
   migrate_manifest(&mut manifest)?;
 
   let mut manifest_file =
@@ -37,6 +37,8 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
 }
 
 fn migrate_manifest(manifest: &mut Document) -> Result<()> {
+  let version = dependency_version();
+
   let dependencies = manifest
     .as_table_mut()
     .entry("dependencies")
@@ -44,37 +46,45 @@ fn migrate_manifest(manifest: &mut Document) -> Result<()> {
     .as_table_mut()
     .expect("manifest dependencies isn't a table");
 
-  let version = dependency_version();
-  migrate_dependency(dependencies, "tauri", version, &features_to_remove());
+  migrate_dependency(dependencies, "tauri", &version, &features_to_remove());
 
-  let lib = manifest
+  let build_dependencies = manifest
     .as_table_mut()
-    .entry("lib")
+    .entry("build-dependencies")
     .or_insert(Item::Table(Table::new()))
     .as_table_mut()
-    .expect("manifest lib isn't a table");
-  match lib.entry("crate-type") {
-    Entry::Occupied(mut e) => {
-      if let Item::Value(Value::Array(types)) = e.get_mut() {
-        let mut crate_types_to_add = CRATE_TYPES.to_vec();
-        for t in types.iter() {
-          // type is already in the manifest, skip adding it
-          if let Some(i) = crate_types_to_add
-            .iter()
-            .position(|ty| Some(ty) == t.as_str().as_ref())
-          {
-            crate_types_to_add.remove(i);
+    .expect("manifest build-dependencies isn't a table");
+
+  migrate_dependency(build_dependencies, "tauri-build", &version, &[]);
+
+  if let Some(lib) = manifest
+    .as_table_mut()
+    .get_mut("lib")
+    .and_then(|l| l.as_table_mut())
+  {
+    match lib.entry("crate-type") {
+      Entry::Occupied(mut e) => {
+        if let Item::Value(Value::Array(types)) = e.get_mut() {
+          let mut crate_types_to_add = CRATE_TYPES.to_vec();
+          for t in types.iter() {
+            // type is already in the manifest, skip adding it
+            if let Some(i) = crate_types_to_add
+              .iter()
+              .position(|ty| Some(ty) == t.as_str().as_ref())
+            {
+              crate_types_to_add.remove(i);
+            }
+          }
+          for t in crate_types_to_add {
+            types.push(t);
           }
         }
-        for t in crate_types_to_add {
-          types.push(t);
-        }
       }
-    }
-    Entry::Vacant(e) => {
-      let mut arr = toml_edit::Array::new();
-      arr.extend(CRATE_TYPES.to_vec());
-      e.insert(Item::Value(arr.into()));
+      Entry::Vacant(e) => {
+        let mut arr = toml_edit::Array::new();
+        arr.extend(CRATE_TYPES.to_vec());
+        e.insert(Item::Value(arr.into()));
+      }
     }
   }
 
@@ -116,7 +126,7 @@ fn dependency_version() -> String {
   }
 }
 
-fn migrate_dependency(dependencies: &mut Table, name: &str, version: String, remove: &[&str]) {
+fn migrate_dependency(dependencies: &mut Table, name: &str, version: &str, remove: &[&str]) {
   let item = dependencies.entry(name).or_insert(Item::None);
 
   // do not rewrite if dependency uses workspace inheritance
@@ -138,7 +148,7 @@ fn migrate_dependency(dependencies: &mut Table, name: &str, version: String, rem
   }
 }
 
-fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: String, remove: &[&str]) {
+fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: &str, remove: &[&str]) {
   *dep.entry("version").or_insert(Item::None) = Item::Value(version.into());
   let manifest_features = dep.entry("features").or_insert(Item::None);
   if let Some(features_array) = manifest_features.as_array_mut() {
@@ -255,35 +265,6 @@ mod tests {
     }
   }
 
-  fn migrate_lib(toml: &str) {
-    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
-    super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
-
-    let lib = manifest
-      .as_table()
-      .get("lib")
-      .expect("missing manifest lib")
-      .as_table()
-      .expect("manifest lib isn't a table");
-
-    let crate_types = lib
-      .get("crate-type")
-      .expect("missing lib crate-type")
-      .as_array()
-      .expect("crate-type must be an array");
-    let mut not_added_crate_types = super::CRATE_TYPES.to_vec();
-    for t in crate_types {
-      let t = t.as_str().expect("crate-type must be a string");
-      if let Some(i) = not_added_crate_types.iter().position(|ty| ty == &t) {
-        not_added_crate_types.remove(i);
-      }
-    }
-    assert!(
-      not_added_crate_types.is_empty(),
-      "missing crate-type: {not_added_crate_types:?}"
-    );
-  }
-
   #[test]
   fn migrate_table() {
     migrate_deps(|features| {
@@ -323,21 +304,31 @@ mod tests {
   }
 
   #[test]
-  fn migrate_missing_lib() {
-    migrate_lib("[dependencies]");
-  }
-
-  #[test]
-  fn migrate_missing_crate_types() {
-    migrate_lib("[lib]");
-  }
-
-  #[test]
   fn migrate_add_crate_types() {
-    migrate_lib(
-      r#"
+    let toml = r#"
     [lib]
-    crate-type = ["something"]"#,
-    );
+    crate-type = ["something"]"#;
+
+    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+    super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
+
+    if let Some(crate_types) = manifest
+      .as_table()
+      .get("lib")
+      .and_then(|l| l.get("crate-type"))
+      .and_then(|c| c.as_array())
+    {
+      let mut not_added_crate_types = super::CRATE_TYPES.to_vec();
+      for t in crate_types {
+        let t = t.as_str().expect("crate-type must be a string");
+        if let Some(i) = not_added_crate_types.iter().position(|ty| ty == &t) {
+          not_added_crate_types.remove(i);
+        }
+      }
+      assert!(
+        not_added_crate_types.is_empty(),
+        "missing crate-type: {not_added_crate_types:?}"
+      );
+    }
   }
 }

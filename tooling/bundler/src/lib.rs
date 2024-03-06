@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,7 +12,7 @@
 //! - macOS
 //!   - DMG and App bundles
 //! - Linux
-//!   - Appimage and Debian packages
+//!   - Appimage, Debian and RPM packages
 //! - Windows
 //!   - MSI using WiX
 

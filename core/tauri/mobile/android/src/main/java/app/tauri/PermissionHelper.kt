@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -95,10 +95,10 @@ object PermissionHelper {
    * @param neededPermissions The permissions needed.
    * @return The permissions not present in AndroidManifest.xml
    */
-  fun getUndefinedPermissions(context: Context, neededPermissions: Array<String>): Array<String?> {
-    val undefinedPermissions = ArrayList<String?>()
+  fun getUndefinedPermissions(context: Context, neededPermissions: Array<String>): Array<String> {
+    val undefinedPermissions = ArrayList<String>()
     val requestedPermissions = getManifestPermissions(context)
-    if (requestedPermissions != null && requestedPermissions.isNotEmpty()) {
+    if (!requestedPermissions.isNullOrEmpty()) {
       val requestedPermissionsList = listOf(*requestedPermissions)
       val requestedPermissionsArrayList = ArrayList(requestedPermissionsList)
       for (permission in neededPermissions) {
@@ -106,10 +106,8 @@ object PermissionHelper {
           undefinedPermissions.add(permission)
         }
       }
-      var undefinedPermissionArray = arrayOfNulls<String>(undefinedPermissions.size)
-      undefinedPermissionArray = undefinedPermissions.toArray(undefinedPermissionArray)
-      return undefinedPermissionArray
+      return undefinedPermissions.toTypedArray()
     }
-    return neededPermissions as Array<String?>
+    return neededPermissions
   }
 }

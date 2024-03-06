@@ -1,9 +1,11 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
 use clap::Parser;
+use colored::Colorize;
+use regex::Regex;
 
 use crate::{
   helpers::{
@@ -17,31 +19,34 @@ use crate::{
 use std::{collections::HashMap, process::Command};
 
 #[derive(Debug, Parser)]
-#[clap(about = "Installs a plugin on the project")]
+#[clap(about = "Add a tauri plugin to the project")]
 pub struct Options {
   /// The plugin to add.
-  plugin: String,
+  pub plugin: String,
   /// Git tag to use.
   #[clap(short, long)]
-  tag: Option<String>,
+  pub tag: Option<String>,
   /// Git rev to use.
   #[clap(short, long)]
-  rev: Option<String>,
+  pub rev: Option<String>,
   /// Git branch to use.
   #[clap(short, long)]
-  branch: Option<String>,
+  pub branch: Option<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {
   let plugin = options.plugin;
+  let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
   let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
   let mut plugins = plugins();
   let metadata = plugins.remove(plugin.as_str()).unwrap_or_default();
 
+  let tauri_dir = tauri_dir();
+
   let mut cargo = Command::new("cargo");
-  cargo.current_dir(tauri_dir()).arg("add").arg(&crate_name);
+  cargo.current_dir(&tauri_dir).arg("add").arg(&crate_name);
 
   if options.tag.is_some() || options.rev.is_some() || options.branch.is_some() {
     cargo
@@ -90,6 +95,7 @@ pub fn command(options: Options) -> Result<()> {
         PackageManager::Pnpm => cross_command("pnpm"),
         PackageManager::Yarn => cross_command("yarn"),
         PackageManager::YarnBerry => cross_command("yarn"),
+        PackageManager::Bun => cross_command("bun"),
       };
 
       cmd.arg("add").arg(&npm_spec);
@@ -104,45 +110,69 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  let rust_code = if metadata.builder {
-    if metadata.desktop_only {
-      format!(
-        r#"tauri::Builder::default()
-    .setup(|app| {{
-        #[cfg(desktop)]
-        app.handle().plugin(tauri_plugin_{plugin}::Builder::new().build());
-        Ok(())
-    }})
-    "#,
-      )
-    } else {
-      format!(
-        r#"tauri::Builder::default()
-    .setup(|app| {{
-        app.handle().plugin(tauri_plugin_{plugin}::Builder::new().build());
-        Ok(())
-    }})
-    "#,
-      )
-    }
-  } else if metadata.desktop_only {
-    format!(
-      r#"tauri::Builder::default()
-    .setup(|app| {{
-        #[cfg(desktop)]
-        app.handle().plugin(tauri_plugin_{plugin}::init());
-        Ok(())
-    }})
-    "#,
-    )
+  // add plugin init code to main.rs or lib.rs
+  let plugin_init_fn = if plugin == "stronghold" {
+    "Builder::new(|pass| todo!()).build()"
+  } else if metadata.builder {
+    "Builder::new().build()"
   } else {
-    format!(
-      r#"tauri::Builder::default().plugin(tauri_plugin_{plugin}::init())
-    "#,
-    )
+    "init()"
+  };
+  let plugin_init = format!(".plugin(tauri_plugin_{plugin_snake_case}::{plugin_init_fn})");
+  let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)")?;
+  for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
+    let contents = std::fs::read_to_string(&file)?;
+
+    if contents.contains(&plugin_init) {
+      log::info!(
+        "Plugin initialization code already found on {}",
+        file.display()
+      );
+      return Ok(());
+    }
+
+    if re.is_match(&contents) {
+      let out = re.replace(&contents, format!("$1$2{plugin_init}$2"));
+
+      log::info!("Adding plugin to {}", file.display());
+      std::fs::write(file, out.as_bytes())?;
+
+      // run cargo fmt
+      log::info!("Running `cargo fmt`...");
+      let _ = Command::new("cargo")
+        .arg("fmt")
+        .current_dir(&tauri_dir)
+        .status();
+
+      return Ok(());
+    }
+  }
+
+  let builder_code = if metadata.builder {
+    format!(r#"+    .plugin(tauri_plugin_{plugin_snake_case}::Builder::new().build())"#,)
+  } else {
+    format!(r#"+    .plugin(tauri_plugin_{plugin_snake_case}::init())"#)
   };
 
-  println!("You must enable the plugin in your Rust code:\n\n{rust_code}");
+  let rust_code = format!(
+    r#" {}
+{}
+     {}"#,
+    "tauri::Builder::default()".dimmed(),
+    builder_code.normal().green(),
+    r#".invoke_handler(tauri::generate_handler![])
+     .run(tauri::generate_context!())
+     .expect("error while running tauri application");"#
+      .dimmed(),
+  );
+
+  log::warn!(
+    "Couldn't find `{}` in `{}` or `{}`, you must enable the plugin in your Rust code manually:\n\n{}",
+    "tauri::Builder".cyan(),
+    "main.rs".cyan(),
+    "lib.rs".cyan(),
+    rust_code
+  );
 
   Ok(())
 }

@@ -1,5 +1,174 @@
 # Changelog
 
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-codegen@2.0.0-beta.6`
+
+### Breaking Changes
+
+- [`3657ad82`](https://www.github.com/tauri-apps/tauri/commit/3657ad82f88ce528551d032d521c52eed3f396b4)([#9008](https://www.github.com/tauri-apps/tauri/pull/9008)) Allow defining permissions for the application commands via `tauri_build::Attributes::app_manifest`.
+
+## \[2.0.0-beta.5]
+
+### Breaking Changes
+
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) Removed `tauri_build::CodegenContext::dev()` and added `tauri_build::dev()`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+- Upgraded to `tauri-codegen@2.0.0-beta.5`
+
+## \[2.0.0-beta.4]
+
+### Enhancements
+
+- [`b5eb6472`](https://www.github.com/tauri-apps/tauri/commit/b5eb64728aeb410d3f3068608a94762655c4690f)([#8940](https://www.github.com/tauri-apps/tauri/pull/8940)) Enable Hight DPI awareness for NSIS installer so it is not blurry on some systems.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-codegen@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-codegen@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`83a68deb`](https://www.github.com/tauri-apps/tauri/commit/83a68deb5676d39cd4728d2e140f6b46d5f787ed)([#8797](https://www.github.com/tauri-apps/tauri/pull/8797)) Added a new configuration option `tauri.conf.json > app > security > capabilities` to reference existing capabilities and inline new ones. If it is empty, all capabilities are still included preserving the current behavior.
+- [`edb11c13`](https://www.github.com/tauri-apps/tauri/commit/edb11c138def2e317099db432479e3ca5dbf803f)([#8781](https://www.github.com/tauri-apps/tauri/pull/8781)) Added `Attributes::plugin()` to register a plugin that is inlined in the application crate.
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) Added `CodegenContext::capability` to include a capability file dynamically.
+
+### Bug Fixes
+
+- [`0e8e9cd0`](https://www.github.com/tauri-apps/tauri/commit/0e8e9cd064627e734adf8f62e571dc5f4e8f4d9f)([#8906](https://www.github.com/tauri-apps/tauri/pull/8906)) Fixes the capability schema not resolving inner definitions.
+- [`19fb5f0b`](https://www.github.com/tauri-apps/tauri/commit/19fb5f0b20479885bf8bc4fdd8c431052420191d)([#8782](https://www.github.com/tauri-apps/tauri/pull/8782)) Fix generating invalid schema files.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-codegen@2.0.0-beta.2`
+
+## \[2.0.0-beta.1]
+
+### Enhancements
+
+- [`4e101f80`](https://www.github.com/tauri-apps/tauri/commit/4e101f801657e7d01ce8c22f9c6468067d0caab2)([#8756](https://www.github.com/tauri-apps/tauri/pull/8756)) Moved the capability JSON schema to the `src-tauri/gen` folder so it's easier to track changes on the `capabilities` folder.
+
+### Bug Fixes
+
+- [`4e101f80`](https://www.github.com/tauri-apps/tauri/commit/4e101f801657e7d01ce8c22f9c6468067d0caab2)([#8756](https://www.github.com/tauri-apps/tauri/pull/8756)) Do not trigger build script to rerun if the frontendDist directory does not exist.
+- [`0f2789cd`](https://www.github.com/tauri-apps/tauri/commit/0f2789cd6767e2eadbc4f7dfe32e2173e972b9a0)([#8757](https://www.github.com/tauri-apps/tauri/pull/8757)) Do not rewrite capability JSON schema if it did not change.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.1`
+- Upgraded to `tauri-codegen@2.0.0-beta.1`
+
+## \[2.0.0-beta.0]
+
+### New Features
+
+- [`74a2a603`](https://www.github.com/tauri-apps/tauri/commit/74a2a6036a5e57462f161d728cbd8a6f121028ca)([#8661](https://www.github.com/tauri-apps/tauri/pull/8661)) Implement access control list for IPC usage.
+
+### Enhancements
+
+- [`e8d3793c`](https://www.github.com/tauri-apps/tauri/commit/e8d3793c3c34715569312a91633fde4d58d7621c)([#8732](https://www.github.com/tauri-apps/tauri/pull/8732)) Add `config-json` cargo feature flag (enabled by default) to. Disabling this feature flag will stop cargo from rebuilding when `tauri.conf.json` changes, see [#8721](https://github.com/tauri-apps/tauri/issues/8721) for more info.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.0`
+- Upgraded to `tauri-codegen@2.0.0-beta.0`
+
+### Breaking Changes
+
+- [`8de308d1`](https://www.github.com/tauri-apps/tauri/commit/8de308d1bf6a855d7a26af58bd0e744938ba47d8)([#8723](https://www.github.com/tauri-apps/tauri/pull/8723)) Restructured Tauri config per [RFC#5](https://github.com/tauri-apps/rfcs/blob/f3e82a6b0c5390401e855850d47dc7b7d9afd684/texts/0005-tauri-config-restructure.md):
+
+  - Moved `package.productName`, `package.version` and `tauri.bundle.identifier` fields to the top-level.
+  - Removed `package` object.
+  - Renamed `tauri` object to `app`.
+  - Moved `tauri.bundle` object to the top-level.
+  - Renamed `build.distDir` field to `frontendDist`.
+  - Renamed `build.devPath` field to `devUrl` and will no longer accepts paths, it will only accept URLs.
+  - Moved `tauri.pattern` to `app.security.pattern`.
+  - Removed `tauri.bundle.updater` object, and its fields have been moved to the updater plugin under `plugins.updater` object.
+  - Moved `build.withGlobalTauri` to `app.withGlobalTauri`.
+  - Moved `tauri.bundle.dmg` object to `bundle.macOS.dmg`.
+  - Moved `tauri.bundle.deb` object to `bundle.linux.deb`.
+  - Moved `tauri.bundle.appimage` object to `bundle.linux.appimage`.
+  - Removed all license fields from each bundle configuration object and instead added `bundle.license` and `bundle.licenseFile`.
+  - Renamed `AppUrl` to `FrontendDist` and refactored its variants to be more explicit.
+- [`0cdfda28`](https://www.github.com/tauri-apps/tauri/commit/0cdfda28767701369cd774e2b20d943c6ddc9f05)([#8737](https://www.github.com/tauri-apps/tauri/pull/8737)) Moved `mobile::PluginBuilder`, `mobile::update_entitlements`, `config::plugin_config` and `mobile::update_android_manifest` to the new `tauri-plugin` crate.
+- [`74a2a603`](https://www.github.com/tauri-apps/tauri/commit/74a2a6036a5e57462f161d728cbd8a6f121028ca)([#8661](https://www.github.com/tauri-apps/tauri/pull/8661)) `CodegenContext::build` and `CodegenContext::try_build` have been removed, use `tauri_build::try_build(tauri_build::Attributes::new().codegen(codegen))` instead.
+
+## \[2.0.0-alpha.14]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.13`
+- Upgraded to `tauri-codegen@2.0.0-alpha.13`
+
+## \[2.0.0-alpha.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.12`
+- Upgraded to `tauri-codegen@2.0.0-alpha.12`
+
+## \[2.0.0-alpha.12]
+
+### Bug Fixes
+
+- [`a5479712`](https://www.github.com/tauri-apps/tauri/commit/a5479712095c224e2cb147d5c271acbc2fc97e79)([#8168](https://www.github.com/tauri-apps/tauri/pull/8168)) Fixed an issue that caused the resource compiler to not run on Windows when `package.version` was not set in `tauri.conf.json` preventing the app from starting.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.11`
+- Upgraded to `tauri-codegen@2.0.0-alpha.11`
+
+## \[2.0.0-alpha.11]
+
+### Enhancements
+
+- [`c6c59cf2`](https://www.github.com/tauri-apps/tauri/commit/c6c59cf2373258b626b00a26f4de4331765dd487) Pull changes from Tauri 1.5 release.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-alpha.10`
+- Upgraded to `tauri-utils@2.0.0-alpha.10`
+
+## \[2.0.0-alpha.10]
+
+### New Features
+
+- [`880266a7`](https://www.github.com/tauri-apps/tauri/commit/880266a7f697e1fe58d685de3bb6836ce5251e92)([#8031](https://www.github.com/tauri-apps/tauri/pull/8031)) Bump the MSRV to 1.70.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-alpha.9`
+- Upgraded to `tauri-codegen@2.0.0-alpha.9`
+
+### Breaking Changes
+
+- [`ebcc21e4`](https://www.github.com/tauri-apps/tauri/commit/ebcc21e4b95f4e8c27639fb1bca545b432f52d5e)([#8057](https://www.github.com/tauri-apps/tauri/pull/8057)) Renamed the beforeDevCommand, beforeBuildCommand and beforeBundleCommand hooks environment variables from `TAURI_PLATFORM, TAURI_ARCH, TAURI_FAMILY, TAURI_PLATFORM_VERSION, TAURI_PLATFORM_TYPE and TAURI_DEBUG` to `TAURI_ENV_PLATFORM, TAURI_ENV_ARCH, TAURI_ENV_FAMILY, TAURI_ENV_PLATFORM_VERSION, TAURI_ENV_PLATFORM_TYPE and TAURI_ENV_DEBUG` to differentiate the prefix with other CLI environment variables.
+
+## \[2.0.0-alpha.9]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-alpha.8`
+- Upgraded to `tauri-utils@2.0.0-alpha.8`
+
 ## \[2.0.0-alpha.8]
 
 ### Bug Fixes
@@ -63,6 +232,31 @@
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-codegen@1.4.2`
+
+## \[1.5.0]
+
+### What's Changed
+
+- [`d1e09da0`](https://www.github.com/tauri-apps/tauri/commit/d1e09da084b849b9e384fc27ed250dd17e72c7a3)([#7918](https://www.github.com/tauri-apps/tauri/pull/7918)) Bump to 1.5 due to tauri-utils dependency bump.
+
+## \[1.4.1]
+
+### Bug Fixes
+
+- [`5ecb46b3`](https://www.github.com/tauri-apps/tauri/commit/5ecb46b3410afd1b5c82494c1e0a91d5a358c41a)([#7773](https://www.github.com/tauri-apps/tauri/pull/7773)) Automatically set rpath on macOS if frameworks are bundled and copy frameworks to `src-tauri/target/Frameworks` for usage in development.
+- [`290e366a`](https://www.github.com/tauri-apps/tauri/commit/290e366ae98e9a52b1b43bfd3e285150427ebffa)([#7419](https://www.github.com/tauri-apps/tauri/pull/7419)) Correctly copy the WebView2 runtime in development when `webviewInstallMode` is used instead of `webviewFixedRuntimePath`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.0`
+- Upgraded to `tauri-codegen@1.4.1`
 
 ## \[1.4.0]
 

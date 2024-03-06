@@ -1,12 +1,14 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{get_app, Target};
-use crate::helpers::{config::get as get_tauri_config, template::JsonMap};
-use crate::Result;
-use handlebars::{Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError};
-use tauri_mobile::{
+use crate::{
+  helpers::{config::get as get_tauri_config, template::JsonMap},
+  interface::{AppInterface, Interface},
+  Result,
+};
+use cargo_mobile2::{
   android::{
     config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
   },
@@ -18,11 +20,11 @@ use tauri_mobile::{
     cli::{Report, TextWrapper},
   },
 };
-
-use std::{
-  env::{current_dir, var, var_os},
-  path::PathBuf,
+use handlebars::{
+  Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, RenderErrorReason,
 };
+
+use std::{env::var_os, path::PathBuf};
 
 pub fn command(
   target: Target,
@@ -30,16 +32,10 @@ pub fn command(
   reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<()> {
-  let wrapper = TextWrapper::with_splitter(textwrap::termwidth(), textwrap::NoHyphenation);
+  let wrapper = TextWrapper::default();
 
-  exec(
-    target,
-    &wrapper,
-    ci || var_os("CI").is_some(),
-    reinstall_deps,
-    skip_targets_install,
-  )
-  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  exec(target, &wrapper, ci, reinstall_deps, skip_targets_install)
+    .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
@@ -87,73 +83,58 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<App> {
-  let current_dir = current_dir()?;
   let tauri_config = get_tauri_config(target.platform_target(), None)?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let app = get_app(tauri_config_);
+  let app = get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?);
 
   let (handlebars, mut map) = handlebars(&app);
 
   let mut args = std::env::args_os();
-  let mut binary = args
+
+  let (binary, mut build_args) = args
     .next()
     .map(|bin| {
-      let path = PathBuf::from(&bin);
-      if path.exists() {
-        let absolute_path = util::prefix_path(&current_dir, path);
-        return absolute_path.into();
-      }
-      bin
-    })
-    .unwrap_or_else(|| std::ffi::OsString::from("cargo"));
-  let mut build_args = Vec::new();
-  for arg in args {
-    let path = PathBuf::from(&arg);
-    if path.exists() {
-      let absolute_path = util::prefix_path(&current_dir, path);
-      build_args.push(absolute_path.to_string_lossy().into_owned());
-      continue;
-    }
-    build_args.push(arg.to_string_lossy().into_owned());
-    if arg == "android" || arg == "ios" {
-      break;
-    }
-  }
-  build_args.push(target.ide_build_script_name().into());
+      let bin_path = PathBuf::from(&bin);
+      let mut build_args = vec!["tauri"];
 
-  let binary_path = PathBuf::from(&binary);
-  let bin_stem = binary_path.file_stem().unwrap().to_string_lossy();
-  let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
-  if r.is_match(&bin_stem) {
-    if let Some(npm_execpath) = var_os("npm_execpath").map(PathBuf::from) {
-      let manager_stem = npm_execpath.file_stem().unwrap().to_os_string();
-      let is_npm = manager_stem == "npm-cli";
-      let is_npx = manager_stem == "npx-cli";
-      binary = if is_npm {
-        "npm".into()
-      } else if is_npx {
-        "npx".into()
-      } else {
-        manager_stem
-      };
-      if !(build_args.is_empty() || is_npx) {
-        // remove script path, we'll use `npm_lifecycle_event` instead
-        build_args.remove(0);
+      if let Some(bin_stem) = bin_path.file_stem() {
+        let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
+        if r.is_match(&bin_stem.to_string_lossy()) {
+          if let Some(npm_execpath) = var_os("npm_execpath") {
+            let manager_stem = PathBuf::from(&npm_execpath)
+              .file_stem()
+              .unwrap()
+              .to_os_string();
+            let is_npm = manager_stem == "npm-cli";
+            let binary = if is_npm {
+              "npm".into()
+            } else if manager_stem == "npx-cli" {
+              "npx".into()
+            } else {
+              manager_stem
+            };
+
+            if is_npm {
+              build_args.insert(0, "run");
+              build_args.insert(1, "--");
+            }
+
+            return (binary, build_args);
+          }
+        } else if !cfg!(debug_assertions) && bin_stem == "cargo-tauri" {
+          return (std::ffi::OsString::from("cargo"), build_args);
+        }
       }
-      if is_npm {
-        build_args.insert(0, "--".into());
-      }
-      if !is_npx {
-        build_args.insert(0, var("npm_lifecycle_event").unwrap());
-      }
-      if is_npm {
-        build_args.insert(0, "run".into());
-      }
-    }
-  }
+
+      (bin, build_args)
+    })
+    .unwrap_or_else(|| (std::ffi::OsString::from("cargo"), vec!["tauri"]));
+
+  build_args.push(target.command_name());
+  build_args.push(target.ide_build_script_name());
 
   map.insert("tauri-binary", binary.to_string_lossy());
   map.insert("tauri-binary-args", &build_args);
@@ -163,9 +144,8 @@ pub fn exec(
     // Generate Android Studio project
     Target::Android => match AndroidEnv::new() {
       Ok(_env) => {
-        let app = get_app(tauri_config_);
         let (config, metadata) =
-          super::android::get_config(&app, tauri_config_, &Default::default());
+          super::android::get_config(&app, tauri_config_, None, &Default::default());
         map.insert("android", &config);
         super::android::project::gen(
           &config,
@@ -192,7 +172,8 @@ pub fn exec(
     #[cfg(target_os = "macos")]
     // Generate Xcode project
     Target::Ios => {
-      let (config, metadata) = super::ios::get_config(&app, tauri_config_, &Default::default());
+      let (config, metadata) =
+        super::ios::get_config(&app, tauri_config_, None, &Default::default());
       map.insert("apple", &config);
       super::ios::project::gen(
         &config,
@@ -287,7 +268,9 @@ fn join(
   out
     .write(
       &get_str_array(helper, |s| s.to_string())
-        .ok_or_else(|| RenderError::new("`join` helper wasn't given an array"))?
+        .ok_or_else(|| {
+          RenderErrorReason::ParamTypeMismatchForName("join", "0".to_owned(), "array".to_owned())
+        })?
         .join(", "),
     )
     .map_err(Into::into)
@@ -303,7 +286,13 @@ fn quote_and_join(
   out
     .write(
       &get_str_array(helper, |s| format!("{s:?}"))
-        .ok_or_else(|| RenderError::new("`quote-and-join` helper wasn't given an array"))?
+        .ok_or_else(|| {
+          RenderErrorReason::ParamTypeMismatchForName(
+            "quote-and-join",
+            "0".to_owned(),
+            "array".to_owned(),
+          )
+        })?
         .join(", "),
     )
     .map_err(Into::into)
@@ -320,7 +309,11 @@ fn quote_and_join_colon_prefix(
     .write(
       &get_str_array(helper, |s| format!("{:?}", format!(":{s}")))
         .ok_or_else(|| {
-          RenderError::new("`quote-and-join-colon-prefix` helper wasn't given an array")
+          RenderErrorReason::ParamTypeMismatchForName(
+            "quote-and-join-colon-prefix",
+            "0".to_owned(),
+            "array".to_owned(),
+          )
         })?
         .join(", "),
     )
@@ -369,12 +362,14 @@ fn app_root(ctx: &Context) -> Result<&str, RenderError> {
   let app_root = ctx
     .data()
     .get("app")
-    .ok_or_else(|| RenderError::new("`app` missing from template data."))?
+    .ok_or_else(|| RenderErrorReason::Other("`app` missing from template data.".to_owned()))?
     .get("root-dir")
-    .ok_or_else(|| RenderError::new("`app.root-dir` missing from template data."))?;
-  app_root
-    .as_str()
-    .ok_or_else(|| RenderError::new("`app.root-dir` contained invalid UTF-8."))
+    .ok_or_else(|| {
+      RenderErrorReason::Other("`app.root-dir` missing from template data.".to_owned())
+    })?;
+  app_root.as_str().ok_or_else(|| {
+    RenderErrorReason::Other("`app.root-dir` contained invalid UTF-8.".to_owned()).into()
+  })
 }
 
 fn prefix_path(
@@ -389,8 +384,8 @@ fn prefix_path(
       util::prefix_path(app_root(ctx)?, get_str(helper))
         .to_str()
         .ok_or_else(|| {
-          RenderError::new(
-            "Either the `app.root-dir` or the specified path contained invalid UTF-8.",
+          RenderErrorReason::Other(
+            "Either the `app.root-dir` or the specified path contained invalid UTF-8.".to_owned(),
           )
         })?,
     )
@@ -408,12 +403,14 @@ fn unprefix_path(
     .write(
       util::unprefix_path(app_root(ctx)?, get_str(helper))
         .map_err(|_| {
-          RenderError::new("Attempted to unprefix a path that wasn't in the app root dir.")
+          RenderErrorReason::Other(
+            "Attempted to unprefix a path that wasn't in the app root dir.".to_owned(),
+          )
         })?
         .to_str()
         .ok_or_else(|| {
-          RenderError::new(
-            "Either the `app.root-dir` or the specified path contained invalid UTF-8.",
+          RenderErrorReason::Other(
+            "Either the `app.root-dir` or the specified path contained invalid UTF-8.".to_owned(),
           )
         })?,
     )

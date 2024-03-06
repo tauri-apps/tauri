@@ -1,17 +1,17 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 /**
  * The path module provides utilities for working with file and directory paths.
  *
- * This package is also accessible with `window.__TAURI__.path` when [`build.withGlobalTauri`](https://tauri.app/v1/api/config/#buildconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.path` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @module
  */
 
-import { invoke } from './tauri'
+import { invoke } from './core'
 
 /**
  * @since 2.0.0
@@ -423,7 +423,7 @@ async function resourceDir(): Promise<string> {
  * ```
  *
  * @param resourcePath The path to the resource.
- * Must follow the same syntax as defined in `tauri.conf.json > tauri > bundle > resources`, i.e. keeping subfolders and parent dir components (`../`).
+ * Must follow the same syntax as defined in `tauri.conf.json > bundle > resources`, i.e. keeping subfolders and parent dir components (`../`).
  * @returns The full path to the resource.
  *
  * @since 1.0.0
@@ -533,7 +533,7 @@ async function appLogDir(): Promise<string> {
  *
  * @since 2.0.0
  */
-async function tempDir(path: string): Promise<string> {
+async function tempDir(): Promise<string> {
   return invoke('plugin:path|resolve_directory', {
     directory: BaseDirectory.Temp
   })
@@ -547,7 +547,7 @@ async function tempDir(path: string): Promise<string> {
  * @since 2.0.0
  */
 function sep(): string {
-  return window.__TAURI__.path.__sep
+  return window.__TAURI_INTERNALS__.plugins.path.sep
 }
 
 /**
@@ -558,7 +558,7 @@ function sep(): string {
  * @since 2.0.0
  */
 function delimiter(): string {
-  return window.__TAURI__.path.__delimiter
+  return window.__TAURI_INTERNALS__.plugins.path.delimiter
 }
 /**
  * Resolves a sequence of `paths` or `path` segments into an absolute path.
@@ -581,7 +581,7 @@ async function resolve(...paths: string[]): Promise<string> {
  * ```typescript
  * import { normalize, appDataDir } from '@tauri-apps/api/path';
  * const appDataDirPath = await appDataDir();
- * const path = await normalize(appDataDirPath, '..', 'users', 'tauri', 'avatar.png');
+ * const path = await normalize(`${appDataDirPath}/../users/tauri/avatar.png`);
  * ```
  *
  * @since 1.0.0

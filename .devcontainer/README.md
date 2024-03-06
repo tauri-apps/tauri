@@ -33,6 +33,7 @@ To do this, open your project with VS Code and run **Remote-Containers: Clone Re
 Docker Desktop provides facilities for [allowing the development container to connect to a service on the Docker host](https://docs.docker.com/desktop/windows/networking/#i-want-to-connect-from-a-container-to-a-service-on-the-host). So long as you have an X window server running on your Docker host, the devcontainer can connect to it and expose your Tauri GUI via an X window.
 
 **Export the `DISPLAY` variable within the devcontainer terminal you launch your Tauri application from to expose your GUI outside of the devcontainer**.
+
 ```bash
 export DISPLAY="host.docker.internal:0"
 ```

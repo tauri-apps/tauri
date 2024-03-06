@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,7 @@ use super::{Error, Result};
 use crate::{AppHandle, Manager, Runtime};
 use std::path::PathBuf;
 
-/// A helper class to access the mobile camera APIs.
+/// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
 
 impl<R: Runtime> PathResolver<R> {
@@ -198,7 +198,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_config_dir(&self) -> Result<PathBuf> {
     dirs_next::config_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's data files.
@@ -207,7 +207,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_data_dir(&self) -> Result<PathBuf> {
     dirs_next::data_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's local data files.
@@ -216,7 +216,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
     dirs_next::data_local_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's cache files.
@@ -225,7 +225,7 @@ impl<R: Runtime> PathResolver<R> {
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
     dirs_next::cache_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| dir.join(&self.0.config().tauri.bundle.identifier))
+      .map(|dir| dir.join(&self.0.config().identifier))
   }
 
   /// Returns the path to the suggested directory for your app's log files.
@@ -237,20 +237,14 @@ impl<R: Runtime> PathResolver<R> {
   /// - **Windows:** Resolves to [`data_local_dir`](self.data_local_dir)`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
-    let path = dirs_next::home_dir().ok_or(Error::UnknownPath).map(|dir| {
-      dir
-        .join("Library/Logs")
-        .join(&self.0.config().tauri.bundle.identifier)
-    });
+    let path = dirs_next::home_dir()
+      .ok_or(Error::UnknownPath)
+      .map(|dir| dir.join("Library/Logs").join(&self.0.config().identifier));
 
     #[cfg(not(target_os = "macos"))]
     let path = dirs_next::data_local_dir()
       .ok_or(Error::UnknownPath)
-      .map(|dir| {
-        dir
-          .join(&self.0.config().tauri.bundle.identifier)
-          .join("logs")
-      });
+      .map(|dir| dir.join(&self.0.config().identifier).join("logs"));
 
     path
   }

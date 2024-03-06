@@ -1,23 +1,23 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::{
   menu::{IconMenuItem, MenuId, NativeIcon},
-  Icon, Manager, Runtime,
+  Image, Manager, Runtime,
 };
 
 /// A builder type for [`IconMenuItem`]
-pub struct IconMenuItemBuilder {
+pub struct IconMenuItemBuilder<'a> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
-  icon: Option<Icon>,
+  icon: Option<Image<'a>>,
   native_icon: Option<NativeIcon>,
   accelerator: Option<String>,
 }
 
-impl IconMenuItemBuilder {
+impl<'a> IconMenuItemBuilder<'a> {
   /// Create a new menu item builder.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -70,7 +70,7 @@ impl IconMenuItemBuilder {
   ///
   /// **Note:** This method conflicts with [`Self::native_icon`]
   /// so calling one of them, will reset the other.
-  pub fn icon(mut self, icon: Icon) -> Self {
+  pub fn icon(mut self, icon: Image<'a>) -> Self {
     self.icon.replace(icon);
     self.native_icon = None;
     self
@@ -87,7 +87,7 @@ impl IconMenuItemBuilder {
   }
 
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> IconMenuItem<R> {
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>> {
     if self.icon.is_some() {
       if let Some(id) = self.id {
         IconMenuItem::with_id(

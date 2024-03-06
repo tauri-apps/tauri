@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,95 +7,55 @@ use super::Status;
 use colored::Colorize;
 use std::process::Command;
 
+fn component_version(component: &str) -> Option<(String, Status)> {
+  Command::new(component)
+    .arg("-V")
+    .output()
+    .map(|o| String::from_utf8_lossy(o.stdout.as_slice()).to_string())
+    .map(|v| {
+      format!(
+        "{component}: {}",
+        v.split('\n')
+          .next()
+          .unwrap()
+          .strip_prefix(&format!("{component} "))
+          .unwrap_or_default()
+      )
+    })
+    .map(|desc| (desc, Status::Success))
+    .ok()
+}
+
 pub fn items() -> Vec<SectionItem> {
   vec![
-    SectionItem::new(
-      || {
-        Some(
-          Command::new("rustc")
-            .arg("-V")
-            .output()
-            .map(|o| String::from_utf8_lossy(o.stdout.as_slice()).to_string())
-            .map(|v| {
+    SectionItem::new().action(|| {
+       component_version("rustc")
+          .unwrap_or_else(|| {
+            (
               format!(
-                "rustc: {}",
-                v.split('\n')
-                  .next()
-                  .unwrap()
-                  .strip_prefix("rustc ")
-                  .unwrap_or_default()
-              )
-            })
-            .map(|desc| (desc, Status::Success))
-            .ok()
-            .unwrap_or_else(|| {
-              (
-                format!(
-                  "rustc: {}\nMaybe you don't have rust installed! Visit {}",
-                  "not installed!".red(),
-                  "https://rustup.rs/".cyan()
-                ),
-                Status::Error,
-              )
-            }),
-        )
-      },
-      || None,
-      false,
-    ),
-    SectionItem::new(
-      || {
-        Some(
-          Command::new("cargo")
-            .arg("-V")
-            .output()
-            .map(|o| String::from_utf8_lossy(o.stdout.as_slice()).to_string())
-            .map(|v| {
+                "rustc: {}\nMaybe you don't have rust installed! Visit {}",
+                "not installed!".red(),
+                "https://rustup.rs/".cyan()
+              ),
+              Status::Error,
+            )
+          }).into()
+    }),
+    SectionItem::new().action(|| {
+        component_version("cargo")
+          .unwrap_or_else(|| {
+            (
               format!(
-                "Cargo: {}",
-                v.split('\n')
-                  .next()
-                  .unwrap()
-                  .strip_prefix("cargo ")
-                  .unwrap_or_default()
-              )
-            })
-            .map(|desc| (desc, Status::Success))
-            .ok()
-            .unwrap_or_else(|| {
-              (
-                format!(
-                  "Cargo: {}\nMaybe you don't have rust installed! Visit {}",
-                  "not installed!".red(),
-                  "https://rustup.rs/".cyan()
-                ),
-                Status::Error,
-              )
-            }),
-        )
-      },
-      || None,
-      false,
-    ),
-    SectionItem::new(
-      || {
-        Some(
-          Command::new("rustup")
-            .arg("-V")
-            .output()
-            .map(|o| String::from_utf8_lossy(o.stdout.as_slice()).to_string())
-            .map(|v| {
-              format!(
-                "rustup: {}",
-                v.split('\n')
-                  .next()
-                  .unwrap()
-                  .strip_prefix("rustup ")
-                  .unwrap_or_default()
-              )
-            })
-            .map(|desc| (desc, Status::Success))
-            .ok()
+                "Cargo: {}\nMaybe you don't have rust installed! Visit {}",
+                "not installed!".red(),
+                "https://rustup.rs/".cyan()
+              ),
+              Status::Error,
+            )
+          }).into()
+    }),
+    SectionItem::new().action(|| {
+        component_version("rustup")
             .unwrap_or_else(|| {
               (
                 format!(
@@ -105,15 +65,9 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Warning,
               )
-            }),
-        )
-      },
-      || None,
-      false,
-    ),
-    SectionItem::new(
-      || {
-        Some(
+            }).into()
+    }),
+    SectionItem::new().action(|| {
           Command::new("rustup")
             .args(["show", "active-toolchain"])
             .output()
@@ -135,11 +89,7 @@ pub fn items() -> Vec<SectionItem> {
                 ),
                 Status::Warning,
               )
-            }),
-        )
-      },
-      || None,
-      false,
-    ),
+            }).into()
+    }),
   ]
 }

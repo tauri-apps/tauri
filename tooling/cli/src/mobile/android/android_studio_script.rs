@@ -1,12 +1,16 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
-use crate::{helpers::config::get as get_tauri_config, Result};
+use crate::{
+  helpers::config::get as get_tauri_config,
+  interface::{AppInterface, Interface},
+  Result,
+};
 use clap::{ArgAction, Parser};
 
-use tauri_mobile::{
+use cargo_mobile2::{
   android::target::Target,
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
@@ -41,8 +45,13 @@ pub fn command(options: Options) -> Result<()> {
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = read_options(&tauri_config_.tauri.bundle.identifier);
-    let (config, metadata) = get_config(&get_app(tauri_config_), tauri_config_, &cli_options);
+    let cli_options = read_options(&tauri_config_.identifier);
+    let (config, metadata) = get_config(
+      &get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
+      tauri_config_,
+      None,
+      &cli_options,
+    );
     (config, metadata, cli_options)
   };
   ensure_init(config.project_dir(), MobileTarget::Android)?;

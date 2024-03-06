@@ -1,101 +1,93 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::NativeIcon;
-use crate::{menu::MenuId, run_main_thread, AppHandle, Icon, Manager, Runtime};
+use std::sync::Arc;
 
-/// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
-///
-/// [`Menu`]: super::Menu
-/// [`Submenu`]: super::Submenu
-pub struct IconMenuItem<R: Runtime> {
-  pub(crate) id: MenuId,
-  pub(crate) inner: muda::IconMenuItem,
-  pub(crate) app_handle: AppHandle<R>,
-}
-
-impl<R: Runtime> Clone for IconMenuItem<R> {
-  fn clone(&self) -> Self {
-    Self {
-      id: self.id.clone(),
-      inner: self.inner.clone(),
-      app_handle: self.app_handle.clone(),
-    }
-  }
-}
-
-/// # Safety
-///
-/// We make sure it always runs on the main thread.
-unsafe impl<R: Runtime> Sync for IconMenuItem<R> {}
-unsafe impl<R: Runtime> Send for IconMenuItem<R> {}
-
-impl<R: Runtime> super::sealed::IsMenuItemBase for IconMenuItem<R> {
-  fn inner(&self) -> &dyn muda::IsMenuItem {
-    &self.inner
-  }
-}
-
-impl<R: Runtime> super::IsMenuItem<R> for IconMenuItem<R> {
-  fn kind(&self) -> super::MenuItemKind<R> {
-    super::MenuItemKind::Icon(self.clone())
-  }
-
-  fn id(&self) -> &MenuId {
-    &self.id
-  }
-}
+use super::run_item_main_thread;
+use super::{IconMenuItem, NativeIcon};
+use crate::menu::IconMenuItemInner;
+use crate::run_main_thread;
+use crate::{menu::MenuId, AppHandle, Image, Manager, Runtime};
 
 impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
-  pub fn new<M: Manager<R>, S: AsRef<str>>(
+  pub fn new<M, T, A>(
     manager: &M,
-    text: S,
+    text: T,
     enabled: bool,
-    icon: Option<Icon>,
-    acccelerator: Option<S>,
-  ) -> Self {
-    let item = muda::IconMenuItem::new(
-      text,
-      enabled,
-      icon.and_then(|i| i.try_into().ok()),
-      acccelerator.and_then(|s| s.as_ref().parse().ok()),
-    );
-    Self {
-      id: item.id().clone(),
-      inner: item,
-      app_handle: manager.app_handle().clone(),
-    }
+    icon: Option<Image<'_>>,
+    accelerator: Option<A>,
+  ) -> crate::Result<Self>
+  where
+    M: Manager<R>,
+    T: AsRef<str>,
+    A: AsRef<str>,
+  {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.as_ref().to_owned();
+    let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::IconMenuItem::new(text, enabled, icon, accelerator);
+      IconMenuItemInner {
+        id: item.id().clone(),
+        inner: Some(item),
+        app_handle,
+      }
+    })?;
+
+    Ok(Self(Arc::new(item)))
   }
 
   /// Create a new menu item with the specified id.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
-  pub fn with_id<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+  pub fn with_id<M, I, T, A>(
     manager: &M,
     id: I,
-    text: S,
+    text: T,
     enabled: bool,
-    icon: Option<Icon>,
-    acccelerator: Option<S>,
-  ) -> Self {
-    let item = muda::IconMenuItem::with_id(
-      id,
-      text,
-      enabled,
-      icon.and_then(|i| i.try_into().ok()),
-      acccelerator.and_then(|s| s.as_ref().parse().ok()),
-    );
-    Self {
-      id: item.id().clone(),
-      inner: item,
-      app_handle: manager.app_handle().clone(),
-    }
+    icon: Option<Image<'_>>,
+    accelerator: Option<A>,
+  ) -> crate::Result<Self>
+  where
+    M: Manager<R>,
+    I: Into<MenuId>,
+    T: AsRef<str>,
+    A: AsRef<str>,
+  {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let id = id.into();
+    let text = text.as_ref().to_owned();
+    let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::IconMenuItem::with_id(id.clone(), text, enabled, icon, accelerator);
+      IconMenuItemInner {
+        id,
+        inner: Some(item),
+        app_handle,
+      }
+    })?;
+
+    Ok(Self(Arc::new(item)))
   }
 
   /// Create a new icon menu item but with a native icon.
@@ -105,24 +97,35 @@ impl<R: Runtime> IconMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn with_native_icon<M: Manager<R>, S: AsRef<str>>(
+  pub fn with_native_icon<M, T, A>(
     manager: &M,
-    text: S,
+    text: T,
     enabled: bool,
     native_icon: Option<NativeIcon>,
-    acccelerator: Option<S>,
-  ) -> Self {
-    let item = muda::IconMenuItem::with_native_icon(
-      text,
-      enabled,
-      native_icon.map(Into::into),
-      acccelerator.and_then(|s| s.as_ref().parse().ok()),
-    );
-    Self {
-      id: item.id().clone(),
-      inner: item,
-      app_handle: manager.app_handle().clone(),
-    }
+    accelerator: Option<A>,
+  ) -> crate::Result<Self>
+  where
+    M: Manager<R>,
+    T: AsRef<str>,
+    A: AsRef<str>,
+  {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let text = text.as_ref().to_owned();
+    let icon = native_icon.map(Into::into);
+    let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
+
+    let item = run_main_thread!(handle, || {
+      let item = muda::IconMenuItem::with_native_icon(text, enabled, icon, accelerator);
+      IconMenuItemInner {
+        id: item.id().clone(),
+        inner: Some(item),
+        app_handle,
+      }
+    })?;
+
+    Ok(Self(Arc::new(item)))
   }
 
   /// Create a new icon menu item with the specified id but with a native icon.
@@ -132,41 +135,54 @@ impl<R: Runtime> IconMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn with_id_and_native_icon<M: Manager<R>, I: Into<MenuId>, S: AsRef<str>>(
+  pub fn with_id_and_native_icon<M, I, T, A>(
     manager: &M,
     id: I,
-    text: S,
+    text: T,
     enabled: bool,
     native_icon: Option<NativeIcon>,
-    acccelerator: Option<S>,
-  ) -> Self {
-    let item = muda::IconMenuItem::with_id_and_native_icon(
-      id,
-      text,
-      enabled,
-      native_icon.map(Into::into),
-      acccelerator.and_then(|s| s.as_ref().parse().ok()),
-    );
-    Self {
-      id: item.id().clone(),
-      inner: item,
-      app_handle: manager.app_handle().clone(),
-    }
+    accelerator: Option<A>,
+  ) -> crate::Result<Self>
+  where
+    M: Manager<R>,
+    I: Into<MenuId>,
+    T: AsRef<str>,
+    A: AsRef<str>,
+  {
+    let handle = manager.app_handle();
+    let app_handle = handle.clone();
+
+    let id = id.into();
+    let text = text.as_ref().to_owned();
+    let icon = native_icon.map(Into::into);
+    let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
+
+    let item = run_main_thread!(handle, || {
+      let item =
+        muda::IconMenuItem::with_id_and_native_icon(id.clone(), text, enabled, icon, accelerator);
+      IconMenuItemInner {
+        id,
+        inner: Some(item),
+        app_handle,
+      }
+    })?;
+
+    Ok(Self(Arc::new(item)))
   }
 
   /// The application handle associated with this type.
   pub fn app_handle(&self) -> &AppHandle<R> {
-    &self.app_handle
+    &self.0.app_handle
   }
 
   /// Returns a unique identifier associated with this menu item.
   pub fn id(&self) -> &MenuId {
-    &self.id
+    &self.0.id
   }
 
   /// Get the text for this menu item.
   pub fn text(&self) -> crate::Result<String> {
-    run_main_thread!(self, |self_: Self| self_.inner.text())
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().text())
   }
 
   /// Set the text for this menu item. `text` could optionally contain
@@ -174,30 +190,35 @@ impl<R: Runtime> IconMenuItem<R> {
   /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn set_text<S: AsRef<str>>(&self, text: S) -> crate::Result<()> {
     let text = text.as_ref().to_string();
-    run_main_thread!(self, |self_: Self| self_.inner.set_text(text))
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_text(text))
   }
 
   /// Get whether this menu item is enabled or not.
   pub fn is_enabled(&self) -> crate::Result<bool> {
-    run_main_thread!(self, |self_: Self| self_.inner.is_enabled())
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().is_enabled())
   }
 
   /// Enable or disable this menu item.
   pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_.inner.set_enabled(enabled))
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_enabled(enabled))
   }
 
   /// Set this menu item accelerator.
-  pub fn set_accelerator<S: AsRef<str>>(&self, acccelerator: Option<S>) -> crate::Result<()> {
-    let accel = acccelerator.and_then(|s| s.as_ref().parse().ok());
-    run_main_thread!(self, |self_: Self| self_.inner.set_accelerator(accel))?.map_err(Into::into)
+  pub fn set_accelerator<S: AsRef<str>>(&self, accelerator: Option<S>) -> crate::Result<()> {
+    let accel = accelerator.and_then(|s| s.as_ref().parse().ok());
+    run_item_main_thread!(self, |self_: Self| (*self_.0)
+      .as_ref()
+      .set_accelerator(accel))?
+    .map_err(Into::into)
   }
 
   /// Change this menu item icon or remove it.
-  pub fn set_icon(&self, icon: Option<Icon>) -> crate::Result<()> {
-    run_main_thread!(self, |self_: Self| self_
-      .inner
-      .set_icon(icon.and_then(|i| i.try_into().ok())))
+  pub fn set_icon(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
   }
 
   /// Change this menu item icon to a native image or remove it.
@@ -205,10 +226,10 @@ impl<R: Runtime> IconMenuItem<R> {
   /// ## Platform-specific:
   ///
   /// - **Windows / Linux**: Unsupported.
-  pub fn set_native_icon(&mut self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    return run_main_thread!(self, |self_: Self| self_
-      .inner
+    return run_item_main_thread!(self, |self_: Self| (*self_.0)
+      .as_ref()
       .set_native_icon(_icon.map(Into::into)));
     #[allow(unreachable_code)]
     Ok(())

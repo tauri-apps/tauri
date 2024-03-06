@@ -9,13 +9,15 @@ native WebDriver server for you behind the scenes. It requires two separate
 ports to be used since two distinct [WebDriver Remote Ends] run.
 
 You can configure the ports used with arguments when starting the binary:
-* `--port` (default: `4444`)
-* `--native-port` (default: `4445`)
+
+- `--port` (default: `4444`)
+- `--native-port` (default: `4445`)
 
 Supported platforms:
-* **[pre-alpha]** Linux w/ `WebKitWebDriver`
-* **[pre-alpha]** Windows w/ [Microsoft Edge Driver]
-* **[Todo]** macOS w/ [Appium Mac2 Driver] (probably)
+
+- **[pre-alpha]** Linux w/ `WebKitWebDriver`
+- **[pre-alpha]** Windows w/ [Microsoft Edge Driver]
+- **[Todo]** macOS w/ [Appium Mac2 Driver] (probably)
 
 _note: the (probably) items haven't been proof-of-concept'd yet, and if it is
 not possible to use the listed native webdriver, then a custom implementation

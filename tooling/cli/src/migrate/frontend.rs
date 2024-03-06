@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,7 +13,7 @@ use std::{
   process::Command,
 };
 
-const CORE_API_MODULES: &[&str] = &["event", "path", "tauri", "mocks"];
+const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "core", "window", "mocks"];
 const JS_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs"];
 
 pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
@@ -39,7 +39,15 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             let module = cap.get(1).unwrap().as_str();
             let original = cap.get(0).unwrap().as_str();
 
-            if CORE_API_MODULES.contains(&module) {
+            if module == "tauri" {
+              let new = "@tauri-apps/api/core".to_string();
+              log::info!("Replacing `{original}` with `{new}` on {}", path.display());
+              new
+            } else if module == "window" {
+              let new = "@tauri-apps/api/webviewWindow".to_string();
+              log::info!("Replacing `{original}` with `{new}` on {}", path.display());
+              new
+            } else if CORE_API_MODULES.contains(&module) {
               original.to_string()
             } else {
               let plugin = format!("@tauri-apps/plugin-{module}");

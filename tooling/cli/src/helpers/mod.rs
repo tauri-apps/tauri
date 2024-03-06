@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,11 +7,10 @@ pub mod config;
 pub mod flock;
 pub mod framework;
 pub mod npm;
+pub mod prompts;
 pub mod template;
 pub mod updater_signature;
 pub mod web_dev_server;
-
-use anyhow::Context;
 
 use std::{
   collections::HashMap,
@@ -23,12 +22,12 @@ pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
 
   map.insert(
-    "TAURI_PLATFORM_VERSION",
+    "TAURI_ENV_PLATFORM_VERSION",
     os_info::get().version().to_string(),
   );
 
   if debug {
-    map.insert("TAURI_DEBUG", "true".into());
+    map.insert("TAURI_ENV_DEBUG", "true".into());
   }
 
   map
@@ -53,17 +52,4 @@ pub fn cross_command(bin: &str) -> Command {
   #[cfg(not(target_os = "windows"))]
   let cmd = Command::new(bin);
   cmd
-}
-
-pub fn resolve_merge_config(
-  config: &Option<String>,
-) -> crate::Result<(Option<String>, Option<String>)> {
-  match config {
-    Some(config) if config.starts_with('{') => Ok((Some(config.to_string()), None)),
-    Some(config) => Ok((
-      Some(std::fs::read_to_string(config).with_context(|| "failed to read custom configuration")?),
-      Some(config.clone()),
-    )),
-    None => Ok((None, None)),
-  }
 }

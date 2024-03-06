@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -24,7 +24,6 @@ use std::{
 };
 
 use anyhow::Context;
-use log::info;
 use zip::write::FileOptions;
 
 // Build update
@@ -78,7 +77,7 @@ fn bundle_update_macos(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
     create_tar(source_path, &osx_archived_path)
       .with_context(|| "Failed to tar.gz update directory")?;
 
-    info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
+    log::info!(action = "Bundling"; "{} ({})", osx_archived, display_path(&osx_archived_path));
 
     Ok(vec![osx_archived_path])
   } else {
@@ -113,7 +112,7 @@ fn bundle_update_linux(bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
     create_tar(source_path, &appimage_archived_path)
       .with_context(|| "Failed to tar.gz update directory")?;
 
-    info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
+    log::info!(action = "Bundling"; "{} ({})", appimage_archived, display_path(&appimage_archived_path));
 
     Ok(vec![appimage_archived_path])
   } else {
@@ -197,7 +196,7 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
         });
     let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
 
-    info!(action = "Bundling"; "{}", display_path(&archived_path));
+    log::info!(action = "Bundling"; "{}", display_path(&archived_path));
 
     // Create our gzip file
     create_zip(&source_path, &archived_path).with_context(|| "Failed to zip update bundle")?;
@@ -234,16 +233,28 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
 
 #[cfg(not(target_os = "windows"))]
 fn create_tar(src_dir: &Path, dest_path: &Path) -> crate::Result<PathBuf> {
+  use flate2::{write::GzEncoder, Compression};
+
   let dest_file = common::create_file(dest_path)?;
-  let gzip_encoder = libflate::gzip::Encoder::new(dest_file)?;
+  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
 
   let gzip_encoder = create_tar_from_src(src_dir, gzip_encoder)?;
-  let mut dest_file = gzip_encoder.finish().into_result()?;
+
+  let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;
   Ok(dest_path.to_owned())
 }
 
-#[cfg(not(target_os = "windows"))]
+#[cfg(target_os = "macos")]
+fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
+  let src_dir = src_dir.as_ref();
+  let mut builder = tar::Builder::new(dest_file);
+  builder.follow_symlinks(false);
+  builder.append_dir_all(src_dir.file_name().expect("Path has no file_name"), src_dir)?;
+  builder.into_inner().map_err(Into::into)
+}
+
+#[cfg(target_os = "linux")]
 fn create_tar_from_src<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> crate::Result<W> {
   let src_dir = src_dir.as_ref();
   let mut tar_builder = tar::Builder::new(dest_file);

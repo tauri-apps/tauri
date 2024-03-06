@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -19,21 +19,12 @@ pub fn set_window_effects<R: Runtime>(
 ) -> crate::Result<()> {
   if let Some(_effects) = effects {
     #[cfg(windows)]
-    {
-      let hwnd = window.hwnd()?;
-      windows::apply_effects(hwnd, _effects);
-    }
+    windows::apply_effects(window, _effects);
     #[cfg(target_os = "macos")]
-    {
-      let ns_window = window.ns_window()?;
-      macos::apply_effects(ns_window as _, _effects);
-    }
+    macos::apply_effects(window, _effects);
   } else {
     #[cfg(windows)]
-    {
-      let hwnd = window.hwnd()?;
-      windows::clear_effects(hwnd);
-    }
+    windows::clear_effects(window);
   }
   Ok(())
 }

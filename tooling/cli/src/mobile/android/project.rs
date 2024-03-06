@@ -1,12 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use handlebars::Handlebars;
-use include_dir::{include_dir, Dir};
-use tauri_mobile::{
+use cargo_mobile2::{
   android::{
     config::{Config, Metadata},
     target::Target,
@@ -20,6 +18,8 @@ use tauri_mobile::{
     prefix_path,
   },
 };
+use handlebars::Handlebars;
+use include_dir::{include_dir, Dir};
 
 use std::{
   ffi::OsStr,
@@ -211,7 +211,9 @@ fn generate_out_file(
     options.mode(0o755);
   }
 
-  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") {
+    options.truncate(true).create(true).open(path).map(Some)
+  } else if !path.exists() {
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)

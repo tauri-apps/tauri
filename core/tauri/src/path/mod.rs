@@ -1,21 +1,17 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::path::{Component, Display, Path, PathBuf};
 
-use crate::{
-  plugin::{Builder, TauriPlugin},
-  Manager, Runtime,
-};
+use crate::Runtime;
 
 use serde::{de::Error as DeError, Deserialize, Deserializer};
 use serde_repr::{Deserialize_repr, Serialize_repr};
-use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 
-mod commands;
-mod error;
-pub use error::*;
+pub(crate) mod plugin;
+
+pub use crate::error::*;
 
 #[cfg(target_os = "android")]
 mod android;
@@ -329,54 +325,6 @@ fn resolve_path<R: Runtime>(
   }
 
   Ok(base_dir_path)
-}
-
-#[derive(Template)]
-#[default_template("./init.js")]
-struct InitJavascript {
-  sep: &'static str,
-  delimiter: &'static str,
-}
-
-/// Initializes the plugin.
-pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
-  #[cfg(windows)]
-  let (sep, delimiter) = ("\\", ";");
-  #[cfg(not(windows))]
-  let (sep, delimiter) = ("/", ":");
-
-  let init_js = InitJavascript { sep, delimiter }
-    .render_default(&Default::default())
-    // this will never fail with the above sep and delimiter values
-    .unwrap();
-
-  Builder::new("path")
-    .invoke_handler(crate::generate_handler![
-      commands::resolve_directory,
-      commands::resolve,
-      commands::normalize,
-      commands::join,
-      commands::dirname,
-      commands::extname,
-      commands::basename,
-      commands::is_absolute
-    ])
-    .js_init_script(init_js.to_string())
-    .setup(|app, _api| {
-      #[cfg(target_os = "android")]
-      {
-        let handle = _api.register_android_plugin("app.tauri", "PathPlugin")?;
-        app.manage(PathResolver(handle));
-      }
-
-      #[cfg(not(target_os = "android"))]
-      {
-        app.manage(PathResolver(app.clone()));
-      }
-
-      Ok(())
-    })
-    .build()
 }
 
 #[cfg(test)]

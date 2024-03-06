@@ -1,8 +1,20 @@
+Unicode true
+ManifestDPIAware true
+; Set the compression algorithm. Default is LZMA.
+!if "{{compression}}" == ""
+  SetCompressor /SOLID lzma
+!else
+  SetCompressor /SOLID "{{compression}}"
+!endif
+
 !include MUI2.nsh
 !include FileFunc.nsh
 !include x64.nsh
 !include WordFunc.nsh
 !include "FileAssociation.nsh"
+!include "StrFunc.nsh"
+${StrCase}
+${StrLoc}
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
@@ -17,6 +29,7 @@
 !define MAINBINARYNAME "{{main_binary_name}}"
 !define MAINBINARYSRCPATH "{{main_binary_path}}"
 !define BUNDLEID "{{bundle_id}}"
+!define COPYRIGHT "{{copyright}}"
 !define OUTFILE "{{out_file}}"
 !define ARCH "{{arch}}"
 !define PLUGINSPATH "{{additional_plugins_path}}"
@@ -28,12 +41,12 @@
 !define WEBVIEW2INSTALLERPATH "{{webview2_installer_path}}"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
+!define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
+!define ESTIMATEDSIZE "{{estimated_size}}"
 
 Name "${PRODUCTNAME}"
-BrandingText "{{copyright}}"
+BrandingText "${COPYRIGHT}"
 OutFile "${OUTFILE}"
-Unicode true
-SetCompressor /SOLID lzma
 
 VIProductVersion "${VERSIONWITHBUILD}"
 VIAddVersionKey "ProductName" "${PRODUCTNAME}"
@@ -45,6 +58,10 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Plugins path, currently exists for linux only
 !if "${PLUGINSPATH}" != ""
     !addplugindir "${PLUGINSPATH}"
+!endif
+
+!if "${UNINSTALLERSIGNCOMMAND}" != ""
+  !uninstfinalize '${UNINSTALLERSIGNCOMMAND}'
 !endif
 
 ; Handle install mode, `perUser`, `perMachine` or `both`
@@ -136,7 +153,11 @@ Function PageReinstall
     ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "DisplayName"
     ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "Publisher"
     StrCmp "$R0$R1" "${PRODUCTNAME}${MANUFACTURER}" 0 wix_loop
-    StrCpy $R5 "wix"
+    ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "UninstallString"
+    ${StrCase} $R1 $R0 "L"
+    ${StrLoc} $R0 $R1 "msiexec" ">"
+    StrCmp $R0 0 0 wix_done
+    StrCpy $R7 "wix"
     StrCpy $R6 "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1"
     Goto compare_version
   wix_done:
@@ -150,7 +171,7 @@ Function PageReinstall
   ; and modify the messages presented to the user accordingly
   compare_version:
   StrCpy $R4 "$(older)"
-  ${If} $R5 == "wix"
+  ${If} $R7 == "wix"
     ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
   ${Else}
     ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
@@ -244,15 +265,14 @@ Function PageLeaveReinstall
   reinst_uninstall:
     HideWindow
     ClearErrors
-    ExecWait '$R1 /P _?=$4' $0
 
-    ${If} $R5 == "wix"
+    ${If} $R7 == "wix"
       ReadRegStr $R1 HKLM "$R6" "UninstallString"
       ExecWait '$R1' $0
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ExecWait '$R1 _?=$4' $0
+      ExecWait '$R1 /P _?=$4' $0
     ${EndIf}
 
     BringToFront
@@ -338,16 +358,7 @@ FunctionEnd
   !include "{{this}}"
 {{/each}}
 
-Var PassiveMode
-Function .onInit
-  ${GetOptions} $CMDLINE "/P" $PassiveMode
-  IfErrors +2 0
-    StrCpy $PassiveMode 1
-
-  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
-    !insertmacro MUI_LANGDLL_DISPLAY
-  !endif
-
+!macro SetContext
   !if "${INSTALLMODE}" == "currentUser"
     SetShellVarContext current
   !else if "${INSTALLMODE}" == "perMachine"
@@ -363,6 +374,19 @@ Function .onInit
       SetRegView 32
     !endif
   ${EndIf}
+!macroend
+
+Var PassiveMode
+Function .onInit
+  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  IfErrors +2 0
+    StrCpy $PassiveMode 1
+
+  !if "${DISPLAYLANGUAGESELECTOR}" == "true"
+    !insertmacro MUI_LANGDLL_DISPLAY
+  !endif
+
+  !insertmacro SetContext
 
   ${If} $INSTDIR == ""
     ; Set default install location
@@ -440,18 +464,18 @@ Section WebView2
   !endif
 
   !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
-    CreateDirectory "$INSTDIR\redist"
-    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
+    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
     DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebview2Setup.exe"
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Goto install_webview2
   !endif
 
   !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
-    CreateDirectory "$INSTDIR\redist"
-    File "/oname=$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
+    Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
     DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$INSTDIR\redist\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+    StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
     Goto install_webview2
   !endif
 
@@ -471,13 +495,21 @@ Section WebView2
 SectionEnd
 
 !macro CheckIfAppIsRunning
-  nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !if "${INSTALLMODE}" == "currentUser"
+    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
+  !else
+    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !endif
   Pop $R0
   ${If} $R0 = 0
       IfSilent kill 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
       kill:
-        nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !if "${INSTALLMODE}" == "currentUser"
+          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
+        !else
+          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !endif
         Pop $R0
         Sleep 500
         ${If} $R0 = 0
@@ -501,31 +533,25 @@ SectionEnd
   app_check_done:
 !macroend
 
-Var AppSize
 Section Install
   SetOutPath $INSTDIR
-  StrCpy $AppSize 0
 
   !insertmacro CheckIfAppIsRunning
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
-  ${GetSize} "$INSTDIR" "/M=${MAINBINARYNAME}.exe /S=0B" $0 $1 $2
-  IntOp $AppSize $AppSize + $0
 
   ; Copy resources
+  {{#each resources_dirs}}
+    CreateDirectory "$INSTDIR\\{{this}}"
+  {{/each}}
   {{#each resources}}
-    CreateDirectory "$INSTDIR\\{{this.[0]}}"
     File /a "/oname={{this.[1]}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this.[1]}} /S=0B" $0 $1 $2
-    IntOp $AppSize $AppSize + $0
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this}} /S=0B" $0 $1 $2
-    IntOp $AppSize $AppSize + $0
   {{/each}}
 
   ; Create file associations
@@ -533,6 +559,14 @@ Section Install
     {{#each association.ext as |ext| ~}}
        !insertmacro APP_ASSOCIATE "{{ext}}" "{{or association.name ext}}" "{{association-description association.description ext}}" "$INSTDIR\${MAINBINARYNAME}.exe,0" "Open with ${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe $\"%1$\""
     {{/each}}
+  {{/each}}
+
+  ; Register deep links
+  {{#each deep_link_protocol as |protocol| ~}}
+    WriteRegStr SHCTX "Software\Classes\{{protocol}}" "URL Protocol" ""
+    WriteRegStr SHCTX "Software\Classes\{{protocol}}" "" "URL:${BUNDLEID} protocol"
+    WriteRegStr SHCTX "Software\Classes\{{protocol}}\DefaultIcon" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\",0"
+    WriteRegStr SHCTX "Software\Classes\{{protocol}}\shell\open\command" "" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
   {{/each}}
 
   ; Create uninstaller
@@ -556,9 +590,7 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  IntOp $AppSize $AppSize / 1000
-  IntFmt $AppSize "0x%08X" $AppSize
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$AppSize"
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
   ; Create start menu shortcut (GUI)
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -591,20 +623,13 @@ Function .onInstSuccess
   check_r_flag:
     ${GetOptions} $CMDLINE "/R" $R0
     IfErrors run_done 0
-      Exec '"$INSTDIR\${MAINBINARYNAME}.exe"'
+      ${GetOptions} $CMDLINE "/ARGS" $R0
+      Exec '"$INSTDIR\${MAINBINARYNAME}.exe" $R0'
   run_done:
 FunctionEnd
 
 Function un.onInit
-  ${If} ${RunningX64}
-    !if "${ARCH}" == "x64"
-      SetRegView 64
-    !else if "${ARCH}" == "arm64"
-      SetRegView 64
-    !else
-      SetRegView 32
-    !endif
-  ${EndIf}
+  !insertmacro SetContext
 
   !if "${INSTALLMODE}" == "both"
     !insertmacro MULTIUSER_UNINIT
@@ -623,7 +648,6 @@ Section Uninstall
   ; Delete resources
   {{#each resources}}
     Delete "$INSTDIR\\{{this.[1]}}"
-    RMDir "$INSTDIR\\{{this.[0]}}"
   {{/each}}
 
   ; Delete external binaries
@@ -638,10 +662,26 @@ Section Uninstall
     {{/each}}
   {{/each}}
 
+  ; Delete deep links
+  {{#each deep_link_protocol as |protocol| ~}}
+    ReadRegStr $R7 SHCTX "Software\Classes\{{protocol}}\shell\open\command" ""
+    !if $R7 == "$\"$INSTDIR\${MAINBINARYNAME}.exe$\" $\"%1$\""
+      DeleteRegKey SHCTX "Software\Classes\{{protocol}}"
+    !endif
+  {{/each}}
+
+
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
-  RMDir "$INSTDIR"
+  ${If} $DeleteAppDataCheckboxState == 1
+    RMDir /R /REBOOTOK "$INSTDIR"
+  ${Else}
+    {{#each resources_ancestors}}
+    RMDir /REBOOTOK "$INSTDIR\\{{this}}"
+    {{/each}}
+    RMDir "$INSTDIR"
+  ${EndIf}
 
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
@@ -650,12 +690,6 @@ Section Uninstall
 
   ; Remove desktop shortcuts
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
-
-  ; Delete app data
-  ${If} $DeleteAppDataCheckboxState == 1
-    RmDir /r "$APPDATA\${BUNDLEID}"
-    RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
-  ${EndIf}
 
   ; Remove registry information for add/remove programs
   !if "${INSTALLMODE}" == "both"
@@ -667,6 +701,13 @@ Section Uninstall
   !endif
 
   DeleteRegValue HKCU "${MANUPRODUCTKEY}" "Installer Language"
+
+  ; Delete app data
+  ${If} $DeleteAppDataCheckboxState == 1
+    SetShellVarContext current
+    RmDir /r "$APPDATA\${BUNDLEID}"
+    RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
+  ${EndIf}
 
   ${GetOptions} $CMDLINE "/P" $R0
   IfErrors +2 0

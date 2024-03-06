@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -31,7 +31,7 @@ pub struct Handler {
 
 impl Parse for Handler {
   fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
-    let command_defs = input.parse_terminated::<CommandDef, Token![,]>(CommandDef::parse)?;
+    let command_defs = input.parse_terminated(CommandDef::parse, Token![,])?;
 
     // parse the command names and wrappers from the passed paths
     let (commands, wrappers) = command_defs

@@ -14,69 +14,70 @@
     <div id="response"></div>
 
     <script>
-      var WebviewWindow = window.__TAURI__.window.WebviewWindow
-      var appWindow = window.__TAURI__.window.appWindow
-      var windowLabel = appWindow.label
-      var windowLabelContainer = document.getElementById('window-label')
+      const WebviewWindow = window.__TAURI__.webview.WebviewWindow
+      const appWindow = window.__TAURI__.window.getCurrent()
+      const windowLabel = appWindow.label
+      const windowLabelContainer = document.getElementById('window-label')
       windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
 
-      var container = document.getElementById('container')
+      const container = document.getElementById('container')
 
       function createWindowMessageBtn(label) {
-        var tauriWindow = WebviewWindow.getByLabel(label)
-        var button = document.createElement('button')
+        const button = document.createElement('button')
         button.innerText = 'Send message to ' + label
         button.addEventListener('click', function () {
-          tauriWindow.emit('clicked', 'message from ' + windowLabel)
+          appWindow.emitTo(label, 'clicked', 'message from ' + windowLabel)
         })
         container.appendChild(button)
       }
 
       // global listener
+      const responseContainer = document.getElementById('response')
       window.__TAURI__.event.listen('clicked', function (event) {
         responseContainer.innerHTML +=
           'Got ' + JSON.stringify(event) + ' on global listener\n\n'
       })
-      window.__TAURI__.event.listen('tauri://window-created', function (event) {
-        createWindowMessageBtn(event.payload.label)
-      })
+      window.__TAURI__.event.listen(
+        'tauri://webview-created',
+        function (event) {
+          createWindowMessageBtn(event.payload.label)
+        }
+      )
 
-      var responseContainer = document.getElementById('response')
       // listener tied to this window
       appWindow.listen('clicked', function (event) {
         responseContainer.innerText +=
           'Got ' + JSON.stringify(event) + ' on window listener\n\n'
       })
 
-      var createWindowButton = document.createElement('button')
+      const createWindowButton = document.createElement('button')
       createWindowButton.innerHTML = 'Create window'
       createWindowButton.addEventListener('click', function () {
-        var webviewWindow = new WebviewWindow(
-          Math.random().toString().replace('.', ''),
-          {
-            tabbingIdentifier: windowLabel
-          }
-        )
-        webviewWindow.once('tauri://created', function () {
-          responseContainer.innerHTML += 'Created new webview'
+        const id = Math.random().toString().replace('.', '')
+        const webview = new WebviewWindow(id, {
+          tabbingIdentifier: windowLabel
         })
-        webviewWindow.once('tauri://error', function (e) {
-          responseContainer.innerHTML += 'Error creating new webview'
+        webview.once('tauri://created', function () {
+          responseContainer.innerHTML += 'Created new window'
+        })
+        webview.once('tauri://error', function (e) {
+          responseContainer.innerHTML +=
+            'Error creating new window ' + e.payload
         })
       })
       container.appendChild(createWindowButton)
 
-      var globalMessageButton = document.createElement('button')
+      const globalMessageButton = document.createElement('button')
       globalMessageButton.innerHTML = 'Send global message'
       globalMessageButton.addEventListener('click', function () {
         // emit to all windows
-        window.__TAURI__.event.emit('clicked', 'message from ' + windowLabel)
+        appWindow.emit('clicked', 'message from ' + windowLabel)
       })
       container.appendChild(globalMessageButton)
 
-      var allWindows = window.__TAURI__.window.getAll()
-      for (var index in allWindows) {
-        var label = allWindows[index].label
+      const allWindows = window.__TAURI__.window.getAll()
+      for (const index in allWindows) {
+        const label = allWindows[index].label
         if (label === windowLabel) {
           continue
         }

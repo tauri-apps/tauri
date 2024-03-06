@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -16,8 +16,8 @@ mod rust {
   pub fn main() {
     tauri::Builder::default()
       .setup(|app| {
-        let splashscreen_window = app.get_window("splashscreen").unwrap();
-        let main_window = app.get_window("main").unwrap();
+        let splashscreen_window = app.get_webview_window("splashscreen").unwrap();
+        let main_window = app.get_webview_window("main").unwrap();
         // we perform the initialization code on a new task so the app doesn't crash
         tauri::async_runtime::spawn(async move {
           println!("Initializing...");
@@ -39,16 +39,16 @@ mod rust {
 // Application code for a splashscreen system that waits for the UI
 mod ui {
   use std::sync::{Arc, Mutex};
-  use tauri::{Manager, State, Window};
+  use tauri::{Manager, State, WebviewWindow};
 
   // wrappers around each Window
   // we use a dedicated type because Tauri can only manage a single instance of a given type
-  struct SplashscreenWindow(Arc<Mutex<Window>>);
-  struct MainWindow(Arc<Mutex<Window>>);
+  struct SplashscreenWindow(Arc<Mutex<WebviewWindow>>);
+  struct MainWindow(Arc<Mutex<WebviewWindow>>);
 
   #[tauri::command]
   fn close_splashscreen(
-    _: Window, // force inference of P
+    _: WebviewWindow, // force inference of P
     splashscreen: State<SplashscreenWindow>,
     main: State<MainWindow>,
   ) {
@@ -65,10 +65,10 @@ mod ui {
       .setup(|app| {
         // set the splashscreen and main windows to be globally available with the tauri state API
         app.manage(SplashscreenWindow(Arc::new(Mutex::new(
-          app.get_window("splashscreen").unwrap(),
+          app.get_webview_window("splashscreen").unwrap(),
         ))));
         app.manage(MainWindow(Arc::new(Mutex::new(
-          app.get_window("main").unwrap(),
+          app.get_webview_window("main").unwrap(),
         ))));
         Ok(())
       })

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -9,8 +9,8 @@ use crate::{
   Result,
 };
 
+use cargo_mobile2::{apple::target::Target, opts::Profile};
 use clap::Parser;
-use tauri_mobile::{apple::target::Target, opts::Profile};
 
 use std::{
   collections::HashMap,
@@ -73,8 +73,13 @@ pub fn command(options: Options) -> Result<()> {
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = read_options(&tauri_config_.tauri.bundle.identifier);
-    let (config, metadata) = get_config(&get_app(tauri_config_), tauri_config_, &cli_options);
+    let cli_options = read_options(&tauri_config_.identifier);
+    let (config, metadata) = get_config(
+      &get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
+      tauri_config_,
+      None,
+      &cli_options,
+    );
     (config, metadata, cli_options)
   };
 
@@ -134,22 +139,17 @@ pub fn command(options: Options) -> Result<()> {
 
   let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
-  // when using Xcode, the arches will be ['Simulator', 'arm64'] instead of ['arm64-sim']
-  let arches = if options.arches.contains(&"Simulator".into()) {
-    vec![if cfg!(target_arch = "aarch64") {
-      "arm64-sim".to_string()
-    } else {
-      "x86_64".to_string()
-    }]
-  } else {
-    options.arches
-  };
-  for arch in arches {
+  for arch in options.arches {
     // Set target-specific flags
     let (env_triple, rust_triple) = match arch.as_str() {
       "arm64" => ("aarch64_apple_ios", "aarch64-apple-ios"),
       "arm64-sim" => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
       "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
+      "Simulator" => {
+        // when using Xcode, the arches for a simulator build will be ['Simulator', 'arm64-sim'] instead of ['arm64-sim']
+        // so we ignore that on our end
+        continue;
+      }
       _ => {
         return Err(anyhow::anyhow!(
           "Arch specified by Xcode was invalid. {} isn't a known arch",
@@ -206,14 +206,11 @@ pub fn command(options: Options) -> Result<()> {
     }
 
     let project_dir = config.project_dir();
-    std::fs::create_dir_all(project_dir.join(format!("Externals/{}", profile.as_str())))?;
+    let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
+    std::fs::create_dir_all(&externals_lib_dir)?;
     std::fs::copy(
       lib_path,
-      project_dir.join(format!(
-        "Externals/{}/lib{}.a",
-        profile.as_str(),
-        config.app().lib_name()
-      )),
+      externals_lib_dir.join(format!("lib{}.a", config.app().lib_name())),
     )?;
   }
   Ok(())

@@ -1,37 +1,46 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-fn main() {
-  use tauri::{
-    process::{Command, CommandEvent},
-    Manager,
-  };
+use std::{
+  io::{BufRead, BufReader},
+  process::{Command, Stdio},
+};
+use tauri::Manager;
 
+fn main() {
   tauri::Builder::default()
     .setup(move |app| {
-      let window = app.get_window("main").unwrap();
+      let window = app.get_webview_window("main").unwrap();
       let script_path = app
-        .path_resolver()
-        .resolve_resource("assets/index.js")
+        .path()
+        .resolve("assets/index.js", tauri::path::BaseDirectory::Resource)
         .unwrap()
         .to_string_lossy()
         .to_string();
-      tauri::async_runtime::spawn(async move {
-        let (mut rx, _child) = Command::new("node")
+      std::thread::spawn(move || {
+        let mut child = Command::new("node")
           .args(&[script_path])
+          .stdout(Stdio::piped())
           .spawn()
           .expect("Failed to spawn node");
+        let stdout = child.stdout.take().unwrap();
+        let mut stdout = BufReader::new(stdout);
 
-        #[allow(clippy::collapsible_match)]
-        while let Some(event) = rx.recv().await {
-          if let CommandEvent::Stdout(line) = event {
-            window
-              .emit("message", Some(format!("'{}'", line)))
-              .expect("failed to emit event");
+        let mut line = String::new();
+        loop {
+          let n = stdout.read_line(&mut line).unwrap();
+          if n == 0 {
+            break;
           }
+
+          window
+            .emit("message", Some(format!("'{}'", line)))
+            .expect("failed to emit event");
+
+          line.clear();
         }
       });
 

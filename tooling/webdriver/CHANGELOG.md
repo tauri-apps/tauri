@@ -1,5 +1,18 @@
 # Changelog
 
+## \[0.1.4]
+
+### New Features
+
+- [`435d7513`](https://www.github.com/tauri-apps/tauri/commit/435d7513e45eab8b512e9a7e695a1adef8a98a46)([#8609](https://www.github.com/tauri-apps/tauri/pull/8609)) Added `webviewOptions` object to the `tauri:options` capability to configure the [Edge webview options](https://learn.microsoft.com/en-us/microsoft-edge/webdriver-chromium/capabilities-edge-options#webviewoptions-object) on Windows.
+
+## \[0.1.3]
+
+### What's Changed
+
+- [`9edebbba`](https://www.github.com/tauri-apps/tauri/commit/9edebbba4ec472772b2f6307232e8d256f62c8ba)([#7475](https://www.github.com/tauri-apps/tauri/pull/7475)) Update locked dependencies to fix a Windows build issue when using them with a recent Rust compiler.
+- [`9edebbba`](https://www.github.com/tauri-apps/tauri/commit/9edebbba4ec472772b2f6307232e8d256f62c8ba)([#7475](https://www.github.com/tauri-apps/tauri/pull/7475)) Bump minimum Rust version to `1.60` to be in line with the rest of the Tauri project.
+
 ## \[0.1.2]
 
 - Expose `native-host` option in tauri-driver and set default to `127.0.0.1`.

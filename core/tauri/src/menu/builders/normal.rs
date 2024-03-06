@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -58,7 +58,7 @@ impl MenuItemBuilder {
   }
 
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> MenuItem<R> {
+  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<MenuItem<R>> {
     if let Some(id) = self.id {
       MenuItem::with_id(manager, id, self.text, self.enabled, self.accelerator)
     } else {

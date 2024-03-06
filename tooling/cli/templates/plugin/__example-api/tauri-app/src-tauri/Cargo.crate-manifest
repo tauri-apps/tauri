@@ -6,7 +6,11 @@ authors = ["you"]
 license = ""
 repository = ""
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.70"
+
+[lib]
+name = "tauri_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,9 +20,3 @@ tauri-build = {{ tauri_build_dep }}
 [dependencies]
 tauri = {{ tauri_example_dep }}
 tauri-plugin-{{ plugin_name }} = { path = "../../../" }
-
-[features]
-# this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.
-# If you use cargo directly instead of tauri's cli you can use this feature flag to switch between tauri's `dev` and `build` modes.
-# DO NOT REMOVE!!
-custom-protocol = [ "tauri/custom-protocol" ]

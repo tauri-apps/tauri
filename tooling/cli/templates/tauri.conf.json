@@ -1,48 +1,14 @@
 {
-  "package": {
-    "productName": "{{ app_name }}",
-    "version": "0.1.0"
-  },
+  "productName": "{{ app_name }}",
+  "version": "0.1.0",
+  "identifier": "com.tauri.dev",
   "build": {
-    "distDir": "{{ dist_dir }}",
-    "devPath": "{{ dev_path }}",
+    "frontendDist": "{{ frontend_dist }}",
+    "devUrl": "{{ dev_url }}",
     "beforeDevCommand": "{{ before_dev_command }}",
     "beforeBuildCommand": "{{ before_build_command }}"
   },
-  "tauri": {
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.tauri.dev",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
-      "resources": [],
-      "externalBin": [],
-      "copyright": "",
-      "category": "DeveloperTool",
-      "shortDescription": "",
-      "longDescription": "",
-      "deb": {
-        "depends": []
-      },
-      "macOS": {
-        "frameworks": [],
-        "exceptionDomain": "",
-        "signingIdentity": null,
-        "providerShortName": null,
-        "entitlements": null
-      },
-      "windows": {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "timestampUrl": ""
-      }
-    },
+  "app": {
     "windows": [
       {
         "title": "{{ window_title }}",
@@ -55,5 +21,16 @@
     "security": {
       "csp": null
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
   }
 }

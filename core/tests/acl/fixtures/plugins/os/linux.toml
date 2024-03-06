@@ -1,0 +1,7 @@
+[[permission]]
+identifier = "allow-apt-linux"
+platforms = ["linux"]
+description = "Allows spawning the apt command on Linux"
+commands.allow = ["spawn"]
+[[permission.scope.allow]]
+command = "apt"

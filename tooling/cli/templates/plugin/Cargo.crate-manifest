@@ -4,7 +4,7 @@ version = "0.0.0"
 authors = [ "{{ author }}" ]
 description = ""
 edition = "2021"
-rust-version = "1.65"
+rust-version = "1.70"
 exclude = ["/examples", "/webview-dist", "/webview-src", "/node_modules"]
 links = "tauri-plugin-{{ plugin_name }}"
 
@@ -14,4 +14,4 @@ serde = "1.0"
 thiserror = "1.0"
 
 [build-dependencies]
-tauri-build = {{{ tauri_build_dep }}}
+tauri-plugin = {{{ tauri_plugin_dep }}}

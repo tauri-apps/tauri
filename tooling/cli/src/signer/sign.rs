@@ -1,11 +1,11 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use std::path::{Path, PathBuf};
 
 use crate::{
-  helpers::updater_signature::{read_key_from_file, secret_key, sign_file},
+  helpers::updater_signature::{secret_key, sign_file},
   Result,
 };
 use anyhow::Context;
@@ -16,14 +16,24 @@ use tauri_utils::display_path;
 #[derive(Debug, Parser)]
 #[clap(about = "Sign a file")]
 pub struct Options {
-  /// Load the private key from a file
-  #[clap(short = 'k', long, conflicts_with("private_key_path"))]
-  private_key: Option<String>,
   /// Load the private key from a string
-  #[clap(short = 'f', long, conflicts_with("private_key"))]
+  #[clap(
+    short = 'k',
+    long,
+    conflicts_with("private_key_path"),
+    env = "TAURI_PRIVATE_KEY"
+  )]
+  private_key: Option<String>,
+  /// Load the private key from a file
+  #[clap(
+    short = 'f',
+    long,
+    conflicts_with("private_key"),
+    env = "TAURI_PRIVATE_KEY_PATH"
+  )]
   private_key_path: Option<PathBuf>,
   /// Set private key password when signing
-  #[clap(short, long)]
+  #[clap(short, long, env = "TAURI_PRIVATE_KEY_PASSWORD")]
   password: Option<String>,
   /// Sign the specified file
   file: PathBuf,
@@ -31,7 +41,7 @@ pub struct Options {
 
 pub fn command(mut options: Options) -> Result<()> {
   options.private_key = if let Some(private_key) = options.private_key_path {
-    Some(read_key_from_file(Path::new(&private_key)).expect("Unable to extract private key"))
+    Some(std::fs::read_to_string(Path::new(&private_key)).expect("Unable to extract private key"))
   } else {
     options.private_key
   };

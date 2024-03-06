@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,22 +15,25 @@ use std::{
 };
 
 use anyhow::Context;
+use glob::glob;
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
+  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
-use tauri_utils::config::parse::is_configuration_file;
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
-use crate::helpers::{
-  app_paths::{app_dir, tauri_dir},
-  config::{nsis_settings, reload as reload_config, wix_settings, Config},
+use crate::{
+  helpers::{
+    app_paths::{app_dir, tauri_dir},
+    config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
+  },
+  ConfigValue,
 };
 use tauri_utils::{display_path, platform::Target};
 
@@ -48,7 +51,7 @@ pub struct Options {
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -85,7 +88,7 @@ pub struct MobileOptions {
   pub debug: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<String>,
+  pub config: Option<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -96,7 +99,7 @@ pub struct RustupTarget {
 }
 
 pub struct Rust {
-  app_settings: RustAppSettings,
+  app_settings: Arc<RustAppSettings>,
   config_features: Vec<String>,
   product_name: Option<String>,
   available_targets: Option<Vec<RustupTarget>>,
@@ -108,7 +111,7 @@ impl Interface for Rust {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+      let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
         if let Ok(events) = r {
           let _ = tx.send(events);
         }
@@ -117,7 +120,7 @@ impl Interface for Rust {
       watcher
         .watcher()
         .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
-      let manifest = rewrite_manifest(config)?;
+      let (manifest, _modified) = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
       loop {
@@ -131,22 +134,22 @@ impl Interface for Rust {
       manifest
     };
 
-    if let Some(minimum_system_version) = &config.tauri.bundle.macos.minimum_system_version {
+    if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
     let app_settings = RustAppSettings::new(config, manifest, target)?;
 
     Ok(Self {
-      app_settings,
+      app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
-      product_name: config.package.product_name.clone(),
+      product_name: config.product_name.clone(),
       available_targets: None,
     })
   }
 
-  fn app_settings(&self) -> &Self::AppSettings {
-    &self.app_settings
+  fn app_settings(&self) -> Arc<Self::AppSettings> {
+    self.app_settings.clone()
   }
 
   fn build(&mut self, options: Options) -> crate::Result<()> {
@@ -186,7 +189,7 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let config = options.config.clone();
+      let config = options.config.clone().map(|c| c.0);
       let run = Arc::new(|rust: &mut Rust| {
         let on_exit = on_exit.clone();
         rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
@@ -215,7 +218,7 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let config = options.config.clone();
+      let config = options.config.clone().map(|c| c.0);
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
       self.run_dev_watcher(config, run)
     }
@@ -224,45 +227,32 @@ impl Interface for Rust {
   fn env(&self) -> HashMap<&str, String> {
     let mut env = HashMap::new();
     env.insert(
-      "TAURI_TARGET_TRIPLE",
+      "TAURI_ENV_TARGET_TRIPLE",
       self.app_settings.target_triple.clone(),
     );
 
-    let mut s = self.app_settings.target_triple.split('-');
-    let (arch, _, host) = (s.next().unwrap(), s.next().unwrap(), s.next().unwrap());
-    env.insert(
-      "TAURI_ARCH",
-      match arch {
-        // keeps compatibility with old `std::env::consts::ARCH` implementation
-        "i686" | "i586" => "x86".into(),
-        a => a.into(),
-      },
-    );
-    env.insert(
-      "TAURI_PLATFORM",
-      match host {
-        // keeps compatibility with old `std::env::consts::OS` implementation
-        "darwin" => "macos".into(),
-        "ios-sim" => "ios".into(),
-        "androideabi" => "android".into(),
-        h => h.into(),
-      },
-    );
+    let target_triple = &self.app_settings.target_triple;
+    let target_components: Vec<&str> = target_triple.split('-').collect();
+    let (arch, host, _host_env) = match target_components.as_slice() {
+      // 3 components like aarch64-apple-darwin
+      [arch, _, host] => (*arch, *host, None),
+      // 4 components like x86_64-pc-windows-msvc and aarch64-apple-ios-sim
+      [arch, _, host, host_env] => (*arch, *host, Some(*host_env)),
+      _ => {
+        log::warn!("Invalid target triple: {}", target_triple);
+        return env;
+      }
+    };
 
+    env.insert("TAURI_ENV_ARCH", arch.into());
+    env.insert("TAURI_ENV_PLATFORM", host.into());
     env.insert(
-      "TAURI_FAMILY",
+      "TAURI_ENV_FAMILY",
       match host {
         "windows" => "windows".into(),
         _ => "unix".into(),
       },
     );
-
-    match host {
-      "linux" => env.insert("TAURI_PLATFORM_TYPE", "Linux".into()),
-      "windows" => env.insert("TAURI_PLATFORM_TYPE", "Windows_NT".into()),
-      "darwin" => env.insert("TAURI_PLATFORM_TYPE", "Darwin".into()),
-      _ => None,
-    };
 
     env
   }
@@ -306,11 +296,14 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       ignore_builder.add(path);
 
-      if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+      if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
         ignore_builder.add(dir.join(ignore_file));
       }
 
-      for line in crate::dev::TAURI_DEV_WATCHER_GITIGNORE.lines().flatten() {
+      for line in crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE
+        .lines()
+        .map_while(Result::ok)
+      {
         let _ = ignore_builder.add_line(None, &line);
       }
 
@@ -328,14 +321,14 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   default_gitignore.push(".gitignore");
   if !default_gitignore.exists() {
     if let Ok(mut file) = std::fs::File::create(default_gitignore.clone()) {
-      let _ = file.write_all(crate::dev::TAURI_DEV_WATCHER_GITIGNORE);
+      let _ = file.write_all(crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE);
     }
   }
 
   let mut builder = ignore::WalkBuilder::new(dir);
   builder.add_custom_ignore_filename(".taurignore");
   let _ = builder.add_ignore(default_gitignore);
-  if let Ok(ignore_file) = std::env::var("TAURI_DEV_WATCHER_IGNORE_FILE") {
+  if let Ok(ignore_file) = std::env::var("TAURI_CLI_WATCHER_IGNORE_FILENAME") {
     builder.add_ignore(ignore_file);
   }
   builder.require_git(false).ignore(false).max_depth(Some(1));
@@ -360,6 +353,8 @@ fn shared_options(
     args.push("--bins".into());
     let all_features = app_settings
       .manifest
+      .lock()
+      .unwrap()
       .all_enabled_features(if let Some(f) = features { f } else { &[] });
     if !all_features.contains(&"tauri/rustls-tls".into()) {
       features
@@ -392,7 +387,7 @@ fn dev_options(
   shared_options(mobile, args, features, app_settings);
 
   if !args.contains(&"--no-default-features".into()) {
-    let manifest_features = app_settings.manifest.features();
+    let manifest_features = app_settings.manifest.lock().unwrap().features();
     let enable_features: Vec<String> = manifest_features
       .get("default")
       .cloned()
@@ -413,6 +408,52 @@ fn dev_options(
   }
 }
 
+// Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
+fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
+  let Some(path) = path.to_str() else {
+    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
+  };
+  let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
+  let res = res
+    .map(|p| p.with_context(|| format!("unable to match path to pattern `{}`", &path)))
+    .collect::<Result<Vec<_>, _>>()?;
+  Ok(res)
+}
+
+fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+  let tauri_path = tauri_dir();
+  let workspace_path = get_workspace_dir()?;
+
+  // We always want to watch the main tauri folder.
+  let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
+  let cargo_settings = CargoSettings::load(&workspace_path)?;
+  if let Some(members) = cargo_settings.workspace.and_then(|w| w.members) {
+    for p in members {
+      let p = workspace_path.join(p);
+      match expand_member_path(&p) {
+        // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
+        // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
+        Ok(expanded_paths) => {
+          if expanded_paths.is_empty() {
+            watch_folders.push(p);
+          } else {
+            watch_folders.extend(expanded_paths);
+          }
+        }
+        Err(err) => {
+          // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
+          log::error!("Error watching {}: {}", p.display(), err.to_string());
+          watch_folders.push(p);
+        }
+      };
+    }
+  }
+
+  Ok(watch_folders)
+}
+
 impl Rust {
   pub fn build_options(
     &self,
@@ -422,7 +463,7 @@ impl Rust {
   ) {
     features
       .get_or_insert(Vec::new())
-      .push("custom-protocol".into());
+      .push("tauri/custom-protocol".into());
     shared_options(mobile, args, features, &self.app_settings);
   }
 
@@ -446,7 +487,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: Option<String>,
+    config: Option<serde_json::Value>,
     run: Arc<F>,
   ) -> crate::Result<()> {
     let child = run(self)?;
@@ -454,43 +495,25 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
-    let tauri_path = tauri_dir();
-    let workspace_path = get_workspace_dir()?;
 
-    let watch_folders = if tauri_path == workspace_path {
-      vec![tauri_path]
-    } else {
-      let cargo_settings = CargoSettings::load(&workspace_path)?;
-      cargo_settings
-        .workspace
-        .as_ref()
-        .map(|w| {
-          w.members
-            .clone()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| workspace_path.join(p))
-            .collect()
-        })
-        .unwrap_or_else(|| vec![tauri_path])
-    };
+    let watch_folders = get_watch_folders()?;
 
-    let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
-    let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
+    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
+      .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
-    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
+    let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
       }
     })
     .unwrap();
     for path in watch_folders {
-      if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", display_path(path));
-        lookup(path, |file_type, p| {
+      if !ignore_matcher.is_ignore(&path, true) {
+        log::info!("Watching {} for changes...", display_path(&path));
+        lookup(&path, |file_type, p| {
           if p != path {
-            debug!("Watching {} for changes...", display_path(&p));
+            log::debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
               &p,
               if file_type.is_dir() {
@@ -511,38 +534,34 @@ impl Rust {
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(self.app_settings.target, &event_path) {
-              match reload_config(config.as_deref()) {
-                Ok(config) => {
-                  info!("Tauri configuration changed. Rewriting manifest...");
-                  self.app_settings.manifest =
-                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
-                }
-                Err(err) => {
-                  let p = process.lock().unwrap();
-                  if p.is_building_app() {
-                    p.kill().with_context(|| "failed to kill app process")?;
-                  }
-                  error!("{}", err);
+              if let Ok(config) = reload_config(config.as_ref()) {
+                let (manifest, modified) =
+                  rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+                if modified {
+                  *self.app_settings.manifest.lock().unwrap() = manifest;
+                  // no need to run the watcher logic, the manifest was modified
+                  // and it will trigger the watcher again
+                  continue;
                 }
               }
-            } else {
-              info!(
-                "File {} changed. Rebuilding application...",
-                display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
-              );
-              // When tauri.conf.json is changed, rewrite_manifest will be called
-              // which will trigger the watcher again
-              // So the app should only be started when a file other than tauri.conf.json is changed
-              let mut p = process.lock().unwrap();
-              p.kill().with_context(|| "failed to kill app process")?;
-              // wait for the process to exit
-              loop {
-                if let Ok(Some(_)) = p.try_wait() {
-                  break;
-                }
-              }
-              *p = run(self)?;
             }
+
+            log::info!(
+              "File {} changed. Rebuilding application...",
+              display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
+            );
+
+            let mut p = process.lock().unwrap();
+            p.kill().with_context(|| "failed to kill app process")?;
+
+            // wait for the process to exit
+            // note that on mobile, kill() already waits for the process to exit (duct implementation)
+            loop {
+              if !matches!(p.try_wait(), Ok(None)) {
+                break;
+              }
+            }
+            *p = run(self)?;
           }
         }
       }
@@ -622,6 +641,7 @@ struct WorkspacePackageSettings {
   description: Option<String>,
   homepage: Option<String>,
   version: Option<String>,
+  license: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -644,6 +664,8 @@ pub struct CargoPackageSettings {
   pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
+  /// the package's license.
+  pub license: Option<MaybeWorkspace<String>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -679,13 +701,85 @@ impl CargoSettings {
 }
 
 pub struct RustAppSettings {
-  manifest: Manifest,
+  manifest: Mutex<Manifest>,
   cargo_settings: CargoSettings,
   cargo_package_settings: CargoPackageSettings,
+  cargo_ws_package_settings: Option<WorkspacePackageSettings>,
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
   target: Target,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum DesktopDeepLinks {
+  One(DeepLinkProtocol),
+  List(Vec<DeepLinkProtocol>),
+}
+
+#[derive(Deserialize)]
+pub struct UpdaterConfig {
+  /// Signature public key.
+  pub pubkey: String,
+  /// The Windows configuration for the updater.
+  #[serde(default)]
+  pub windows: UpdaterWindowsConfig,
+}
+
+/// Install modes for the Windows update.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum WindowsUpdateInstallMode {
+  /// Specifies there's a basic UI during the installation process, including a final dialog box at the end.
+  BasicUi,
+  /// The quiet mode means there's no user interaction required.
+  /// Requires admin privileges if the installer does.
+  Quiet,
+  /// Specifies unattended mode, which means the installation only shows a progress bar.
+  Passive,
+  // to add more modes, we need to check if the updater relaunch makes sense
+  // i.e. for a full UI mode, the user can also mark the installer to start the app
+}
+
+impl Default for WindowsUpdateInstallMode {
+  fn default() -> Self {
+    Self::Passive
+  }
+}
+
+impl<'de> Deserialize<'de> for WindowsUpdateInstallMode {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+      "basicui" => Ok(Self::BasicUi),
+      "quiet" => Ok(Self::Quiet),
+      "passive" => Ok(Self::Passive),
+      _ => Err(serde::de::Error::custom(format!(
+        "unknown update install mode '{s}'"
+      ))),
+    }
+  }
+}
+
+impl WindowsUpdateInstallMode {
+  /// Returns the associated `msiexec.exe` arguments.
+  pub fn msiexec_args(&self) -> &'static [&'static str] {
+    match self {
+      Self::BasicUi => &["/qb+"],
+      Self::Quiet => &["/quiet"],
+      Self::Passive => &["/passive"],
+    }
+  }
+}
+
+#[derive(Default, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct UpdaterWindowsConfig {
+  #[serde(default, alias = "install-mode")]
+  pub install_mode: WindowsUpdateInstallMode,
 }
 
 impl AppSettings for RustAppSettings {
@@ -698,7 +792,42 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    tauri_config_to_bundle_settings(&self.manifest, features, config.tauri.bundle.clone())
+    let arch64bits =
+      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+
+    let updater_settings = if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
+      let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
+      Some(UpdaterSettings {
+        pubkey: updater.pubkey,
+        msiexec_args: Some(updater.windows.install_mode.msiexec_args()),
+      })
+    } else {
+      None
+    };
+
+    let mut settings = tauri_config_to_bundle_settings(
+      self,
+      features,
+      config.identifier.clone(),
+      config.bundle.clone(),
+      updater_settings,
+      arch64bits,
+    )?;
+
+    if let Some(plugin_config) = config
+      .plugins
+      .0
+      .get("deep-link")
+      .and_then(|c| c.get("desktop").cloned())
+    {
+      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config.clone())?;
+      settings.deep_link_protocols = Some(match protocols {
+        DesktopDeepLinks::One(p) => vec![p],
+        DesktopDeepLinks::List(p) => p,
+      });
+    }
+
+    Ok(settings)
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
@@ -709,7 +838,7 @@ impl AppSettings for RustAppSettings {
       .expect("Cargo manifest must have the `package.name` field");
 
     let out_dir = self
-      .out_dir(options.target.clone(), get_profile(options))
+      .out_dir(options.target.clone(), get_profile_dir(options).to_string())
       .with_context(|| "failed to get project out directory")?;
 
     let binary_extension: String = if self.target_triple.contains("windows") {
@@ -748,10 +877,7 @@ impl AppSettings for RustAppSettings {
             BundleBinary::new(
               format!(
                 "{}{}",
-                config
-                  .package
-                  .binary_name()
-                  .unwrap_or_else(|| binary.name.clone()),
+                config.binary_name().unwrap_or_else(|| binary.name.clone()),
                 &binary_extension
               ),
               true,
@@ -789,7 +915,7 @@ impl AppSettings for RustAppSettings {
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
-          if let Some(bin_name) = config.package.binary_name() {
+          if let Some(bin_name) = config.binary_name() {
             bin.set_name(bin_name);
           }
         }
@@ -798,7 +924,6 @@ impl AppSettings for RustAppSettings {
             format!(
               "{}{}",
               config
-                .package
                 .binary_name()
                 .unwrap_or_else(|| default_run.to_string()),
               &binary_extension
@@ -832,6 +957,8 @@ impl AppSettings for RustAppSettings {
   fn app_name(&self) -> Option<String> {
     self
       .manifest
+      .lock()
+      .unwrap()
       .inner
       .as_table()
       .get("package")
@@ -844,6 +971,8 @@ impl AppSettings for RustAppSettings {
   fn lib_name(&self) -> Option<String> {
     self
       .manifest
+      .lock()
+      .unwrap()
       .inner
       .as_table()
       .get("lib")
@@ -873,13 +1002,13 @@ impl RustAppSettings {
       .and_then(|v| v.package);
 
     let package_settings = PackageSettings {
-      product_name: config.package.product_name.clone().unwrap_or_else(|| {
+      product_name: config.product_name.clone().unwrap_or_else(|| {
         cargo_package_settings
           .name
           .clone()
           .expect("Cargo manifest must have the `package.name` field")
       }),
-      version: config.package.version.clone().unwrap_or_else(|| {
+      version: config.version.clone().unwrap_or_else(|| {
         cargo_package_settings
           .version
           .clone()
@@ -958,9 +1087,10 @@ impl RustAppSettings {
     let target = Target::from_triple(&target_triple);
 
     Ok(Self {
-      manifest,
+      manifest: Mutex::new(manifest),
       cargo_settings,
       cargo_package_settings,
+      cargo_ws_package_settings: ws_package_settings,
       package_settings,
       cargo_config,
       target_triple,
@@ -1029,22 +1159,36 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   )
 }
 
-pub fn get_profile(options: &Options) -> String {
+pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
     .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].clone())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" }.into())
+    .map(|i| options.args[i + 1].as_str())
+    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+}
+
+pub fn get_profile_dir(options: &Options) -> &str {
+  match get_profile(options) {
+    "dev" => "debug",
+    profile => profile,
+  }
 }
 
 #[allow(unused_variables)]
 fn tauri_config_to_bundle_settings(
-  manifest: &Manifest,
+  settings: &RustAppSettings,
   features: &[String],
+  identifier: String,
   config: crate::helpers::config::BundleConfig,
+  updater_config: Option<UpdaterSettings>,
+  arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
-  let enabled_features = manifest.all_enabled_features(features);
+  let enabled_features = settings
+    .manifest
+    .lock()
+    .unwrap()
+    .all_enabled_features(features);
 
   #[cfg(windows)]
   let windows_icon_path = PathBuf::from(
@@ -1059,19 +1203,25 @@ fn tauri_config_to_bundle_settings(
   let windows_icon_path = PathBuf::from("");
 
   #[allow(unused_mut)]
-  let mut resources = config.resources.unwrap_or_default();
+  let mut resources = config
+    .resources
+    .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
-  let mut depends = config.deb.depends.unwrap_or_default();
+  let mut depends_deb = config.linux.deb.depends.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
   {
+    let mut libs: Vec<String> = Vec::new();
+
     if enabled_features.contains(&"tray-icon".into())
       || enabled_features.contains(&"tauri/tray-icon".into())
     {
-      let (tray_kind, path) = std::env::var("TAURI_TRAY")
-        .map(|kind| {
-          if kind == "ayatana" {
+      let (tray_kind, path) = std::env::var("TAURI_LINUX_AYATANA_APPINDICATOR")
+        .map(|ayatana| {
+          if ayatana == "true" || ayatana == "1" {
             (
               pkgconfig_utils::TrayKind::Ayatana,
               format!(
@@ -1094,19 +1244,30 @@ fn tauri_config_to_bundle_settings(
         .unwrap_or_else(|_| pkgconfig_utils::get_appindicator_library_path());
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
-          depends.push("libayatana-appindicator3-1".into());
+          depends_deb.push("libayatana-appindicator3-1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
-          depends.push("libappindicator3-1".into());
+          depends_deb.push("libappindicator3-1".into());
+          libs.push("libappindicator3.so.1".into());
         }
       }
 
-      std::env::set_var("TRAY_LIBRARY_PATH", path);
+      std::env::set_var("TAURI_TRAY_LIBRARY_PATH", path);
     }
 
-    // provides `libwebkit2gtk-4.1.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.1-0".to_string());
-    depends.push("libgtk-3-0".to_string());
+    depends_deb.push("libwebkit2gtk-4.1-0".to_string());
+    depends_deb.push("libgtk-3-0".to_string());
+
+    libs.push("libwebkit2gtk-4.1.so.0".into());
+    libs.push("libgtk-3.so.0".into());
+
+    for lib in libs {
+      let mut requires = lib;
+      if arch64bits {
+        requires.push_str("()(64bit)");
+      }
+      depends_rpm.push(requires);
+    }
   }
 
   #[cfg(windows)]
@@ -1140,15 +1301,17 @@ fn tauri_config_to_bundle_settings(
     None => config.macos.provider_short_name,
   };
 
+  let (resources, resources_map) = match resources {
+    BundleResources::List(paths) => (Some(paths), None),
+    BundleResources::Map(map) => (None, Some(map)),
+  };
+
   Ok(BundleSettings {
-    identifier: Some(config.identifier),
+    identifier: Some(identifier),
     publisher: config.publisher,
     icon: Some(config.icon),
-    resources: if resources.is_empty() {
-      None
-    } else {
-      Some(resources)
-    },
+    resources,
+    resources_map,
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {
@@ -1162,18 +1325,58 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: if depends.is_empty() {
+      depends: if depends_deb.is_empty() {
         None
       } else {
-        Some(depends)
+        Some(depends_deb)
       },
-      files: config.deb.files,
-      desktop_template: config.deb.desktop_template,
+      files: config.linux.deb.files,
+      desktop_template: config.linux.deb.desktop_template,
+      section: config.linux.deb.section,
+      priority: config.linux.deb.priority,
+      changelog: config.linux.deb.changelog,
+    },
+    appimage: AppImageSettings {
+      files: config.linux.appimage.files,
+    },
+    rpm: RpmSettings {
+      depends: if depends_rpm.is_empty() {
+        None
+      } else {
+        Some(depends_rpm)
+      },
+      release: config.linux.rpm.release,
+      epoch: config.linux.rpm.epoch,
+      files: config.linux.rpm.files,
+      desktop_template: config.linux.rpm.desktop_template,
+    },
+    dmg: DmgSettings {
+      background: config.macos.dmg.background,
+      window_position: config
+        .macos
+        .dmg
+        .window_position
+        .map(|window_position| Position {
+          x: window_position.x,
+          y: window_position.y,
+        }),
+      window_size: Size {
+        width: config.macos.dmg.window_size.width,
+        height: config.macos.dmg.window_size.height,
+      },
+      app_position: Position {
+        x: config.macos.dmg.app_position.x,
+        y: config.macos.dmg.app_position.y,
+      },
+      application_folder_position: Position {
+        x: config.macos.dmg.application_folder_position.x,
+        y: config.macos.dmg.application_folder_position.y,
+      },
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
+      files: config.macos.files,
       minimum_system_version: config.macos.minimum_system_version,
-      license: config.macos.license,
       exception_domain: config.macos.exception_domain,
       signing_identity,
       provider_short_name,
@@ -1192,22 +1395,34 @@ fn tauri_config_to_bundle_settings(
       tsp: config.windows.tsp,
       digest_algorithm: config.windows.digest_algorithm,
       certificate_thumbprint: config.windows.certificate_thumbprint,
-      wix: config.windows.wix.map(|w| {
-        let mut wix = wix_settings(w);
-        wix.license = wix.license.map(|l| tauri_dir().join(l));
-        wix
-      }),
+      wix: config.windows.wix.map(wix_settings),
       nsis: config.windows.nsis.map(nsis_settings),
       icon_path: windows_icon_path,
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
     },
-    updater: Some(UpdaterSettings {
-      active: config.updater.active,
-      pubkey: config.updater.pubkey,
-      msiexec_args: Some(config.updater.windows.install_mode.msiexec_args()),
+    license: config.license.or_else(|| {
+      settings
+        .cargo_package_settings
+        .license
+        .clone()
+        .map(|license| {
+          license
+            .resolve("license", || {
+              settings
+                .cargo_ws_package_settings
+                .as_ref()
+                .and_then(|v| v.license.clone())
+                .ok_or_else(|| {
+                  anyhow::anyhow!("Couldn't inherit value for `license` from workspace")
+                })
+            })
+            .unwrap()
+        })
     }),
+    license_file: config.license_file.map(|l| tauri_dir().join(l)),
+    updater: updater_config,
     ..Default::default()
   })
 }

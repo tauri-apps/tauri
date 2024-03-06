@@ -1,16 +1,18 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{
-  super::{common::CommandExt, path_utils},
+  super::{
+    common::{self, CommandExt},
+    path_utils,
+  },
   debian,
 };
 use crate::Settings;
 use anyhow::Context;
 use handlebars::Handlebars;
-use log::info;
 use std::{
   collections::BTreeMap,
   fs::{remove_dir_all, write},
@@ -30,8 +32,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   // generate deb_folder structure
-  let (_, icons) = debian::generate_data(settings, &package_dir)?;
-  let icons: Vec<debian::DebIcon> = icons.into_iter().collect();
+  let (data_dir, icons) = debian::generate_data(settings, &package_dir)
+    .with_context(|| "Failed to build data folders and files")?;
+  common::copy_custom_files(&settings.deb().files, &data_dir)
+    .with_context(|| "Failed to copy custom files")?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
@@ -90,7 +94,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
 
-  info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
   write(&sh_file, temp)?;
 
@@ -108,7 +112,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   Command::new(&sh_file)
     .current_dir(output_path)
     .output_ok()
-    .context("error running appimage.sh")?;
+    .context("error running build_appimage.sh")?;
 
   remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])

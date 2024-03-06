@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -45,7 +45,8 @@ https.get(url, options, (response) => {
   response.on('end', function () {
     const data = JSON.parse(chunks.join(''))
     if (kind === 'cargo') {
-      const versions = data.versions.filter((v) => v.num.startsWith(target))
+      const versions =
+        data.versions?.filter((v) => v.num.startsWith(target)) ?? []
       console.log(versions.length ? versions[0].num : '0.0.0')
     } else if (kind === 'npm') {
       const versions = Object.keys(data.versions).filter((v) =>

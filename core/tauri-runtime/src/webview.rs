@@ -12,6 +12,7 @@ use crate::{
   Runtime, UserEvent,
 };
 
+use http::Request;
 use tauri_utils::config::{WebviewUrl, WindowConfig, WindowEffectsConfig};
 use url::Url;
 
@@ -353,4 +354,4 @@ impl WebviewAttributes {
 }
 
 /// IPC handler.
-pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, String) + Send>;
+pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;

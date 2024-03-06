@@ -118,6 +118,8 @@ pub struct InvokeRequest {
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
+  /// URL of the frame that requested this command.
+  pub url: Url,
   /// The body of the request.
   pub body: InvokeBody,
   /// The request headers.

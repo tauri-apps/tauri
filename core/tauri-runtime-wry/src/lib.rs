@@ -11,6 +11,7 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
+use http::Request;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
@@ -112,7 +113,7 @@ use std::{
 };
 
 pub type WebviewId = u32;
-type IpcHandler = dyn Fn(String) + 'static;
+type IpcHandler = dyn Fn(Request<String>) + 'static;
 
 #[cfg(any(
   windows,
@@ -1173,12 +1174,12 @@ pub enum WebviewMessage {
   SetPosition(Position),
   SetSize(Size),
   SetFocus,
-  Reparent(WindowId),
+  Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
   // Getters
-  Url(Sender<Url>),
-  Position(Sender<PhysicalPosition<i32>>),
-  Size(Sender<PhysicalSize<u32>>),
+  Url(Sender<Result<Url>>),
+  Position(Sender<Result<PhysicalPosition<i32>>>),
+  Size(Sender<Result<PhysicalSize<u32>>>),
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1291,15 +1292,15 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   // Getters
 
   fn url(&self) -> Result<Url> {
-    webview_getter!(self, WebviewMessage::Url)
+    webview_getter!(self, WebviewMessage::Url)?
   }
 
   fn position(&self) -> Result<PhysicalPosition<i32>> {
-    webview_getter!(self, WebviewMessage::Position)
+    webview_getter!(self, WebviewMessage::Position)?
   }
 
   fn size(&self) -> Result<PhysicalSize<u32>> {
-    webview_getter!(self, WebviewMessage::Size)
+    webview_getter!(self, WebviewMessage::Size)?
   }
 
   // Setters
@@ -1372,14 +1373,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn reparent(&self, window_id: WindowId) -> Result<()> {
     let mut current_window_id = self.window_id.lock().unwrap();
+    let (tx, rx) = channel();
     send_user_message(
       &self.context,
       Message::Webview(
         *current_window_id,
         self.webview_id,
-        WebviewMessage::Reparent(window_id),
+        WebviewMessage::Reparent(window_id, tx),
       ),
     )?;
+
+    rx.recv().unwrap()?;
 
     *current_window_id = window_id;
     Ok(())
@@ -2740,7 +2744,7 @@ fn handle_user_message<T: UserEvent>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      if let WebviewMessage::Reparent(new_parent_window_id) = webview_message {
+      if let WebviewMessage::Reparent(new_parent_window_id, tx) = webview_message {
         let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
           w.webviews
             .iter()
@@ -2756,16 +2760,15 @@ fn handle_user_message<T: UserEvent>(
             .map(|w| (w.inner.clone(), &mut w.webviews))
           {
             #[cfg(target_os = "macos")]
-            {
+            let reparent_result = {
               use wry::WebViewExtMacOS;
-              webview.inner.reparent(new_parent_window.ns_window() as _);
-              new_parent_window_webviews.push(webview);
-            }
+              webview.inner.reparent(new_parent_window.ns_window() as _)
+            };
             #[cfg(windows)]
-            {
+            let reparent_result = {
               webview.inner.reparent(new_parent_window.hwnd());
-              new_parent_window_webviews.push(webview);
-            }
+            };
+
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",
@@ -2773,13 +2776,27 @@ fn handle_user_message<T: UserEvent>(
               target_os = "netbsd",
               target_os = "openbsd"
             ))]
-            {
+            let reparent_result = {
               if let Some(container) = new_parent_window.default_vbox() {
-                webview.inner.reparent(container);
+                webview.inner.reparent(container)
+              } else {
+                Err(wry::Error::MessageSender)
+              }
+            };
+
+            match reparent_result {
+              Ok(_) => {
                 new_parent_window_webviews.push(webview);
+                tx.send(Ok(())).unwrap();
+              }
+              Err(e) => {
+                log::error!("failed to reparent webview: {e}");
+                tx.send(Err(Error::FailedToSendMessage)).unwrap();
               }
             }
           }
+        } else {
+          tx.send(Err(Error::FailedToSendMessage)).unwrap();
         }
 
         return;
@@ -2795,7 +2812,7 @@ fn handle_user_message<T: UserEvent>(
         match webview_message {
           WebviewMessage::WebviewEvent(_) => { /* already handled */ }
           WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
-          WebviewMessage::Reparent(_window_id) => { /* already handled */ }
+          WebviewMessage::Reparent(_window_id, _tx) => { /* already handled */ }
           WebviewMessage::AddEventListener(id, listener) => {
             webview
               .webview_event_listeners
@@ -2818,7 +2835,11 @@ fn handle_user_message<T: UserEvent>(
               log::error!("{}", e);
             }
           }
-          WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
+          WebviewMessage::Navigate(url) => {
+            if let Err(e) = webview.load_url(url.as_str()) {
+              log::error!("failed to navigate to url {}: {}", url, e);
+            }
+          }
           WebviewMessage::Print => {
             let _ = webview.print();
           }
@@ -2830,67 +2851,101 @@ fn handle_user_message<T: UserEvent>(
               window
             });
           }
-          WebviewMessage::SetSize(size) => {
-            let mut bounds = webview.bounds();
-            let size = size.to_logical(window.scale_factor());
-            bounds.width = size.width;
-            bounds.height = size.height;
+          WebviewMessage::SetSize(size) => match webview.bounds() {
+            Ok(mut bounds) => {
+              let size = size.to_logical(window.scale_factor());
+              bounds.width = size.width;
+              bounds.height = size.height;
 
-            if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-              b.width_rate = size.width as f32 / window_size.width;
-              b.height_rate = size.height as f32 / window_size.height;
+              if let Some(b) = &mut *webview.bounds.lock().unwrap() {
+                let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+                b.width_rate = size.width as f32 / window_size.width;
+                b.height_rate = size.height as f32 / window_size.height;
+              }
+
+              if let Err(e) = webview.set_bounds(bounds) {
+                log::error!("failed to set webview size: {e}");
+              }
             }
-
-            webview.set_bounds(bounds);
-          }
-          WebviewMessage::SetPosition(position) => {
-            let mut bounds = webview.bounds();
-            let position = position.to_logical(window.scale_factor());
-            bounds.x = position.x;
-            bounds.y = position.y;
-
-            if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-              b.x_rate = position.x as f32 / window_size.width;
-              b.y_rate = position.y as f32 / window_size.height;
+            Err(e) => {
+              log::error!("failed to get webview bounds: {e}");
             }
+          },
+          WebviewMessage::SetPosition(position) => match webview.bounds() {
+            Ok(mut bounds) => {
+              let position = position.to_logical(window.scale_factor());
+              bounds.x = position.x;
+              bounds.y = position.y;
 
-            webview.set_bounds(bounds);
-          }
+              if let Some(b) = &mut *webview.bounds.lock().unwrap() {
+                let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+                b.x_rate = position.x as f32 / window_size.width;
+                b.y_rate = position.y as f32 / window_size.height;
+              }
+
+              if let Err(e) = webview.set_bounds(bounds) {
+                log::error!("failed to set webview position: {e}");
+              }
+            }
+            Err(e) => {
+              log::error!("failed to get webview bounds: {e}");
+            }
+          },
           // Getters
           WebviewMessage::Url(tx) => {
-            tx.send(webview.url().parse().unwrap()).unwrap();
+            tx.send(
+              webview
+                .url()
+                .map(|u| u.parse().expect("invalid webview URL"))
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
           }
           WebviewMessage::Position(tx) => {
-            let bounds = webview.bounds();
-            let position =
-              LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
-            tx.send(position).unwrap();
+            tx.send(
+              webview
+                .bounds()
+                .map(|bounds| {
+                  LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor())
+                })
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
           }
           WebviewMessage::Size(tx) => {
-            let bounds = webview.bounds();
-            let size =
-              LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
-            tx.send(size).unwrap();
+            tx.send(
+              webview
+                .bounds()
+                .map(|bounds| {
+                  LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor())
+                })
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
           }
           WebviewMessage::SetFocus => {
-            webview.focus();
+            if let Err(e) = webview.focus() {
+              log::error!("failed to focus webview: {e}");
+            }
           }
-          WebviewMessage::SetAutoResize(auto_resize) => {
-            let bounds = webview.bounds();
-            let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-            *webview.bounds.lock().unwrap() = if auto_resize {
-              Some(WebviewBounds {
-                x_rate: (bounds.x as f32) / window_size.width,
-                y_rate: (bounds.y as f32) / window_size.height,
-                width_rate: (bounds.width as f32) / window_size.width,
-                height_rate: (bounds.height as f32) / window_size.height,
-              })
-            } else {
-              None
-            };
-          }
+          WebviewMessage::SetAutoResize(auto_resize) => match webview.bounds() {
+            Ok(bounds) => {
+              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+              *webview.bounds.lock().unwrap() = if auto_resize {
+                Some(WebviewBounds {
+                  x_rate: (bounds.x as f32) / window_size.width,
+                  y_rate: (bounds.y as f32) / window_size.height,
+                  width_rate: (bounds.width as f32) / window_size.width,
+                  height_rate: (bounds.height as f32) / window_size.height,
+                })
+              } else {
+                None
+              };
+            }
+            Err(e) => {
+              log::error!("failed to get webview bounds: {e}");
+            }
+          },
           WebviewMessage::WithWebview(f) => {
             #[cfg(any(
               target_os = "linux",
@@ -3210,12 +3265,14 @@ fn handle_event_loop<T: UserEvent>(
               let size = size.to_logical::<f32>(window.scale_factor());
               for webview in webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  webview.set_bounds(wry::Rect {
+                  if let Err(e) = webview.set_bounds(wry::Rect {
                     x: (size.width * b.x_rate) as i32,
                     y: (size.height * b.y_rate) as i32,
                     width: (size.width * b.width_rate) as u32,
                     height: (size.height * b.height_rate) as u32,
-                  });
+                  }) {
+                    log::error!("failed to autoresize webview: {e}");
+                  }
                 }
               }
             }

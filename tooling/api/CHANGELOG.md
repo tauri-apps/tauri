@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.4]
+
+### New Features
+
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Add a new `Image` type in Rust and JS.
+
+### Enhancements
+
+- [`e62ca4ee9`](https://www.github.com/tauri-apps/tauri/commit/e62ca4ee95f4308a6ad128d0f100c85634e28223)([#9070](https://www.github.com/tauri-apps/tauri/pull/9070)) Added a mechanism to preserve channel message order.
+
 ## \[2.0.0-beta.3]
 
 ### New Features

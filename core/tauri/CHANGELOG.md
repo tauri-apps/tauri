@@ -1,5 +1,43 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`46de49aaa`](https://www.github.com/tauri-apps/tauri/commit/46de49aaad4a148fafc31d591be0e2ed12256507)([#9059](https://www.github.com/tauri-apps/tauri/pull/9059)) Added `set_auto_resize` method for the webview.
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Add a new `Image` type in Rust and JS.
+
+### Enhancements
+
+- [`a77be9747`](https://www.github.com/tauri-apps/tauri/commit/a77be9747443ffc29c34160b55893483bb5f0d74)([#9038](https://www.github.com/tauri-apps/tauri/pull/9038)) Fallback to the postMessage IPC interface if we cannot reach the IPC custom protocol.
+- [`e62ca4ee9`](https://www.github.com/tauri-apps/tauri/commit/e62ca4ee95f4308a6ad128d0f100c85634e28223)([#9070](https://www.github.com/tauri-apps/tauri/pull/9070)) Added a mechanism to preserve channel message order.
+- [`03098b531`](https://www.github.com/tauri-apps/tauri/commit/03098b531562e4d58ab12ad9da2acb1eb3480497)([#9036](https://www.github.com/tauri-apps/tauri/pull/9036)) `Manager::add_capability` now allows adding a dynamically defined capability instead of only relying on static strings.
+- [`b5c743276`](https://www.github.com/tauri-apps/tauri/commit/b5c7432769b84ffe22db721dcfc6af218026f5d4)([#9086](https://www.github.com/tauri-apps/tauri/pull/9086)) Use a strict content security policy on the isolation pattern iframe.
+- [`46de49aaa`](https://www.github.com/tauri-apps/tauri/commit/46de49aaad4a148fafc31d591be0e2ed12256507)([#9059](https://www.github.com/tauri-apps/tauri/pull/9059)) When using the `unstable` feature flag, `WebviewWindow` will internally use the child webview interface for flexibility.
+
+### Bug Fixes
+
+- [`86fa339de`](https://www.github.com/tauri-apps/tauri/commit/86fa339de7b176efafa9b3e89f94dcad5fcd03da)([#9071](https://www.github.com/tauri-apps/tauri/pull/9071)) Fix compile time error in context generation when using `app.windows.windowEffects.color`
+- [`947a50b8e`](https://www.github.com/tauri-apps/tauri/commit/947a50b8e28379c452c32eddc3e0101870e50055)([#9049](https://www.github.com/tauri-apps/tauri/pull/9049)) Fix `tauri migrate` for http plugin ACL.
+- [`fe18012d3`](https://www.github.com/tauri-apps/tauri/commit/fe18012d30d1d8b3ffa10c8e321710eba644ef94)([#9072](https://www.github.com/tauri-apps/tauri/pull/9072)) Resolve symlinks on the filesystem scope check.
+- [`6c0683224`](https://www.github.com/tauri-apps/tauri/commit/6c068322460300e9d56a4fac5b018d4c437daa9e)([#9068](https://www.github.com/tauri-apps/tauri/pull/9068)) Fixes scope resolution grouping scopes for all windows.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.7`
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-runtime@2.0.0-beta.7`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.7`
+- Upgraded to `tauri-macros@2.0.0-beta.7`
+
+### Breaking Changes
+
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Renamed `icon-ico` and `icon-png` feature flags to `image-ico` and `image-png` respectively
+- [`720357fd5`](https://www.github.com/tauri-apps/tauri/commit/720357fd5cd1fefef8485077dfb116ee39ef4ab4)([#9104](https://www.github.com/tauri-apps/tauri/pull/9104)) Removed `tauri::path::Result` and `tauri::path::Error` which were merely an unintentional re-export of `tauri::Result` and `tauri::Error` so use those instead.
+- [`6c0683224`](https://www.github.com/tauri-apps/tauri/commit/6c068322460300e9d56a4fac5b018d4c437daa9e)([#9068](https://www.github.com/tauri-apps/tauri/pull/9068)) The `allows` and `denies` methods from `ipc::ScopeValue`, `ipc::CommandScope` and `ipc::GlobalScope` now returns `&Vec<Arc<T>>` instead of `&Vec<T>`.
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Removed `Context::default_window_icon_mut` and `Context::tray_icon_mut`, use `Context::set_default_window_icon` and `Context::set_tray_icon` instead. Also changed `Context::set_tray_icon` to accept `Option<T>`.
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Removed `Icon` enum, use the new `Image` type instead. All APIs that previously accepted `Icon` have changed to accept `Image` instead.
+
 ## \[2.0.0-beta.8]
 
 ### New Features

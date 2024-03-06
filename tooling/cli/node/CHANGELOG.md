@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.7]
+
+### Enhancements
+
+- [`c68218b36`](https://www.github.com/tauri-apps/tauri/commit/c68218b362c417b62e56c7a2b5b32c13fe035a83)([#8990](https://www.github.com/tauri-apps/tauri/pull/8990)) Add `--no-bundle` flag for `tauri build` command to skip bundling. Previously `none` was used to skip bundling, it will now be treated as invalid format and a warning will be emitted instead.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.7`
+
 ## \[2.0.0-beta.6]
 
 ### Bug Fixes

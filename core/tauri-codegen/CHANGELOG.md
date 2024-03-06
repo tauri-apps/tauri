@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+
+### Breaking Changes
+
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Change the generated context code to use the new `Image` type in tauri.
+
 ## \[2.0.0-beta.6]
 
 ### Dependencies

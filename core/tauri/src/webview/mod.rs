@@ -1102,8 +1102,7 @@ fn main() {
   /// Handles this window receiving an [`InvokeRequest`].
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
-    let current_url = self.url();
-    let is_local = self.is_local_url(&current_url);
+    let is_local = self.is_local_url(&request.url);
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
@@ -1139,7 +1138,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.to_string(),
+        url: request.url.to_string(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {

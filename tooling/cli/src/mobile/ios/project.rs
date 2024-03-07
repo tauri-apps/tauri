@@ -17,7 +17,7 @@ use cargo_mobile2::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 use std::{
-  ffi::{OsStr, OsString},
+  ffi::OsString,
   fs::{create_dir_all, OpenOptions},
   path::{Component, PathBuf},
 };

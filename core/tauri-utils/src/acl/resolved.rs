@@ -94,7 +94,12 @@ impl Resolved {
 
     // resolve commands
     for capability in capabilities.values() {
-      if !capability.platforms.contains(&target) {
+      if !capability
+        .platforms
+        .as_ref()
+        .map(|platforms| platforms.contains(&target))
+        .unwrap_or(true)
+      {
         continue;
       }
 
@@ -224,7 +229,12 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>) -> Result<(), Erro
 
     let permissions = get_permissions(key, permission_name, acl)?
       .into_iter()
-      .filter(|p| p.platforms.contains(&target))
+      .filter(|p| {
+        p.platforms
+          .as_ref()
+          .map(|platforms| platforms.contains(&target))
+          .unwrap_or(true)
+      })
       .collect::<Vec<_>>();
 
     let mut resolved_scope = Scopes::default();

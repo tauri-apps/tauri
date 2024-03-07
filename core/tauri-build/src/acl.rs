@@ -452,7 +452,12 @@ pub fn validate_capabilities(
   let target = tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap());
 
   for capability in capabilities.values() {
-    if !capability.platforms.contains(&target) {
+    if !capability
+      .platforms
+      .as_ref()
+      .map(|platforms| platforms.contains(&target))
+      .unwrap_or(true)
+    {
       continue;
     }
 

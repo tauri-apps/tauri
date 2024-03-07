@@ -176,18 +176,8 @@ pub struct Permission {
   pub scope: Scopes,
 
   /// Target platforms this permission applies. By default all platforms are affected by this permission.
-  #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
-  pub platforms: Vec<Target>,
-}
-
-fn default_platforms() -> Vec<Target> {
-  vec![
-    Target::Linux,
-    Target::MacOS,
-    Target::Windows,
-    Target::Android,
-    Target::Ios,
-  ]
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub platforms: Option<Vec<Target>>,
 }
 
 /// A set of direct permissions grouped together under a new name.
@@ -269,7 +259,7 @@ mod build_ {
       let description = opt_str_lit(self.description.as_ref());
       let commands = &self.commands;
       let scope = &self.scope;
-      let platforms = vec_lit(&self.platforms, identity);
+      let platforms = opt_vec_lit(self.platforms.as_ref(), identity);
 
       literal_struct!(
         tokens,

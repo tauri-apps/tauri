@@ -134,7 +134,7 @@ mod desktop_commands {
   pub async fn set_icon<R: Runtime>(
     window: Window<R>,
     label: Option<String>,
-    value: crate::image::JsImage<'_>,
+    value: crate::image::JsImage,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
     window

@@ -198,13 +198,13 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
 #[non_exhaustive]
-pub enum JsImage<'a> {
+pub enum JsImage {
   /// A reference to a image in the filesystem.
   #[non_exhaustive]
   Path(std::path::PathBuf),
   /// Image from raw bytes.
   #[non_exhaustive]
-  Bytes(&'a [u8]),
+  Bytes(Vec<u8>),
   /// An image that was previously loaded with the API and is stored in the resource table.
   #[non_exhaustive]
   Resource(ResourceId),
@@ -212,7 +212,7 @@ pub enum JsImage<'a> {
   #[non_exhaustive]
   Rgba {
     /// Image bytes.
-    rgba: &'a [u8],
+    rgba: Vec<u8>,
     /// Image width.
     width: u32,
     /// Image height.
@@ -220,9 +220,9 @@ pub enum JsImage<'a> {
   },
 }
 
-impl<'a> JsImage<'a> {
+impl JsImage {
   /// Converts this intermediate image format into an actual [`Image`].
-  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'a>>> {
+  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'_>>> {
     match self {
       Self::Resource(rid) => {
         let resources_table = app.resources_table();
@@ -232,13 +232,13 @@ impl<'a> JsImage<'a> {
       Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
 
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      Self::Bytes(bytes) => Image::from_bytes(bytes).map(Arc::new).map_err(Into::into),
+      Self::Bytes(bytes) => Image::from_bytes(&bytes).map(Arc::new).map_err(Into::into),
 
       Self::Rgba {
         rgba,
         width,
         height,
-      } => Ok(Arc::new(Image::new(rgba, width, height))),
+      } => Ok(Arc::new(Image::new_owned(rgba, width, height))),
 
       #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
       _ => Err(

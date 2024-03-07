@@ -21,11 +21,10 @@ use super::TrayIcon;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TrayIconOptions<'a> {
+struct TrayIconOptions {
   id: Option<String>,
   menu: Option<(ResourceId, ItemKind)>,
-  #[serde(borrow)]
-  icon: Option<JsImage<'a>>,
+  icon: Option<JsImage>,
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
@@ -36,7 +35,7 @@ struct TrayIconOptions<'a> {
 #[command(root = "crate")]
 fn new<R: Runtime>(
   app: AppHandle<R>,
-  options: TrayIconOptions<'_>,
+  options: TrayIconOptions,
   handler: Channel,
 ) -> crate::Result<(ResourceId, String)> {
   let mut builder = if let Some(id) = options.id {
@@ -94,7 +93,7 @@ fn new<R: Runtime>(
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  icon: Option<JsImage<'_>>,
+  icon: Option<JsImage>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;

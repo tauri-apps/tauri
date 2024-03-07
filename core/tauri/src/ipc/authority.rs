@@ -19,11 +19,8 @@ use tauri_utils::acl::{
   resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
   ExecutionContext, Scopes,
 };
-<<<<<<< Updated upstream
-=======
-use tauri_utils::platform::Target;
+
 use url::Url;
->>>>>>> Stashed changes
 
 use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
 use crate::{AppHandle, Manager};

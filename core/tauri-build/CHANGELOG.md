@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-codegen@2.0.0-beta.8`
+
 ## \[2.0.0-beta.7]
 
 ### Bug Fixes

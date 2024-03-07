@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.8]
+
+### Enhancements
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Changed the permission and capability platforms to be optional.
+
+### Breaking Changes
+
+- [`4ef17d083`](https://www.github.com/tauri-apps/tauri/commit/4ef17d08336a2e0df4a7ef9adea746d7419710b6)([#9116](https://www.github.com/tauri-apps/tauri/pull/9116)) The ACL configuration for remote URLs now uses the URLPattern standard instead of glob patterns.
+
 ## \[2.0.0-beta.7]
 
 ### Bug Fixes

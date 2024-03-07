@@ -1297,7 +1297,7 @@ fn main() {
       id,
     ))?;
 
-    listeners.unlisten_js(id);
+    listeners.unlisten_js(event, id);
 
     Ok(())
   }

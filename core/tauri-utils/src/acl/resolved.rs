@@ -6,8 +6,6 @@
 
 use std::{collections::BTreeMap, fmt};
 
-use glob::Pattern;
-
 use crate::platform::Target;
 
 use super::{
@@ -292,8 +290,9 @@ fn resolve_command(
   if let Some(remote) = &capability.remote {
     contexts.extend(remote.urls.iter().map(|url| {
       ExecutionContext::Remote {
-        url: Pattern::new(url)
-          .unwrap_or_else(|e| panic!("invalid glob pattern for remote URL {url}: {e}")),
+        url: url
+          .parse()
+          .unwrap_or_else(|e| panic!("invalid URL pattern for remote URL {url}: {e}")),
       }
     }));
   }

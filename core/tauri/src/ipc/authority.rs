@@ -20,6 +20,8 @@ use tauri_utils::acl::{
   ExecutionContext, Scopes,
 };
 
+use url::Url;
+
 use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
 use crate::{AppHandle, Manager};
 
@@ -40,7 +42,7 @@ pub enum Origin {
   /// Remote origin.
   Remote {
     /// Remote URL.
-    url: String,
+    url: Url,
   },
 }
 
@@ -58,7 +60,7 @@ impl Origin {
     match (self, context) {
       (Self::Local, ExecutionContext::Local) => true,
       (Self::Remote { url }, ExecutionContext::Remote { url: url_pattern }) => {
-        url_pattern.matches(url)
+        url_pattern.test(url)
       }
       _ => false,
     }
@@ -816,44 +818,7 @@ mod tests {
     let resolved_cmd = vec![ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
       context: ExecutionContext::Remote {
-        url: Pattern::new(url).unwrap(),
-      },
-      ..Default::default()
-    }];
-    let allowed_commands = [(command.to_string(), resolved_cmd.clone())]
-      .into_iter()
-      .collect();
-
-    let authority = RuntimeAuthority::new(
-      Default::default(),
-      Resolved {
-        allowed_commands,
-        ..Default::default()
-      },
-    );
-
-    assert_eq!(
-      authority.resolve_access(
-        command,
-        window,
-        webview,
-        &Origin::Remote { url: url.into() }
-      ),
-      Some(resolved_cmd)
-    );
-  }
-
-  #[test]
-  fn remote_domain_glob_pattern_matches() {
-    let url = "http://tauri.*";
-    let command = "my-command";
-    let window = "main";
-    let webview = "main";
-
-    let resolved_cmd = vec![ResolvedCommand {
-      windows: vec![Pattern::new(window).unwrap()],
-      context: ExecutionContext::Remote {
-        url: Pattern::new(url).unwrap(),
+        url: url.parse().unwrap(),
       },
       ..Default::default()
     }];
@@ -875,7 +840,46 @@ mod tests {
         window,
         webview,
         &Origin::Remote {
-          url: url.replace('*', "studio")
+          url: url.parse().unwrap()
+        }
+      ),
+      Some(resolved_cmd)
+    );
+  }
+
+  #[test]
+  fn remote_domain_glob_pattern_matches() {
+    let url = "http://tauri.*";
+    let command = "my-command";
+    let window = "main";
+    let webview = "main";
+
+    let resolved_cmd = vec![ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      context: ExecutionContext::Remote {
+        url: url.parse().unwrap(),
+      },
+      ..Default::default()
+    }];
+    let allowed_commands = [(command.to_string(), resolved_cmd.clone())]
+      .into_iter()
+      .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
+
+    assert_eq!(
+      authority.resolve_access(
+        command,
+        window,
+        webview,
+        &Origin::Remote {
+          url: url.replace('*', "studio").parse().unwrap()
         }
       ),
       Some(resolved_cmd)
@@ -908,7 +912,7 @@ mod tests {
         window,
         webview,
         &Origin::Remote {
-          url: "https://tauri.app".into()
+          url: "https://tauri.app".parse().unwrap()
         }
       )
       .is_none());

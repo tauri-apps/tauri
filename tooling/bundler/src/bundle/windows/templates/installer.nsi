@@ -13,6 +13,7 @@ Unicode true
 !include "StrFunc.nsh"
 ${StrCase}
 ${StrLoc}
+${StrStr}
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
@@ -531,7 +532,20 @@ SectionEnd
   app_check_done:
 !macroend
 
+Function CheckInstallDirEndsWithProductName
+  ${StrStr} $R0 $INSTDIR "${PRODUCTNAME}"
+  StrCmp $R0 "" notEndsWithProductName
+  Goto check_done
+
+  notEndsWithProductName:
+    StrCpy $INSTDIR "$INSTDIR\${PRODUCTNAME}"
+
+  check_done:
+FunctionEnd
+
 Section Install
+  Call CheckInstallDirEndsWithProductName
+  
   SetOutPath $INSTDIR
 
   !insertmacro CheckIfAppIsRunning

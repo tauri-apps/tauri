@@ -1146,7 +1146,7 @@
       ],
       "properties": {
         "urls": {
-          "description": "Remote domains this capability refers to. Can use glob patterns.",
+          "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).",
           "type": "array",
           "items": {
             "type": "string"

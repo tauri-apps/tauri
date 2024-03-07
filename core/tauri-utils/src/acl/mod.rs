@@ -4,10 +4,10 @@
 
 //! Access Control List types.
 
-use glob::Pattern;
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, str::FromStr, sync::Arc};
 use thiserror::Error;
+use url::Url;
 
 use crate::platform::Target;
 
@@ -204,16 +204,60 @@ pub struct PermissionSet {
   pub permissions: Vec<String>,
 }
 
+/// UrlPattern for [`ExecutionContext::Remote`].
+#[derive(Debug, Clone)]
+pub struct RemoteUrlPattern(Arc<urlpattern::UrlPattern>, String);
+
+impl FromStr for RemoteUrlPattern {
+  type Err = urlpattern::quirks::Error;
+
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    let init = urlpattern::UrlPatternInit::parse_constructor_string::<regex::Regex>(s, None)?;
+    let pattern = urlpattern::UrlPattern::parse(init)?;
+    Ok(Self(Arc::new(pattern), s.to_string()))
+  }
+}
+
+impl RemoteUrlPattern {
+  #[doc(hidden)]
+  pub fn as_str(&self) -> &str {
+    &self.1
+  }
+
+  /// Test if a given URL matches the pattern.
+  pub fn test(&self, url: &Url) -> bool {
+    self
+      .0
+      .test(urlpattern::UrlPatternMatchInput::Url(url.clone()))
+      .unwrap_or_default()
+  }
+}
+
+impl PartialEq for RemoteUrlPattern {
+  fn eq(&self, other: &Self) -> bool {
+    self.0.protocol() == other.0.protocol()
+      && self.0.username() == other.0.username()
+      && self.0.password() == other.0.password()
+      && self.0.hostname() == other.0.hostname()
+      && self.0.port() == other.0.port()
+      && self.0.pathname() == other.0.pathname()
+      && self.0.search() == other.0.search()
+      && self.0.hash() == other.0.hash()
+  }
+}
+
+impl Eq for RemoteUrlPattern {}
+
 /// Execution context of an IPC call.
-#[derive(Debug, Default, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum ExecutionContext {
   /// A local URL is used (the Tauri app URL).
   #[default]
   Local,
   /// Remote URL is tring to use the IPC.
   Remote {
-    /// The URL trying to access the IPC (glob pattern).
-    url: Pattern,
+    /// The URL trying to access the IPC (URL pattern).
+    url: RemoteUrlPattern,
   },
 }
 

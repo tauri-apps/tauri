@@ -33,6 +33,8 @@ json5 = { version = "0.4", optional = true }
 toml = { version = "0.8", features = [ "parse" ] }
 json-patch = "1.2"
 glob = "0.3"
+urlpattern = "0.2"
+regex = "1"
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"

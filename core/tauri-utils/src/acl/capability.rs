@@ -98,7 +98,7 @@ fn default_platforms() -> Vec<Target> {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityRemote {
-  /// Remote domains this capability refers to. Can use glob patterns.
+  /// Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).
   pub urls: Vec<String>,
 }
 

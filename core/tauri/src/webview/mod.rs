@@ -1137,7 +1137,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.to_string(),
+        url: current_url.clone(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {

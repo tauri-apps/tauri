@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.8]
+
+### Enhancements
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Changed the permission and capability platforms to be optional.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-bundler@2.0.1-beta.4`
+
 ## \[2.0.0-beta.7]
 
 ### Enhancements

@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Added `CapabilityBuilder::platform` to link the runtime capability with a specific platform.
+
+### Enhancements
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Changed the permission and capability platforms to be optional.
+- [`9dc9ca6e3`](https://www.github.com/tauri-apps/tauri/commit/9dc9ca6e38be62ef2746c7a4c2b77b2d67c0d998)([#9113](https://www.github.com/tauri-apps/tauri/pull/9113)) Added `tauri::dev()` to determine whether we are running in development mode or not.
+
+### Bug Fixes
+
+- [`5541aafef`](https://www.github.com/tauri-apps/tauri/commit/5541aafef33113bc292558ba125e685135aabab4)([#9107](https://www.github.com/tauri-apps/tauri/pull/9107)) Fix `emit` and `emit_to` (when used with `EventTarget::Any`) always skipping the webview listeners.
+- [`80c12ead4`](https://www.github.com/tauri-apps/tauri/commit/80c12ead4655af91f08046f19c2d478a4cbf94cd)([#9121](https://www.github.com/tauri-apps/tauri/pull/9121)) Fix regression on IPC response when using a channel to return objects.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-runtime@2.0.0-beta.8`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.8`
+- Upgraded to `tauri-macros@2.0.0-beta.8`
+- Upgraded to `tauri-build@2.0.0-beta.8`
+
+### Breaking Changes
+
+- [`4ef17d083`](https://www.github.com/tauri-apps/tauri/commit/4ef17d08336a2e0df4a7ef9adea746d7419710b6)([#9116](https://www.github.com/tauri-apps/tauri/pull/9116)) The ACL configuration for remote URLs now uses the URLPattern standard instead of glob patterns.
+- [`ed48e2b3c`](https://www.github.com/tauri-apps/tauri/commit/ed48e2b3c7fa914e4c9af432c02b8154f872c68a)([#9122](https://www.github.com/tauri-apps/tauri/pull/9122)) Expose `tauri::image` module to export the `JsImage` type and removed the `Image` root re-export.
+
 ## \[2.0.0-beta.9]
 
 ### New Features

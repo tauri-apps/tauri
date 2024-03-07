@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+
+### Breaking Changes
+
+- [`ed48e2b3c`](https://www.github.com/tauri-apps/tauri/commit/ed48e2b3c7fa914e4c9af432c02b8154f872c68a)([#9122](https://www.github.com/tauri-apps/tauri/pull/9122)) Expose `tauri::image` module to export the `JsImage` type and removed the `Image` root re-export.
+
 ## \[2.0.0-beta.7]
 
 ### Dependencies

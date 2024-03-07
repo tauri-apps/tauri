@@ -19,6 +19,7 @@ use tauri_utils::acl::{
   resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
   ExecutionContext, Scopes,
 };
+use tauri_utils::platform::Target;
 
 use url::Url;
 
@@ -93,7 +94,7 @@ impl CapabilityBuilder {
       windows: Vec::new(),
       webviews: Vec::new(),
       permissions: Vec::new(),
-      platforms: Vec::new(),
+      platforms: None,
     })
   }
 
@@ -191,6 +192,30 @@ impl CapabilityBuilder {
       .0
       .permissions
       .push(PermissionEntry::ExtendedPermission { identifier, scope });
+    self
+  }
+
+  /// Adds a target platform for this capability.
+  ///
+  /// By default all platforms are applied.
+  pub fn platform(mut self, platform: Target) -> Self {
+    self
+      .0
+      .platforms
+      .get_or_insert_with(Default::default)
+      .push(platform);
+    self
+  }
+
+  /// Adds target platforms for this capability.
+  ///
+  /// By default all platforms are applied.
+  pub fn platforms(mut self, platforms: impl IntoIterator<Item = Target>) -> Self {
+    self
+      .0
+      .platforms
+      .get_or_insert_with(Default::default)
+      .extend(platforms);
     self
   }
 }

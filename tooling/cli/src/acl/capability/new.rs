@@ -100,7 +100,7 @@ pub fn command(options: Options) -> Result<()> {
         )
       })
       .collect(),
-    platforms: Vec::new(),
+    platforms: None,
   };
 
   let path = match options.out {

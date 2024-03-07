@@ -348,7 +348,7 @@ pub struct Context<A: Assets> {
   pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
-  pub(crate) tray_icon: Option<Image<'static>>,
+  pub(crate) tray_icon: Option<image::Image<'static>>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,

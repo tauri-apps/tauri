@@ -94,7 +94,7 @@ mod vibrancy;
 pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
-mod image;
+pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(desktop)]

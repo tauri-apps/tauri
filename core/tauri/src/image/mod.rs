@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-pub mod plugin;
+//! Image types used by this crate and also referenced by the JavaScript API layer.
+
+pub(crate) mod plugin;
 
 use std::borrow::Cow;
 use std::io::{Error, ErrorKind};
@@ -186,20 +188,39 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   }
 }
 
+/// The counterpart of the `@tauri-apps/api/image` Image class.
+///
+/// # Stability
+///
+/// The stability of the variants are not guaranteed, and matching against them is not recommended.
+/// Use [`JsImage::into_img`] instead.
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
+#[non_exhaustive]
 pub enum JsImage<'a> {
+  /// A reference to a image in the filesystem.
+  #[non_exhaustive]
   Path(std::path::PathBuf),
+  /// Image from raw bytes.
+  #[non_exhaustive]
   Bytes(&'a [u8]),
+  /// An image that was previously loaded with the API and is stored in the resource table.
+  #[non_exhaustive]
   Resource(ResourceId),
+  /// Raw RGBA definition of an image.
+  #[non_exhaustive]
   Rgba {
+    /// Image bytes.
     rgba: &'a [u8],
+    /// Image width.
     width: u32,
+    /// Image height.
     height: u32,
   },
 }
 
 impl<'a> JsImage<'a> {
+  /// Converts this intermediate image format into an actual [`Image`].
   pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'a>>> {
     match self {
       Self::Resource(rid) => {

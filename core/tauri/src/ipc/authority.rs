@@ -204,6 +204,18 @@ impl CapabilityBuilder {
       .push(platform);
     self
   }
+
+  /// Adds target platforms for this capability.
+  ///
+  /// By default all platforms are applied.
+  pub fn platforms(mut self, platforms: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    self
+      .0
+      .platforms
+      .get_or_insert_with(Default::default)
+      .extend(platforms.into_iter().map(|w| w.into()));
+    self
+  }
 }
 
 impl RuntimeCapability for CapabilityBuilder {

@@ -320,7 +320,7 @@ impl<R: Runtime> AppManager<R> {
   }
 
   fn csp(&self) -> Option<Csp> {
-    if cfg!(feature = "custom-protocol") {
+    if !crate::dev() {
       self.config.app.security.csp.clone()
     } else {
       self

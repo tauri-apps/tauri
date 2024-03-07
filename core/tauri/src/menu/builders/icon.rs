@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  image::Image,
   menu::{IconMenuItem, MenuId, NativeIcon},
-  Image, Manager, Runtime,
+  Manager, Runtime,
 };
 
 /// A builder type for [`IconMenuItem`]

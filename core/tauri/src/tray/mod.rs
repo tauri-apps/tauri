@@ -12,7 +12,7 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
-use crate::{menu::run_item_main_thread, AppHandle, Image, Manager, Runtime};
+use crate::{image::Image, menu::run_item_main_thread, AppHandle, Manager, Runtime};
 use serde::Serialize;
 use std::path::Path;
 pub use tray_icon::TrayIconId;

@@ -21,7 +21,7 @@ pub use builders::*;
 pub use menu::{HELP_SUBMENU_ID, WINDOW_SUBMENU_ID};
 use serde::{Deserialize, Serialize};
 
-use crate::{AppHandle, Image, Runtime};
+use crate::{image::Image, AppHandle, Runtime};
 pub use muda::MenuId;
 
 macro_rules! run_item_main_thread {

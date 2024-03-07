@@ -13,6 +13,7 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
+  image::Image,
   menu::{ContextMenu, Menu},
   runtime::{
     window::{
@@ -21,7 +22,6 @@ use crate::{
     },
     UserAttentionType,
   },
-  Image,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;

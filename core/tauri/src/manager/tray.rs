@@ -6,8 +6,9 @@ use std::{collections::HashMap, fmt, sync::Mutex};
 
 use crate::{
   app::GlobalTrayIconEventListener,
+  image::Image,
   tray::{TrayIcon, TrayIconId},
-  AppHandle, Image, Runtime,
+  AppHandle, Runtime,
 };
 
 pub struct TrayManager<R: Runtime> {

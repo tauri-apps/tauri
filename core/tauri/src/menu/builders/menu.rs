@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::*, Image, Manager, Runtime};
+use crate::{menu::*, image::Image, Manager, Runtime};
 
 /// A builder type for [`Menu`]
 ///

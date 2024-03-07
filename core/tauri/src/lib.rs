@@ -333,6 +333,11 @@ macro_rules! tauri_build_context {
 
 pub use pattern::Pattern;
 
+/// Whether we are running in development mode or not.
+pub fn dev() -> bool {
+  !cfg!(feature = "custom-protocol")
+}
+
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability

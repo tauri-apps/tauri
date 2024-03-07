@@ -188,7 +188,8 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   }
 }
 
-/// The counterpart of the `@tauri-apps/api/image` Image class.
+/// An image type that accepts file paths, raw bytes, previously loaded images and image objects.
+/// This type is meant to be used along the [transformImage](https://beta.tauri.app/references/v2/js/image/namespaceimage/#transformimage) API.
 ///
 /// # Stability
 ///

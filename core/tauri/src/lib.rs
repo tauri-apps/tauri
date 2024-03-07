@@ -212,7 +212,6 @@ pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
   },
-  self::image::Image,
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,

@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-pub mod plugin;
+//! Image types used by this crate and also referenced by the JavaScript API layer.
+
+pub(crate) mod plugin;
 
 use std::borrow::Cow;
 use std::io::{Error, ErrorKind};
@@ -186,21 +188,41 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   }
 }
 
+/// An image type that accepts file paths, raw bytes, previously loaded images and image objects.
+/// This type is meant to be used along the [transformImage](https://beta.tauri.app/references/v2/js/image/namespaceimage/#transformimage) API.
+///
+/// # Stability
+///
+/// The stability of the variants are not guaranteed, and matching against them is not recommended.
+/// Use [`JsImage::into_img`] instead.
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
-pub enum JsImage<'a> {
+#[non_exhaustive]
+pub enum JsImage {
+  /// A reference to a image in the filesystem.
+  #[non_exhaustive]
   Path(std::path::PathBuf),
-  Bytes(&'a [u8]),
+  /// Image from raw bytes.
+  #[non_exhaustive]
+  Bytes(Vec<u8>),
+  /// An image that was previously loaded with the API and is stored in the resource table.
+  #[non_exhaustive]
   Resource(ResourceId),
+  /// Raw RGBA definition of an image.
+  #[non_exhaustive]
   Rgba {
-    rgba: &'a [u8],
+    /// Image bytes.
+    rgba: Vec<u8>,
+    /// Image width.
     width: u32,
+    /// Image height.
     height: u32,
   },
 }
 
-impl<'a> JsImage<'a> {
-  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'a>>> {
+impl JsImage {
+  /// Converts this intermediate image format into an actual [`Image`].
+  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'_>>> {
     match self {
       Self::Resource(rid) => {
         let resources_table = app.resources_table();
@@ -210,13 +232,13 @@ impl<'a> JsImage<'a> {
       Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
 
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      Self::Bytes(bytes) => Image::from_bytes(bytes).map(Arc::new).map_err(Into::into),
+      Self::Bytes(bytes) => Image::from_bytes(&bytes).map(Arc::new).map_err(Into::into),
 
       Self::Rgba {
         rgba,
         width,
         height,
-      } => Ok(Arc::new(Image::new(rgba, width, height))),
+      } => Ok(Arc::new(Image::new_owned(rgba, width, height))),
 
       #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
       _ => Err(

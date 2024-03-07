@@ -33,12 +33,13 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
+  image::Image,
   menu::{ContextMenu, Menu, MenuId},
   runtime::{
     window::dpi::{Position, Size},
     UserAttentionType,
   },
-  CursorIcon, Image,
+  CursorIcon,
 };
 
 use serde::Serialize;

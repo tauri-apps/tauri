@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  image::Image,
   ipc::{
     channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
     InvokeHandler, InvokeResponder, InvokeResponse,
@@ -20,8 +21,8 @@ use crate::{
   utils::config::Config,
   utils::{assets::Assets, Env},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, EventLoopMessage, Image, Manager, Monitor, Runtime, Scopes,
-  StateManager, Theme, Webview, WebviewWindowBuilder, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Manager, Monitor, Runtime, Scopes, StateManager,
+  Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]

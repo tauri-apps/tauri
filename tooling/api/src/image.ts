@@ -117,9 +117,10 @@ export class Image extends Resource {
 }
 
 /**
- * Transforms image from various types into a type acceptable by Rust. Intended for internal use only.
+ * Transforms image from various types into a type acceptable by Rust.
  *
- * @ignore
+ * See [tauri::image::JsImage](https://docs.rs/tauri/2/tauri/image/enum.JsImage.html) for more information.
+ * Note the API signature is not stable and might change.
  */
 export function transformImage<T>(
   image: string | Image | Uint8Array | ArrayBuffer | number[] | null

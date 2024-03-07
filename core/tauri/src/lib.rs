@@ -94,7 +94,7 @@ mod vibrancy;
 pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
-mod image;
+pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(desktop)]
@@ -212,7 +212,6 @@ pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
   },
-  self::image::Image,
   self::manager::Asset,
   self::runtime::{
     webview::WebviewAttributes,
@@ -346,10 +345,10 @@ pub fn dev() -> bool {
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
   pub(crate) assets: Box<A>,
-  pub(crate) default_window_icon: Option<Image<'static>>,
+  pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
-  pub(crate) tray_icon: Option<Image<'static>>,
+  pub(crate) tray_icon: Option<image::Image<'static>>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
@@ -399,13 +398,13 @@ impl<A: Assets> Context<A> {
 
   /// The default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon(&self) -> Option<&Image<'_>> {
+  pub fn default_window_icon(&self) -> Option<&image::Image<'_>> {
     self.default_window_icon.as_ref()
   }
 
   /// Set the default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn set_default_window_icon(&mut self, icon: Option<Image<'static>>) {
+  pub fn set_default_window_icon(&mut self, icon: Option<image::Image<'static>>) {
     self.default_window_icon = icon;
   }
 
@@ -413,7 +412,7 @@ impl<A: Assets> Context<A> {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn tray_icon(&self) -> Option<&Image<'_>> {
+  pub fn tray_icon(&self) -> Option<&image::Image<'_>> {
     self.tray_icon.as_ref()
   }
 
@@ -421,7 +420,7 @@ impl<A: Assets> Context<A> {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn set_tray_icon(&mut self, icon: Option<Image<'static>>) {
+  pub fn set_tray_icon(&mut self, icon: Option<image::Image<'static>>) {
     self.tray_icon = icon;
   }
 
@@ -460,7 +459,7 @@ impl<A: Assets> Context<A> {
   pub fn new(
     config: Config,
     assets: Box<A>,
-    default_window_icon: Option<Image<'static>>,
+    default_window_icon: Option<image::Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
     info_plist: (),

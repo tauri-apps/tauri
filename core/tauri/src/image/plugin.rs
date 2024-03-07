@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::{command, AppHandle, Image, Manager, ResourceId, Runtime};
+use crate::{command, image::Image, AppHandle, Manager, ResourceId, Runtime};
 
 #[command(root = "crate")]
 fn new<R: Runtime>(

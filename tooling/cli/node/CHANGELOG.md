@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.5.11]
+
+### Bug Fixes
+
+- [`b15948b11`](https://www.github.com/tauri-apps/tauri/commit/b15948b11c0e362eea7ef57a4606f15f7dbd886b)([#8903](https://www.github.com/tauri-apps/tauri/pull/8903)) Fix `.taurignore` failing to ignore in some cases.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.11`
+
 ## \[1.5.10]
 
 ### Bug Fixes

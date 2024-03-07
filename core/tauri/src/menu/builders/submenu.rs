@@ -13,7 +13,7 @@ use crate::{image::Image, menu::*, Manager, Runtime};
 /// tauri::Builder::default()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
-///     # let icon1 = tauri::Image::new(&[], 0, 0);
+///     # let icon1 = tauri::image::Image::new(&[], 0, 0);
 ///     # let icon2 = icon1.clone();
 ///     let menu = Menu::new(handle)?;
 ///     let submenu = SubmenuBuilder::new(handle, "File")

@@ -80,10 +80,10 @@ fn capability_from_path<P: AsRef<Path>>(path: P) -> Option<TomlOrJson> {
 #[derive(Debug, Parser)]
 #[clap(about = "Add a permission to capabilities")]
 pub struct Options {
-  /// Permission to remove.
-  identifier: String,
+  /// Permission to add.
+  pub identifier: String,
   /// Capability to add the permission to.
-  capability: Option<String>,
+  pub capability: Option<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {

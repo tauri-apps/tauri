@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use std::{path::Path, process::Command};
 
 use anyhow::Context;
@@ -34,9 +38,7 @@ pub fn install(dependencies: &[String], cwd: Option<&Path>) -> crate::Result<()>
     cmd.current_dir(cwd);
   }
 
-  let status = cmd
-    .status()
-    .with_context(|| format!("failed to run cargo"))?;
+  let status = cmd.status().with_context(|| "failed to run cargo")?;
 
   if !status.success() {
     anyhow::bail!("Failed to install Cargo {dependencies_str}");

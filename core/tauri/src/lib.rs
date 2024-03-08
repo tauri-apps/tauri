@@ -98,6 +98,7 @@ pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(desktop)]
+#[cfg_attr(docsrs, doc(cfg(desktop)))]
 pub mod menu;
 /// Path APIs.
 pub mod path;

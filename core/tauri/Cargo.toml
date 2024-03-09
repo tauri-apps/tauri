@@ -68,9 +68,7 @@ urlpattern = "0.2"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-infer = { version = "0.15", optional = true }
-png = { version = "0.17", optional = true }
-ico = { version = "0.3.0", optional = true }
+image = { version = "0.24", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.4"
@@ -154,8 +152,8 @@ webview-data-url = [ "data-url" ]
 protocol-asset = [ "http-range" ]
 config-json5 = [ "tauri-macros/config-json5" ]
 config-toml = [ "tauri-macros/config-toml" ]
-image-ico = [ "ico", "infer" ]
-image-png = [ "png", "infer" ]
+image-ico = [ "image/ico" ]
+image-png = [ "image/png" ]
 macos-proxy = [ "tauri-runtime-wry/macos-proxy" ]
 
 [[example]]

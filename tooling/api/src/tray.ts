@@ -11,7 +11,7 @@ import { Image, transformImage } from './image'
  *
  * #### Platform-specific:
  *
- * - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
+ * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
  * the icon will still show a context menu on right click.
  */
 export interface TrayIconEvent {
@@ -45,7 +45,7 @@ export interface TrayIconEvent {
 
 /** {@link TrayIcon.new|`TrayIcon`} creation options */
 export interface TrayIconOptions {
-  /** The tray icon id. If undefined, a random one will be assigend */
+  /** The tray icon id. If undefined, a random one will be assigned */
   id?: string
   /** The tray icon menu */
   menu?: Menu | Submenu

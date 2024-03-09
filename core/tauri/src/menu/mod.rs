@@ -153,7 +153,7 @@ gen_wrappers!(
   MenuItem(MenuItemInner, MenuItem),
   /// A type that is a submenu inside a [`Menu`] or [`Submenu`]
   Submenu(SubmenuInner, Submenu),
-  /// A predefined (native) menu item which has a predfined behavior by the OS or by this crate.
+  /// A predefined (native) menu item which has a predefined behavior by the OS or by this crate.
   PredefinedMenuItem(PredefinedMenuItemInner, Predefined),
   /// A menu item inside a [`Menu`] or [`Submenu`]
   /// and usually contains a text and a check mark or a similar toggle
@@ -228,7 +228,7 @@ pub struct AboutMetadata<'a> {
 pub struct AboutMetadataBuilder<'a>(AboutMetadata<'a>);
 
 impl<'a> AboutMetadataBuilder<'a> {
-  /// Create a new about metdata builder.
+  /// Create a new about metadata builder.
   pub fn new() -> Self {
     Default::default()
   }

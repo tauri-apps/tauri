@@ -90,6 +90,11 @@ fn default_capability_local() -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityRemote {
   /// Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).
+  ///
+  /// # Examples
+  ///
+  /// - "https://*.mydomain.dev": allows subdomains of mydomain.dev
+  /// - "https://mydomain.dev/api/*": allows any subpath of mydomain.dev/api
   pub urls: Vec<String>,
 }
 

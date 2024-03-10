@@ -571,7 +571,7 @@ tauri::Builder::default()
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
         if let Some(w) = manager_.get_webview(&label_) {
-          if let PageLoadEvent::Finished = event {
+          if let PageLoadEvent::Started = event {
             w.unlisten_all_js();
           }
           if let Some(handler) = self.on_page_load_handler.as_ref() {

@@ -343,9 +343,9 @@ pub fn dev() -> bool {
 /// # Stability
 /// This is the output of the [`generate_context`] macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-pub struct Context<A: Assets> {
+pub struct Context {
   pub(crate) config: Config,
-  pub(crate) assets: Box<A>,
+  pub(crate) assets: Box<dyn Assets>,
   pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -356,7 +356,7 @@ pub struct Context<A: Assets> {
   pub(crate) runtime_authority: RuntimeAuthority,
 }
 
-impl<A: Assets> fmt::Debug for Context<A> {
+impl fmt::Debug for Context {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
@@ -372,7 +372,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
   }
 }
 
-impl<A: Assets> Context<A> {
+impl Context {
   /// The config the application was prepared with.
   #[inline(always)]
   pub fn config(&self) -> &Config {
@@ -387,13 +387,14 @@ impl<A: Assets> Context<A> {
 
   /// The assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets(&self) -> &A {
+  #[allow(clippy::borrowed_box)]
+  pub fn assets(&self) -> &Box<dyn Assets> {
     &self.assets
   }
 
   /// A mutable reference to the assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets_mut(&mut self) -> &mut A {
+  pub fn assets_mut(&mut self) -> &mut Box<dyn Assets> {
     &mut self.assets
   }
 
@@ -459,7 +460,7 @@ impl<A: Assets> Context<A> {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     config: Config,
-    assets: Box<A>,
+    assets: Box<dyn Assets>,
     default_window_icon: Option<image::Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,

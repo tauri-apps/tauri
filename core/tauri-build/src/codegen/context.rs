@@ -128,6 +128,7 @@ impl CodegenContext {
       // outside the tauri crate, making the ::tauri root valid.
       root: quote::quote!(::tauri),
       capabilities: self.capabilities,
+      assets: None,
     })?;
 
     // get the full output file path

@@ -216,7 +216,7 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
 impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
-    #[allow(unused_mut)] mut context: Context<impl Assets>,
+    #[allow(unused_mut)] mut context: Context,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,

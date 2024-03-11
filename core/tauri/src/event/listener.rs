@@ -252,12 +252,6 @@ impl Listeners {
     }
   }
 
-  pub(crate) fn unlisten_all_js(&self, webview_label: &str) {
-    let js_listeners = self.inner.as_ref();
-    let mut js_listeners = js_listeners.js_event_listeners.lock().unwrap();
-    js_listeners.remove(webview_label);
-  }
-
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
     &self,
     event: &str,
@@ -287,11 +281,12 @@ impl Listeners {
     let js_listeners = self.inner.js_event_listeners.lock().unwrap();
     webviews.try_for_each(|webview| {
       if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
-        let handlers = handlers.iter();
-        let handlers = handlers.filter(|handler| match_any_or_filter(&handler.target, &filter));
-        for JsHandler { target, .. } in handlers {
-          webview.emit_js(emit_args, target)?;
-        }
+        let ids = handlers
+          .iter()
+          .filter(|handler| match_any_or_filter(&handler.target, &filter))
+          .map(|handler| handler.id)
+          .collect::<Vec<_>>();
+        webview.emit_js(emit_args, &ids)?;
       }
 
       Ok(())

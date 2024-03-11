@@ -30,7 +30,7 @@ runtime = [ ]
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { version = "2.0.0-beta.8", default-features = false, path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-beta.8", default-features = false, features = [ "build" ], path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }

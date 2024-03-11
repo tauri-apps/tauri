@@ -24,8 +24,8 @@ use crate::{
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder, RuntimeAuthority},
   plugin::PluginStore,
-  utils::{assets::Assets, config::Config, PackageInfo},
-  Context, Pattern, Runtime, StateManager, Window,
+  utils::{config::Config, PackageInfo},
+  Assets, Context, Pattern, Runtime, StateManager, Window,
 };
 use crate::{event::EmitArgs, resources::ResourceTable, Webview};
 
@@ -48,7 +48,7 @@ struct CspHashStrings {
 #[allow(clippy::borrowed_box)]
 pub(crate) fn set_csp<R: Runtime>(
   asset: &mut String,
-  assets: &impl std::borrow::Borrow<dyn Assets>,
+  assets: &impl std::borrow::Borrow<dyn Assets<R>>,
   asset_path: &AssetKey,
   manager: &AppManager<R>,
   csp: Csp,
@@ -179,7 +179,7 @@ pub struct AppManager<R: Runtime> {
   pub listeners: Listeners,
   pub state: Arc<StateManager>,
   pub config: Config,
-  pub assets: Box<dyn Assets>,
+  pub assets: Box<dyn Assets<R>>,
 
   pub app_icon: Option<Vec<u8>>,
 
@@ -216,7 +216,7 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
 impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
-    #[allow(unused_mut)] mut context: Context,
+    #[allow(unused_mut)] mut context: Context<R>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
@@ -270,7 +270,7 @@ impl<R: Runtime> AppManager<R> {
       listeners: Listeners::default(),
       state: Arc::new(state),
       config: context.config,
-      assets: context.assets,
+      assets: context.assets.unwrap(),
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),

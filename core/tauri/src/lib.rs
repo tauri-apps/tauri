@@ -192,10 +192,12 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt::{self, Debug},
   sync::MutexGuard,
 };
+use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -224,7 +226,6 @@ pub use {
   },
   self::state::{State, StateManager},
   self::utils::{
-    assets::Assets,
     config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
@@ -338,14 +339,47 @@ pub fn dev() -> bool {
   !cfg!(feature = "custom-protocol")
 }
 
+/// Represents a container of file assets that are retrievable during runtime.
+pub trait Assets<R: Runtime>: Send + Sync + 'static {
+  /// Initialize the asset provider.
+  fn setup(&self, app: &App<R>) {
+    let _ = app;
+  }
+
+  /// Get the content of the passed [`AssetKey`].
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
+
+  /// Iterator for the assets.
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_>;
+
+  /// Gets the hashes for the CSP tag of the HTML on the given path.
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
+}
+
+impl<R: Runtime> Assets<R> for EmbeddedAssets {
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+    EmbeddedAssets::get(self, key)
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+    EmbeddedAssets::iter(self)
+  }
+
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+    EmbeddedAssets::csp_hashes(self, html_path)
+  }
+}
+
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability
 /// This is the output of the [`generate_context`] macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-pub struct Context {
+#[tauri_macros::default_runtime(Wry, wry)]
+pub struct Context<R: Runtime> {
   pub(crate) config: Config,
-  pub(crate) assets: Box<dyn Assets>,
+  /// Asset provider.
+  pub assets: Option<Box<dyn Assets<R>>>,
   pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -356,7 +390,7 @@ pub struct Context {
   pub(crate) runtime_authority: RuntimeAuthority,
 }
 
-impl fmt::Debug for Context {
+impl<R: Runtime> fmt::Debug for Context<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
@@ -372,7 +406,7 @@ impl fmt::Debug for Context {
   }
 }
 
-impl Context {
+impl<R: Runtime> Context<R> {
   /// The config the application was prepared with.
   #[inline(always)]
   pub fn config(&self) -> &Config {
@@ -388,14 +422,20 @@ impl Context {
   /// The assets to be served directly by Tauri.
   #[inline(always)]
   #[allow(clippy::borrowed_box)]
-  pub fn assets(&self) -> &Box<dyn Assets> {
-    &self.assets
+  pub fn assets(&self) -> &Box<dyn Assets<R>> {
+    self.assets.as_ref().unwrap()
   }
 
   /// A mutable reference to the assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets_mut(&mut self) -> &mut Box<dyn Assets> {
-    &mut self.assets
+  pub fn assets_mut(&mut self) -> &mut Box<dyn Assets<R>> {
+    self.assets.as_mut().unwrap()
+  }
+
+  ///
+  #[inline(always)]
+  pub fn replace_assets(&mut self, assets: Box<dyn Assets<R>>) -> Box<dyn Assets<R>> {
+    self.assets.replace(assets).unwrap()
   }
 
   /// The default window icon Tauri should use when creating windows.
@@ -460,7 +500,7 @@ impl Context {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     config: Config,
-    assets: Box<dyn Assets>,
+    assets: Box<dyn Assets<R>>,
     default_window_icon: Option<image::Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
@@ -470,7 +510,7 @@ impl Context {
   ) -> Self {
     Self {
       config,
-      assets,
+      assets: Some(assets),
       default_window_icon,
       app_icon,
       #[cfg(all(desktop, feature = "tray-icon"))]

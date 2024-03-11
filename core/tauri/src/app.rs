@@ -266,7 +266,7 @@ impl<R: Runtime> AssetResolver<R> {
   }
 
   /// Iterate on all assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
     self.manager.assets.iter()
   }
 }
@@ -1581,7 +1581,7 @@ tauri::Builder::default()
     feature = "tracing",
     tracing::instrument(name = "app::build", skip_all)
   )]
-  pub fn build(mut self, context: Context) -> crate::Result<App<R>> {
+  pub fn build(mut self, context: Context<R>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
       self.menu = Some(Box::new(|app_handle| {
@@ -1749,7 +1749,7 @@ tauri::Builder::default()
   }
 
   /// Runs the configured Tauri application.
-  pub fn run(self, context: Context) -> crate::Result<()> {
+  pub fn run(self, context: Context<R>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
   }
@@ -1823,6 +1823,8 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }
+
+  app.manager.assets.setup(app);
 
   if let Some(setup) = app.setup.take() {
     (setup)(app).map_err(|e| crate::Error::Setup(e.into()))?;

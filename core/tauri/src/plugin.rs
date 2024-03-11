@@ -518,7 +518,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// # Known limitations
   ///
-  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registed after a webview has been created, this protocol won't be available.
+  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registered after a webview has been created, this protocol won't be available.
   ///
   /// # Arguments
   ///

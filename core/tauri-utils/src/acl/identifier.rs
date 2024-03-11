@@ -122,7 +122,7 @@ pub enum ParseIdentifierError {
 
   /// Identifier is too long.
   #[error("identifiers cannot be longer than {}, found {0}", MAX_LEN_IDENTIFIER)]
-  Humungous(usize),
+  Humongous(usize),
 
   /// Identifier is not in a valid format.
   #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
@@ -158,7 +158,7 @@ impl TryFrom<String> for Identifier {
 
     let mut bytes = value.bytes();
     if bytes.len() > MAX_LEN_IDENTIFIER {
-      return Err(Self::Error::Humungous(bytes.len()));
+      return Err(Self::Error::Humongous(bytes.len()));
     }
 
     // grab the first byte only before parsing the rest
@@ -168,16 +168,16 @@ impl TryFrom<String> for Identifier {
       .ok_or(Self::Error::InvalidFormat)?;
 
     let mut idx = 0;
-    let mut seperator = None;
+    let mut separator = None;
     for byte in bytes {
       idx += 1; // we already consumed first item
       match prev.next(byte) {
         None => return Err(Self::Error::InvalidFormat),
         Some(next @ ValidByte::Byte(_)) => prev = next,
         Some(ValidByte::Separator) => {
-          if seperator.is_none() {
+          if separator.is_none() {
             // safe to unwrap because idx starts at 1 and cannot go over MAX_IDENTIFIER_LEN
-            seperator = Some(idx.try_into().unwrap());
+            separator = Some(idx.try_into().unwrap());
             prev = ValidByte::Separator
           } else {
             return Err(Self::Error::MultipleSeparators);
@@ -198,7 +198,7 @@ impl TryFrom<String> for Identifier {
 
     Ok(Self {
       inner: value,
-      separator: seperator,
+      separator,
     })
   }
 }

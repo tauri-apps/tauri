@@ -196,7 +196,7 @@ pub enum RunEvent {
   ExitRequested {
     /// Exit code.
     /// [`Option::None`] when the exit is requested by user interaction,
-    /// [`Option::Some`] when requested programatically via [`AppHandle#method.exit`] and [`AppHandle#method.restart`].
+    /// [`Option::Some`] when requested programmatically via [`AppHandle#method.exit`] and [`AppHandle#method.restart`].
     code: Option<i32>,
     /// Event API
     api: ExitRequestApi,
@@ -542,7 +542,7 @@ macro_rules! shared_app_impl {
         self.manager.tray.icons.lock().unwrap().first().cloned()
       }
 
-      /// Removes the first tray icon registerd, usually the one configured in
+      /// Removes the first tray icon registered, usually the one configured in
       /// tauri config file, from tauri's internal state and returns it.
       ///
       /// Note that dropping the returned icon, will cause the tray icon to disappear.

@@ -51,7 +51,7 @@ impl Default for ClickType {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
+/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
 /// the icon will still show a context menu on right click.
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]

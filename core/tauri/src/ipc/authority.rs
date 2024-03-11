@@ -526,7 +526,7 @@ impl RuntimeAuthority {
   }
 }
 
-/// List of allowed and denied objects that match either the command-specific or plugin global scope criterias.
+/// List of allowed and denied objects that match either the command-specific or plugin global scope criteria.
 #[derive(Debug)]
 pub struct ScopeValue<T: ScopeObject> {
   allow: Arc<Vec<Arc<T>>>,

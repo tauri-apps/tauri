@@ -1243,7 +1243,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().set_maximizable(maximizable)
   }
 
-  /// Determines if this window's native minize button should be enabled.
+  /// Determines if this window's native minimize button should be enabled.
   ///
   /// ## Platform-specific
   ///

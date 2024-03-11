@@ -168,7 +168,7 @@ class WebviewWindow {
   }
 
   /**
-   * Listen to an emitted event on this webivew window only once.
+   * Listen to an emitted event on this webview window only once.
    *
    * @example
    * ```typescript
@@ -203,7 +203,7 @@ class WebviewWindow {
 // Order matters, we use window APIs by default
 applyMixins(WebviewWindow, [Window, Webview])
 
-/** Extends a base class by other specifed classes, wihtout overriding existing properties */
+/** Extends a base class by other specified classes, without overriding existing properties */
 function applyMixins(
   baseClass: { prototype: unknown },
   extendedClasses: unknown

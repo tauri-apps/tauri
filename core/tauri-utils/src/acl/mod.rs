@@ -244,7 +244,7 @@ pub enum ExecutionContext {
   /// A local URL is used (the Tauri app URL).
   #[default]
   Local,
-  /// Remote URL is tring to use the IPC.
+  /// Remote URL is trying to use the IPC.
   Remote {
     /// The URL trying to access the IPC (URL pattern).
     url: RemoteUrlPattern,

@@ -90,50 +90,59 @@ Resolved {
                                 },
                             },
                             pathname: Component {
-                                pattern_string: "/",
+                                pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "^/$",
+                                        "^(.*)$",
                                     ),
                                 ),
-                                group_name_list: [],
+                                group_name_list: [
+                                    "0",
+                                ],
                                 matcher: Matcher {
                                     prefix: "",
                                     suffix: "",
-                                    inner: Literal {
-                                        literal: "/",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
                                     },
                                 },
                             },
                             search: Component {
-                                pattern_string: "",
+                                pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "^$",
+                                        "^(.*)$",
                                     ),
                                 ),
-                                group_name_list: [],
+                                group_name_list: [
+                                    "0",
+                                ],
                                 matcher: Matcher {
                                     prefix: "",
                                     suffix: "",
-                                    inner: Literal {
-                                        literal: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
                                     },
                                 },
                             },
                             hash: Component {
-                                pattern_string: "",
+                                pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "^$",
+                                        "^(.*)$",
                                     ),
                                 ),
-                                group_name_list: [],
+                                group_name_list: [
+                                    "0",
+                                ],
                                 matcher: Matcher {
                                     prefix: "",
                                     suffix: "",
-                                    inner: Literal {
-                                        literal: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
                                     },
                                 },
                             },
@@ -251,50 +260,59 @@ Resolved {
                                 },
                             },
                             pathname: Component {
-                                pattern_string: "/",
+                                pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "^/$",
+                                        "^(.*)$",
                                     ),
                                 ),
-                                group_name_list: [],
+                                group_name_list: [
+                                    "0",
+                                ],
                                 matcher: Matcher {
                                     prefix: "",
                                     suffix: "",
-                                    inner: Literal {
-                                        literal: "/",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
                                     },
                                 },
                             },
                             search: Component {
-                                pattern_string: "",
+                                pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "^$",
+                                        "^(.*)$",
                                     ),
                                 ),
-                                group_name_list: [],
+                                group_name_list: [
+                                    "0",
+                                ],
                                 matcher: Matcher {
                                     prefix: "",
                                     suffix: "",
-                                    inner: Literal {
-                                        literal: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
                                     },
                                 },
                             },
                             hash: Component {
-                                pattern_string: "",
+                                pattern_string: "*",
                                 regexp: Ok(
                                     Regex(
-                                        "^$",
+                                        "^(.*)$",
                                     ),
                                 ),
-                                group_name_list: [],
+                                group_name_list: [
+                                    "0",
+                                ],
                                 matcher: Matcher {
                                     prefix: "",
                                     suffix: "",
-                                    inner: Literal {
-                                        literal: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
                                     },
                                 },
                             },

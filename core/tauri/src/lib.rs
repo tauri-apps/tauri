@@ -379,7 +379,7 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
 pub struct Context<R: Runtime> {
   pub(crate) config: Config,
   /// Asset provider.
-  pub assets: Option<Box<dyn Assets<R>>>,
+  pub assets: Box<dyn Assets<R>>,
   pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
@@ -422,19 +422,13 @@ impl<R: Runtime> Context<R> {
   /// The assets to be served directly by Tauri.
   #[inline(always)]
   pub fn assets(&self) -> &dyn Assets<R> {
-    self.assets.as_ref().unwrap().as_ref()
+    self.assets.as_ref()
   }
 
-  /// A mutable reference to the assets to be served directly by Tauri.
+  /// Replace the [`Assets`] implementation and returns the previous value so you can use it as a fallback if desired.
   #[inline(always)]
-  pub fn assets_mut(&mut self) -> &mut Box<dyn Assets<R>> {
-    self.assets.as_mut().unwrap()
-  }
-
-  ///
-  #[inline(always)]
-  pub fn replace_assets(&mut self, assets: Box<dyn Assets<R>>) -> Box<dyn Assets<R>> {
-    self.assets.replace(assets).unwrap()
+  pub fn set_assets(&mut self, assets: Box<dyn Assets<R>>) -> Box<dyn Assets<R>> {
+    std::mem::replace(&mut self.assets, assets)
   }
 
   /// The default window icon Tauri should use when creating windows.
@@ -509,7 +503,7 @@ impl<R: Runtime> Context<R> {
   ) -> Self {
     Self {
       config,
-      assets: Some(assets),
+      assets,
       default_window_icon,
       app_icon,
       #[cfg(all(desktop, feature = "tray-icon"))]

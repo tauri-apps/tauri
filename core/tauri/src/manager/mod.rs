@@ -270,7 +270,7 @@ impl<R: Runtime> AppManager<R> {
       listeners: Listeners::default(),
       state: Arc::new(state),
       config: context.config,
-      assets: context.assets.unwrap(),
+      assets: context.assets,
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),

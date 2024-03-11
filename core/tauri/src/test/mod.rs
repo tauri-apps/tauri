@@ -112,7 +112,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
       build: Default::default(),
       plugins: Default::default(),
     },
-    assets: Some(Box::new(assets)),
+    assets: Box::new(assets),
     default_window_icon: None,
     app_icon: None,
     #[cfg(all(desktop, feature = "tray-icon"))]

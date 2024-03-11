@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### Breaking Changes
+
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) Removed the `assets::Assets` trait which is now part of the `tauri` crate.
+
 ## \[2.0.0-beta.8]
 
 ### Enhancements

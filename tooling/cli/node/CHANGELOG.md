@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### Bug Fixes
+
+- [`c3ea3a2b7`](https://www.github.com/tauri-apps/tauri/commit/c3ea3a2b7d2fe3085f05b63dd1feb962beb4b7b3)([#9126](https://www.github.com/tauri-apps/tauri/pull/9126)) Fix bundling when `plugins > updater > windows > installerArgs` are set in `tauri.conf.json`
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.9`
+
 ## \[2.0.0-beta.8]
 
 ### Enhancements

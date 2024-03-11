@@ -94,7 +94,7 @@ pub fn noop_assets() -> NoopAsset {
 }
 
 /// Creates a new [`crate::Context`] for testing.
-pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
+pub fn mock_context<A: Assets>(assets: A) -> crate::Context {
   Context {
     config: Config {
       schema: None,

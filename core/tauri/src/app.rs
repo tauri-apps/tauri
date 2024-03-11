@@ -19,7 +19,7 @@ use crate::{
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
-  utils::{assets::Assets, Env},
+  utils::Env,
   webview::PageLoadPayload,
   Context, DeviceEventFilter, EventLoopMessage, Manager, Monitor, Runtime, Scopes, StateManager,
   Theme, Webview, WebviewWindowBuilder, Window,
@@ -1581,7 +1581,7 @@ tauri::Builder::default()
     feature = "tracing",
     tracing::instrument(name = "app::build", skip_all)
   )]
-  pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
+  pub fn build(mut self, context: Context) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
       self.menu = Some(Box::new(|app_handle| {
@@ -1749,7 +1749,7 @@ tauri::Builder::default()
   }
 
   /// Runs the configured Tauri application.
-  pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
+  pub fn run(self, context: Context) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
   }

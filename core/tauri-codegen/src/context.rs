@@ -12,6 +12,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
+use syn::Expr;
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::resolved::Resolved;
@@ -36,6 +37,8 @@ pub struct ContextData {
   pub root: TokenStream,
   /// Additional capabilities to include.
   pub capabilities: Option<Vec<PathBuf>>,
+  /// The custom assets implementation
+  pub assets: Option<Expr>,
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
@@ -132,6 +135,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config_parent,
     root,
     capabilities: additional_capabilities,
+    assets,
   } = data;
 
   let target = std::env::var("TARGET")
@@ -163,10 +167,13 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     options = options.with_csp();
   }
 
-  let assets = if dev && config.build.dev_url.is_some() {
-    Default::default()
+  let assets = if let Some(assets) = assets {
+    quote!(#assets)
+  } else if dev && config.build.dev_url.is_some() {
+    let assets = EmbeddedAssets::default();
+    quote!(#assets)
   } else {
-    match &config.build.frontend_dist {
+    let assets = match &config.build.frontend_dist {
       Some(url) => match url {
         FrontendDist::Url(_url) => Default::default(),
         FrontendDist::Directory(path) => {
@@ -190,7 +197,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         _ => unimplemented!(),
       },
       None => Default::default(),
-    }
+    };
+    quote!(#assets)
   };
 
   let out_dir = {

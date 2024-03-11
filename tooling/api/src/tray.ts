@@ -119,6 +119,23 @@ export class TrayIcon extends Resource {
     this.id = id
   }
 
+  /** Gets a tray icon using the provided id. */
+  static async getById(id: string): Promise<TrayIcon | null> {
+    return invoke<number>('plugin:tray|get_by_id', { id }).then((rid) =>
+      rid ? new TrayIcon(rid, id) : null
+    )
+  }
+
+  /**
+   * Removes a tray icon using the provided id from tauri's internal state.
+   *
+   * Note that this may cause the tray icon to disappear
+   * if it wasn't cloned somewhere else or referenced by JS.
+   */
+  static async removeById(id: string): Promise<void> {
+    return invoke('plugin:tray|remove_by_id', { id })
+  }
+
   /**
    * Creates a new {@linkcode TrayIcon}
    *

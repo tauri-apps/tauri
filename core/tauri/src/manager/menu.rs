@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-  menu::{Menu, MenuId},
+  menu::{Menu, MenuEvent, MenuId},
   AppHandle, Runtime, Window,
 };
 
@@ -86,5 +86,13 @@ impl<R: Runtime> MenuManager<R> {
     } else {
       None
     }
+  }
+
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(&self, handler: F) {
+    self
+      .global_event_listeners
+      .lock()
+      .unwrap()
+      .push(Box::new(handler));
   }
 }

@@ -421,9 +421,8 @@ impl<R: Runtime> Context<R> {
 
   /// The assets to be served directly by Tauri.
   #[inline(always)]
-  #[allow(clippy::borrowed_box)]
-  pub fn assets(&self) -> &Box<dyn Assets<R>> {
-    self.assets.as_ref().unwrap()
+  pub fn assets(&self) -> &dyn Assets<R> {
+    self.assets.as_ref().unwrap().as_ref()
   }
 
   /// A mutable reference to the assets to be served directly by Tauri.

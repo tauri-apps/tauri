@@ -1,5 +1,32 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### New Features
+
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) The `Assets` trait now include a `setup` method that lets you run initialization code for your custom asset provider.
+
+### Bug Fixes
+
+- [`85de230f3`](https://www.github.com/tauri-apps/tauri/commit/85de230f313da81cbbd061e66e8de64e5b33104c)([#9144](https://www.github.com/tauri-apps/tauri/pull/9144)) Fix old JS listeners being dropped on page load after it was possible to create new listeners.
+- [`e673854c8`](https://www.github.com/tauri-apps/tauri/commit/e673854c8333cb8a8d298471737293f17ec5a3ee)([#9133](https://www.github.com/tauri-apps/tauri/pull/9133)) Fixes capability remote domain not allowing subpaths, query parameters and hash when those values are empty.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.0.0-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+- Upgraded to `tauri-build@2.0.0-beta.9`
+- Upgraded to `tauri-runtime@2.0.0-beta.9`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.9`
+
+### Breaking Changes
+
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) The `Context` struct and the `Assets` trait now takes a `R: Runtime` generic.
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) `Context::assets` now returns `&dyn Assets` instead of `&A` generic.
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) The `Context` type no longer uses the `<A: Assets>` generic so the assets implementation can be swapped with `Context::assets_mut`.
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) Removed `Context::assets_mut` and added `Context::set_assets`.
+- [`db0a24a97`](https://www.github.com/tauri-apps/tauri/commit/db0a24a973191752aeecfbd556faa254b0f17e79)([#9132](https://www.github.com/tauri-apps/tauri/pull/9132)) Use the image crate for `tauri::image::Image` and remove the `from_png_bytes` and `from_ico_bytes` APIs.
+
 ## \[2.0.0-beta.10]
 
 ### New Features

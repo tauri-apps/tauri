@@ -387,9 +387,8 @@ impl Context {
 
   /// The assets to be served directly by Tauri.
   #[inline(always)]
-  #[allow(clippy::borrowed_box)]
-  pub fn assets(&self) -> &Box<dyn Assets> {
-    &self.assets
+  pub fn assets(&self) -> &dyn Assets {
+    self.assets.as_ref()
   }
 
   /// A mutable reference to the assets to be served directly by Tauri.

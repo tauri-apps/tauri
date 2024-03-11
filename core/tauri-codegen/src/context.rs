@@ -345,10 +345,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let info_plist = quote!(());
 
   let pattern = match &options.pattern {
-    PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
+    PatternKind::Brownfield => quote!(#root::Pattern::Brownfield),
     #[cfg(not(feature = "isolation"))]
     PatternKind::Isolation { dir: _ } => {
-      quote!(#root::Pattern::Brownfield(std::marker::PhantomData))
+      quote!(#root::Pattern::Brownfield)
     }
     #[cfg(feature = "isolation")]
     PatternKind::Isolation { dir } => {

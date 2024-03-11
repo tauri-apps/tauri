@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.5]
+
+### Breaking Changes
+
+- [`db0a24a97`](https://www.github.com/tauri-apps/tauri/commit/db0a24a973191752aeecfbd556faa254b0f17e79)([#9132](https://www.github.com/tauri-apps/tauri/pull/9132)) Remove the `Image.fromPngBytes` and `Image.fromIcoBytes` APIs. Use `Image.fromBytes` instead.
+
 ## \[2.0.0-beta.4]
 
 ### New Features

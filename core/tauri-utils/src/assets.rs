@@ -104,18 +104,6 @@ impl CspHash<'_> {
   }
 }
 
-/// Represents a container of file assets that are retrievable during runtime.
-pub trait Assets: Send + Sync + 'static {
-  /// Get the content of the passed [`AssetKey`].
-  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
-
-  /// Iterator for the assets.
-  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_>;
-
-  /// Gets the hashes for the CSP tag of the HTML on the given path.
-  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
-}
-
 /// [`Assets`] implementation that only contains compile-time compressed and embedded assets.
 #[derive(Debug)]
 pub struct EmbeddedAssets {
@@ -139,11 +127,10 @@ impl EmbeddedAssets {
       html_hashes,
     }
   }
-}
 
-impl Assets for EmbeddedAssets {
+  /// Get an asset by key.
   #[cfg(feature = "compression")]
-  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+  pub fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     self
       .assets
       .get(key.as_ref())
@@ -157,8 +144,9 @@ impl Assets for EmbeddedAssets {
       .map(Cow::Owned)
   }
 
+  /// Get an asset by key.
   #[cfg(not(feature = "compression"))]
-  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+  pub fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     self
       .assets
       .get(key.as_ref())
@@ -166,11 +154,13 @@ impl Assets for EmbeddedAssets {
       .map(|a| Cow::Owned(a.to_vec()))
   }
 
-  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
-    Box::new(self.assets.into_iter())
+  /// Iterate on the assets.
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+    Box::new(self.assets.into_iter().map(|(k, b)| (*k, *b)))
   }
 
-  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+  /// CSP hashes for the given asset.
+  pub fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
     Box::new(
       self
         .global_hashes

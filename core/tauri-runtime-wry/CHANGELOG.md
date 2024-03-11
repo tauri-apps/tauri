@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+- Upgraded to `tauri-runtime@2.0.0-beta.9`
+
 ## \[2.0.0-beta.8]
 
 ### Dependencies

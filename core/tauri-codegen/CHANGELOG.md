@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) The `Context` codegen now accepts a `assets` input to define a custom `tauri::Assets` implementation.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
 ## \[2.0.0-beta.8]
 
 ### Dependencies

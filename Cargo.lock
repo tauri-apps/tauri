@@ -1591,6 +1591,7 @@ dependencies = [
  "byteorder",
  "color_quant",
  "num-traits",
+ "png",
 ]
 
 [[package]]
@@ -3610,8 +3611,7 @@ dependencies = [
  "heck",
  "http",
  "http-range",
- "ico",
- "infer",
+ "image",
  "jni",
  "libc",
  "log",
@@ -3619,7 +3619,6 @@ dependencies = [
  "muda",
  "objc",
  "percent-encoding",
- "png",
  "proptest",
  "quickcheck",
  "quickcheck_macros",

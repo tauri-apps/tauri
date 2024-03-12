@@ -208,6 +208,10 @@ impl<R: Runtime> WebviewManager<R> {
       );
     }
 
+    if let Some(global_api_script) = &*app_manager.global_api_script {
+      webview_attributes = webview_attributes.initialization_script(global_api_script);
+    }
+
     pending.webview_attributes = webview_attributes;
 
     let mut registered_scheme_protocols = Vec::new();

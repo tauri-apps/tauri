@@ -188,6 +188,9 @@ pub struct AppManager<R: Runtime> {
   /// Application pattern.
   pub pattern: Arc<Pattern>,
 
+  /// Global API script.
+  pub global_api_script: Arc<Option<String>>,
+
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
@@ -274,6 +277,7 @@ impl<R: Runtime> AppManager<R> {
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),
+      global_api_script: Arc::new(context.global_api_script),
       resources_table: Arc::default(),
     }
   }

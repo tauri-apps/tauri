@@ -22,6 +22,7 @@ use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef,
 };
 use tauri_utils::platform::Target;
+use tauri_utils::plugin::COLLECTED_GLOBAL_API_SCRIPT_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
@@ -456,6 +457,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
   let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
+  let global_api_script_path = out_dir.join(COLLECTED_GLOBAL_API_SCRIPT_PATH);
+  let global_api_script = if config.app.with_global_tauri {
+    std::fs::read_to_string(&global_api_script_path).ok()
+  } else {
+    None
+  };
+  let global_api_script = if let Some(s) = global_api_script {
+    quote!(::std::option::Option::Some(#s.into()))
+  } else {
+    quote!(::std::option::Option::None)
+  };
+
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -466,7 +479,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
-      #runtime_authority
+      #runtime_authority,
+      #global_api_script
     );
     #with_tray_icon_code
     context

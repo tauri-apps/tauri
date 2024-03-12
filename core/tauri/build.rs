@@ -180,6 +180,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     "tray",
     &[
       ("new", false),
+      ("get_by_id", false),
+      ("remove_by_id", false),
       ("set_icon", false),
       ("set_menu", false),
       ("set_tooltip", false),

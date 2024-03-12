@@ -1,7 +1,11 @@
 | Permission | Description |
 |------|-----|
+|`allow-get-by-id`|Enables the get_by_id command without any pre-configured scope.|
+|`deny-get-by-id`|Denies the get_by_id command without any pre-configured scope.|
 |`allow-new`|Enables the new command without any pre-configured scope.|
 |`deny-new`|Denies the new command without any pre-configured scope.|
+|`allow-remove-by-id`|Enables the remove_by_id command without any pre-configured scope.|
+|`deny-remove-by-id`|Denies the remove_by_id command without any pre-configured scope.|
 |`allow-set-icon`|Enables the set_icon command without any pre-configured scope.|
 |`deny-set-icon`|Denies the set_icon command without any pre-configured scope.|
 |`allow-set-icon-as-template`|Enables the set_icon_as_template command without any pre-configured scope.|

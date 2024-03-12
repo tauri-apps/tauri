@@ -457,13 +457,13 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
   let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
-  let global_api_script_path = out_dir.join(COLLECTED_GLOBAL_API_SCRIPT_PATH);
-  let global_api_script = if config.app.with_global_tauri {
-    std::fs::read_to_string(&global_api_script_path).ok()
+  let plugin_global_api_script_path = out_dir.join(COLLECTED_GLOBAL_API_SCRIPT_PATH);
+  let plugin_global_api_script = if config.app.with_global_tauri {
+    std::fs::read_to_string(plugin_global_api_script_path).ok()
   } else {
     None
   };
-  let global_api_script = if let Some(s) = global_api_script {
+  let plugin_global_api_script = if let Some(s) = plugin_global_api_script {
     quote!(::std::option::Option::Some(#s.into()))
   } else {
     quote!(::std::option::Option::None)
@@ -480,7 +480,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #info_plist,
       #pattern,
       #runtime_authority,
-      #global_api_script
+      #plugin_global_api_script
     );
     #with_tray_icon_code
     context

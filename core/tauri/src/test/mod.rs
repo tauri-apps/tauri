@@ -127,7 +127,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
     _info_plist: (),
     pattern: Pattern::Brownfield,
     runtime_authority: RuntimeAuthority::new(Default::default(), Resolved::default()),
-    global_api_script: None,
+    plugin_global_api_script: None,
   }
 }
 

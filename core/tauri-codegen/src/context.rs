@@ -481,7 +481,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     };
 
   let plugin_global_api_script = if let Some(scripts) = plugin_global_api_script {
-    let scripts = scripts.into_iter().map(|s| quote!(#s.into()));
+    let scripts = scripts.into_iter().map(|s| quote!(#s));
     quote!(::std::option::Option::Some(vec![#(#scripts),*]))
   } else {
     quote!(::std::option::Option::None)

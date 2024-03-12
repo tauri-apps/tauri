@@ -388,7 +388,7 @@ pub struct Context<R: Runtime> {
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
   pub(crate) runtime_authority: RuntimeAuthority,
-  pub(crate) plugin_global_api_scripts: Option<Vec<String>>,
+  pub(crate) plugin_global_api_scripts: Option<Vec<&'static str>>,
 }
 
 impl<R: Runtime> fmt::Debug for Context<R> {
@@ -502,7 +502,7 @@ impl<R: Runtime> Context<R> {
     info_plist: (),
     pattern: Pattern,
     runtime_authority: RuntimeAuthority,
-    plugin_global_api_scripts: Option<Vec<String>>,
+    plugin_global_api_scripts: Option<Vec<&'static str>>,
   ) -> Self {
     Self {
       config,

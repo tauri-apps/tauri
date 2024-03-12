@@ -388,6 +388,7 @@ pub struct Context<R: Runtime> {
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
   pub(crate) runtime_authority: RuntimeAuthority,
+  pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
 }
 
 impl<R: Runtime> fmt::Debug for Context<R> {
@@ -397,7 +398,8 @@ impl<R: Runtime> fmt::Debug for Context<R> {
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
       .field("package_info", &self.package_info)
-      .field("pattern", &self.pattern);
+      .field("pattern", &self.pattern)
+      .field("plugin_global_api_scripts", &self.plugin_global_api_scripts);
 
     #[cfg(all(desktop, feature = "tray-icon"))]
     d.field("tray_icon", &self.tray_icon);
@@ -500,6 +502,7 @@ impl<R: Runtime> Context<R> {
     info_plist: (),
     pattern: Pattern,
     runtime_authority: RuntimeAuthority,
+    plugin_global_api_scripts: Option<&'static [&'static str]>,
   ) -> Self {
     Self {
       config,
@@ -512,6 +515,7 @@ impl<R: Runtime> Context<R> {
       _info_plist: info_plist,
       pattern,
       runtime_authority,
+      plugin_global_api_scripts,
     }
   }
 

@@ -524,6 +524,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   acl::save_acl_manifests(&acl_manifests)?;
 
+  tauri_utils::plugin::load_global_api_scripts(&out_dir);
+
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>

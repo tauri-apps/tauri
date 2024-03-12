@@ -90,6 +90,25 @@ fn new<R: Runtime>(
 }
 
 #[command(root = "crate")]
+fn get_by_id<R: Runtime>(app: AppHandle<R>, id: &str) -> crate::Result<Option<ResourceId>> {
+  let tray = app.tray_by_id(id);
+  let maybe_rid = tray.map(|tray| {
+    let mut resources_table = app.resources_table();
+    resources_table.add(tray)
+  });
+  Ok(maybe_rid)
+}
+
+#[command(root = "crate")]
+fn remove_by_id<R: Runtime>(app: AppHandle<R>, id: &str) -> crate::Result<()> {
+  app
+    .remove_tray_by_id(id)
+    .ok_or_else(|| anyhow::anyhow!("Can't find a tray associated with this id: {id}"))
+    .map(|_| ())
+    .map_err(Into::into)
+}
+
+#[command(root = "crate")]
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
@@ -196,6 +215,8 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("tray")
     .invoke_handler(crate::generate_handler![
       new,
+      get_by_id,
+      remove_by_id,
       set_icon,
       set_menu,
       set_tooltip,

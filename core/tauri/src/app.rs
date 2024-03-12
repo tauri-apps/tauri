@@ -509,13 +509,7 @@ macro_rules! shared_app_impl {
         &self,
         handler: F,
       ) {
-        self
-          .manager
-          .menu
-          .global_event_listeners
-          .lock()
-          .unwrap()
-          .push(Box::new(handler));
+        self.manager.menu.on_menu_event(handler)
       }
 
       /// Registers a global tray icon menu event listener.
@@ -525,35 +519,7 @@ macro_rules! shared_app_impl {
         &self,
         handler: F,
       ) {
-        self
-          .manager
-          .tray
-          .global_event_listeners
-          .lock()
-          .unwrap()
-          .push(Box::new(handler));
-      }
-
-      /// Gets the first tray icon registered,
-      /// usually the one configured in the Tauri configuration file.
-      #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-      pub fn tray(&self) -> Option<TrayIcon<R>> {
-        self.manager.tray.icons.lock().unwrap().first().cloned()
-      }
-
-      /// Removes the first tray icon registered, usually the one configured in
-      /// tauri config file, from tauri's internal state and returns it.
-      ///
-      /// Note that dropping the returned icon, will cause the tray icon to disappear.
-      #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-      pub fn remove_tray(&self) -> Option<TrayIcon<R>> {
-        let mut icons = self.manager.tray.icons.lock().unwrap();
-        if !icons.is_empty() {
-          return Some(icons.swap_remove(0));
-        }
-        None
+        self.manager.tray.on_tray_icon_event(handler)
       }
 
       /// Gets a tray icon using the provided id.
@@ -564,20 +530,13 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        self
-          .manager
-          .tray
-          .icons
-          .lock()
-          .unwrap()
-          .iter()
-          .find(|t| t.id() == &id)
-          .cloned()
+        self.manager.tray.tray_by_id(id)
       }
 
       /// Removes a tray icon using the provided id from tauri's internal state and returns it.
       ///
-      /// Note that dropping the returned icon, will cause the tray icon to disappear.
+      /// Note that dropping the returned icon, may cause the tray icon to disappear
+      /// if it wasn't cloned somewhere else or referenced by JS.
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
@@ -585,12 +544,7 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        let mut icons = self.manager.tray.icons.lock().unwrap();
-        let idx = icons.iter().position(|t| t.id() == &id);
-        if let Some(idx) = idx {
-          return Some(icons.swap_remove(idx));
-        }
-        None
+        self.manager.tray.remove_tray_by_id(id)
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.

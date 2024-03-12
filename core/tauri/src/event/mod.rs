@@ -186,7 +186,7 @@ pub fn listen_js_script(
         target: {target},
         handler: {handler}
       }};
-      eventListeners[{event_id}] = listener;
+      Object.defineProperty(eventListeners, '{event_id}', {{ value: listener, configurable: true }});
     }})()
   ",
     listeners = listeners_object_name,

@@ -189,7 +189,7 @@ pub struct AppManager<R: Runtime> {
   pub pattern: Arc<Pattern>,
 
   /// Global API scripts collected from plugins.
-  pub plugin_global_api_scripts: Arc<Option<Vec<&'static str>>>,
+  pub plugin_global_api_scripts: Arc<Option<&'static [&'static str]>>,
 
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,

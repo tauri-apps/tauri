@@ -209,7 +209,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     if let Some(plugin_global_api_scripts) = &*app_manager.plugin_global_api_scripts {
-      for script in plugin_global_api_scripts {
+      for script in plugin_global_api_scripts.iter() {
         webview_attributes = webview_attributes.initialization_script(script);
       }
     }

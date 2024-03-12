@@ -188,8 +188,8 @@ pub struct AppManager<R: Runtime> {
   /// Application pattern.
   pub pattern: Arc<Pattern>,
 
-  /// Global API script collected from plugins.
-  pub plugin_global_api_script: Arc<Option<String>>,
+  /// Global API scripts collected from plugins.
+  pub plugin_global_api_scripts: Arc<Option<Vec<String>>>,
 
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
@@ -277,7 +277,7 @@ impl<R: Runtime> AppManager<R> {
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),
-      plugin_global_api_script: Arc::new(context.plugin_global_api_script),
+      plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
     }
   }

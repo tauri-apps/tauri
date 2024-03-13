@@ -3,4 +3,4 @@
 "tauri": patch:breaking
 ---
 
-Removed `width` and `height` commands from the `Image` class, use `size` instead.
+Removed `width` and `height` methods on the JS `Image` class, use `size` instead.

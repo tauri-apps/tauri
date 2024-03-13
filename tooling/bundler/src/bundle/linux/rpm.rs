@@ -58,6 +58,21 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     builder = builder.requires(Dependency::any(dep));
   }
 
+  // Add provides
+  for dep in settings.rpm().provides.as_ref().cloned().unwrap_or_default() {
+    builder = builder.provides(Dependency::any(dep));
+  }
+
+  // Add conflicts
+  for dep in settings.rpm().conflicts.as_ref().cloned().unwrap_or_default() {
+    builder = builder.conflicts(Dependency::any(dep));
+  }
+
+  // Add obsoletes
+  for dep in settings.rpm().obsoletes.as_ref().cloned().unwrap_or_default() {
+    builder = builder.obsoletes(Dependency::any(dep));
+  }
+
   // Add binaries
   for bin in settings.binaries() {
     let src = settings.binary_path(bin);

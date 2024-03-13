@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.10.3", default-features = false }
+cargo-mobile2 = { version = "0.10.4", default-features = false }
 jsonrpsee = { version = "0.22", features = [ "server" ] }
 jsonrpsee-core = "0.22"
 jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
@@ -73,7 +73,7 @@ semver = "1.0"
 regex = "1.10.3"
 unicode-width = "0.1"
 zeroize = "1.7"
-heck = { version = "0.4", features = [ "unicode" ] }
+heck = { version = "0.5", features = [ "unicode" ] }
 dialoguer = "0.11"
 url = { version = "2.5", features = [ "serde" ] }
 os_pipe = "1"
@@ -82,7 +82,7 @@ ctrlc = "3.4"
 log = { version = "0.4.21", features = [ "kv", "kv_std" ] }
 env_logger = "0.11.3"
 icns = { package = "tauri-icns", version = "0.1" }
-image = { version = "0.24", default-features = false, features = [ "ico" ] }
+image = { version = "0.25", default-features = false, features = [ "ico" ] }
 axum = { version = "0.7.4", features = [ "ws" ] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }

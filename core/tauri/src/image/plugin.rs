@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use serde::Serialize;
+
 use crate::plugin::{Builder, TauriPlugin};
 use crate::{command, image::Image, AppHandle, Manager, ResourceId, Runtime};
 
@@ -55,25 +57,27 @@ fn rgba<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Vec<u8>
   Ok(image.rgba().to_vec())
 }
 
-#[command(root = "crate")]
-fn width<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<u32> {
-  let resources_table = app.resources_table();
-  let image = resources_table.get::<Image<'_>>(rid)?;
-  Ok(image.width())
+#[derive(Serialize)]
+struct Size {
+  width: u32,
+  height: u32,
 }
 
 #[command(root = "crate")]
-fn height<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<u32> {
+fn size<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Size> {
   let resources_table = app.resources_table();
   let image = resources_table.get::<Image<'_>>(rid)?;
-  Ok(image.height())
+  Ok(Size {
+    width: image.width(),
+    height: image.height(),
+  })
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("image")
     .invoke_handler(crate::generate_handler![
-      new, from_bytes, from_path, rgba, width, height
+      new, from_bytes, from_path, rgba, size
     ])
     .build()
 }

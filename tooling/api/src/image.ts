@@ -4,9 +4,25 @@
 
 import { Resource, invoke } from './core'
 
+/// Image dimensions type.
+export interface ImageSize {
+  /// Image width.
+  width: number
+  /// Image height.
+  height: number
+}
+
 /** An RGBA Image in row-major order from top to bottom. */
 export class Image extends Resource {
-  private constructor(rid: number) {
+  #size: ImageSize | undefined
+  #rgba: Uint8Array | undefined
+
+  /**
+   * Creates an Image from a resource ID. For internal use only.
+   *
+   * @ignore
+   */
+  constructor(rid: number) {
     super(rid)
   }
 
@@ -63,20 +79,30 @@ export class Image extends Resource {
   }
 
   /** Returns the RGBA data for this image, in row-major order from top to bottom.  */
-  async rgba(): Promise<ArrayBuffer | number[]> {
-    return invoke<ArrayBuffer | number[]>('plugin:image|rgba', {
+  async rgba(): Promise<Uint8Array> {
+    if (this.#rgba) {
+      return Promise.resolve(this.#rgba)
+    }
+    return invoke<number[]>('plugin:image|rgba', {
       rid: this.rid
+    }).then((buffer) => {
+      const rgba = new Uint8Array(buffer)
+      this.#rgba = rgba
+      return rgba
     })
   }
 
-  /** Returns the width of this image.  */
-  async width() {
-    return invoke<number>('plugin:image|width', { rid: this.rid })
-  }
-
-  /** Returns the height of this image. */
-  async height() {
-    return invoke<number>('plugin:image|height', { rid: this.rid })
+  /** Returns the size of this image.  */
+  async size(): Promise<ImageSize> {
+    if (this.#size) {
+      return Promise.resolve(this.#size)
+    }
+    return invoke<ImageSize>('plugin:image|size', { rid: this.rid }).then(
+      (size) => {
+        this.#size = size
+        return size
+      }
+    )
   }
 }
 

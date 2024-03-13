@@ -114,7 +114,10 @@ pub fn command(options: Options) -> Result<()> {
 
   let mut capabilities = if capabilities.len() > 1 {
     let selections = prompts::multiselect(
-      "Choose which capabilities to add the permission to:",
+      &format!(
+        "Choose which capabilities to add the permission `{}` to:",
+        options.identifier
+      ),
       capabilities
         .iter()
         .map(|(c, p)| {

@@ -517,6 +517,7 @@ pub fn build_wix_app_installer(
     .unwrap_or_default();
 
   data.insert("product_name", to_json(settings.product_name()));
+  data.insert("display_name", to_json(settings.display_name()));
   data.insert("version", to_json(app_version));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
@@ -744,7 +745,8 @@ pub fn build_wix_app_installer(
     let locale_strings = include_str!("./default-locale-strings.xml")
       .replace("__language__", &language_metadata.lang_id.to_string())
       .replace("__codepage__", &language_metadata.ascii_code.to_string())
-      .replace("__productName__", settings.product_name());
+      .replace("__productName__", settings.product_name())
+      .replace("__displayName__", settings.display_name());
 
     let mut unset_locale_strings = String::new();
     let prefix_len = "<String ".len();

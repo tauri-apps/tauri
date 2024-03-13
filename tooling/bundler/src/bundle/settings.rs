@@ -141,6 +141,8 @@ const ALL_PACKAGE_TYPES: &[PackageType] = &[
 pub struct PackageSettings {
   /// the package's product name.
   pub product_name: String,
+  /// the package's display name.
+  pub display_name: String,
   /// the package's version.
   pub version: String,
   /// the package's description.
@@ -792,6 +794,11 @@ impl Settings {
   /// Returns the product name.
   pub fn product_name(&self) -> &str {
     &self.package.product_name
+  }
+
+  /// Returns the display name.
+  pub fn display_name(&self) -> &str {
+    &self.package.display_name
   }
 
   /// Returns the bundle's identifier

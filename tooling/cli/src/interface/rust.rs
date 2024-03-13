@@ -1001,13 +1001,15 @@ impl RustAppSettings {
       .workspace
       .and_then(|v| v.package);
 
+    let product_name = config.product_name.clone().unwrap_or_else(|| {
+      cargo_package_settings
+        .name
+        .clone()
+        .expect("Cargo manifest must have the `package.name` field")
+    });
     let package_settings = PackageSettings {
-      product_name: config.product_name.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .name
-          .clone()
-          .expect("Cargo manifest must have the `package.name` field")
-      }),
+      product_name: product_name.clone(),
+      display_name: config.display_name.clone().unwrap_or_else(|| product_name.clone()),
       version: config.version.clone().unwrap_or_else(|| {
         cargo_package_settings
           .version

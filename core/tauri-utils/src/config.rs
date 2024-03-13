@@ -1973,6 +1973,9 @@ pub struct Config {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
+  /// App display name, will use `productName` if not set.
+  #[serde(alias = "display-name")]
+  pub display_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
@@ -2578,6 +2581,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let schema = quote!(None);
       let product_name = opt_str_lit(self.product_name.as_ref());
+      let display_name = opt_str_lit(self.display_name.as_ref());
       let version = opt_str_lit(self.version.as_ref());
       let identifier = str_lit(&self.identifier);
       let app = &self.app;
@@ -2590,6 +2594,7 @@ mod build {
         ::tauri::utils::config::Config,
         schema,
         product_name,
+        display_name,
         version,
         identifier,
         app,

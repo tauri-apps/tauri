@@ -19,6 +19,13 @@
       ],
       "pattern": "^[^/\\:*?\"<>|]+$"
     },
+    "displayName": {
+      "description": "App display name, will use `productName` if not set.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "version": {
       "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.",
       "type": [

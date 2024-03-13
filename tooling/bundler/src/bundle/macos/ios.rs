@@ -160,7 +160,7 @@ fn generate_info_plist(
   writeln!(
     file,
     "  <key>CFBundleDisplayName</key>\n  <string>{}</string>",
-    settings.product_name()
+    settings.display_name()
   )?;
   writeln!(
     file,

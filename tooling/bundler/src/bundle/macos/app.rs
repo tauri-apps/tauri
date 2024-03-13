@@ -197,7 +197,7 @@ fn create_info_plist(
 
   let mut plist = plist::Dictionary::new();
   plist.insert("CFBundleDevelopmentRegion".into(), "English".into());
-  plist.insert("CFBundleDisplayName".into(), settings.product_name().into());
+  plist.insert("CFBundleDisplayName".into(), settings.display_name().into());
   plist.insert(
     "CFBundleExecutable".into(),
     settings.main_binary_name().into(),

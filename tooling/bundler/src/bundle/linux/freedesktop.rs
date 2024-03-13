@@ -160,7 +160,7 @@ pub fn generate_desktop_file(
       },
       exec: bin_name,
       icon: bin_name,
-      name: settings.product_name(),
+      name: settings.display_name(),
       mime_type,
     },
     file,

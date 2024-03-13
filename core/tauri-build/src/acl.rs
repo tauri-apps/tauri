@@ -131,13 +131,14 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
       permission_schemas.push(schema_from(key, set_id, Some(&set.description)));
     }
 
-    if let Some(default) = &manifest.default_permission {
-      permission_schemas.push(schema_from(
-        key,
-        "default",
-        Some(default.description.as_ref()),
-      ));
-    }
+    permission_schemas.push(schema_from(
+      key,
+      "default",
+      manifest
+        .default_permission
+        .as_ref()
+        .map(|d| d.description.as_ref()),
+    ));
 
     for (permission_id, permission) in &manifest.permissions {
       permission_schemas.push(schema_from(
@@ -198,9 +199,14 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
           };
 
           let mut permission_schemas = Vec::new();
-          if let Some(default) = &manifest.default_permission {
-            permission_schemas.push(schema_from(key, "default", Some(&default.description)));
-          }
+          permission_schemas.push(schema_from(
+            key,
+            "default",
+            manifest
+              .default_permission
+              .as_ref()
+              .map(|d| d.description.as_ref()),
+          ));
           for set in manifest.permission_sets.values() {
             permission_schemas.push(schema_from(key, &set.identifier, Some(&set.description)));
           }
@@ -471,12 +477,10 @@ pub fn validate_capabilities(
       let permission_exists = acl_manifests
         .get(key)
         .map(|manifest| {
-          if permission_name == "default" {
-            manifest.default_permission.is_some()
-          } else {
-            manifest.permissions.contains_key(permission_name)
-              || manifest.permission_sets.contains_key(permission_name)
-          }
+          // the default permission is always treated as valid, the CLI automatically adds it on the `tauri add` command
+          permission_name == "default"
+            || manifest.permissions.contains_key(permission_name)
+            || manifest.permission_sets.contains_key(permission_name)
         })
         .unwrap_or(false);
 

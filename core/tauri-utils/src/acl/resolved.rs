@@ -367,15 +367,8 @@ fn get_permissions<'a>(
     manifest
       .default_permission
       .as_ref()
-      .ok_or_else(|| Error::UnknownPermission {
-        key: if key == APP_ACL_KEY {
-          "app manifest".to_string()
-        } else {
-          key.to_string()
-        },
-        permission: permission_name.to_string(),
-      })
-      .and_then(|default| get_permission_set_permissions(manifest, default))
+      .map(|default| get_permission_set_permissions(manifest, default))
+      .unwrap_or_else(|| Ok(Vec::new()))
   } else if let Some(set) = manifest.permission_sets.get(permission_name) {
     get_permission_set_permissions(manifest, set)
   } else if let Some(permission) = manifest.permissions.get(permission_name) {

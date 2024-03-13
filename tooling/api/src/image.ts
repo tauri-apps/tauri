@@ -14,9 +14,6 @@ export interface ImageSize {
 
 /** An RGBA Image in row-major order from top to bottom. */
 export class Image extends Resource {
-  #size: ImageSize | undefined
-  #rgba: Uint8Array | undefined
-
   /**
    * Creates an Image from a resource ID. For internal use only.
    *
@@ -80,29 +77,14 @@ export class Image extends Resource {
 
   /** Returns the RGBA data for this image, in row-major order from top to bottom.  */
   async rgba(): Promise<Uint8Array> {
-    if (this.#rgba) {
-      return Promise.resolve(this.#rgba)
-    }
     return invoke<number[]>('plugin:image|rgba', {
       rid: this.rid
-    }).then((buffer) => {
-      const rgba = new Uint8Array(buffer)
-      this.#rgba = rgba
-      return rgba
-    })
+    }).then((buffer) => new Uint8Array(buffer))
   }
 
   /** Returns the size of this image.  */
   async size(): Promise<ImageSize> {
-    if (this.#size) {
-      return Promise.resolve(this.#size)
-    }
-    return invoke<ImageSize>('plugin:image|size', { rid: this.rid }).then(
-      (size) => {
-        this.#size = size
-        return size
-      }
-    )
+    return invoke<ImageSize>('plugin:image|size', { rid: this.rid })
   }
 }
 

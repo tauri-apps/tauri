@@ -15,6 +15,7 @@ pub fn input<T>(
 where
   T: Clone + FromStr + Display + ToString,
   T::Err: Display + std::fmt::Debug,
+  T: PartialEq<str>,
 {
   if skip {
     Ok(initial)
@@ -28,7 +29,10 @@ where
       builder = builder.with_initial_text(v.to_string());
     }
 
-    builder.interact_text().map(Some).map_err(Into::into)
+    builder
+      .interact_text()
+      .map(|t: T| if t.ne("") { Some(t) } else { None })
+      .map_err(Into::into)
   }
 }
 

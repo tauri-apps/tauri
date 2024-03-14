@@ -119,7 +119,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let mut interface = AppInterface::new(config_, options.target.clone())?;
   let app_settings = interface.app_settings();
-  let interface_options = options.clone().into();
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
     run_hook(
@@ -169,6 +168,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     .get_or_insert(Vec::new())
     .extend(config_.build.features.clone().unwrap_or_default());
 
+  let interface_options = options.clone().into();
   let bin_path = app_settings.app_binary_path(&interface_options)?;
   let out_dir = bin_path.parent().unwrap();
 

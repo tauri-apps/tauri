@@ -1009,7 +1009,10 @@ impl RustAppSettings {
     });
     let package_settings = PackageSettings {
       product_name: product_name.clone(),
-      display_name: config.display_name.clone().unwrap_or_else(|| product_name.clone()),
+      display_name: config
+        .display_name
+        .clone()
+        .unwrap_or_else(|| product_name.clone()),
       version: config.version.clone().unwrap_or_else(|| {
         cargo_package_settings
           .version

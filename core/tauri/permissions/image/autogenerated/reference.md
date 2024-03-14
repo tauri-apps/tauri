@@ -10,6 +10,8 @@
 |`deny-new`|Denies the new command without any pre-configured scope.|
 |`allow-rgba`|Enables the rgba command without any pre-configured scope.|
 |`deny-rgba`|Denies the rgba command without any pre-configured scope.|
+|`allow-size`|Enables the size command without any pre-configured scope.|
+|`deny-size`|Denies the size command without any pre-configured scope.|
 |`allow-width`|Enables the width command without any pre-configured scope.|
 |`deny-width`|Denies the width command without any pre-configured scope.|
 |`default`|Default permissions for the plugin.|

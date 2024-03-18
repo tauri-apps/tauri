@@ -22,8 +22,9 @@ use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
-  AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianScripts, DebianSettings,
+  DmgSettings, MacOsSettings, PackageSettings, Position, RpmScripts, RpmSettings, Size,
+  UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
 
@@ -1335,6 +1336,16 @@ fn tauri_config_to_bundle_settings(
       section: config.linux.deb.section,
       priority: config.linux.deb.priority,
       changelog: config.linux.deb.changelog,
+      scripts: if let Some(s) = config.linux.deb.scripts {
+        Some(DebianScripts {
+          pre_install: s.pre_install,
+          post_install: s.post_install,
+          pre_remove: s.pre_remove,
+          post_remove: s.post_remove,
+        })
+      } else {
+        None
+      },
     },
     appimage: AppImageSettings {
       files: config.linux.appimage.files,
@@ -1349,6 +1360,16 @@ fn tauri_config_to_bundle_settings(
       epoch: config.linux.rpm.epoch,
       files: config.linux.rpm.files,
       desktop_template: config.linux.rpm.desktop_template,
+      scripts: if let Some(s) = config.linux.rpm.scripts {
+        Some(RpmScripts {
+          pre_install: s.pre_install,
+          post_install: s.post_install,
+          pre_remove: s.pre_remove,
+          post_remove: s.post_remove,
+        })
+      } else {
+        None
+      },
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

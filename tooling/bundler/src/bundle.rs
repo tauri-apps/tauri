@@ -20,9 +20,9 @@ use tauri_utils::display_path;
 pub use self::{
   category::AppCategory,
   settings::{
-    AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
-    PackageSettings, PackageType, Position, RpmSettings, Settings, SettingsBuilder, Size,
-    UpdaterSettings,
+    AppImageSettings, BundleBinary, BundleSettings, DebianScripts, DebianSettings, DmgSettings,
+    MacOsSettings, PackageSettings, PackageType, Position, RpmScripts, RpmSettings, Settings,
+    SettingsBuilder, Size, UpdaterSettings,
   },
 };
 #[cfg(target_os = "macos")]

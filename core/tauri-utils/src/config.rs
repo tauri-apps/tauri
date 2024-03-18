@@ -313,6 +313,22 @@ pub struct AppImageConfig {
   pub files: HashMap<PathBuf, PathBuf>,
 }
 
+/// Debian script settings. Specify scripts that will be executed during installation or removal process
+/// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DebScripts {
+  /// pre_install is called before (a particular version of) a package is unpacked.
+  pub pre_install: Option<PathBuf>,
+  /// post_install is called after (a particular version of) a package is unpacked.
+  pub post_install: Option<PathBuf>,
+  /// pre_remove is called before (a particular version of) a package is removed.
+  pub pre_remove: Option<PathBuf>,
+  /// post_remove is called after (a particular version of) a package is removed.
+  pub post_remove: Option<PathBuf>,
+}
+
 /// Configuration for Debian (.deb) bundles.
 ///
 /// See more: <https://tauri.app/v1/api/config#debconfig>
@@ -338,6 +354,8 @@ pub struct DebConfig {
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
   /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
   pub changelog: Option<PathBuf>,
+  /// Path to scripts that will be executed during installation or removal.
+  pub scripts: Option<DebScripts>,
 }
 
 /// Configuration for Linux bundles.
@@ -357,6 +375,22 @@ pub struct LinuxConfig {
   /// Configuration for the RPM bundle.
   #[serde(default)]
   pub rpm: RpmConfig,
+}
+
+/// RPM script settings. Specify scripts that will be executed during installation or removal process
+/// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RpmScripts {
+  /// pre_install is called before (a particular version of) a package is unpacked.
+  pub pre_install: Option<PathBuf>,
+  /// post_install is called after (a particular version of) a package is unpacked.
+  pub post_install: Option<PathBuf>,
+  /// pre_remove is called before (a particular version of) a package is removed.
+  pub pre_remove: Option<PathBuf>,
+  /// post_remove is called after (a particular version of) a package is removed.
+  pub post_remove: Option<PathBuf>,
 }
 
 /// Configuration for RPM bundles.
@@ -380,6 +414,8 @@ pub struct RpmConfig {
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
   pub desktop_template: Option<PathBuf>,
+  /// Path to scripts that will be executed during installation or removal.
+  pub scripts: Option<RpmScripts>,
 }
 
 impl Default for RpmConfig {
@@ -390,6 +426,7 @@ impl Default for RpmConfig {
       epoch: 0,
       files: Default::default(),
       desktop_template: None,
+      scripts: None,
     }
   }
 }

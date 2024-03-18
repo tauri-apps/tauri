@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`7213b9e47`](https://www.github.com/tauri-apps/tauri/commit/7213b9e47242bef814aa7257e0bf84631bf5fe7e)([#9124](https://www.github.com/tauri-apps/tauri/pull/9124)) Add default permission for a plugin to capabilities when using `tauri add <plugin>`.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.10`
+
 ## \[2.0.0-beta.9]
 
 ### Bug Fixes

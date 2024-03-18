@@ -150,15 +150,17 @@ impl Cmd {
     path: String,
     ext: Option<String>,
   ) -> super::Result<String> {
-    match Path::new(&path)
-      .file_name()
-      .and_then(std::ffi::OsStr::to_str)
-    {
-      Some(p) => Ok(if let Some(ext) = ext {
-        p.replace(ext.as_str(), "")
-      } else {
-        p.to_string()
-      }),
+    let file_name = Path::new(&path).file_name().map(|f| f.to_string_lossy());
+    match file_name {
+      Some(p) => {
+        let maybe_stripped = if let Some(ext) = ext {
+          p.strip_suffix(&ext).unwrap_or(&p).to_string()
+        } else {
+          p.to_string()
+        };
+        Ok(maybe_stripped)
+      }
+
       None => Err(crate::error::into_anyhow(crate::api::Error::Path(
         "Couldn't get the basename".into(),
       ))),

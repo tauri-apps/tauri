@@ -425,6 +425,23 @@ tauri::Builder::default()
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
 
+    app_manager.webview.eval_script_all(format!(
+      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      window_labels_array = serde_json::to_string(&app_manager.window.labels())?,
+    ))?;
+
+    // TODO: filter is wrong
+    app_manager.emit_filter(
+      "tauri://window-created",
+      Some(crate::webview::CreatedEvent {
+        label: window.label().into(),
+      }),
+      |s| match s {
+        EventTarget::Webview { label } => label == window.label(),
+        _ => false,
+      },
+    )?;
+
     Ok(window)
   }
 }

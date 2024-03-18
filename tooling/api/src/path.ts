@@ -609,9 +609,9 @@ async function join(...paths: string[]): Promise<string> {
  * Returns the directory name of a `path`. Trailing directory separators are ignored.
  * @example
  * ```typescript
- * import { dirname, appDataDir } from '@tauri-apps/api/path';
- * const appDataDirPath = await appDataDir();
- * const dir = await dirname(appDataDirPath);
+ * import { dirname } from '@tauri-apps/api/path';
+ * const dir = await dirname('/path/to/somedir/');
+ * assert(dir === 'somedir');
  * ```
  *
  * @since 1.0.0
@@ -624,10 +624,9 @@ async function dirname(path: string): Promise<string> {
  * Returns the extension of the `path`.
  * @example
  * ```typescript
- * import { extname, resolveResource } from '@tauri-apps/api/path';
- * const resourcePath = await resolveResource('app.conf');
- * const ext = await extname(resourcePath);
- * assert(ext === 'conf');
+ * import { extname } from '@tauri-apps/api/path';
+ * const ext = await extname('/path/to/file.html');
+ * assert(ext === 'html');
  * ```
  *
  * @since 1.0.0
@@ -640,12 +639,10 @@ async function extname(path: string): Promise<string> {
  * Returns the last portion of a `path`. Trailing directory separators are ignored.
  * @example
  * ```typescript
- * import { basename, resolveResource } from '@tauri-apps/api/path';
- * const resourcePath = await resolveResource('app.conf');
- * const base = await basename(resourcePath);
+ * import { basename } from '@tauri-apps/api/path';
+ * const base = await basename('path/to/app.conf');
  * assert(base === 'app.conf');
  * ```
- *
  * @param ext An optional file extension to be removed from the returned path.
  *
  * @since 1.0.0

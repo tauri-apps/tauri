@@ -92,7 +92,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                       let mut response =
                         http::Response::new(serde_json::to_vec(&e.0).unwrap().into());
                       *response.status_mut() = StatusCode::BAD_REQUEST;
-                      (response, mime::TEXT_PLAIN)
+                      (response, mime::APPLICATION_JSON)
                     }
                   };
 
@@ -305,7 +305,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                 mime_type = match &response {
                   InvokeResponse::Ok(InvokeBody::Json(_)) => mime::APPLICATION_JSON,
                   InvokeResponse::Ok(InvokeBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
-                  InvokeResponse::Err(_) => mime::TEXT_PLAIN,
+                  InvokeResponse::Err(_) => mime::APPLICATION_JSON,
                 }
                 .essence_str()
               )

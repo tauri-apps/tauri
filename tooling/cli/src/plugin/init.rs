@@ -26,7 +26,7 @@ pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 #[clap(about = "Initialize a Tauri plugin project on an existing directory")]
 pub struct Options {
   /// Name of your Tauri plugin.
-  /// If not specified, it will be infered from the current directory.
+  /// If not specified, it will be inferred from the current directory.
   pub(crate) plugin_name: Option<String>,
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]

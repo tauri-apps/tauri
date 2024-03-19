@@ -98,7 +98,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
-      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
+      // dmg is dependent of MacOsBundle, we send our bundles to prevent rebuilding
       #[cfg(target_os = "macos")]
       PackageType::Dmg => {
         let bundled = macos::dmg::bundle_project(&settings, &bundles)?;
@@ -122,7 +122,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
 
-      // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
+      // updater is dependent of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => {
         if !package_types.iter().any(|p| {
           matches!(

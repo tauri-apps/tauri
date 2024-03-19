@@ -275,7 +275,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
         return Ok(device);
       }
       if tries >= 3 {
-        log::info!("Waiting for emulator to start... (maybe the emulator is unathorized or offline, run `adb devices` to check)");
+        log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
       } else {
         log::info!("Waiting for emulator to start...");
       }

@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-beta.3",
+  "version": "2.0.0-beta.6",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -57,7 +57,7 @@
     "eslint-plugin-security": "2.1.1",
     "fast-glob": "3.3.2",
     "prettier": "3.2.5",
-    "rollup": "4.12.0",
+    "rollup": "4.12.1",
     "tslib": "2.6.2",
     "typescript": "5.3.3"
   },

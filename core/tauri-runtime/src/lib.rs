@@ -429,7 +429,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   // SETTER
 
-  /// Naviagte to the given URL.
+  /// Navigate to the given URL.
   fn navigate(&self, url: Url) -> Result<()>;
 
   /// Opens the dialog to prints the contents of the webview.
@@ -517,7 +517,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / iOS / Android:** Unsupported.
   fn is_maximizable(&self) -> Result<bool>;
 
-  /// Gets the window's native minize button state.
+  /// Gets the window's native minimize button state.
   ///
   /// ## Platform-specific
   ///

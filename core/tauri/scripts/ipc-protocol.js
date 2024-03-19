@@ -9,7 +9,7 @@
   const linuxIpcProtocolEnabled = __TEMPLATE_linux_ipc_protocol_enabled__
   let customProtocolIpcFailed = false
 
-  // on Linux we only use the custom-protocol-based IPC if the the linux-ipc-protocol Cargo feature is enabled
+  // on Linux we only use the custom-protocol-based IPC if the linux-ipc-protocol Cargo feature is enabled
   // on Android we never use it because Android does not have support to reading the request body
   const canUseCustomProtocol =
     osName === 'linux' ? linuxIpcProtocolEnabled : osName !== 'android'

@@ -571,9 +571,6 @@ tauri::Builder::default()
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
         if let Some(w) = manager_.get_webview(&label_) {
-          if let PageLoadEvent::Finished = event {
-            w.unlisten_all_js();
-          }
           if let Some(handler) = self.on_page_load_handler.as_ref() {
             handler(w, PageLoadPayload { url: &url, event });
           }
@@ -1137,7 +1134,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.to_string(),
+        url: current_url.clone(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {
@@ -1297,22 +1294,16 @@ fn main() {
       id,
     ))?;
 
-    listeners.unlisten_js(id);
+    listeners.unlisten_js(event, id);
 
     Ok(())
   }
 
-  /// Unregister all JS event listeners.
-  pub(crate) fn unlisten_all_js(&self) {
-    let listeners = self.manager().listeners();
-    listeners.unlisten_all_js(self.label());
-  }
-
-  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, target: &EventTarget) -> crate::Result<()> {
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, ids: &[u32]) -> crate::Result<()> {
     self.eval(&crate::event::emit_js_script(
       self.manager().listeners().function_name(),
       emit_args,
-      &serde_json::to_string(target)?,
+      &serde_json::to_string(ids)?,
     )?)?;
     Ok(())
   }

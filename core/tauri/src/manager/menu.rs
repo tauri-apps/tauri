@@ -8,7 +8,7 @@ use std::{
 };
 
 use crate::{
-  menu::{Menu, MenuId},
+  menu::{Menu, MenuEvent, MenuId},
   AppHandle, Runtime, Window,
 };
 
@@ -16,7 +16,7 @@ pub struct MenuManager<R: Runtime> {
   /// A set containing a reference to the active menus, including
   /// the app-wide menu and the window-specific menus
   ///
-  /// This should be mainly used to acceess [`Menu::haccel`]
+  /// This should be mainly used to access [`Menu::haccel`]
   /// to setup the accelerator handling in the event loop
   pub menus: Arc<Mutex<HashMap<MenuId, Menu<R>>>>,
   /// The menu set to all windows.
@@ -86,5 +86,13 @@ impl<R: Runtime> MenuManager<R> {
     } else {
       None
     }
+  }
+
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(&self, handler: F) {
+    self
+      .global_event_listeners
+      .lock()
+      .unwrap()
+      .push(Box::new(handler));
   }
 }

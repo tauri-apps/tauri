@@ -80,10 +80,10 @@ fn capability_from_path<P: AsRef<Path>>(path: P) -> Option<TomlOrJson> {
 #[derive(Debug, Parser)]
 #[clap(about = "Add a permission to capabilities")]
 pub struct Options {
-  /// Permission to remove.
-  identifier: String,
+  /// Permission to add.
+  pub identifier: String,
   /// Capability to add the permission to.
-  capability: Option<String>,
+  pub capability: Option<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -114,7 +114,10 @@ pub fn command(options: Options) -> Result<()> {
 
   let mut capabilities = if capabilities.len() > 1 {
     let selections = prompts::multiselect(
-      "Choose which capabilities to add the permission to:",
+      &format!(
+        "Choose which capabilities to add the permission `{}` to:",
+        options.identifier
+      ),
       capabilities
         .iter()
         .map(|(c, p)| {

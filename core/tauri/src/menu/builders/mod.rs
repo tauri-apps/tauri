@@ -4,7 +4,7 @@
 
 #![cfg(desktop)]
 
-//! A module containting menu builder types
+//! A module containing menu builder types
 
 mod menu;
 pub use menu::MenuBuilder;

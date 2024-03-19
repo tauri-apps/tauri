@@ -65,6 +65,7 @@ pub struct Capability {
   /// List of windows that uses this capability. Can be a glob pattern.
   ///
   /// On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.
+  #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub windows: Vec<String>,
   /// List of webviews that uses this capability. Can be a glob pattern.
   ///
@@ -75,22 +76,12 @@ pub struct Capability {
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms are affected by this capability.
-  #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
-  pub platforms: Vec<Target>,
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub platforms: Option<Vec<Target>>,
 }
 
 fn default_capability_local() -> bool {
   true
-}
-
-fn default_platforms() -> Vec<Target> {
-  vec![
-    Target::Linux,
-    Target::MacOS,
-    Target::Windows,
-    Target::Android,
-    Target::Ios,
-  ]
 }
 
 /// Configuration for remote URLs that are associated with the capability.
@@ -98,7 +89,12 @@ fn default_platforms() -> Vec<Target> {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct CapabilityRemote {
-  /// Remote domains this capability refers to. Can use glob patterns.
+  /// Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).
+  ///
+  /// # Examples
+  ///
+  /// - "https://*.mydomain.dev": allows subdomains of mydomain.dev
+  /// - "https://mydomain.dev/api/*": allows any subpath of mydomain.dev/api
   pub urls: Vec<String>,
 }
 
@@ -190,7 +186,7 @@ mod build {
       let local = self.local;
       let windows = vec_lit(&self.windows, str_lit);
       let permissions = vec_lit(&self.permissions, identity);
-      let platforms = vec_lit(&self.platforms, identity);
+      let platforms = opt_vec_lit(self.platforms.as_ref(), identity);
 
       literal_struct!(
         tokens,

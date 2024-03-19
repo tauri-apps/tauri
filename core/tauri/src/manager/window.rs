@@ -19,8 +19,8 @@ use tauri_runtime::{
 };
 
 use crate::{
-  app::GlobalWindowEventListener, sealed::ManagerBase, AppHandle, EventLoopMessage, EventTarget,
-  Image, Manager, Runtime, Scopes, Window, WindowEvent,
+  app::GlobalWindowEventListener, image::Image, sealed::ManagerBase, AppHandle, EventLoopMessage,
+  EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
 };
 
 const WINDOW_RESIZED_EVENT: &str = "tauri://resize";

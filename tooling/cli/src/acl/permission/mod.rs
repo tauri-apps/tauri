@@ -6,7 +6,7 @@ use clap::{Parser, Subcommand};
 
 use crate::Result;
 
-mod add;
+pub mod add;
 mod ls;
 mod new;
 mod rm;

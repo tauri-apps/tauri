@@ -11,7 +11,7 @@ import { Image, transformImage } from './image'
  *
  * #### Platform-specific:
  *
- * - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
+ * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
  * the icon will still show a context menu on right click.
  */
 export interface TrayIconEvent {
@@ -45,7 +45,7 @@ export interface TrayIconEvent {
 
 /** {@link TrayIcon.new|`TrayIcon`} creation options */
 export interface TrayIconOptions {
-  /** The tray icon id. If undefined, a random one will be assigend */
+  /** The tray icon id. If undefined, a random one will be assigned */
   id?: string
   /** The tray icon menu */
   menu?: Menu | Submenu
@@ -117,6 +117,23 @@ export class TrayIcon extends Resource {
   private constructor(rid: number, id: string) {
     super(rid)
     this.id = id
+  }
+
+  /** Gets a tray icon using the provided id. */
+  static async getById(id: string): Promise<TrayIcon | null> {
+    return invoke<number>('plugin:tray|get_by_id', { id }).then((rid) =>
+      rid ? new TrayIcon(rid, id) : null
+    )
+  }
+
+  /**
+   * Removes a tray icon using the provided id from tauri's internal state.
+   *
+   * Note that this may cause the tray icon to disappear
+   * if it wasn't cloned somewhere else or referenced by JS.
+   */
+  static async removeById(id: string): Promise<void> {
+    return invoke('plugin:tray|remove_by_id', { id })
   }
 
   /**

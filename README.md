@@ -35,7 +35,7 @@ The list of Tauri's features includes, but is not limited to:
 - Built-in self updater (desktop only)
 - System tray icons
 - Native notifications
-- Localhost free (:fire:)
+- Localhost free (🔥)
 - GitHub action for streamlined CI
 - VS Code extension
 

@@ -14,7 +14,7 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview},
-  window::FileDropEvent,
+  window::DragDropEvent,
 };
 use tauri_utils::config::WebviewUrl;
 use url::Url;
@@ -29,7 +29,10 @@ use crate::{
 };
 
 use super::{
-  window::{FileDropPayload, DROP_CANCELLED_EVENT, DROP_EVENT, DROP_HOVER_EVENT},
+  window::{
+    DragDropPayload, DragOverPayload, DRAG_EVENT, DROP_CANCELLED_EVENT, DROP_EVENT,
+    DROP_HOVER_EVENT,
+  },
   AppManager,
 };
 
@@ -641,12 +644,16 @@ impl<R: Runtime> Webview<R> {
 
 fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> crate::Result<()> {
   match event {
-    WebviewEvent::FileDrop(event) => match event {
-      FileDropEvent::Hovered { paths, position } => {
-        let payload = FileDropPayload { paths, position };
+    WebviewEvent::DragDrop(event) => match event {
+      DragDropEvent::Dragged { paths, position } => {
+        let payload = DragDropPayload { paths, position };
+        webview.emit_to_webview(DRAG_EVENT, payload)?
+      }
+      DragDropEvent::DragOver { position } => {
+        let payload = DragOverPayload { position };
         webview.emit_to_webview(DROP_HOVER_EVENT, payload)?
       }
-      FileDropEvent::Dropped { paths, position } => {
+      DragDropEvent::Dropped { paths, position } => {
         let scopes = webview.state::<Scopes>();
         for path in paths {
           if path.is_file() {
@@ -655,10 +662,10 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
             let _ = scopes.allow_directory(path, false);
           }
         }
-        let payload = FileDropPayload { paths, position };
+        let payload = DragDropPayload { paths, position };
         webview.emit_to_webview(DROP_EVENT, payload)?
       }
-      FileDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
+      DragDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
     },
   }

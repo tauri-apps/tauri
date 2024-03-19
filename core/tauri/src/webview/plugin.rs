@@ -28,7 +28,7 @@ mod desktop_commands {
     #[serde(default)]
     url: WebviewUrl,
     user_agent: Option<String>,
-    file_drop_enabled: Option<bool>,
+    drag_drop_enabled: Option<bool>,
     x: f64,
     y: f64,
     width: f64,
@@ -71,8 +71,8 @@ mod desktop_commands {
     let mut builder = crate::webview::WebviewBuilder::new(label, options.url);
 
     builder.webview_attributes.user_agent = options.user_agent;
-    builder.webview_attributes.file_drop_handler_enabled =
-      options.file_drop_enabled.unwrap_or(true);
+    builder.webview_attributes.drag_drop_handler_enabled =
+      options.drag_drop_enabled.unwrap_or(true);
     builder.webview_attributes.transparent = options.transparent;
     builder.webview_attributes.accept_first_mouse = options.accept_first_mouse;
     builder.webview_attributes.window_effects = options.window_effects;

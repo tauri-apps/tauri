@@ -732,10 +732,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_attributes.file_drop_handler_enabled = false;
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_attributes.drag_drop_handler_enabled = false;
     self
   }
 
@@ -1135,7 +1135,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.clone(),
+        url: request.url.clone(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {

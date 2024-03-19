@@ -37,7 +37,7 @@ use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
   window::{
     dpi::{PhysicalPosition, PhysicalSize},
-    FileDropEvent,
+    DragDropEvent,
   },
   RuntimeInitArgs,
 };
@@ -132,8 +132,8 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: PhysicalSize<u32>,
   },
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
   /// The system window theme has changed. Only delivered if the window [`theme`](`crate::window::WindowBuilder#method.theme`) is `None`.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
@@ -161,7 +161,7 @@ impl From<RuntimeWindowEvent> for WindowEvent {
         scale_factor,
         new_inner_size,
       },
-      RuntimeWindowEvent::FileDrop(event) => Self::FileDrop(event),
+      RuntimeWindowEvent::DragDrop(event) => Self::DragDrop(event),
       RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
     }
   }
@@ -171,14 +171,14 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum WebviewEvent {
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
 }
 
 impl From<RuntimeWebviewEvent> for WebviewEvent {
   fn from(event: RuntimeWebviewEvent) -> Self {
     match event {
-      RuntimeWebviewEvent::FileDrop(e) => Self::FileDrop(e),
+      RuntimeWebviewEvent::DragDrop(e) => Self::DragDrop(e),
     }
   }
 }
@@ -1392,7 +1392,7 @@ tauri::Builder::default()
   /// ```
   /// tauri::Builder::default()
   ///   .on_webview_event(|window, event| match event {
-  ///     tauri::WebviewEvent::FileDrop(event) => {
+  ///     tauri::WebviewEvent::DragDrop(event) => {
   ///       println!("{:?}", event);
   ///     }
   ///     _ => {}

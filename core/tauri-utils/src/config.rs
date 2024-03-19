@@ -1066,11 +1066,11 @@ pub struct WindowConfig {
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
-  /// Whether the file drop is enabled or not on the webview. By default it is enabled.
+  /// Whether the drag and drop is enabled or not on the webview. By default it is enabled.
   ///
-  /// Disabling it is required to use drag and drop on the frontend on Windows.
+  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
   #[serde(default = "default_true", alias = "file-drop-enabled")]
-  pub file_drop_enabled: bool,
+  pub drag_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
@@ -1246,7 +1246,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WebviewUrl::default(),
       user_agent: None,
-      file_drop_enabled: true,
+      drag_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -2167,7 +2167,7 @@ mod build {
       let label = str_lit(&self.label);
       let url = &self.url;
       let user_agent = opt_str_lit(self.user_agent.as_ref());
-      let file_drop_enabled = self.file_drop_enabled;
+      let drag_drop_enabled = self.drag_drop_enabled;
       let center = self.center;
       let x = opt_lit(self.x.as_ref());
       let y = opt_lit(self.y.as_ref());
@@ -2211,7 +2211,7 @@ mod build {
         label,
         url,
         user_agent,
-        file_drop_enabled,
+        drag_drop_enabled,
         center,
         x,
         y,

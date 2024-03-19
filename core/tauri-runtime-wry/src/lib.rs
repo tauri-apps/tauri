@@ -19,7 +19,7 @@ use tauri_runtime::{
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WebviewEvent,
+    CursorIcon, DetachedWindow, DragDropEvent, PendingWindow, RawWindow, WebviewEvent,
     WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
@@ -63,7 +63,7 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 use wry::{
-  FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
+  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
   WebViewBuilder,
 };
 
@@ -1147,14 +1147,14 @@ pub enum WindowMessage {
 #[derive(Debug, Clone)]
 pub enum SynthesizedWindowEvent {
   Focused(bool),
-  FileDrop(FileDropEvent),
+  DragDrop(DragDropEvent),
 }
 
 impl From<SynthesizedWindowEvent> for WindowEventWrapper {
   fn from(event: SynthesizedWindowEvent) -> Self {
     let event = match event {
       SynthesizedWindowEvent::Focused(focused) => WindowEvent::Focused(focused),
-      SynthesizedWindowEvent::FileDrop(event) => WindowEvent::FileDrop(event),
+      SynthesizedWindowEvent::DragDrop(event) => WindowEvent::DragDrop(event),
     };
     Self(Some(event))
   }
@@ -3229,7 +3229,9 @@ fn handle_event_loop<T: UserEvent>(
                   TaoTheme::Light => wry::Theme::Light,
                   _ => wry::Theme::Light,
                 };
-                webview.set_theme(theme);
+                if let Err(e) = webview.set_theme(theme) {
+                  log::error!("failed to set theme: {e}");
+                }
               }
             }
           }
@@ -3636,33 +3638,36 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_initialization_script(undecorated_resizing::SCRIPT);
   }
 
-  if webview_attributes.file_drop_handler_enabled {
+  if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
     let window_id_ = window_id.clone();
-    webview_builder = webview_builder.with_file_drop_handler(move |event| {
+    webview_builder = webview_builder.with_drag_drop_handler(move |event| {
       let event = match event {
-        WryFileDropEvent::Hovered {
+        WryDragDropEvent::Enter {
           paths,
           position: (x, y),
-        } => FileDropEvent::Hovered {
+        } => DragDropEvent::Dragged {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryFileDropEvent::Dropped {
+        WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::DragOver {
+          position: PhysicalPosition::new(x as _, y as _),
+        },
+        WryDragDropEvent::Drop {
           paths,
           position: (x, y),
-        } => FileDropEvent::Dropped {
+        } => DragDropEvent::Dropped {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryFileDropEvent::Cancelled => FileDropEvent::Cancelled,
+        WryDragDropEvent::Leave => DragDropEvent::Cancelled,
         _ => unimplemented!(),
       };
 
       let message = if kind == WebviewKind::WindowContent {
-        WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::FileDrop(event))
+        WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::DragDrop(event))
       } else {
-        WebviewMessage::WebviewEvent(WebviewEvent::FileDrop(event))
+        WebviewMessage::WebviewEvent(WebviewEvent::DragDrop(event))
       };
 
       let _ = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));

@@ -876,6 +876,14 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for WebviewWindow<R> {
   }
 }
 
+impl<R: Runtime> raw_window_handle::HasDisplayHandle for WebviewWindow<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.webview.app_handle.display_handle()
+  }
+}
+
 impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {

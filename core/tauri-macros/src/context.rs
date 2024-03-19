@@ -17,6 +17,7 @@ pub(crate) struct ContextItems {
   config_file: PathBuf,
   root: syn::Path,
   capabilities: Option<Vec<PathBuf>>,
+  assets: Option<Expr>,
 }
 
 impl Parse for ContextItems {
@@ -29,6 +30,7 @@ impl Parse for ContextItems {
 
     let mut root = None;
     let mut capabilities = None;
+    let mut assets = None;
     let config_file = input.parse::<LitStr>().ok().map(|raw| {
       let _ = input.parse::<Token![,]>();
       let path = PathBuf::from(raw.value());
@@ -57,32 +59,44 @@ impl Parse for ContextItems {
           root.replace(p);
         }
         Meta::NameValue(v) => {
-          if *v.path.require_ident()? == "capabilities" {
-            if let Expr::Array(array) = v.value {
-              capabilities.replace(
-                array
-                  .elems
-                  .into_iter()
-                  .map(|e| {
-                    if let Expr::Lit(ExprLit {
-                      attrs: _,
-                      lit: Lit::Str(s),
-                    }) = e
-                    {
-                      Ok(s.value().into())
-                    } else {
-                      Err(syn::Error::new(
-                        input.span(),
-                        "unexpected expression for capability",
-                      ))
-                    }
-                  })
-                  .collect::<Result<Vec<_>, syn::Error>>()?,
-              );
-            } else {
+          let ident = v.path.require_ident()?;
+          match ident.to_string().as_str() {
+            "capabilities" => {
+              if let Expr::Array(array) = v.value {
+                capabilities.replace(
+                  array
+                    .elems
+                    .into_iter()
+                    .map(|e| {
+                      if let Expr::Lit(ExprLit {
+                        attrs: _,
+                        lit: Lit::Str(s),
+                      }) = e
+                      {
+                        Ok(s.value().into())
+                      } else {
+                        Err(syn::Error::new(
+                          input.span(),
+                          "unexpected expression for capability",
+                        ))
+                      }
+                    })
+                    .collect::<Result<Vec<_>, syn::Error>>()?,
+                );
+              } else {
+                return Err(syn::Error::new(
+                  input.span(),
+                  "unexpected value for capabilities",
+                ));
+              }
+            }
+            "assets" => {
+              assets.replace(v.value);
+            }
+            name => {
               return Err(syn::Error::new(
                 input.span(),
-                "unexpected value for capabilities",
+                format!("unknown attribute {name}"),
               ));
             }
           }
@@ -113,6 +127,7 @@ impl Parse for ContextItems {
         }
       }),
       capabilities,
+      assets,
     })
   }
 }
@@ -126,6 +141,7 @@ pub(crate) fn generate_context(context: ContextItems) -> TokenStream {
       config_parent,
       root: context.root.to_token_stream(),
       capabilities: context.capabilities,
+      assets: context.assets,
     })
     .and_then(|data| context_codegen(data).map_err(|e| e.to_string()));
 

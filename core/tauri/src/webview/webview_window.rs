@@ -13,6 +13,7 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
+  image::Image,
   menu::{ContextMenu, Menu},
   runtime::{
     window::{
@@ -21,7 +22,6 @@ use crate::{
     },
     UserAttentionType,
   },
-  Image,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
@@ -876,6 +876,14 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for WebviewWindow<R> {
   }
 }
 
+impl<R: Runtime> raw_window_handle::HasDisplayHandle for WebviewWindow<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.webview.app_handle.display_handle()
+  }
+}
+
 impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
@@ -1243,7 +1251,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().set_maximizable(maximizable)
   }
 
-  /// Determines if this window's native minize button should be enabled.
+  /// Determines if this window's native minimize button should be enabled.
   ///
   /// ## Platform-specific
   ///

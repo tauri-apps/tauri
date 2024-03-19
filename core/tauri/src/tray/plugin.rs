@@ -21,11 +21,10 @@ use super::TrayIcon;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct TrayIconOptions<'a> {
+struct TrayIconOptions {
   id: Option<String>,
   menu: Option<(ResourceId, ItemKind)>,
-  #[serde(borrow)]
-  icon: Option<JsImage<'a>>,
+  icon: Option<JsImage>,
   tooltip: Option<String>,
   title: Option<String>,
   temp_dir_path: Option<PathBuf>,
@@ -36,7 +35,7 @@ struct TrayIconOptions<'a> {
 #[command(root = "crate")]
 fn new<R: Runtime>(
   app: AppHandle<R>,
-  options: TrayIconOptions<'_>,
+  options: TrayIconOptions,
   handler: Channel,
 ) -> crate::Result<(ResourceId, String)> {
   let mut builder = if let Some(id) = options.id {
@@ -91,10 +90,29 @@ fn new<R: Runtime>(
 }
 
 #[command(root = "crate")]
+fn get_by_id<R: Runtime>(app: AppHandle<R>, id: &str) -> crate::Result<Option<ResourceId>> {
+  let tray = app.tray_by_id(id);
+  let maybe_rid = tray.map(|tray| {
+    let mut resources_table = app.resources_table();
+    resources_table.add(tray)
+  });
+  Ok(maybe_rid)
+}
+
+#[command(root = "crate")]
+fn remove_by_id<R: Runtime>(app: AppHandle<R>, id: &str) -> crate::Result<()> {
+  app
+    .remove_tray_by_id(id)
+    .ok_or_else(|| anyhow::anyhow!("Can't find a tray associated with this id: {id}"))
+    .map(|_| ())
+    .map_err(Into::into)
+}
+
+#[command(root = "crate")]
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
   rid: ResourceId,
-  icon: Option<JsImage<'_>>,
+  icon: Option<JsImage>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
@@ -197,6 +215,8 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("tray")
     .invoke_handler(crate::generate_handler![
       new,
+      get_by_id,
+      remove_by_id,
       set_icon,
       set_menu,
       set_tooltip,

@@ -142,12 +142,9 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     &[
       ("new", true),
       ("from_bytes", true),
-      ("from_png_bytes", true),
-      ("from_ico_bytes", true),
       ("from_path", true),
       ("rgba", true),
-      ("width", true),
-      ("height", true),
+      ("size", true),
     ],
   ),
   ("resources", &[("close", true)]),
@@ -182,6 +179,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     "tray",
     &[
       ("new", false),
+      ("get_by_id", false),
+      ("remove_by_id", false),
       ("set_icon", false),
       ("set_menu", false),
       ("set_tooltip", false),

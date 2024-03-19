@@ -12,7 +12,7 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
-use crate::{menu::run_item_main_thread, AppHandle, Image, Manager, Runtime};
+use crate::{image::Image, menu::run_item_main_thread, AppHandle, Manager, Runtime};
 use serde::Serialize;
 use std::path::Path;
 pub use tray_icon::TrayIconId;
@@ -51,7 +51,7 @@ impl Default for ClickType {
 ///
 /// ## Platform-specific:
 ///
-/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
+/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
 /// the icon will still show a context menu on right click.
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]

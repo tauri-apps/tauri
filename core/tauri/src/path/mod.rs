@@ -11,7 +11,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub(crate) mod plugin;
 
-pub use crate::error::*;
+use crate::error::*;
 
 #[cfg(target_os = "android")]
 mod android;

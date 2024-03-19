@@ -8,5 +8,6 @@ fn main() {
   tauri_plugin::Builder::new(COMMANDS)
     .android_path("android")
     .ios_path("ios")
+    .global_api_script_path("./api-iife.js")
     .build();
 }

@@ -89,7 +89,28 @@ impl FromStr for JavaScriptChannelId {
 impl JavaScriptChannelId {
   /// Gets a [`Channel`] for this channel ID on the given [`Webview`].
   pub fn channel_on<R: Runtime>(&self, webview: Webview<R>) -> Channel {
-    Channel::from_callback_fn(webview, self.0)
+    let callback_id = self.0;
+    let counter = AtomicUsize::new(0);
+
+    Channel::new_with_id(callback_id.0, move |body| {
+      let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+      webview
+        .state::<ChannelDataIpcQueue>()
+        .0
+        .lock()
+        .unwrap()
+        .insert(data_id, body);
+
+      let i = counter.fetch_add(1, Ordering::Relaxed);
+
+      webview.eval(&format!(
+        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",
+        callback_id.0
+      ))?;
+
+      Ok(())
+    })
   }
 }
 
@@ -132,8 +153,6 @@ impl Channel {
   }
 
   pub(crate) fn from_callback_fn<R: Runtime>(webview: Webview<R>, callback: CallbackFn) -> Self {
-    let counter = AtomicUsize::new(0);
-
     Channel::new_with_id(callback.0, move |body| {
       let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
@@ -144,10 +163,8 @@ impl Channel {
         .unwrap()
         .insert(data_id, body);
 
-      let i = counter.fetch_add(1, Ordering::Relaxed);
-
       webview.eval(&format!(
-        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",
+        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}](response)).catch(console.error)",
         callback.0
       ))?;
 

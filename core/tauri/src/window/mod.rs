@@ -33,12 +33,13 @@ use crate::{
 };
 #[cfg(desktop)]
 use crate::{
+  image::Image,
   menu::{ContextMenu, Menu, MenuId},
   runtime::{
     window::dpi::{Position, Size},
     UserAttentionType,
   },
-  CursorIcon, Image,
+  CursorIcon,
 };
 
 use serde::Serialize;
@@ -884,6 +885,14 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
   }
 }
 
+impl<R: Runtime> raw_window_handle::HasDisplayHandle for Window<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.app_handle.display_handle()
+  }
+}
+
 impl<R: Runtime> Clone for Window<R> {
   fn clone(&self) -> Self {
     Self {
@@ -1573,7 +1582,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Determines if this window's native minize button should be enabled.
+  /// Determines if this window's native minimize button should be enabled.
   ///
   /// ## Platform-specific
   ///

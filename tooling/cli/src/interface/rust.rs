@@ -776,7 +776,7 @@ impl WindowsUpdateInstallMode {
 }
 
 #[derive(Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdaterWindowsConfig {
   #[serde(default, alias = "install-mode")]
   pub install_mode: WindowsUpdateInstallMode,

@@ -1,5 +1,50 @@
 # Changelog
 
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`7213b9e47`](https://www.github.com/tauri-apps/tauri/commit/7213b9e47242bef814aa7257e0bf84631bf5fe7e)([#9124](https://www.github.com/tauri-apps/tauri/pull/9124)) Add default permission for a plugin to capabilities when using `tauri add <plugin>`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-bundler@2.0.1-beta.6`
+
+## \[2.0.0-beta.9]
+
+### Bug Fixes
+
+- [`c3ea3a2b7`](https://www.github.com/tauri-apps/tauri/commit/c3ea3a2b7d2fe3085f05b63dd1feb962beb4b7b3)([#9126](https://www.github.com/tauri-apps/tauri/pull/9126)) Fix bundling when `plugins > updater > windows > installerArgs` are set in `tauri.conf.json`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+- Upgraded to `tauri-bundler@2.0.1-beta.5`
+
+## \[2.0.0-beta.8]
+
+### Enhancements
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Changed the permission and capability platforms to be optional.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-bundler@2.0.1-beta.4`
+
+## \[2.0.0-beta.7]
+
+### Enhancements
+
+- [`c68218b36`](https://www.github.com/tauri-apps/tauri/commit/c68218b362c417b62e56c7a2b5b32c13fe035a83)([#8990](https://www.github.com/tauri-apps/tauri/pull/8990)) Add `--no-bundle` flag for `tauri build` command to skip bundling. Previously `none` was used to skip bundling, it will now be treated as invalid format and a warning will be emitted instead.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-bundler@2.0.1-beta.3`
+- [`4f7894176`](https://www.github.com/tauri-apps/tauri/commit/4f789417630b8a32dcf9c0daec448ea8182daca1)([#9034](https://www.github.com/tauri-apps/tauri/pull/9034)) Update dependencies, fix `log` compilation issue.
+
 ## \[2.0.0-beta.6]
 
 ### Bug Fixes

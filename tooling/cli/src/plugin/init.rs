@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::helpers::prompts::input;
+use crate::helpers::prompts;
 use crate::Result;
 use crate::{
   helpers::{resolve_tauri_path, template},
@@ -26,7 +26,7 @@ pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
 #[clap(about = "Initialize a Tauri plugin project on an existing directory")]
 pub struct Options {
   /// Name of your Tauri plugin.
-  /// If not specified, it will be infered from the current directory.
+  /// If not specified, it will be inferred from the current directory.
   pub(crate) plugin_name: Option<String>,
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
@@ -141,7 +141,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let plugin_id = if options.android || options.mobile {
-      let plugin_id = input(
+      let plugin_id = prompts::input(
         "What should be the Android Package ID for your plugin?",
         Some(format!("com.plugin.{}", plugin_name)),
         false,

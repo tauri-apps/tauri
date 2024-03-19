@@ -5,12 +5,9 @@
 use crate::Result;
 
 use serde_json::{Map, Value};
-use tauri_utils::{
-  acl::{
-    capability::{Capability, PermissionEntry},
-    Scopes, Value as AclValue,
-  },
-  platform::Target,
+use tauri_utils::acl::{
+  capability::{Capability, PermissionEntry},
+  Scopes, Value as AclValue,
 };
 
 use std::{
@@ -52,13 +49,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         windows: vec!["main".into()],
         webviews: vec![],
         permissions,
-        platforms: vec![
-          Target::Linux,
-          Target::MacOS,
-          Target::Windows,
-          Target::Android,
-          Target::Ios,
-        ],
+        platforms: None,
       })?,
     )?;
 

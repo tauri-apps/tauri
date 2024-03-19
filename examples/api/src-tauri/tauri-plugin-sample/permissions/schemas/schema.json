@@ -139,14 +139,10 @@
         },
         "platforms": {
           "description": "Target platforms this permission applies. By default all platforms are affected by this permission.",
-          "default": [
-            "linux",
-            "macOS",
-            "windows",
-            "android",
-            "iOS"
+          "type": [
+            "array",
+            "null"
           ],
-          "type": "array",
           "items": {
             "$ref": "#/definitions/Target"
           }

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 pub mod app_paths;
+pub mod cargo;
 pub mod config;
 pub mod flock;
 pub mod framework;

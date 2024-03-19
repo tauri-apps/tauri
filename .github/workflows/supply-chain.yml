@@ -8,6 +8,7 @@ on:
       - dev
       - 1.x
     paths:
+      - '.github/workflows/supply-chain.yml'
       - '**/Cargo.lock'
       - '**/Cargo.toml'
 jobs:
@@ -34,6 +35,6 @@ jobs:
 
     - name: Invoke cargo-vet
       run: cargo vet --locked
-      
+
     - name: Provide audit suggestions
       run: cargo vet --locked suggestions

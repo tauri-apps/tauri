@@ -541,15 +541,16 @@ fn remove<R: Runtime>(
   item: (ResourceId, ItemKind),
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
-  let (rid, kind) = item;
+  let (item_rid, item_kind) = item;
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
-      do_menu_item!(resources_table, rid, kind, |i| menu.remove(&*i))?;
+      do_menu_item!(resources_table, item_rid, item_kind, |i| menu.remove(&*i))?;
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
-      do_menu_item!(resources_table, rid, kind, |i| submenu.remove(&*i))?;
+      do_menu_item!(resources_table, item_rid, item_kind, |i| submenu
+        .remove(&*i))?;
     }
     _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };

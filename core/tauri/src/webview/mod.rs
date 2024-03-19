@@ -629,15 +629,11 @@ tauri::Builder::default()
       webview_labels_array = serde_json::to_string(&app_manager.webview.labels())?,
     ))?;
 
-    app_manager.emit_filter(
+    app_manager.emit(
       "tauri://webview-created",
       Some(CreatedEvent {
         label: webview.label().into(),
       }),
-      |s| match s {
-        EventTarget::Webview { label } => label == webview.label(),
-        _ => false,
-      },
     )?;
 
     Ok(webview)

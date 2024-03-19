@@ -430,16 +430,11 @@ tauri::Builder::default()
       window_labels_array = serde_json::to_string(&app_manager.window.labels())?,
     ))?;
 
-    // TODO: filter is wrong
-    app_manager.emit_filter(
+    app_manager.emit(
       "tauri://window-created",
       Some(crate::webview::CreatedEvent {
         label: window.label().into(),
       }),
-      |s| match s {
-        EventTarget::Webview { label } => label == window.label(),
-        _ => false,
-      },
     )?;
 
     Ok(window)

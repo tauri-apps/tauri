@@ -610,23 +610,17 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("failed to run on_webview_created hook");
     }
 
-    // TODO: error handling?
-    let _ = webview.manager.webview.eval_script_all(format!(
+    if let Ok(webview_labels_array) = serde_json::to_string(&webview.manager.webview.labels()) {
+      let _ = webview.manager.webview.eval_script_all(format!(
       "window.__TAURI_INTERNALS__.metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      webview_labels_array = serde_json::to_string(&webview.manager.webview.labels()).unwrap_or_default(),
     ));
+    }
 
-    // TODO: error handling?
-    // TODO: Check filter logic
-    let _ = webview.manager.emit_filter(
+    let _ = webview.manager.emit(
       "tauri://webview-created",
       Some(crate::webview::CreatedEvent {
         label: webview.label().into(),
       }),
-      |s| match s {
-        EventTarget::Webview { label } => label == webview.label(),
-        _ => false,
-      },
     );
 
     webview

@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### Enhancements
+
+- [`ac76a22f3`](https://www.github.com/tauri-apps/tauri/commit/ac76a22f383028d9bacdedebeb41d3fca5ec9dac)([#9183](https://www.github.com/tauri-apps/tauri/pull/9183)) Allow empty responses for `devUrl`, `beforeDevCommand` and `beforeBuildCommands` questions in `tauri init`.
+- [`b525ddadf`](https://www.github.com/tauri-apps/tauri/commit/b525ddadf7e7588c3e195cf0f821c9862c545d06)([#9237](https://www.github.com/tauri-apps/tauri/pull/9237)) `openssl` is no longer a required dependency on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.7`
+
 ## \[2.0.0-beta.10]
 
 ### New Features

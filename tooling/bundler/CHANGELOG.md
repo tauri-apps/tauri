@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.1-beta.7]
+
+### Bug Fixes
+
+- [`a799f24f9`](https://www.github.com/tauri-apps/tauri/commit/a799f24f97e12c3f3fcdd1864fdd7c6559263fb7)([#9185](https://www.github.com/tauri-apps/tauri/pull/9185)) Fixed an issue that caused the msi bundler to crash when deep link schemes were configured.
+
 ## \[2.0.1-beta.6]
 
 ### Dependencies

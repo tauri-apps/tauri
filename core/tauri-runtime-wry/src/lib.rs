@@ -2634,8 +2634,16 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::Show => window.set_visible(true),
-          WindowMessage::Hide => window.set_visible(false),
+          WindowMessage::Show => {
+            window.set_visible(true);
+            #[cfg(windows)]
+            let _ = update_webview_visibility(&window, &webviews);
+          }
+          WindowMessage::Hide => {
+            window.set_visible(false);
+            #[cfg(windows)]
+            let _ = update_webview_visibility(&window, &webviews);
+          }
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -3208,7 +3216,7 @@ fn handle_event_loop<T: UserEvent>(
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
               let size = size.to_logical::<f32>(window.scale_factor());
-              for webview in webviews {
+              for webview in &webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
                   webview.set_bounds(wry::Rect {
                     x: (size.width * b.x_rate) as i32,
@@ -3218,6 +3226,8 @@ fn handle_event_loop<T: UserEvent>(
                   });
                 }
               }
+              #[cfg(windows)]
+              let _ = update_webview_visibility(&window, &webviews);
             }
           }
           _ => {}
@@ -3951,4 +3961,17 @@ fn clear_window_surface(
     buffer.fill(0);
     let _ = buffer.present();
   }
+}
+
+#[cfg(windows)]
+fn update_webview_visibility(
+  window: &Window,
+  webviews: &[WebviewWrapper],
+) -> windows::core::Result<()> {
+  let is_visible = window.is_visible() && !window.is_minimized();
+  for webview in webviews {
+    let controller = webview.controller();
+    unsafe { controller.SetIsVisible(is_visible) }?;
+  }
+  Ok(())
 }

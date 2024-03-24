@@ -25,7 +25,7 @@ log = "0.4"
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.29"
-softbuffer = "0.4"
+softbuffer = { version = "0.4", default-features = false }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.54"

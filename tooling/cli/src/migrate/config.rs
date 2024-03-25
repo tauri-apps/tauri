@@ -39,19 +39,27 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
     create_dir_all(&capabilities_path)?;
-    write(
-      capabilities_path.join("migrated.json"),
-      serde_json::to_string_pretty(&Capability {
-        identifier: "migrated".to_string(),
-        description: "permissions that were migrated from v1".into(),
-        local: true,
-        remote: None,
-        windows: vec!["main".into()],
-        webviews: vec![],
-        permissions,
-        platforms: None,
-      })?,
-    )?;
+    let migrated_capabilities = capabilities_path.join("migrated.json");
+    if !migrated_capabilities.exists() {
+      write(
+        migrated_capabilities,
+        serde_json::to_string_pretty(&Capability {
+          identifier: "migrated".to_string(),
+          description: "permissions that were migrated from v1".into(),
+          local: true,
+          remote: None,
+          windows: vec!["main".into()],
+          webviews: vec![],
+          permissions,
+          platforms: None,
+        })?,
+      )?;
+    } else {
+      log::info!(
+        "Skipping capabilities migration; migrated capabilities found in {}",
+        migrated_capabilities.display()
+      );
+    }
 
     return Ok(migrated);
   }

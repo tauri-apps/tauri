@@ -142,7 +142,14 @@ pub fn command(options: Options) -> Result<()> {
 
   let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)")?;
   for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
-    let contents = std::fs::read_to_string(&file)?;
+    let contents = std::fs::read_to_string(&file).or_else(|e| {
+      if e.kind() == std::io::ErrorKind::NotFound {
+        // It's acceptable to not find the file; should continue to the warning code below
+        Ok("".into())
+      } else {
+        Err(e)
+      }
+    })?;
 
     if contents.contains(&plugin_init) {
       log::info!(

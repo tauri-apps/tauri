@@ -351,10 +351,11 @@ fn new<R: Runtime>(
   handler: Channel,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
-  let mut resources_table = app.resources_table();
 
   let (rid, id) = match kind {
     ItemKind::Menu => {
+      // TODO: This doesn't work
+      let mut resources_table = app.resources_table();
       let mut builder = MenuBuilder::new(&app);
       if let Some(id) = options.id {
         builder = builder.id(id);
@@ -372,6 +373,8 @@ fn new<R: Runtime>(
     }
 
     ItemKind::Submenu => {
+      // TODO: This doesn't work
+      let mut resources_table = app.resources_table();
       let submenu = SubmenuPayload {
         id: options.id,
         text: options.text.unwrap_or_default(),
@@ -396,7 +399,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(item);
+      let rid = app.resources_table().add(item);
       (rid, id)
     }
 
@@ -407,7 +410,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(item);
+      let rid = app.resources_table().add(item);
       (rid, id)
     }
 
@@ -423,7 +426,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(item);
+      let rid = app.resources_table().add(item);
       (rid, id)
     }
 
@@ -439,7 +442,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(item);
+      let rid = app.resources_table().add(item);
       (rid, id)
     }
   };
@@ -838,8 +841,10 @@ fn set_icon<R: Runtime>(
   rid: ResourceId,
   icon: Option<Icon>,
 ) -> crate::Result<()> {
-  let resources_table = app.resources_table();
-  let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
+  let icon_item = {
+    let resources_table = app.resources_table();
+    resources_table.get::<IconMenuItem<R>>(rid)?
+  };
 
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),

@@ -48,6 +48,7 @@ export async function newMenu(
   kind: ItemKind,
   opts?: unknown
 ): Promise<[number, string]> {
+  console.log('newMenu')
   const handler = new Channel<string>()
   let items: null | Array<
     | [number, string]
@@ -62,6 +63,14 @@ export async function newMenu(
       handler.onmessage = opts.action as () => void
       delete opts.action
     }
+
+    if ('icon' in opts && opts.icon) {
+      // TODO:
+      // @ts-ignore
+      opts.icon = transformImage(opts.icon)
+    }
+
+    console.log(kind, opts)
 
     if ('items' in opts && opts.items) {
       items = (
@@ -84,6 +93,7 @@ export async function newMenu(
 
         if ('icon' in i && i.icon) {
           i.icon = transformImage(i.icon)
+          console.log('transformed', i.icon)
         }
 
         return injectChannel(i)
@@ -91,17 +101,15 @@ export async function newMenu(
     }
   }
 
+  const options = opts ? { ...opts, items } : undefined
+
+  console.log('options', options)
+
   return invoke('plugin:menu|new', {
     kind,
-    options: opts ? { ...opts, items } : undefined,
-    handler
-  })
-}
-
-export class MenuItemBase extends Resource {
-  /** @ignore */
-  readonly #id: string
-  /** @ignore */
+    options,
+  options: opts ? { ...opts, items } : undefined,
+* @ignore */
   readonly #kind: ItemKind
 
   /** The id of this item. */

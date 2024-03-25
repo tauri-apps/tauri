@@ -48,7 +48,6 @@ export async function newMenu(
   kind: ItemKind,
   opts?: unknown
 ): Promise<[number, string]> {
-  console.log('newMenu')
   const handler = new Channel<string>()
   let items: null | Array<
     | [number, string]
@@ -107,9 +106,15 @@ export async function newMenu(
 
   return invoke('plugin:menu|new', {
     kind,
-    options,
-  options: opts ? { ...opts, items } : undefined,
-* @ignore */
+    options: opts ? { ...opts, items } : undefined,
+    handler
+  })
+}
+
+export class MenuItemBase extends Resource {
+  /** @ignore */
+  readonly #id: string
+  /** @ignore */
   readonly #kind: ItemKind
 
   /** The id of this item. */

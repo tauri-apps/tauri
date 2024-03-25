@@ -207,22 +207,22 @@ fn generate_scripts(settings: &Settings, control_dir: &Path) -> crate::Result<()
   if let Some(scripts) = &settings.deb().scripts {
     if let Some(script_path) = &scripts.pre_install {
       let dest_path = control_dir.join("preinst");
-      create_script_file_from_path(&script_path, &dest_path)?
+      create_script_file_from_path(script_path, &dest_path)?
     }
 
     if let Some(script_path) = &scripts.post_install {
       let dest_path = control_dir.join("postinst");
-      create_script_file_from_path(&script_path, &dest_path)?
+      create_script_file_from_path(script_path, &dest_path)?
     }
 
     if let Some(script_path) = &scripts.pre_remove {
       let dest_path = control_dir.join("prerm");
-      create_script_file_from_path(&script_path, &dest_path)?
+      create_script_file_from_path(script_path, &dest_path)?
     }
 
     if let Some(script_path) = &scripts.post_remove {
       let dest_path = control_dir.join("postrm");
-      create_script_file_from_path(&script_path, &dest_path)?
+      create_script_file_from_path(script_path, &dest_path)?
     }
   }
   Ok(())
@@ -232,6 +232,7 @@ fn create_script_file_from_path(from: &PathBuf, to: &PathBuf) -> crate::Result<(
   let mut from = File::open(from)?;
   let mut file = OpenOptions::new()
     .create(true)
+    .truncate(true)
     .write(true)
     .mode(0o755)
     .open(to)?;

@@ -336,8 +336,40 @@ fn build_nsis_app_installer(
     .collect::<Vec<_>>();
   resources_ancestors.sort_unstable();
   resources_ancestors.dedup();
+
+  #[cfg(target_os = "windows")]
   resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
+  // Path:components() requires the OS native separators.
+  #[cfg(not(target_os = "windows"))]
+  resources_ancestors
+    .sort_by_key(|p| std::cmp::Reverse(p.display().to_string().matches('/').count()));
+
   resources_ancestors.pop(); // Last one is always ""
+
+  // We need to convert / to \ for nsis to move the files into the correct dirs
+  #[cfg(not(target_os = "windows"))]
+  let resources: ResourcesMap = resources
+    .into_iter()
+    .map(|(r, p)| {
+      (
+        r,
+        (
+          p.0.display().to_string().replace('/', "\\").into(),
+          p.1.display().to_string().replace('/', "\\").into(),
+        ),
+      )
+    })
+    .collect();
+  #[cfg(not(target_os = "windows"))]
+  let resources_ancestors: Vec<PathBuf> = resources_ancestors
+    .into_iter()
+    .map(|p| p.display().to_string().replace('/', "\\").into())
+    .collect();
+  #[cfg(not(target_os = "windows"))]
+  let resources_dirs: Vec<PathBuf> = resources_dirs
+    .into_iter()
+    .map(|p| p.display().to_string().replace('/', "\\").into())
+    .collect();
 
   data.insert("resources_ancestors", to_json(resources_ancestors));
   data.insert("resources_dirs", to_json(resources_dirs));

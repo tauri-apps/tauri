@@ -436,14 +436,12 @@ impl WindowEventWrapper {
       // because wry replaces the NSView
       TaoWindowEvent::Resized(_) => {
         if let Some(w) = &window.inner {
-          Self(Some(WindowEvent::Resized(
-            PhysicalSizeWrapper(inner_size(
-              w,
-              &window.webviews,
-              window.has_children.load(Ordering::Relaxed),
-            ))
-            .into(),
-          )))
+          let size = inner_size(
+            w,
+            &window.webviews,
+            window.has_children.load(Ordering::Relaxed),
+          );
+          Self(Some(WindowEvent::Resized(PhysicalSizeWrapper(size).into())))
         } else {
           Self(None)
         }
@@ -3915,7 +3913,7 @@ fn inner_size(
   webviews: &[WebviewWrapper],
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
-  if has_children && webviews.len() == 1 {
+  if !has_children {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };

@@ -13,7 +13,7 @@ use super::{ResourceId, ResourceScope};
 #[command(root = "crate")]
 fn close<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<()> {
   let scope = ResourceScope::webview(webview.label());
-  webview.resources_table().close(scope, rid)
+  webview.resources_table().close(rid, scope)
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {

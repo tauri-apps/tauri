@@ -142,7 +142,7 @@ mod desktop_commands {
     window
       .set_icon(
         value
-          .into_img(ResourceScope::webview(webview.label()), &window)?
+          .into_img(&window, ResourceScope::webview(webview.label()))?
           .as_ref()
           .clone(),
       )

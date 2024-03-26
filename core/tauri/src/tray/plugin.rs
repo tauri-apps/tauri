@@ -54,18 +54,18 @@ fn new<R: Runtime>(
   if let Some((rid, kind)) = options.menu {
     match kind {
       ItemKind::Menu => {
-        let menu = resources_table.get::<Menu<R>>(scope.clone(), rid)?;
+        let menu = resources_table.get::<Menu<R>>(rid, scope.clone())?;
         builder = builder.menu(&*menu);
       }
       ItemKind::Submenu => {
-        let submenu = resources_table.get::<Submenu<R>>(scope.clone(), rid)?;
+        let submenu = resources_table.get::<Submenu<R>>(rid, scope.clone())?;
         builder = builder.menu(&*submenu);
       }
       _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(icon.into_img(scope.clone(), &webview)?.as_ref().clone());
+    builder = builder.icon(icon.into_img(&webview, scope.clone())?.as_ref().clone());
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -85,7 +85,7 @@ fn new<R: Runtime>(
 
   let tray = builder.build(&webview)?;
   let id = tray.id().as_ref().to_string();
-  let rid = resources_table.add(scope, tray);
+  let rid = resources_table.add(tray, scope);
 
   Ok((rid, id))
 }
@@ -99,8 +99,7 @@ fn get_by_id<R: Runtime>(
   let tray = app.tray_by_id(id);
   let maybe_rid = tray.map(|tray| {
     let mut resources_table = webview.resources_table();
-    let scope = ResourceScope::webview(webview.label());
-    resources_table.add(scope, tray)
+    resources_table.add(tray, ResourceScope::webview(webview.label()))
   });
   Ok(maybe_rid)
 }
@@ -122,9 +121,9 @@ fn set_icon<R: Runtime>(
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope.clone(), rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, scope.clone())?;
   let icon = match icon {
-    Some(i) => Some(i.into_img(scope, &webview)?.as_ref().clone()),
+    Some(i) => Some(i.into_img(&webview, scope)?.as_ref().clone()),
     None => None,
   };
   tray.set_icon(icon)
@@ -138,15 +137,15 @@ fn set_menu<R: Runtime>(
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope.clone(), rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, scope.clone())?;
   if let Some((rid, kind)) = menu {
     match kind {
       ItemKind::Menu => {
-        let menu = resources_table.get::<Menu<R>>(scope, rid)?;
+        let menu = resources_table.get::<Menu<R>>(rid, scope)?;
         tray.set_menu(Some((*menu).clone()))?;
       }
       ItemKind::Submenu => {
-        let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+        let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
         tray.set_menu(Some((*submenu).clone()))?;
       }
       _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
@@ -164,8 +163,7 @@ fn set_tooltip<R: Runtime>(
   tooltip: Option<String>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope, rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, ResourceScope::webview(webview.label()))?;
   tray.set_tooltip(tooltip)
 }
 
@@ -176,8 +174,7 @@ fn set_title<R: Runtime>(
   title: Option<String>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope, rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, ResourceScope::webview(webview.label()))?;
   tray.set_title(title)
 }
 
@@ -188,8 +185,7 @@ fn set_visible<R: Runtime>(
   visible: bool,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope, rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, ResourceScope::webview(webview.label()))?;
   tray.set_visible(visible)
 }
 
@@ -200,8 +196,7 @@ fn set_temp_dir_path<R: Runtime>(
   path: Option<PathBuf>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope, rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, ResourceScope::webview(webview.label()))?;
   tray.set_temp_dir_path(path)
 }
 
@@ -212,8 +207,7 @@ fn set_icon_as_template<R: Runtime>(
   as_template: bool,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope, rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, ResourceScope::webview(webview.label()))?;
   tray.set_icon_as_template(as_template)
 }
 
@@ -224,8 +218,7 @@ fn set_show_menu_on_left_click<R: Runtime>(
   on_left: bool,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let scope = ResourceScope::webview(webview.label());
-  let tray = resources_table.get::<TrayIcon<R>>(scope, rid)?;
+  let tray = resources_table.get::<TrayIcon<R>>(rid, ResourceScope::webview(webview.label()))?;
   tray.set_show_menu_on_left_click(on_left)
 }
 

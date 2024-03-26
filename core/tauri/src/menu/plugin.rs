@@ -51,11 +51,11 @@ pub(crate) struct AboutMetadata {
 impl AboutMetadata {
   pub fn into_metdata<R: Runtime, M: Manager<R>>(
     self,
-    scope: ResourceScope,
     app: &M,
+    scope: ResourceScope,
   ) -> crate::Result<super::AboutMetadata<'_>> {
     let icon = match self.icon {
-      Some(i) => Some(i.into_img(scope, app)?.as_ref().clone()),
+      Some(i) => Some(i.into_img(app, scope)?.as_ref().clone()),
       None => None,
     };
 
@@ -202,7 +202,7 @@ impl IconMenuItemPayload {
       Icon::Native(native_icon) => builder.native_icon(native_icon),
       Icon::Icon(icon) => builder.icon(
         icon
-          .into_img(ResourceScope::webview(webview.label()), webview)?
+          .into_img(webview, ResourceScope::webview(webview.label()))?
           .as_ref()
           .clone(),
       ),
@@ -292,7 +292,7 @@ impl PredefinedMenuItemPayload {
       Predefined::Quit => PredefinedMenuItem::quit(webview, self.text.as_deref()),
       Predefined::About(metadata) => {
         let metadata = match metadata {
-          Some(m) => Some(m.into_metdata(ResourceScope::webview(webview.label()), webview)?),
+          Some(m) => Some(m.into_metdata(webview, ResourceScope::webview(webview.label()))?),
           None => None,
         };
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
@@ -323,7 +323,7 @@ impl MenuItemPayloadKind {
     match self {
       Self::ExistingItem((rid, kind)) => {
         let scope = ResourceScope::webview(webview.label());
-        do_menu_item!(resources_table, scope, rid, kind, |i| f(&*i))
+        do_menu_item!(resources_table, rid, scope, kind, |i| f(&*i))
       }
       Self::Submenu(i) => f(&i.create_item(webview, resources_table)?),
       Self::Predefined(i) => f(&i.create_item(webview)?),
@@ -374,7 +374,7 @@ fn new<R: Runtime>(
       }
       let menu = builder.build()?;
       let id = menu.id().clone();
-      let rid = resources_table.add(scope, menu);
+      let rid = resources_table.add(menu, scope);
 
       (rid, id)
     }
@@ -388,7 +388,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview, &resources_table)?;
       let id = submenu.id().clone();
-      let rid = resources_table.add(scope, submenu);
+      let rid = resources_table.add(submenu, scope);
 
       (rid, id)
     }
@@ -404,7 +404,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(scope, item);
+      let rid = resources_table.add(item, scope);
       (rid, id)
     }
 
@@ -415,7 +415,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(scope, item);
+      let rid = resources_table.add(item, scope);
       (rid, id)
     }
 
@@ -431,7 +431,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(scope, item);
+      let rid = resources_table.add(item, scope);
       (rid, id)
     }
 
@@ -447,7 +447,7 @@ fn new<R: Runtime>(
       }
       .create_item(&webview)?;
       let id = item.id().clone();
-      let rid = resources_table.add(scope, item);
+      let rid = resources_table.add(item, scope);
       (rid, id)
     }
   };
@@ -468,13 +468,13 @@ fn append<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(scope, rid)?;
+      let menu = resources_table.get::<Menu<R>>(rid, scope)?;
       for item in items {
         item.with_item(&webview, &resources_table, |i| menu.append(i))?;
       }
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+      let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
       for item in items {
         item.with_item(&webview, &resources_table, |i| submenu.append(i))?;
       }
@@ -496,13 +496,13 @@ fn prepend<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(scope, rid)?;
+      let menu = resources_table.get::<Menu<R>>(rid, scope)?;
       for item in items {
         item.with_item(&webview, &resources_table, |i| menu.prepend(i))?;
       }
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+      let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
       for item in items {
         item.with_item(&webview, &resources_table, |i| submenu.prepend(i))?;
       }
@@ -525,14 +525,14 @@ fn insert<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(scope, rid)?;
+      let menu = resources_table.get::<Menu<R>>(rid, scope)?;
       for item in items {
         item.with_item(&webview, &resources_table, |i| menu.insert(i, position))?;
         position += 1
       }
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+      let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
       for item in items {
         item.with_item(&webview, &resources_table, |i| submenu.insert(i, position))?;
         position += 1
@@ -556,14 +556,14 @@ fn remove<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(scope.clone(), rid)?;
-      do_menu_item!(resources_table, scope, item_rid, item_kind, |i| {
+      let menu = resources_table.get::<Menu<R>>(rid, scope.clone())?;
+      do_menu_item!(resources_table, item_rid, scope, item_kind, |i| {
         menu.remove(&*i)
       })?;
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(scope.clone(), rid)?;
-      do_menu_item!(resources_table, scope, item_rid, item_kind, |i| {
+      let submenu = resources_table.get::<Submenu<R>>(rid, scope.clone())?;
+      do_menu_item!(resources_table, item_rid, scope, item_kind, |i| {
         submenu.remove(&*i)
       })?;
     }
@@ -577,11 +577,11 @@ macro_rules! make_item_resource {
   ($resources_table:ident, $item:ident, $scope:ident) => {{
     let id = $item.id().clone();
     let (rid, kind) = match $item {
-      MenuItemKind::MenuItem(i) => ($resources_table.add($scope, i), ItemKind::MenuItem),
-      MenuItemKind::Submenu(i) => ($resources_table.add($scope, i), ItemKind::Submenu),
-      MenuItemKind::Predefined(i) => ($resources_table.add($scope, i), ItemKind::Predefined),
-      MenuItemKind::Check(i) => ($resources_table.add($scope, i), ItemKind::Check),
-      MenuItemKind::Icon(i) => ($resources_table.add($scope, i), ItemKind::Icon),
+      MenuItemKind::MenuItem(i) => ($resources_table.add(i, $scope), ItemKind::MenuItem),
+      MenuItemKind::Submenu(i) => ($resources_table.add(i, $scope), ItemKind::Submenu),
+      MenuItemKind::Predefined(i) => ($resources_table.add(i, $scope), ItemKind::Predefined),
+      MenuItemKind::Check(i) => ($resources_table.add(i, $scope), ItemKind::Check),
+      MenuItemKind::Icon(i) => ($resources_table.add(i, $scope), ItemKind::Icon),
     };
     (rid, id, kind)
   }};
@@ -598,13 +598,13 @@ fn remove_at<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(scope.clone(), rid)?;
+      let menu = resources_table.get::<Menu<R>>(rid, scope.clone())?;
       if let Some(item) = menu.remove_at(position)? {
         return Ok(Some(make_item_resource!(resources_table, item, scope)));
       }
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(scope.clone(), rid)?;
+      let submenu = resources_table.get::<Submenu<R>>(rid, scope.clone())?;
       if let Some(item) = submenu.remove_at(position)? {
         return Ok(Some(make_item_resource!(resources_table, item, scope)));
       }
@@ -625,10 +625,10 @@ fn items<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   let items = match kind {
     ItemKind::Menu => resources_table
-      .get::<Menu<R>>(scope.clone(), rid)?
+      .get::<Menu<R>>(rid, scope.clone())?
       .items()?,
     ItemKind::Submenu => resources_table
-      .get::<Submenu<R>>(scope.clone(), rid)?
+      .get::<Submenu<R>>(rid, scope.clone())?
       .items()?,
     _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
@@ -655,13 +655,13 @@ fn get<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(scope.clone(), rid)?;
+      let menu = resources_table.get::<Menu<R>>(rid, scope.clone())?;
       if let Some(item) = menu.get(&id) {
         return Ok(Some(make_item_resource!(resources_table, item, scope)));
       }
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(scope.clone(), rid)?;
+      let submenu = resources_table.get::<Submenu<R>>(rid, scope.clone())?;
       if let Some(item) = submenu.get(&id) {
         return Ok(Some(make_item_resource!(resources_table, item, scope)));
       }
@@ -690,11 +690,11 @@ async fn popup<R: Runtime>(
     let resources_table = webview.resources_table();
     match kind {
       ItemKind::Menu => {
-        let menu = resources_table.get::<Menu<R>>(scope, rid)?;
+        let menu = resources_table.get::<Menu<R>>(rid, scope)?;
         menu.popup_inner(window, at)?;
       }
       ItemKind::Submenu => {
-        let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+        let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
         submenu.popup_inner(window, at)?;
       }
       _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
@@ -713,7 +713,7 @@ fn create_default<R: Runtime>(
   let menu = Menu::default(&app)?;
   let id = menu.id().clone();
   let scope = ResourceScope::webview(webview.label());
-  let rid = resources_table.add(scope, menu);
+  let rid = resources_table.add(menu, scope);
   Ok((rid, id))
 }
 
@@ -724,10 +724,10 @@ async fn set_as_app_menu<R: Runtime>(
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
   let mut resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  let menu = resources_table.get::<Menu<R>>(scope.clone(), rid)?;
+  let menu = resources_table.get::<Menu<R>>(rid, scope.clone())?;
   if let Some(menu) = menu.set_as_app_menu()? {
     let id = menu.id().clone();
-    let rid = resources_table.add(scope, menu);
+    let rid = resources_table.add(menu, scope);
     return Ok(Some((rid, id)));
   }
   Ok(None)
@@ -747,10 +747,10 @@ async fn set_as_window_menu<R: Runtime>(
   if let Some(window) = window {
     let mut resources_table = webview.resources_table();
     let scope = ResourceScope::webview(webview.label());
-    let menu = resources_table.get::<Menu<R>>(scope.clone(), rid)?;
+    let menu = resources_table.get::<Menu<R>>(rid, scope.clone())?;
     if let Some(menu) = menu.set_as_window_menu(&window)? {
       let id = menu.id().clone();
-      let rid = resources_table.add(scope, menu);
+      let rid = resources_table.add(menu, scope);
       return Ok(Some((rid, id)));
     }
   }
@@ -761,7 +761,7 @@ async fn set_as_window_menu<R: Runtime>(
 fn text<R: Runtime>(webview: Webview<R>, rid: ResourceId, kind: ItemKind) -> crate::Result<String> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  do_menu_item!(resources_table, scope, rid, kind, |i| i.text())
+  do_menu_item!(resources_table, rid, scope, kind, |i| i.text())
 }
 
 #[command(root = "crate")]
@@ -773,7 +773,7 @@ fn set_text<R: Runtime>(
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  do_menu_item!(resources_table, scope, rid, kind, |i| i.set_text(text))
+  do_menu_item!(resources_table, rid, scope, kind, |i| i.set_text(text))
 }
 
 #[command(root = "crate")]
@@ -786,8 +786,8 @@ fn is_enabled<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   do_menu_item!(
     resources_table,
-    scope,
     rid,
+    scope,
     kind,
     |i| i.is_enabled(),
     !Predefined
@@ -805,8 +805,8 @@ fn set_enabled<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   do_menu_item!(
     resources_table,
-    scope,
     rid,
+    scope,
     kind,
     |i| i.set_enabled(enabled),
     !Predefined
@@ -824,8 +824,8 @@ fn set_accelerator<R: Runtime>(
   let scope = ResourceScope::webview(webview.label());
   do_menu_item!(
     resources_table,
-    scope,
     rid,
+    scope,
     kind,
     |i| i.set_accelerator(accelerator),
     !Predefined | !Submenu
@@ -841,7 +841,7 @@ fn set_as_windows_menu_for_nsapp<R: Runtime>(
   {
     let resources_table = webview.resources_table();
     let scope = ResourceScope::webview(webview.label());
-    let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+    let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
     submenu.set_as_help_menu_for_nsapp()?;
   }
 
@@ -859,7 +859,7 @@ fn set_as_help_menu_for_nsapp<R: Runtime>(
   {
     let resources_table = webview.resources_table();
     let scope = ResourceScope::webview(webview.label());
-    let submenu = resources_table.get::<Submenu<R>>(scope, rid)?;
+    let submenu = resources_table.get::<Submenu<R>>(rid, scope)?;
     submenu.set_as_help_menu_for_nsapp()?;
   }
 
@@ -873,7 +873,7 @@ fn set_as_help_menu_for_nsapp<R: Runtime>(
 fn is_checked<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<bool> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  let check_item = resources_table.get::<CheckMenuItem<R>>(scope, rid)?;
+  let check_item = resources_table.get::<CheckMenuItem<R>>(rid, scope)?;
   check_item.is_checked()
 }
 
@@ -885,7 +885,7 @@ fn set_checked<R: Runtime>(
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  let check_item = resources_table.get::<CheckMenuItem<R>>(scope, rid)?;
+  let check_item = resources_table.get::<CheckMenuItem<R>>(rid, scope)?;
   check_item.set_checked(checked)
 }
 
@@ -897,12 +897,12 @@ fn set_icon<R: Runtime>(
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   let scope = ResourceScope::webview(webview.label());
-  let icon_item = resources_table.get::<IconMenuItem<R>>(scope.clone(), rid)?;
+  let icon_item = resources_table.get::<IconMenuItem<R>>(rid, scope.clone())?;
 
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
     Some(Icon::Icon(icon)) => {
-      icon_item.set_icon(Some(icon.into_img(scope, &webview)?.as_ref().clone()))
+      icon_item.set_icon(Some(icon.into_img(&webview, scope)?.as_ref().clone()))
     }
     None => {
       icon_item.set_icon(None)?;

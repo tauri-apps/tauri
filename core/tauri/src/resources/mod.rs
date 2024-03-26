@@ -113,8 +113,8 @@ impl ResourceTable {
   /// when retrieving it through `get()`.
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
-  pub fn add<T: Resource>(&mut self, scope: impl Into<ResourceScope>, resource: T) -> ResourceId {
-    self.add_arc(scope, Arc::new(resource))
+  pub fn add<T: Resource>(&mut self, resource: T, scope: impl Into<ResourceScope>) -> ResourceId {
+    self.add_arc(Arc::new(resource), scope)
   }
 
   /// Inserts a `Arc`-wrapped resource into the resource table.
@@ -125,20 +125,11 @@ impl ResourceTable {
   /// Returns a unique resource ID, which acts as a key for this resource.
   pub fn add_arc<T: Resource>(
     &mut self,
-    scope: impl Into<ResourceScope>,
     resource: Arc<T>,
+    scope: impl Into<ResourceScope>,
   ) -> ResourceId {
     let resource = resource as Arc<dyn Resource>;
-    self.add_arc_dyn(scope, resource)
-  }
-
-  /// Returns true if any resource with the given `rid` exists.
-  pub fn has(&self, scope: impl Into<ResourceScope>, rid: ResourceId) -> bool {
-    self
-      .index
-      .get(&scope.into())
-      .map(|s| s.contains_key(&rid))
-      .unwrap_or(false)
+    self.add_arc_dyn(resource, scope)
   }
 
   /// Inserts a `Arc`-wrapped resource into the resource table.
@@ -149,8 +140,8 @@ impl ResourceTable {
   /// Returns a unique resource ID, which acts as a key for this resource.
   pub fn add_arc_dyn(
     &mut self,
-    scope: impl Into<ResourceScope>,
     resource: Arc<dyn Resource>,
+    scope: impl Into<ResourceScope>,
   ) -> ResourceId {
     let rid = self.next_rid;
     let removed_resource = self
@@ -163,13 +154,18 @@ impl ResourceTable {
     rid
   }
 
+  /// Returns true if any resource with the given `rid` exists.
+  pub fn has(&self, rid: ResourceId) -> bool {
+    self.index.values().any(|m| m.contains_key(&rid))
+  }
+
   /// Returns a reference counted pointer to the resource of type `T` with the
   /// given `rid`. If `rid` is not present or has a type different than `T`,
   /// this function returns [`Error::BadResourceId`](crate::Error::BadResourceId).
   pub fn get<T: Resource>(
     &self,
-    scope: impl Into<ResourceScope>,
     rid: ResourceId,
+    scope: impl Into<ResourceScope>,
   ) -> crate::Result<Arc<T>> {
     self
       .index
@@ -184,8 +180,8 @@ impl ResourceTable {
   /// If `rid` is not present, this function returns [`Error::BadResourceId`].
   pub fn get_any(
     &self,
-    scope: impl Into<ResourceScope>,
     rid: ResourceId,
+    scope: impl Into<ResourceScope>,
   ) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
@@ -200,9 +196,9 @@ impl ResourceTable {
   /// Panics if the resource does not exist.
   pub fn replace<T: Resource>(
     &mut self,
-    scope: impl Into<ResourceScope>,
     rid: ResourceId,
     resource: T,
+    scope: impl Into<ResourceScope>,
   ) {
     let result = self
       .index
@@ -224,11 +220,11 @@ impl ResourceTable {
   /// type `T` from `Arc<T>`.
   pub fn take<T: Resource>(
     &mut self,
-    scope: impl Into<ResourceScope>,
     rid: ResourceId,
+    scope: impl Into<ResourceScope>,
   ) -> crate::Result<Arc<T>> {
     let scope = scope.into();
-    let resource = self.get::<T>(scope.clone(), rid)?;
+    let resource = self.get::<T>(rid, scope.clone())?;
     self.index.entry(scope).or_default().remove(&rid);
     Ok(resource)
   }
@@ -243,8 +239,8 @@ impl ResourceTable {
   /// inner value of type `T` from `Arc<T>`.
   pub fn take_any(
     &mut self,
-    scope: impl Into<ResourceScope>,
     rid: ResourceId,
+    scope: impl Into<ResourceScope>,
   ) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
@@ -271,7 +267,7 @@ impl ResourceTable {
   /// counted, therefore pending ops are not automatically cancelled. A resource
   /// may implement the `close()` method to perform clean-ups such as canceling
   /// ops.
-  pub fn close(&mut self, scope: impl Into<ResourceScope>, rid: ResourceId) -> crate::Result<()> {
+  pub fn close(&mut self, rid: ResourceId, scope: impl Into<ResourceScope>) -> crate::Result<()> {
     self
       .index
       .entry(scope.into())

@@ -94,19 +94,19 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// Accepts a closure-like syntax to call arbitrary code on a menu item
 /// after matching against `kind` and retrieving it from `resources_table` using `rid`.
 ///
-/// You can optionally pass a third parameter to select which item kinds
+/// You can optionally pass a sixth parameter to select which item kinds
 /// to match against, by providing a `|` separated list of item kinds
 /// ```ignore
-/// do_menu_item!(|i| i.set_text(text), Check | Submenu);
+/// do_menu_item!(resources_table, scope, rid, kind, |i| i.set_text(text), Check | Submenu);
 /// ```
 /// You could also provide a negated list
 /// ```ignore
-/// do_menu_item!(|i| i.set_text(text), !Check);
-/// do_menu_item!(|i| i.set_text(text), !Check | !Submenu);
+/// do_menu_item!(resources_table, scope, rid, kind, |i| i.set_text(text), !Check);
+/// do_menu_item!(resources_table, scope, rid, kind, |i| i.set_text(text), !Check | !Submenu);
 /// ```
 /// but you can't have mixed negations and positive kinds.
 /// ```ignore
-/// do_menu_item!(|i| i.set_text(text), !Check | Submeun);
+/// do_menu_item!(resources_table, scope, rid, kind, |i| i.set_text(text), !Check | Submeun);
 /// ```
 ///
 /// #### Example
@@ -115,32 +115,34 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 ///  let rid = 23;
 ///  let kind = ItemKind::Check;
 ///  let resources_table = app.resources_table();
-///  do_menu_item!(|i| i.set_text(text))
+///  let scope = ResourceScope::webview(webview.label());
+///  do_menu_item!(resources_table, scope, rid, kind, |i| i.set_text(text))
 /// ```
 /// which will expand into:
 /// ```ignore
 ///  let rid = 23;
 ///  let kind = ItemKind::Check;
 ///  let resources_table = app.resources_table();
+///  let scope = ResourceScope::webview(webview.label());
 ///  match kind {
 ///  ItemKind::Submenu => {
-///    let i = resources_table.get::<Submenu<R>>(rid)?;
+///    let i = resources_table.get::<Submenu<R>>(scope, rid)?;
 ///    i.set_text(text)
 ///  }
 ///  ItemKind::MenuItem => {
-///    let i = resources_table.get::<MenuItem<R>>(rid)?;
+///    let i = resources_table.get::<MenuItem<R>>(scope, rid)?;
 ///    i.set_text(text)
 ///  }
 ///  ItemKind::Predefined => {
-///    let i = resources_table.get::<PredefinedMenuItem<R>>(rid)?;
+///    let i = resources_table.get::<PredefinedMenuItem<R>>(scope, rid)?;
 ///    i.set_text(text)
 ///  }
 ///  ItemKind::Check => {
-///    let i = resources_table.get::<CheckMenuItem<R>>(rid)?;
+///    let i = resources_table.get::<CheckMenuItem<R>>(scope, rid)?;
 ///    i.set_text(text)
 ///  }
 ///  ItemKind::Icon => {
-///    let i = resources_table.get::<IconMenuItem<R>>(rid)?;
+///    let i = resources_table.get::<IconMenuItem<R>>(scope, rid)?;
 ///    i.set_text(text)
 ///  }
 ///  _ => unreachable!(),

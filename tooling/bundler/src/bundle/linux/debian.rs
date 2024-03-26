@@ -204,26 +204,24 @@ fn generate_control_file(
 }
 
 fn generate_scripts(settings: &Settings, control_dir: &Path) -> crate::Result<()> {
-  if let Some(scripts) = &settings.deb().scripts {
-    if let Some(script_path) = &scripts.pre_install {
-      let dest_path = control_dir.join("preinst");
-      create_script_file_from_path(script_path, &dest_path)?
-    }
+  if let Some(script_path) = &settings.deb().pre_install_script {
+    let dest_path = control_dir.join("preinst");
+    create_script_file_from_path(script_path, &dest_path)?
+  }
 
-    if let Some(script_path) = &scripts.post_install {
-      let dest_path = control_dir.join("postinst");
-      create_script_file_from_path(script_path, &dest_path)?
-    }
+  if let Some(script_path) = &settings.deb().post_install_script {
+    let dest_path = control_dir.join("postinst");
+    create_script_file_from_path(script_path, &dest_path)?
+  }
 
-    if let Some(script_path) = &scripts.pre_remove {
-      let dest_path = control_dir.join("prerm");
-      create_script_file_from_path(script_path, &dest_path)?
-    }
+  if let Some(script_path) = &settings.deb().pre_remove_script {
+    let dest_path = control_dir.join("prerm");
+    create_script_file_from_path(script_path, &dest_path)?
+  }
 
-    if let Some(script_path) = &scripts.post_remove {
-      let dest_path = control_dir.join("postrm");
-      create_script_file_from_path(script_path, &dest_path)?
-    }
+  if let Some(script_path) = &settings.deb().post_remove_script {
+    let dest_path = control_dir.join("postrm");
+    create_script_file_from_path(script_path, &dest_path)?
   }
   Ok(())
 }

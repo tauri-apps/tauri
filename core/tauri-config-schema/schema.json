@@ -2458,47 +2458,29 @@
             "null"
           ]
         },
-        "scripts": {
-          "description": "Path to scripts that will be executed during installation or removal.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/DebScripts"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "DebScripts": {
-      "description": "Debian script settings. Specify scripts that will be executed during installation or removal process https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
-      "type": "object",
-      "properties": {
-        "preInstall": {
-          "description": "pre_install is called before (a particular version of) a package is unpacked.",
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
           "type": [
             "string",
             "null"
           ]
         },
-        "postInstall": {
-          "description": "post_install is called after (a particular version of) a package is unpacked.",
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
           "type": [
             "string",
             "null"
           ]
         },
-        "preRemove": {
-          "description": "pre_remove is called before (a particular version of) a package is removed.",
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
           "type": [
             "string",
             "null"
           ]
         },
-        "postRemove": {
-          "description": "post_remove is called after (a particular version of) a package is removed.",
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
           "type": [
             "string",
             "null"
@@ -2548,47 +2530,29 @@
             "null"
           ]
         },
-        "scripts": {
-          "description": "Path to scripts that will be executed during installation or removal.",
-          "anyOf": [
-            {
-              "$ref": "#/definitions/RpmScripts"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "RpmScripts": {
-      "description": "RPM script settings. Specify scripts that will be executed during installation or removal process http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
-      "type": "object",
-      "properties": {
-        "preInstall": {
-          "description": "pre_install is called before (a particular version of) a package is unpacked.",
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"
           ]
         },
-        "postInstall": {
-          "description": "post_install is called after (a particular version of) a package is unpacked.",
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"
           ]
         },
-        "preRemove": {
-          "description": "pre_remove is called before (a particular version of) a package is removed.",
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"
           ]
         },
-        "postRemove": {
-          "description": "post_remove is called after (a particular version of) a package is removed.",
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"

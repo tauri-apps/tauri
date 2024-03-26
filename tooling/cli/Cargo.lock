@@ -294,6 +294,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
+name = "bcder"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c627747a6774aab38beb35990d88309481378558875a41da1a4b2e373c906ef0"
+dependencies = [
+ "bytes",
+ "smallvec",
+]
+
+[[package]]
 name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -473,9 +483,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.10.3"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b4151a9a0e09e3acc2695c326cfdcf0b5ce5b04ab617cea6405a085f639b001"
+checksum = "e6eb3459f8fb1fd0e12ca229db09cd763befe00827061cc5aaf6bdf173dad37c"
 dependencies = [
  "colored",
  "core-foundation",
@@ -486,14 +496,13 @@ dependencies = [
  "english-numbers",
  "freedesktop_entry_parser",
  "handlebars 4.5.0",
- "heck",
+ "heck 0.5.0",
  "home",
  "ignore",
  "java-properties",
  "libc",
  "log",
  "once-cell-regex",
- "openssl",
  "os_info",
  "os_pipe",
  "path_abs",
@@ -505,6 +514,7 @@ dependencies = [
  "ureq",
  "which",
  "windows",
+ "x509-certificate",
 ]
 
 [[package]]
@@ -613,7 +623,7 @@ version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "307bc0538d5f0f83b8248db3087aa92fe504e4691294d0c96c0eabc33f47ba47"
 dependencies = [
- "heck",
+ "heck 0.4.1",
  "proc-macro2",
  "quote",
  "syn 2.0.52",
@@ -1835,6 +1845,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "heck"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
 name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2032,7 +2048,7 @@ dependencies = [
  "iana-time-zone-haiku",
  "js-sys",
  "wasm-bindgen",
- "windows-core",
+ "windows-core 0.52.0",
 ]
 
 [[package]]
@@ -3231,6 +3247,16 @@ checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
 dependencies = [
  "digest 0.10.7",
  "hmac",
+]
+
+[[package]]
+name = "pem"
+version = "3.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1b8fcc794035347fb64beda2d3b462595dd2753e3f268d89c5aae77e8cf2c310"
+dependencies = [
+ "base64 0.21.7",
+ "serde",
 ]
 
 [[package]]
@@ -4830,7 +4856,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-beta.5"
+version = "2.0.1-beta.7"
 dependencies = [
  "anyhow",
  "ar",
@@ -4840,7 +4866,7 @@ dependencies = [
  "flate2",
  "glob",
  "handlebars 5.1.0",
- "heck",
+ "heck 0.4.1",
  "hex",
  "image",
  "log",
@@ -4858,7 +4884,7 @@ dependencies = [
  "strsim 0.11.0",
  "tar",
  "tauri-icns",
- "tauri-utils 2.0.0-beta.9",
+ "tauri-utils 2.0.0-beta.10",
  "tempfile",
  "thiserror",
  "time",
@@ -4872,7 +4898,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4891,7 +4917,7 @@ dependencies = [
  "env_logger",
  "glob",
  "handlebars 5.1.0",
- "heck",
+ "heck 0.4.1",
  "html5ever",
  "ignore",
  "image",
@@ -4924,7 +4950,7 @@ dependencies = [
  "tauri-bundler",
  "tauri-icns",
  "tauri-utils 1.5.3",
- "tauri-utils 2.0.0-beta.9",
+ "tauri-utils 2.0.0-beta.10",
  "thiserror",
  "tokio",
  "toml 0.8.10",
@@ -4967,7 +4993,7 @@ dependencies = [
  "ctor",
  "dunce",
  "getrandom 0.2.12",
- "heck",
+ "heck 0.4.1",
  "html5ever",
  "infer 0.13.0",
  "json-patch",
@@ -4990,14 +5016,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "aes-gcm",
  "ctor",
  "dunce",
  "getrandom 0.2.12",
  "glob",
- "heck",
+ "heck 0.4.1",
  "html5ever",
  "infer 0.15.0",
  "json-patch",
@@ -5897,11 +5923,11 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "windows"
-version = "0.52.0"
+version = "0.54.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e48a53791691ab099e5e2ad123536d0fff50652600abaf43bbf952894110d0be"
+checksum = "9252e5725dbed82865af151df558e754e4a3c2c30818359eb17465f1346a1b49"
 dependencies = [
- "windows-core",
+ "windows-core 0.54.0",
  "windows-targets 0.52.4",
 ]
 
@@ -5910,6 +5936,25 @@ name = "windows-core"
 version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33ab640c8d7e35bf8ba19b884ba838ceb4fba93a4e8c65a9059d08afcfc683d9"
+dependencies = [
+ "windows-targets 0.52.4",
+]
+
+[[package]]
+name = "windows-core"
+version = "0.54.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "12661b9c89351d684a50a8a643ce5f608e20243b9fb84687800163429f161d65"
+dependencies = [
+ "windows-result",
+ "windows-targets 0.52.4",
+]
+
+[[package]]
+name = "windows-result"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd19df78e5168dfb0aedc343d1d1b8d422ab2db6756d2dc3fef75035402a3f64"
 dependencies = [
  "windows-targets 0.52.4",
 ]
@@ -6112,6 +6157,25 @@ dependencies = [
  "curve25519-dalek",
  "rand_core 0.6.4",
  "serde",
+ "zeroize",
+]
+
+[[package]]
+name = "x509-certificate"
+version = "0.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66534846dec7a11d7c50a74b7cdb208b9a581cad890b7866430d438455847c85"
+dependencies = [
+ "bcder",
+ "bytes",
+ "chrono",
+ "der",
+ "hex",
+ "pem",
+ "ring",
+ "signature",
+ "spki",
+ "thiserror",
  "zeroize",
 ]
 

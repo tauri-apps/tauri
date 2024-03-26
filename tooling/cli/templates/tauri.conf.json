@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "frontendDist": "{{ frontend_dist }}",
-    "devUrl": "{{ dev_url }}",
-    "beforeDevCommand": "{{ before_dev_command }}",
-    "beforeBuildCommand": "{{ before_build_command }}"
+    "frontendDist": "{{ frontend_dist }}"{{#if dev_url}},
+    "devUrl": "{{ dev_url }}"{{/if}}{{#if before_dev_command}},
+    "beforeDevCommand": "{{ before_dev_command }}"{{/if}}{{#if before_build_command}},
+    "beforeBuildCommand": "{{ before_build_command }}"{{/if}}
   },
   "app": {
     "windows": [

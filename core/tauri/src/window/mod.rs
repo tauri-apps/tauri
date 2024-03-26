@@ -885,6 +885,14 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
   }
 }
 
+impl<R: Runtime> raw_window_handle::HasDisplayHandle for Window<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.app_handle.display_handle()
+  }
+}
+
 impl<R: Runtime> Clone for Window<R> {
   fn clone(&self) -> Self {
     Self {

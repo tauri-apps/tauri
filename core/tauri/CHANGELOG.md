@@ -1,5 +1,43 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Enhancements
+
+- [`75f5cb401`](https://www.github.com/tauri-apps/tauri/commit/75f5cb4015f72745161110ad0076cf4945411a6d)([#9214](https://www.github.com/tauri-apps/tauri/pull/9214)) `tauri::Window` and `tauri::WebviewWindow` now implement `raw_window_handle::HasDisplayHandle`.
+
+### Bug Fixes
+
+- [`81b853bc8`](https://www.github.com/tauri-apps/tauri/commit/81b853bc875ce2da4e300614ca234f10d54966a6)([#9213](https://www.github.com/tauri-apps/tauri/pull/9213)) Fixed an issue where errors where returned as strings instead of objects from commands.
+- [`43230cb6b`](https://www.github.com/tauri-apps/tauri/commit/43230cb6b7a4b14a23ea8f05636ae06f03c718e9)([#9219](https://www.github.com/tauri-apps/tauri/pull/9219)) Fixes the menu plugin `remove` command signature.
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`e227fe02f`](https://www.github.com/tauri-apps/tauri/commit/e227fe02f986e145c0731a64693e1c830a9eb5b0)([#9156](https://www.github.com/tauri-apps/tauri/pull/9156)) Allow plugins to define (at compile time) JavaScript that are initialized when `withGlobalTauri` is true.
+
+### Enhancements
+
+- [`79b8a3514`](https://www.github.com/tauri-apps/tauri/commit/79b8a3514baedcd9c35e777d2b6d89a7a086ddec)([#9151](https://www.github.com/tauri-apps/tauri/pull/9151)) Improve and optimize event emit calls.
+
+### Bug Fixes
+
+- [`379cc2b35`](https://www.github.com/tauri-apps/tauri/commit/379cc2b3547395474d4b66b4222679cf4538428d)([#9165](https://www.github.com/tauri-apps/tauri/pull/9165)) Fix `basename(path, 'ext')` JS API when removing all occurances of `ext` where it should only remove the last one.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.10`
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-runtime@2.0.0-beta.10`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.10`
+- Upgraded to `tauri-macros@2.0.0-beta.10`
+
+### Breaking Changes
+
+- [`acdd76833`](https://www.github.com/tauri-apps/tauri/commit/acdd76833db6d81f4012418133d0042220de100b)([#9155](https://www.github.com/tauri-apps/tauri/pull/9155)) Removed `App/AppHandle::tray` and `App/AppHandle::remove_tray`, use `App/AppHandle::tray_by_id` and `App/AppHandle::remove_tray_by_id` instead. If these APIs were used to access tray icon configured in `tauri.conf.json`, you can use `App/AppHandle::tray_by_id` with ID `main` or the configured value.
+- [`ea0242db4`](https://www.github.com/tauri-apps/tauri/commit/ea0242db4aa6c127d2bb4a2e275000ba47c9e68c)([#9179](https://www.github.com/tauri-apps/tauri/pull/9179)) Removed `width` and `height` methods on the JS `Image` class, use `size` instead.
+
 ## \[2.0.0-beta.11]
 
 ### New Features

@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.11"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.70"
@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.10.3", default-features = false }
+cargo-mobile2 = { version = "0.11", default-features = false }
 jsonrpsee = { version = "0.22", features = [ "server" ] }
 jsonrpsee-core = "0.22"
 jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
@@ -49,7 +49,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = [ "derive", "env" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.1-beta.5", default-features = false, path = "../bundler" }
+tauri-bundler = { version = "2.0.1-beta.7", default-features = false, path = "../bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = { version = "1.0", features = [ "preserve_order" ] }
@@ -59,7 +59,7 @@ shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = [ "serde" ] }
 json-patch = "1.2"
-tauri-utils = { version = "2.0.0-beta.9", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+tauri-utils = { version = "2.0.0-beta.10", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
@@ -113,11 +113,7 @@ native-tls = [
   "cargo-mobile2/native-tls",
   "ureq/native-tls"
 ]
-native-tls-vendored = [
-  "native-tls",
-  "tauri-bundler/native-tls-vendored",
-  "cargo-mobile2/openssl-vendored"
-]
+native-tls-vendored = [ "native-tls", "tauri-bundler/native-tls-vendored" ]
 rustls = [ "tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls" ]
 
 [profile.release-size-optimized]

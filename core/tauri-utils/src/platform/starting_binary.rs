@@ -41,6 +41,8 @@ impl StartingBinary {
   ///
   /// Because [`Error`] is not clone-able, it is recreated instead.
   pub(super) fn cloned(&self) -> Result<PathBuf> {
+    // false positive
+    #[allow(clippy::useless_asref)]
     self
       .0
       .as_ref()

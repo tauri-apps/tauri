@@ -172,7 +172,7 @@ impl ResourceTable {
       .get(&scope.into())
       .and_then(|s| s.get(&rid))
       .and_then(|rc| rc.downcast_arc::<T>())
-      .map(Clone::clone)
+      .cloned()
       .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
@@ -188,7 +188,7 @@ impl ResourceTable {
       .get(&scope.into())
       .and_then(|s| s.get(&rid))
       .ok_or_else(|| crate::Error::BadResourceId(rid))
-      .map(Clone::clone)
+      .cloned()
   }
 
   /// Replaces a resource with a new resource.

@@ -7,7 +7,6 @@
 
 pub(crate) mod plugin;
 
-use crate::error::Error;
 use std::{
   any::{type_name, Any, TypeId},
   borrow::Cow,
@@ -63,8 +62,37 @@ impl dyn Resource {
 /// operating systems.
 pub type ResourceId = u32;
 
+/// Defines how a resources should be accessed,it can either be shared between
+/// all webviews or scoped to a single webview.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[non_exhaustive]
+pub enum ResourceScope {
+  /// Shared between all webviews.
+  Shared,
+
+  /// [`Webview`](crate::Webview) scope.
+  Webview {
+    /// webview label.
+    label: String,
+  },
+}
+
+impl ResourceScope {
+  /// [`Self::Shared`] scope.
+  pub fn shared() -> Self {
+    Self::Shared
+  }
+
+  /// [`Self::Webview`] scope.
+  pub fn webview(label: impl Into<String>) -> Self {
+    Self::Webview {
+      label: label.into(),
+    }
+  }
+}
+
 /// Map-like data structure storing Tauri's resources (equivalent to file
-/// descriptors).
+/// descriptors) in a [scope](ResourceScope).
 ///
 /// Provides basic methods for element access. A resource can be of any type.
 /// Different types of resources can be stored in the same map, and provided
@@ -74,7 +102,7 @@ pub type ResourceId = u32;
 /// the key in the map.
 #[derive(Default)]
 pub struct ResourceTable {
-  index: BTreeMap<ResourceId, Arc<dyn Resource>>,
+  index: BTreeMap<ResourceScope, BTreeMap<ResourceId, Arc<dyn Resource>>>,
   next_rid: ResourceId,
 }
 
@@ -85,8 +113,8 @@ impl ResourceTable {
   /// when retrieving it through `get()`.
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
-  pub fn add<T: Resource>(&mut self, resource: T) -> ResourceId {
-    self.add_arc(Arc::new(resource))
+  pub fn add<T: Resource>(&mut self, scope: impl Into<ResourceScope>, resource: T) -> ResourceId {
+    self.add_arc(scope, Arc::new(resource))
   }
 
   /// Inserts a `Arc`-wrapped resource into the resource table.
@@ -95,9 +123,22 @@ impl ResourceTable {
   /// when retrieving it through `get()`.
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
-  pub fn add_arc<T: Resource>(&mut self, resource: Arc<T>) -> ResourceId {
+  pub fn add_arc<T: Resource>(
+    &mut self,
+    scope: impl Into<ResourceScope>,
+    resource: Arc<T>,
+  ) -> ResourceId {
     let resource = resource as Arc<dyn Resource>;
-    self.add_arc_dyn(resource)
+    self.add_arc_dyn(scope, resource)
+  }
+
+  /// Returns true if any resource with the given `rid` exists.
+  pub fn has(&self, scope: impl Into<ResourceScope>, rid: ResourceId) -> bool {
+    self
+      .index
+      .get(&scope.into())
+      .map(|s| s.contains_key(&rid))
+      .unwrap_or(false)
   }
 
   /// Inserts a `Arc`-wrapped resource into the resource table.
@@ -106,47 +147,67 @@ impl ResourceTable {
   /// when retrieving it through `get()`.
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
-  pub fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
+  pub fn add_arc_dyn(
+    &mut self,
+    scope: impl Into<ResourceScope>,
+    resource: Arc<dyn Resource>,
+  ) -> ResourceId {
     let rid = self.next_rid;
-    let removed_resource = self.index.insert(rid, resource);
+    let removed_resource = self
+      .index
+      .entry(scope.into())
+      .or_default()
+      .insert(rid, resource);
     assert!(removed_resource.is_none());
     self.next_rid += 1;
     rid
   }
 
-  /// Returns true if any resource with the given `rid` exists.
-  pub fn has(&self, rid: ResourceId) -> bool {
-    self.index.contains_key(&rid)
-  }
-
   /// Returns a reference counted pointer to the resource of type `T` with the
   /// given `rid`. If `rid` is not present or has a type different than `T`,
-  /// this function returns [`Error::BadResourceId`].
-  pub fn get<T: Resource>(&self, rid: ResourceId) -> Result<Arc<T>, Error> {
+  /// this function returns [`Error::BadResourceId`](crate::Error::BadResourceId).
+  pub fn get<T: Resource>(
+    &self,
+    scope: impl Into<ResourceScope>,
+    rid: ResourceId,
+  ) -> crate::Result<Arc<T>> {
     self
       .index
-      .get(&rid)
+      .get(&scope.into())
+      .and_then(|s| s.get(&rid))
       .and_then(|rc| rc.downcast_arc::<T>())
       .map(Clone::clone)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
   /// Returns a reference counted pointer to the resource of the given `rid`.
   /// If `rid` is not present, this function returns [`Error::BadResourceId`].
-  pub fn get_any(&self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+  pub fn get_any(
+    &self,
+    scope: impl Into<ResourceScope>,
+    rid: ResourceId,
+  ) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
-      .get(&rid)
+      .get(&scope.into())
+      .and_then(|s| s.get(&rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
       .map(Clone::clone)
-      .ok_or_else(|| Error::BadResourceId(rid))
   }
 
   /// Replaces a resource with a new resource.
   ///
   /// Panics if the resource does not exist.
-  pub fn replace<T: Resource>(&mut self, rid: ResourceId, resource: T) {
+  pub fn replace<T: Resource>(
+    &mut self,
+    scope: impl Into<ResourceScope>,
+    rid: ResourceId,
+    resource: T,
+  ) {
     let result = self
       .index
+      .entry(scope.into())
+      .or_default()
       .insert(rid, Arc::new(resource) as Arc<dyn Resource>);
     assert!(result.is_some());
   }
@@ -161,9 +222,14 @@ impl ResourceTable {
   /// assume that `Arc::strong_count(&returned_arc)` is always equal to 1 on success.
   /// In particular, be really careful when you want to extract the inner value of
   /// type `T` from `Arc<T>`.
-  pub fn take<T: Resource>(&mut self, rid: ResourceId) -> Result<Arc<T>, Error> {
-    let resource = self.get::<T>(rid)?;
-    self.index.remove(&rid);
+  pub fn take<T: Resource>(
+    &mut self,
+    scope: impl Into<ResourceScope>,
+    rid: ResourceId,
+  ) -> crate::Result<Arc<T>> {
+    let scope = scope.into();
+    let resource = self.get::<T>(scope.clone(), rid)?;
+    self.index.entry(scope).or_default().remove(&rid);
     Ok(resource)
   }
 
@@ -175,11 +241,17 @@ impl ResourceTable {
   /// we cannot assume that `Arc::strong_count(&returned_arc)` is always equal to 1
   /// on success. In particular, be really careful when you want to extract the
   /// inner value of type `T` from `Arc<T>`.
-  pub fn take_any(&mut self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+  pub fn take_any(
+    &mut self,
+    scope: impl Into<ResourceScope>,
+    rid: ResourceId,
+  ) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
+      .entry(scope.into())
+      .or_default()
       .remove(&rid)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
   /// Returns an iterator that yields a `(id, name)` pair for every resource
@@ -189,8 +261,8 @@ impl ResourceTable {
   pub fn names(&self) -> impl Iterator<Item = (ResourceId, Cow<'_, str>)> {
     self
       .index
-      .iter()
-      .map(|(&id, resource)| (id, resource.name()))
+      .values()
+      .flat_map(|i| i.iter().map(|(&id, resource)| (id, resource.name())))
   }
 
   /// Removes the resource with the given `rid` from the resource table. If the
@@ -199,11 +271,13 @@ impl ResourceTable {
   /// counted, therefore pending ops are not automatically cancelled. A resource
   /// may implement the `close()` method to perform clean-ups such as canceling
   /// ops.
-  pub fn close(&mut self, rid: ResourceId) -> Result<(), Error> {
+  pub fn close(&mut self, scope: impl Into<ResourceScope>, rid: ResourceId) -> crate::Result<()> {
     self
       .index
+      .entry(scope.into())
+      .or_default()
       .remove(&rid)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
       .map(|resource| resource.close())
   }
 

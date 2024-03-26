@@ -9,7 +9,7 @@ pub(crate) mod plugin;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use crate::{Manager, Resource, ResourceId, Runtime};
+use crate::{resources::ResourceScope, Manager, Resource, ResourceId, Runtime};
 
 /// An RGBA Image in row-major order from top to bottom.
 #[derive(Debug, Clone)]
@@ -165,11 +165,15 @@ pub enum JsImage {
 
 impl JsImage {
   /// Converts this intermediate image format into an actual [`Image`].
-  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'_>>> {
+  pub fn into_img<R: Runtime, M: Manager<R>>(
+    self,
+    scope: ResourceScope,
+    app: &M,
+  ) -> crate::Result<Arc<Image<'_>>> {
     match self {
       Self::Resource(rid) => {
         let resources_table = app.resources_table();
-        resources_table.get::<Image<'static>>(rid)
+        resources_table.get::<Image<'static>>(scope, rid)
       }
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
       Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),

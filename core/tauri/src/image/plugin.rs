@@ -5,27 +5,28 @@
 use serde::Serialize;
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::{command, image::Image, AppHandle, Manager, ResourceId, Runtime};
+use crate::resources::ResourceScope;
+use crate::{command, image::Image, Manager, ResourceId, Runtime, Webview};
 
 #[command(root = "crate")]
 fn new<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rgba: Vec<u8>,
   width: u32,
   height: u32,
 ) -> crate::Result<ResourceId> {
   let image = Image::new_owned(rgba, width, height);
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
+  let mut resources_table = webview.resources_table();
+  let rid = resources_table.add(ResourceScope::webview(webview.label()), image);
   Ok(rid)
 }
 
 #[cfg(any(feature = "image-ico", feature = "image-png"))]
 #[command(root = "crate")]
-fn from_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
+fn from_bytes<R: Runtime>(webview: Webview<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
   let image = Image::from_bytes(&bytes)?.to_owned();
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
+  let mut resources_table = webview.resources_table();
+  let rid = resources_table.add(ResourceScope::webview(webview.label()), image);
   Ok(rid)
 }
 
@@ -37,10 +38,13 @@ fn from_bytes() -> std::result::Result<(), &'static str> {
 
 #[cfg(any(feature = "image-ico", feature = "image-png"))]
 #[command(root = "crate")]
-fn from_path<R: Runtime>(app: AppHandle<R>, path: std::path::PathBuf) -> crate::Result<ResourceId> {
+fn from_path<R: Runtime>(
+  webview: Webview<R>,
+  path: std::path::PathBuf,
+) -> crate::Result<ResourceId> {
   let image = Image::from_path(path)?.to_owned();
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
+  let mut resources_table = webview.resources_table();
+  let rid = resources_table.add(ResourceScope::webview(webview.label()), image);
   Ok(rid)
 }
 
@@ -51,9 +55,9 @@ fn from_path() -> std::result::Result<(), &'static str> {
 }
 
 #[command(root = "crate")]
-fn rgba<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
-  let resources_table = app.resources_table();
-  let image = resources_table.get::<Image<'_>>(rid)?;
+fn rgba<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
+  let resources_table = webview.resources_table();
+  let image = resources_table.get::<Image<'_>>(ResourceScope::webview(webview.label()), rid)?;
   Ok(image.rgba().to_vec())
 }
 
@@ -64,9 +68,9 @@ struct Size {
 }
 
 #[command(root = "crate")]
-fn size<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Size> {
-  let resources_table = app.resources_table();
-  let image = resources_table.get::<Image<'_>>(rid)?;
+fn size<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<Size> {
+  let resources_table = webview.resources_table();
+  let image = resources_table.get::<Image<'_>>(ResourceScope::webview(webview.label()), rid)?;
   Ok(Size {
     width: image.width(),
     height: image.height(),

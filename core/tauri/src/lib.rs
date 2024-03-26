@@ -70,7 +70,7 @@ pub use cocoa;
 pub use embed_plist;
 pub use error::{Error, Result};
 use ipc::{RuntimeAuthority, RuntimeCapability};
-pub use resources::{Resource, ResourceId, ResourceTable};
+pub use resources::{Resource, ResourceId, ResourceScope, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;

@@ -118,6 +118,8 @@ pub struct InvokeRequest {
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
+  /// URL of the frame that requested this command.
+  pub url: Url,
   /// The body of the request.
   pub body: InvokeBody,
   /// The request headers.
@@ -730,10 +732,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_attributes.file_drop_handler_enabled = false;
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_attributes.drag_drop_handler_enabled = false;
     self
   }
 
@@ -1097,8 +1099,7 @@ fn main() {
   /// Handles this window receiving an [`InvokeRequest`].
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
-    let current_url = self.url();
-    let is_local = self.is_local_url(&current_url);
+    let is_local = self.is_local_url(&request.url);
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
@@ -1134,7 +1135,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.clone(),
+        url: request.url.clone(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {

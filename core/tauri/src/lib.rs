@@ -220,7 +220,7 @@ pub use {
     webview::WebviewAttributes,
     window::{
       dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, FileDropEvent,
+      CursorIcon, DragDropEvent,
     },
     DeviceEventFilter, UserAttentionType,
   },

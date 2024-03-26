@@ -56,9 +56,10 @@ enum TauriEvent {
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
   WEBVIEW_CREATED = 'tauri://webview-created',
-  FILE_DROP = 'tauri://file-drop',
-  FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled'
+  DRAG = 'tauri://drag',
+  DROP = 'tauri://drop',
+  DROP_OVER = 'tauri://drop-over',
+  DROP_CANCELLED = 'tauri://drag-cancelled'
 }
 
 /**

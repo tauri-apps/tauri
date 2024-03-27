@@ -5,4 +5,5 @@
 
 pub mod appimage;
 pub mod debian;
+pub mod pacman;
 pub mod rpm;

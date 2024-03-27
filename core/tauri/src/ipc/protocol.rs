@@ -14,7 +14,7 @@ use http::{
   HeaderValue, Method, StatusCode,
 };
 
-use super::{CallbackFn, InvokeBody, InvokeResponse};
+use super::{CallbackFn, InvokeResponse, InvokeResponseBody};
 
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
@@ -80,11 +80,11 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                   .entered();
 
                   let (mut response, mime_type) = match response {
-                    InvokeResponse::Ok(InvokeBody::Json(v)) => (
+                    InvokeResponse::Ok(InvokeResponseBody::Json(v)) => (
                       http::Response::new(serde_json::to_vec(&v).unwrap().into()),
                       mime::APPLICATION_JSON,
                     ),
-                    InvokeResponse::Ok(InvokeBody::Raw(v)) => (
+                    InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => (
                       http::Response::new(v.into()),
                       mime::APPLICATION_OCTET_STREAM,
                     ),
@@ -271,7 +271,6 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
               Channel,
             };
             use crate::sealed::ManagerBase;
-            use serde_json::Value as JsonValue;
 
             #[cfg(feature = "tracing")]
             let _respond_span = tracing::trace_span!(
@@ -303,20 +302,18 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                 "ipc::request::response",
                 response = serde_json::to_string(&response).unwrap(),
                 mime_type = match &response {
-                  InvokeResponse::Ok(InvokeBody::Json(_)) => mime::APPLICATION_JSON,
-                  InvokeResponse::Ok(InvokeBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
+                  InvokeResponse::Ok(InvokeResponseBody::Json(_)) => mime::APPLICATION_JSON,
+                  InvokeResponse::Ok(InvokeResponseBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
                   InvokeResponse::Err(_) => mime::APPLICATION_JSON,
                 }
                 .essence_str()
               )
               .entered();
 
-              match &response {
-                InvokeResponse::Ok(InvokeBody::Json(v)) => {
-                  if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
-                    && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
-                  {
-                    let _ = Channel::from_callback_fn(webview, callback).send(v);
+              match response {
+                InvokeResponse::Ok(InvokeResponseBody::Json(v)) => {
+                  if !(cfg!(target_os = "macos") || cfg!(target_os = "ios")) && v.len() > 4000 {
+                    let _ = Channel::from_callback_fn(webview, callback).send(&v);
                   } else {
                     responder_eval(
                       &webview,
@@ -325,7 +322,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                     )
                   }
                 }
-                InvokeResponse::Ok(InvokeBody::Raw(v)) => {
+                InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => {
                   if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
                     responder_eval(
                       &webview,
@@ -333,8 +330,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                       error,
                     );
                   } else {
-                    let _ =
-                      Channel::from_callback_fn(webview, callback).send(InvokeBody::Raw(v.clone()));
+                    let _ = Channel::from_callback_fn(webview, callback).send(v);
                   }
                 }
                 InvokeResponse::Err(e) => responder_eval(

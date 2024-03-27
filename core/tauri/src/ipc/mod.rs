@@ -43,6 +43,33 @@ pub type OwnedInvokeResponder<R> =
 
 /// Possible values of an IPC payload.
 #[derive(Debug, Clone)]
+pub enum InvokeResponseBody {
+  /// Json response.
+  Json(String),
+  /// Bytes response.
+  Raw(Vec<u8>),
+}
+
+impl From<String> for InvokeResponseBody {
+  fn from(value: String) -> Self {
+    Self::Json(value)
+  }
+}
+
+impl From<Vec<u8>> for InvokeResponseBody {
+  fn from(value: Vec<u8>) -> Self {
+    Self::Raw(value)
+  }
+}
+
+impl IpcResponse for InvokeResponseBody {
+  fn body(self) -> crate::Result<Self> {
+    Ok(self)
+  }
+}
+
+/// Possible values of an IPC payload.
+#[derive(Debug, Clone)]
 pub enum InvokeBody {
   /// Json payload.
   Json(JsonValue),
@@ -65,12 +92,6 @@ impl From<JsonValue> for InvokeBody {
 impl From<Vec<u8>> for InvokeBody {
   fn from(value: Vec<u8>) -> Self {
     Self::Raw(value)
-  }
-}
-
-impl IpcResponse for InvokeBody {
-  fn body(self) -> crate::Result<InvokeBody> {
-    Ok(self)
   }
 }
 
@@ -126,12 +147,12 @@ impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
 /// Marks a type as a response to an IPC call.
 pub trait IpcResponse {
   /// Resolve the IPC response body.
-  fn body(self) -> crate::Result<InvokeBody>;
+  fn body(self) -> crate::Result<InvokeResponseBody>;
 }
 
 impl<T: Serialize> IpcResponse for T {
-  fn body(self) -> crate::Result<InvokeBody> {
-    serde_json::to_value(self)
+  fn body(self) -> crate::Result<InvokeResponseBody> {
+    serde_json::to_string(&self)
       .map(Into::into)
       .map_err(Into::into)
   }
@@ -139,18 +160,18 @@ impl<T: Serialize> IpcResponse for T {
 
 /// The IPC request.
 pub struct Response {
-  body: InvokeBody,
+  body: InvokeResponseBody,
 }
 
 impl IpcResponse for Response {
-  fn body(self) -> crate::Result<InvokeBody> {
+  fn body(self) -> crate::Result<InvokeResponseBody> {
     Ok(self.body)
   }
 }
 
 impl Response {
   /// Defines a response with the given body.
-  pub fn new(body: impl Into<InvokeBody>) -> Self {
+  pub fn new(body: impl Into<InvokeResponseBody>) -> Self {
     Self { body: body.into() }
   }
 }
@@ -206,19 +227,20 @@ impl From<crate::Error> for InvokeError {
 #[derive(Debug)]
 pub enum InvokeResponse {
   /// Resolve the promise.
-  Ok(InvokeBody),
+  Ok(InvokeResponseBody),
   /// Reject the promise.
   Err(InvokeError),
 }
 
+// TODO
 impl Serialize for InvokeResponse {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: serde::Serializer,
   {
     match self {
-      Self::Ok(InvokeBody::Json(j)) => j.serialize(serializer),
-      Self::Ok(InvokeBody::Raw(b)) => b.serialize(serializer),
+      Self::Ok(InvokeResponseBody::Json(j)) => j.serialize(serializer),
+      Self::Ok(InvokeResponseBody::Raw(b)) => b.serialize(serializer),
       Self::Err(e) => e.0.serialize(serializer),
     }
   }
@@ -304,7 +326,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reply to the invoke promise with an async task which is already serialized.
   pub fn respond_async_serialized<F>(self, task: F)
   where
-    F: Future<Output = Result<InvokeBody, InvokeError>> + Send + 'static,
+    F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
       let response = match task.await {
@@ -322,21 +344,16 @@ impl<R: Runtime> InvokeResolver<R> {
     });
   }
 
-  /// Reply to the invoke promise with a serializable value.
-  pub fn respond<T: IpcResponse>(self, value: Result<T, InvokeError>) {
+  /// Reply to the invoke promise with a response value.
+  pub fn respond(self, response: InvokeResponse) {
     Self::return_result(
       self.webview,
       self.responder,
-      value.into(),
+      response,
       self.cmd,
       self.callback,
       self.error,
     )
-  }
-
-  /// Resolve the invoke promise with a value.
-  pub fn resolve<T: IpcResponse>(self, value: T) {
-    self.respond(Ok(value))
   }
 
   /// Reject the invoke promise with a value.
@@ -344,7 +361,7 @@ impl<R: Runtime> InvokeResolver<R> {
     Self::return_result(
       self.webview,
       self.responder,
-      Result::<(), _>::Err(value).into(),
+      Result::<&(), _>::Err(value).into(),
       self.cmd,
       self.callback,
       self.error,

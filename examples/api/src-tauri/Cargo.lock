@@ -1892,9 +1892,9 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.11.5"
+version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4c47e7625990fc1af2226ea4f34fb2412b03c12639fcb91868581eb3a6893453"
+checksum = "a40c16e25abca53b401d2972e8ad344820e318cf7e00ea8a951a5ca265590295"
 dependencies = [
  "cocoa",
  "crossbeam-channel",
@@ -3152,7 +3152,7 @@ checksum = "e1fc403891a21bcfb7c37834ba66a547a8f402146eba7265b5a6d88059c9ff2f"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.11"
+version = "2.0.0-beta.13"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3201,7 +3201,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3223,7 +3223,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "base64 0.22.0",
  "brotli",
@@ -3248,7 +3248,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -3260,7 +3260,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "anyhow",
  "glob",
@@ -3286,7 +3286,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "gtk",
  "http",
@@ -3302,7 +3302,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3324,7 +3324,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.9"
+version = "2.0.0-beta.10"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -3644,9 +3644,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.11.3"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a4d9ddd4a7c0f3b6862af1c4911b529a49db4ee89310d3a258859c2f5053fdd"
+checksum = "454035ff34b8430638c894e6197748578d6b4d449c6edaf8ea854d94e2dd862b"
 dependencies = [
  "cocoa",
  "core-graphics",

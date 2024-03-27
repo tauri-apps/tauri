@@ -33,7 +33,7 @@ pub fn log_operation(
   }
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 pub struct ApiResponse {
   message: String,
 }
@@ -44,4 +44,9 @@ pub fn perform_request(endpoint: String, body: RequestBody) -> ApiResponse {
   ApiResponse {
     message: "message response".into(),
   }
+}
+
+#[command]
+pub fn download() -> Vec<u8> {
+  vec![1, 2, 3]
 }

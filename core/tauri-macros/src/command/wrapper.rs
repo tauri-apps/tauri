@@ -306,8 +306,8 @@ fn body_async(
       let span = tracing::debug_span!("ipc::request::run");
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
-        let kind = (&result).async_kind();
-        kind.future(result).await
+        let kind = result.async_kind();
+        kind.future().await
       }
       .instrument(span));
       return true;
@@ -317,8 +317,8 @@ fn body_async(
     quote! {
       #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
-        let kind = (&result).async_kind();
-        kind.future(result).await
+        let kind = result.async_kind();
+        kind.future().await
       });
       return true;
     }
@@ -358,8 +358,8 @@ fn body_blocking(
   Ok(quote! {
     #maybe_span
     let result = $path(#(match #args #match_body),*);
-    let kind = (&result).blocking_kind();
-    kind.block(result, #resolver);
+    let kind = result.blocking_kind();
+    kind.block(#resolver);
     return true;
   })
 }

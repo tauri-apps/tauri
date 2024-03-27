@@ -16,6 +16,7 @@
       ]
     },
     "allow-perform-request",
+    "allow-download",
     "app-menu:default",
     "sample:allow-ping-scoped",
     "sample:global-scope",

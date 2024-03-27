@@ -183,145 +183,167 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 #[doc(hidden)]
 pub mod private {
   use crate::{
-    ipc::{InvokeBody, InvokeError, InvokeResolver, IpcResponse},
+    ipc::{InvokeError, InvokeResolver, InvokeResponse, InvokeResponseBody, IpcResponse},
     Runtime,
   };
   use futures_util::{FutureExt, TryFutureExt};
-  use std::future::Future;
+  use std::{future::Future, pin::Pin};
   #[cfg(feature = "tracing")]
   pub use tracing;
 
   // ===== impl IpcResponse =====
 
-  pub struct ResponseTag;
+  pub struct ResponseTag(InvokeResponse);
 
   pub trait ResponseKind {
+    fn blocking_kind(self) -> ResponseTag;
+
+    fn async_kind(self) -> ResponseTag;
+  }
+
+  impl ResponseKind for Vec<u8> {
     #[inline(always)]
-    fn blocking_kind(&self) -> ResponseTag {
-      ResponseTag
+    fn blocking_kind(self) -> ResponseTag {
+      ResponseTag(InvokeResponse::Ok(self.into()))
     }
 
     #[inline(always)]
-    fn async_kind(&self) -> ResponseTag {
-      ResponseTag
+    fn async_kind(self) -> ResponseTag {
+      ResponseTag(InvokeResponse::Ok(self.into()))
     }
   }
 
-  impl<T: IpcResponse> ResponseKind for &T {}
-
-  impl ResponseTag {
+  impl<T: IpcResponse + Clone> ResponseKind for &T {
     #[inline(always)]
-    pub fn block<R, T>(self, value: T, resolver: InvokeResolver<R>)
-    where
-      R: Runtime,
-      T: IpcResponse,
-    {
-      resolver.respond(Ok(value))
+    fn blocking_kind(self) -> ResponseTag {
+      ResponseTag(self.clone().body().map_err(InvokeError::from_error).into())
     }
 
     #[inline(always)]
-    pub fn future<T>(self, value: T) -> impl Future<Output = Result<InvokeBody, InvokeError>>
+    fn async_kind(self) -> ResponseTag {
+      ResponseTag(self.clone().body().map_err(InvokeError::from_error).into())
+    }
+  }
+
+  impl ResponseTag {
+    #[inline(always)]
+    pub fn block<R>(self, resolver: InvokeResolver<R>)
+    where
+      R: Runtime,
+    {
+      resolver.respond(self.0)
+    }
+
+    #[inline(always)]
+    pub fn future<T>(self) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
     where
       T: IpcResponse,
     {
-      std::future::ready(value.body().map_err(InvokeError::from_error))
+      std::future::ready(match self.0 {
+        InvokeResponse::Ok(b) => Ok(b),
+        InvokeResponse::Err(e) => Err(e),
+      })
     }
   }
 
   // ===== Result<impl Serialize, impl Into<InvokeError>> =====
 
-  pub struct ResultTag;
+  pub struct ResultTag(InvokeResponse);
 
   pub trait ResultKind {
+    fn blocking_kind(self) -> ResultTag;
+
+    fn async_kind(self) -> ResultTag;
+  }
+
+  impl<T: IpcResponse, E: Into<InvokeError>> ResultKind for Result<T, E> {
     #[inline(always)]
-    fn blocking_kind(&self) -> ResultTag {
-      ResultTag
+    fn blocking_kind(self) -> ResultTag {
+      ResultTag(
+        self
+          .map_err(Into::into)
+          .and_then(|r| r.body().map_err(InvokeError::from_error))
+          .into(),
+      )
     }
 
     #[inline(always)]
-    fn async_kind(&self) -> ResultTag {
-      ResultTag
+    fn async_kind(self) -> ResultTag {
+      ResultTag(
+        self
+          .map_err(Into::into)
+          .and_then(|r| r.body().map_err(InvokeError::from_error))
+          .into(),
+      )
     }
   }
 
-  impl<T: IpcResponse, E: Into<InvokeError>> ResultKind for Result<T, E> {}
-
   impl ResultTag {
     #[inline(always)]
-    pub fn block<R, T, E>(self, value: Result<T, E>, resolver: InvokeResolver<R>)
-    where
-      R: Runtime,
-      T: IpcResponse,
-      E: Into<InvokeError>,
-    {
-      resolver.respond(value.map_err(Into::into))
+    pub fn block<R: Runtime>(self, resolver: InvokeResolver<R>) {
+      resolver.respond(self.0)
     }
 
     #[inline(always)]
-    pub fn future<T, E>(
-      self,
-      value: Result<T, E>,
-    ) -> impl Future<Output = Result<InvokeBody, InvokeError>>
-    where
-      T: IpcResponse,
-      E: Into<InvokeError>,
-    {
-      std::future::ready(
-        value
-          .map_err(Into::into)
-          .and_then(|value| value.body().map_err(InvokeError::from_error)),
-      )
+    pub fn future(self) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>> {
+      std::future::ready(match self.0 {
+        InvokeResponse::Ok(b) => Ok(b),
+        InvokeResponse::Err(e) => Err(e),
+      })
     }
   }
 
   // ===== Future<Output = impl IpcResponse> =====
 
-  pub struct FutureTag;
+  pub struct FutureTag<T: IpcResponse, F: Future<Output = T>>(Pin<Box<F>>);
 
-  pub trait FutureKind {
+  pub trait FutureKind<T: IpcResponse, F: Future<Output = T>> {
+    fn async_kind(self) -> FutureTag<T, F>;
+  }
+
+  impl<T: IpcResponse, F: Future<Output = T>> FutureKind<T, F> for F {
     #[inline(always)]
-    fn async_kind(&self) -> FutureTag {
-      FutureTag
+    fn async_kind(self) -> FutureTag<T, F> {
+      FutureTag(Box::pin(self))
     }
   }
-  impl<T: IpcResponse, F: Future<Output = T>> FutureKind for &F {}
 
-  impl FutureTag {
+  impl<T: IpcResponse, F: Future<Output = T>> FutureTag<T, F> {
     #[inline(always)]
-    pub fn future<T, F>(self, value: F) -> impl Future<Output = Result<InvokeBody, InvokeError>>
-    where
-      T: IpcResponse,
-      F: Future<Output = T> + Send + 'static,
-    {
-      value.map(|value| value.body().map_err(InvokeError::from_error))
+    pub fn future(self) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>> {
+      self
+        .0
+        .map(|value| value.body().map_err(InvokeError::from_error))
     }
   }
 
   // ===== Future<Output = Result<impl Serialize, impl Into<InvokeError>>> =====
 
-  pub struct ResultFutureTag;
+  pub struct ResultFutureTag<T: IpcResponse, E: Into<InvokeError>, F: Future<Output = Result<T, E>>>(
+    Pin<Box<F>>,
+  );
 
-  pub trait ResultFutureKind {
+  pub trait ResultFutureKind<T: IpcResponse, E: Into<InvokeError>, F: Future<Output = Result<T, E>>>
+  {
+    fn async_kind(self) -> ResultFutureTag<T, E, F>;
+  }
+
+  impl<T: IpcResponse, E: Into<InvokeError>, F: Future<Output = Result<T, E>>>
+    ResultFutureKind<T, E, F> for F
+  {
     #[inline(always)]
-    fn async_kind(&self) -> ResultFutureTag {
-      ResultFutureTag
+    fn async_kind(self) -> ResultFutureTag<T, E, F> {
+      ResultFutureTag(Box::pin(self))
     }
   }
 
-  impl<T: IpcResponse, E: Into<InvokeError>, F: Future<Output = Result<T, E>>> ResultFutureKind
-    for F
+  impl<T: IpcResponse, E: Into<InvokeError>, F: Future<Output = Result<T, E>>>
+    ResultFutureTag<T, E, F>
   {
-  }
-
-  impl ResultFutureTag {
     #[inline(always)]
-    pub fn future<T, E, F>(self, value: F) -> impl Future<Output = Result<InvokeBody, InvokeError>>
-    where
-      T: IpcResponse,
-      E: Into<InvokeError>,
-      F: Future<Output = Result<T, E>> + Send,
-    {
-      value
+    pub fn future(self) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>> {
+      self
+        .0
         .err_into()
         .map(|result| result.and_then(|value| value.body().map_err(InvokeError::from_error)))
     }

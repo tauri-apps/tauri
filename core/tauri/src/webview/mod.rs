@@ -624,18 +624,6 @@ tauri::Builder::default()
     }
     .map(|webview| app_manager.webview.attach_webview(window.clone(), webview))?;
 
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      webview_labels_array = serde_json::to_string(&app_manager.webview.labels())?,
-    ))?;
-
-    app_manager.emit(
-      "tauri://webview-created",
-      Some(CreatedEvent {
-        label: webview.label().into(),
-      }),
-    )?;
-
     Ok(webview)
   }
 }

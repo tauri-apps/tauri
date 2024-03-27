@@ -1401,6 +1401,16 @@
             "string",
             "null"
           ]
+        },
+        "libraries": {
+          "description": "MacOS library files that need to be bundled with the app.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

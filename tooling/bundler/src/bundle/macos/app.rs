@@ -90,6 +90,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   settings.copy_resources(&resources_dir)?;
 
+  let library_paths = copy_libraries_to_bundle(&bundle_directory, settings)?;
+  sign_paths.extend(
+    library_paths
+      .into_iter()
+      .map(|path| SignTarget {
+        path,
+        is_an_executable: false,
+      }),
+  );
+
   let bin_paths = settings
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
@@ -245,6 +255,22 @@ fn create_info_plist(
   plist::Value::Dictionary(plist).to_file_xml(bundle_dir.join("Info.plist"))?;
 
   Ok(())
+}
+
+fn copy_libraries_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+  let mut paths = Vec::new();
+
+  let libraries_map = settings.macos().libraries.as_ref().cloned().unwrap_or_default();
+  let dest_dir = bundle_directory.join("Library");
+
+  for (src, dest) in libraries_map {
+    let src_path = PathBuf::from(src);
+    let dest_path = dest_dir.join(dest);
+    common::copy_file(&src_path, &dest_path)?;
+    paths.push(dest_path);
+  }
+
+  Ok(paths)
 }
 
 // Copies the framework under `{src_dir}/{framework}.framework` to `{dest_dir}/{framework}.framework`.

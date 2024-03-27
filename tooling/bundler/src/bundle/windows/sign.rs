@@ -9,6 +9,8 @@ use crate::{
 };
 use log::{debug, info};
 use std::{
+  env::var_os,
+  ffi::OsStr,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -17,12 +19,154 @@ use winreg::{
   RegKey,
 };
 
-pub struct SignParams {
+/// Enum to hold the different signing params depending on the current setup. (Signtool or AzureSignTool)
+pub enum SignParams {
+  SignTool(SignToolParams),
+  Azure(AzureSignToolParams),
+}
+
+impl SignParams {
+  /// Check if binary is already signed.
+  /// Used to skip sidecar binaries that are already signed.
+  /// If we're using AzureSignTool, we'll always return false because we can't check if it's already signed.
+  /// AzureSignTool will skip signing already signed binaries anyway.
+  pub fn verify(&self, path: &Path) -> crate::Result<bool> {
+    match self {
+      SignParams::SignTool(_) => {
+        // Construct SignTool command
+        let signtool = locate_signtool()?;
+
+        let mut cmd = Command::new(&signtool);
+        cmd.arg("verify");
+        cmd.arg("/pa");
+        cmd.arg(path);
+
+        Ok(cmd.status()?.success())
+      }
+      SignParams::Azure(_) => Ok(false),
+    }
+  }
+
+  /// Retrieves the proper signing command depending on the current setup.
+  pub fn sign_command<P: AsRef<OsStr>>(&self, path: P) -> crate::Result<(Command, PathBuf)> {
+    match self {
+      SignParams::SignTool(params) => params.sign_command(path),
+      SignParams::Azure(params) => params.sign_command(path),
+    }
+  }
+
+  pub fn sign<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    info!(action = "Signing"; "{}", tauri_utils::display_path(path.as_ref()));
+    match self {
+      SignParams::SignTool(params) => params.sign(path),
+      SignParams::Azure(params) => params.sign(path),
+    }
+  }
+}
+
+/// This contains params needed for the windows signtool.exe
+pub struct SignToolParams {
   pub product_name: String,
   pub digest_algorithm: String,
   pub certificate_thumbprint: String,
   pub timestamp_url: Option<String>,
   pub tsp: bool,
+}
+
+impl SignToolParams {
+  pub fn sign_command<P: AsRef<OsStr>>(&self, path: P) -> crate::Result<(Command, PathBuf)> {
+    // Construct SignTool command
+    let signtool = locate_signtool()?;
+
+    let mut cmd = Command::new(&signtool);
+    cmd.arg("sign");
+    cmd.args(["/fd", &self.digest_algorithm]);
+    cmd.args(["/sha1", &self.certificate_thumbprint]);
+    cmd.args(["/d", &self.product_name]);
+
+    if let Some(ref timestamp_url) = self.timestamp_url {
+      if self.tsp {
+        cmd.args(["/tr", timestamp_url]);
+        cmd.args(["/td", &self.digest_algorithm]);
+      } else {
+        cmd.args(["/t", timestamp_url]);
+      }
+    }
+
+    cmd.arg(path);
+
+    Ok((cmd, signtool))
+  }
+
+  pub fn sign<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    info!(action = "Signing"; "{} with identity \"{}\"", tauri_utils::display_path(path.as_ref()), self.certificate_thumbprint);
+
+    let (mut cmd, signtool) = self.sign_command(path.as_ref())?;
+    debug!("Running signtool {:?}", signtool);
+
+    // Execute SignTool command
+    let output = cmd.output_ok()?;
+
+    let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
+    info!("{:?}", stdout);
+
+    Ok(())
+  }
+}
+/// This contains params needed for the AzureSignTool.exe
+/// These are the environment variables that need to be set:
+pub struct AzureSignToolParams {
+  keyvault_url: String,
+  client_id: String,
+  tenant_id: String,
+  secret: String,
+  certificate_name: String,
+  product_name: String,
+  description_url: Option<String>,
+  timestamp_url: Option<String>,
+}
+
+impl AzureSignToolParams {
+  pub fn sign_command<P: AsRef<OsStr>>(&self, path: P) -> crate::Result<(Command, PathBuf)> {
+    let azuresigntool = locate_azuresigntool()?;
+
+    let mut cmd = Command::new(&azuresigntool);
+    cmd.arg("sign");
+    cmd.args(["-kvu", &self.keyvault_url]);
+    cmd.args(["-kvi", &self.client_id]);
+    cmd.args(["-kvt", &self.tenant_id]);
+    cmd.args(["-kvs", &self.secret]);
+    cmd.args(["-kvc", &self.certificate_name]);
+    cmd.args(["-d", &self.product_name]);
+
+    if let Some(ref description_url) = self.description_url {
+      cmd.args(["-du", description_url]);
+    }
+
+    if let Some(ref timestamp_url) = self.timestamp_url {
+      cmd.args(["-tr", timestamp_url]);
+    }
+
+    // Ignore already signed files
+    cmd.arg("-s");
+
+    cmd.arg(path);
+
+    Ok((cmd, azuresigntool))
+  }
+
+  pub fn sign<P: AsRef<Path>>(&self, path: P) -> crate::Result<()> {
+    info!(action = "Signing"; "{} with Azure Key Vault certificate: {}", tauri_utils::display_path(path.as_ref()), self.certificate_name);
+
+    let (mut cmd, signtool) = self.sign_command(path.as_ref())?;
+    debug!("Running AzureSignTool {:?}", signtool);
+
+    // Execute SignTool command
+    let _ = cmd.output_ok()?;
+    info!("AzureSignTool completed successfully.");
+
+    Ok(())
+  }
 }
 
 // sign code forked from https://github.com/forbjok/rust-codesign
@@ -88,93 +232,84 @@ fn locate_signtool() -> crate::Result<PathBuf> {
   Err(crate::Error::SignToolNotFound)
 }
 
-/// Check if binary is already signed.
-/// Used to skip sidecar binaries that are already signed.
-pub fn verify(path: &Path) -> crate::Result<bool> {
-  // Construct SignTool command
-  let signtool = locate_signtool()?;
-
-  let mut cmd = Command::new(&signtool);
-  cmd.arg("verify");
-  cmd.arg("/pa");
-  cmd.arg(path);
-
-  Ok(cmd.status()?.success())
-}
-
-pub fn sign_command(path: &str, params: &SignParams) -> crate::Result<(Command, PathBuf)> {
-  // Construct SignTool command
-  let signtool = locate_signtool()?;
-
-  let mut cmd = Command::new(&signtool);
-  cmd.arg("sign");
-  cmd.args(["/fd", &params.digest_algorithm]);
-  cmd.args(["/sha1", &params.certificate_thumbprint]);
-  cmd.args(["/d", &params.product_name]);
-
-  if let Some(ref timestamp_url) = params.timestamp_url {
-    if params.tsp {
-      cmd.args(["/tr", timestamp_url]);
-      cmd.args(["/td", &params.digest_algorithm]);
-    } else {
-      cmd.args(["/t", timestamp_url]);
-    }
-  }
-
-  cmd.arg(path);
-
-  Ok((cmd, signtool))
-}
-
-pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
-  let path_str = path.as_ref().to_str().unwrap();
-
-  info!(action = "Signing"; "{} with identity \"{}\"", path_str, params.certificate_thumbprint);
-
-  let (mut cmd, signtool) = sign_command(path_str, params)?;
-  debug!("Running signtool {:?}", signtool);
-
-  // Execute SignTool command
-  let output = cmd.output_ok()?;
-
-  let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  info!("{:?}", stdout);
-
-  Ok(())
+/// This is check if azuresigntool is available on the users system.
+fn locate_azuresigntool() -> crate::Result<PathBuf> {
+  let mut cmd = Command::new("azuresigntool.exe");
+  cmd.arg("--help");
+  let _ = cmd.output_ok()?;
+  Ok(PathBuf::from("azuresigntool.exe"))
 }
 
 impl Settings {
-  pub(crate) fn can_sign(&self) -> bool {
-    self.windows().certificate_thumbprint.is_some()
-  }
-  pub(crate) fn sign_params(&self) -> SignParams {
-    SignParams {
-      product_name: self.product_name().into(),
-      digest_algorithm: self
-        .windows()
-        .digest_algorithm
-        .as_ref()
-        .map(|algorithm| algorithm.to_string())
-        .unwrap_or_else(|| "sha256".to_string()),
-      certificate_thumbprint: self
-        .windows()
-        .certificate_thumbprint
-        .clone()
-        .unwrap_or_default(),
-      timestamp_url: self
-        .windows()
-        .timestamp_url
-        .as_ref()
-        .map(|url| url.to_string()),
-      tsp: self.windows().tsp,
+  /// Attempts to create signing params from the environment variables and settings object.
+  /// If neither AzureSignTool or SignTool can be used because of missing environment variables, this will return `None`.
+  pub(crate) fn sign_params(&self) -> Option<SignParams> {
+    let product_name = self.product_name().to_string();
+
+    // We'll attempt to create a SignParams struct from the environment variables and the settings
+    // First we'll start with AzureSignTool, if we have all the required environment variables set, then we'll use that.
+    // If not, we'll fallback to Signtool.
+    // But if we don't have a certificate thumbprint set, we can't sign at all and we'll return None.
+    match (
+      var_os("AZURE_KEYVAULT_URL"),
+      var_os("AZURE_CLIENT_ID"),
+      var_os("AZURE_TENANT_ID"),
+      var_os("AZURE_CLIENT_SECRET"),
+      var_os("AZURE_CERTIFICATE_NAME"),
+    ) {
+      (
+        Some(keyvault_url),
+        Some(client_id),
+        Some(tenant_id),
+        Some(secret),
+        Some(certificate_name),
+      ) => {
+        let description_url =
+          var_os("AZURE_DESCRIPTION_URL").map(|s| s.to_string_lossy().to_string());
+        let timestamp_url = match var_os("AZURE_TIMESTAMP_URL") {
+          Some(timestamp_url) => Some(timestamp_url.to_string_lossy().to_string()),
+          None => self.windows().timestamp_url.clone(),
+        };
+
+        Some(SignParams::Azure(AzureSignToolParams {
+          keyvault_url: keyvault_url.to_string_lossy().to_string(),
+          client_id: client_id.to_string_lossy().to_string(),
+          tenant_id: tenant_id.to_string_lossy().to_string(),
+          secret: secret.to_string_lossy().to_string(),
+          product_name,
+          certificate_name: certificate_name.to_string_lossy().to_string(),
+          description_url,
+          timestamp_url,
+        }))
+      }
+      _ => {
+        // If there isn't a configured certificate thumbprint, we can't sign.
+        if self.windows().certificate_thumbprint.is_none() {
+          return None;
+        }
+
+        let certificate_thumbprint = self
+          .windows()
+          .certificate_thumbprint
+          .clone()
+          .unwrap_or_default();
+        let timestamp_url = self.windows().timestamp_url.clone();
+        let tsp = self.windows().tsp;
+        let digest_algorithm = self
+          .windows()
+          .digest_algorithm
+          .as_ref()
+          .map(|algorithm| algorithm.to_string())
+          .unwrap_or_else(|| "sha256".to_string());
+
+        Some(SignParams::SignTool(SignToolParams {
+          product_name,
+          digest_algorithm,
+          certificate_thumbprint,
+          timestamp_url,
+          tsp,
+        }))
+      }
     }
   }
-}
-
-pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
-  if settings.can_sign() {
-    info!(action = "Signing"; "{}", tauri_utils::display_path(file_path));
-    sign(file_path, &settings.sign_params())?;
-  }
-  Ok(())
 }

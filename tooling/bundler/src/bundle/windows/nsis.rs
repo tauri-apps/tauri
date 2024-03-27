@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(target_os = "windows")]
-use crate::bundle::windows::sign::{sign_command, try_sign};
 use crate::{
   bundle::{
     common::CommandExt,
@@ -215,13 +213,10 @@ fn build_nsis_app_installer(
 
   // Code signing is currently only supported on Windows hosts
   #[cfg(target_os = "windows")]
-  if settings.can_sign() {
+  if let Some(sign_params) = &settings.sign_params() {
     data.insert(
       "uninstaller_sign_cmd",
-      to_json(format!(
-        "{:?}",
-        sign_command("%1", &settings.sign_params())?.0
-      )),
+      to_json(format!("{:?}", sign_params.sign_command("%1")?.0)),
     );
   }
 
@@ -518,7 +513,9 @@ fn build_nsis_app_installer(
 
   // Code signing is currently only supported on Windows hosts
   #[cfg(target_os = "windows")]
-  try_sign(&nsis_installer_path, settings)?;
+  if let Some(sign_params) = &settings.sign_params() {
+    sign_params.sign(&nsis_installer_path)?;
+  }
 
   Ok(vec![nsis_installer_path])
 }

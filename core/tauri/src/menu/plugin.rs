@@ -321,9 +321,9 @@ impl MenuItemPayloadKind {
         do_menu_item!(resources_table, rid, kind, |i| f(&*i))
       }
       Self::Submenu(i) => f(&i.create_item(webview, resources_table)?),
-      Self::Predefined(i) => f(&i.create_item(webview, &resources_table)?),
+      Self::Predefined(i) => f(&i.create_item(webview, resources_table)?),
       Self::Check(i) => f(&i.create_item(webview)?),
-      Self::Icon(i) => f(&i.create_item(webview, &resources_table)?),
+      Self::Icon(i) => f(&i.create_item(webview, resources_table)?),
       Self::MenuItem(i) => f(&i.create_item(webview)?),
     }
   }

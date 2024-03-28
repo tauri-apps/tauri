@@ -48,6 +48,16 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
     match *request.method() {
       Method::POST => {
         if let Some(webview) = manager.get_webview(&label) {
+          #[cfg(target_os = "linux")]
+          let respond = {
+            let webview_ = webview.clone();
+            move |response| {
+              let _ = webview_.run_on_main_thread(move || {
+                respond(response);
+              });
+            }
+          };
+
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
               #[cfg(feature = "tracing")]

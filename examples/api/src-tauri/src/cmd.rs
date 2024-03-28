@@ -47,6 +47,6 @@ pub fn perform_request(endpoint: String, body: RequestBody) -> ApiResponse {
 }
 
 #[command]
-pub fn download() -> Vec<u8> {
+pub async fn download() -> Vec<u8> {
   vec![1, 2, 3]
 }

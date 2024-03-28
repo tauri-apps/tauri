@@ -55,6 +55,7 @@ enum TauriEvent {
   WINDOW_BLUR = 'tauri://blur',
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
+  WINDOW_CREATED = 'tauri://window-created',
   WEBVIEW_CREATED = 'tauri://webview-created',
   DRAG = 'tauri://drag',
   DROP = 'tauri://drop',

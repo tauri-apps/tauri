@@ -613,6 +613,19 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("failed to run on_webview_created hook");
     }
 
+    if let Ok(webview_labels_array) = serde_json::to_string(&webview.manager.webview.labels()) {
+      let _ = webview.manager.webview.eval_script_all(format!(
+      "window.__TAURI_INTERNALS__.metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+    ));
+    }
+
+    let _ = webview.manager.emit(
+      "tauri://webview-created",
+      Some(crate::webview::CreatedEvent {
+        label: webview.label().into(),
+      }),
+    );
+
     webview
   }
 

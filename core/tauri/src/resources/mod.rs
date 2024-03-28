@@ -127,7 +127,7 @@ impl ResourceTable {
       .index
       .get(&rid)
       .and_then(|rc| rc.downcast_arc::<T>())
-      .map(Clone::clone)
+      .cloned()
       .ok_or_else(|| Error::BadResourceId(rid))
   }
 
@@ -137,7 +137,7 @@ impl ResourceTable {
     self
       .index
       .get(&rid)
-      .map(Clone::clone)
+      .cloned()
       .ok_or_else(|| Error::BadResourceId(rid))
   }
 

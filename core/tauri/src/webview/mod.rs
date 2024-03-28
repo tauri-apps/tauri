@@ -54,8 +54,8 @@ pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send +
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
-struct CreatedEvent {
-  label: String,
+pub(crate) struct CreatedEvent {
+  pub(crate) label: String,
 }
 
 /// Download event for the [`WebviewBuilder#method.on_download`] hook.
@@ -625,22 +625,6 @@ tauri::Builder::default()
       _ => unimplemented!(),
     }
     .map(|webview| app_manager.webview.attach_webview(window.clone(), webview))?;
-
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&app_manager.webview.labels())?,
-    ))?;
-
-    app_manager.emit_filter(
-      "tauri://webview-created",
-      Some(CreatedEvent {
-        label: webview.label().into(),
-      }),
-      |s| match s {
-        EventTarget::Webview { label } => label == webview.label(),
-        _ => false,
-      },
-    )?;
 
     Ok(webview)
   }

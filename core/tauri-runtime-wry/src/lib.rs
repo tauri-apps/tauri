@@ -447,14 +447,12 @@ impl WindowEventWrapper {
       // because wry replaces the NSView
       TaoWindowEvent::Resized(_) => {
         if let Some(w) = &window.inner {
-          Self(Some(WindowEvent::Resized(
-            PhysicalSizeWrapper(inner_size(
-              w,
-              &window.webviews,
-              window.has_children.load(Ordering::Relaxed),
-            ))
-            .into(),
-          )))
+          let size = inner_size(
+            w,
+            &window.webviews,
+            window.has_children.load(Ordering::Relaxed),
+          );
+          Self(Some(WindowEvent::Resized(PhysicalSizeWrapper(size).into())))
         } else {
           Self(None)
         }
@@ -2665,8 +2663,16 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::Show => window.set_visible(true),
-          WindowMessage::Hide => window.set_visible(false),
+          WindowMessage::Show => {
+            window.set_visible(true);
+            #[cfg(windows)]
+            let _ = set_webview_visibility(&webviews, !window.is_minimized());
+          }
+          WindowMessage::Hide => {
+            window.set_visible(false);
+            #[cfg(windows)]
+            let _ = set_webview_visibility(&webviews, false);
+          }
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -3322,7 +3328,7 @@ fn handle_event_loop<T: UserEvent>(
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
               let size = size.to_logical::<f32>(window.scale_factor());
-              for webview in webviews {
+              for webview in &webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
                   if let Err(e) = webview.set_bounds(wry::Rect {
                     position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
@@ -3334,6 +3340,9 @@ fn handle_event_loop<T: UserEvent>(
                   }
                 }
               }
+              #[cfg(windows)]
+              let _ =
+                set_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
             }
           }
           _ => {}
@@ -4030,7 +4039,7 @@ fn inner_size(
   webviews: &[WebviewWrapper],
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
-  if has_children && webviews.len() == 1 {
+  if !has_children {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
@@ -4066,4 +4075,16 @@ fn clear_window_surface(
     buffer.fill(0);
     let _ = buffer.present();
   }
+}
+
+#[cfg(windows)]
+fn set_webview_visibility(
+  webviews: &[WebviewWrapper],
+  is_visible: bool,
+) -> windows::core::Result<()> {
+  for webview in webviews {
+    let controller = webview.controller();
+    unsafe { controller.SetIsVisible(is_visible) }?;
+  }
+  Ok(())
 }

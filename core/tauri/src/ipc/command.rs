@@ -246,7 +246,7 @@ pub mod private {
     }
   }
 
-  // ===== Result<impl Serialize, impl Into<InvokeError>> =====
+  // ===== Result<impl IpcResponse, impl Into<InvokeError>> =====
 
   pub struct ResultTag(InvokeResponse);
 
@@ -290,6 +290,28 @@ pub mod private {
         InvokeResponse::Ok(b) => Ok(b),
         InvokeResponse::Err(e) => Err(e),
       })
+    }
+  }
+
+  // ===== Future<Output = Vec<u8>> =====
+
+  pub struct BufferFutureTag<F: Future<Output = Vec<u8>>>(Pin<Box<F>>);
+
+  pub trait BufferFutureKind<F: Future<Output = Vec<u8>>> {
+    fn async_kind(self) -> BufferFutureTag<F>;
+  }
+
+  impl<F: Future<Output = Vec<u8>>> BufferFutureKind<F> for F {
+    #[inline(always)]
+    fn async_kind(self) -> BufferFutureTag<F> {
+      BufferFutureTag(Box::pin(self))
+    }
+  }
+
+  impl<F: Future<Output = Vec<u8>>> BufferFutureTag<F> {
+    #[inline(always)]
+    pub fn future(self) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>> {
+      self.0.map(|value| Ok(InvokeResponseBody::Raw(value)))
     }
   }
 

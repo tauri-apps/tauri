@@ -12,7 +12,19 @@ use std::{
   path::Path,
 };
 
-const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "core", "window", "mocks"];
+const CORE_API_MODULES: &[&str] = &[
+  "app",
+  "core",
+  "dpi",
+  "event",
+  "menu",
+  "mocks",
+  "path",
+  "tray",
+  "webview",
+  "webviewWindow",
+  "window",
+];
 const JS_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs"];
 
 pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
@@ -49,7 +61,14 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             } else if CORE_API_MODULES.contains(&module) {
               original.to_string()
             } else {
-              let plugin = format!("@tauri-apps/plugin-{module}");
+              let plugin = format!(
+                "@tauri-apps/plugin-{}",
+                if module == "globalShortcut" {
+                  "global-shortcut"
+                } else {
+                  module
+                }
+              );
               log::info!(
                 "Replacing `{original}` with `{plugin}` on {}",
                 path.display()
@@ -60,6 +79,8 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
                 "tauri-plugin-{}",
                 if module == "clipboard" {
                   "clipboard-manager"
+                } else if module == "globalShortcut" {
+                  "global-shortcut"
                 } else {
                   module
                 }

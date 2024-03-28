@@ -7,7 +7,6 @@
 
 pub(crate) mod plugin;
 
-use crate::error::Error;
 use std::{
   any::{type_name, Any, TypeId},
   borrow::Cow,
@@ -121,24 +120,24 @@ impl ResourceTable {
 
   /// Returns a reference counted pointer to the resource of type `T` with the
   /// given `rid`. If `rid` is not present or has a type different than `T`,
-  /// this function returns [`Error::BadResourceId`].
-  pub fn get<T: Resource>(&self, rid: ResourceId) -> Result<Arc<T>, Error> {
+  /// this function returns [`Error::BadResourceId`](crate::Error::BadResourceId).
+  pub fn get<T: Resource>(&self, rid: ResourceId) -> crate::Result<Arc<T>> {
     self
       .index
       .get(&rid)
       .and_then(|rc| rc.downcast_arc::<T>())
       .cloned()
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
   /// Returns a reference counted pointer to the resource of the given `rid`.
   /// If `rid` is not present, this function returns [`Error::BadResourceId`].
-  pub fn get_any(&self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+  pub fn get_any(&self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
       .get(&rid)
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
       .cloned()
-      .ok_or_else(|| Error::BadResourceId(rid))
   }
 
   /// Replaces a resource with a new resource.
@@ -161,7 +160,7 @@ impl ResourceTable {
   /// assume that `Arc::strong_count(&returned_arc)` is always equal to 1 on success.
   /// In particular, be really careful when you want to extract the inner value of
   /// type `T` from `Arc<T>`.
-  pub fn take<T: Resource>(&mut self, rid: ResourceId) -> Result<Arc<T>, Error> {
+  pub fn take<T: Resource>(&mut self, rid: ResourceId) -> crate::Result<Arc<T>> {
     let resource = self.get::<T>(rid)?;
     self.index.remove(&rid);
     Ok(resource)
@@ -175,11 +174,11 @@ impl ResourceTable {
   /// we cannot assume that `Arc::strong_count(&returned_arc)` is always equal to 1
   /// on success. In particular, be really careful when you want to extract the
   /// inner value of type `T` from `Arc<T>`.
-  pub fn take_any(&mut self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+  pub fn take_any(&mut self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
       .remove(&rid)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
   /// Returns an iterator that yields a `(id, name)` pair for every resource
@@ -199,17 +198,11 @@ impl ResourceTable {
   /// counted, therefore pending ops are not automatically cancelled. A resource
   /// may implement the `close()` method to perform clean-ups such as canceling
   /// ops.
-  pub fn close(&mut self, rid: ResourceId) -> Result<(), Error> {
+  pub fn close(&mut self, rid: ResourceId) -> crate::Result<()> {
     self
       .index
       .remove(&rid)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
       .map(|resource| resource.close())
-  }
-
-  /// Removes and frees all resources stored. Note that the
-  /// resource's `close()` method is *not* called.
-  pub(crate) fn clear(&mut self) {
-    self.index.clear()
   }
 }

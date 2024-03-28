@@ -558,7 +558,6 @@ impl<R: Runtime> AppManager<R> {
     self.webview.webviews_lock().clone()
   }
 
-  /// Resources table managed by the application.
   pub(crate) fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
     self
       .resources_table

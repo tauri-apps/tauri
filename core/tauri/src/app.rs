@@ -13,6 +13,7 @@ use crate::{
     AppManager, Asset,
   },
   plugin::{Plugin, PluginStore},
+  resources::ResourceTable,
   runtime::{
     window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
@@ -47,7 +48,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc},
+  sync::{mpsc::Sender, Arc, MutexGuard},
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -740,12 +741,16 @@ macro_rules! shared_app_impl {
         Ok(())
       }
 
+      /// Get a reference to the shared resources table of the application.
+      pub fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+        self.manager.resources_table()
+      }
+
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
-        self.resources_table().clear();
       }
     }
 

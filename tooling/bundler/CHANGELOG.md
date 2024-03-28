@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.1.0-beta.0]
+
+### New Features
+
+- [`259d84529`](https://www.github.com/tauri-apps/tauri/commit/259d845290dde40639537258b2810567910f47f3)([#9209](https://www.github.com/tauri-apps/tauri/pull/9209)) Add suport for include `preinstall`, `postinstall`, `preremove` and `postremove` scripts into Debian and RPM packages.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
 ## \[2.0.1-beta.7]
 
 ### Bug Fixes

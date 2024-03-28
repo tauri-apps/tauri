@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.7]
+
+### Bug Fixes
+
+- [`c33f6e6cf`](https://www.github.com/tauri-apps/tauri/commit/c33f6e6cf35a0d34b5598875a2e5b642a01c8b38)([#9211](https://www.github.com/tauri-apps/tauri/pull/9211)) Re-added the `TauriEvent.WINDOW_CREATED` (`tauri://window-created`) event.
+
 ## \[2.0.0-beta.6]
 
 ### New Features

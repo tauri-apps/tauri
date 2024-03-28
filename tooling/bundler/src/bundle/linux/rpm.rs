@@ -78,6 +78,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     builder = builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
   }
 
+  // Add scripts
+  if let Some(script_path) = &settings.rpm().pre_install_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.pre_install_script(script);
+  }
+
+  if let Some(script_path) = &settings.rpm().post_install_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.post_install_script(script);
+  }
+
+  if let Some(script_path) = &settings.rpm().pre_remove_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.pre_uninstall_script(script);
+  }
+
+  if let Some(script_path) = &settings.rpm().post_remove_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.post_uninstall_script(script);
+  }
+
   // Add resources
   if settings.resource_files().count() > 0 {
     let resource_dir = Path::new("/usr/lib").join(settings.main_binary_name());

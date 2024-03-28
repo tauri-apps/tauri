@@ -2430,13 +2430,6 @@
             "type": "string"
           }
         },
-        "desktopTemplate": {
-          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "section": {
           "description": "Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections",
           "type": [
@@ -2453,6 +2446,41 @@
         },
         "changelog": {
           "description": "Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
           "type": [
             "string",
             "null"
@@ -2497,6 +2525,34 @@
         },
         "desktopTemplate": {
           "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"

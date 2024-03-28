@@ -70,7 +70,7 @@ pub use cocoa;
 pub use embed_plist;
 pub use error::{Error, Result};
 use ipc::{RuntimeAuthority, RuntimeCapability};
-pub use resources::{Resource, ResourceId, ResourceScope, ResourceTable};
+pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
@@ -195,7 +195,6 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt::{self, Debug},
-  sync::MutexGuard,
 };
 use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
@@ -895,11 +894,6 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     T: Send + Sync + 'static,
   {
     self.manager().state.try_get()
-  }
-
-  /// Get a reference to the resources table.
-  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self.manager().resources_table()
   }
 
   /// Gets the managed [`Env`].

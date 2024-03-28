@@ -5,15 +5,14 @@
 use crate::{
   command,
   plugin::{Builder, TauriPlugin},
-  Manager, Runtime, Webview,
+  Runtime, Webview,
 };
 
-use super::{ResourceId, ResourceScope};
+use super::ResourceId;
 
 #[command(root = "crate")]
 fn close<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<()> {
-  let scope = ResourceScope::webview(webview.label());
-  webview.resources_table().close(rid, scope)
+  webview.resources_table().close(rid)
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {

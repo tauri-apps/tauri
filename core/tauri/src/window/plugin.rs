@@ -16,7 +16,6 @@ mod desktop_commands {
   use super::*;
   use crate::{
     command,
-    resources::ResourceScope,
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
     window::{ProgressBarState, WindowBuilder},
@@ -139,13 +138,9 @@ mod desktop_commands {
     value: crate::image::JsImage,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
+    let resources_table = webview.resources_table();
     window
-      .set_icon(
-        value
-          .into_img(&window, ResourceScope::webview(webview.label()))?
-          .as_ref()
-          .clone(),
-      )
+      .set_icon(value.into_img(&resources_table)?.as_ref().clone())
       .map_err(Into::into)
   }
 

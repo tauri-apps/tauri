@@ -4,12 +4,17 @@
 
 //! [`Window`] that hosts a single [`Webview`].
 
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{
+  borrow::Cow,
+  path::PathBuf,
+  sync::{Arc, MutexGuard},
+};
 
 use crate::{
   event::EventTarget,
   runtime::window::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
+  ResourceTable,
 };
 #[cfg(desktop)]
 use crate::{
@@ -1702,6 +1707,15 @@ tauri::Builder::default()
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
     self.webview.is_devtools_open()
+  }
+
+  /// Get a reference to the resources table of this webview window.
+  pub fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .webview
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
   }
 }
 

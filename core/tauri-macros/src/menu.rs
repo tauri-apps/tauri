@@ -13,7 +13,6 @@ use syn::{
 pub struct DoMenuItemInput {
   resources_table: Ident,
   rid: Ident,
-  scope: Ident,
   kind: Ident,
   var: Ident,
   expr: Expr,
@@ -56,8 +55,6 @@ impl Parse for DoMenuItemInput {
     let _: Token![,] = input.parse()?;
     let rid: Ident = input.parse()?;
     let _: Token![,] = input.parse()?;
-    let scope: Ident = input.parse()?;
-    let _: Token![,] = input.parse()?;
     let kind: Ident = input.parse()?;
     let _: Token![,] = input.parse()?;
     let _: Token![|] = input.parse()?;
@@ -70,7 +67,6 @@ impl Parse for DoMenuItemInput {
     Ok(Self {
       resources_table,
       rid,
-      scope,
       kind,
       var,
       expr,
@@ -82,7 +78,6 @@ impl Parse for DoMenuItemInput {
 pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
   let DoMenuItemInput {
     rid,
-    scope,
     resources_table,
     kind,
     expr,
@@ -131,7 +126,7 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
     match #kind {
       #(
         ItemKind::#kinds => {
-        let #var = #resources_table.get::<#types<R>>(#rid, #scope)?;
+        let #var = #resources_table.get::<#types<R>>(#rid)?;
         #expr
       }
       )*

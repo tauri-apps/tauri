@@ -41,7 +41,7 @@ impl StartingBinary {
   ///
   /// Because [`Error`] is not clone-able, it is recreated instead.
   pub(super) fn cloned(&self) -> Result<PathBuf> {
-    // TODO: remove this allow when MSRV is 1.77
+    // false positive
     #[allow(clippy::useless_asref)]
     self
       .0

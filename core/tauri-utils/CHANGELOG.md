@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### New Features
+
+- [`259d84529`](https://www.github.com/tauri-apps/tauri/commit/259d845290dde40639537258b2810567910f47f3)([#9209](https://www.github.com/tauri-apps/tauri/pull/9209)) Added `preInstallScript`, `postInstallScript`, `preRemoveScript` and `postRemoveScript` options for `bundler > deb` and `bundler > rpm` configs.
+
 ## \[2.0.0-beta.10]
 
 ### New Features

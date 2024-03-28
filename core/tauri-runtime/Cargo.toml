@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 description = "Runtime for Tauri applications"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -29,7 +29,7 @@ targets = [
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "2.0.0-beta.10", path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-beta.11", path = "../tauri-utils" }
 http = "0.2.4"
 raw-window-handle = "0.6"
 url = { version = "2" }

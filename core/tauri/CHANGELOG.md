@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Bug Fixes
+
+- [`c33f6e6cf`](https://www.github.com/tauri-apps/tauri/commit/c33f6e6cf35a0d34b5598875a2e5b642a01c8b38)([#9211](https://www.github.com/tauri-apps/tauri/pull/9211)) Fixed an issue preventing webview/window creation events to not be emitted. This also fixed the `getByLabel` and `getAll` JavaScript functions.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.11`
+- Upgraded to `tauri-runtime@2.0.0-beta.11`
+- Upgraded to `tauri-macros@2.0.0-beta.11`
+- Upgraded to `tauri-build@2.0.0-beta.11`
+
 ## \[2.0.0-beta.13]
 
 ### Enhancements

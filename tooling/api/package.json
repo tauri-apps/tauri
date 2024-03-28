@@ -45,7 +45,7 @@
   "devDependencies": {
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "11.1.6",
-    "@types/node": "20.11.24",
+    "@types/node": "20.11.26",
     "@typescript-eslint/eslint-plugin": "6.21.0",
     "@typescript-eslint/parser": "6.21.0",
     "eslint": "8.57.0",
@@ -57,9 +57,9 @@
     "eslint-plugin-security": "2.1.1",
     "fast-glob": "3.3.2",
     "prettier": "3.2.5",
-    "rollup": "4.12.1",
+    "rollup": "4.13.0",
     "tslib": "2.6.2",
-    "typescript": "5.3.3"
+    "typescript": "5.4.2"
   },
   "engines": {
     "node": ">= 18",

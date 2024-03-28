@@ -63,7 +63,7 @@ impl dyn Resource {
 pub type ResourceId = u32;
 
 /// Map-like data structure storing Tauri's resources (equivalent to file
-/// descriptors) in a [scope](ResourceScope).
+/// descriptors).
 ///
 /// Provides basic methods for element access. A resource can be of any type.
 /// Different types of resources can be stored in the same map, and provided

@@ -2637,12 +2637,12 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Show => {
             window.set_visible(true);
             #[cfg(windows)]
-            let _ = update_webview_visibility(&webviews, !window.is_minimized());
+            let _ = set_webview_visibility(&webviews, !window.is_minimized());
           }
           WindowMessage::Hide => {
             window.set_visible(false);
             #[cfg(windows)]
-            let _ = update_webview_visibility(&webviews, false);
+            let _ = set_webview_visibility(&webviews, false);
           }
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
@@ -3228,7 +3228,7 @@ fn handle_event_loop<T: UserEvent>(
               }
               #[cfg(windows)]
               let _ =
-                update_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
+                set_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
             }
           }
           _ => {}
@@ -3965,7 +3965,7 @@ fn clear_window_surface(
 }
 
 #[cfg(windows)]
-fn update_webview_visibility(
+fn set_webview_visibility(
   webviews: &[WebviewWrapper],
   is_visible: bool,
 ) -> windows::core::Result<()> {

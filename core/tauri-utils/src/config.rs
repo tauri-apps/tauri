@@ -1069,7 +1069,7 @@ pub struct WindowConfig {
   /// Whether the drag and drop is enabled or not on the webview. By default it is enabled.
   ///
   /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
-  #[serde(default = "default_true", alias = "file-drop-enabled")]
+  #[serde(default = "default_true", alias = "drag-drop-enabled")]
   pub drag_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]

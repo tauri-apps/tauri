@@ -13,14 +13,14 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
-use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
-};
 #[cfg(desktop)]
 use tauri_runtime::{
-  window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
+};
+use tauri_runtime::{
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  Rect, WebviewDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
@@ -618,7 +618,7 @@ tauri::Builder::default()
     let mut pending =
       self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
 
-    pending.webview_attributes.bounds = Some((position, size));
+    pending.webview_attributes.bounds = Some(Rect { size, position });
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
@@ -901,6 +901,15 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Resizes this webview.
+  pub fn set_bounds(&self, bounds: Rect) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_bounds(bounds)
+      .map_err(Into::into)
+  }
+
+  /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     self
       .webview
@@ -945,6 +954,11 @@ impl<R: Runtime> Webview<R> {
       .dispatcher
       .set_auto_resize(auto_resize)
       .map_err(Into::into)
+  }
+
+  /// Returns the bounds of the webviews's client area.
+  pub fn bounds(&self) -> crate::Result<Rect> {
+    self.webview.dispatcher.bounds().map_err(Into::into)
   }
 
   /// Returns the webview position.

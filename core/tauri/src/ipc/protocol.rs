@@ -429,7 +429,7 @@ fn parse_invoke_request<R: Runtime>(
 
   let content_type = parts
     .headers
-    .get(reqwest::header::CONTENT_TYPE)
+    .get(http::header::CONTENT_TYPE)
     .and_then(|h| h.to_str().ok())
     .map(|mime| mime.parse())
     .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))

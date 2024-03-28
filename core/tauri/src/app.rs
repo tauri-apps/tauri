@@ -35,10 +35,8 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    DragDropEvent,
-  },
+  dpi::{PhysicalPosition, PhysicalSize},
+  window::DragDropEvent,
   RuntimeInitArgs,
 };
 use tauri_utils::PackageInfo;

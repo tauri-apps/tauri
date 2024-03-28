@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::window::dpi::{PhysicalPosition, PhysicalSize};
+use crate::dpi::{PhysicalPosition, PhysicalSize};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone)]

@@ -8,7 +8,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
-use tauri_runtime::window::dpi::Position;
+use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{

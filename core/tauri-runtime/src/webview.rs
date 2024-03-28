@@ -4,13 +4,7 @@
 
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
-use crate::{
-  window::{
-    dpi::{Position, Size},
-    is_label_valid,
-  },
-  Runtime, UserEvent,
-};
+use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
 use tauri_utils::config::{WebviewUrl, WindowConfig, WindowEffectsConfig};
@@ -210,7 +204,7 @@ pub struct WebviewAttributes {
   pub window_effects: Option<WindowEffectsConfig>,
   pub incognito: bool,
   pub transparent: bool,
-  pub bounds: Option<(Position, Size)>,
+  pub bounds: Option<Rect>,
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
 }

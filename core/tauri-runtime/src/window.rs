@@ -21,11 +21,6 @@ use std::{
   sync::mpsc::Sender,
 };
 
-use self::dpi::PhysicalPosition;
-
-/// UI scaling utilities.
-pub mod dpi;
-
 /// An event from a window.
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
@@ -81,19 +76,19 @@ pub enum DragDropEvent {
     /// Paths of the files that are being dragged.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
   /// The files have been dragged onto the window, but have not been dropped yet.
   DragOver {
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
   /// The user dropped the operation.
   Dropped {
     /// Path of the files that were dropped.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
   /// The drag operation was cancelled.
   Cancelled,

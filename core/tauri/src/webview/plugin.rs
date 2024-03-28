@@ -13,7 +13,7 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_runtime::window::dpi::{Position, Size};
+  use tauri_runtime::dpi::{Position, Size};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
@@ -80,8 +80,8 @@ mod desktop_commands {
 
     window.add_child(
       builder,
-      tauri_runtime::window::dpi::LogicalPosition::new(options.x, options.y),
-      tauri_runtime::window::dpi::LogicalSize::new(options.width, options.height),
+      tauri_runtime::dpi::LogicalPosition::new(options.x, options.y),
+      tauri_runtime::dpi::LogicalSize::new(options.width, options.height),
     )?;
 
     Ok(())
@@ -144,13 +144,9 @@ mod desktop_commands {
   getter!(
     webview_position,
     position,
-    tauri_runtime::window::dpi::PhysicalPosition<i32>
+    tauri_runtime::dpi::PhysicalPosition<i32>
   );
-  getter!(
-    webview_size,
-    size,
-    tauri_runtime::window::dpi::PhysicalSize<u32>
-  );
+  getter!(webview_size, size, tauri_runtime::dpi::PhysicalSize<u32>);
   //getter!(is_focused, bool);
 
   setter!(print);

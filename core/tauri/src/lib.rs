@@ -217,12 +217,10 @@ pub use {
   },
   self::manager::Asset,
   self::runtime::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
     webview::WebviewAttributes,
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, DragDropEvent,
-    },
-    DeviceEventFilter, UserAttentionType,
+    window::{CursorIcon, DragDropEvent},
+    DeviceEventFilter, Rect, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{

@@ -11,11 +11,9 @@ use std::{
 
 use serde::Serialize;
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize},
   window::WindowBuilder,
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    DetachedWindow, DragDropEvent, PendingWindow,
-  },
+  window::{DetachedWindow, DragDropEvent, PendingWindow},
 };
 
 use crate::{

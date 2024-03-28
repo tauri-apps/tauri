@@ -8,7 +8,7 @@ use std::{borrow::Cow, path::PathBuf, sync::Arc};
 
 use crate::{
   event::EventTarget,
-  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
 };
 #[cfg(desktop)]
@@ -16,10 +16,8 @@ use crate::{
   image::Image,
   menu::{ContextMenu, Menu},
   runtime::{
-    window::{
-      dpi::{Position, Size},
-      CursorIcon,
-    },
+    dpi::{Position, Size},
+    window::CursorIcon,
     UserAttentionType,
   },
 };

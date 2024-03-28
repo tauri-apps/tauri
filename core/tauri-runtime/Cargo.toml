@@ -33,7 +33,7 @@ tauri-utils = { version = "2.0.0-beta.10", path = "../tauri-utils" }
 http = "1.1"
 raw-window-handle = "0.6"
 url = { version = "2" }
-dpi = "0.1"
+dpi = { version = "0.1", features = ["serde"] }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.54"

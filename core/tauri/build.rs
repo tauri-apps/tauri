@@ -64,6 +64,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("current_monitor", true),
       ("primary_monitor", true),
       ("available_monitors", true),
+      ("cursor_position", true),
       ("theme", true),
       // setters
       ("center", false),

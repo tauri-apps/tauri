@@ -587,6 +587,22 @@ macro_rules! shared_app_impl {
           _ => unreachable!(),
         })
       }
+
+      /// Get the cursor position  relative to the top-left hand corner of the desktop.
+      ///
+      /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+      /// If the user uses a desktop with multiple monitors,
+      /// the top-left hand corner of the desktop is the top-left hand corner of the monitor at the top-left of the desktop.
+      ///
+      /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+      pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.cursor_position()?,
+          RuntimeOrDispatch::RuntimeHandle(h) => h.cursor_position()?,
+          _ => unreachable!(),
+        })
+      }
+
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()

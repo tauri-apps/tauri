@@ -270,6 +270,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   {
     todo!()
   }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -1141,5 +1145,9 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
 
     callback(RunEvent::Exit);
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
   }
 }

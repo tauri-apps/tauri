@@ -698,6 +698,22 @@ impl CargoSettings {
       .with_context(|| "failed to parse Cargo.toml")
       .map_err(Into::into)
   }
+
+  fn has_bin_name(&self) -> bool {
+    if let Some(bin) = &self.bin {
+      !bin.is_empty()
+    } else {
+      false
+    }
+  }
+
+  fn bin_name(&self) -> Option<String> {
+    self.bin
+      .as_ref()
+      .map(|bin| bin.first())
+      .flatten()
+      .map(|bin| bin.name.clone())
+  }
 }
 
 pub struct RustAppSettings {
@@ -832,10 +848,12 @@ impl AppSettings for RustAppSettings {
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
     let bin_name = self
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
+      .cargo_settings()
+      .bin_name()
+      .unwrap_or_else(|| self.cargo_package_settings()
+        .name
+        .clone()
+        .expect("Cargo manifest must have the `package.name` field"));
 
     let out_dir = self
       .out_dir(options.target.clone(), get_profile_dir(options).to_string())
@@ -849,6 +867,10 @@ impl AppSettings for RustAppSettings {
     .into();
 
     Ok(out_dir.join(bin_name).with_extension(binary_extension))
+  }
+
+  fn app_has_binary_name(&self) -> bool {
+    self.cargo_settings.has_bin_name()
   }
 
   fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
@@ -1096,6 +1118,10 @@ impl RustAppSettings {
       target_triple,
       target,
     })
+  }
+
+  pub fn cargo_settings(&self) -> &CargoSettings {
+    &self.cargo_settings
   }
 
   pub fn cargo_package_settings(&self) -> &CargoPackageSettings {

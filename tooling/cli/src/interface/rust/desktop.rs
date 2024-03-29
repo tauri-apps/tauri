@@ -185,7 +185,10 @@ pub fn build(
       .with_context(|| "failed to build app")?;
   }
 
-  rename_app(target_os, &bin_path, product_name.as_deref())?;
+  // Don't rename the app if the binary name is already set
+  if !app_settings.app_has_binary_name() {
+    rename_app(target_os, &bin_path, product_name.as_deref())?;
+  }
 
   Ok(())
 }

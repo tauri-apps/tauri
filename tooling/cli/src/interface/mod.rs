@@ -31,6 +31,7 @@ pub trait AppSettings {
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
+  fn app_has_binary_name(&self) -> bool;
   fn get_binaries(
     &self,
     config: &Config,

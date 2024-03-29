@@ -40,7 +40,7 @@ dunce = "1"
 log = "0.4.20"
 
 [target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.4"
+heck = "0.5"
 
 [target."cfg(windows)".dependencies]
 windows-version = "0.1"

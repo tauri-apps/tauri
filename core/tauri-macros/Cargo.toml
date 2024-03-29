@@ -19,7 +19,7 @@ proc-macro = true
 proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
 syn = { version = "1", features = ["full"] }
-heck = "0.4"
+heck = "0.5"
 tauri-codegen = { version = "1.4.2", default-features = false, path = "../tauri-codegen" }
 tauri-utils = { version = "1.5.3", path = "../tauri-utils" }
 

@@ -3954,12 +3954,8 @@ fn calculate_window_center_position(
     if status.into() {
       let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
       let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
-      let offset_x =
-        monitor_info.rcMonitor.left - monitor_info.rcWork.left + monitor_info.rcMonitor.left;
-      let offset_y =
-        monitor_info.rcMonitor.top - monitor_info.rcWork.top + monitor_info.rcMonitor.top;
-      let x = (available_width - window_size.width as i32) / 2 + offset_x;
-      let y = (available_height - window_size.height as i32) / 2 + offset_y;
+      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
+      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
       return TaoPhysicalPosition::new(x, y);
     }
   }

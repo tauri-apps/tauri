@@ -2612,12 +2612,10 @@ fn handle_user_message<T: UserEvent>(
           // Setters
           WindowMessage::Center => {
             if let Some(monitor) = window.current_monitor() {
-              let window_size = inner_size(&window, &webviews, has_children);
-              let screen_size = monitor.size();
-              let monitor_pos = monitor.position();
-              let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-              let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-              window.set_outer_position(TaoPhysicalPosition::new(x, y));
+              window.set_outer_position(calculate_window_center_position(
+                window.outer_size(),
+                monitor,
+              ));
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {
@@ -3400,13 +3398,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
-        .to_logical::<i32>(scale_factor);
-      let screen_size = monitor.size().to_logical::<i32>(scale_factor);
-      let monitor_pos = monitor.position().to_logical::<i32>(scale_factor);
-      let x = (screen_size.width - window_size.width) / 2 + monitor_pos.x;
-      let y = (screen_size.height - window_size.height) / 2 + monitor_pos.y;
-
-      window_builder = window_builder.position(x as f64, y as f64);
+        .to_physical::<u32>(scale_factor);
+      let position = calculate_window_center_position(window_size, monitor);
+      let logical_position = position.to_logical::<f64>(scale_factor);
+      window_builder = window_builder.position(logical_position.x, logical_position.y);
     }
   }
 
@@ -3943,6 +3938,36 @@ fn inner_size(
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
   window.inner_size()
+}
+
+fn calculate_window_center_position(
+  window_size: TaoPhysicalSize<u32>,
+  target_monitor: MonitorHandle,
+) -> TaoPhysicalPosition<i32> {
+  #[cfg(windows)]
+  {
+    use tao::platform::windows::MonitorHandleExtWindows;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
+    let mut monitor_info = MONITORINFO::default();
+    monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    if status.into() {
+      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
+      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
+      let offset_x =
+        monitor_info.rcMonitor.left - monitor_info.rcWork.left + monitor_info.rcMonitor.left;
+      let offset_y =
+        monitor_info.rcMonitor.top - monitor_info.rcWork.top + monitor_info.rcMonitor.top;
+      let x = (available_width - window_size.width as i32) / 2 + offset_x;
+      let y = (available_height - window_size.height as i32) / 2 + offset_y;
+      return TaoPhysicalPosition::new(x, y);
+    }
+  }
+  let screen_size = target_monitor.size();
+  let monitor_pos = target_monitor.position();
+  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
+  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
+  TaoPhysicalPosition::new(x, y)
 }
 
 #[cfg(windows)]

@@ -556,6 +556,9 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
+  /// Flag passed for code signing.
+  #[serde(alias = "signing-runtime-flag")]
+  pub signing_runtime_flag: Option<bool>,
   /// Provider short name for notarization.
   #[serde(alias = "provider-short-name")]
   pub provider_short_name: Option<String>,
@@ -574,6 +577,7 @@ impl Default for MacConfig {
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
+      signing_runtime_flag: None,
       provider_short_name: None,
       entitlements: None,
       dmg: Default::default(),

@@ -205,7 +205,10 @@ fn try_sign(
     args.push(entitlements_path);
   }
 
-  if is_an_executable {
+  // add runtime flag by default
+  let should_set = settings.macos().signing_runtime_flag
+    .unwrap_or(true); 
+  if is_an_executable && should_set {
     args.push("--options");
     args.push("runtime");
   }

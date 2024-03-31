@@ -1387,6 +1387,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      signing_runtime_flag: config.macos.signing_runtime_flag,
       provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {

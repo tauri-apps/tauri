@@ -2605,6 +2605,13 @@
             "null"
           ]
         },
+        "signingRuntimeFlag": {
+          "description": "Flag passed for code signing.",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "providerShortName": {
           "description": "Provider short name for notarization.",
           "type": [

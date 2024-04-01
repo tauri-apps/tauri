@@ -74,10 +74,15 @@ pub type ResourceId = u32;
 #[derive(Default)]
 pub struct ResourceTable {
   index: BTreeMap<ResourceId, Arc<dyn Resource>>,
-  next_rid: ResourceId,
 }
 
 impl ResourceTable {
+  fn new_random_rid() -> u32 {
+    let mut bytes = [0_u8; 4];
+    getrandom::getrandom(&mut bytes).expect("failed to get random bytes");
+    u32::from_ne_bytes(bytes)
+  }
+
   /// Inserts resource into the resource table, which takes ownership of it.
   ///
   /// The resource type is erased at runtime and must be statically known
@@ -106,10 +111,9 @@ impl ResourceTable {
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
   pub fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
-    let rid = self.next_rid;
+    let rid = Self::new_random_rid();
     let removed_resource = self.index.insert(rid, resource);
     assert!(removed_resource.is_none());
-    self.next_rid += 1;
     rid
   }
 

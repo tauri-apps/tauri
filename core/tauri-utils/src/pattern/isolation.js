@@ -29,7 +29,7 @@
     'raw',
     aesGcmKeyRaw,
     'AES-GCM',
-    true,
+    false,
     ['encrypt']
   )
 

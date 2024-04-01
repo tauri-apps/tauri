@@ -1152,17 +1152,6 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().available_monitors()
   }
 
-  /// Get the cursor position  relative to the top-left hand corner of the desktop.
-  ///
-  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
-  /// If the user uses a desktop with multiple monitors,
-  /// the top-left hand corner of the desktop is the top-left hand corner of the monitor at the top-left of the desktop.
-  ///
-  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
-  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
-    self.webview.cursor_position()
-  }
-
   /// Returns the native handle that is used by this window.
   #[cfg(target_os = "macos")]
   pub fn ns_window(&self) -> crate::Result<*mut std::ffi::c_void> {
@@ -1216,6 +1205,21 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<crate::Theme> {
     self.webview.window().theme()
+  }
+}
+
+/// Desktop window getters.
+#[cfg(desktop)]
+impl<R: Runtime> WebviewWindow<R> {
+  /// Get the cursor position  relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the monitor at the top-left of the desktop.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.webview.cursor_position()
   }
 }
 

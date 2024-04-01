@@ -33,16 +33,21 @@ import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import { WebviewWindow } from './webviewWindow'
 
-interface FileDropPayload {
+interface DragDropPayload {
   paths: string[]
   position: PhysicalPosition
 }
 
-/** The file drop event types. */
-type FileDropEvent =
-  | ({ type: 'hover' } & FileDropPayload)
-  | ({ type: 'drop' } & FileDropPayload)
-  | { type: 'cancel' }
+interface DragOverPayload {
+  position: PhysicalPosition
+}
+
+/** The drag and drop event types. */
+type DragDropEvent =
+  | ({ type: 'dragged' } & DragDropPayload)
+  | ({ type: 'dragOver' } & DragOverPayload)
+  | ({ type: 'dropped' } & DragDropPayload)
+  | { type: 'cancelled' }
 
 /**
  * Get an instance of `Webview` for the current webview.
@@ -502,7 +507,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from "@tauri-apps/api/webview";
-   * const unlisten = await getCurrent().onFileDropEvent((event) => {
+   * const unlisten = await getCurrent().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -519,16 +524,16 @@ class Webview {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async onFileDropEvent(
-    handler: EventCallback<FileDropEvent>
+  async onDragDropEvent(
+    handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<FileDropPayload>(
-      TauriEvent.FILE_DROP,
+    const unlistenDrag = await this.listen<DragDropPayload>(
+      TauriEvent.DRAG,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'drop',
+            type: 'dragged',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -536,14 +541,27 @@ class Webview {
       }
     )
 
-    const unlistenFileHover = await this.listen<FileDropPayload>(
-      TauriEvent.FILE_DROP_HOVER,
+    const unlistenDrop = await this.listen<DragDropPayload>(
+      TauriEvent.DROP,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'hover',
+            type: 'dropped',
             paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDragOver = await this.listen<DragDropPayload>(
+      TauriEvent.DROP_CANCELLED,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dragOver',
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -551,15 +569,16 @@ class Webview {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.FILE_DROP_CANCELLED,
+      TauriEvent.DROP_CANCELLED,
       (event) => {
-        handler({ ...event, payload: { type: 'cancel' } })
+        handler({ ...event, payload: { type: 'cancelled' } })
       }
     )
 
     return () => {
-      unlistenFileDrop()
-      unlistenFileHover()
+      unlistenDrag()
+      unlistenDrop()
+      unlistenDragOver()
       unlistenCancel()
     }
   }
@@ -598,11 +617,11 @@ interface WebviewOptions {
    */
   transparent?: boolean
   /**
-   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   * Whether the drag and drop is enabled or not on the webview. By default it is enabled.
    *
-   * Disabling it is required to use drag and drop on the frontend on Windows.
+   * Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
    */
-  fileDropEnabled?: boolean
+  dragDropEnabled?: boolean
   /**
    * Whether clicking an inactive webview also clicks through to the webview on macOS.
    */
@@ -633,4 +652,4 @@ interface WebviewOptions {
 
 export { Webview, getCurrent, getAll }
 
-export type { FileDropEvent, FileDropPayload, WebviewOptions }
+export type { DragDropEvent, DragDropPayload, WebviewOptions }

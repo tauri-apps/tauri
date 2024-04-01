@@ -21,11 +21,6 @@ use std::{
   sync::mpsc::Sender,
 };
 
-use self::dpi::PhysicalPosition;
-
-/// UI scaling utilities.
-pub mod dpi;
-
 /// An event from a window.
 #[derive(Debug, Clone)]
 pub enum WindowEvent {
@@ -57,8 +52,8 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: dpi::PhysicalSize<u32>,
   },
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
   /// The system window theme has changed.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
@@ -68,27 +63,34 @@ pub enum WindowEvent {
 /// An event from a window.
 #[derive(Debug, Clone)]
 pub enum WebviewEvent {
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
 }
 
-/// The file drop event payload.
+/// The drag drop event payload.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum FileDropEvent {
-  /// The file(s) have been dragged onto the window, but have not been dropped yet.
-  Hovered {
+pub enum DragDropEvent {
+  /// A drag operation started.
+  Dragged {
+    /// Paths of the files that are being dragged.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
-  /// The file(s) have been dropped onto the window.
+  /// The files have been dragged onto the window, but have not been dropped yet.
+  DragOver {
+    /// The position of the mouse cursor.
+    position: dpi::PhysicalPosition<f64>,
+  },
+  /// The user dropped the operation.
   Dropped {
+    /// Path of the files that were dropped.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
-  /// The file drop was aborted.
+  /// The drag operation was cancelled.
   Cancelled,
 }
 

@@ -326,10 +326,6 @@ pub struct DebConfig {
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
-  /// Path to a custom desktop file Handlebars template.
-  ///
-  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
-  pub desktop_template: Option<PathBuf>,
   /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
   pub section: Option<String>,
   /// Change the priority of the Debian Package. By default, it is set to `optional`.
@@ -338,6 +334,27 @@ pub struct DebConfig {
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
   /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
   pub changelog: Option<PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  #[serde(alias = "desktop-template")]
+  pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "pre-install-script")]
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "post-install-script")]
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "pre-remove-script")]
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "post-remove-script")]
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// Configuration for Linux bundles.
@@ -379,7 +396,24 @@ pub struct RpmConfig {
   /// Path to a custom desktop file Handlebars template.
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "pre-install-script")]
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "post-install-script")]
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "pre-remove-script")]
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "post-remove-script")]
+  pub post_remove_script: Option<PathBuf>,
 }
 
 impl Default for RpmConfig {
@@ -390,6 +424,10 @@ impl Default for RpmConfig {
       epoch: 0,
       files: Default::default(),
       desktop_template: None,
+      pre_install_script: None,
+      post_install_script: None,
+      pre_remove_script: None,
+      post_remove_script: None,
     }
   }
 }

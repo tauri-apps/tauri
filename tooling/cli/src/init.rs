@@ -22,7 +22,7 @@ use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]

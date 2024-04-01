@@ -20,7 +20,7 @@ use std::{
   path::{Component, Path, PathBuf},
 };
 
-pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
+pub const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/plugin");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initialize a Tauri plugin project on an existing directory")]

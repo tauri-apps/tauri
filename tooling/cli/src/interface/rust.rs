@@ -1335,6 +1335,10 @@ fn tauri_config_to_bundle_settings(
       section: config.linux.deb.section,
       priority: config.linux.deb.priority,
       changelog: config.linux.deb.changelog,
+      pre_install_script: config.linux.deb.pre_install_script,
+      post_install_script: config.linux.deb.post_install_script,
+      pre_remove_script: config.linux.deb.pre_remove_script,
+      post_remove_script: config.linux.deb.post_remove_script,
     },
     appimage: AppImageSettings {
       files: config.linux.appimage.files,
@@ -1349,6 +1353,10 @@ fn tauri_config_to_bundle_settings(
       epoch: config.linux.rpm.epoch,
       files: config.linux.rpm.files,
       desktop_template: config.linux.rpm.desktop_template,
+      pre_install_script: config.linux.rpm.pre_install_script,
+      post_install_script: config.linux.rpm.post_install_script,
+      pre_remove_script: config.linux.rpm.pre_remove_script,
+      post_remove_script: config.linux.rpm.post_remove_script,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

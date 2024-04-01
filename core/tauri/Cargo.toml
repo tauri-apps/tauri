@@ -122,7 +122,7 @@ win7-notifications = { version = "0.4", optional = true }
   features = [ "Win32_Foundation" ]
 
 [build-dependencies]
-heck = "0.4"
+heck = "0.5"
 once_cell = "1"
 
 [dev-dependencies]

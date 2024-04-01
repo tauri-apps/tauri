@@ -80,18 +80,24 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let plugin = options.plugin;
+  let (plugin, version) = options
+    .plugin
+    .split_once("@")
+    .map(|(p, v)| (p, Some(v)))
+    .unwrap_or((&options.plugin, None));
+
   let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
   let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
   let mut plugins = plugins();
-  let metadata = plugins.remove(plugin.as_str()).unwrap_or_default();
+  let metadata = plugins.remove(plugin).unwrap_or_default();
 
   let tauri_dir = tauri_dir();
 
   cargo::install_one(cargo::CargoInstallOptions {
     name: &crate_name,
+    version,
     branch: options.branch.as_deref(),
     rev: options.rev.as_deref(),
     tag: options.tag.as_deref(),
@@ -108,17 +114,20 @@ pub fn command(options: Options) -> Result<()> {
       .map(PackageManager::from_project)
       .and_then(|managers| managers.into_iter().next())
     {
-      let npm_spec = match (options.tag, options.rev, options.branch) {
-        (Some(tag), None, None) => {
+      let npm_spec = match (version, options.tag, options.rev, options.branch) {
+        (Some(version), _, _, _) => {
+          format!("{npm_name}@{version}")
+        }
+        (None, Some(tag), None, None) => {
           format!("tauri-apps/tauri-plugin-{plugin}#{tag}")
         }
-        (None, Some(rev), None) => {
+        (None, None, Some(rev), None) => {
           format!("tauri-apps/tauri-plugin-{plugin}#{rev}")
         }
-        (None, None, Some(branch)) => {
+        (None, None, None, Some(branch)) => {
           format!("tauri-apps/tauri-plugin-{plugin}#{branch}")
         }
-        (None, None, None) => npm_name,
+        (None, None, None, None) => npm_name,
         _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
       manager.install(&[npm_spec])?;

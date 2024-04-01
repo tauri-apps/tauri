@@ -1263,12 +1263,12 @@ class Window {
       label: this.label,
       value: size
         ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
+          type: size.type,
+          data: {
+            width: size.width,
+            height: size.height
           }
+        }
         : null
     })
   }
@@ -1297,12 +1297,12 @@ class Window {
       label: this.label,
       value: size
         ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
+          type: size.type,
+          data: {
+            width: size.width,
+            height: size.height
           }
+        }
         : null
     })
   }
@@ -2175,11 +2175,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
   return m === null
     ? null
     : {
-        name: m.name,
-        scaleFactor: m.scaleFactor,
-        position: mapPhysicalPosition(m.position),
-        size: mapPhysicalSize(m.size)
-      }
+      name: m.name,
+      scaleFactor: m.scaleFactor,
+      position: mapPhysicalPosition(m.position),
+      size: mapPhysicalSize(m.size)
+    }
 }
 
 function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
@@ -2240,7 +2240,7 @@ async function availableMonitors(): Promise<Monitor[]> {
   )
 }
 
-/** Get the cursor position  relative to the top-left hand corner of the desktop.
+/** Get the cursor position relative to the top-left hand corner of the desktop.
  *
  * Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
  * If the user uses a desktop with multiple monitors,

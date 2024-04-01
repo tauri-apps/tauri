@@ -2122,7 +2122,8 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .main_thread
       .window_target
       .cursor_position()
-      .map(|p| tauri_runtime::window::dpi::PhysicalPosition { x: p.x, y: p.y })
+      .map(PhysicalPositionWrapper)
+      .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
@@ -2379,7 +2380,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .main_thread
       .window_target
       .cursor_position()
-      .map(|p| tauri_runtime::window::dpi::PhysicalPosition { x: p.x, y: p.y })
+      .map(PhysicalPositionWrapper)
+      .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
 

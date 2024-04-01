@@ -1542,7 +1542,7 @@ impl<R: Runtime> Window<R> {
 /// Desktop window getters.
 #[cfg(desktop)]
 impl<R: Runtime> Window<R> {
-  /// Get the cursor position  relative to the top-left hand corner of the desktop.
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
   ///
   /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
   /// If the user uses a desktop with multiple monitors,

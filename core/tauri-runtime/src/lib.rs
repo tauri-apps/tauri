@@ -13,7 +13,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use raw_window_handle::DisplayHandle;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use url::Url;
@@ -24,11 +24,9 @@ pub mod monitor;
 pub mod webview;
 pub mod window;
 
+use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
 use monitor::Monitor;
-use window::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
-};
+use window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent};
 use window::{WindowBuilder, WindowId};
 
 use http::{
@@ -37,8 +35,29 @@ use http::{
   status::InvalidStatusCode,
 };
 
+/// UI scaling utilities.
+pub use dpi;
+
 pub type WindowEventId = u32;
 pub type WebviewEventId = u32;
+
+/// A rectangular region.
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Rect {
+  /// Rect position.
+  pub position: dpi::Position,
+  /// Rect size.
+  pub size: dpi::Size,
+}
+
+impl Default for Rect {
+  fn default() -> Self {
+    Self {
+      position: Position::Logical((0, 0).into()),
+      size: Size::Logical((0, 0).into()),
+    }
+  }
+}
 
 /// Progress bar status.
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -421,6 +440,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Returns the webview's current URL.
   fn url(&self) -> Result<Url>;
 
+  /// Returns the webview's bounds.
+  fn bounds(&self) -> Result<Rect>;
+
   /// Returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the window.
   fn position(&self) -> Result<PhysicalPosition<i32>>;
 
@@ -437,6 +459,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Closes the webview.
   fn close(&self) -> Result<()>;
+
+  /// Sets the webview's bounds.
+  fn set_bounds(&self, bounds: Rect) -> Result<()>;
 
   /// Resizes the webview.
   fn set_size(&self, size: Size) -> Result<()>;

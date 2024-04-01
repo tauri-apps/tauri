@@ -6,12 +6,10 @@
 #![allow(missing_docs)]
 
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId,
-  },
+  window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId},
   window::{WindowBuilder, WindowBuilderBase},
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
   Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -505,6 +503,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
       .map_err(|_| Error::FailedToReceiveMessage)
   }
 
+  fn bounds(&self) -> Result<tauri_runtime::Rect> {
+    Ok(tauri_runtime::Rect::default())
+  }
+
   fn position(&self) -> Result<PhysicalPosition<i32>> {
     Ok(PhysicalPosition { x: 0, y: 0 })
   }
@@ -526,6 +528,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn close(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
     Ok(())
   }
 

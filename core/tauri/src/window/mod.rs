@@ -7,8 +7,8 @@
 pub(crate) mod plugin;
 
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
-  window::dpi::{PhysicalPosition, PhysicalSize},
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
@@ -36,7 +36,7 @@ use crate::{
   image::Image,
   menu::{ContextMenu, Menu, MenuId},
   runtime::{
-    window::dpi::{Position, Size},
+    dpi::{Position, Size},
     UserAttentionType,
   },
   CursorIcon,

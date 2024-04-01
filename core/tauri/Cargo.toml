@@ -57,10 +57,10 @@ tauri-runtime-wry = { version = "2.0.0-beta.10", path = "../tauri-runtime-wry", 
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
-http = "0.2"
+http = "1.1"
 dirs-next = "2.0"
 percent-encoding = "2.3"
-reqwest = { version = "0.11", default-features = false, features = [ "json", "stream" ] }
+reqwest = { version = "0.12", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
 raw-window-handle = "0.6"
 glob = "0.3"
@@ -75,8 +75,8 @@ heck = "0.4"
 log = "0.4"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.12", default-features = false, features = [ "serde" ] }
-tray-icon = { version = "0.12", default-features = false, features = [ "serde" ], optional = true }
+muda = { version = "0.13", default-features = false, features = [ "serde" ] }
+tray-icon = { version = "0.13", default-features = false, features = [ "serde" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = [ "v3_24" ] }
@@ -89,11 +89,11 @@ objc = "0.2"
 window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.28"
+webview2-com = "0.29"
 window-vibrancy = "0.5"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.52"
+  version = "0.54"
   features = [ "Win32_Foundation" ]
 
 [target."cfg(target_os = \"android\")".dependencies]

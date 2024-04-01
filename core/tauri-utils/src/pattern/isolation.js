@@ -135,4 +135,6 @@
   }
 
   setTimeout(waitUntilReady, readyIntervalMs)
+
+  document.currentScript.remove()
 })()

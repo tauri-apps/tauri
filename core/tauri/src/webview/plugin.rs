@@ -13,7 +13,7 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_runtime::window::dpi::{Position, Size};
+  use tauri_runtime::dpi::{Position, Size};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
@@ -28,7 +28,7 @@ mod desktop_commands {
     #[serde(default)]
     url: WebviewUrl,
     user_agent: Option<String>,
-    file_drop_enabled: Option<bool>,
+    drag_drop_enabled: Option<bool>,
     x: f64,
     y: f64,
     width: f64,
@@ -71,8 +71,8 @@ mod desktop_commands {
     let mut builder = crate::webview::WebviewBuilder::new(label, options.url);
 
     builder.webview_attributes.user_agent = options.user_agent;
-    builder.webview_attributes.file_drop_handler_enabled =
-      options.file_drop_enabled.unwrap_or(true);
+    builder.webview_attributes.drag_drop_handler_enabled =
+      options.drag_drop_enabled.unwrap_or(true);
     builder.webview_attributes.transparent = options.transparent;
     builder.webview_attributes.accept_first_mouse = options.accept_first_mouse;
     builder.webview_attributes.window_effects = options.window_effects;
@@ -80,8 +80,8 @@ mod desktop_commands {
 
     window.add_child(
       builder,
-      tauri_runtime::window::dpi::LogicalPosition::new(options.x, options.y),
-      tauri_runtime::window::dpi::LogicalSize::new(options.width, options.height),
+      tauri_runtime::dpi::LogicalPosition::new(options.x, options.y),
+      tauri_runtime::dpi::LogicalSize::new(options.width, options.height),
     )?;
 
     Ok(())
@@ -144,13 +144,9 @@ mod desktop_commands {
   getter!(
     webview_position,
     position,
-    tauri_runtime::window::dpi::PhysicalPosition<i32>
+    tauri_runtime::dpi::PhysicalPosition<i32>
   );
-  getter!(
-    webview_size,
-    size,
-    tauri_runtime::window::dpi::PhysicalSize<u32>
-  );
+  getter!(webview_size, size, tauri_runtime::dpi::PhysicalSize<u32>);
   //getter!(is_focused, bool);
 
   setter!(print);

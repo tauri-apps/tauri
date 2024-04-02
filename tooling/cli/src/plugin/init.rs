@@ -194,10 +194,10 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "ios" if !(options.ios || options.mobile) => return Ok(None),
-            "webview-dist" | "webview-src" | "package.json" => {
-              if options.no_api {
-                return Ok(None);
-              }
+            "guest-js" | "rollup.config.js" | "tsconfig.json" | "package.json"
+              if options.no_api =>
+            {
+              return Ok(None);
             }
             _ => (),
           }

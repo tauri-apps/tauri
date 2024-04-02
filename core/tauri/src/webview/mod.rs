@@ -13,14 +13,14 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
-use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
-};
 #[cfg(desktop)]
 use tauri_runtime::{
-  window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
+};
+use tauri_runtime::{
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  Rect, WebviewDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
@@ -118,6 +118,8 @@ pub struct InvokeRequest {
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
+  /// URL of the frame that requested this command.
+  pub url: Url,
   /// The body of the request.
   pub body: InvokeBody,
   /// The request headers.
@@ -616,7 +618,7 @@ tauri::Builder::default()
     let mut pending =
       self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
 
-    pending.webview_attributes.bounds = Some((position, size));
+    pending.webview_attributes.bounds = Some(Rect { size, position });
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
@@ -714,10 +716,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_attributes.file_drop_handler_enabled = false;
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_attributes.drag_drop_handler_enabled = false;
     self
   }
 
@@ -886,6 +888,15 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Resizes this webview.
+  pub fn set_bounds(&self, bounds: Rect) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_bounds(bounds)
+      .map_err(Into::into)
+  }
+
+  /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
     self
       .webview
@@ -930,6 +941,11 @@ impl<R: Runtime> Webview<R> {
       .dispatcher
       .set_auto_resize(auto_resize)
       .map_err(Into::into)
+  }
+
+  /// Returns the bounds of the webviews's client area.
+  pub fn bounds(&self) -> crate::Result<Rect> {
+    self.webview.dispatcher.bounds().map_err(Into::into)
   }
 
   /// Returns the webview position.
@@ -1084,8 +1100,7 @@ fn main() {
   /// Handles this window receiving an [`InvokeRequest`].
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
-    let current_url = self.url();
-    let is_local = self.is_local_url(&current_url);
+    let is_local = self.is_local_url(&request.url);
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
@@ -1121,7 +1136,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.clone(),
+        url: request.url.clone(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {

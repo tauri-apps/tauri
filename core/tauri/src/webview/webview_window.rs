@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
   event::EventTarget,
-  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
   ResourceTable,
 };
@@ -21,10 +21,8 @@ use crate::{
   image::Image,
   menu::{ContextMenu, Menu},
   runtime::{
-    window::{
-      dpi::{Position, Size},
-      CursorIcon,
-    },
+    dpi::{Position, Size},
+    window::CursorIcon,
     UserAttentionType,
   },
 };
@@ -797,10 +795,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_builder = self.webview_builder.disable_file_drop_handler();
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_builder = self.webview_builder.disable_drag_drop_handler();
     self
   }
 

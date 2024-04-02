@@ -4,14 +4,9 @@
 
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
-use crate::{
-  window::{
-    dpi::{Position, Size},
-    is_label_valid,
-  },
-  Runtime, UserEvent,
-};
+use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
+use http::Request;
 use tauri_utils::config::{WebviewUrl, WindowConfig, WindowEffectsConfig};
 use url::Url;
 
@@ -202,14 +197,14 @@ pub struct WebviewAttributes {
   pub user_agent: Option<String>,
   pub initialization_scripts: Vec<String>,
   pub data_directory: Option<PathBuf>,
-  pub file_drop_handler_enabled: bool,
+  pub drag_drop_handler_enabled: bool,
   pub clipboard: bool,
   pub accept_first_mouse: bool,
   pub additional_browser_args: Option<String>,
   pub window_effects: Option<WindowEffectsConfig>,
   pub incognito: bool,
   pub transparent: bool,
-  pub bounds: Option<(Position, Size)>,
+  pub bounds: Option<Rect>,
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
 }
@@ -223,8 +218,8 @@ impl From<&WindowConfig> for WebviewAttributes {
       builder = builder.transparent(config.transparent);
     }
     builder = builder.accept_first_mouse(config.accept_first_mouse);
-    if !config.file_drop_enabled {
-      builder = builder.disable_file_drop_handler();
+    if !config.drag_drop_enabled {
+      builder = builder.disable_drag_drop_handler();
     }
     if let Some(user_agent) = &config.user_agent {
       builder = builder.user_agent(user_agent);
@@ -250,7 +245,7 @@ impl WebviewAttributes {
       user_agent: None,
       initialization_scripts: Vec::new(),
       data_directory: None,
-      file_drop_handler_enabled: true,
+      drag_drop_handler_enabled: true,
       clipboard: false,
       accept_first_mouse: false,
       additional_browser_args: None,
@@ -284,10 +279,10 @@ impl WebviewAttributes {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.file_drop_handler_enabled = false;
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.drag_drop_handler_enabled = false;
     self
   }
 
@@ -353,4 +348,4 @@ impl WebviewAttributes {
 }
 
 /// IPC handler.
-pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, String) + Send>;
+pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;

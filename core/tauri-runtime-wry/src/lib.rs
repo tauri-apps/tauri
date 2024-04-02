@@ -3393,12 +3393,25 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
       let scale_factor = monitor.scale_factor();
-      let window_size = window_builder
+      #[allow(unused_mut)]
+      let mut window_size = window_builder
         .inner
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
         .to_physical::<u32>(scale_factor);
+      #[cfg(windows)]
+      {
+        if window_builder.inner.window.decorations {
+          use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
+          let mut rect = windows::Win32::Foundation::RECT::default();
+          let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
+          if result.is_ok() {
+            window_size.width += (rect.right - rect.left) as u32;
+            window_size.height += -rect.top as u32;
+          }
+        }
+      }
       let position = calculate_window_center_position(window_size, monitor);
       let logical_position = position.to_logical::<f64>(scale_factor);
       window_builder = window_builder.position(logical_position.x, logical_position.y);

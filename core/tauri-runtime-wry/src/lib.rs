@@ -2647,7 +2647,7 @@ fn handle_user_message<T: UserEvent>(
               #[allow(unused_mut)]
               let mut window_size = window.outer_size();
               #[cfg(windows)]
-              {
+              if window.is_decorated() {
                 use windows::Win32::Foundation::RECT;
                 use windows::Win32::Graphics::Dwm::{
                   DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
@@ -3550,7 +3550,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
           let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
           if result.is_ok() {
             window_size.width += (rect.right - rect.left) as u32;
-            // Bottom size is made out of shadow, and we don't care about it
+            // rect.bottom is made out of shadow, and we don't care about it
             window_size.height += -rect.top as u32;
           }
         }

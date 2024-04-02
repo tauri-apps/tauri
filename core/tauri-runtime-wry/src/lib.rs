@@ -3408,6 +3408,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
           let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
           if result.is_ok() {
             window_size.width += (rect.right - rect.left) as u32;
+            // SetWindowPos will ignore the top shadow size,
+            // so we don't add in the bottom shadow height to compensate that
             window_size.height += -rect.top as u32;
           }
         }

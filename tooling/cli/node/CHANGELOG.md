@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`93e0e1392`](https://www.github.com/tauri-apps/tauri/commit/93e0e1392ec341fcadf696c03e78f0ca1e73c941) Support specifying a version for `tauri add` subcommand, for example: `tauri add window-state@2.0.0-beta.2`
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.12`
+
 ## \[2.0.0-beta.11]
 
 ### Enhancements

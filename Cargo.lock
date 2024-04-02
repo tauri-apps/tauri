@@ -3495,7 +3495,7 @@ checksum = "e1fc403891a21bcfb7c37834ba66a547a8f402146eba7265b5a6d88059c9ff2f"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.13"
+version = "2.0.0-beta.14"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3551,7 +3551,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3573,7 +3573,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "base64 0.22.0",
  "brotli",
@@ -3610,7 +3610,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "heck 0.4.1",
  "proc-macro2",
@@ -3622,7 +3622,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "anyhow",
  "glob",
@@ -3637,7 +3637,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "dpi",
  "gtk",
@@ -3654,7 +3654,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3677,7 +3677,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 dependencies = [
  "aes-gcm",
  "brotli",

@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-beta.7]
+
+### Bug Fixes
+
+- [`c33f6e6cf`](https://www.github.com/tauri-apps/tauri/commit/c33f6e6cf35a0d34b5598875a2e5b642a01c8b38)([#9211](https://www.github.com/tauri-apps/tauri/pull/9211)) Re-added the `TauriEvent.WINDOW_CREATED` (`tauri://window-created`) event.
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+
 ## \[2.0.0-beta.6]
 
 ### New Features

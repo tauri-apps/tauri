@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### Bug Fixes
+
+- [`4c0c780e0`](https://www.github.com/tauri-apps/tauri/commit/4c0c780e00d8851be38cb1c22f636d9e4ed34a23)([#2690](https://www.github.com/tauri-apps/tauri/pull/2690)) Fix window inner size evaluation on macOS.
+- [`5bd47b446`](https://www.github.com/tauri-apps/tauri/commit/5bd47b44673f74b1b4e8d704b7a95539915ede76)([#9246](https://www.github.com/tauri-apps/tauri/pull/9246)) Fix webview's visibility doesn't change with the app window
+
+### What's Changed
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Updated `http` crate to `1.1`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-runtime@2.0.0-beta.11`
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Upgraded to `wry@0.38.0`
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) The IPC handler closure now receives a `http::Request` instead of a String representing the request body.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+
 ## \[2.0.0-beta.10]
 
 ### Dependencies

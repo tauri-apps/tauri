@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin"
-version = "2.0.0-beta.10"
+version = "2.0.0-beta.11"
 description = "Build script and runtime Tauri plugin definitions"
 authors = { workspace = true }
 homepage = { workspace = true }
@@ -30,7 +30,7 @@ runtime = [ ]
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { version = "2.0.0-beta.10", default-features = false, features = [ "build" ], path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-beta.11", default-features = false, features = [ "build" ], path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }

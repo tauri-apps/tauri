@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`93e0e1392`](https://www.github.com/tauri-apps/tauri/commit/93e0e1392ec341fcadf696c03e78f0ca1e73c941) Support specifying a version for `tauri add` subcommand, for example: `tauri add window-state@2.0.0-beta.2`
+
+### Enhancements
+
+- [`6703b7cbc`](https://www.github.com/tauri-apps/tauri/commit/6703b7cbca3ade84e534c121c63fb22c5f7abbfd)([#9310](https://www.github.com/tauri-apps/tauri/pull/9310)) Use `$CARGO_MANIFEST_DIR` when including templates at build-time.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.8`
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
 ## \[2.0.0-beta.11]
 
 ### Enhancements

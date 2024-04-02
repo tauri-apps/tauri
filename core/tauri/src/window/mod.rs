@@ -25,11 +25,10 @@ use crate::{
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
     RuntimeHandle, WindowDispatch,
   },
-  sealed::ManagerBase,
-  sealed::RuntimeOrDispatch,
+  sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  EventLoopMessage, Manager, Runtime, Theme, Webview, WindowEvent,
+  EventLoopMessage, Manager, ResourceTable, Runtime, Theme, Webview, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -51,7 +50,7 @@ use tauri_macros::default_runtime;
 use std::{
   fmt,
   hash::{Hash, Hasher},
-  sync::Arc,
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 /// Monitor descriptor.
@@ -876,7 +875,8 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   // The menu set for this window
   #[cfg(desktop)]
-  pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
+  pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -913,6 +913,7 @@ impl<R: Runtime> Clone for Window<R> {
       app_handle: self.app_handle.clone(),
       #[cfg(desktop)]
       menu: self.menu.clone(),
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -932,7 +933,14 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
@@ -974,6 +982,7 @@ impl<R: Runtime> Window<R> {
       app_handle,
       #[cfg(desktop)]
       menu: Arc::new(std::sync::Mutex::new(menu)),
+      resources_table: Default::default(),
     }
   }
 

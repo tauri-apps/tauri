@@ -20,7 +20,7 @@ mod desktop_commands {
     utils::config::{WindowConfig, WindowEffectsConfig},
     window::{ProgressBarState, WindowBuilder},
     AppHandle, CursorIcon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
-    UserAttentionType, Window,
+    UserAttentionType, Webview, Window,
   };
 
   #[command(root = "crate")]
@@ -132,13 +132,14 @@ mod desktop_commands {
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
+    webview: Webview<R>,
     window: Window<R>,
     label: Option<String>,
     value: crate::image::JsImage,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
     window
-      .set_icon(value.into_img(&window)?.as_ref().clone())
+      .set_icon(value.into_img(&webview)?.as_ref().clone())
       .map_err(Into::into)
   }
 

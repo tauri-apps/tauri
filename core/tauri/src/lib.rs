@@ -895,10 +895,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state.try_get()
   }
 
-  /// Get a reference to the resources table.
-  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self.manager().resources_table()
-  }
+  /// Get a reference to the resources table of this manager.
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable>;
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {

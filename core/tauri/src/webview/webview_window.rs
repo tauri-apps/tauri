@@ -4,12 +4,17 @@
 
 //! [`Window`] that hosts a single [`Webview`].
 
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{
+  borrow::Cow,
+  path::PathBuf,
+  sync::{Arc, MutexGuard},
+};
 
 use crate::{
   event::EventTarget,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
+  ResourceTable,
 };
 #[cfg(desktop)]
 use crate::{
@@ -1790,7 +1795,15 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for WebviewWindow<R> {}
+impl<R: Runtime> Manager<R> for WebviewWindow<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .webview
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
   fn manager(&self) -> &AppManager<R> {

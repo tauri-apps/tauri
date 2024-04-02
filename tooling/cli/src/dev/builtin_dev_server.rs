@@ -42,7 +42,7 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
     }
 
     if !auto_port {
-      anyhow::bail!("");
+      anyhow::bail!("Couldn't bind to {port} on {ip}");
     }
 
     port += 1;

@@ -303,10 +303,10 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
-  /// Preserve the hardened runtime version flag (see man codesign)
-  /// 
-  /// This option is useful when using an ad-hoc signature, making it less strict.
-  pub signing_runtime_flag: Option<bool>,
+  /// Preserve the hardened runtime version flag, see <https://developer.apple.com/documentation/security/hardened_runtime>
+  ///
+  /// Settings this to `false` is useful when using an ad-hoc signature, making it less strict.
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.

@@ -104,6 +104,7 @@
             }
           },
           "files": {},
+          "hardenedRuntime": true,
           "minimumSystemVersion": "10.13"
         },
         "targets": "all",
@@ -1669,6 +1670,7 @@
               }
             },
             "files": {},
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -2605,12 +2607,10 @@
             "null"
           ]
         },
-        "signingRuntimeFlag": {
-          "description": "Flag passed for code signing.",
-          "type": [
-            "boolean",
-            "null"
-          ]
+        "hardenedRuntime": {
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n[hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "default": true,
+          "type": "boolean"
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",

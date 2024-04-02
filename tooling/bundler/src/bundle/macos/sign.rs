@@ -206,9 +206,8 @@ fn try_sign(
   }
 
   // add runtime flag by default
-  let should_set = settings.macos().signing_runtime_flag
-    .unwrap_or(true); 
-  if is_an_executable && should_set {
+
+  if is_an_executable && settings.macos().hardened_runtime {
     args.push("--options");
     args.push("runtime");
   }

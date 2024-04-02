@@ -2,4 +2,4 @@
 'tauri': 'patch:breaking'
 ---
 
-Removed `Manager::resources_table`, use `App/AppHandle/Window/Webview/WebviewWindow::resources_table` instead which will give access to dedicated resources table that is unique to each type.
+`Manager::resources_table` is now scoped so each `App/AppHandle/Window/Webview/WebviewWindow` has its own resource collection.

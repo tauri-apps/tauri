@@ -5,6 +5,7 @@
 use serde::Serialize;
 
 use crate::plugin::{Builder, TauriPlugin};
+use crate::Manager;
 use crate::{command, image::Image, ResourceId, Runtime, Webview};
 
 #[command(root = "crate")]

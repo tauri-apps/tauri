@@ -13,7 +13,7 @@ use crate::{
   image::JsImage,
   ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
-  resources::{ResourceId, ResourceTable},
+  resources::ResourceId,
   sealed::ManagerBase,
   Manager, RunEvent, Runtime, State, Webview, Window,
 };
@@ -46,12 +46,12 @@ pub(crate) struct AboutMetadata {
 }
 
 impl AboutMetadata {
-  pub fn into_metdata(
+  pub fn into_metadata<R: Runtime, M: Manager<R>>(
     self,
-    resources_table: &ResourceTable,
+    manager: &M,
   ) -> crate::Result<super::AboutMetadata<'_>> {
     let icon = match self.icon {
-      Some(i) => Some(i.into_img(resources_table)?.as_ref().clone()),
+      Some(i) => Some(i.into_img(manager)?.as_ref().clone()),
       None => None,
     };
 
@@ -102,11 +102,7 @@ struct SubmenuPayload {
 }
 
 impl SubmenuPayload {
-  pub fn create_item<R: Runtime>(
-    self,
-    webview: &Webview<R>,
-    resources_table: &mut ResourceTable,
-  ) -> crate::Result<Submenu<R>> {
+  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<Submenu<R>> {
     let mut builder = if let Some(id) = self.id {
       SubmenuBuilder::with_id(webview, id, self.text)
     } else {
@@ -116,7 +112,7 @@ impl SubmenuPayload {
       builder = builder.enabled(enabled);
     }
     for item in self.items {
-      builder = item.with_item(webview, resources_table, |i| Ok(builder.item(i)))?;
+      builder = item.with_item(webview, |i| Ok(builder.item(i)))?;
     }
 
     builder.build()
@@ -182,11 +178,7 @@ struct IconMenuItemPayload {
 }
 
 impl IconMenuItemPayload {
-  pub fn create_item<R: Runtime>(
-    self,
-    webview: &Webview<R>,
-    resources_table: &ResourceTable,
-  ) -> crate::Result<IconMenuItem<R>> {
+  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<IconMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       IconMenuItemBuilder::with_id(id, self.text)
     } else {
@@ -200,7 +192,7 @@ impl IconMenuItemPayload {
     }
     builder = match self.icon {
       Icon::Native(native_icon) => builder.native_icon(native_icon),
-      Icon::Icon(icon) => builder.icon(icon.into_img(resources_table)?.as_ref().clone()),
+      Icon::Icon(icon) => builder.icon(icon.into_img(webview)?.as_ref().clone()),
     };
 
     let item = builder.build(webview)?;
@@ -268,7 +260,6 @@ impl PredefinedMenuItemPayload {
   pub fn create_item<R: Runtime>(
     self,
     webview: &Webview<R>,
-    resources_table: &ResourceTable,
   ) -> crate::Result<PredefinedMenuItem<R>> {
     match self.item {
       Predefined::Separator => PredefinedMenuItem::separator(webview),
@@ -288,7 +279,7 @@ impl PredefinedMenuItemPayload {
       Predefined::Quit => PredefinedMenuItem::quit(webview, self.text.as_deref()),
       Predefined::About(metadata) => {
         let metadata = match metadata {
-          Some(m) => Some(m.into_metdata(resources_table)?),
+          Some(m) => Some(m.into_metadata(webview)?),
           None => None,
         };
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
@@ -313,17 +304,17 @@ impl MenuItemPayloadKind {
   pub fn with_item<T, R: Runtime, F: FnOnce(&dyn IsMenuItem<R>) -> crate::Result<T>>(
     self,
     webview: &Webview<R>,
-    resources_table: &mut ResourceTable,
     f: F,
   ) -> crate::Result<T> {
     match self {
       Self::ExistingItem((rid, kind)) => {
+        let resources_table = webview.resources_table();
         do_menu_item!(resources_table, rid, kind, |i| f(&*i))
       }
-      Self::Submenu(i) => f(&i.create_item(webview, resources_table)?),
-      Self::Predefined(i) => f(&i.create_item(webview, resources_table)?),
+      Self::Submenu(i) => f(&i.create_item(webview)?),
+      Self::Predefined(i) => f(&i.create_item(webview)?),
       Self::Check(i) => f(&i.create_item(webview)?),
-      Self::Icon(i) => f(&i.create_item(webview, resources_table)?),
+      Self::Icon(i) => f(&i.create_item(webview)?),
       Self::MenuItem(i) => f(&i.create_item(webview)?),
     }
   }
@@ -363,7 +354,7 @@ fn new<R: Runtime>(
       }
       if let Some(items) = options.items {
         for item in items {
-          builder = item.with_item(&webview, &mut resources_table, |i| Ok(builder.item(i)))?;
+          builder = item.with_item(&webview, |i| Ok(builder.item(i)))?;
         }
       }
       let menu = builder.build()?;
@@ -380,7 +371,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         items: options.items.unwrap_or_default(),
       }
-      .create_item(&webview, &mut resources_table)?;
+      .create_item(&webview)?;
       let id = submenu.id().clone();
       let rid = resources_table.add(submenu);
 
@@ -407,7 +398,7 @@ fn new<R: Runtime>(
         item: options.predefined_item.unwrap(),
         text: options.text,
       }
-      .create_item(&webview, &resources_table)?;
+      .create_item(&webview)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -439,7 +430,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-      .create_item(&webview, &resources_table)?;
+      .create_item(&webview)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -458,18 +449,18 @@ fn append<R: Runtime>(
   kind: ItemKind,
   items: Vec<MenuItemPayloadKind>,
 ) -> crate::Result<()> {
-  let mut resources_table = webview.resources_table();
+  let resources_table = webview.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
       for item in items {
-        item.with_item(&webview, &mut resources_table, |i| menu.append(i))?;
+        item.with_item(&webview, |i| menu.append(i))?;
       }
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
       for item in items {
-        item.with_item(&webview, &mut resources_table, |i| submenu.append(i))?;
+        item.with_item(&webview, |i| submenu.append(i))?;
       }
     }
     _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
@@ -485,18 +476,18 @@ fn prepend<R: Runtime>(
   kind: ItemKind,
   items: Vec<MenuItemPayloadKind>,
 ) -> crate::Result<()> {
-  let mut resources_table = webview.resources_table();
+  let resources_table = webview.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
       for item in items {
-        item.with_item(&webview, &mut resources_table, |i| menu.prepend(i))?;
+        item.with_item(&webview, |i| menu.prepend(i))?;
       }
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
       for item in items {
-        item.with_item(&webview, &mut resources_table, |i| submenu.prepend(i))?;
+        item.with_item(&webview, |i| submenu.prepend(i))?;
       }
     }
     _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
@@ -513,21 +504,19 @@ fn insert<R: Runtime>(
   items: Vec<MenuItemPayloadKind>,
   mut position: usize,
 ) -> crate::Result<()> {
-  let mut resources_table = webview.resources_table();
+  let resources_table = webview.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
       for item in items {
-        item.with_item(&webview, &mut resources_table, |i| menu.insert(i, position))?;
+        item.with_item(&webview, |i| menu.insert(i, position))?;
         position += 1
       }
     }
     ItemKind::Submenu => {
       let submenu = resources_table.get::<Submenu<R>>(rid)?;
       for item in items {
-        item.with_item(&webview, &mut resources_table, |i| {
-          submenu.insert(i, position)
-        })?;
+        item.with_item(&webview, |i| submenu.insert(i, position))?;
         position += 1
       }
     }
@@ -857,9 +846,7 @@ fn set_icon<R: Runtime>(
 
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
-    Some(Icon::Icon(icon)) => {
-      icon_item.set_icon(Some(icon.into_img(&resources_table)?.as_ref().clone()))
-    }
+    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.into_img(&webview)?.as_ref().clone())),
     None => {
       icon_item.set_icon(None)?;
       icon_item.set_native_icon(None)?;

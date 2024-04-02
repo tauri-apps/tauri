@@ -419,7 +419,12 @@ impl<R: Runtime> AppHandle<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for AppHandle<R> {}
+impl<R: Runtime> Manager<R> for AppHandle<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self.manager.resources_table()
+  }
+}
+
 impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
@@ -460,7 +465,12 @@ impl<R: Runtime> fmt::Debug for App<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for App<R> {}
+impl<R: Runtime> Manager<R> for App<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self.manager.resources_table()
+  }
+}
+
 impl<R: Runtime> ManagerBase<R> for App<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
@@ -739,11 +749,6 @@ macro_rules! shared_app_impl {
           _ => unreachable!(),
         }
         Ok(())
-      }
-
-      /// Get a reference to the shared resources table of the application.
-      pub fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-        self.manager.resources_table()
       }
 
       /// Runs necessary cleanup tasks before exiting the process.

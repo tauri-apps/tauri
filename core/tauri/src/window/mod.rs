@@ -933,7 +933,14 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
@@ -1538,14 +1545,6 @@ impl<R: Runtime> Window<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
-  }
-
-  /// Get a reference to the resources table of this window.
-  pub fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self
-      .resources_table
-      .lock()
-      .expect("poisoned window resources table")
   }
 }
 

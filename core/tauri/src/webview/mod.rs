@@ -1402,14 +1402,6 @@ tauri::Builder::default()
       .is_devtools_open()
       .unwrap_or_default()
   }
-
-  /// Get a reference to the resources table of this webview.
-  pub fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self
-      .resources_table
-      .lock()
-      .expect("poisoned window resources table")
-  }
 }
 
 /// Event system APIs.
@@ -1498,7 +1490,14 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for Webview<R> {}
+impl<R: Runtime> Manager<R> for Webview<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {

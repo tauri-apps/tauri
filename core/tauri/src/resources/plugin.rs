@@ -5,7 +5,7 @@
 use crate::{
   command,
   plugin::{Builder, TauriPlugin},
-  Runtime, Webview,
+  Manager, Runtime, Webview,
 };
 
 use super::ResourceId;

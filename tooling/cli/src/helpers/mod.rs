@@ -11,7 +11,6 @@ pub mod npm;
 pub mod prompts;
 pub mod template;
 pub mod updater_signature;
-pub mod web_dev_server;
 
 use std::{
   collections::HashMap,

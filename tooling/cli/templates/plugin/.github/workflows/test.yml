@@ -8,36 +8,28 @@ on:
   pull_request:
     branches:
       - main
-      - dev
-    paths-ignore:
-      - 'webview-src/**'
-      - 'webview-dist/**'
-      - 'examples/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    runs-on: ${{ matrix.os }}
+  test:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Install stable toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
-
-      - name: Install Linux dependencies
-        if: matrix.os == 'ubuntu-latest'
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: install webkit2gtk
+        if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1
-
       - uses: Swatinem/rust-cache@v2
-
-      - name: Run tests
-        run: cargo test --manifest-path=Cargo.toml --release
+      - run: cargo test --all-targets --all-features -- -D warnings
 {{{{/raw}}}}

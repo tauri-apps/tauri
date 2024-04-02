@@ -2612,10 +2612,28 @@ fn handle_user_message<T: UserEvent>(
           // Setters
           WindowMessage::Center => {
             if let Some(monitor) = window.current_monitor() {
-              window.set_outer_position(calculate_window_center_position(
-                window.outer_size(),
-                monitor,
-              ));
+              #[allow(unused_mut)]
+              let mut window_size = window.outer_size();
+              #[cfg(windows)]
+              {
+                use windows::Win32::Foundation::RECT;
+                use windows::Win32::Graphics::Dwm::{
+                  DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
+                };
+                let mut rect = RECT::default();
+                let result = unsafe {
+                  DwmGetWindowAttribute(
+                    HWND(window.hwnd()),
+                    DWMWA_EXTENDED_FRAME_BOUNDS,
+                    &mut rect as *mut _ as *mut _,
+                    std::mem::size_of::<RECT>() as u32,
+                  )
+                };
+                if result.is_ok() {
+                  window_size.height = (rect.bottom - rect.top) as u32;
+                }
+              }
+              window.set_outer_position(calculate_window_center_position(window_size, monitor));
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {

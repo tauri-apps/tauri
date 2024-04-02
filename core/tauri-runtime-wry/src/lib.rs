@@ -2642,13 +2642,37 @@ fn handle_user_message<T: UserEvent>(
           }
           // Setters
           WindowMessage::Center => {
+            #[cfg(not(target_os = "macos"))]
             if let Some(monitor) = window.current_monitor() {
-              let window_size = inner_size(&window, &webviews, has_children);
-              let screen_size = monitor.size();
-              let monitor_pos = monitor.position();
-              let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-              let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-              window.set_outer_position(TaoPhysicalPosition::new(x, y));
+              #[allow(unused_mut)]
+              let mut window_size = window.outer_size();
+              #[cfg(windows)]
+              if window.is_decorated() {
+                use windows::Win32::Foundation::RECT;
+                use windows::Win32::Graphics::Dwm::{
+                  DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
+                };
+                let mut rect = RECT::default();
+                let result = unsafe {
+                  DwmGetWindowAttribute(
+                    HWND(window.hwnd()),
+                    DWMWA_EXTENDED_FRAME_BOUNDS,
+                    &mut rect as *mut _ as *mut _,
+                    std::mem::size_of::<RECT>() as u32,
+                  )
+                };
+                if result.is_ok() {
+                  window_size.height = (rect.bottom - rect.top) as u32;
+                }
+              }
+              window.set_outer_position(calculate_window_center_position(window_size, monitor));
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+              use cocoa::{appkit::NSWindow, base::id};
+              let ns_window: id = window.ns_window() as _;
+              unsafe { ns_window.center() };
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {
@@ -3511,18 +3535,29 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
       let scale_factor = monitor.scale_factor();
-      let window_size = window_builder
+      #[allow(unused_mut)]
+      let mut window_size = window_builder
         .inner
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
-        .to_logical::<i32>(scale_factor);
-      let screen_size = monitor.size().to_logical::<i32>(scale_factor);
-      let monitor_pos = monitor.position().to_logical::<i32>(scale_factor);
-      let x = (screen_size.width - window_size.width) / 2 + monitor_pos.x;
-      let y = (screen_size.height - window_size.height) / 2 + monitor_pos.y;
-
-      window_builder = window_builder.position(x as f64, y as f64);
+        .to_physical::<u32>(scale_factor);
+      #[cfg(windows)]
+      {
+        if window_builder.inner.window.decorations {
+          use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
+          let mut rect = windows::Win32::Foundation::RECT::default();
+          let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
+          if result.is_ok() {
+            window_size.width += (rect.right - rect.left) as u32;
+            // rect.bottom is made out of shadow, and we don't care about it
+            window_size.height += -rect.top as u32;
+          }
+        }
+      }
+      let position = calculate_window_center_position(window_size, monitor);
+      let logical_position = position.to_logical::<f64>(scale_factor);
+      window_builder = window_builder.position(logical_position.x, logical_position.y);
     }
   }
 
@@ -4058,6 +4093,32 @@ fn inner_size(
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
   window.inner_size()
+}
+
+fn calculate_window_center_position(
+  window_size: TaoPhysicalSize<u32>,
+  target_monitor: MonitorHandle,
+) -> TaoPhysicalPosition<i32> {
+  #[cfg(windows)]
+  {
+    use tao::platform::windows::MonitorHandleExtWindows;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
+    let mut monitor_info = MONITORINFO::default();
+    monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    if status.into() {
+      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
+      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
+      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
+      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
+      return TaoPhysicalPosition::new(x, y);
+    }
+  }
+  let screen_size = target_monitor.size();
+  let monitor_pos = target_monitor.position();
+  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
+  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
+  TaoPhysicalPosition::new(x, y)
 }
 
 #[cfg(windows)]

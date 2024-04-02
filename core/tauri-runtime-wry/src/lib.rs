@@ -2642,6 +2642,7 @@ fn handle_user_message<T: UserEvent>(
           }
           // Setters
           WindowMessage::Center => {
+            #[cfg(not(target_os = "macos"))]
             if let Some(monitor) = window.current_monitor() {
               #[allow(unused_mut)]
               let mut window_size = window.outer_size();
@@ -2665,6 +2666,13 @@ fn handle_user_message<T: UserEvent>(
                 }
               }
               window.set_outer_position(calculate_window_center_position(window_size, monitor));
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+              use cocoa::{appkit::NSWindow, base::id};
+              let ns_window: id = window.ns_window() as _;
+              unsafe { ns_window.center() };
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {

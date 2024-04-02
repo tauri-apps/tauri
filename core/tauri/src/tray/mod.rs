@@ -12,23 +12,12 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
-use crate::{image::Image, menu::run_item_main_thread, AppHandle, Manager, Runtime};
+use crate::{
+  image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
+};
 use serde::Serialize;
 use std::path::Path;
 pub use tray_icon::TrayIconId;
-
-/// Describes a rectangle including position (x - y axis) and size.
-#[derive(Debug, PartialEq, Clone, Copy, Default, Serialize)]
-pub struct Rectangle {
-  /// The x-coordinate of the upper-left corner of the rectangle.
-  pub left: f64,
-  /// The y-coordinate of the upper-left corner of the rectangle.
-  pub top: f64,
-  /// The x-coordinate of the lower-right corner of the rectangle.
-  pub right: f64,
-  /// The y-coordinate of the lower-right corner of the rectangle.
-  pub bottom: f64,
-}
 
 /// Describes the click type that triggered this tray icon event.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
@@ -58,12 +47,10 @@ impl Default for ClickType {
 pub struct TrayIconEvent {
   /// Id of the tray icon which triggered this event.
   pub id: TrayIconId,
-  /// Physical X Position of the click the triggered this event.
-  pub x: f64,
-  /// Physical Y Position of the click the triggered this event.
-  pub y: f64,
+  /// Physical Position of the click the triggered this event.
+  pub position: PhysicalPosition<f64>,
   /// Position and size of the tray icon
-  pub icon_rect: Rectangle,
+  pub icon_rect: Rect,
   /// The click type that triggered this event.
   pub click_type: ClickType,
 }
@@ -72,17 +59,6 @@ impl TrayIconEvent {
   /// Returns the id of the tray icon which triggered this event.
   pub fn id(&self) -> &TrayIconId {
     &self.id
-  }
-}
-
-impl From<tray_icon::Rectangle> for Rectangle {
-  fn from(value: tray_icon::Rectangle) -> Self {
-    Self {
-      bottom: value.bottom,
-      left: value.left,
-      top: value.top,
-      right: value.right,
-    }
   }
 }
 
@@ -100,9 +76,11 @@ impl From<tray_icon::TrayIconEvent> for TrayIconEvent {
   fn from(value: tray_icon::TrayIconEvent) -> Self {
     Self {
       id: value.id,
-      x: value.x,
-      y: value.y,
-      icon_rect: value.icon_rect.into(),
+      position: value.position,
+      icon_rect: Rect {
+        position: value.icon_rect.position.into(),
+        size: value.icon_rect.size.into(),
+      },
       click_type: value.click_type.into(),
     }
   }

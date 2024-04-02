@@ -27,7 +27,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/android");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/android");
 
 pub fn gen(
   config: &Config,

@@ -762,22 +762,3 @@ pub(crate) mod sealed {
     ) -> crate::Result<()>;
   }
 }
-
-pub(crate) fn into_logical_position<P: crate::Pixel>(
-  p: crate::LogicalPosition<P>,
-) -> muda::LogicalPosition<P> {
-  muda::LogicalPosition { x: p.x, y: p.y }
-}
-
-pub(crate) fn into_physical_position<P: crate::Pixel>(
-  p: crate::PhysicalPosition<P>,
-) -> muda::PhysicalPosition<P> {
-  muda::PhysicalPosition { x: p.x, y: p.y }
-}
-
-pub(crate) fn into_position(p: crate::Position) -> muda::Position {
-  match p {
-    crate::Position::Physical(p) => muda::Position::Physical(into_physical_position(p)),
-    crate::Position::Logical(p) => muda::Position::Logical(into_logical_position(p)),
-  }
-}

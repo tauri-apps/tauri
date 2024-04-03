@@ -1525,12 +1525,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::IsFocused)
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsDecorated)
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsResizable)
   }
@@ -3517,7 +3517,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         let monitor_pos = m.position();
         let monitor_size = m.size();
 
-        let window_position = window_position.to_logical(m.scale_factor());
+        // type annotations required for 32bit targets.
+        let window_position: LogicalPosition<i32> = window_position.to_logical(m.scale_factor());
 
         monitor_pos.x <= window_position.x
           && window_position.x <= monitor_pos.x + monitor_size.width as i32

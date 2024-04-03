@@ -374,7 +374,7 @@ mod tests {
     assert_eq!(resource_dir, path.parent().unwrap());
 
     let path = PathBuf::from("/path/to/target/unknown-profile/app");
-    let resource_dir = super::resource_dir_from(&path, &package_info, &env);
+    let resource_dir = super::resource_dir_from(path, &package_info, &env);
     #[cfg(target_os = "macos")]
     assert!(resource_dir.is_err());
     #[cfg(target_os = "linux")]

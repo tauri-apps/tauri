@@ -450,6 +450,11 @@
             "null"
           ],
           "format": "uri"
+        },
+        "zoomHotkeysEnabled": {
+          "description": "Whether page zooming by hotkeys is enabled **Windows Only**",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

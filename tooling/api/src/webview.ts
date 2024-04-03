@@ -648,6 +648,10 @@ interface WebviewOptions {
    * - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
    * */
   proxyUrl?: string
+  /**
+   * Whether page zooming by hotkeys or gestures is enabled **Windows Only**
+   */
+  zoomHotkeysEnabled?: boolean
 }
 
 export { Webview, getCurrent, getAll }

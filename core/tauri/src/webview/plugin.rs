@@ -40,6 +40,8 @@ mod desktop_commands {
     window_effects: Option<WindowEffectsConfig>,
     #[serde(default)]
     incognito: bool,
+    #[serde(default)]
+    zoom_hotkeys_enabled: bool,
   }
 
   #[command(root = "crate")]
@@ -77,6 +79,7 @@ mod desktop_commands {
     builder.webview_attributes.accept_first_mouse = options.accept_first_mouse;
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
+    builder.webview_attributes.zoom_hotkeys_enabled = options.zoom_hotkeys_enabled;
 
     window.add_child(
       builder,

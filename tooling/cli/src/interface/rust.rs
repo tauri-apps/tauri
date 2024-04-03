@@ -1208,21 +1208,9 @@ fn tauri_config_to_bundle_settings(
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
   let mut depends_deb = config.linux.deb.depends.unwrap_or_default();
-  #[allow(unused_mut)]
-  let mut provides_deb = config.linux.deb.provides.unwrap_or_default();
-  #[allow(unused_mut)]
-  let mut conflicts_deb = config.linux.deb.conflicts.unwrap_or_default();
-  #[allow(unused_mut)]
-  let mut replaces_deb = config.linux.deb.replaces.unwrap_or_default();
 
   #[allow(unused_mut)]
   let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
-  #[allow(unused_mut)]
-  let mut provides_rpm = config.linux.rpm.provides.unwrap_or_default();
-  #[allow(unused_mut)]
-  let mut conflicts_rpm = config.linux.rpm.conflicts.unwrap_or_default();
-  #[allow(unused_mut)]
-  let mut obsoletes_rpm = config.linux.rpm.obsoletes.unwrap_or_default();
 
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
@@ -1343,21 +1331,9 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_deb)
       },
-      provides: if provides_deb.is_empty() {
-        None
-      } else {
-        Some(provides_deb)
-      },
-      conflicts: if conflicts_deb.is_empty() {
-        None
-      } else {
-        Some(conflicts_deb)
-      },
-      replaces: if replaces_deb.is_empty() {
-        None
-      } else {
-        Some(replaces_deb)
-      },
+      provides: config.linux.deb.provides,
+      conflicts: config.linux.deb.conflicts,
+      replaces: config.linux.deb.replaces,
       files: config.linux.deb.files,
       desktop_template: config.linux.deb.desktop_template,
       section: config.linux.deb.section,
@@ -1377,21 +1353,9 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_rpm)
       },
-      provides: if provides_rpm.is_empty() {
-        None
-      } else {
-        Some(provides_rpm)
-      },
-      conflicts: if conflicts_rpm.is_empty() {
-        None
-      } else {
-        Some(conflicts_rpm)
-      },
-      obsoletes: if obsoletes_rpm.is_empty() {
-        None
-      } else {
-        Some(obsoletes_rpm)
-      },
+      provides: config.linux.rpm.provides,
+      conflicts: config.linux.rpm.conflicts,
+      obsoletes: config.linux.rpm.obsoletes,
       release: config.linux.rpm.release,
       epoch: config.linux.rpm.epoch,
       files: config.linux.rpm.files,

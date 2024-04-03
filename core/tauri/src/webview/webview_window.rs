@@ -839,11 +839,7 @@ fn main() {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled
-  ///
-  /// ## Platform-specific
-  ///
-  /// **macOS / Linux / Android / iOS**: Unsupported
+  /// Whether page zooming by hotkeys is enabled **Windows only**
   #[must_use]
   pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
     self.webview_builder = self.webview_builder.zoom_hotkeys_enabled(enabled);

@@ -649,11 +649,7 @@ interface WebviewOptions {
    * */
   proxyUrl?: string
   /**
-   * Whether page zooming by hotkeys or gestures is enabled
-   *
-   * ## Platform-specific
-   *
-   * - **macOS / Linux / Android / iOS**: Unsupported
+   * Whether page zooming by hotkeys or gestures is enabled **Windows Only**
    */
   zoomHotkeysEnabled?: boolean
 }

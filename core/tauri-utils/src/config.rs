@@ -1276,11 +1276,7 @@ pub struct WindowConfig {
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
   pub proxy_url: Option<Url>,
-  /// Whether page zooming by hotkeys is enabled
-  ///
-  /// ## Platform-specific
-  ///
-  /// **macOS / Linux / Android / iOS**: Unsupported
+  /// Whether page zooming by hotkeys is enabled **Windows Only**
   #[serde(default)]
   pub zoom_hotkeys_enabled: bool,
 }

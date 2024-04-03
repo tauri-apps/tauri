@@ -450,6 +450,11 @@
             "null"
           ],
           "format": "uri"
+        },
+        "zoomHotkeysEnabled": {
+          "description": "Whether page zooming by hotkeys is enabled\n\n## Platform-specific\n\n**macOS / Linux / Android / iOS**: Unsupported",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

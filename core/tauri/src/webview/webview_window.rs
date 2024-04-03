@@ -838,6 +838,17 @@ fn main() {
     self.webview_builder = self.webview_builder.proxy_url(url);
     self
   }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific
+  ///
+  /// **macOS / Linux / Android / iOS**: Unsupported
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.zoom_hotkeys_enabled(enabled);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].

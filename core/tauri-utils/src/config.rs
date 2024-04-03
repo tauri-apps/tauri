@@ -1276,6 +1276,13 @@ pub struct WindowConfig {
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
   pub proxy_url: Option<Url>,
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific
+  ///
+  /// **macOS / Linux / Android / iOS**: Unsupported
+  #[serde(default)]
+  pub zoom_hotkeys_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -1321,6 +1328,7 @@ impl Default for WindowConfig {
       incognito: false,
       parent: None,
       proxy_url: None,
+      zoom_hotkeys_enabled: false,
     }
   }
 }
@@ -2242,6 +2250,7 @@ mod build {
       let window_effects = opt_lit(self.window_effects.as_ref());
       let incognito = self.incognito;
       let parent = opt_str_lit(self.parent.as_ref());
+      let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
 
       literal_struct!(
         tokens,
@@ -2285,7 +2294,8 @@ mod build {
         shadow,
         window_effects,
         incognito,
-        parent
+        parent,
+        zoom_hotkeys_enabled
       );
     }
   }

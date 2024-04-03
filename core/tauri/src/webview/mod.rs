@@ -775,6 +775,17 @@ fn main() {
     self.webview_attributes.auto_resize = true;
     self
   }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific
+  ///
+  /// **macOS / Linux / Android / iOS**: Unsupported
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes.zoom_hotkeys_enabled = enabled;
+    self
+  }
 }
 
 /// Webview.

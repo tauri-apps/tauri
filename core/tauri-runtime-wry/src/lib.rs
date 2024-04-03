@@ -3734,7 +3734,8 @@ fn create_webview<T: UserEvent>(
     .with_focused(window.is_focused())
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
-    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+    .with_accept_first_mouse(webview_attributes.accept_first_mouse)
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
   #[cfg(windows)]
   if kind == WebviewKind::WindowContent {

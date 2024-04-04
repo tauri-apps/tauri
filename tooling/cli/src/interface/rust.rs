@@ -16,7 +16,6 @@ use std::{
 
 use anyhow::Context;
 use glob::glob;
-use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -101,7 +100,6 @@ pub struct RustupTarget {
 pub struct Rust {
   app_settings: Arc<RustAppSettings>,
   config_features: Vec<String>,
-  product_name: Option<String>,
   available_targets: Option<Vec<RustupTarget>>,
 }
 
@@ -143,7 +141,6 @@ impl Interface for Rust {
     Ok(Self {
       app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
-      product_name: config.product_name.clone(),
       available_targets: None,
     })
   }
@@ -156,7 +153,6 @@ impl Interface for Rust {
     desktop::build(
       options,
       &self.app_settings,
-      self.product_name.clone(),
       &mut self.available_targets,
       self.config_features.clone(),
     )?;
@@ -479,7 +475,6 @@ impl Rust {
       &mut self.available_targets,
       self.config_features.clone(),
       &self.app_settings,
-      self.product_name.clone(),
       on_exit,
     )
     .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
@@ -655,7 +650,7 @@ struct BinarySettings {
 #[serde(rename_all = "kebab-case")]
 pub struct CargoPackageSettings {
   /// the package's name.
-  pub name: Option<String>,
+  pub name: String,
   /// the package's version.
   pub version: Option<MaybeWorkspace<String>>,
   /// the package's description.
@@ -831,11 +826,7 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let bin_name = self
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
+    let bin_name = self.cargo_package_settings().name.clone();
 
     let out_dir = self
       .out_dir(options.target.clone(), get_profile_dir(options).to_string())
@@ -851,7 +842,7 @@ impl AppSettings for RustAppSettings {
     Ok(out_dir.join(bin_name).with_extension(binary_extension))
   }
 
-  fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
+  fn get_binaries(&self, target: &str) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
 
     let binary_extension: String = if target.contains("windows") {
@@ -861,35 +852,17 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
-    let target_os = target.split('-').nth(2).unwrap_or(std::env::consts::OS);
-
-    if let Some(bin) = &self.cargo_settings.bin {
+    if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
         .package_settings
         .default_run
         .clone()
         .unwrap_or_default();
-      for binary in bin {
-        binaries.push(
-          if Some(&binary.name) == self.cargo_package_settings.name.as_ref()
-            || binary.name.as_str() == default_run
-          {
-            BundleBinary::new(
-              format!(
-                "{}{}",
-                config.binary_name().unwrap_or_else(|| binary.name.clone()),
-                &binary_extension
-              ),
-              true,
-            )
-          } else {
-            BundleBinary::new(
-              format!("{}{}", binary.name.clone(), &binary_extension),
-              false,
-            )
-          }
-          .set_src_path(binary.path.clone()),
-        )
+      for bin in bins {
+        let name = format!("{}{}", bin.name, binary_extension);
+        let is_main =
+          bin.name == self.cargo_package_settings.name || bin.name.as_str() == default_run;
+        binaries.push(BundleBinary::with_path(name, is_main, bin.path.clone()))
       }
     }
 
@@ -913,38 +886,17 @@ impl AppSettings for RustAppSettings {
     }
 
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
-      match binaries.iter_mut().find(|bin| bin.name() == default_run) {
-        Some(bin) => {
-          if let Some(bin_name) = config.binary_name() {
-            bin.set_name(bin_name);
-          }
-        }
-        None => {
-          binaries.push(BundleBinary::new(
-            format!(
-              "{}{}",
-              config
-                .binary_name()
-                .unwrap_or_else(|| default_run.to_string()),
-              &binary_extension
-            ),
-            true,
-          ));
-        }
+      if !binaries.iter_mut().any(|bin| bin.name() == default_run) {
+        binaries.push(BundleBinary::new(
+          format!("{}{}", default_run, binary_extension),
+          true,
+        ));
       }
     }
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        if target_os == "linux" {
-          self.package_settings.product_name.to_kebab_case()
-        } else {
-          format!(
-            "{}{}",
-            self.package_settings.product_name.clone(),
-            &binary_extension
-          )
-        },
+        format!("{}{}", self.cargo_package_settings.name, &binary_extension),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),
@@ -1002,12 +954,10 @@ impl RustAppSettings {
       .and_then(|v| v.package);
 
     let package_settings = PackageSettings {
-      product_name: config.product_name.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .name
-          .clone()
-          .expect("Cargo manifest must have the `package.name` field")
-      }),
+      product_name: config
+        .product_name
+        .clone()
+        .unwrap_or_else(|| cargo_package_settings.name.clone()),
       version: config.version.clone().unwrap_or_else(|| {
         cargo_package_settings
           .version

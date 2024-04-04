@@ -23,7 +23,7 @@ use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{copy, create_dir_all, remove_dir_all, rename, write},
+  fs,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -93,7 +93,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
       log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
       for (path, url, hash, hash_algorithim) in mismatched {
         let data = download_and_verify(url, hash, *hash_algorithim)?;
-        write(nsis_toolset_path.join(path), data)?;
+        fs::write(nsis_toolset_path.join(path), data)?;
       }
     }
   }
@@ -110,7 +110,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     extract_zip(&data, _tauri_tools_path)?;
-    rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
@@ -119,9 +119,9 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   log::info!("extracting NSIS ApplicationID plugin");
   extract_zip(&data, &nsis_plugins)?;
 
-  create_dir_all(nsis_plugins.join("x86-unicode"))?;
+  fs::create_dir_all(nsis_plugins.join("x86-unicode"))?;
 
-  copy(
+  fs::copy(
     nsis_plugins
       .join("ReleaseUnicode")
       .join("ApplicationID.dll"),
@@ -133,7 +133,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     NSIS_TAURI_UTILS_SHA1,
     HashAlgorithm::Sha1,
   )?;
-  write(
+  fs::write(
     nsis_plugins
       .join("x86-unicode")
       .join("nsis_tauri_utils.dll"),
@@ -187,9 +187,9 @@ fn build_nsis_app_installer(
 
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
-    remove_dir_all(&output_path)?;
+    fs::remove_dir_all(&output_path)?;
   }
-  create_dir_all(&output_path)?;
+  fs::create_dir_all(&output_path)?;
 
   let mut data = BTreeMap::new();
 
@@ -486,7 +486,7 @@ fn build_nsis_app_installer(
     },
     package_base_name
   ));
-  create_dir_all(nsis_installer_path.parent().unwrap())?;
+  fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   log::info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
 
@@ -509,7 +509,7 @@ fn build_nsis_app_installer(
     .piped()
     .context("error running makensis.exe")?;
 
-  rename(nsis_output_path, &nsis_installer_path)?;
+  fs::rename(nsis_output_path, &nsis_installer_path)?;
 
   // Code signing is currently only supported on Windows hosts
   #[cfg(target_os = "windows")]

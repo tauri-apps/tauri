@@ -1955,16 +1955,7 @@ tauri::Builder::default()
       .set_progress_bar(crate::runtime::ProgressBarState {
         status: progress_state.status,
         progress: progress_state.progress,
-        desktop_filename: Some(format!(
-          "{}.desktop",
-          heck::AsKebabCase(
-            self
-              .config()
-              .product_name
-              .as_deref()
-              .unwrap_or_else(|| self.package_info().crate_name)
-          )
-        )),
+        desktop_filename: Some(format!("{}.desktop", self.package_info().crate_name)),
       })
       .map_err(Into::into)
   }

@@ -27,7 +27,6 @@ use super::{super::common, freedesktop};
 use crate::Settings;
 use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
-use heck::AsKebabCase;
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
@@ -158,7 +157,8 @@ fn generate_control_file(
   // https://www.debian.org/doc/debian-policy/ch-controlfields.html
   let dest_path = control_dir.join("control");
   let mut file = common::create_file(&dest_path)?;
-  writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
+  let package = heck::AsKebabCase(settings.product_name());
+  writeln!(file, "Package: {}", package)?;
   writeln!(file, "Version: {}", settings.version_string())?;
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size

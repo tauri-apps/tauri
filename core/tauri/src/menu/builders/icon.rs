@@ -4,21 +4,22 @@
 
 use crate::{
   image::Image,
-  menu::{IconMenuItem, MenuId, NativeIcon},
+  menu::{IconMenuItem, MenuEvent, MenuId, NativeIcon},
   Manager, Runtime,
 };
 
 /// A builder type for [`IconMenuItem`]
-pub struct IconMenuItemBuilder<'a> {
+pub struct IconMenuItemBuilder<'a, R: Runtime> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   icon: Option<Image<'a>>,
   native_icon: Option<NativeIcon>,
   accelerator: Option<String>,
+  handler: Option<Box<dyn Fn(&IconMenuItem<R>, MenuEvent) + Send + Sync + 'static>>,
 }
 
-impl<'a> IconMenuItemBuilder<'a> {
+impl<'a, R: Runtime> IconMenuItemBuilder<'a, R> {
   /// Create a new menu item builder.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -31,6 +32,7 @@ impl<'a> IconMenuItemBuilder<'a> {
       icon: None,
       native_icon: None,
       accelerator: None,
+      handler: None,
     }
   }
 
@@ -46,6 +48,7 @@ impl<'a> IconMenuItemBuilder<'a> {
       icon: None,
       native_icon: None,
       accelerator: None,
+      handler: None,
     }
   }
 
@@ -87,9 +90,18 @@ impl<'a> IconMenuItemBuilder<'a> {
     self
   }
 
+  /// Set a handler to be called when this item is activated.
+  pub fn handler<F: Fn(&IconMenuItem<R>, MenuEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.handler.replace(Box::new(handler));
+    self
+  }
+
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>> {
-    if self.icon.is_some() {
+  pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<IconMenuItem<R>> {
+    let i = if self.icon.is_some() {
       if let Some(id) = self.id {
         IconMenuItem::with_id(
           manager,
@@ -98,7 +110,7 @@ impl<'a> IconMenuItemBuilder<'a> {
           self.enabled,
           self.icon,
           self.accelerator,
-        )
+        )?
       } else {
         IconMenuItem::new(
           manager,
@@ -106,7 +118,7 @@ impl<'a> IconMenuItemBuilder<'a> {
           self.enabled,
           self.icon,
           self.accelerator,
-        )
+        )?
       }
     } else if let Some(id) = self.id {
       IconMenuItem::with_id_and_native_icon(
@@ -116,7 +128,7 @@ impl<'a> IconMenuItemBuilder<'a> {
         self.enabled,
         self.native_icon,
         self.accelerator,
-      )
+      )?
     } else {
       IconMenuItem::with_native_icon(
         manager,
@@ -124,7 +136,21 @@ impl<'a> IconMenuItemBuilder<'a> {
         self.enabled,
         self.native_icon,
         self.accelerator,
-      )
-    }
+      )?
+    };
+
+    if let Some(handler) = self.handler {
+      let i = i.clone();
+      manager
+        .manager()
+        .menu
+        .on_menu_item_event(i.id().clone(), move |_app, e| {
+          if e.id == i.id() {
+            handler(&i, e)
+          }
+        });
+    };
+
+    Ok(i)
   }
 }

@@ -24,7 +24,11 @@ pub struct MenuManager<R: Runtime> {
   /// Menu event listeners to all windows.
   pub global_event_listeners: Mutex<Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>>,
   /// Menu event listeners to specific windows.
-  pub event_listeners: Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
+  pub window_event_listeners:
+    Mutex<HashMap<String, crate::app::GlobalMenuEventListener<Window<R>>>>,
+  /// Menu event listeners to specific windows.
+  pub item_event_listeners:
+    Mutex<HashMap<MenuId, crate::app::GlobalMenuEventListener<AppHandle<R>>>>,
 }
 
 impl<R: Runtime> MenuManager<R> {
@@ -94,5 +98,17 @@ impl<R: Runtime> MenuManager<R> {
       .lock()
       .unwrap()
       .push(Box::new(handler));
+  }
+
+  pub fn on_menu_item_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
+    &self,
+    id: MenuId,
+    handler: F,
+  ) {
+    self
+      .item_event_listeners
+      .lock()
+      .unwrap()
+      .insert(id, Box::new(handler));
   }
 }

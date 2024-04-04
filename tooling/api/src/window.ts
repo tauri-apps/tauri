@@ -1227,7 +1227,7 @@ class Window {
       )
     }
 
-    const value = {} as unknown as any
+    const value = {} as Record<string, unknown>
     value[`${size.type}`] = {
       width: size.width,
       height: size.height
@@ -1330,7 +1330,7 @@ class Window {
       )
     }
 
-    const value = {} as unknown as any
+    const value = {} as Record<string, unknown>
     value[`${position.type}`] = {
       x: position.x,
       y: position.y
@@ -1516,7 +1516,7 @@ class Window {
       )
     }
 
-    const value = {} as unknown as any
+    const value = {} as Record<string, unknown>
     value[`${position.type}`] = {
       x: position.x,
       y: position.y

@@ -245,7 +245,7 @@ export class Submenu extends MenuItemBase {
   ): Promise<void> {
     let atValue = null
     if (at) {
-      atValue = {} as unknown as any
+      atValue = {} as Record<string, unknown>
       atValue[`${at instanceof PhysicalPosition ? 'Physical' : 'Logical'}`] = {
         x: at.x,
         y: at.y

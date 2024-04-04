@@ -485,6 +485,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(false)
   }
 
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    Ok(())
+  }
+
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self
       .last_evaluated_script

@@ -1185,6 +1185,7 @@ pub enum WebviewMessage {
   SetFocus,
   Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
+  SetZoom(f64),
   // Getters
   Url(Sender<Result<Url>>),
   Bounds(Sender<Result<tauri_runtime::Rect>>),
@@ -1448,6 +1449,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetZoom(scale_factor),
       ),
     )
   }
@@ -2967,6 +2979,11 @@ fn handle_user_message<T: UserEvent>(
               log::error!("failed to get webview bounds: {e}");
             }
           },
+          WebviewMessage::SetZoom(scale_factor) => {
+            if let Err(e) = webview.zoom(scale_factor) {
+              log::error!("failed to set webview zoom: {e}");
+            }
+          }
           // Getters
           WebviewMessage::Url(tx) => {
             tx.send(

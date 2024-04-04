@@ -2,7 +2,7 @@
 name = "tauri-build"
 version = "2.0.0-beta.11"
 description = "build time code to pair with https://crates.io/crates/tauri"
-exclude = [ "CHANGELOG.md", "/target" ]
+exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
 authors = { workspace = true }
 homepage = { workspace = true }
@@ -20,20 +20,23 @@ targets = [
   "x86_64-unknown-linux-gnu",
   "x86_64-apple-darwin",
   "x86_64-linux-android",
-  "x86_64-apple-ios"
+  "x86_64-apple-ios",
 ]
-rustc-args = [ "--cfg", "docsrs" ]
-rustdoc-args = [ "--cfg", "docsrs" ]
+rustc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
 tauri-codegen = { version = "2.0.0-beta.11", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.0.0-beta.11", path = "../tauri-utils", features = [ "build", "resources" ] }
+tauri-utils = { version = "2.0.0-beta.11", path = "../tauri-utils", features = [
+  "build",
+  "resources",
+] }
 cargo_toml = "0.17"
 serde = "1"
 serde_json = "1"
-heck = "0.4"
+heck = "0.5"
 json-patch = "1.2"
 walkdir = "2"
 tauri-winres = "0.1"
@@ -41,12 +44,12 @@ semver = "1"
 dirs-next = "2"
 glob = "0.3"
 toml = "0.8"
-schemars = { version = "0.8", features = [ "preserve_order" ] }
+schemars = { version = "0.8", features = ["preserve_order"] }
 
 [features]
-default = [ "config-json" ]
-codegen = [ "tauri-codegen", "quote" ]
-isolation = [ "tauri-codegen/isolation", "tauri-utils/isolation" ]
-config-json = [ ]
-config-json5 = [ "tauri-utils/config-json5" ]
-config-toml = [ "tauri-utils/config-toml" ]
+default = ["config-json"]
+codegen = ["tauri-codegen", "quote"]
+isolation = ["tauri-codegen/isolation", "tauri-utils/isolation"]
+config-json = []
+config-json5 = ["tauri-utils/config-json5"]
+config-toml = ["tauri-utils/config-toml"]

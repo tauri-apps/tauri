@@ -3508,7 +3508,7 @@ dependencies = [
  "getrandom 0.2.12",
  "glob",
  "gtk",
- "heck 0.4.1",
+ "heck 0.5.0",
  "http",
  "http-range",
  "image",
@@ -3557,7 +3557,7 @@ dependencies = [
  "cargo_toml",
  "dirs-next",
  "glob",
- "heck 0.4.1",
+ "heck 0.5.0",
  "json-patch",
  "quote",
  "schemars",
@@ -3612,7 +3612,7 @@ dependencies = [
 name = "tauri-macros"
 version = "2.0.0-beta.11"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.57",

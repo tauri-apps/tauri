@@ -481,6 +481,23 @@ class Webview {
   }
 
   /**
+   * Set webview zoom level.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().setZoom(1.5);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setZoom(scaleFactor: number): Promise<void> {
+    return invoke('plugin:webview|set_webview_zoom', {
+      label: this.label,
+      value: scaleFactor,
+    })
+  }
+
+  /**
    * Moves this webview to the given label.
    * @example
    * ```typescript

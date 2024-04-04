@@ -357,7 +357,7 @@ mod tests {
       version: "1.0.0".parse().unwrap(),
       authors: "",
       description: "",
-      crate_name: "",
+      crate_name: "my-app",
     };
     let env = Env::default();
 

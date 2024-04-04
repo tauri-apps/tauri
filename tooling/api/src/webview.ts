@@ -493,7 +493,7 @@ class Webview {
   async setZoom(scaleFactor: number): Promise<void> {
     return invoke('plugin:webview|set_webview_zoom', {
       label: this.label,
-      value: scaleFactor,
+      value: scaleFactor
     })
   }
 

@@ -350,6 +350,11 @@ impl WebviewAttributes {
   }
 
   /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux / Android / iOS**: We'll inject a polyfill that zooms in and out with `ctrl`/`command` + `-`/`=` with 20% in each step, ranging from 20% to 1000%.
   #[must_use]
   pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
     self.zoom_hotkeys_enabled = enabled;

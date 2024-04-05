@@ -534,7 +534,7 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(all(desktop, not(target_os = "windows")))]
     if pending.webview_attributes.zoom_hotkeys_enabled {
       #[derive(Template)]
       #[default_template("../webview/scripts/zoom-hotkey.js")]

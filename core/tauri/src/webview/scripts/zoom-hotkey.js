@@ -18,6 +18,8 @@ window.addEventListener('keydown', (event) => {
       zoomLevel -= 0.2
     } else if (event.key === '=') {
       zoomLevel += 0.2
+    } else if (event.key === '0') {
+      zoomLevel = 1
     } else {
       return
     }

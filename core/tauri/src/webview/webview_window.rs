@@ -1713,6 +1713,17 @@ tauri::Builder::default()
   pub fn is_devtools_open(&self) -> bool {
     self.webview.is_devtools_open()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self.webview.set_zoom(scale_factor)
+  }
 }
 
 /// Event system APIs.

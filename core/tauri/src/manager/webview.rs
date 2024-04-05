@@ -534,6 +534,23 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
+    #[cfg(not(target_os = "windows"))]
+    if pending.webview_attributes.zoom_hotkeys_enabled {
+      #[derive(Template)]
+      #[default_template("../webview/scripts/zoom-hotkey.js")]
+      struct HotkeyZoom<'a> {
+        os_name: &'a str,
+      }
+
+      pending.webview_attributes.initialization_scripts.push(
+        HotkeyZoom {
+          os_name: std::env::consts::OS,
+        }
+        .render_default(&Default::default())?
+        .into_string(),
+      )
+    }
+
     #[cfg(feature = "isolation")]
     let pattern = app_manager.pattern.clone();
     let navigation_handler = pending.navigation_handler.take();

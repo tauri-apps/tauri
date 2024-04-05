@@ -1298,7 +1298,9 @@ pub struct WindowConfig {
   /// ## Platform-specific:
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
-  /// - **MacOS / Linux / Android / iOS**: We'll inject a polyfill that zooms in and out with `ctrl`/`command` + `-`/`=` with 20% in each step, ranging from 20% to 1000%.
+  /// - **MacOS / Linux / Android / iOS**: Requires `webview:allow-set-webview-zoom` permission,
+  /// we'll inject a polyfill that zooms in and out with `ctrl`/`command` + `-`/`=`,
+  /// 20% in each step, ranging from 20% to 1000%.
   #[serde(default)]
   pub zoom_hotkeys_enabled: bool,
 }

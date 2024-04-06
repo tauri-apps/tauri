@@ -37,6 +37,7 @@
 //! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
 //! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
 //!
 //! ## Cargo allowlist features
 //!
@@ -985,6 +986,30 @@ pub(crate) use run_main_thread;
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
+
+#[cfg(feature = "specta")]
+#[cfg_attr(docsrs, doc(cfg(feature = "specta")))]
+const _: () = {
+  use specta::{function::FunctionArg, DataType, TypeMap};
+
+  impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::AppHandle<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::Window<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+};
 
 #[cfg(test)]
 mod tests {

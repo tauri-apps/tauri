@@ -3,6 +3,12 @@
 version = 3
 
 [[package]]
+name = "Inflector"
+version = "0.11.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
+
+[[package]]
 name = "acl-tests"
 version = "0.1.0"
 dependencies = [
@@ -2226,6 +2232,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "paste"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3322,6 +3334,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "specta"
+version = "2.0.0-rc.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af8580b695a79b639706ecbc6b8f15a4570f38c4b208ea9fafa8362aace66d17"
+dependencies = [
+ "once_cell",
+ "paste",
+ "serde",
+ "specta-macros",
+ "thiserror",
+]
+
+[[package]]
+name = "specta-macros"
+version = "2.0.0-rc.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68025f0a8950e26fae19b7ac334bd523179f4ef4e8c60e6875583a5bece6358e"
+dependencies = [
+ "Inflector",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3524,6 +3561,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "serialize-to-javascript",
+ "specta",
  "state",
  "swift-rs",
  "tauri",

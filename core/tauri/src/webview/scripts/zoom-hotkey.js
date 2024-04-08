@@ -10,9 +10,6 @@ const MAX_ZOOM_LEVEL = 10
 const MIN_ZOOM_LEVEL = 0.2
 
 window.addEventListener('keydown', (event) => {
-  if (event.defaultPrevented) {
-    return
-  }
   if (OS_NAME === 'macos' ? event.metaKey : event.ctrlKey) {
     if (event.key === '-') {
       zoomLevel -= 0.2

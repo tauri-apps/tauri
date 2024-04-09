@@ -426,7 +426,7 @@ tauri::Builder::default()
 
     let app_manager = self.manager.manager_owned();
     let window_label = window.label().to_string();
-    // run on the main thread to fix deadlock on webview.eval
+    // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
     let _ = window.run_on_main_thread(move || {
       let _ = app_manager.webview.eval_script_all(format!(
         "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",

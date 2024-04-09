@@ -2699,16 +2699,8 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::Show => {
-            window.set_visible(true);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, !window.is_minimized());
-          }
-          WindowMessage::Hide => {
-            window.set_visible(false);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, false);
-          }
+          WindowMessage::Show => window.set_visible(true),
+          WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -3380,10 +3372,10 @@ fn handle_event_loop<T: UserEvent>(
                     log::error!("failed to autoresize webview: {e}");
                   }
                 }
+
+                #[cfg(windows)]
+                let _ = unsafe { webview.controller().SetIsVisible(!window.is_minimized()) };
               }
-              #[cfg(windows)]
-              let _ =
-                set_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
             }
           }
           _ => {}
@@ -4155,16 +4147,4 @@ fn clear_window_surface(
     buffer.fill(0);
     let _ = buffer.present();
   }
-}
-
-#[cfg(windows)]
-fn set_webview_visibility(
-  webviews: &[WebviewWrapper],
-  is_visible: bool,
-) -> windows::core::Result<()> {
-  for webview in webviews {
-    let controller = webview.controller();
-    unsafe { controller.SetIsVisible(is_visible) }?;
-  }
-  Ok(())
 }

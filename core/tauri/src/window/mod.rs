@@ -424,17 +424,22 @@ tauri::Builder::default()
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
 
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&app_manager.window.labels())?,
-    ))?;
+    let app_manager = self.manager.manager_owned();
+    let window_label = window.label().to_string();
+    // run on the main thread to fix deadlock on webview.eval
+    let _ = window.run_on_main_thread(move || {
+      let _ = app_manager.webview.eval_script_all(format!(
+        "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+        window_labels_array = serde_json::to_string(&app_manager.window.labels()).unwrap(),
+      ));
 
-    app_manager.emit(
-      "tauri://window-created",
-      Some(crate::webview::CreatedEvent {
-        label: window.label().into(),
-      }),
-    )?;
+      let _ = app_manager.emit(
+        "tauri://window-created",
+        Some(crate::webview::CreatedEvent {
+          label: window_label,
+        }),
+      );
+    });
 
     Ok(window)
   }

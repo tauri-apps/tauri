@@ -33,7 +33,7 @@ pub enum Error {
   ConvertError(#[from] num::TryFromIntError),
   /// Zip error.
   #[error("`{0}`")]
-  ZipError(#[from] zip::result::ZipError),
+  ZipError(#[from] zip_next::result::ZipError),
   /// Hex error.
   #[error("`{0}`")]
   HexError(#[from] hex::FromHexError),

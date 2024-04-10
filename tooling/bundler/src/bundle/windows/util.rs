@@ -9,7 +9,7 @@ use std::{
 };
 
 use sha2::Digest;
-use zip::ZipArchive;
+use zip_next::ZipArchive;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =

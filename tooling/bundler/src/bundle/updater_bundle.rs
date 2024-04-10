@@ -24,7 +24,7 @@ use std::{
 };
 
 use anyhow::Context;
-use zip::write::FileOptions;
+use zip_next::write::FileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
@@ -216,9 +216,9 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
     .file_name()
     .expect("Can't extract file name from path");
 
-  let mut zip = zip::ZipWriter::new(writer);
+  let mut zip = zip_next::ZipWriter::new(writer);
   let options = FileOptions::default()
-    .compression_method(zip::CompressionMethod::Stored)
+    .compression_method(zip_next::CompressionMethod::Stored)
     .unix_permissions(0o755);
 
   zip.start_file(file_name.to_string_lossy(), options)?;

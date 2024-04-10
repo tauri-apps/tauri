@@ -1,8 +1,9 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 import { Channel, invoke, Resource } from '../core'
+import { transformImage } from '../image'
 import { CheckMenuItemOptions } from './checkMenuItem'
 import { IconMenuItemOptions } from './iconMenuItem'
 import { MenuItemOptions } from './menuItem'
@@ -76,6 +77,15 @@ export async function newMenu(
         if ('rid' in i) {
           return [i.rid, i.kind]
         }
+
+        if ('item' in i && typeof i.item === 'object' && i.item.About?.icon) {
+          i.item.About.icon = transformImage(i.item.About.icon)
+        }
+
+        if ('icon' in i && i.icon) {
+          i.icon = transformImage(i.icon)
+        }
+
         return injectChannel(i)
       })
     }

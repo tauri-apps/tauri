@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -34,8 +34,8 @@
 //! - **compression** *(enabled by default): Enables asset compression. You should only disable this if you want faster compile times in release builds - it produces larger binaries.
 //! - **config-json5**: Adds support to JSON5 format for `tauri.conf.json`.
 //! - **config-toml**: Adds support to TOML format for the configuration `Tauri.toml`.
-//! - **icon-ico**: Adds support to set `.ico` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
-//! - **icon-png**: Adds support to set `.png` window icons. Enables [`Icon::File`] and [`Icon::Raw`] variants.
+//! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
+//! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //!
 //! ## Cargo allowlist features
@@ -69,6 +69,7 @@ pub use cocoa;
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
+use ipc::{RuntimeAuthority, RuntimeCapability};
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -76,6 +77,8 @@ pub use swift_rs;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
+
+pub use url::Url;
 
 pub(crate) mod app;
 pub mod async_runtime;
@@ -91,9 +94,11 @@ mod vibrancy;
 pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
+pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(desktop)]
+#[cfg_attr(docsrs, doc(cfg(desktop)))]
 pub mod menu;
 /// Path APIs.
 pub mod path;
@@ -185,13 +190,14 @@ pub use tauri_runtime_wry::{tao, wry};
 /// A task to run on the main thread.
 pub type SyncTask = Box<dyn FnOnce() + Send>;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt::{self, Debug},
   sync::MutexGuard,
 };
-use utils::acl::resolved::Resolved;
+use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -206,19 +212,18 @@ pub use self::utils::TitleBarStyle;
 
 pub use self::event::{Event, EventId, EventTarget};
 pub use {
-  self::app::{App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WindowEvent},
+  self::app::{
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
+  },
   self::manager::Asset,
   self::runtime::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
     webview::WebviewAttributes,
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, FileDropEvent,
-    },
-    DeviceEventFilter, UserAttentionType,
+    window::{CursorIcon, DragDropEvent},
+    DeviceEventFilter, Rect, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
-    assets::Assets,
     config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
@@ -327,89 +332,39 @@ macro_rules! tauri_build_context {
 
 pub use pattern::Pattern;
 
-/// A icon definition.
-#[derive(Debug, Clone)]
-#[non_exhaustive]
-pub enum Icon {
-  /// Icon from file path.
-  #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-  #[cfg_attr(docsrs, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
-  File(std::path::PathBuf),
-  /// Icon from raw RGBA bytes. Width and height is parsed at runtime.
-  #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-  #[cfg_attr(docsrs, doc(cfg(any(feature = "icon-ico", feature = "icon-png"))))]
-  Raw(Vec<u8>),
-  /// Icon from raw RGBA bytes.
-  Rgba {
-    /// RGBA bytes of the icon image.
-    rgba: Vec<u8>,
-    /// Icon width.
-    width: u32,
-    /// Icon height.
-    height: u32,
-  },
+/// Whether we are running in development mode or not.
+pub fn dev() -> bool {
+  !cfg!(feature = "custom-protocol")
 }
 
-impl TryFrom<Icon> for runtime::Icon {
-  type Error = Error;
+/// Represents a container of file assets that are retrievable during runtime.
+pub trait Assets<R: Runtime>: Send + Sync + 'static {
+  /// Initialize the asset provider.
+  fn setup(&self, app: &App<R>) {
+    let _ = app;
+  }
 
-  fn try_from(icon: Icon) -> Result<Self> {
-    #[allow(irrefutable_let_patterns)]
-    if let Icon::Rgba {
-      rgba,
-      width,
-      height,
-    } = icon
-    {
-      Ok(Self {
-        rgba,
-        width,
-        height,
-      })
-    } else {
-      #[cfg(not(any(feature = "icon-ico", feature = "icon-png")))]
-      panic!("unexpected Icon variant");
-      #[cfg(any(feature = "icon-ico", feature = "icon-png"))]
-      {
-        let bytes = match icon {
-          Icon::File(p) => std::fs::read(p)?,
-          Icon::Raw(r) => r,
-          Icon::Rgba { .. } => unreachable!(),
-        };
-        let extension = infer::get(&bytes)
-          .expect("could not determine icon extension")
-          .extension();
-        match extension {
-        #[cfg(feature = "icon-ico")]
-        "ico" => {
-          let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))?;
-          let entry = &icon_dir.entries()[0];
-          Ok(Self {
-            rgba: entry.decode()?.rgba_data().to_vec(),
-            width: entry.width(),
-            height: entry.height(),
-          })
-        }
-        #[cfg(feature = "icon-png")]
-        "png" => {
-          let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-          let mut reader = decoder.read_info()?;
-          let mut buffer = Vec::new();
-          while let Ok(Some(row)) = reader.next_row() {
-            buffer.extend(row.data());
-          }
-          Ok(Self {
-            rgba: buffer,
-            width: reader.info().width,
-            height: reader.info().height,
-          })
-        }
-        _ => panic!(
-          "image `{extension}` extension not supported; please file a Tauri feature request. `png` or `ico` icons are supported with the `icon-png` and `icon-ico` feature flags"
-        ),
-      }
-      }
-    }
+  /// Get the content of the passed [`AssetKey`].
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
+
+  /// Iterator for the assets.
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_>;
+
+  /// Gets the hashes for the CSP tag of the HTML on the given path.
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
+}
+
+impl<R: Runtime> Assets<R> for EmbeddedAssets {
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+    EmbeddedAssets::get(self, key)
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+    EmbeddedAssets::iter(self)
+  }
+
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+    EmbeddedAssets::csp_hashes(self, html_path)
   }
 }
 
@@ -418,27 +373,31 @@ impl TryFrom<Icon> for runtime::Icon {
 /// # Stability
 /// This is the output of the [`generate_context`] macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-pub struct Context<A: Assets> {
+#[tauri_macros::default_runtime(Wry, wry)]
+pub struct Context<R: Runtime> {
   pub(crate) config: Config,
-  pub(crate) assets: Box<A>,
-  pub(crate) default_window_icon: Option<Icon>,
+  /// Asset provider.
+  pub assets: Box<dyn Assets<R>>,
+  pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
-  pub(crate) tray_icon: Option<Icon>,
+  pub(crate) tray_icon: Option<image::Image<'static>>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
-  pub(crate) resolved_acl: Resolved,
+  pub(crate) runtime_authority: RuntimeAuthority,
+  pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
 }
 
-impl<A: Assets> fmt::Debug for Context<A> {
+impl<R: Runtime> fmt::Debug for Context<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
       .field("package_info", &self.package_info)
-      .field("pattern", &self.pattern);
+      .field("pattern", &self.pattern)
+      .field("plugin_global_api_scripts", &self.plugin_global_api_scripts);
 
     #[cfg(all(desktop, feature = "tray-icon"))]
     d.field("tray_icon", &self.tray_icon);
@@ -447,7 +406,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
   }
 }
 
-impl<A: Assets> Context<A> {
+impl<R: Runtime> Context<R> {
   /// The config the application was prepared with.
   #[inline(always)]
   pub fn config(&self) -> &Config {
@@ -462,42 +421,42 @@ impl<A: Assets> Context<A> {
 
   /// The assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets(&self) -> &A {
-    &self.assets
+  pub fn assets(&self) -> &dyn Assets<R> {
+    self.assets.as_ref()
   }
 
-  /// A mutable reference to the assets to be served directly by Tauri.
+  /// Replace the [`Assets`] implementation and returns the previous value so you can use it as a fallback if desired.
   #[inline(always)]
-  pub fn assets_mut(&mut self) -> &mut A {
-    &mut self.assets
+  pub fn set_assets(&mut self, assets: Box<dyn Assets<R>>) -> Box<dyn Assets<R>> {
+    std::mem::replace(&mut self.assets, assets)
   }
 
   /// The default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon(&self) -> Option<&Icon> {
+  pub fn default_window_icon(&self) -> Option<&image::Image<'_>> {
     self.default_window_icon.as_ref()
   }
 
-  /// A mutable reference to the default window icon Tauri should use when creating windows.
+  /// Set the default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.default_window_icon
+  pub fn set_default_window_icon(&mut self, icon: Option<image::Image<'static>>) {
+    self.default_window_icon = icon;
   }
 
-  /// The icon to use on the system tray UI.
+  /// The icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn tray_icon(&self) -> Option<&Icon> {
+  pub fn tray_icon(&self) -> Option<&image::Image<'_>> {
     self.tray_icon.as_ref()
   }
 
-  /// A mutable reference to the icon to use on the tray icon.
+  /// Set the icon to use on the tray icon.
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn tray_icon_mut(&mut self) -> &mut Option<Icon> {
-    &mut self.tray_icon
+  pub fn set_tray_icon(&mut self, icon: Option<image::Image<'static>>) {
+    self.tray_icon = icon;
   }
 
   /// Package information.
@@ -525,8 +484,8 @@ impl<A: Assets> Context<A> {
   /// This API is unstable.
   #[doc(hidden)]
   #[inline(always)]
-  pub fn resolved_acl(&mut self) -> &mut Resolved {
-    &mut self.resolved_acl
+  pub fn runtime_authority_mut(&mut self) -> &mut RuntimeAuthority {
+    &mut self.runtime_authority
   }
 
   /// Create a new [`Context`] from the minimal required items.
@@ -534,13 +493,14 @@ impl<A: Assets> Context<A> {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     config: Config,
-    assets: Box<A>,
-    default_window_icon: Option<Icon>,
+    assets: Box<dyn Assets<R>>,
+    default_window_icon: Option<image::Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
-    resolved_acl: Resolved,
+    runtime_authority: RuntimeAuthority,
+    plugin_global_api_scripts: Option<&'static [&'static str]>,
   ) -> Self {
     Self {
       config,
@@ -552,16 +512,9 @@ impl<A: Assets> Context<A> {
       package_info,
       _info_plist: info_plist,
       pattern,
-      resolved_acl,
+      runtime_authority,
+      plugin_global_api_scripts,
     }
-  }
-
-  /// Sets the app tray icon.
-  #[cfg(all(desktop, feature = "tray-icon"))]
-  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-  #[inline(always)]
-  pub fn set_tray_icon(&mut self, icon: Icon) {
-    self.tray_icon.replace(icon);
   }
 
   /// Sets the app shell scope.
@@ -651,7 +604,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Listens once to an emitted event to any [target](EventTarget) .
   ///
   /// See [`Self::listen_any`] for more information.
-  fn once_any<F>(&self, event: impl Into<String>, handler: F)
+  fn once_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {
@@ -800,7 +753,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// Fetch a single webview window from the manager.
   fn get_webview_window(&self, label: &str) -> Option<WebviewWindow<R>> {
     self.manager().get_webview(label).and_then(|webview| {
-      if webview.window().webview_window {
+      if webview.window().is_webview_window() {
         Some(WebviewWindow { webview })
       } else {
         None
@@ -815,7 +768,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .webviews()
       .into_iter()
       .filter_map(|(label, webview)| {
-        if webview.window().webview_window {
+        if webview.window().is_webview_window() {
           Some((label, WebviewWindow { webview }))
         } else {
           None
@@ -942,10 +895,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state.try_get()
   }
 
-  /// Get a reference to the resources table.
-  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self.manager().resources_table()
-  }
+  /// Get a reference to the resources table of this manager.
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable>;
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
@@ -961,6 +912,28 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// The path resolver.
   fn path(&self) -> &crate::path::PathResolver<R> {
     self.state::<crate::path::PathResolver<R>>().inner()
+  }
+
+  /// Adds a capability to the app.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(feature = "beta")]
+  ///     app.add_capability(include_str!("../capabilities/beta.json"));
+  ///     Ok(())
+  ///   });
+  /// ```
+  fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
+    self
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .add_capability(capability)
   }
 }
 
@@ -988,40 +961,6 @@ pub(crate) mod sealed {
     fn manager_owned(&self) -> Arc<AppManager<R>>;
     fn runtime(&self) -> RuntimeOrDispatch<'_, R>;
     fn managed_app_handle(&self) -> &AppHandle<R>;
-  }
-}
-
-#[derive(Deserialize)]
-#[serde(untagged)]
-pub(crate) enum IconDto {
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  File(std::path::PathBuf),
-  #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-  Raw(Vec<u8>),
-  Rgba {
-    rgba: Vec<u8>,
-    width: u32,
-    height: u32,
-  },
-}
-
-impl From<IconDto> for Icon {
-  fn from(icon: IconDto) -> Self {
-    match icon {
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::File(path) => Self::File(path),
-      #[cfg(any(feature = "icon-png", feature = "icon-ico"))]
-      IconDto::Raw(raw) => Self::Raw(raw),
-      IconDto::Rgba {
-        rgba,
-        width,
-        height,
-      } => Self::Rgba {
-        rgba,
-        width,
-        height,
-      },
-    }
   }
 }
 

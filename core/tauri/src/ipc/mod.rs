@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -21,11 +21,13 @@ use crate::{webview::Webview, Runtime, StateManager};
 mod authority;
 pub(crate) mod channel;
 mod command;
-#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 
-pub use authority::{CommandScope, GlobalScope, Origin, RuntimeAuthority, ScopeObject, ScopeValue};
+pub use authority::{
+  CapabilityBuilder, CommandScope, GlobalScope, Origin, RuntimeAuthority, RuntimeCapability,
+  ScopeObject, ScopeValue,
+};
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{private, CommandArg, CommandItem};
 
@@ -163,7 +165,7 @@ pub struct Invoke<R: Runtime> {
   pub resolver: InvokeResolver<R>,
 
   /// Resolved ACL for this IPC invoke.
-  pub acl: Option<ResolvedCommand>,
+  pub acl: Option<Vec<ResolvedCommand>>,
 }
 
 /// Error response from an [`InvokeMessage`].

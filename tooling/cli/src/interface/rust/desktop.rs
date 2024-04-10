@@ -1,9 +1,9 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{
-  get_profile, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
+  get_profile_dir, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
 };
 use crate::CommandExt;
 use tauri_utils::display_path;
@@ -61,10 +61,6 @@ impl DevProcess for DevChild {
 
   fn manually_killed_process(&self) -> bool {
     self.manually_killed_app.load(Ordering::Relaxed)
-  }
-
-  fn is_building_app(&self) -> bool {
-    self.app_child.lock().unwrap().is_none()
   }
 }
 
@@ -169,7 +165,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), get_profile(&options))
+        .out_dir(Some(triple.into()), get_profile_dir(&options).to_string())
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())

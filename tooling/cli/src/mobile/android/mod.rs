@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -57,7 +57,7 @@ pub struct Cli {
 #[clap(about = "Initialize Android target in the project")]
 pub struct InitOptions {
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
   /// Skips installing rust toolchains via rustup
   #[clap(long)]
@@ -96,9 +96,16 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
+  features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AndroidConfig, AndroidMetadata) {
-  let android_options = cli_options.clone();
+  let mut android_options = cli_options.clone();
+  if let Some(features) = features {
+    android_options
+      .features
+      .get_or_insert(Vec::new())
+      .extend_from_slice(features);
+  }
 
   let raw = RawAndroidConfig {
     features: android_options.features.clone(),
@@ -268,7 +275,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
         return Ok(device);
       }
       if tries >= 3 {
-        log::info!("Waiting for emulator to start... (maybe the emulator is unathorized or offline, run `adb devices` to check)");
+        log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
       } else {
         log::info!("Waiting for emulator to start...");
       }

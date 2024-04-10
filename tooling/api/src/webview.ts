@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -31,23 +31,28 @@ import {
 } from './event'
 import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
-import type { WindowOptions } from './window'
+import { WebviewWindow } from './webviewWindow'
 
-interface FileDropPayload {
+interface DragDropPayload {
   paths: string[]
   position: PhysicalPosition
 }
 
-/** The file drop event types. */
-type FileDropEvent =
-  | ({ type: 'hover' } & FileDropPayload)
-  | ({ type: 'drop' } & FileDropPayload)
-  | { type: 'cancel' }
+interface DragOverPayload {
+  position: PhysicalPosition
+}
+
+/** The drag and drop event types. */
+type DragDropEvent =
+  | ({ type: 'dragged' } & DragDropPayload)
+  | ({ type: 'dragOver' } & DragOverPayload)
+  | ({ type: 'dropped' } & DragDropPayload)
+  | { type: 'cancelled' }
 
 /**
  * Get an instance of `Webview` for the current webview.
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
 function getCurrent(): Webview {
   return new Webview(
@@ -63,7 +68,7 @@ function getCurrent(): Webview {
 /**
  * Gets a list of instances of `Webview` for all available webviews.
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
 function getAll(): Webview[] {
   return window.__TAURI_INTERNALS__.metadata.webviews.map(
@@ -93,9 +98,9 @@ export type WebviewLabel = string
  * import { Window } from "@tauri-apps/api/window"
  * import { Webview } from "@tauri-apps/api/webview"
  *
- * // loading embedded asset:
- * const appWindow = new Window('uniqueLabel')
+ * const appWindow = new Window('uniqueLabel');
  *
+ * // loading embedded asset:
  * const webview = new Webview(appWindow, 'theUniqueLabel', {
  *   url: 'path/to/page.html'
  * });
@@ -112,9 +117,9 @@ export type WebviewLabel = string
  * });
  *
  * // emit an event to the backend
- * await webview.emit("some event", "data");
+ * await webview.emit("some-event", "data");
  * // listen to an event from the backend
- * const unlisten = await webview.listen("event name", e => {});
+ * const unlisten = await webview.listen("event-name", e => {});
  * unlisten();
  * ```
  *
@@ -136,7 +141,7 @@ class Webview {
    * import { Window } from '@tauri-apps/api/window'
    * import { Webview } from '@tauri-apps/api/webview'
    * const appWindow = new Window('my-label')
-   * const webview = new Window(appWindow, 'my-label', {
+   * const webview = new Webview(appWindow, 'my-label', {
    *   url: 'https://github.com/tauri-apps/tauri'
    * });
    * webview.once('tauri://created', function () {
@@ -298,7 +303,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * await getCurrent().emitTo('main', 'webview-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    *
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
@@ -475,6 +480,40 @@ class Webview {
     })
   }
 
+  /**
+   * Set webview zoom level.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().setZoom(1.5);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setZoom(scaleFactor: number): Promise<void> {
+    return invoke('plugin:webview|set_webview_zoom', {
+      label: this.label,
+      value: scaleFactor
+    })
+  }
+
+  /**
+   * Moves this webview to the given label.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().reparent('other-window');
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async reparent(window: Window | WebviewWindow | string): Promise<void> {
+    return invoke('plugin:webview|set_webview_focus', {
+      label: this.label,
+      window: typeof window === 'string' ? window : window.label
+    })
+  }
+
   // Listeners
 
   /**
@@ -485,7 +524,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from "@tauri-apps/api/webview";
-   * const unlisten = await getCurrent().onFileDropEvent((event) => {
+   * const unlisten = await getCurrent().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -502,16 +541,16 @@ class Webview {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async onFileDropEvent(
-    handler: EventCallback<FileDropEvent>
+  async onDragDropEvent(
+    handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<FileDropPayload>(
-      TauriEvent.WEBVIEW_FILE_DROP,
+    const unlistenDrag = await this.listen<DragDropPayload>(
+      TauriEvent.DRAG,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'drop',
+            type: 'dragged',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -519,14 +558,27 @@ class Webview {
       }
     )
 
-    const unlistenFileHover = await this.listen<FileDropPayload>(
-      TauriEvent.WEBVIEW_FILE_DROP_HOVER,
+    const unlistenDrop = await this.listen<DragDropPayload>(
+      TauriEvent.DROP,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'hover',
+            type: 'dropped',
             paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDragOver = await this.listen<DragDropPayload>(
+      TauriEvent.DROP_CANCELLED,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dragOver',
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -534,15 +586,16 @@ class Webview {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.WEBVIEW_FILE_DROP_CANCELLED,
+      TauriEvent.DROP_CANCELLED,
       (event) => {
-        handler({ ...event, payload: { type: 'cancel' } })
+        handler({ ...event, payload: { type: 'cancelled' } })
       }
     )
 
     return () => {
-      unlistenFileDrop()
-      unlistenFileHover()
+      unlistenDrag()
+      unlistenDrop()
+      unlistenDragOver()
       unlistenCancel()
     }
   }
@@ -552,199 +605,10 @@ function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
   return new PhysicalPosition(m.x, m.y)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-interface WebviewWindow extends Webview, Window {}
-
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-class WebviewWindow {
-  label: string
-  /** Local event listeners. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  listeners: Record<string, Array<EventCallback<any>>>
-
-  /**
-   * Creates a new {@link Window} hosting a {@link Webview}.
-   * @example
-   * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/webview'
-   * const webview = new WebviewWindow('my-label', {
-   *   url: 'https://github.com/tauri-apps/tauri'
-   * });
-   * webview.once('tauri://created', function () {
-   *  // webview successfully created
-   * });
-   * webview.once('tauri://error', function (e) {
-   *  // an error happened creating the webview
-   * });
-   * ```
-   *
-   * @param label The unique webview label. Must be alphanumeric: `a-zA-Z-/:_`.
-   * @returns The {@link WebviewWindow} instance to communicate with the window and webview.
-   */
-  constructor(
-    label: WebviewLabel,
-    options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'> &
-      WindowOptions = {}
-  ) {
-    this.label = label
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    this.listeners = Object.create(null)
-
-    // @ts-expect-error `skip` is not a public API so it is not defined in WebviewOptions
-    if (!options?.skip) {
-      invoke('plugin:webview|create_webview_window', {
-        options: {
-          ...options,
-          parent:
-            typeof options.parent === 'string'
-              ? options.parent
-              : options.parent?.label,
-          label
-        }
-      })
-        .then(async () => this.emit('tauri://created'))
-        .catch(async (e: string) => this.emit('tauri://error', e))
-    }
-  }
-
-  /**
-   * Gets the Webview for the webview associated with the given label.
-   * @example
-   * ```typescript
-   * import { Webview } from '@tauri-apps/api/webview';
-   * const mainWebview = Webview.getByLabel('main');
-   * ```
-   *
-   * @param label The webview label.
-   * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
-   */
-  static getByLabel(label: string): WebviewWindow | null {
-    const webview = getAll().find((w) => w.label === label) ?? null
-    if (webview) {
-      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-      return new WebviewWindow(webview.label, { skip: true })
-    }
-    return null
-  }
-
-  /**
-   * Get an instance of `Webview` for the current webview.
-   */
-  static getCurrent(): WebviewWindow {
-    const webview = getCurrent()
-    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-    return new WebviewWindow(webview.label, { skip: true })
-  }
-
-  /**
-   * Gets a list of instances of `Webview` for all available webviews.
-   */
-  static getAll(): WebviewWindow[] {
-    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-    return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
-  }
-
-  /**
-   * Listen to an emitted event on this webivew window.
-   *
-   * @example
-   * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/webview';
-   * const unlisten = await WebviewWindow.getCurrent().listen<string>('state-changed', (event) => {
-   *   console.log(`Got error: ${payload}`);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
-   * @param handler Event handler.
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   */
-  async listen<T>(
-    event: EventName,
-    handler: EventCallback<T>
-  ): Promise<UnlistenFn> {
-    if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
-        const listeners = this.listeners[event]
-        listeners.splice(listeners.indexOf(handler), 1)
-      })
-    }
-    return listen(event, handler, {
-      target: { kind: 'WebviewWindow', label: this.label }
-    })
-  }
-
-  /**
-   * Listen to an emitted event on this webivew window only once.
-   *
-   * @example
-   * ```typescript
-   * import { WebviewWindow } from '@tauri-apps/api/webview';
-   * const unlisten = await WebviewWindow.getCurrent().once<null>('initialized', (event) => {
-   *   console.log(`Webview initialized!`);
-   * });
-   *
-   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
-   * unlisten();
-   * ```
-   *
-   * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
-   * @param handler Event handler.
-   * @returns A promise resolving to a function to unlisten to the event.
-   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
-   */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
-    if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
-        // eslint-disable-next-line security/detect-object-injection
-        const listeners = this.listeners[event]
-        listeners.splice(listeners.indexOf(handler), 1)
-      })
-    }
-    return once(event, handler, {
-      target: { kind: 'WebviewWindow', label: this.label }
-    })
-  }
-}
-
-// Order matters, we use window APIs by default
-applyMixins(WebviewWindow, [Window, Webview])
-
-/** Extends a base class by other specifed classes, wihtout overriding existing properties */
-function applyMixins(
-  baseClass: { prototype: unknown },
-  extendedClasses: unknown
-): void {
-  ;(Array.isArray(extendedClasses)
-    ? extendedClasses
-    : [extendedClasses]
-  ).forEach((extendedClass: { prototype: unknown }) => {
-    Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
-      if (
-        typeof baseClass.prototype === 'object' &&
-        baseClass.prototype &&
-        name in baseClass.prototype
-      )
-        return
-      Object.defineProperty(
-        baseClass.prototype,
-        name,
-        // eslint-disable-next-line
-        Object.getOwnPropertyDescriptor(extendedClass.prototype, name) ??
-          Object.create(null)
-      )
-    })
-  })
-}
 /**
  * Configuration for the webview to create.
  *
- * @since 1.0.0
+ * @since 2.0.0
  */
 interface WebviewOptions {
   /**
@@ -770,11 +634,11 @@ interface WebviewOptions {
    */
   transparent?: boolean
   /**
-   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   * Whether the drag and drop is enabled or not on the webview. By default it is enabled.
    *
-   * Disabling it is required to use drag and drop on the frontend on Windows.
+   * Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
    */
-  fileDropEnabled?: boolean
+  dragDropEnabled?: boolean
   /**
    * Whether clicking an inactive webview also clicks through to the webview on macOS.
    */
@@ -801,8 +665,20 @@ interface WebviewOptions {
    * - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
    * */
   proxyUrl?: string
+  /**
+   * Whether page zooming by hotkeys is enabled
+   *
+   * ## Platform-specific:
+   *
+   * - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+   * - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+   * 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+   *
+   * - **Android / iOS**: Unsupported.
+   */
+  zoomHotkeysEnabled?: boolean
 }
 
-export { Webview, WebviewWindow, getCurrent, getAll }
+export { Webview, getCurrent, getAll }
 
-export type { FileDropEvent, WebviewOptions }
+export type { DragDropEvent, DragDropPayload, WebviewOptions }

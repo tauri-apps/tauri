@@ -1,8 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 mod cmd;
+#[cfg(desktop)]
+mod menu_plugin;
 #[cfg(desktop)]
 mod tray;
 
@@ -45,7 +47,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       {
         let handle = app.handle();
         tray::create_tray(handle)?;
-        handle.plugin(tauri_plugin_cli::init())?;
+        handle.plugin(menu_plugin::init())?;
       }
 
       #[cfg(target_os = "macos")]
@@ -140,10 +142,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
-      #[cfg(desktop)]
-      cmd::toggle_menu,
-      #[cfg(desktop)]
-      cmd::popup_context_menu
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

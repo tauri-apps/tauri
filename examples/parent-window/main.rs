@@ -1,33 +1,21 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use tauri::{webview::PageLoadEvent, WebviewUrl, WebviewWindowBuilder};
-use tauri_utils::acl::{
-  resolved::{CommandKey, ResolvedCommand},
-  ExecutionContext,
-};
+use tauri_utils::acl::ExecutionContext;
 
 fn main() {
   let mut context = tauri::generate_context!("../../examples/parent-window/tauri.conf.json");
   for cmd in [
     "plugin:event|listen",
     "plugin:webview|create_webview_window",
-    "plugin:window|internal_on_mousemove",
-    "plugin:window|internal_on_mousedown",
   ] {
-    context.resolved_acl().allowed_commands.insert(
-      CommandKey {
-        name: cmd.into(),
-        context: ExecutionContext::Local,
-      },
-      ResolvedCommand {
-        windows: vec!["*".parse().unwrap()],
-        ..Default::default()
-      },
-    );
+    context
+      .runtime_authority_mut()
+      .__allow_command(cmd.to_string(), ExecutionContext::Local);
   }
 
   tauri::Builder::default()

@@ -1,15 +1,16 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 pub mod app_paths;
+pub mod cargo;
 pub mod config;
 pub mod flock;
 pub mod framework;
 pub mod npm;
+pub mod prompts;
 pub mod template;
 pub mod updater_signature;
-pub mod web_dev_server;
 
 use std::{
   collections::HashMap,

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -55,10 +55,12 @@ enum TauriEvent {
   WINDOW_BLUR = 'tauri://blur',
   WINDOW_SCALE_FACTOR_CHANGED = 'tauri://scale-change',
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
+  WINDOW_CREATED = 'tauri://window-created',
   WEBVIEW_CREATED = 'tauri://webview-created',
-  WEBVIEW_FILE_DROP = 'tauri://file-drop',
-  WEBVIEW_FILE_DROP_HOVER = 'tauri://file-drop-hover',
-  WEBVIEW_FILE_DROP_CANCELLED = 'tauri://file-drop-cancelled'
+  DRAG = 'tauri://drag',
+  DROP = 'tauri://drop',
+  DROP_OVER = 'tauri://drop-over',
+  DROP_CANCELLED = 'tauri://drag-cancelled'
 }
 
 /**
@@ -183,8 +185,8 @@ async function emit(event: string, payload?: unknown): Promise<void> {
  *
  * @example
  * ```typescript
- * import { emit } from '@tauri-apps/api/event';
- * await emit('frontend-loaded', { loggedIn: true, token: 'authToken' });
+ * import { emitTo } from '@tauri-apps/api/event';
+ * await emitTo('main', 'frontend-loaded', { loggedIn: true, token: 'authToken' });
  * ```
  *
  * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.

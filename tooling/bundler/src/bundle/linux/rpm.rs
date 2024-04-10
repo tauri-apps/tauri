@@ -1,12 +1,11 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::Settings;
 
 use anyhow::Context;
-use log::info;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
 use std::{
   env,
@@ -43,12 +42,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   fs::create_dir_all(&package_dir)?;
   let package_path = base_dir.join(&package_name);
 
-  info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
+  log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let license = settings
-    .license_file()
-    .map(|l| std::fs::read_to_string(l).expect("failed to read license"))
-    .unwrap_or_default();
+  let license = settings.license().unwrap_or_default();
   let mut builder = rpm::PackageBuilder::new(name, version, &license, arch, summary)
     .epoch(epoch)
     .release(release);
@@ -60,6 +56,39 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // Add requirements
   for dep in settings.rpm().depends.as_ref().cloned().unwrap_or_default() {
     builder = builder.requires(Dependency::any(dep));
+  }
+
+  // Add provides
+  for dep in settings
+    .rpm()
+    .provides
+    .as_ref()
+    .cloned()
+    .unwrap_or_default()
+  {
+    builder = builder.provides(Dependency::any(dep));
+  }
+
+  // Add conflicts
+  for dep in settings
+    .rpm()
+    .conflicts
+    .as_ref()
+    .cloned()
+    .unwrap_or_default()
+  {
+    builder = builder.conflicts(Dependency::any(dep));
+  }
+
+  // Add obsoletes
+  for dep in settings
+    .rpm()
+    .obsoletes
+    .as_ref()
+    .cloned()
+    .unwrap_or_default()
+  {
+    builder = builder.obsoletes(Dependency::any(dep));
   }
 
   // Add binaries
@@ -80,6 +109,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         .replace(&format!("-{}", settings.target()), ""),
     );
     builder = builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
+  }
+
+  // Add scripts
+  if let Some(script_path) = &settings.rpm().pre_install_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.pre_install_script(script);
+  }
+
+  if let Some(script_path) = &settings.rpm().post_install_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.post_install_script(script);
+  }
+
+  if let Some(script_path) = &settings.rpm().pre_remove_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.pre_uninstall_script(script);
+  }
+
+  if let Some(script_path) = &settings.rpm().post_remove_script {
+    let script = fs::read_to_string(script_path)?;
+    builder = builder.post_uninstall_script(script);
   }
 
   // Add resources

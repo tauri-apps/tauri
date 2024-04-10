@@ -1,27 +1,30 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! [`Window`] that hosts a single [`Webview`].
 
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{
+  borrow::Cow,
+  path::PathBuf,
+  sync::{Arc, MutexGuard},
+};
 
 use crate::{
   event::EventTarget,
-  runtime::window::dpi::{PhysicalPosition, PhysicalSize},
+  runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
+  ResourceTable,
 };
 #[cfg(desktop)]
 use crate::{
+  image::Image,
   menu::{ContextMenu, Menu},
   runtime::{
-    window::{
-      dpi::{Position, Size},
-      CursorIcon,
-    },
+    dpi::{Position, Size},
+    window::CursorIcon,
     UserAttentionType,
   },
-  Icon,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
@@ -529,7 +532,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   }
 
   /// Sets the window icon.
-  pub fn icon(mut self, icon: crate::Icon) -> crate::Result<Self> {
+  pub fn icon(mut self, icon: Image<'a>) -> crate::Result<Self> {
     self.window_builder = self.window_builder.icon(icon)?;
     Ok(self)
   }
@@ -572,7 +575,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// - **Linux**: This makes the new window transient for parent, see <https://docs.gtk.org/gtk3/method.Window.set_transient_for.html>
   /// - **macOS**: This adds the window as a child of parent, see <https://developer.apple.com/documentation/appkit/nswindow/1419152-addchildwindow?language=objc>
   pub fn parent(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.parent(&parent.webview.window)?;
+    self.window_builder = self.window_builder.parent(&parent.webview.window())?;
     Ok(self)
   }
 
@@ -586,7 +589,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// For more information, see <https://docs.microsoft.com/en-us/windows/win32/winmsg/window-features#owned-windows>
   #[cfg(windows)]
   pub fn owner(mut self, owner: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.owner(&owner.webview.window)?;
+    self.window_builder = self.window_builder.owner(&owner.webview.window())?;
     Ok(self)
   }
 
@@ -638,7 +641,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     target_os = "openbsd"
   ))]
   pub fn transient_for(mut self, parent: &WebviewWindow<R>) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.transient_for(&parent.webview.window)?;
+    self.window_builder = self
+      .window_builder
+      .transient_for(&parent.webview.window())?;
     Ok(self)
   }
 
@@ -790,10 +795,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_builder = self.webview_builder.disable_file_drop_handler();
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_builder = self.webview_builder.disable_drag_drop_handler();
     self
   }
 
@@ -833,6 +838,21 @@ fn main() {
     self.webview_builder = self.webview_builder.proxy_url(url);
     self
   }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.zoom_hotkeys_enabled(enabled);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
@@ -868,7 +888,17 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for WebviewWindow<R> {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    self.webview.window().window_handle()
+    Ok(unsafe {
+      raw_window_handle::WindowHandle::borrow_raw(self.webview.window().window_handle()?.as_raw())
+    })
+  }
+}
+
+impl<R: Runtime> raw_window_handle::HasDisplayHandle for WebviewWindow<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.webview.app_handle.display_handle()
   }
 }
 
@@ -876,7 +906,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let webview = command.message.webview();
-    if webview.window().webview_window {
+    if webview.window().is_webview_window() {
       Ok(Self { webview })
     } else {
       Err(InvokeError::from_anyhow(anyhow::anyhow!(
@@ -1239,7 +1269,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().set_maximizable(maximizable)
   }
 
-  /// Determines if this window's native minize button should be enabled.
+  /// Determines if this window's native minimize button should be enabled.
   ///
   /// ## Platform-specific
   ///
@@ -1416,7 +1446,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Sets this window' icon.
-  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+  pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self.webview.window().set_icon(icon)
   }
 
@@ -1484,7 +1514,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **iOS / Android:** Unsupported.
   pub fn set_progress_bar(
     &self,
-    progress_state: crate::utils::ProgressBarState,
+    progress_state: crate::window::ProgressBarState,
   ) -> crate::Result<()> {
     self.webview.window().set_progress_bar(progress_state)
   }
@@ -1691,6 +1721,17 @@ tauri::Builder::default()
   pub fn is_devtools_open(&self) -> bool {
     self.webview.is_devtools_open()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self.webview.set_zoom(scale_factor)
+  }
 }
 
 /// Event system APIs.
@@ -1766,7 +1807,7 @@ tauri::Builder::default()
   /// Listen to an event on this window webview only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F)
+  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {
@@ -1780,7 +1821,15 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for WebviewWindow<R> {}
+impl<R: Runtime> Manager<R> for WebviewWindow<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .webview
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
   fn manager(&self) -> &AppManager<R> {

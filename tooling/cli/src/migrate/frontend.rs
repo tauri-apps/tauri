@@ -1,16 +1,15 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{app_paths::walk_builder, npm::PackageManager},
+  helpers::{app_paths::walk_builder, cargo, npm::PackageManager},
   Result,
 };
 
 use std::{
   fs::{read_to_string, write},
   path::Path,
-  process::Command,
 };
 
 const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "core", "window", "mocks"];
@@ -41,6 +40,10 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
 
             if module == "tauri" {
               let new = "@tauri-apps/api/core".to_string();
+              log::info!("Replacing `{original}` with `{new}` on {}", path.display());
+              new
+            } else if module == "window" {
+              let new = "@tauri-apps/api/webviewWindow".to_string();
               log::info!("Replacing `{original}` with `{new}` on {}", path.display());
               new
             } else if CORE_API_MODULES.contains(&module) {
@@ -74,23 +77,11 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
   }
 
   if !new_npm_packages.is_empty() {
-    log::info!(
-      "Installing NPM packages for plugins: {}",
-      new_npm_packages.join(", ")
-    );
     pm.install(&new_npm_packages)?;
   }
 
   if !new_cargo_packages.is_empty() {
-    log::info!(
-      "Installing Cargo dependencies for plugins: {}",
-      new_cargo_packages.join(", ")
-    );
-    Command::new("cargo")
-      .arg("add")
-      .args(new_cargo_packages)
-      .current_dir(tauri_dir)
-      .status()?;
+    cargo::install(&new_cargo_packages, Some(tauri_dir))?;
   }
 
   Ok(())

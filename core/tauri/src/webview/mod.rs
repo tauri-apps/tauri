@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,20 +13,20 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
-use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
-};
 #[cfg(desktop)]
 use tauri_runtime::{
-  window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
+};
+use tauri_runtime::{
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  Rect, WebviewDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
 use crate::{
-  app::UriSchemeResponder,
+  app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
     CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
@@ -34,14 +34,14 @@ use crate::{
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Event, EventId, EventLoopMessage, Manager, Runtime, Window,
+  AppHandle, Event, EventId, EventLoopMessage, Manager, ResourceTable, Runtime, Window,
 };
 
 use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 pub(crate) type WebResourceRequestHandler =
@@ -54,8 +54,8 @@ pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send +
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
-struct CreatedEvent {
-  label: String,
+pub(crate) struct CreatedEvent {
+  pub(crate) label: String,
 }
 
 /// Download event for the [`WebviewBuilder#method.on_download`] hook.
@@ -118,6 +118,8 @@ pub struct InvokeRequest {
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
+  /// URL of the frame that requested this command.
+  pub url: Url,
   /// The body of the request.
   pub body: InvokeBody,
   /// The request headers.
@@ -565,17 +567,17 @@ tauri::Builder::default()
       }));
     }
 
-    if let Some(on_page_load_handler) = self.on_page_load_handler.take() {
-      let label = pending.label.clone();
-      let manager = manager.manager_owned();
-      pending
-        .on_page_load_handler
-        .replace(Box::new(move |url, event| {
-          if let Some(w) = manager.get_webview(&label) {
-            on_page_load_handler(w, PageLoadPayload { url: &url, event });
+    let label_ = pending.label.clone();
+    let manager_ = manager.manager_owned();
+    pending
+      .on_page_load_handler
+      .replace(Box::new(move |url, event| {
+        if let Some(w) = manager_.get_webview(&label_) {
+          if let Some(handler) = self.on_page_load_handler.as_ref() {
+            handler(w, PageLoadPayload { url: &url, event });
           }
-        }));
-    }
+        }
+      }));
 
     manager.manager().webview.prepare_webview(
       manager,
@@ -606,7 +608,7 @@ tauri::Builder::default()
       .webviews_lock()
       .values()
       .map(|w| WebviewLabelDef {
-        window_label: w.window.label().to_string(),
+        window_label: w.window().label().to_string(),
         label: w.label().to_string(),
       })
       .collect::<Vec<_>>();
@@ -616,29 +618,13 @@ tauri::Builder::default()
     let mut pending =
       self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
 
-    pending.webview_attributes.bounds = Some((position, size));
+    pending.webview_attributes.bounds = Some(Rect { size, position });
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
       _ => unimplemented!(),
     }
     .map(|webview| app_manager.webview.attach_webview(window.clone(), webview))?;
-
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&app_manager.webview.labels())?,
-    ))?;
-
-    app_manager.emit_filter(
-      "tauri://webview-created",
-      Some(CreatedEvent {
-        label: webview.label().into(),
-      }),
-      |s| match s {
-        EventTarget::Webview { label } => label == webview.label(),
-        _ => false,
-      },
-    )?;
 
     Ok(webview)
   }
@@ -730,10 +716,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_attributes.file_drop_handler_enabled = false;
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_attributes.drag_drop_handler_enabled = false;
     self
   }
 
@@ -789,20 +775,39 @@ fn main() {
     self.webview_attributes.auto_resize = true;
     self
   }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes.zoom_hotkeys_enabled = enabled;
+    self
+  }
 }
 
 /// Webview.
 #[default_runtime(crate::Wry, wry)]
 pub struct Webview<R: Runtime> {
-  pub(crate) window: Window<R>,
+  window_label: Arc<Mutex<String>>,
+  /// The manager to associate this webview with.
+  pub(crate) manager: Arc<AppManager<R>>,
+  pub(crate) app_handle: AppHandle<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Window")
-      .field("window", &self.window)
+      .field("window_label", &self.window_label)
       .field("webview", &self.webview)
       .finish()
   }
@@ -811,8 +816,11 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
 impl<R: Runtime> Clone for Webview<R> {
   fn clone(&self) -> Self {
     Self {
-      window: self.window.clone(),
+      window_label: self.window_label.clone(),
+      manager: self.manager.clone(),
+      app_handle: self.app_handle.clone(),
       webview: self.webview.clone(),
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -836,7 +844,13 @@ impl<R: Runtime> PartialEq for Webview<R> {
 impl<R: Runtime> Webview<R> {
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(window: Window<R>, webview: DetachedWebview<EventLoopMessage, R>) -> Self {
-    Self { window, webview }
+    Self {
+      window_label: Arc::new(Mutex::new(window.label().into())),
+      manager: window.manager.clone(),
+      app_handle: window.app_handle.clone(),
+      webview,
+      resources_table: Default::default(),
+    }
   }
 
   /// Initializes a webview builder with the given window label and URL to load on the webview.
@@ -861,6 +875,14 @@ impl<R: Runtime> Webview<R> {
   pub fn label(&self) -> &str {
     &self.webview.label
   }
+
+  /// Registers a window event listener.
+  pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
+    self
+      .webview
+      .dispatcher
+      .on_webview_event(move |event| f(&event.clone().into()));
+  }
 }
 
 /// Desktop webview setters and actions.
@@ -875,39 +897,36 @@ impl<R: Runtime> Webview<R> {
 
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
-    if self.window.webview_window {
-      self.window.close()
-    } else {
-      self.webview.dispatcher.close()?;
-      self.manager().on_webview_close(self.label());
-      Ok(())
-    }
+    self.webview.dispatcher.close()?;
+    self.manager().on_webview_close(self.label());
+    Ok(())
+  }
+
+  /// Resizes this webview.
+  pub fn set_bounds(&self, bounds: Rect) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_bounds(bounds)
+      .map_err(Into::into)
   }
 
   /// Resizes this webview.
   pub fn set_size<S: Into<Size>>(&self, size: S) -> crate::Result<()> {
-    if self.window.webview_window {
-      self.window.set_size(size.into())
-    } else {
-      self
-        .webview
-        .dispatcher
-        .set_size(size.into())
-        .map_err(Into::into)
-    }
+    self
+      .webview
+      .dispatcher
+      .set_size(size.into())
+      .map_err(Into::into)
   }
 
   /// Sets this webviews's position.
   pub fn set_position<Pos: Into<Position>>(&self, position: Pos) -> crate::Result<()> {
-    if self.window.webview_window {
-      self.window.set_position(position.into())
-    } else {
-      self
-        .webview
-        .dispatcher
-        .set_position(position.into())
-        .map_err(Into::into)
-    }
+    self
+      .webview
+      .dispatcher
+      .set_position(position.into())
+      .map_err(Into::into)
   }
 
   /// Focus the webview.
@@ -915,33 +934,61 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.set_focus().map_err(Into::into)
   }
 
+  /// Move the webview to the given window.
+  pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
+    #[cfg(not(feature = "unstable"))]
+    {
+      let current_window = self.window();
+      if current_window.is_webview_window() || window.is_webview_window() {
+        return Err(crate::Error::CannotReparentWebviewWindow);
+      }
+    }
+
+    self.webview.dispatcher.reparent(window.window.id)?;
+    *self.window_label.lock().unwrap() = window.label().to_string();
+    Ok(())
+  }
+
+  /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+  pub fn set_auto_resize(&self, auto_resize: bool) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_auto_resize(auto_resize)
+      .map_err(Into::into)
+  }
+
+  /// Returns the bounds of the webviews's client area.
+  pub fn bounds(&self) -> crate::Result<Rect> {
+    self.webview.dispatcher.bounds().map_err(Into::into)
+  }
+
   /// Returns the webview position.
   ///
   /// - For child webviews, returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the parent window.
   /// - For webview window, returns the inner position of the window.
   pub fn position(&self) -> crate::Result<PhysicalPosition<i32>> {
-    if self.window.webview_window {
-      self.window.inner_position()
-    } else {
-      self.webview.dispatcher.position().map_err(Into::into)
-    }
+    self.webview.dispatcher.position().map_err(Into::into)
   }
 
   /// Returns the physical size of the webviews's client area.
   pub fn size(&self) -> crate::Result<PhysicalSize<u32>> {
-    if self.window.webview_window {
-      self.window.inner_size()
-    } else {
-      self.webview.dispatcher.size().map_err(Into::into)
-    }
+    self.webview.dispatcher.size().map_err(Into::into)
   }
 }
 
 /// Webview APIs.
 impl<R: Runtime> Webview<R> {
   /// The window that is hosting this webview.
-  pub fn window(&self) -> &Window<R> {
-    &self.window
+  pub fn window(&self) -> Window<R> {
+    self
+      .manager
+      .get_window(&self.window_label.lock().unwrap())
+      .expect("could not locate webview parent window")
+  }
+
+  pub(crate) fn window_label(&self) -> String {
+    self.window_label.lock().unwrap().clone()
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
@@ -1068,8 +1115,7 @@ fn main() {
   /// Handles this window receiving an [`InvokeRequest`].
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
-    let current_url = self.url();
-    let is_local = self.is_local_url(&current_url);
+    let is_local = self.is_local_url(&request.url);
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
@@ -1091,7 +1137,7 @@ fn main() {
     );
 
     #[cfg(mobile)]
-    let app_handle = self.window.app_handle.clone();
+    let app_handle = self.app_handle.clone();
 
     let message = InvokeMessage::new(
       self,
@@ -1105,16 +1151,19 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        domain: current_url
-          .domain()
-          .map(|d| d.to_string())
-          .unwrap_or_default(),
+        url: request.url.clone(),
       }
     };
-    let resolved_acl = manager
-      .runtime_authority
-      .resolve_access(&request.cmd, &message.webview.webview.label, &acl_origin)
-      .cloned();
+    let (resolved_acl, has_app_acl_manifest) = {
+      let runtime_authority = manager.runtime_authority.lock().unwrap();
+      let acl = runtime_authority.resolve_access(
+        &request.cmd,
+        message.webview.window().label(),
+        message.webview.label(),
+        &acl_origin,
+      );
+      (acl, runtime_authority.has_app_manifest())
+    };
 
     let mut invoke = Invoke {
       message,
@@ -1122,32 +1171,46 @@ fn main() {
       acl: resolved_acl,
     };
 
-    if let Some((plugin, command_name)) = request.cmd.strip_prefix("plugin:").map(|raw_command| {
+    let plugin_command = request.cmd.strip_prefix("plugin:").map(|raw_command| {
       let mut tokens = raw_command.split('|');
       // safe to unwrap: split always has a least one item
       let plugin = tokens.next().unwrap();
       let command = tokens.next().map(|c| c.to_string()).unwrap_or_default();
       (plugin, command)
-    }) {
-      if request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND && invoke.acl.is_none() {
-        #[cfg(debug_assertions)]
-        {
-          invoke
-            .resolver
-            .reject(manager.runtime_authority.resolve_access_message(
-              plugin,
-              &command_name,
-              &invoke.message.webview.webview.label,
-              &acl_origin,
-            ));
-        }
-        #[cfg(not(debug_assertions))]
-        invoke
-          .resolver
-          .reject(format!("Command {} not allowed by ACL", request.cmd));
-        return;
-      }
+    });
 
+    // we only check ACL on plugin commands or if the app defined its ACL manifest
+    if (plugin_command.is_some() || has_app_acl_manifest)
+      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+      && invoke.acl.is_none()
+    {
+      #[cfg(debug_assertions)]
+      {
+        let (key, command_name) = plugin_command
+          .clone()
+          .unwrap_or_else(|| (tauri_utils::acl::APP_ACL_KEY, request.cmd.clone()));
+        invoke.resolver.reject(
+          manager
+            .runtime_authority
+            .lock()
+            .unwrap()
+            .resolve_access_message(
+              key,
+              &command_name,
+              invoke.message.webview.window().label(),
+              invoke.message.webview.label(),
+              &acl_origin,
+            ),
+        );
+      }
+      #[cfg(not(debug_assertions))]
+      invoke
+        .resolver
+        .reject(format!("Command {} not allowed by ACL", request.cmd));
+      return;
+    }
+
+    if let Some((plugin, command_name)) = plugin_command {
       invoke.message.command = command_name;
 
       let command = invoke.message.command.clone();
@@ -1184,7 +1247,7 @@ fn main() {
           if let Err(e) = crate::plugin::mobile::run_command(
             plugin,
             &app_handle,
-            message.command,
+            heck::AsLowerCamelCase(message.command).to_string(),
             payload,
             move |response| match response {
               Ok(r) => resolver_.resolve(r),
@@ -1248,16 +1311,16 @@ fn main() {
       id,
     ))?;
 
-    listeners.unlisten_js(id);
+    listeners.unlisten_js(event, id);
 
     Ok(())
   }
 
-  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, target: &EventTarget) -> crate::Result<()> {
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, ids: &[u32]) -> crate::Result<()> {
     self.eval(&crate::event::emit_js_script(
       self.manager().listeners().function_name(),
       emit_args,
-      &serde_json::to_string(target)?,
+      &serde_json::to_string(ids)?,
     )?)?;
     Ok(())
   }
@@ -1369,6 +1432,21 @@ tauri::Builder::default()
       .is_devtools_open()
       .unwrap_or_default()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_zoom(scale_factor)
+      .map_err(Into::into)
+  }
 }
 
 /// Event system APIs.
@@ -1398,7 +1476,7 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.window.manager.listen(
+    self.manager.listen(
       event.into(),
       EventTarget::Webview {
         label: self.label().to_string(),
@@ -1437,17 +1515,17 @@ tauri::Builder::default()
   "####
   )]
   pub fn unlisten(&self, id: EventId) {
-    self.window.manager.unlisten(id)
+    self.manager.unlisten(id)
   }
 
   /// Listen to an event on this webview only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F)
+  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.window.manager.once(
+    self.manager.once(
       event.into(),
       EventTarget::Webview {
         label: self.label().to_string(),
@@ -1457,23 +1535,30 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for Webview<R> {}
+impl<R: Runtime> Manager<R> for Webview<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {
-    &self.window.manager
+    &self.manager
   }
 
   fn manager_owned(&self) -> Arc<AppManager<R>> {
-    self.window.manager.clone()
+    self.manager.clone()
   }
 
   fn runtime(&self) -> RuntimeOrDispatch<'_, R> {
-    self.window.app_handle.runtime()
+    self.app_handle.runtime()
   }
 
   fn managed_app_handle(&self) -> &AppHandle<R> {
-    &self.window.app_handle
+    &self.app_handle
   }
 }
 

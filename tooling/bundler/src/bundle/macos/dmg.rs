@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,7 +10,6 @@ use crate::{
 };
 
 use anyhow::Context;
-use log::info;
 
 use std::{
   env,
@@ -70,7 +69,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");
 
-  info!(action = "Bundling"; "{} ({})", dmg_name, dmg_path.display());
+  log::info!(action = "Bundling"; "{} ({})", dmg_name, dmg_path.display());
 
   // write the scripts
   write(
@@ -175,7 +174,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     }
   }
 
-  info!(action = "Running"; "bundle_dmg.sh");
+  log::info!(action = "Running"; "bundle_dmg.sh");
 
   // execute the bundle script
   bundle_dmg_cmd

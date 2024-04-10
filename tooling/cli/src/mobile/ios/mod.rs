@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -33,7 +33,6 @@ use std::{
   env::set_var,
   fs::create_dir_all,
   path::{Path, PathBuf},
-  process::exit,
   thread::sleep,
   time::Duration,
 };
@@ -64,7 +63,7 @@ pub struct Cli {
 #[clap(about = "Initialize iOS target in the project")]
 pub struct InitOptions {
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
   /// Reinstall dependencies
   #[clap(short, long)]
@@ -106,25 +105,32 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 pub fn get_config(
   app: &App,
   config: &TauriConfig,
+  features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AppleConfig, AppleMetadata) {
-  let ios_options = cli_options.clone();
+  let mut ios_options = cli_options.clone();
+  if let Some(features) = features {
+    ios_options
+      .features
+      .get_or_insert(Vec::new())
+      .extend_from_slice(features);
+  }
 
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
         .ok()
         .or_else(|| config.bundle.ios.development_team.clone())
-        .unwrap_or_else(|| {
+        .or_else(|| {
           let teams = find_development_teams().unwrap_or_default();
           match teams.len() {
             0 => {
-              log::error!("No code signing certificates found. You must add one and set the certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. To list the available certificates, run `tauri info`.");
-              exit(1);
+              log::warn!("No code signing certificates found. You must add one and set the certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. To list the available certificates, run `tauri info`.");
+              None
             }
-            1 => teams.first().unwrap().id.clone(),
+            1 => Some(teams.first().unwrap().id.clone()),
             _ => {
-              log::error!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
-              exit(1);
+              log::warn!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
+              None
             }
           }
         }),

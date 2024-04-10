@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-beta.1"
+version = "2.0.0-beta.11"
 description = "Utilities for Tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -33,12 +33,14 @@ json5 = { version = "0.4", optional = true }
 toml = { version = "0.8", features = [ "parse" ] }
 json-patch = "1.2"
 glob = "0.3"
+urlpattern = "0.2"
+regex = "1"
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
 infer = "0.15"
 dunce = "1"
-log = "0.4.20"
+log = "0.4.21"
 cargo_metadata = { version = "0.18", optional = true }
 
 [target."cfg(target_os = \"linux\")".dependencies]

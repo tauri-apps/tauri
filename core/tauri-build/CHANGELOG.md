@@ -1,5 +1,111 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-codegen@2.0.0-beta.11`
+
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`e227fe02f`](https://www.github.com/tauri-apps/tauri/commit/e227fe02f986e145c0731a64693e1c830a9eb5b0)([#9156](https://www.github.com/tauri-apps/tauri/pull/9156)) Allow plugins to define (at compile time) JavaScript that are initialized when `withGlobalTauri` is true.
+
+### Enhancements
+
+- [`7213b9e47`](https://www.github.com/tauri-apps/tauri/commit/7213b9e47242bef814aa7257e0bf84631bf5fe7e)([#9124](https://www.github.com/tauri-apps/tauri/pull/9124)) Fallback to an empty permission set if the plugin did not define its `default` permissions.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-codegen@2.0.0-beta.10`
+
+## \[2.0.0-beta.9]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-codegen@2.0.0-beta.8`
+
+## \[2.0.0-beta.7]
+
+### Bug Fixes
+
+- [`bb23511ea`](https://www.github.com/tauri-apps/tauri/commit/bb23511ea80bcaffbdebf057301e463fff268c90)([#9079](https://www.github.com/tauri-apps/tauri/pull/9079)) Fixed generation of capability schema for permissions field which previously disallowed mixed (strings and objects) permission definition.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-codegen@2.0.0-beta.7`
+
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-codegen@2.0.0-beta.6`
+
+### Breaking Changes
+
+- [`3657ad82`](https://www.github.com/tauri-apps/tauri/commit/3657ad82f88ce528551d032d521c52eed3f396b4)([#9008](https://www.github.com/tauri-apps/tauri/pull/9008)) Allow defining permissions for the application commands via `tauri_build::Attributes::app_manifest`.
+
+## \[2.0.0-beta.5]
+
+### Breaking Changes
+
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) The `custom-protocol` Cargo feature is no longer required on your application and is now ignored. To check if running on production, use `#[cfg(not(dev))]` instead of `#[cfg(feature = "custom-protocol")]`.
+- [`b9e6a018`](https://www.github.com/tauri-apps/tauri/commit/b9e6a01879d9233040f3d3fab11c59e70563da7e)([#8937](https://www.github.com/tauri-apps/tauri/pull/8937)) Removed `tauri_build::CodegenContext::dev()` and added `tauri_build::dev()`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+- Upgraded to `tauri-codegen@2.0.0-beta.5`
+
+## \[2.0.0-beta.4]
+
+### Enhancements
+
+- [`b5eb6472`](https://www.github.com/tauri-apps/tauri/commit/b5eb64728aeb410d3f3068608a94762655c4690f)([#8940](https://www.github.com/tauri-apps/tauri/pull/8940)) Enable Hight DPI awareness for NSIS installer so it is not blurry on some systems.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-codegen@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-codegen@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`83a68deb`](https://www.github.com/tauri-apps/tauri/commit/83a68deb5676d39cd4728d2e140f6b46d5f787ed)([#8797](https://www.github.com/tauri-apps/tauri/pull/8797)) Added a new configuration option `tauri.conf.json > app > security > capabilities` to reference existing capabilities and inline new ones. If it is empty, all capabilities are still included preserving the current behavior.
+- [`edb11c13`](https://www.github.com/tauri-apps/tauri/commit/edb11c138def2e317099db432479e3ca5dbf803f)([#8781](https://www.github.com/tauri-apps/tauri/pull/8781)) Added `Attributes::plugin()` to register a plugin that is inlined in the application crate.
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) Added `CodegenContext::capability` to include a capability file dynamically.
+
+### Bug Fixes
+
+- [`0e8e9cd0`](https://www.github.com/tauri-apps/tauri/commit/0e8e9cd064627e734adf8f62e571dc5f4e8f4d9f)([#8906](https://www.github.com/tauri-apps/tauri/pull/8906)) Fixes the capability schema not resolving inner definitions.
+- [`19fb5f0b`](https://www.github.com/tauri-apps/tauri/commit/19fb5f0b20479885bf8bc4fdd8c431052420191d)([#8782](https://www.github.com/tauri-apps/tauri/pull/8782)) Fix generating invalid schema files.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-codegen@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Enhancements
@@ -173,6 +279,13 @@
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-codegen@1.4.2`
 
 ## \[1.5.0]
 

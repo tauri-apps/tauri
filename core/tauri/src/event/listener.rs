@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,12 +15,6 @@ use std::{
     Arc, Mutex,
   },
 };
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-struct JsHandler {
-  target: EventTarget,
-  id: EventId,
-}
 
 /// What to do with the pending handler when resolving it?
 enum Pending {
@@ -45,6 +39,18 @@ impl Handler {
       target,
       callback: Box::new(callback),
     }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+struct JsHandler {
+  target: EventTarget,
+  id: EventId,
+}
+
+impl JsHandler {
+  fn new(target: EventTarget, id: EventId) -> Self {
+    Self { target, id }
   }
 }
 
@@ -159,7 +165,7 @@ impl Listeners {
     event: String,
     target: EventTarget,
     handler: F,
-  ) {
+  ) -> EventId {
     let self_ = self.clone();
     let handler = Cell::new(Some(handler));
 
@@ -170,7 +176,7 @@ impl Listeners {
         .expect("attempted to call handler more than once");
       handler(event);
       self_.unlisten(id);
-    });
+    })
   }
 
   /// Removes an event listener.
@@ -189,23 +195,16 @@ impl Listeners {
     F: Fn(&EventTarget) -> bool,
   {
     let mut maybe_pending = false;
+
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Emit(emit_args.clone())),
       Ok(lock) => {
         if let Some(handlers) = lock.get(&emit_args.event_name) {
-          let handlers: Vec<_> = match filter {
-            Some(filter) => handlers
-              .iter()
-              .filter(|(_, Handler { target, .. })| *target == EventTarget::Any || filter(target))
-              .collect(),
-            None => handlers.iter().collect(),
-          };
-
-          if !handlers.is_empty() {
+          let handlers = handlers.iter();
+          let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
+          for (&id, Handler { callback, .. }) in handlers {
             maybe_pending = true;
-            for (&id, Handler { callback, .. }) in handlers {
-              (callback)(Event::new(id, emit_args.payload.clone()))
-            }
+            (callback)(Event::new(id, emit_args.payload.clone()))
           }
         }
       }
@@ -236,37 +235,19 @@ impl Listeners {
       .or_default()
       .entry(event.to_string())
       .or_default()
-      .insert(JsHandler { id, target });
+      .insert(JsHandler::new(target, id));
   }
 
-  pub(crate) fn unlisten_js(&self, id: EventId) {
-    let mut listeners = self.inner.js_event_listeners.lock().unwrap();
-
-    let mut empty = None;
-    let listeners = listeners.values_mut();
-    'outer: for listeners in listeners {
-      for (key, handlers) in listeners.iter_mut() {
-        let mut found = false;
-
-        handlers.retain(|h| {
-          let keep = h.id != id;
-          if !found {
-            found = !keep
-          }
-          keep
-        });
+  pub(crate) fn unlisten_js(&self, event: &str, id: EventId) {
+    let mut js_listeners = self.inner.js_event_listeners.lock().unwrap();
+    let js_listeners = js_listeners.values_mut();
+    for js_listeners in js_listeners {
+      if let Some(handlers) = js_listeners.get_mut(event) {
+        handlers.retain(|h| h.id != id);
 
         if handlers.is_empty() {
-          empty.replace(key.clone());
+          js_listeners.remove(event);
         }
-
-        if found {
-          break 'outer;
-        }
-      }
-
-      if let Some(key) = &empty {
-        listeners.remove(key);
       }
     }
   }
@@ -276,37 +257,67 @@ impl Listeners {
     event: &str,
     filter: F,
   ) -> bool {
-    let listeners = self.inner.js_event_listeners.lock().unwrap();
-    listeners.values().any(|events| {
+    let js_listeners = self.inner.js_event_listeners.lock().unwrap();
+    js_listeners.values().any(|events| {
       events
         .get(event)
-        .map(|handlers| handlers.iter().any(|h| filter(&h.target)))
+        .map(|handlers| handlers.iter().any(|handler| filter(&handler.target)))
         .unwrap_or(false)
     })
   }
 
-  pub(crate) fn try_for_each_js<'a, R, I, F>(
+  pub(crate) fn emit_js_filter<'a, R, I, F>(
     &self,
-    event: &str,
     mut webviews: I,
-    callback: F,
+    event: &str,
+    emit_args: &EmitArgs,
+    filter: Option<F>,
   ) -> crate::Result<()>
   where
     R: Runtime,
     I: Iterator<Item = &'a Webview<R>>,
-    F: Fn(&Webview<R>, &EventTarget) -> crate::Result<()>,
+    F: Fn(&EventTarget) -> bool,
   {
-    let listeners = self.inner.js_event_listeners.lock().unwrap();
+    let js_listeners = self.inner.js_event_listeners.lock().unwrap();
     webviews.try_for_each(|webview| {
-      if let Some(handlers) = listeners.get(webview.label()).and_then(|s| s.get(event)) {
-        for JsHandler { target, .. } in handlers {
-          callback(webview, target)?;
-        }
+      if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
+        let ids = handlers
+          .iter()
+          .filter(|handler| match_any_or_filter(&handler.target, &filter))
+          .map(|handler| handler.id)
+          .collect::<Vec<_>>();
+        webview.emit_js(emit_args, &ids)?;
       }
 
       Ok(())
     })
   }
+
+  pub(crate) fn emit_js<'a, R, I>(
+    &self,
+    webviews: I,
+    event: &str,
+    emit_args: &EmitArgs,
+  ) -> crate::Result<()>
+  where
+    R: Runtime,
+    I: Iterator<Item = &'a Webview<R>>,
+  {
+    self.emit_js_filter(
+      webviews,
+      event,
+      emit_args,
+      None::<&dyn Fn(&EventTarget) -> bool>,
+    )
+  }
+}
+
+#[inline(always)]
+fn match_any_or_filter<F: Fn(&EventTarget) -> bool>(
+  target: &EventTarget,
+  filter: &Option<F>,
+) -> bool {
+  *target == EventTarget::Any || filter.as_ref().map(|f| f(target)).unwrap_or(true)
 }
 
 #[cfg(test)]

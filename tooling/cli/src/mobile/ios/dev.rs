@@ -1,10 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use super::{
   configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
-  merge_plist, open_and_wait, setup_dev_config, MobileTarget, APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
+  merge_plist, open_and_wait, setup_dev_config, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -21,14 +21,13 @@ use clap::{ArgAction, Parser};
 
 use anyhow::Context;
 use cargo_mobile2::{
-  apple::{config::Config as AppleConfig, device::Device, teams::find_development_teams},
+  apple::{config::Config as AppleConfig, device::Device},
   config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
-use dialoguer::{theme::ColorfulTheme, Select};
 
-use std::env::{set_current_dir, set_var, var_os};
+use std::env::set_current_dir;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -98,37 +97,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 }
 
 fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  if var_os(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME).is_none() {
-    if let Ok(teams) = find_development_teams() {
-      let index = match teams.len() {
-        0 => None,
-        1 => Some(0),
-        _ => {
-          let index = Select::with_theme(&ColorfulTheme::default())
-            .items(
-              &teams
-                .iter()
-                .map(|t| format!("{} (ID: {})", t.name, t.id))
-                .collect::<Vec<String>>(),
-            )
-            .default(0)
-            .interact()?;
-          Some(index)
-        }
-      };
-      if let Some(index) = index {
-        let team = teams.get(index).unwrap();
-        log::info!(
-            "Using development team `{}`. To make this permanent, set the `{}` environment variable to `{}`",
-            team.name,
-            APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME,
-            team.id
-          );
-        set_var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME, &team.id);
-      }
-    }
-  }
-
   let env = env()?;
   let device = if options.open {
     None
@@ -160,7 +128,12 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
 
     let app = get_app(tauri_config_, &interface);
-    let (config, _metadata) = get_config(&app, tauri_config_, &Default::default());
+    let (config, _metadata) = get_config(
+      &app,
+      tauri_config_,
+      dev_options.features.as_ref(),
+      &Default::default(),
+    );
     (interface, app, config)
   };
 

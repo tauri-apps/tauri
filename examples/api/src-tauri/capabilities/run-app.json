@@ -2,8 +2,21 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "run-app",
   "description": "permissions to run the app",
-  "windows": ["main", "main-*"],
+  "windows": [
+    "main",
+    "main-*"
+  ],
   "permissions": [
+    {
+      "identifier": "allow-log-operation",
+      "allow": [
+        {
+          "event": "tauri-click"
+        }
+      ]
+    },
+    "allow-perform-request",
+    "app-menu:default",
     "sample:allow-ping-scoped",
     "sample:global-scope",
     "path:default",
@@ -11,6 +24,7 @@
     "window:default",
     "app:default",
     "resources:default",
+    "image:default",
     "menu:default",
     "tray:default",
     "app:allow-app-hide",

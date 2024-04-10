@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -66,14 +66,16 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
   None
 }
 
-fn get_tauri_dir() -> PathBuf {
-  let cwd = current_dir().expect("failed to read cwd");
+pub fn tauri_dir_opt() -> Option<PathBuf> {
+  let Ok(cwd) = current_dir() else {
+    return None;
+  };
 
   if cwd.join(ConfigFormat::Json.into_file_name()).exists()
     || cwd.join(ConfigFormat::Json5.into_file_name()).exists()
     || cwd.join(ConfigFormat::Toml.into_file_name()).exists()
   {
-    return cwd;
+    return Some(cwd);
   }
 
   let src_tauri = cwd.join("src-tauri");
@@ -83,12 +85,23 @@ fn get_tauri_dir() -> PathBuf {
       .exists()
     || src_tauri.join(ConfigFormat::Toml.into_file_name()).exists()
   {
-    return src_tauri;
+    return Some(src_tauri);
   }
 
-  lookup(&cwd, |path| folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path))
-  .map(|p| if p.is_dir() { p } else {  p.parent().unwrap().to_path_buf() })
-  .unwrap_or_else(||
+  lookup(&cwd, |path| {
+    folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path)
+  })
+  .map(|p| {
+    if p.is_dir() {
+      p
+    } else {
+      p.parent().unwrap().to_path_buf()
+    }
+  })
+}
+
+pub fn tauri_dir() -> PathBuf {
+  tauri_dir_opt().unwrap_or_else(||
     panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
       ConfigFormat::Json.into_file_name(),
       ConfigFormat::Json5.into_file_name(),
@@ -116,11 +129,6 @@ fn get_app_dir() -> Option<PathBuf> {
 
 pub fn app_dir() -> &'static PathBuf {
   static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
-  APP_DIR.get_or_init(|| {
-    get_app_dir().unwrap_or_else(|| get_tauri_dir().parent().unwrap().to_path_buf())
-  })
-}
-
-pub fn tauri_dir() -> PathBuf {
-  get_tauri_dir()
+  APP_DIR
+    .get_or_init(|| get_app_dir().unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf()))
 }

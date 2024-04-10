@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -30,7 +30,6 @@ use super::{
 use crate::Settings;
 
 use anyhow::Context;
-use log::{info, warn};
 
 use std::{
   ffi::OsStr,
@@ -38,6 +37,15 @@ use std::{
   path::{Path, PathBuf},
   process::Command,
 };
+
+const NESTED_CODE_FOLDER: [&str; 6] = [
+  "MacOS",
+  "Frameworks",
+  "Plugins",
+  "Helpers",
+  "XPCServices",
+  "Libraries",
+];
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the .app was created.
@@ -51,7 +59,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .join("bundle/macos")
     .join(&app_product_name);
 
-  info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
+  log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
@@ -77,18 +85,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let framework_paths = copy_frameworks_to_bundle(&bundle_directory, settings)
     .with_context(|| "Failed to bundle frameworks")?;
-  sign_paths.extend(
-    framework_paths
-      .into_iter()
-      .filter(|p| {
-        let ext = p.extension();
-        ext == Some(OsStr::new("framework")) || ext == Some(OsStr::new("dylib"))
-      })
-      .map(|path| SignTarget {
-        path,
-        is_an_executable: false,
-      }),
-  );
+  sign_paths.extend(framework_paths);
 
   settings.copy_resources(&resources_dir)?;
 
@@ -132,7 +129,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
         if matches!(e, NotarizeAuthError::MissingTeamId) {
           return Err(anyhow::anyhow!("{e}").into());
         } else {
-          warn!("skipping app notarization, {}", e.to_string());
+          log::warn!("skipping app notarization, {}", e.to_string());
         }
       }
     }
@@ -143,7 +140,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 fn remove_extra_attr(app_bundle_path: &Path) -> crate::Result<()> {
   Command::new("xattr")
-    .arg("-cr")
+    .arg("-crs")
     .arg(app_bundle_path)
     .output_ok()
     .context("failed to remove extra attributes from app bundle")?;
@@ -363,7 +360,7 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
 fn copy_frameworks_to_bundle(
   bundle_directory: &Path,
   settings: &Settings,
-) -> crate::Result<Vec<PathBuf>> {
+) -> crate::Result<Vec<SignTarget>> {
   let mut paths = Vec::new();
 
   let frameworks = settings
@@ -386,7 +383,7 @@ fn copy_frameworks_to_bundle(
         .expect("Couldn't get framework filename");
       let dest_path = dest_dir.join(src_name);
       common::copy_dir(&src_path, &dest_path)?;
-      paths.push(dest_path);
+      add_framework_sign_path(&src_path, &dest_path, &mut paths);
       continue;
     } else if framework.ends_with(".dylib") {
       let src_path = PathBuf::from(framework);
@@ -399,7 +396,10 @@ fn copy_frameworks_to_bundle(
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
       common::copy_file(&src_path, &dest_path)?;
-      paths.push(dest_path);
+      paths.push(SignTarget {
+        path: dest_path,
+        is_an_executable: false,
+      });
       continue;
     } else if framework.contains('/') {
       return Err(crate::Error::GenericError(format!(
@@ -427,4 +427,91 @@ fn copy_frameworks_to_bundle(
     )));
   }
   Ok(paths)
+}
+
+/// Recursively add framework's sign paths.
+/// If the framework has multiple versions, it will sign "Current" version by default.
+fn add_framework_sign_path(
+  framework_root: &Path,
+  dest_path: &Path,
+  sign_paths: &mut Vec<SignTarget>,
+) {
+  if framework_root.join("Versions/Current").exists() {
+    add_nested_code_sign_path(
+      &framework_root.join("Versions/Current"),
+      &dest_path.join("Versions/Current"),
+      sign_paths,
+    );
+  } else {
+    add_nested_code_sign_path(framework_root, dest_path, sign_paths);
+  }
+  sign_paths.push(SignTarget {
+    path: dest_path.into(),
+    is_an_executable: false,
+  });
+}
+
+/// Recursively add executable bundle's sign path (.xpc, .app).
+fn add_executable_bundle_sign_path(
+  bundle_root: &Path,
+  dest_path: &Path,
+  sign_paths: &mut Vec<SignTarget>,
+) {
+  if bundle_root.join("Contents").exists() {
+    add_nested_code_sign_path(
+      &bundle_root.join("Contents"),
+      &dest_path.join("Contents"),
+      sign_paths,
+    );
+  } else {
+    add_nested_code_sign_path(bundle_root, dest_path, sign_paths);
+  }
+  sign_paths.push(SignTarget {
+    path: dest_path.into(),
+    is_an_executable: true,
+  });
+}
+
+fn add_nested_code_sign_path(src_path: &Path, dest_path: &Path, sign_paths: &mut Vec<SignTarget>) {
+  for folder_name in NESTED_CODE_FOLDER.iter() {
+    let src_folder_path = src_path.join(folder_name);
+    let dest_folder_path = dest_path.join(folder_name);
+
+    if src_folder_path.exists() {
+      for entry in walkdir::WalkDir::new(src_folder_path)
+        .min_depth(1)
+        .max_depth(1)
+        .into_iter()
+        .filter_map(|e| e.ok())
+      {
+        if entry.path_is_symlink() || entry.file_name().to_string_lossy().starts_with('.') {
+          continue;
+        }
+
+        let dest_path = dest_folder_path.join(entry.file_name());
+        let ext = entry.path().extension();
+        if entry.path().is_dir() {
+          // Bundles, like .app, .framework, .xpc
+          if ext == Some(OsStr::new("framework")) {
+            add_framework_sign_path(&entry.clone().into_path(), &dest_path, sign_paths);
+          } else if ext == Some(OsStr::new("xpc")) || ext == Some(OsStr::new("app")) {
+            add_executable_bundle_sign_path(&entry.clone().into_path(), &dest_path, sign_paths);
+          }
+        } else if entry.path().is_file() {
+          // Binaries, like .dylib, Mach-O executables
+          if ext == Some(OsStr::new("dylib")) {
+            sign_paths.push(SignTarget {
+              path: dest_path,
+              is_an_executable: false,
+            });
+          } else if ext.is_none() {
+            sign_paths.push(SignTarget {
+              path: dest_path,
+              is_an_executable: true,
+            });
+          }
+        }
+      }
+    }
+  }
 }

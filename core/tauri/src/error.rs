@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -40,6 +40,9 @@ pub enum Error {
   /// Webview label must be unique.
   #[error("a webview with label `{0}` already exists")]
   WebviewLabelAlreadyExists(String),
+  /// Cannot use the webview reparent function on webview windows.
+  #[error("cannot reparent when using a WebviewWindow")]
+  CannotReparentWebviewWindow,
   /// Embedded asset not found.
   #[error("asset not found: {0}")]
   AssetNotFound(String),
@@ -78,10 +81,10 @@ pub enum Error {
   /// Invalid glob pattern.
   #[error("invalid glob pattern: {0}")]
   GlobPattern(#[from] glob::PatternError),
-  /// Error decoding PNG image.
-  #[cfg(feature = "icon-png")]
-  #[error("failed to decode PNG: {0}")]
-  PngDecode(#[from] png::DecodingError),
+  /// Image error.
+  #[cfg(any(feature = "image-png", feature = "image-ico"))]
+  #[error("failed to process image: {0}")]
+  Image(#[from] image::error::ImageError),
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,

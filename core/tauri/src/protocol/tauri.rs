@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -146,7 +146,7 @@ fn get_response<R: Runtime>(
           .body(response.body.to_vec().into())?
       }
       Err(e) => {
-        tauri_utils::debug_eprintln!("Failed to request {}: {}", url.as_str(), e);
+        log::error!("Failed to request {}: {}", url.as_str(), e);
         return Err(Box::new(e));
       }
     }
@@ -163,14 +163,6 @@ fn get_response<R: Runtime>(
   };
   if let Some(handler) = &web_resource_request_handler {
     handler(request, &mut response);
-  }
-  // if it's an HTML file, we need to set the CSP meta tag on Linux
-  #[cfg(target_os = "linux")]
-  if let Some(response_csp) = response.headers().get("Content-Security-Policy") {
-    let response_csp = String::from_utf8_lossy(response_csp.as_bytes());
-    let html = String::from_utf8_lossy(response.body());
-    let body = html.replacen(tauri_utils::html::CSP_TOKEN, &response_csp, 1);
-    *response.body_mut() = body.as_bytes().to_vec().into();
   }
 
   Ok(response)

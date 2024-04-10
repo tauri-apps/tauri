@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,9 +15,9 @@ use std::{
 };
 
 use anyhow::Context;
+use glob::glob;
 use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
-use log::{debug, error, info};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
 use serde::{Deserialize, Deserializer};
@@ -120,7 +120,7 @@ impl Interface for Rust {
       watcher
         .watcher()
         .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
-      let manifest = rewrite_manifest(config)?;
+      let (manifest, _modified) = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
       loop {
@@ -302,7 +302,7 @@ fn build_ignore_matcher(dir: &Path) -> IgnoreMatcher {
 
       for line in crate::dev::TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE
         .lines()
-        .flatten()
+        .map_while(Result::ok)
       {
         let _ = ignore_builder.add_line(None, &line);
       }
@@ -408,6 +408,52 @@ fn dev_options(
   }
 }
 
+// Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
+fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
+  let Some(path) = path.to_str() else {
+    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
+  };
+  let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
+  let res = res
+    .map(|p| p.with_context(|| format!("unable to match path to pattern `{}`", &path)))
+    .collect::<Result<Vec<_>, _>>()?;
+  Ok(res)
+}
+
+fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+  let tauri_path = tauri_dir();
+  let workspace_path = get_workspace_dir()?;
+
+  // We always want to watch the main tauri folder.
+  let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
+  let cargo_settings = CargoSettings::load(&workspace_path)?;
+  if let Some(members) = cargo_settings.workspace.and_then(|w| w.members) {
+    for p in members {
+      let p = workspace_path.join(p);
+      match expand_member_path(&p) {
+        // Sometimes expand_member_path returns an empty vec, for example if the path contains `[]` as in `C:/[abc]/project/`.
+        // Cargo won't complain unless theres a workspace.members config with glob patterns so we should support it too.
+        Ok(expanded_paths) => {
+          if expanded_paths.is_empty() {
+            watch_folders.push(p);
+          } else {
+            watch_folders.extend(expanded_paths);
+          }
+        }
+        Err(err) => {
+          // If this fails cargo itself should fail too. But we still try to keep going with the unexpanded path.
+          log::error!("Error watching {}: {}", p.display(), err.to_string());
+          watch_folders.push(p);
+        }
+      };
+    }
+  }
+
+  Ok(watch_folders)
+}
+
 impl Rust {
   pub fn build_options(
     &self,
@@ -417,7 +463,7 @@ impl Rust {
   ) {
     features
       .get_or_insert(Vec::new())
-      .push("custom-protocol".into());
+      .push("tauri/custom-protocol".into());
     shared_options(mobile, args, features, &self.app_settings);
   }
 
@@ -449,29 +495,11 @@ impl Rust {
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
-    let tauri_path = tauri_dir();
-    let workspace_path = get_workspace_dir()?;
 
-    let watch_folders = if tauri_path == workspace_path {
-      vec![tauri_path]
-    } else {
-      let cargo_settings = CargoSettings::load(&workspace_path)?;
-      cargo_settings
-        .workspace
-        .as_ref()
-        .map(|w| {
-          w.members
-            .clone()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|p| workspace_path.join(p))
-            .collect()
-        })
-        .unwrap_or_else(|| vec![tauri_path])
-    };
+    let watch_folders = get_watch_folders()?;
 
-    let watch_folders = watch_folders.iter().map(Path::new).collect::<Vec<_>>();
-    let common_ancestor = common_path::common_path_all(watch_folders.clone()).unwrap();
+    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
+      .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
     let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
@@ -481,11 +509,11 @@ impl Rust {
     })
     .unwrap();
     for path in watch_folders {
-      if !ignore_matcher.is_ignore(path, true) {
-        info!("Watching {} for changes...", display_path(path));
-        lookup(path, |file_type, p| {
+      if !ignore_matcher.is_ignore(&path, true) {
+        log::info!("Watching {} for changes...", display_path(&path));
+        lookup(&path, |file_type, p| {
           if p != path {
-            debug!("Watching {} for changes...", display_path(&p));
+            log::debug!("Watching {} for changes...", display_path(&p));
             let _ = watcher.watcher().watch(
               &p,
               if file_type.is_dir() {
@@ -506,38 +534,34 @@ impl Rust {
 
           if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
             if is_configuration_file(self.app_settings.target, &event_path) {
-              match reload_config(config.as_ref()) {
-                Ok(config) => {
-                  info!("Tauri configuration changed. Rewriting manifest...");
-                  *self.app_settings.manifest.lock().unwrap() =
-                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?
-                }
-                Err(err) => {
-                  let p = process.lock().unwrap();
-                  if p.is_building_app() {
-                    p.kill().with_context(|| "failed to kill app process")?;
-                  }
-                  error!("{}", err);
+              if let Ok(config) = reload_config(config.as_ref()) {
+                let (manifest, modified) =
+                  rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+                if modified {
+                  *self.app_settings.manifest.lock().unwrap() = manifest;
+                  // no need to run the watcher logic, the manifest was modified
+                  // and it will trigger the watcher again
+                  continue;
                 }
               }
-            } else {
-              info!(
-                "File {} changed. Rebuilding application...",
-                display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
-              );
-              // When tauri.conf.json is changed, rewrite_manifest will be called
-              // which will trigger the watcher again
-              // So the app should only be started when a file other than tauri.conf.json is changed
-              let mut p = process.lock().unwrap();
-              p.kill().with_context(|| "failed to kill app process")?;
-              // wait for the process to exit
-              loop {
-                if let Ok(Some(_)) = p.try_wait() {
-                  break;
-                }
-              }
-              *p = run(self)?;
             }
+
+            log::info!(
+              "File {} changed. Rebuilding application...",
+              display_path(event_path.strip_prefix(app_path).unwrap_or(&event_path))
+            );
+
+            let mut p = process.lock().unwrap();
+            p.kill().with_context(|| "failed to kill app process")?;
+
+            // wait for the process to exit
+            // note that on mobile, kill() already waits for the process to exit (duct implementation)
+            loop {
+              if !matches!(p.try_wait(), Ok(None)) {
+                break;
+              }
+            }
+            *p = run(self)?;
           }
         }
       }
@@ -752,7 +776,7 @@ impl WindowsUpdateInstallMode {
 }
 
 #[derive(Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdaterWindowsConfig {
   #[serde(default, alias = "install-mode")]
   pub install_mode: WindowsUpdateInstallMode,
@@ -814,7 +838,7 @@ impl AppSettings for RustAppSettings {
       .expect("Cargo manifest must have the `package.name` field");
 
     let out_dir = self
-      .out_dir(options.target.clone(), get_profile(options))
+      .out_dir(options.target.clone(), get_profile_dir(options).to_string())
       .with_context(|| "failed to get project out directory")?;
 
     let binary_extension: String = if self.target_triple.contains("windows") {
@@ -1135,13 +1159,20 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   )
 }
 
-pub fn get_profile(options: &Options) -> String {
+pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
     .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].clone())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" }.into())
+    .map(|i| options.args[i + 1].as_str())
+    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+}
+
+pub fn get_profile_dir(options: &Options) -> &str {
+  match get_profile(options) {
+    "dev" => "debug",
+    profile => profile,
+  }
 }
 
 #[allow(unused_variables)]
@@ -1177,6 +1208,7 @@ fn tauri_config_to_bundle_settings(
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
   let mut depends_deb = config.linux.deb.depends.unwrap_or_default();
+
   #[allow(unused_mut)]
   let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
@@ -1299,8 +1331,18 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_deb)
       },
+      provides: config.linux.deb.provides,
+      conflicts: config.linux.deb.conflicts,
+      replaces: config.linux.deb.replaces,
       files: config.linux.deb.files,
       desktop_template: config.linux.deb.desktop_template,
+      section: config.linux.deb.section,
+      priority: config.linux.deb.priority,
+      changelog: config.linux.deb.changelog,
+      pre_install_script: config.linux.deb.pre_install_script,
+      post_install_script: config.linux.deb.post_install_script,
+      pre_remove_script: config.linux.deb.pre_remove_script,
+      post_remove_script: config.linux.deb.post_remove_script,
     },
     appimage: AppImageSettings {
       files: config.linux.appimage.files,
@@ -1311,10 +1353,17 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_rpm)
       },
+      provides: config.linux.rpm.provides,
+      conflicts: config.linux.rpm.conflicts,
+      obsoletes: config.linux.rpm.obsoletes,
       release: config.linux.rpm.release,
       epoch: config.linux.rpm.epoch,
       files: config.linux.rpm.files,
       desktop_template: config.linux.rpm.desktop_template,
+      pre_install_script: config.linux.rpm.pre_install_script,
+      post_install_script: config.linux.rpm.post_install_script,
+      pre_remove_script: config.linux.rpm.pre_remove_script,
+      post_remove_script: config.linux.rpm.post_remove_script,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

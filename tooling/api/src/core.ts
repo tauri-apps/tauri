@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -31,11 +31,44 @@ class Channel<T = unknown> {
   #onmessage: (response: T) => void = () => {
     // no-op
   }
+  #nextMessageId = 0
+  #pendingMessages: Record<string, T> = {}
 
   constructor() {
-    this.id = transformCallback((response: T) => {
-      this.#onmessage(response)
-    })
+    this.id = transformCallback(
+      ({ message, id }: { message: T; id: number }) => {
+        // the id is used as a mechanism to preserve message order
+        if (id === this.#nextMessageId) {
+          this.#nextMessageId = id + 1
+          this.#onmessage(message)
+
+          // process pending messages
+          const pendingMessageIds = Object.keys(this.#pendingMessages)
+          if (pendingMessageIds.length > 0) {
+            let nextId = id + 1
+            for (const pendingId of pendingMessageIds.sort()) {
+              // if we have the next message, process it
+              if (parseInt(pendingId) === nextId) {
+                // eslint-disable-next-line security/detect-object-injection
+                const message = this.#pendingMessages[pendingId]
+                // eslint-disable-next-line security/detect-object-injection
+                delete this.#pendingMessages[pendingId]
+
+                this.#onmessage(message)
+
+                // move the id counter to the next message to check
+                nextId += 1
+              } else {
+                // we do not have the next message, let's wait
+                break
+              }
+            }
+          }
+        } else {
+          this.#pendingMessages[id.toString()] = message
+        }
+      }
+    )
   }
 
   set onmessage(handler: (response: T) => void) {

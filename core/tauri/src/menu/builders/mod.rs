@@ -1,10 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![cfg(desktop)]
 
-//! A module containting menu builder types
+//! A module containing menu builder types
 
 mod menu;
 pub use menu::MenuBuilder;

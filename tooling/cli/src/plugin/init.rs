@@ -1,7 +1,8 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::helpers::prompts;
 use crate::Result;
 use crate::{
   helpers::{resolve_tauri_path, template},
@@ -9,28 +10,23 @@ use crate::{
 };
 use anyhow::Context;
 use clap::Parser;
-use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
-use log::warn;
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  ffi::OsStr,
-  fmt::Display,
   fs::{create_dir_all, remove_dir_all, File, OpenOptions},
   path::{Component, Path, PathBuf},
-  str::FromStr,
 };
 
-pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
+pub const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/plugin");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initialize a Tauri plugin project on an existing directory")]
 pub struct Options {
   /// Name of your Tauri plugin.
-  /// If not specified, it will be infered from the current directory.
+  /// If not specified, it will be inferred from the current directory.
   pub(crate) plugin_name: Option<String>,
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
@@ -82,7 +78,7 @@ pub fn command(mut options: Options) -> Result<()> {
   let template_target_path = PathBuf::from(options.directory);
   let metadata = crates_metadata()?;
   if std::fs::read_dir(&template_target_path)?.count() > 0 {
-    warn!("Plugin dir ({:?}) not empty.", template_target_path);
+    log::warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
       if let Some(tauri_path) = options.tauri_path {
@@ -135,7 +131,7 @@ pub fn command(mut options: Options) -> Result<()> {
       data.insert(
         "license_header",
         to_json(
-          "// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+          "// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
              // SPDX-License-Identifier: Apache-2.0
              // SPDX-License-Identifier: MIT\n\n"
             .replace("  ", "")
@@ -145,7 +141,7 @@ pub fn command(mut options: Options) -> Result<()> {
     }
 
     let plugin_id = if options.android || options.mobile {
-      let plugin_id = request_input(
+      let plugin_id = prompts::input(
         "What should be the Android Package ID for your plugin?",
         Some(format!("com.plugin.{}", plugin_name)),
         false,
@@ -198,10 +194,10 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "ios" if !(options.ios || options.mobile) => return Ok(None),
-            "webview-dist" | "webview-src" | "package.json" => {
-              if options.no_api {
-                return Ok(None);
-              }
+            "guest-js" | "rollup.config.js" | "tsconfig.json" | "package.json"
+              if options.no_api =>
+            {
+              return Ok(None);
             }
             _ => (),
           }
@@ -218,6 +214,10 @@ pub fn command(mut options: Options) -> Result<()> {
     )
     .with_context(|| "failed to render plugin Android template")?;
   }
+
+  std::fs::create_dir(template_target_path.join("permissions"))
+    .with_context(|| "failed to create `permissions` directory")?;
+
   Ok(())
 }
 
@@ -267,40 +267,14 @@ pub fn generate_android_out_file(
   options.write(true);
 
   #[cfg(unix)]
-  if path.file_name().unwrap() == OsStr::new("gradlew") {
+  if path.file_name().unwrap() == std::ffi::OsStr::new("gradlew") {
     use std::os::unix::fs::OpenOptionsExt;
     options.mode(0o755);
   }
 
-  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+  if !path.exists() {
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)
-  }
-}
-
-pub fn request_input<T>(
-  prompt: &str,
-  initial: Option<T>,
-  skip: bool,
-  allow_empty: bool,
-) -> Result<Option<T>>
-where
-  T: Clone + FromStr + Display + ToString,
-  T::Err: Display + std::fmt::Debug,
-{
-  if skip {
-    Ok(initial)
-  } else {
-    let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme)
-      .with_prompt(prompt)
-      .allow_empty(allow_empty);
-
-    if let Some(v) = initial {
-      builder = builder.with_initial_text(v.to_string());
-    }
-
-    builder.interact_text().map(Some).map_err(Into::into)
   }
 }

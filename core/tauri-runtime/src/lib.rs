@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,9 +13,9 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use raw_window_handle::DisplayHandle;
-use serde::Deserialize;
-use std::{fmt::Debug, sync::mpsc::Sender};
-use tauri_utils::{ProgressBarState, Theme};
+use serde::{Deserialize, Serialize};
+use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
+use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
@@ -24,11 +24,9 @@ pub mod monitor;
 pub mod webview;
 pub mod window;
 
+use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
 use monitor::Monitor;
-use window::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent,
-};
+use window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent};
 use window::{WindowBuilder, WindowId};
 
 use http::{
@@ -37,7 +35,57 @@ use http::{
   status::InvalidStatusCode,
 };
 
+/// UI scaling utilities.
+pub use dpi;
+
 pub type WindowEventId = u32;
+pub type WebviewEventId = u32;
+
+/// A rectangular region.
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Rect {
+  /// Rect position.
+  pub position: dpi::Position,
+  /// Rect size.
+  pub size: dpi::Size,
+}
+
+impl Default for Rect {
+  fn default() -> Self {
+    Self {
+      position: Position::Logical((0, 0).into()),
+      size: Size::Logical((0, 0).into()),
+    }
+  }
+}
+
+/// Progress bar status.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ProgressBarStatus {
+  /// Hide progress bar.
+  None,
+  /// Normal state.
+  Normal,
+  /// Indeterminate state. **Treated as Normal on Linux and macOS**
+  Indeterminate,
+  /// Paused state. **Treated as Normal on Linux**
+  Paused,
+  /// Error state. **Treated as Normal on Linux**
+  Error,
+}
+
+/// Progress Bar State
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProgressBarState {
+  /// The progress bar status.
+  pub status: Option<ProgressBarStatus>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
+  /// The `.desktop` filename with the Unity desktop window manager, for example `myapp.desktop` **Linux Only**
+  pub desktop_filename: Option<String>,
+}
 
 /// Type of user attention requested on a window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -133,9 +181,9 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 /// Window icon.
 #[derive(Debug, Clone)]
-pub struct Icon {
+pub struct Icon<'a> {
   /// RGBA bytes of the icon.
-  pub rgba: Vec<u8>,
+  pub rgba: Cow<'a, [u8]>,
   /// Icon width.
   pub width: u32,
   /// Icon height.
@@ -165,6 +213,13 @@ pub enum RunEvent<T: UserEvent> {
     label: String,
     /// The detailed event.
     event: WindowEvent,
+  },
+  /// An event associated with a webview.
+  WebviewEvent {
+    /// The webview label.
+    label: String,
+    /// The detailed event.
+    event: WebviewEvent,
   },
   /// Application ready.
   Ready,
@@ -348,7 +403,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
-  fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F);
+  fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
@@ -361,6 +416,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
+
+  /// Registers a webview event handler.
+  fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) -> WebviewEventId;
 
   /// Runs a closure with the platform webview object as argument.
   fn with_webview<F: FnOnce(Box<dyn std::any::Any>) + Send + 'static>(&self, f: F) -> Result<()>;
@@ -382,6 +440,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Returns the webview's current URL.
   fn url(&self) -> Result<Url>;
 
+  /// Returns the webview's bounds.
+  fn bounds(&self) -> Result<Rect>;
+
   /// Returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the window.
   fn position(&self) -> Result<PhysicalPosition<i32>>;
 
@@ -390,7 +451,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   // SETTER
 
-  /// Naviagte to the given URL.
+  /// Navigate to the given URL.
   fn navigate(&self, url: Url) -> Result<()>;
 
   /// Opens the dialog to prints the contents of the webview.
@@ -398,6 +459,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Closes the webview.
   fn close(&self) -> Result<()>;
+
+  /// Sets the webview's bounds.
+  fn set_bounds(&self, bounds: Rect) -> Result<()>;
 
   /// Resizes the webview.
   fn set_size(&self, size: Size) -> Result<()>;
@@ -410,6 +474,15 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Executes javascript on the window this [`WindowDispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
+
+  /// Moves the webview to the given window.
+  fn reparent(&self, window_id: WindowId) -> Result<()>;
+
+  /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+  fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
+
+  /// Set the webview zoom level
+  fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.
@@ -472,7 +545,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / iOS / Android:** Unsupported.
   fn is_maximizable(&self) -> Result<bool>;
 
-  /// Gets the window's native minize button state.
+  /// Gets the window's native minimize button state.
   ///
   /// ## Platform-specific
   ///

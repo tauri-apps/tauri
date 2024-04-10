@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -139,11 +139,13 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   }
 
   /// Gets the global scope defined on the permissions that are part of the app ACL.
-  pub fn scope<T: ScopeObject>(&self) -> crate::Result<&ScopeValue<T>> {
+  pub fn scope<T: ScopeObject>(&self) -> crate::Result<ScopeValue<T>> {
     self
       .handle
       .manager
       .runtime_authority
+      .lock()
+      .unwrap()
       .scope_manager
       .get_global_scope_typed(&self.handle, self.name)
   }
@@ -516,7 +518,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// # Known limitations
   ///
-  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registed after a webview has been created, this protocol won't be available.
+  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registered after a webview has been created, this protocol won't be available.
   ///
   /// # Arguments
   ///

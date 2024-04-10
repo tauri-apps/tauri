@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,7 +8,6 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use log::info;
 use sha2::Digest;
 use zip::ZipArchive;
 
@@ -69,7 +68,7 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
-  info!(action = "Downloading"; "{}", url);
+  log::info!(action = "Downloading"; "{}", url);
 
   let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
   let response = agent.get(url).call().map_err(Box::new)?;
@@ -78,6 +77,7 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   Ok(bytes)
 }
 
+#[derive(Clone, Copy)]
 pub enum HashAlgorithm {
   #[cfg(target_os = "windows")]
   Sha256,
@@ -91,24 +91,26 @@ pub fn download_and_verify(
   hash_algorithm: HashAlgorithm,
 ) -> crate::Result<Vec<u8>> {
   let data = download(url)?;
-  info!("validating hash");
+  log::info!("validating hash");
+  verify_hash(&data, hash, hash_algorithm)?;
+  Ok(data)
+}
 
+pub fn verify_hash(data: &[u8], hash: &str, hash_algorithm: HashAlgorithm) -> crate::Result<()> {
   match hash_algorithm {
     #[cfg(target_os = "windows")]
     HashAlgorithm::Sha256 => {
       let hasher = sha2::Sha256::new();
-      verify(&data, hash, hasher)?;
+      verify_data_with_hasher(data, hash, hasher)
     }
     HashAlgorithm::Sha1 => {
       let hasher = sha1::Sha1::new();
-      verify(&data, hash, hasher)?;
+      verify_data_with_hasher(data, hash, hasher)
     }
   }
-
-  Ok(data)
 }
 
-fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<()> {
+fn verify_data_with_hasher(data: &[u8], hash: &str, mut hasher: impl Digest) -> crate::Result<()> {
   hasher.update(data);
 
   let url_hash = hasher.finalize().to_vec();
@@ -120,7 +122,16 @@ fn verify(data: &Vec<u8>, hash: &str, mut hasher: impl Digest) -> crate::Result<
   }
 }
 
-/// Extracts the zips from memory into a useable path.
+pub fn verify_file_hash<P: AsRef<Path>>(
+  path: P,
+  hash: &str,
+  hash_algorithm: HashAlgorithm,
+) -> crate::Result<()> {
+  let data = std::fs::read(path)?;
+  verify_hash(&data, hash, hash_algorithm)
+}
+
+/// Extracts the zips from memory into a usable path.
 pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 
@@ -155,9 +166,8 @@ pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
 
 #[cfg(target_os = "windows")]
 pub fn os_bitness<'a>() -> Option<&'a str> {
-  use windows_sys::Win32::System::{
-    Diagnostics::Debug::{PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL},
-    SystemInformation::{GetNativeSystemInfo, SYSTEM_INFO},
+  use windows_sys::Win32::System::SystemInformation::{
+    GetNativeSystemInfo, PROCESSOR_ARCHITECTURE_AMD64, PROCESSOR_ARCHITECTURE_INTEL, SYSTEM_INFO,
   };
 
   let mut system_info: SYSTEM_INFO = unsafe { std::mem::zeroed() };

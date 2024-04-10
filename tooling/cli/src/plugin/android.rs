@@ -1,8 +1,11 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::template, Result};
+use crate::{
+  helpers::{prompts, template},
+  Result,
+};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 
@@ -35,7 +38,7 @@ enum Commands {
 #[clap(about = "Initializes the Android project for an existing Tauri plugin")]
 pub struct InitOptions {
   /// Name of your Tauri plugin. Must match the current plugin's name.
-  /// If not specified, it will be infered from the current directory.
+  /// If not specified, it will be inferred from the current directory.
   plugin_name: Option<String>,
   /// The output directory.
   #[clap(short, long)]
@@ -56,7 +59,7 @@ pub fn command(cli: Cli) -> Result<()> {
         return Err(anyhow::anyhow!("android folder already exists"));
       }
 
-      let plugin_id = super::init::request_input(
+      let plugin_id = prompts::input(
         "What should be the Android Package ID for your plugin?",
         Some(format!("com.plugin.{}", plugin_name)),
         false,

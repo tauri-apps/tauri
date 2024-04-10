@@ -1,9 +1,10 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 import { MenuItemBase, newMenu } from './base'
 import { invoke } from '../core'
+import { Image } from '../image'
 
 /** A metadata for the about predefined menu item. */
 export interface AboutMetadata {
@@ -76,7 +77,7 @@ export interface AboutMetadata {
    *
    * - **Windows:** Unsupported.
    */
-  icon?: string | Uint8Array
+  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
 }
 
 /** Options for creating a new predefined menu item. */
@@ -106,7 +107,7 @@ export interface PredefinedMenuItemOptions {
       }
 }
 
-/** A predefined (native) menu item which has a predfined behavior by the OS or by tauri.  */
+/** A predefined (native) menu item which has a predefined behavior by the OS or by tauri.  */
 export class PredefinedMenuItem extends MenuItemBase {
   /** @ignore */
   protected constructor(rid: number, id: string) {

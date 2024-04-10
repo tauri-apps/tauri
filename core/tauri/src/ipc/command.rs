@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -33,7 +33,7 @@ pub struct CommandItem<'a, R: Runtime> {
   pub message: &'a InvokeMessage<R>,
 
   /// The resolved ACL for this command.
-  pub acl: &'a Option<ResolvedCommand>,
+  pub acl: &'a Option<Vec<ResolvedCommand>>,
 }
 
 /// Trait implemented by command arguments to derive a value from a [`CommandItem`].

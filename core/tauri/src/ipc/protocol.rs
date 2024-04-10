@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,15 +11,15 @@ use crate::{
 };
 use http::{
   header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-  HeaderValue, Method, StatusCode,
+  HeaderValue, Method, Request, StatusCode,
 };
+use url::Url;
 
 use super::{CallbackFn, InvokeBody, InvokeResponse};
 
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 
-#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
 ) -> crate::runtime::webview::WebviewIpcHandler<crate::EventLoopMessage, R> {
@@ -93,7 +93,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                       let mut response =
                         http::Response::new(serde_json::to_vec(&e.0).unwrap().into());
                       *response.status_mut() = StatusCode::BAD_REQUEST;
-                      (response, mime::TEXT_PLAIN)
+                      (response, mime::APPLICATION_JSON)
                     }
                   };
 
@@ -162,12 +162,16 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
   })
 }
 
-#[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
-fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
+fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager<R>, label: &str) {
   if let Some(webview) = manager.get_webview(label) {
     #[cfg(feature = "tracing")]
-    let _span =
-      tracing::trace_span!("ipc::request", kind = "post-message", request = message).entered();
+    let _span = tracing::trace_span!(
+      "ipc::request",
+      kind = "post-message",
+      uri = request.uri().to_string(),
+      body = request.body()
+    )
+    .entered();
 
     use serde::{Deserialize, Deserializer};
 
@@ -229,7 +233,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
 
         invoke_message.replace(
-          serde_json::from_str::<IsolationMessage<'_>>(&message)
+          serde_json::from_str::<IsolationMessage<'_>>(request.body())
             .map_err(Into::into)
             .and_then(|message| {
               Ok(Message {
@@ -244,16 +248,19 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
       }
     }
 
-    match invoke_message.unwrap_or_else(|| {
+    let message = invoke_message.unwrap_or_else(|| {
       #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("ipc::request::deserialize").entered();
-      serde_json::from_str::<Message>(&message).map_err(Into::into)
-    }) {
+      serde_json::from_str::<Message>(request.body()).map_err(Into::into)
+    });
+
+    match message {
       Ok(message) => {
         let request = InvokeRequest {
           cmd: message.cmd,
           callback: message.callback,
           error: message.error,
+          url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
           body: message.payload.into(),
           headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
         };
@@ -305,7 +312,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
                 mime_type = match &response {
                   InvokeResponse::Ok(InvokeBody::Json(_)) => mime::APPLICATION_JSON,
                   InvokeResponse::Ok(InvokeBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
-                  InvokeResponse::Err(_) => mime::TEXT_PLAIN,
+                  InvokeResponse::Err(_) => mime::APPLICATION_JSON,
                 }
                 .essence_str()
               )
@@ -372,16 +379,32 @@ fn parse_invoke_request<R: Runtime>(
     .decode_utf8_lossy()
     .to_string();
 
-  // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
-  #[cfg(all(feature = "isolation", ipc_custom_protocol))]
-  if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
-    #[cfg(feature = "tracing")]
-    let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
+  // on Android and on Linux (without the linux-ipc-protocol Cargo feature) we cannot read the request body
+  // so we must ignore it because some commands use the IPC for faster response
+  let has_payload = !body.is_empty();
 
-    body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
-      .and_then(|raw| crypto_keys.decrypt(raw))
-      .map_err(|e| e.to_string())?;
+  #[cfg(feature = "isolation")]
+  if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
+    // if the platform does not support request body, we ignore it
+    if has_payload {
+      #[cfg(feature = "tracing")]
+      let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
+
+      body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
+        .and_then(|raw| crypto_keys.decrypt(raw))
+        .map_err(|e| e.to_string())?;
+    }
   }
+
+  let url = Url::parse(
+    parts
+      .headers
+      .get("Origin")
+      .ok_or("missing Origin header")?
+      .to_str()
+      .map_err(|_| "Origin header value must be a string")?,
+  )
+  .map_err(|_| "Origin header is not a valid URL")?;
 
   let callback = CallbackFn(
     parts
@@ -406,7 +429,7 @@ fn parse_invoke_request<R: Runtime>(
 
   let content_type = parts
     .headers
-    .get(reqwest::header::CONTENT_TYPE)
+    .get(http::header::CONTENT_TYPE)
     .and_then(|h| h.to_str().ok())
     .map(|mime| mime.parse())
     .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
@@ -418,12 +441,12 @@ fn parse_invoke_request<R: Runtime>(
   let body = if content_type == mime::APPLICATION_OCTET_STREAM {
     body.into()
   } else if content_type == mime::APPLICATION_JSON {
-    if cfg!(ipc_custom_protocol) {
+    // if the platform does not support request body, we ignore it
+    if has_payload {
       serde_json::from_slice::<serde_json::Value>(&body)
         .map_err(|e| e.to_string())?
         .into()
     } else {
-      // the body is not set if ipc_custom_protocol is not enabled so we'll just ignore it
       serde_json::Value::Object(Default::default()).into()
     }
   } else {
@@ -437,6 +460,7 @@ fn parse_invoke_request<R: Runtime>(
     cmd,
     callback,
     error,
+    url,
     body,
     headers: parts.headers,
   };

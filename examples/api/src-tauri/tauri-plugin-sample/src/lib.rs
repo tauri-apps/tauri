@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -70,7 +70,6 @@ fn ping<R: tauri::Runtime>(
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("sample")
     .setup(|app, api| {
-      println!("global scope: {:?}", api.scope::<SampleScope>());
       #[cfg(mobile)]
       let sample = mobile::init(app, api)?;
       #[cfg(desktop)]

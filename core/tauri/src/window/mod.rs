@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,10 +7,13 @@
 pub(crate) mod plugin;
 
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
-  window::dpi::{PhysicalPosition, PhysicalSize},
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
+
+#[cfg(desktop)]
+pub use crate::runtime::ProgressBarStatus;
 
 use crate::{
   app::AppHandle,
@@ -22,20 +25,20 @@ use crate::{
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
     RuntimeHandle, WindowDispatch,
   },
-  sealed::ManagerBase,
-  sealed::RuntimeOrDispatch,
+  sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  EventLoopMessage, Manager, Runtime, Theme, Webview, WindowEvent,
+  EventLoopMessage, Manager, ResourceTable, Runtime, Theme, Webview, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
+  image::Image,
   menu::{ContextMenu, Menu, MenuId},
   runtime::{
-    window::dpi::{Position, Size},
+    dpi::{Position, Size},
     UserAttentionType,
   },
-  CursorIcon, Icon,
+  CursorIcon,
 };
 
 use serde::Serialize;
@@ -47,7 +50,7 @@ use tauri_macros::default_runtime;
 use std::{
   fmt,
   hash::{Hash, Hasher},
-  sync::Arc,
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 /// Monitor descriptor.
@@ -333,7 +336,7 @@ tauri::Builder::default()
       .webviews_lock()
       .values()
       .map(|w| WebviewLabelDef {
-        window_label: w.window.label().to_string(),
+        window_label: w.window().label().to_string(),
         label: w.label().to_string(),
       })
       .collect::<Vec<_>>();
@@ -401,7 +404,6 @@ tauri::Builder::default()
       let window = app_manager.window.attach_window(
         self.manager.app_handle().clone(),
         detached_window.clone(),
-        detached_window.webview.is_some(),
         #[cfg(desktop)]
         window_menu,
       );
@@ -421,6 +423,18 @@ tauri::Builder::default()
     if let Some(effects) = self.window_effects {
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
+
+    app_manager.webview.eval_script_all(format!(
+      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+      window_labels_array = serde_json::to_string(&app_manager.window.labels())?,
+    ))?;
+
+    app_manager.emit(
+      "tauri://window-created",
+      Some(crate::webview::CreatedEvent {
+        label: window.label().into(),
+      }),
+    )?;
 
     Ok(window)
   }
@@ -629,8 +643,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   }
 
   /// Sets the window icon.
-  pub fn icon(mut self, icon: Icon) -> crate::Result<Self> {
-    self.window_builder = self.window_builder.icon(icon.try_into()?)?;
+  pub fn icon(mut self, icon: Image<'a>) -> crate::Result<Self> {
+    self.window_builder = self.window_builder.icon(icon.into())?;
     Ok(self)
   }
 
@@ -651,7 +665,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
@@ -861,9 +875,8 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   // The menu set for this window
   #[cfg(desktop)]
-  pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
-  /// Whether this window is a Webview window (hosts only a single webview) or a container for multiple webviews
-  pub(crate) webview_window: bool,
+  pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -872,7 +885,6 @@ impl<R: Runtime> std::fmt::Debug for Window<R> {
       .field("window", &self.window)
       .field("manager", &self.manager)
       .field("app_handle", &self.app_handle)
-      .field("webview_window", &self.webview_window)
       .finish()
   }
 }
@@ -885,6 +897,14 @@ impl<R: Runtime> raw_window_handle::HasWindowHandle for Window<R> {
   }
 }
 
+impl<R: Runtime> raw_window_handle::HasDisplayHandle for Window<R> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+    self.app_handle.display_handle()
+  }
+}
+
 impl<R: Runtime> Clone for Window<R> {
   fn clone(&self) -> Self {
     Self {
@@ -893,7 +913,7 @@ impl<R: Runtime> Clone for Window<R> {
       app_handle: self.app_handle.clone(),
       #[cfg(desktop)]
       menu: self.menu.clone(),
-      webview_window: self.webview_window,
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -913,7 +933,14 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
@@ -948,7 +975,6 @@ impl<R: Runtime> Window<R> {
     window: DetachedWindow<EventLoopMessage, R>,
     app_handle: AppHandle<R>,
     #[cfg(desktop)] menu: Option<WindowMenu<R>>,
-    webview_window: bool,
   ) -> Self {
     Self {
       window,
@@ -956,7 +982,7 @@ impl<R: Runtime> Window<R> {
       app_handle,
       #[cfg(desktop)]
       menu: Arc::new(std::sync::Mutex::new(menu)),
-      webview_window,
+      resources_table: Default::default(),
     }
   }
 
@@ -978,7 +1004,17 @@ impl<R: Runtime> Window<R> {
     position: P,
     size: S,
   ) -> crate::Result<Webview<R>> {
-    webview_builder.build(self.clone(), position.into(), size.into())
+    use std::sync::mpsc::channel;
+
+    let (tx, rx) = channel();
+    let position = position.into();
+    let size = size.into();
+    let window_ = self.clone();
+    self.run_on_main_thread(move || {
+      let res = webview_builder.build(window_, position, size);
+      tx.send(res.map_err(Into::into)).unwrap();
+    })?;
+    rx.recv().unwrap()
   }
 
   /// List of webviews associated with this window.
@@ -988,9 +1024,13 @@ impl<R: Runtime> Window<R> {
       .webview
       .webviews_lock()
       .values()
-      .filter(|w| w.window() == self)
+      .filter(|w| w.window_label() == self.label())
       .cloned()
       .collect()
+  }
+
+  pub(crate) fn is_webview_window(&self) -> bool {
+    self.webviews().iter().all(|w| w.label() == self.label())
   }
 
   /// Runs the given closure on the main thread.
@@ -1563,7 +1603,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Determines if this window's native minize button should be enabled.
+  /// Determines if this window's native minimize button should be enabled.
   ///
   /// ## Platform-specific
   ///
@@ -1657,7 +1697,7 @@ impl<R: Runtime> Window<R> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
@@ -1802,11 +1842,11 @@ tauri::Builder::default()
   }
 
   /// Sets this window' icon.
-  pub fn set_icon(&self, icon: Icon) -> crate::Result<()> {
+  pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self
       .window
       .dispatcher
-      .set_icon(icon.try_into()?)
+      .set_icon(icon.into())
       .map_err(Into::into)
   }
 
@@ -1908,16 +1948,40 @@ tauri::Builder::default()
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window.
   /// - **Linux**: Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
-  pub fn set_progress_bar(
-    &self,
-    progress_state: crate::utils::ProgressBarState,
-  ) -> crate::Result<()> {
+  pub fn set_progress_bar(&self, progress_state: ProgressBarState) -> crate::Result<()> {
     self
       .window
       .dispatcher
-      .set_progress_bar(progress_state)
+      .set_progress_bar(crate::runtime::ProgressBarState {
+        status: progress_state.status,
+        progress: progress_state.progress,
+        desktop_filename: Some(format!(
+          "{}.desktop",
+          heck::AsKebabCase(
+            self
+              .config()
+              .product_name
+              .as_deref()
+              .unwrap_or_else(|| self.package_info().crate_name)
+          )
+        )),
+      })
       .map_err(Into::into)
   }
+}
+
+/// Progress bar state.
+#[cfg(desktop)]
+#[cfg_attr(
+  docsrs,
+  doc(cfg(any(target_os = "macos", target_os = "linux", windows)))
+)]
+#[derive(serde::Deserialize)]
+pub struct ProgressBarState {
+  /// The progress bar status.
+  pub status: Option<ProgressBarStatus>,
+  /// The progress bar progress. This can be a value ranging from `0` to `100`
+  pub progress: Option<u64>,
 }
 
 /// Event system APIs.
@@ -1992,7 +2056,7 @@ tauri::Builder::default()
   /// Listen to an event on this window only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F)
+  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {

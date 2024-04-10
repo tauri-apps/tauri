@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -201,7 +201,7 @@ impl Scope {
   }
 
   /// Listen to an event on this scope and immediately unlisten.
-  pub fn once<F: FnOnce(&Event) + Send + 'static>(&self, f: F) {
+  pub fn once<F: FnOnce(&Event) + Send + 'static>(&self, f: F) -> ScopeEventId {
     let listerners = self.event_listeners.clone();
     let handler = std::cell::Cell::new(Some(f));
     let id = self.next_event_id();
@@ -212,6 +212,7 @@ impl Scope {
         .expect("attempted to call handler more than once");
       handler(event)
     });
+    id
   }
 
   /// Removes an event listener on this scope.
@@ -297,6 +298,14 @@ impl Scope {
   /// Determines if the given path is allowed on this scope.
   pub fn is_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
     let path = path.as_ref();
+    let path = if path.is_symlink() {
+      match std::fs::read_link(path) {
+        Ok(p) => p,
+        Err(_) => return false,
+      }
+    } else {
+      path.to_path_buf()
+    };
     let path = if !path.exists() {
       crate::Result::Ok(path.to_path_buf())
     } else {

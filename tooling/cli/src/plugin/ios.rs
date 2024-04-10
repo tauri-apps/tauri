@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -36,7 +36,7 @@ enum Commands {
 #[clap(about = "Initializes the iOS project for an existing Tauri plugin")]
 pub struct InitOptions {
   /// Name of your Tauri plugin. Must match the current plugin's name.
-  /// If not specified, it will be infered from the current directory.
+  /// If not specified, it will be inferred from the current directory.
   plugin_name: Option<String>,
   /// The output directory.
   #[clap(short, long)]

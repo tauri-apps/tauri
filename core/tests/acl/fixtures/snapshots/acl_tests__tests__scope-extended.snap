@@ -4,94 +4,178 @@ expression: resolved
 ---
 Resolved {
     allowed_commands: {
-        CommandKey {
-            name: "plugin:fs|move",
-            context: Local,
-        }: ResolvedCommand {
-            windows: [
-                Pattern {
-                    original: "main",
-                    tokens: [
-                        Char(
-                            'm',
-                        ),
-                        Char(
-                            'a',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'n',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-            ],
-            scope: Some(
-                9188997750422900590,
-            ),
-        },
-        CommandKey {
-            name: "plugin:fs|read_dir",
-            context: Local,
-        }: ResolvedCommand {
-            windows: [
-                Pattern {
-                    original: "main",
-                    tokens: [
-                        Char(
-                            'm',
-                        ),
-                        Char(
-                            'a',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'n',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-            ],
-            scope: Some(
-                1349364295896631601,
-            ),
-        },
-        CommandKey {
-            name: "plugin:fs|read_file",
-            context: Local,
-        }: ResolvedCommand {
-            windows: [
-                Pattern {
-                    original: "main",
-                    tokens: [
-                        Char(
-                            'm',
-                        ),
-                        Char(
-                            'a',
-                        ),
-                        Char(
-                            'i',
-                        ),
-                        Char(
-                            'n',
-                        ),
-                    ],
-                    is_recursive: false,
-                },
-            ],
-            scope: Some(
-                8031926490300119127,
-            ),
-        },
+        "plugin:fs|move": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    3,
+                ),
+            },
+        ],
+        "plugin:fs|read_dir": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    1,
+                ),
+            },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    2,
+                ),
+            },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    4,
+                ),
+            },
+        ],
+        "plugin:fs|read_file": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    1,
+                ),
+            },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    2,
+                ),
+            },
+        ],
     },
     denied_commands: {},
     command_scope: {
-        1349364295896631601: ResolvedScope {
+        1: ResolvedScope {
             allow: [
                 Map(
                     {
@@ -100,6 +184,11 @@ Resolved {
                         ),
                     },
                 ),
+            ],
+            deny: [],
+        },
+        2: ResolvedScope {
+            allow: [
                 Map(
                     {
                         "path": String(
@@ -114,6 +203,31 @@ Resolved {
                         ),
                     },
                 ),
+            ],
+            deny: [
+                Map(
+                    {
+                        "path": String(
+                            "$RESOURCE/**/*.key",
+                        ),
+                    },
+                ),
+            ],
+        },
+        3: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$TEMP/*",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+        4: ResolvedScope {
+            allow: [
                 Map(
                     {
                         "path": String(
@@ -125,60 +239,6 @@ Resolved {
                     {
                         "path": String(
                             "$DOWNLOAD/**",
-                        ),
-                    },
-                ),
-            ],
-            deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**/*.key",
-                        ),
-                    },
-                ),
-            ],
-        },
-        8031926490300119127: ResolvedScope {
-            allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$HOME/.config/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE",
-                        ),
-                    },
-                ),
-            ],
-            deny: [
-                Map(
-                    {
-                        "path": String(
-                            "$RESOURCE/**/*.key",
-                        ),
-                    },
-                ),
-            ],
-        },
-        9188997750422900590: ResolvedScope {
-            allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$TEMP/*",
                         ),
                     },
                 ),

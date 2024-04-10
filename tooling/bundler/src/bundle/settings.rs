@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -168,6 +168,12 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
+  /// the list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// the list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// the list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
@@ -180,6 +186,26 @@ pub struct DebianSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to `optional`.
+  /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
+  pub priority: Option<String>,
+  /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// The Linux AppImage bundle settings.
@@ -194,6 +220,14 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   pub release: String,
   /// The RPM epoch.
@@ -210,6 +244,18 @@ pub struct RpmSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// Position coordinates struct.
@@ -886,17 +932,14 @@ impl Settings {
     }
   }
 
+  /// Returns the bundle license.
+  pub fn license(&self) -> Option<String> {
+    self.bundle_settings.license.clone()
+  }
+
   /// Returns the bundle license file.
   pub fn license_file(&self) -> Option<PathBuf> {
-    self.bundle_settings.license_file.clone().or_else(|| {
-      self.bundle_settings.license.as_deref().map(|l| {
-        let p = self
-          .project_out_directory()
-          .join(format!("{}-license", self.bundle_identifier()));
-        std::fs::write(&p, l).expect("failed to write license to a temp file");
-        p
-      })
-    })
+    self.bundle_settings.license_file.clone()
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.

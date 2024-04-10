@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -17,11 +17,26 @@ const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
 
 /// Plugin identifier.
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
   inner: String,
   separator: Option<NonZeroU8>,
+}
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for Identifier {
+  fn schema_name() -> String {
+    "Identifier".to_string()
+  }
+
+  fn schema_id() -> std::borrow::Cow<'static, str> {
+    // Include the module, in case a type with the same name is in another module/crate
+    std::borrow::Cow::Borrowed(concat!(module_path!(), "::Identifier"))
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    String::json_schema(gen)
+  }
 }
 
 impl AsRef<str> for Identifier {
@@ -73,12 +88,12 @@ enum ValidByte {
 }
 
 impl ValidByte {
-  fn lower_alpha(byte: u8) -> Option<Self> {
-    byte.is_ascii_lowercase().then_some(Self::Byte(byte))
+  fn alpha_numeric(byte: u8) -> Option<Self> {
+    byte.is_ascii_alphanumeric().then_some(Self::Byte(byte))
   }
 
-  fn lower_alpha_hyphen(byte: u8) -> Option<Self> {
-    matches!(byte, b'a'..=b'z' | b'-').then_some(Self::Byte(byte))
+  fn alpha_numeric_hyphen(byte: u8) -> Option<Self> {
+    (byte.is_ascii_alphanumeric() || byte == b'-').then_some(Self::Byte(byte))
   }
 
   fn next(&self, next: u8) -> Option<ValidByte> {
@@ -87,9 +102,9 @@ impl ValidByte {
       (ValidByte::Separator, b'-') => None,
 
       (_, IDENTIFIER_SEPARATOR) => Some(ValidByte::Separator),
-      (ValidByte::Separator, next) => ValidByte::lower_alpha(next),
-      (ValidByte::Byte(b'-'), next) => ValidByte::lower_alpha(next),
-      (ValidByte::Byte(_), next) => ValidByte::lower_alpha_hyphen(next),
+      (ValidByte::Separator, next) => ValidByte::alpha_numeric(next),
+      (ValidByte::Byte(b'-'), next) => ValidByte::alpha_numeric(next),
+      (ValidByte::Byte(_), next) => ValidByte::alpha_numeric_hyphen(next),
     }
   }
 }
@@ -107,7 +122,7 @@ pub enum ParseIdentifierError {
 
   /// Identifier is too long.
   #[error("identifiers cannot be longer than {}, found {0}", MAX_LEN_IDENTIFIER)]
-  Humungous(usize),
+  Humongous(usize),
 
   /// Identifier is not in a valid format.
   #[error("identifiers can only include lowercase ASCII, hyphens which are not leading or trailing, and a single colon if using a prefix")]
@@ -143,26 +158,26 @@ impl TryFrom<String> for Identifier {
 
     let mut bytes = value.bytes();
     if bytes.len() > MAX_LEN_IDENTIFIER {
-      return Err(Self::Error::Humungous(bytes.len()));
+      return Err(Self::Error::Humongous(bytes.len()));
     }
 
     // grab the first byte only before parsing the rest
     let mut prev = bytes
       .next()
-      .and_then(ValidByte::lower_alpha)
+      .and_then(ValidByte::alpha_numeric)
       .ok_or(Self::Error::InvalidFormat)?;
 
     let mut idx = 0;
-    let mut seperator = None;
+    let mut separator = None;
     for byte in bytes {
       idx += 1; // we already consumed first item
       match prev.next(byte) {
         None => return Err(Self::Error::InvalidFormat),
         Some(next @ ValidByte::Byte(_)) => prev = next,
         Some(ValidByte::Separator) => {
-          if seperator.is_none() {
+          if separator.is_none() {
             // safe to unwrap because idx starts at 1 and cannot go over MAX_IDENTIFIER_LEN
-            seperator = Some(idx.try_into().unwrap());
+            separator = Some(idx.try_into().unwrap());
             prev = ValidByte::Separator
           } else {
             return Err(Self::Error::MultipleSeparators);
@@ -183,7 +198,7 @@ impl TryFrom<String> for Identifier {
 
     Ok(Self {
       inner: value,
-      separator: seperator,
+      separator,
     })
   }
 }
@@ -222,6 +237,8 @@ mod tests {
   #[test]
   fn format() {
     assert!(ident("prefix:base").is_ok());
+    assert!(ident("prefix3:base").is_ok());
+    assert!(ident("preFix:base").is_ok());
 
     // bad
     assert!(ident("tauri-plugin-prefix:base").is_err());
@@ -258,5 +275,21 @@ mod tests {
   fn prefix() {
     assert_eq!(ident("prefix:base").unwrap().get_prefix(), Some("prefix"));
     assert_eq!(ident("base").unwrap().get_prefix(), None);
+  }
+}
+
+#[cfg(feature = "build")]
+mod build {
+  use proc_macro2::TokenStream;
+  use quote::{quote, ToTokens, TokenStreamExt};
+
+  use super::*;
+
+  impl ToTokens for Identifier {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let s = self.get();
+      tokens
+        .append_all(quote! { ::tauri::utils::acl::Identifier::try_from(#s.to_string()).unwrap() })
+    }
   }
 }

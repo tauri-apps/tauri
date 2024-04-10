@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,7 +13,7 @@ use crate::{
 mod desktop_commands {
 
   use serde::Deserialize;
-  use tauri_runtime::window::dpi::{Position, Size};
+  use tauri_runtime::dpi::{Position, Size};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
   use super::*;
@@ -28,7 +28,7 @@ mod desktop_commands {
     #[serde(default)]
     url: WebviewUrl,
     user_agent: Option<String>,
-    file_drop_enabled: Option<bool>,
+    drag_drop_enabled: Option<bool>,
     x: f64,
     y: f64,
     width: f64,
@@ -40,6 +40,8 @@ mod desktop_commands {
     window_effects: Option<WindowEffectsConfig>,
     #[serde(default)]
     incognito: bool,
+    #[serde(default)]
+    zoom_hotkeys_enabled: bool,
   }
 
   #[command(root = "crate")]
@@ -71,17 +73,18 @@ mod desktop_commands {
     let mut builder = crate::webview::WebviewBuilder::new(label, options.url);
 
     builder.webview_attributes.user_agent = options.user_agent;
-    builder.webview_attributes.file_drop_handler_enabled =
-      options.file_drop_enabled.unwrap_or(true);
+    builder.webview_attributes.drag_drop_handler_enabled =
+      options.drag_drop_enabled.unwrap_or(true);
     builder.webview_attributes.transparent = options.transparent;
     builder.webview_attributes.accept_first_mouse = options.accept_first_mouse;
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
+    builder.webview_attributes.zoom_hotkeys_enabled = options.zoom_hotkeys_enabled;
 
     window.add_child(
       builder,
-      tauri_runtime::window::dpi::LogicalPosition::new(options.x, options.y),
-      tauri_runtime::window::dpi::LogicalSize::new(options.width, options.height),
+      tauri_runtime::dpi::LogicalPosition::new(options.x, options.y),
+      tauri_runtime::dpi::LogicalSize::new(options.width, options.height),
     )?;
 
     Ok(())
@@ -144,13 +147,9 @@ mod desktop_commands {
   getter!(
     webview_position,
     position,
-    tauri_runtime::window::dpi::PhysicalPosition<i32>
+    tauri_runtime::dpi::PhysicalPosition<i32>
   );
-  getter!(
-    webview_size,
-    size,
-    tauri_runtime::window::dpi::PhysicalSize<u32>
-  );
+  getter!(webview_size, size, tauri_runtime::dpi::PhysicalSize<u32>);
   //getter!(is_focused, bool);
 
   setter!(print);
@@ -158,6 +157,20 @@ mod desktop_commands {
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
+  setter!(set_webview_zoom, set_zoom, f64);
+
+  #[command(root = "crate")]
+  pub async fn reparent<R: Runtime>(
+    webview: crate::Webview<R>,
+    label: Option<String>,
+    window: String,
+  ) -> crate::Result<()> {
+    let webview = get_webview(webview, label)?;
+    if let Some(window) = webview.manager.get_window(&window) {
+      webview.reparent(&window)?;
+    }
+    Ok(())
+  }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[command(root = "crate")]
@@ -226,7 +239,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
+            desktop_commands::set_webview_zoom,
             desktop_commands::print,
+            desktop_commands::reparent,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
           ]);

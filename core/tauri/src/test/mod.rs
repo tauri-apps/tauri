@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -39,6 +39,7 @@
 //!             cmd: "ping".into(),
 //!             callback: tauri::ipc::CallbackFn(0),
 //!             error: tauri::ipc::CallbackFn(1),
+//!             url: "http://tauri.localhost".parse().unwrap(),
 //!             body: tauri::ipc::InvokeBody::default(),
 //!             headers: Default::default(),
 //!         },
@@ -55,29 +56,29 @@ use serde::Serialize;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
-  ipc::{InvokeBody, InvokeError, InvokeResponse},
+  ipc::{InvokeBody, InvokeError, InvokeResponse, RuntimeAuthority},
   webview::InvokeRequest,
-  App, Builder, Context, Pattern, Webview,
+  App, Assets, Builder, Context, Pattern, Runtime, Webview,
 };
 use tauri_utils::{
   acl::resolved::Resolved,
-  assets::{AssetKey, Assets, CspHash},
+  assets::{AssetKey, CspHash},
   config::{AppConfig, Config},
 };
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
-  assets: HashMap<&'static str, &'static [u8]>,
+  assets: HashMap<String, Vec<u8>>,
   csp_hashes: Vec<CspHash<'static>>,
 }
 
-impl Assets for NoopAsset {
+impl<R: Runtime> Assets<R> for NoopAsset {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     None
   }
 
-  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
-    Box::new(self.assets.iter())
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+    Box::new(self.assets.iter().map(|(k, b)| (k.as_str(), b.as_slice())))
   }
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
@@ -94,7 +95,7 @@ pub fn noop_assets() -> NoopAsset {
 }
 
 /// Creates a new [`crate::Context`] for testing.
-pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
+pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
   Context {
     config: Config {
       schema: None,
@@ -125,15 +126,9 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       crate_name: "test",
     },
     _info_plist: (),
-    pattern: Pattern::Brownfield(std::marker::PhantomData),
-    resolved_acl: Resolved {
-      #[cfg(debug_assertions)]
-      acl: Default::default(),
-      allowed_commands: Default::default(),
-      denied_commands: Default::default(),
-      command_scope: Default::default(),
-      global_scope: Default::default(),
-    },
+    pattern: Pattern::Brownfield,
+    runtime_authority: RuntimeAuthority::new(Default::default(), Resolved::default()),
+    plugin_global_api_scripts: None,
   }
 }
 
@@ -192,6 +187,7 @@ pub fn mock_app() -> App<MockRuntime> {
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
+///             url: "http://tauri.localhost".parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///         },
@@ -248,6 +244,7 @@ pub fn assert_ipc_response<
 ///             cmd: "ping".into(),
 ///             callback: tauri::ipc::CallbackFn(0),
 ///             error: tauri::ipc::CallbackFn(1),
+///             url: "http://tauri.localhost".parse().unwrap(),
 ///             body: tauri::ipc::InvokeBody::default(),
 ///             headers: Default::default(),
 ///         },

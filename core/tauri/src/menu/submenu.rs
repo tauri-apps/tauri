@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -32,7 +32,7 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
     window: crate::Window<T>,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(Into::into).map(super::into_position);
+    let position = position.map(Into::into);
     run_item_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
@@ -191,7 +191,7 @@ impl<R: Runtime> Submenu<R> {
     self.insert_items(items, 0)
   }
 
-  /// Insert a menu item at the specified `postion` in this submenu.
+  /// Insert a menu item at the specified `position` in this submenu.
   pub fn insert(&self, item: &dyn IsMenuItem<R>, position: usize) -> crate::Result<()> {
     let kind = item.kind();
     run_item_main_thread!(self, |self_: Self| {
@@ -202,7 +202,7 @@ impl<R: Runtime> Submenu<R> {
     .map_err(Into::into)
   }
 
-  /// Insert menu items at the specified `postion` in this submenu.
+  /// Insert menu items at the specified `position` in this submenu.
   pub fn insert_items(&self, items: &[&dyn IsMenuItem<R>], position: usize) -> crate::Result<()> {
     for (i, item) in items.iter().enumerate() {
       self.insert(*item, position + i)?
@@ -260,7 +260,7 @@ impl<R: Runtime> Submenu<R> {
 
   /// Set the text for this submenu. `text` could optionally contain
   /// an `&` before a character to assign this character as the mnemonic
-  /// for this submenu. To display a `&` without assigning a mnemenonic, use `&&`.
+  /// for this submenu. To display a `&` without assigning a mnemonic, use `&&`.
   pub fn set_text<S: AsRef<str>>(&self, text: S) -> crate::Result<()> {
     let text = text.as_ref().to_string();
     run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_text(text))

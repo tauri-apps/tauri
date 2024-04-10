@@ -1,5 +1,80 @@
 # Changelog
 
+## \[2.0.1-beta.8]
+
+### New Features
+
+- [`259d84529`](https://www.github.com/tauri-apps/tauri/commit/259d845290dde40639537258b2810567910f47f3)([#9209](https://www.github.com/tauri-apps/tauri/pull/9209)) Add suport for include `preinstall`, `postinstall`, `preremove` and `postremove` scripts into Debian and RPM packages.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
+## \[2.0.1-beta.7]
+
+### Bug Fixes
+
+- [`a799f24f9`](https://www.github.com/tauri-apps/tauri/commit/a799f24f97e12c3f3fcdd1864fdd7c6559263fb7)([#9185](https://www.github.com/tauri-apps/tauri/pull/9185)) Fixed an issue that caused the msi bundler to crash when deep link schemes were configured.
+
+## \[2.0.1-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+
+## \[2.0.1-beta.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.1-beta.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+
+## \[2.0.1-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+
+## \[2.0.1-beta.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+
+## \[2.0.1-beta.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+
+## \[2.0.1-beta.0]
+
+### Bug Fixes
+
+- [`84c783f6`](https://www.github.com/tauri-apps/tauri/commit/84c783f6bc46827032666b0cba100ed37560240c)([#8948](https://www.github.com/tauri-apps/tauri/pull/8948)) Fix NSIS installer always containing a license page even though `licenseFile` option is not set in the config.
+- [`84c783f6`](https://www.github.com/tauri-apps/tauri/commit/84c783f6bc46827032666b0cba100ed37560240c)([#8948](https://www.github.com/tauri-apps/tauri/pull/8948)) Don't fallback to `licenseFile` and use only `license` field when building RPM.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies
@@ -139,6 +214,36 @@
 
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.0]
+
+### New Features
+
+- [`7aa30dec`](https://www.github.com/tauri-apps/tauri/commit/7aa30dec85a17c3d3faaf3841b93e10991b991b0)([#8620](https://www.github.com/tauri-apps/tauri/pull/8620)) Add `priority`, `section` and `changelog` options in Debian config.
+- [`89911296`](https://www.github.com/tauri-apps/tauri/commit/89911296e475d5c36f3486b9b75232505846e767)([#8259](https://www.github.com/tauri-apps/tauri/pull/8259)) On macOS, support for signing nested .dylib, .app, .xpc and .framework under predefined directories inside the bundled frameworks ("MacOS", "Frameworks", "Plugins", "Helpers", "XPCServices" and "Libraries").
+- [`8ce51cec`](https://www.github.com/tauri-apps/tauri/commit/8ce51cec3baf4ed88d80c59bf3bbe96fd369c7a0)([#7718](https://www.github.com/tauri-apps/tauri/pull/7718)) On Windows, NSIS installer now supports `/ARGS` flag to pass arguments to be used when launching the app after installation, only works if `/R` is used.
+
+### Enhancements
+
+- [`06890c70`](https://www.github.com/tauri-apps/tauri/commit/06890c70c643516b4e8037af87c8ee9103b977fa)([#8611](https://www.github.com/tauri-apps/tauri/pull/8611)) Support using socks proxy from environment when downloading files.
+
+### Bug Fixes
+
+- [`6bdba1f3`](https://www.github.com/tauri-apps/tauri/commit/6bdba1f330bedb5cdeda49eca1e295f281eb82eb)([#8585](https://www.github.com/tauri-apps/tauri/pull/8585)) Fix the `non-standard-file-perm` and `non-standard-dir-perm` issue in Debian packages
+
+### Dependencies
+
+- [`49266487`](https://www.github.com/tauri-apps/tauri/commit/4926648751ddbf764b8ffc46f3adc218afb2d472)([#8618](https://www.github.com/tauri-apps/tauri/pull/8618)) Replace `libflate` with `flate2` , this will help to provide additional functionalities and features.
+
+## \[1.4.8]
+
+### Enhancements
+
+- [`b44e9c0f`](https://www.github.com/tauri-apps/tauri/commit/b44e9c0fcbb3f6994e38b8ef1ae18515db18ba7d)([#8431](https://www.github.com/tauri-apps/tauri/pull/8431)) Check if required files/tools for bundling are outdated or mis-hashed and redownload them.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
 
 ## \[1.4.7]
 

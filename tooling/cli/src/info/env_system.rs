@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -43,6 +43,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "Microsoft.VisualStudio.Component.Windows10SDK.*",
       "-format",
       "json",
+      "-utf8",
     ])
     .output()?;
 
@@ -57,6 +58,7 @@ fn build_tools_version() -> crate::Result<Vec<String>> {
       "Microsoft.VisualStudio.Component.Windows11SDK.*",
       "-format",
       "json",
+      "-utf8",
     ])
     .output()?;
 

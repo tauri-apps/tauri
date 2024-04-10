@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -16,7 +16,6 @@ use crate::{
 
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
-use log::{error, info, warn};
 use shared_child::SharedChild;
 use tauri_utils::platform::Target;
 
@@ -29,6 +28,8 @@ use std::{
     Arc, Mutex, OnceLock,
   },
 };
+
+mod builtin_dev_server;
 
 static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
@@ -214,7 +215,7 @@ pub fn setup(
           );
         }
       }
-      info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
+      log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
       env.extend(interface.env());
 
@@ -270,7 +271,7 @@ pub fn setup(
             .wait()
             .expect("failed to wait on \"beforeDevCommand\"");
           if !(status.success() || KILL_BEFORE_DEV_FLAG.get().unwrap().load(Ordering::Relaxed)) {
-            error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
+            log::error!("The \"beforeDevCommand\" terminated with a non-zero status code.");
             exit(status.code().unwrap_or(1));
           }
         });
@@ -328,7 +329,6 @@ pub fn setup(
     .clone();
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
-      use crate::helpers::web_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
         let ip = if mobile {
@@ -336,7 +336,7 @@ pub fn setup(
         } else {
           Ipv4Addr::new(127, 0, 0, 1).into()
         };
-        let server_url = web_dev_server::start(path, ip, options.port)?;
+        let server_url = builtin_dev_server::start(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 
@@ -401,11 +401,11 @@ pub fn setup(
         }
 
         if i % 3 == 1 {
-          warn!("Waiting for your frontend dev server to start on {url}...",);
+          log::warn!("Waiting for your frontend dev server to start on {url}...",);
         }
         i += 1;
         if i == max_attempts {
-          error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
+          log::error!("Could not connect to `{url}` after {}s. Please make sure that is the URL to your dev server.", i * sleep_interval.as_secs());
           exit(1);
         }
         std::thread::sleep(sleep_interval);

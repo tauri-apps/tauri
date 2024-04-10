@@ -1,5 +1,5 @@
 // Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -7,7 +7,6 @@
 
 pub(crate) mod plugin;
 
-use crate::error::Error;
 use std::{
   any::{type_name, Any, TypeId},
   borrow::Cow,
@@ -75,10 +74,15 @@ pub type ResourceId = u32;
 #[derive(Default)]
 pub struct ResourceTable {
   index: BTreeMap<ResourceId, Arc<dyn Resource>>,
-  next_rid: ResourceId,
 }
 
 impl ResourceTable {
+  fn new_random_rid() -> u32 {
+    let mut bytes = [0_u8; 4];
+    getrandom::getrandom(&mut bytes).expect("failed to get random bytes");
+    u32::from_ne_bytes(bytes)
+  }
+
   /// Inserts resource into the resource table, which takes ownership of it.
   ///
   /// The resource type is erased at runtime and must be statically known
@@ -107,10 +111,9 @@ impl ResourceTable {
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
   pub fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
-    let rid = self.next_rid;
+    let rid = Self::new_random_rid();
     let removed_resource = self.index.insert(rid, resource);
     assert!(removed_resource.is_none());
-    self.next_rid += 1;
     rid
   }
 
@@ -121,24 +124,24 @@ impl ResourceTable {
 
   /// Returns a reference counted pointer to the resource of type `T` with the
   /// given `rid`. If `rid` is not present or has a type different than `T`,
-  /// this function returns [`Error::BadResourceId`].
-  pub fn get<T: Resource>(&self, rid: ResourceId) -> Result<Arc<T>, Error> {
+  /// this function returns [`Error::BadResourceId`](crate::Error::BadResourceId).
+  pub fn get<T: Resource>(&self, rid: ResourceId) -> crate::Result<Arc<T>> {
     self
       .index
       .get(&rid)
       .and_then(|rc| rc.downcast_arc::<T>())
-      .map(Clone::clone)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .cloned()
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
   /// Returns a reference counted pointer to the resource of the given `rid`.
   /// If `rid` is not present, this function returns [`Error::BadResourceId`].
-  pub fn get_any(&self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+  pub fn get_any(&self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
       .get(&rid)
-      .map(Clone::clone)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
+      .cloned()
   }
 
   /// Replaces a resource with a new resource.
@@ -161,7 +164,7 @@ impl ResourceTable {
   /// assume that `Arc::strong_count(&returned_arc)` is always equal to 1 on success.
   /// In particular, be really careful when you want to extract the inner value of
   /// type `T` from `Arc<T>`.
-  pub fn take<T: Resource>(&mut self, rid: ResourceId) -> Result<Arc<T>, Error> {
+  pub fn take<T: Resource>(&mut self, rid: ResourceId) -> crate::Result<Arc<T>> {
     let resource = self.get::<T>(rid)?;
     self.index.remove(&rid);
     Ok(resource)
@@ -175,11 +178,11 @@ impl ResourceTable {
   /// we cannot assume that `Arc::strong_count(&returned_arc)` is always equal to 1
   /// on success. In particular, be really careful when you want to extract the
   /// inner value of type `T` from `Arc<T>`.
-  pub fn take_any(&mut self, rid: ResourceId) -> Result<Arc<dyn Resource>, Error> {
+  pub fn take_any(&mut self, rid: ResourceId) -> crate::Result<Arc<dyn Resource>> {
     self
       .index
       .remove(&rid)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
   }
 
   /// Returns an iterator that yields a `(id, name)` pair for every resource
@@ -199,17 +202,11 @@ impl ResourceTable {
   /// counted, therefore pending ops are not automatically cancelled. A resource
   /// may implement the `close()` method to perform clean-ups such as canceling
   /// ops.
-  pub fn close(&mut self, rid: ResourceId) -> Result<(), Error> {
+  pub fn close(&mut self, rid: ResourceId) -> crate::Result<()> {
     self
       .index
       .remove(&rid)
-      .ok_or_else(|| Error::BadResourceId(rid))
+      .ok_or_else(|| crate::Error::BadResourceId(rid))
       .map(|resource| resource.close())
-  }
-
-  /// Removes and frees all resources stored. Note that the
-  /// resource's `close()` method is *not* called.
-  pub(crate) fn clear(&mut self) {
-    self.index.clear()
   }
 }

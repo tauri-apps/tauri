@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -23,8 +23,6 @@ use crate::config::{DisabledCspModificationKind, PatternKind};
 #[cfg(feature = "isolation")]
 use crate::pattern::isolation::IsolationJavascriptCodegen;
 
-/// The token used on the CSP tag content.
-pub const CSP_TOKEN: &str = "__TAURI_CSP__";
 /// The token used for script nonces.
 pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
 /// The token used for style nonces.
@@ -133,8 +131,8 @@ fn with_head<F: FnOnce(&NodeRef)>(document: &NodeRef, f: F) {
 }
 
 fn inject_nonce(document: &NodeRef, selector: &str, token: &str) {
-  if let Ok(scripts) = document.select(selector) {
-    for target in scripts {
+  if let Ok(elements) = document.select(selector) {
+    for target in elements {
       let node = target.as_node();
       let element = node.as_element().unwrap();
 
@@ -166,11 +164,6 @@ pub fn inject_csp(document: &NodeRef, csp: &str) {
   with_head(document, |head| {
     head.append(create_csp_meta_tag(csp));
   });
-}
-
-/// Injects a content security policy token to the HTML.
-pub fn inject_csp_token(document: &NodeRef) {
-  inject_csp(document, CSP_TOKEN)
 }
 
 fn create_csp_meta_tag(csp: &str) -> NodeRef {
@@ -241,7 +234,16 @@ impl Default for IsolationSide {
 #[cfg(feature = "isolation")]
 pub fn inject_codegen_isolation_script(document: &NodeRef) {
   with_head(document, |head| {
-    let script = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
+    let script = NodeRef::new_element(
+      QualName::new(None, ns!(html), "script".into()),
+      vec![(
+        ExpandedName::new(ns!(), LocalName::from("nonce")),
+        Attribute {
+          prefix: None,
+          value: SCRIPT_NONCE_TOKEN.into(),
+        },
+      )],
+    );
     script.append(NodeRef::new_text(
       IsolationJavascriptCodegen {}
         .render_default(&Default::default())
@@ -298,12 +300,12 @@ mod tests {
     ];
     for html in htmls {
       let document = kuchiki::parse_html().one(html);
-      super::inject_csp_token(&document);
+      let csp = "csp-string";
+      super::inject_csp(&document, csp);
       assert_eq!(
         document.to_string(),
         format!(
-          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{}"></head><body></body></html>"#,
-          super::CSP_TOKEN
+          r#"<html><head><meta http-equiv="Content-Security-Policy" content="{csp}"></head><body></body></html>"#,
         )
       );
     }

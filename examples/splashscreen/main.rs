@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -78,7 +78,7 @@ mod ui {
   }
 }
 
-fn context() -> tauri::Context<tauri::utils::assets::EmbeddedAssets> {
+fn context() -> tauri::Context {
   tauri::generate_context!("../../examples/splashscreen/tauri.conf.json")
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -183,12 +183,12 @@ fn insert_into_xml(xml: &str, block_identifier: &str, parent_tag: &str, contents
     }
 
     if let Some(index) = line.find(&parent_closing_tag) {
-      let identation = " ".repeat(index + 4);
-      rewritten.push(format!("{}{}", identation, block_comment));
+      let indentation = " ".repeat(index + 4);
+      rewritten.push(format!("{}{}", indentation, block_comment));
       for l in contents.split('\n') {
-        rewritten.push(format!("{}{}", identation, l));
+        rewritten.push(format!("{}{}", indentation, l));
       }
-      rewritten.push(format!("{}{}", identation, block_comment));
+      rewritten.push(format!("{}{}", indentation, block_comment));
     }
 
     rewritten.push(line.to_string());

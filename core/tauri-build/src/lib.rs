@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -15,15 +15,15 @@
 use anyhow::Context;
 pub use anyhow::Result;
 use cargo_toml::Manifest;
-use heck::AsShoutySnakeCase;
 
 use tauri_utils::{
-  acl::build::parse_capabilities,
+  acl::{build::parse_capabilities, APP_ACL_KEY},
   config::{BundleResources, Config, WebviewInstallMode},
   resources::{external_binaries, ResourcePaths},
 };
 
 use std::{
+  collections::HashMap,
   env::var_os,
   fs::copy,
   path::{Path, PathBuf},
@@ -40,7 +40,9 @@ mod static_vcruntime;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
-const PLUGIN_MANIFESTS_FILE_NAME: &str = "plugin-manifests.json";
+pub use acl::{AppManifest, InlinedPlugin};
+
+const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
@@ -206,15 +208,6 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
   Ok(())
 }
 
-// checks if the given Cargo feature is enabled.
-fn has_feature(feature: &str) -> bool {
-  // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name` env var to 1
-  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
-  std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
-    .map(|x| x == "1")
-    .unwrap_or(false)
-}
-
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
@@ -301,7 +294,7 @@ impl WindowsAttributes {
   /// # Example
   ///
   /// The following manifest will brand the exe as requesting administrator privileges.
-  /// Thus, everytime it is executed, a Windows UAC dialog will appear.
+  /// Thus, every time it is executed, a Windows UAC dialog will appear.
   ///
   /// ```rust,no_run
   /// let mut windows = tauri_build::WindowsAttributes::new();
@@ -339,6 +332,8 @@ pub struct Attributes {
   capabilities_path_pattern: Option<&'static str>,
   #[cfg(feature = "codegen")]
   codegen: Option<codegen::context::CodegenContext>,
+  inlined_plugins: HashMap<&'static str, InlinedPlugin>,
+  app_manifest: AppManifest,
 }
 
 impl Attributes {
@@ -365,6 +360,22 @@ impl Attributes {
     self
   }
 
+  /// Adds the given plugin to the list of inlined plugins (a plugin that is part of your application).
+  ///
+  /// See [`InlinedPlugin`] for more information.
+  pub fn plugin(mut self, name: &'static str, plugin: InlinedPlugin) -> Self {
+    self.inlined_plugins.insert(name, plugin);
+    self
+  }
+
+  /// Sets the application manifest for the Access Control List.
+  ///
+  /// See [`AppManifest`] for more information.
+  pub fn app_manifest(mut self, manifest: AppManifest) -> Self {
+    self.app_manifest = manifest;
+    self
+  }
+
   #[cfg(feature = "codegen")]
   #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
   #[must_use]
@@ -372,6 +383,12 @@ impl Attributes {
     self.codegen.replace(codegen);
     self
   }
+}
+
+pub fn dev() -> bool {
+  std::env::var("DEP_TAURI_DEV")
+    .expect("missing `cargo:dev` instruction, please update tauri to latest")
+    == "true"
 }
 
 /// Run all build time helpers for your Tauri Application.
@@ -454,7 +471,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     mobile::generate_gradle_files(project_dir)?;
   }
 
-  cfg_alias("dev", !has_feature("custom-protocol"));
+  cfg_alias("dev", dev());
 
   let ws_path = get_workspace_dir()?;
   let mut manifest =
@@ -473,24 +490,41 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
-  let plugin_manifests = acl::get_plugin_manifests()?;
-  std::fs::write(
-    out_dir.join(PLUGIN_MANIFESTS_FILE_NAME),
-    serde_json::to_string(&plugin_manifests)?,
+
+  let mut acl_manifests = acl::get_manifests_from_plugins()?;
+  let app_manifest = acl::app_manifest_permissions(
+    &out_dir,
+    attributes.app_manifest,
+    &attributes.inlined_plugins,
   )?;
+  if app_manifest.default_permission.is_some()
+    || !app_manifest.permission_sets.is_empty()
+    || !app_manifest.permissions.is_empty()
+  {
+    acl_manifests.insert(APP_ACL_KEY.into(), app_manifest);
+  }
+  acl_manifests.extend(acl::inline_plugins(&out_dir, attributes.inlined_plugins)?);
+
+  std::fs::write(
+    out_dir.join(ACL_MANIFESTS_FILE_NAME),
+    serde_json::to_string(&acl_manifests)?,
+  )?;
+
   let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
     parse_capabilities(pattern)?
   } else {
     println!("cargo:rerun-if-changed=capabilities");
     parse_capabilities("./capabilities/**/*")?
   };
-  acl::generate_schema(&plugin_manifests, target)?;
-  acl::validate_capabilities(&plugin_manifests, &capabilities)?;
+  acl::generate_schema(&acl_manifests, target)?;
+  acl::validate_capabilities(&acl_manifests, &capabilities)?;
 
   let capabilities_path = acl::save_capabilities(&capabilities)?;
   copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
-  acl::save_plugin_manifests(&plugin_manifests)?;
+  acl::save_acl_manifests(&acl_manifests)?;
+
+  tauri_utils::plugin::load_global_api_scripts(&out_dir);
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 

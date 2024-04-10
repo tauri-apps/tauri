@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -27,7 +27,7 @@ use std::{
   path::{Path, PathBuf},
 };
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/android");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/android");
 
 pub fn gen(
   config: &Config,
@@ -211,7 +211,9 @@ fn generate_out_file(
     options.mode(0o755);
   }
 
-  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") || !path.exists() {
+  if path.file_name().unwrap() == OsStr::new("BuildTask.kt") {
+    options.truncate(true).create(true).open(path).map(Some)
+  } else if !path.exists() {
     options.create(true).open(path).map(Some)
   } else {
     Ok(None)

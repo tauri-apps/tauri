@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -12,20 +12,29 @@ use std::{
 
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-use tauri_runtime::webview::{DetachedWebview, PendingWebview};
+use tauri_runtime::{
+  webview::{DetachedWebview, PendingWebview},
+  window::DragDropEvent,
+};
 use tauri_utils::config::WebviewUrl;
 use url::Url;
 
 use crate::{
-  app::{OnPageLoad, UriSchemeResponder},
+  app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
   ipc::{InvokeHandler, InvokeResponder},
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, Manager, Runtime, Webview, Window,
+  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
 };
 
-use super::AppManager;
+use super::{
+  window::{
+    DragDropPayload, DragOverPayload, DRAG_EVENT, DROP_CANCELLED_EVENT, DROP_EVENT,
+    DROP_HOVER_EVENT,
+  },
+  AppManager,
+};
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
 // and we do not get a secure context without the custom protocol that proxies to the dev server
@@ -73,6 +82,8 @@ pub struct WebviewManager<R: Runtime> {
   pub on_page_load: Option<Arc<OnPageLoad<R>>>,
   /// The webview protocols available to all webviews.
   pub uri_scheme_protocols: Mutex<HashMap<String, Arc<UriSchemeProtocol<R>>>>,
+  /// Webview event listeners to all webviews.
+  pub event_listeners: Arc<Vec<GlobalWebviewEventListener<R>>>,
 
   /// Responder for invoke calls.
   pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
@@ -200,6 +211,12 @@ impl<R: Runtime> WebviewManager<R> {
       );
     }
 
+    if let Some(plugin_global_api_scripts) = &*app_manager.plugin_global_api_scripts {
+      for script in plugin_global_api_scripts.iter() {
+        webview_attributes = webview_attributes.initialization_script(script);
+      }
+    }
+
     pending.webview_attributes = webview_attributes;
 
     let mut registered_scheme_protocols = Vec::new();
@@ -305,7 +322,12 @@ impl<R: Runtime> WebviewManager<R> {
       crypto_keys,
     } = &*app_manager.pattern
     {
-      let protocol = crate::protocol::isolation::get(assets.clone(), *crypto_keys.aes_gcm().raw());
+      let protocol = crate::protocol::isolation::get(
+        manager.manager_owned(),
+        schema,
+        assets.clone(),
+        *crypto_keys.aes_gcm().raw(),
+      );
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });
@@ -488,12 +510,9 @@ impl<R: Runtime> WebviewManager<R> {
       manager,
     )?;
 
-    #[cfg(any(target_os = "macos", target_os = "ios", not(ipc_custom_protocol)))]
-    {
-      pending.ipc_handler = Some(crate::ipc::protocol::message_handler(
-        manager.manager_owned(),
-      ));
-    }
+    pending.ipc_handler = Some(crate::ipc::protocol::message_handler(
+      manager.manager_owned(),
+    ));
 
     // in `windows`, we need to force a data_directory
     // but we do respect user-specification
@@ -513,6 +532,23 @@ impl<R: Runtime> WebviewManager<R> {
       if !user_data_dir.exists() {
         create_dir_all(user_data_dir)?;
       }
+    }
+
+    #[cfg(all(desktop, not(target_os = "windows")))]
+    if pending.webview_attributes.zoom_hotkeys_enabled {
+      #[derive(Template)]
+      #[default_template("../webview/scripts/zoom-hotkey.js")]
+      struct HotkeyZoom<'a> {
+        os_name: &'a str,
+      }
+
+      pending.webview_attributes.initialization_scripts.push(
+        HotkeyZoom {
+          os_name: std::env::consts::OS,
+        }
+        .render_default(&Default::default())?
+        .into_string(),
+      )
     }
 
     #[cfg(feature = "isolation")]
@@ -557,6 +593,15 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> Webview<R> {
     let webview = Webview::new(window, webview);
 
+    let webview_event_listeners = self.event_listeners.clone();
+    let webview_ = webview.clone();
+    webview.on_webview_event(move |event| {
+      let _ = on_webview_event(&webview_, event);
+      for handler in webview_event_listeners.iter() {
+        handler(&webview_, event);
+      }
+    });
+
     // insert the webview into our manager
     {
       self
@@ -585,6 +630,19 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("failed to run on_webview_created hook");
     }
 
+    if let Ok(webview_labels_array) = serde_json::to_string(&webview.manager.webview.labels()) {
+      let _ = webview.manager.webview.eval_script_all(format!(
+      "window.__TAURI_INTERNALS__.metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+    ));
+    }
+
+    let _ = webview.manager.emit(
+      "tauri://webview-created",
+      Some(crate::webview::CreatedEvent {
+        label: webview.label().into(),
+      }),
+    );
+
     webview
   }
 
@@ -599,4 +657,48 @@ impl<R: Runtime> WebviewManager<R> {
   pub fn labels(&self) -> HashSet<String> {
     self.webviews_lock().keys().cloned().collect()
   }
+}
+
+impl<R: Runtime> Webview<R> {
+  /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
+  fn emit_to_webview<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    let window_label = self.label();
+    self.emit_filter(event, payload, |target| match target {
+      EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
+        label == window_label
+      }
+      _ => false,
+    })
+  }
+}
+
+fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> crate::Result<()> {
+  match event {
+    WebviewEvent::DragDrop(event) => match event {
+      DragDropEvent::Dragged { paths, position } => {
+        let payload = DragDropPayload { paths, position };
+        webview.emit_to_webview(DRAG_EVENT, payload)?
+      }
+      DragDropEvent::DragOver { position } => {
+        let payload = DragOverPayload { position };
+        webview.emit_to_webview(DROP_HOVER_EVENT, payload)?
+      }
+      DragDropEvent::Dropped { paths, position } => {
+        let scopes = webview.state::<Scopes>();
+        for path in paths {
+          if path.is_file() {
+            let _ = scopes.allow_file(path);
+          } else {
+            let _ = scopes.allow_directory(path, false);
+          }
+        }
+        let payload = DragDropPayload { paths, position };
+        webview.emit_to_webview(DROP_EVENT, payload)?
+      }
+      DragDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
+      _ => unimplemented!(),
+    },
+  }
+
+  Ok(())
 }

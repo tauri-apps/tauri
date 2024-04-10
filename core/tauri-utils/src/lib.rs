@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -22,8 +22,6 @@ use std::{
 use semver::Version;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use log::warn;
-
 pub mod acl;
 pub mod assets;
 pub mod config;
@@ -31,6 +29,7 @@ pub mod html;
 pub mod io;
 pub mod mime_type;
 pub mod platform;
+pub mod plugin;
 /// Prepare application resources and sidecars.
 #[cfg(feature = "resources")]
 pub mod resources;
@@ -320,7 +319,7 @@ impl Default for Env {
           .unwrap_or(true);
 
         if !is_temp {
-          warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
+          log::warn!("`APPDIR` or `APPIMAGE` environment variable found but this application was not detected as an AppImage; this might be a security issue.");
         }
       }
       env
@@ -388,65 +387,9 @@ pub enum Error {
   NotAllowedToWalkDir(std::path::PathBuf),
 }
 
-/// Suppresses the unused-variable warnings of the given inputs.
-///
-/// This does not move any values. Instead, it just suppresses the warning by taking a
-/// reference to the value.
-#[macro_export]
-macro_rules! consume_unused_variable {
-  ($($arg:expr),*) => {
-    $(
-      let _ = &$arg;
-    )*
-    ()
-  };
-}
-
-/// Prints to the standard error, with a newline.
-///
-/// Equivalent to the [`eprintln!`] macro, except that it's only effective for debug builds.
-#[macro_export]
-macro_rules! debug_eprintln {
-  () => ($crate::debug_eprintln!(""));
-  ($($arg:tt)*) => {
-    #[cfg(debug_assertions)]
-    eprintln!($($arg)*);
-    #[cfg(not(debug_assertions))]
-    $crate::consume_unused_variable!($($arg)*);
-  };
-}
-
 /// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.
 pub fn display_path<P: AsRef<Path>>(p: P) -> String {
   dunce::simplified(&p.as_ref().components().collect::<PathBuf>())
     .display()
     .to_string()
-}
-
-/// Progress bar status.
-#[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum ProgressBarStatus {
-  /// Hide progress bar.
-  None,
-  /// Normal state.
-  Normal,
-  /// Indeterminate state. **Treated as Normal on Linux and macOS**
-  Indeterminate,
-  /// Paused state. **Treated as Normal on Linux**
-  Paused,
-  /// Error state. **Treated as Normal on Linux**
-  Error,
-}
-
-/// Progress Bar State
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ProgressBarState {
-  /// The progress bar status.
-  pub status: Option<ProgressBarStatus>,
-  /// The progress bar progress. This can be a value ranging from `0` to `100`
-  pub progress: Option<u64>,
-  /// The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
-  pub unity_uri: Option<String>,
 }

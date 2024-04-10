@@ -1,0 +1,44 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: supply chain health status
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - dev
+      - 1.x
+    paths:
+      - '.github/workflows/supply-chain.yml'
+      - '**/Cargo.lock'
+      - '**/Cargo.toml'
+jobs:
+  cargo-vet:
+    name: check rust dependencies with cargo vet
+    runs-on: ubuntu-latest
+    env:
+      CARGO_VET_VERSION: 0.9.1
+    steps:
+      - uses: actions/checkout@master
+      - name: Install Rust
+        run: rustup update stable && rustup default stable
+
+      - uses: actions/cache@v2
+        with:
+          path: ${{ runner.tool_cache }}/cargo-vet
+          key: cargo-vet-bin-${{ env.CARGO_VET_VERSION }}
+
+      - name: Add the tool cache directory to the search path
+        run: echo "${{ runner.tool_cache }}/cargo-vet/bin" >> $GITHUB_PATH
+
+      - name: Ensure that the tool cache is populated with the cargo-vet binary
+        run: cargo install --root ${{ runner.tool_cache }}/cargo-vet --version ${{ env.CARGO_VET_VERSION }} cargo-vet
+
+      - name: Invoke cargo-vet
+        run: cargo vet --locked
+
+      - name: Provide audit suggestions
+        run: cargo vet --locked suggestions

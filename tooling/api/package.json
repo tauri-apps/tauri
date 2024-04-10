@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-beta.0",
+  "version": "2.0.0-beta.7",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -44,22 +44,22 @@
   },
   "devDependencies": {
     "@rollup/plugin-terser": "0.4.4",
-    "@rollup/plugin-typescript": "11.1.5",
-    "@types/node": "20.9.0",
-    "@typescript-eslint/eslint-plugin": "6.10.0",
-    "@typescript-eslint/parser": "6.10.0",
-    "eslint": "8.53.0",
-    "eslint-config-prettier": "9.0.0",
-    "eslint-plugin-import": "2.29.0",
-    "eslint-plugin-n": "16.3.0",
+    "@rollup/plugin-typescript": "11.1.6",
+    "@types/node": "20.11.24",
+    "@typescript-eslint/eslint-plugin": "6.21.0",
+    "@typescript-eslint/parser": "6.21.0",
+    "eslint": "8.57.0",
+    "eslint-config-prettier": "9.1.0",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-n": "16.6.2",
     "eslint-plugin-node": "11.1.0",
     "eslint-plugin-promise": "6.1.1",
-    "eslint-plugin-security": "2.1.0",
+    "eslint-plugin-security": "2.1.1",
     "fast-glob": "3.3.2",
-    "prettier": "3.0.3",
-    "rollup": "4.3.0",
+    "prettier": "3.2.5",
+    "rollup": "4.12.1",
     "tslib": "2.6.2",
-    "typescript": "5.2.2"
+    "typescript": "5.3.3"
   },
   "engines": {
     "node": ">= 18",

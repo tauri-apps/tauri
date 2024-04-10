@@ -1,21 +1,48 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::Assets;
 use http::header::CONTENT_TYPE;
 use serialize_to_javascript::Template;
-use tauri_utils::assets::{Assets, EmbeddedAssets};
+use tauri_utils::{assets::EmbeddedAssets, config::Csp};
 
 use std::sync::Arc;
 
-use crate::{manager::webview::PROCESS_IPC_MESSAGE_FN, webview::UriSchemeProtocolHandler};
+use crate::{
+  manager::{set_csp, webview::PROCESS_IPC_MESSAGE_FN, AppManager},
+  webview::UriSchemeProtocolHandler,
+  Runtime,
+};
 
-pub fn get(assets: Arc<EmbeddedAssets>, aes_gcm_key: [u8; 32]) -> UriSchemeProtocolHandler {
+pub fn get<R: Runtime>(
+  manager: Arc<AppManager<R>>,
+  schema: &str,
+  assets: Arc<EmbeddedAssets>,
+  aes_gcm_key: [u8; 32],
+) -> UriSchemeProtocolHandler {
+  let frame_src = if cfg!(any(windows, target_os = "android")) {
+    format!("http://{schema}.localhost")
+  } else {
+    format!("{schema}:")
+  };
+
+  let assets = assets as Arc<dyn Assets<R>>;
+
   Box::new(move |request, responder| {
     let response = match request_to_path(&request).as_str() {
       "index.html" => match assets.get(&"index.html".into()) {
         Some(asset) => {
-          let asset = String::from_utf8_lossy(asset.as_ref());
+          let mut asset = String::from_utf8_lossy(asset.as_ref()).into_owned();
+          let csp_map = set_csp(
+            &mut asset,
+            &assets,
+            &"index.html".into(),
+            &manager,
+            Csp::Policy(format!("default-src 'none'; frame-src {}", frame_src)),
+          );
+          let csp = Csp::DirectiveMap(csp_map).to_string();
+
           let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
             runtime_aes_gcm_key: &aes_gcm_key,
             process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
@@ -23,6 +50,7 @@ pub fn get(assets: Arc<EmbeddedAssets>, aes_gcm_key: [u8; 32]) -> UriSchemeProto
           match template.render(asset.as_ref(), &Default::default()) {
             Ok(asset) => http::Response::builder()
               .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
+              .header("Content-Security-Policy", csp)
               .body(asset.into_string().as_bytes().to_vec()),
             Err(_) => http::Response::builder()
               .status(http::StatusCode::INTERNAL_SERVER_ERROR)

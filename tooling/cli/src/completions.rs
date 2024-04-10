@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,6 @@ use crate::Result;
 use anyhow::Context;
 use clap::{Command, Parser};
 use clap_complete::{generate, Shell};
-use log::info;
 
 use std::{fs::write, path::PathBuf};
 
@@ -86,7 +85,7 @@ fn get_completions(shell: Shell, cmd: Command) -> Result<String> {
 }
 
 pub fn command(options: Options, cmd: Command) -> Result<()> {
-  info!("Generating completion file for {}...", options.shell);
+  log::info!("Generating completion file for {}...", options.shell);
 
   let completions = get_completions(options.shell, cmd)?;
   if let Some(output) = options.output {

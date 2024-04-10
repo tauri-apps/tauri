@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -37,11 +37,19 @@ public class Logger {
   }
 
   public static func debug(_ items: Any..., category: String = "app") {
+    #if DEBUG
+    Logger.log(items, category: category, type: OSLogType.default)
+    #else
     Logger.log(items, category: category, type: OSLogType.debug)
+    #endif
   }
 
   public static func info(_ items: Any..., category: String = "app") {
+    #if DEBUG
+    Logger.log(items, category: category, type: OSLogType.default)
+    #else
     Logger.log(items, category: category, type: OSLogType.info)
+    #endif
   }
 
   public static func error(_ items: Any..., category: String = "app") {

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -34,7 +34,7 @@ use std::{
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
 
-use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
 
@@ -119,6 +119,22 @@ pub enum BundleType {
   Dmg,
   /// The Tauri updater bundle.
   Updater,
+}
+
+impl BundleType {
+  /// All bundle types.
+  fn all() -> &'static [Self] {
+    &[
+      BundleType::Deb,
+      BundleType::Rpm,
+      BundleType::AppImage,
+      BundleType::Msi,
+      BundleType::Nsis,
+      BundleType::App,
+      BundleType::Dmg,
+      BundleType::Updater,
+    ]
+  }
 }
 
 impl Display for BundleType {
@@ -274,7 +290,7 @@ impl BundleTarget {
   #[allow(dead_code)]
   pub fn to_vec(&self) -> Vec<BundleType> {
     match self {
-      Self::All => vec![],
+      Self::All => BundleType::all().to_vec(),
       Self::List(list) => list.clone(),
       Self::One(i) => vec![i.clone()],
     }
@@ -307,13 +323,44 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to `optional`.
+  /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
+  pub priority: Option<String>,
+  /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "pre-install-script")]
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "post-install-script")]
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "pre-remove-script")]
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  #[serde(alias = "post-remove-script")]
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// Configuration for Linux bundles.
@@ -343,6 +390,14 @@ pub struct LinuxConfig {
 pub struct RpmConfig {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   #[serde(default = "default_release")]
   pub release: String,
@@ -355,17 +410,41 @@ pub struct RpmConfig {
   /// Path to a custom desktop file Handlebars template.
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "pre-install-script")]
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "post-install-script")]
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "pre-remove-script")]
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  #[serde(alias = "post-remove-script")]
+  pub post_remove_script: Option<PathBuf>,
 }
 
 impl Default for RpmConfig {
   fn default() -> Self {
     Self {
       depends: None,
+      provides: None,
+      conflicts: None,
+      obsoletes: None,
       release: default_release(),
       epoch: 0,
       files: Default::default(),
       desktop_template: None,
+      pre_install_script: None,
+      post_install_script: None,
+      pre_remove_script: None,
+      post_remove_script: None,
     }
   }
 }
@@ -1042,11 +1121,11 @@ pub struct WindowConfig {
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
-  /// Whether the file drop is enabled or not on the webview. By default it is enabled.
+  /// Whether the drag and drop is enabled or not on the webview. By default it is enabled.
   ///
-  /// Disabling it is required to use drag and drop on the frontend on Windows.
-  #[serde(default = "default_true", alias = "file-drop-enabled")]
-  pub file_drop_enabled: bool,
+  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
+  #[serde(default = "default_true", alias = "drag-drop-enabled")]
+  pub drag_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
@@ -1214,6 +1293,17 @@ pub struct WindowConfig {
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
   pub proxy_url: Option<Url>,
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[serde(default)]
+  pub zoom_hotkeys_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -1222,7 +1312,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WebviewUrl::default(),
       user_agent: None,
-      file_drop_enabled: true,
+      drag_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -1259,6 +1349,7 @@ impl Default for WindowConfig {
       incognito: false,
       parent: None,
       proxy_url: None,
+      zoom_hotkeys_enabled: false,
     }
   }
 }
@@ -1422,23 +1513,6 @@ impl Default for DisabledCspModificationKind {
   }
 }
 
-/// External command access definition.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RemoteDomainAccessScope {
-  /// The URL scheme to allow. By default, all schemas are allowed.
-  pub scheme: Option<String>,
-  /// The domain to allow.
-  pub domain: String,
-  /// The list of window labels this scope applies to.
-  pub windows: Vec<String>,
-  /// The list of plugins that are allowed in this scope.
-  /// The names should be without the `tauri-plugin-` prefix, for example `"store"` for `tauri-plugin-store`.
-  #[serde(default)]
-  pub plugins: Vec<String>,
-}
-
 /// Protocol scope definition.
 /// It is a list of glob patterns that restrict the API access from the webview.
 ///
@@ -1519,7 +1593,7 @@ pub struct AssetProtocolConfig {
 ///
 /// See more: <https://tauri.app/v1/api/config#securityconfig>
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecurityConfig {
@@ -1558,6 +1632,22 @@ pub struct SecurityConfig {
   /// The pattern to use.
   #[serde(default)]
   pub pattern: PatternKind,
+  /// List of capabilities that are enabled on the application.
+  ///
+  /// If the list is empty, all capabilities are included.
+  #[serde(default)]
+  pub capabilities: Vec<CapabilityEntry>,
+}
+
+/// A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum CapabilityEntry {
+  /// An inlined capability.
+  Inlined(Capability),
+  /// Reference to a capability identifier.
+  Reference(String),
 }
 
 /// The application pattern.
@@ -2056,7 +2146,7 @@ mod build {
   impl ToTokens for Color {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let Color(r, g, b, a) = self;
-      tokens.append_all(quote! {::tauri::utils::Color(#r,#g,#b,#a)});
+      tokens.append_all(quote! {::tauri::utils::config::Color(#r,#g,#b,#a)});
     }
   }
   impl ToTokens for WindowEffectsConfig {
@@ -2144,7 +2234,7 @@ mod build {
       let label = str_lit(&self.label);
       let url = &self.url;
       let user_agent = opt_str_lit(self.user_agent.as_ref());
-      let file_drop_enabled = self.file_drop_enabled;
+      let drag_drop_enabled = self.drag_drop_enabled;
       let center = self.center;
       let x = opt_lit(self.x.as_ref());
       let y = opt_lit(self.y.as_ref());
@@ -2181,6 +2271,7 @@ mod build {
       let window_effects = opt_lit(self.window_effects.as_ref());
       let incognito = self.incognito;
       let parent = opt_str_lit(self.parent.as_ref());
+      let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
 
       literal_struct!(
         tokens,
@@ -2188,7 +2279,7 @@ mod build {
         label,
         url,
         user_agent,
-        file_drop_enabled,
+        drag_drop_enabled,
         center,
         x,
         y,
@@ -2224,7 +2315,8 @@ mod build {
         shadow,
         window_effects,
         incognito,
-        parent
+        parent,
+        zoom_hotkeys_enabled
       );
     }
   }
@@ -2432,21 +2524,19 @@ mod build {
     }
   }
 
-  impl ToTokens for RemoteDomainAccessScope {
+  impl ToTokens for CapabilityEntry {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let scheme = opt_str_lit(self.scheme.as_ref());
-      let domain = str_lit(&self.domain);
-      let windows = vec_lit(&self.windows, str_lit);
-      let plugins = vec_lit(&self.plugins, str_lit);
+      let prefix = quote! { ::tauri::utils::config::CapabilityEntry };
 
-      literal_struct!(
-        tokens,
-        ::tauri::utils::config::RemoteDomainAccessScope,
-        scheme,
-        domain,
-        windows,
-        plugins
-      );
+      tokens.append_all(match self {
+        Self::Inlined(capability) => {
+          quote! { #prefix::Inlined(#capability) }
+        }
+        Self::Reference(id) => {
+          let id = str_lit(id);
+          quote! { #prefix::Reference(#id) }
+        }
+      });
     }
   }
 
@@ -2458,6 +2548,7 @@ mod build {
       let dangerous_disable_asset_csp_modification = &self.dangerous_disable_asset_csp_modification;
       let asset_protocol = &self.asset_protocol;
       let pattern = &self.pattern;
+      let capabilities = vec_lit(&self.capabilities, identity);
 
       literal_struct!(
         tokens,
@@ -2467,7 +2558,8 @@ mod build {
         freeze_prototype,
         dangerous_disable_asset_csp_modification,
         asset_protocol,
-        pattern
+        pattern,
+        capabilities
       );
     }
   }
@@ -2606,6 +2698,7 @@ mod test {
         dangerous_disable_asset_csp_modification: DisabledCspModificationKind::Flag(false),
         asset_protocol: AssetProtocolConfig::default(),
         pattern: Default::default(),
+        capabilities: Vec::new(),
       },
       tray_icon: None,
       macos_private_api: false,

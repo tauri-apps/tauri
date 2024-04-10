@@ -1,21 +1,28 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 //! Access Control List types.
 
-use glob::Pattern;
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, str::FromStr, sync::Arc};
 use thiserror::Error;
+use url::Url;
+
+use crate::platform::Target;
 
 pub use self::{identifier::*, value::*};
+
+/// Known filename of the permission schema JSON file
+pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
+/// Known ACL key for the app permissions.
+pub const APP_ACL_KEY: &str = "__app-acl__";
 
 #[cfg(feature = "build")]
 pub mod build;
 pub mod capability;
 pub mod identifier;
-pub mod plugin;
+pub mod manifest;
 pub mod resolved;
 pub mod value;
 
@@ -84,27 +91,20 @@ pub enum Error {
     set: String,
   },
 
-  /// Plugin has no default permission.
-  #[error("plugin {plugin} has no default permission")]
-  MissingDefaultPermission {
-    /// Plugin name.
-    plugin: String,
-  },
-
-  /// Unknown plugin.
-  #[error("unknown plugin {plugin}, expected one of {available}")]
-  UnknownPlugin {
-    /// Plugin name.
-    plugin: String,
-    /// Available plugins.
+  /// Unknown ACL manifest.
+  #[error("unknown ACL for {key}, expected one of {available}")]
+  UnknownManifest {
+    /// Manifest key.
+    key: String,
+    /// Available manifest keys.
     available: String,
   },
 
   /// Unknown permission.
-  #[error("unknown permission {permission} for plugin {plugin}")]
+  #[error("unknown permission {permission} for {key}")]
   UnknownPermission {
-    /// Plugin name.
-    plugin: String,
+    /// Manifest key.
+    key: String,
 
     /// Permission identifier.
     permission: String,
@@ -131,7 +131,7 @@ pub struct Commands {
 /// It can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.
 ///
 /// The scope is passed to the command and handled/enforced by the command itself.
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
@@ -140,6 +140,12 @@ pub struct Scopes {
   /// Data that defines what is denied by the scope.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub deny: Option<Vec<Value>>,
+}
+
+impl Scopes {
+  fn is_empty(&self) -> bool {
+    self.allow.is_none() && self.deny.is_none()
+  }
 }
 
 /// Descriptions of explicit privileges of commands.
@@ -151,12 +157,14 @@ pub struct Scopes {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Permission {
   /// The version of the permission.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub version: Option<NonZeroU64>,
 
   /// A unique identifier for the permission.
   pub identifier: String,
 
   /// Human-readable description of what the permission does.
+  #[serde(skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
 
   /// Allowed or denied commands when using this permission.
@@ -164,8 +172,12 @@ pub struct Permission {
   pub commands: Commands,
 
   /// Allowed or denied scoped when using this permission.
-  #[serde(default)]
+  #[serde(default, skip_serializing_if = "Scopes::is_empty")]
   pub scope: Scopes,
+
+  /// Target platforms this permission applies. By default all platforms are affected by this permission.
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub platforms: Option<Vec<Target>>,
 }
 
 /// A set of direct permissions grouped together under a new name.
@@ -182,16 +194,115 @@ pub struct PermissionSet {
   pub permissions: Vec<String>,
 }
 
+/// UrlPattern for [`ExecutionContext::Remote`].
+#[derive(Debug, Clone)]
+pub struct RemoteUrlPattern(Arc<urlpattern::UrlPattern>, String);
+
+impl FromStr for RemoteUrlPattern {
+  type Err = urlpattern::quirks::Error;
+
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    let mut init = urlpattern::UrlPatternInit::parse_constructor_string::<regex::Regex>(s, None)?;
+    if init.search.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
+      init.search.replace("*".to_string());
+    }
+    if init.hash.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
+      init.hash.replace("*".to_string());
+    }
+    if init
+      .pathname
+      .as_ref()
+      .map(|p| p.is_empty() || p == "/")
+      .unwrap_or(true)
+    {
+      init.pathname.replace("*".to_string());
+    }
+    let pattern = urlpattern::UrlPattern::parse(init)?;
+    Ok(Self(Arc::new(pattern), s.to_string()))
+  }
+}
+
+impl RemoteUrlPattern {
+  #[doc(hidden)]
+  pub fn as_str(&self) -> &str {
+    &self.1
+  }
+
+  /// Test if a given URL matches the pattern.
+  pub fn test(&self, url: &Url) -> bool {
+    self
+      .0
+      .test(urlpattern::UrlPatternMatchInput::Url(url.clone()))
+      .unwrap_or_default()
+  }
+}
+
+impl PartialEq for RemoteUrlPattern {
+  fn eq(&self, other: &Self) -> bool {
+    self.0.protocol() == other.0.protocol()
+      && self.0.username() == other.0.username()
+      && self.0.password() == other.0.password()
+      && self.0.hostname() == other.0.hostname()
+      && self.0.port() == other.0.port()
+      && self.0.pathname() == other.0.pathname()
+      && self.0.search() == other.0.search()
+      && self.0.hash() == other.0.hash()
+  }
+}
+
+impl Eq for RemoteUrlPattern {}
+
 /// Execution context of an IPC call.
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum ExecutionContext {
   /// A local URL is used (the Tauri app URL).
+  #[default]
   Local,
-  /// Remote URL is tring to use the IPC.
+  /// Remote URL is trying to use the IPC.
   Remote {
-    /// The domain trying to access the IPC (glob pattern).
-    domain: Pattern,
+    /// The URL trying to access the IPC (URL pattern).
+    url: RemoteUrlPattern,
   },
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::acl::RemoteUrlPattern;
+
+  #[test]
+  fn url_pattern_domain_wildcard() {
+    let pattern: RemoteUrlPattern = "http://*".parse().unwrap();
+
+    assert!(pattern.test(&"http://tauri.app/path".parse().unwrap()));
+    assert!(pattern.test(&"http://tauri.app/path?q=1".parse().unwrap()));
+
+    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
+
+    let pattern: RemoteUrlPattern = "http://*.tauri.app".parse().unwrap();
+
+    assert!(!pattern.test(&"http://tauri.app/path".parse().unwrap()));
+    assert!(!pattern.test(&"http://tauri.app/path?q=1".parse().unwrap()));
+    assert!(pattern.test(&"http://api.tauri.app/path".parse().unwrap()));
+    assert!(pattern.test(&"http://api.tauri.app/path?q=1".parse().unwrap()));
+    assert!(!pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(!pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
+  }
+
+  #[test]
+  fn url_pattern_path_wildcard() {
+    let pattern: RemoteUrlPattern = "http://localhost/*".parse().unwrap();
+    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
+  }
+
+  #[test]
+  fn url_pattern_scheme_wildcard() {
+    let pattern: RemoteUrlPattern = "*://localhost".parse().unwrap();
+    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(pattern.test(&"https://localhost/path?q=1".parse().unwrap()));
+    assert!(pattern.test(&"custom://localhost/path".parse().unwrap()));
+  }
 }
 
 #[cfg(feature = "build")]
@@ -212,9 +323,9 @@ mod build_ {
         Self::Local => {
           quote! { #prefix::Local }
         }
-        Self::Remote { domain } => {
-          let domain = domain.as_str();
-          quote! { #prefix::Remote { domain: #domain.parse().unwrap() } }
+        Self::Remote { url } => {
+          let url = url.as_str();
+          quote! { #prefix::Remote { url: #url.parse().unwrap() } }
         }
       });
     }
@@ -246,6 +357,8 @@ mod build_ {
       let description = opt_str_lit(self.description.as_ref());
       let commands = &self.commands;
       let scope = &self.scope;
+      let platforms = opt_vec_lit(self.platforms.as_ref(), identity);
+
       literal_struct!(
         tokens,
         ::tauri::utils::acl::Permission,
@@ -253,7 +366,8 @@ mod build_ {
         identifier,
         description,
         commands,
-        scope
+        scope,
+        platforms
       )
     }
   }

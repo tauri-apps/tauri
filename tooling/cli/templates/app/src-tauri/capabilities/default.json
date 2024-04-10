@@ -1,6 +1,6 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default-plugins",
+  "identifier": "default",
   "description": "enables the default permissions",
   "windows": ["main"],
   "permissions": [
@@ -10,6 +10,7 @@
     "webview:default",
     "app:default",
     "resources:default",
+    "image:default",
     "menu:default",
     "tray:default"
   ]

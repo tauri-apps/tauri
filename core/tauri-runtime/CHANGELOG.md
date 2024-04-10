@@ -1,5 +1,95 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### What's Changed
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Updated `http` crate to `1.1`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) The IPC handler closure now receives a `http::Request` instead of a String representing the request body.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Moved `window::dpi` module to the root of the crate.
+
+## \[2.0.0-beta.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+
+## \[2.0.0-beta.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+
+## \[2.0.0-beta.7]
+
+### New Features
+
+- [`46de49aaa`](https://www.github.com/tauri-apps/tauri/commit/46de49aaad4a148fafc31d591be0e2ed12256507)([#9059](https://www.github.com/tauri-apps/tauri/pull/9059)) Added `set_auto_resize` method for the webview.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+
+### Breaking Changes
+
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Add a lifetime parameter for `Icon` type. Also changed `rgba` field to be `Cow<'a, [u8]>`
+
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+
+## \[2.0.0-beta.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+
+## \[2.0.0-beta.4]
+
+### New Features
+
+- [`fdcaf935`](https://www.github.com/tauri-apps/tauri/commit/fdcaf935fa75ecfa2806939c4faad4fe9e880386)([#8939](https://www.github.com/tauri-apps/tauri/pull/8939)) Added the `reparent` function to the webview API.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### What's Changed
+
+- [`16e550ec`](https://www.github.com/tauri-apps/tauri/commit/16e550ec1503765158cdc3bb2a20e70ec710e981)([#8844](https://www.github.com/tauri-apps/tauri/pull/8844)) Add `WebviewEvent`, `RunEvent::WebviewEvent` and `WebviewDispatch::on_webview_event`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+
+### Breaking Changes
+
+- [`2f55bfec`](https://www.github.com/tauri-apps/tauri/commit/2f55bfecbf0244f3b5aa1ad7622182fca3fcdcbb)([#8795](https://www.github.com/tauri-apps/tauri/pull/8795)) Update raw-window-handle to 0.6.
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies
@@ -185,6 +275,12 @@
 - First mobile alpha release!
   - Bumped due to a bump in tauri-utils.
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[0.14.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
 
 ## \[0.14.1]
 

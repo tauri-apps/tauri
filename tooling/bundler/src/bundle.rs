@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -27,7 +27,6 @@ pub use self::{
 };
 #[cfg(target_os = "macos")]
 use anyhow::Context;
-use log::{info, warn};
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{fmt::Write, path::PathBuf};
@@ -61,7 +60,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     .replace("darwin", "macos");
 
   if target_os != std::env::consts::OS {
-    warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
+    log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 
   #[cfg(target_os = "windows")]
@@ -78,7 +77,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
 
       if !skip && windows::sign::verify(&path)? {
-        info!(
+        log::info!(
           "sidecar at \"{}\" already signed. Skipping...",
           path.display()
         )
@@ -99,7 +98,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
       #[cfg(target_os = "macos")]
       PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
-      // dmg is dependant of MacOsBundle, we send our bundles to prevent rebuilding
+      // dmg is dependent of MacOsBundle, we send our bundles to prevent rebuilding
       #[cfg(target_os = "macos")]
       PackageType::Dmg => {
         let bundled = macos::dmg::bundle_project(&settings, &bundles)?;
@@ -123,7 +122,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       #[cfg(target_os = "linux")]
       PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
 
-      // updater is dependant of multiple bundle, we send our bundles to prevent rebuilding
+      // updater is dependent of multiple bundle, we send our bundles to prevent rebuilding
       PackageType::Updater => {
         if !package_types.iter().any(|p| {
           matches!(
@@ -135,13 +134,13 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
               | PackageType::WindowsMsi
           )
         }) {
-          warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
+          log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
           continue;
         }
         updater_bundle::bundle_project(&settings, &bundles)?
       }
       _ => {
-        warn!("ignoring {}", package_type.short_name());
+        log::warn!("ignoring {}", package_type.short_name());
         continue;
       }
     };
@@ -163,7 +162,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
         .map(|b| b.bundle_paths)
       {
         for app_bundle_path in &app_bundle_paths {
-          info!(action = "Cleaning"; "{}", app_bundle_path.display());
+          log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
             true => std::fs::remove_dir_all(app_bundle_path),
             false => std::fs::remove_file(app_bundle_path),
@@ -201,7 +200,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       }
     }
 
-    info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
+    log::info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
 
     Ok(bundles)
   } else {

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -20,11 +20,6 @@ use std::{
   path::PathBuf,
   sync::mpsc::Sender,
 };
-
-use self::dpi::PhysicalPosition;
-
-/// UI scaling utilities.
-pub mod dpi;
 
 /// An event from a window.
 #[derive(Debug, Clone)]
@@ -57,31 +52,45 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: dpi::PhysicalSize<u32>,
   },
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
   /// The system window theme has changed.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
   ThemeChanged(Theme),
 }
 
-/// The file drop event payload.
+/// An event from a window.
+#[derive(Debug, Clone)]
+pub enum WebviewEvent {
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
+}
+
+/// The drag drop event payload.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum FileDropEvent {
-  /// The file(s) have been dragged onto the window, but have not been dropped yet.
-  Hovered {
+pub enum DragDropEvent {
+  /// A drag operation started.
+  Dragged {
+    /// Paths of the files that are being dragged.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
-  /// The file(s) have been dropped onto the window.
+  /// The files have been dragged onto the window, but have not been dropped yet.
+  DragOver {
+    /// The position of the mouse cursor.
+    position: dpi::PhysicalPosition<f64>,
+  },
+  /// The user dropped the operation.
   Dropped {
+    /// Path of the files that were dropped.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
-    position: PhysicalPosition<f64>,
+    position: dpi::PhysicalPosition<f64>,
   },
-  /// The file drop was aborted.
+  /// The drag operation was cancelled.
   Cancelled,
 }
 
@@ -453,7 +462,7 @@ impl<T: UserEvent, R: Runtime<T>> PendingWindow<T, R> {
 }
 
 /// Identifier of a window.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct WindowId(u32);
 
 impl From<u32> for WindowId {

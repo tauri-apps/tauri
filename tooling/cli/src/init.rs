@@ -1,39 +1,35 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
-    resolve_tauri_path, template,
+    prompts, resolve_tauri_path, template,
   },
   VersionMetadata,
 };
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  fmt::Display,
   fs::{read_to_string, remove_dir_all},
   path::PathBuf,
-  str::FromStr,
 };
 
 use crate::Result;
 use anyhow::Context;
 use clap::Parser;
-use dialoguer::Input;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
-use log::warn;
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initialize a Tauri project in an existing directory")]
 pub struct Options {
   /// Skip prompting for values
-  #[clap(long)]
+  #[clap(long, env = "CI")]
   ci: bool,
   /// Force init to overwrite the src-tauri folder
   #[clap(short, long)]
@@ -76,7 +72,6 @@ struct InitDefaults {
 
 impl Options {
   fn load(mut self) -> Result<Self> {
-    self.ci = self.ci || std::env::var("CI").is_ok();
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
@@ -92,24 +87,34 @@ impl Options {
     };
 
     self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      request_input(
+      prompts::input(
         "What is your app name?",
-        init_defaults.app_name.clone(),
+        Some(
+          init_defaults
+            .app_name
+            .clone()
+            .unwrap_or_else(|| "Tauri App".to_string()),
+        ),
         self.ci,
-        false,
+        true,
       )
     })?;
 
     self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      request_input(
+      prompts::input(
         "What should the window title be?",
-        init_defaults.app_name.clone(),
+        Some(
+          init_defaults
+            .app_name
+            .clone()
+            .unwrap_or_else(|| "Tauri".to_string()),
+        ),
         self.ci,
-        false,
+        true,
       )
     })?;
 
-    self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| request_input(
+    self.frontend_dist = self.frontend_dist.map(|s| Ok(Some(s))).unwrap_or_else(|| prompts::input(
       r#"Where are your web assets (HTML/CSS/JS) located, relative to the "<current dir>/src-tauri/tauri.conf.json" file that will be created?"#,
       init_defaults.framework.as_ref().map(|f| f.frontend_dist()),
       self.ci,
@@ -117,11 +122,11 @@ impl Options {
     ))?;
 
     self.dev_url = self.dev_url.map(|s| Ok(Some(s))).unwrap_or_else(|| {
-      request_input(
+      prompts::input(
         "What is the url of your dev server?",
         init_defaults.framework.map(|f| f.dev_url()),
         self.ci,
-        false,
+        true,
       )
     })?;
 
@@ -129,18 +134,19 @@ impl Options {
       .before_dev_command
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
-        request_input(
+        prompts::input(
           "What is your frontend dev command?",
           Some("npm run dev".to_string()),
           self.ci,
           true,
         )
       })?;
+
     self.before_build_command = self
       .before_build_command
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
-        request_input(
+        prompts::input(
           "What is your frontend build command?",
           Some("npm run build".to_string()),
           self.ci,
@@ -159,7 +165,7 @@ pub fn command(mut options: Options) -> Result<()> {
   let metadata = serde_json::from_str::<VersionMetadata>(include_str!("../metadata-v2.json"))?;
 
   if template_target_path.exists() && !options.force {
-    warn!(
+    log::warn!(
       "Tauri dir ({:?}) not empty. Run `init --force` to overwrite.",
       template_target_path
     );
@@ -191,35 +197,21 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert(
       "frontend_dist",
-      to_json(
-        options
-          .frontend_dist
-          .unwrap_or_else(|| "../dist".to_string()),
-      ),
+      to_json(options.frontend_dist.as_deref().unwrap_or("../dist")),
     );
-    data.insert(
-      "dev_url",
-      to_json(
-        options
-          .dev_url
-          .unwrap_or_else(|| "http://localhost:4000".to_string()),
-      ),
-    );
+    data.insert("dev_url", to_json(options.dev_url));
     data.insert(
       "app_name",
-      to_json(options.app_name.unwrap_or_else(|| "Tauri App".to_string())),
+      to_json(options.app_name.as_deref().unwrap_or("Tauri App")),
     );
     data.insert(
       "window_title",
-      to_json(options.window_title.unwrap_or_else(|| "Tauri".to_string())),
+      to_json(options.window_title.as_deref().unwrap_or("Tauri")),
     );
-    data.insert(
-      "before_dev_command",
-      to_json(options.before_dev_command.unwrap_or_default()),
-    );
+    data.insert("before_dev_command", to_json(options.before_dev_command));
     data.insert(
       "before_build_command",
-      to_json(options.before_build_command.unwrap_or_default()),
+      to_json(options.before_build_command),
     );
 
     let mut config = serde_json::from_str(
@@ -282,30 +274,4 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   Ok(())
-}
-
-fn request_input<T>(
-  prompt: &str,
-  initial: Option<T>,
-  skip: bool,
-  allow_empty: bool,
-) -> Result<Option<T>>
-where
-  T: Clone + FromStr + Display + ToString,
-  T::Err: Display + std::fmt::Debug,
-{
-  if skip {
-    Ok(initial)
-  } else {
-    let theme = dialoguer::theme::ColorfulTheme::default();
-    let mut builder = Input::with_theme(&theme)
-      .with_prompt(prompt)
-      .allow_empty(allow_empty);
-
-    if let Some(v) = initial {
-      builder = builder.with_initial_text(v.to_string());
-    }
-
-    builder.interact_text().map(Some).map_err(Into::into)
-  }
 }

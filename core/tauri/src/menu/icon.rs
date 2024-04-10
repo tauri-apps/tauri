@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,7 +8,7 @@ use super::run_item_main_thread;
 use super::{IconMenuItem, NativeIcon};
 use crate::menu::IconMenuItemInner;
 use crate::run_main_thread;
-use crate::{menu::MenuId, AppHandle, Icon, Manager, Runtime};
+use crate::{image::Image, menu::MenuId, AppHandle, Manager, Runtime};
 
 impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item.
@@ -19,7 +19,7 @@ impl<R: Runtime> IconMenuItem<R> {
     manager: &M,
     text: T,
     enabled: bool,
-    icon: Option<Icon>,
+    icon: Option<Image<'_>>,
     accelerator: Option<A>,
   ) -> crate::Result<Self>
   where
@@ -31,8 +31,11 @@ impl<R: Runtime> IconMenuItem<R> {
     let app_handle = handle.clone();
 
     let text = text.as_ref().to_owned();
-    let icon = icon.and_then(|i| i.try_into().ok());
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::new(text, enabled, icon, accelerator);
@@ -55,7 +58,7 @@ impl<R: Runtime> IconMenuItem<R> {
     id: I,
     text: T,
     enabled: bool,
-    icon: Option<Icon>,
+    icon: Option<Image<'_>>,
     accelerator: Option<A>,
   ) -> crate::Result<Self>
   where
@@ -69,8 +72,11 @@ impl<R: Runtime> IconMenuItem<R> {
 
     let id = id.into();
     let text = text.as_ref().to_owned();
-    let icon = icon.and_then(|i| i.try_into().ok());
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
 
     let item = run_main_thread!(handle, || {
       let item = muda::IconMenuItem::with_id(id.clone(), text, enabled, icon, accelerator);
@@ -207,10 +213,12 @@ impl<R: Runtime> IconMenuItem<R> {
   }
 
   /// Change this menu item icon or remove it.
-  pub fn set_icon(&self, icon: Option<Icon>) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .set_icon(icon.and_then(|i| i.try_into().ok())))
+  pub fn set_icon(&self, icon: Option<Image<'_>>) -> crate::Result<()> {
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
   }
 
   /// Change this menu item icon to a native image or remove it.

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -6,7 +6,6 @@ use crate::{path::SafePathBuf, scope, webview::UriSchemeProtocolHandler};
 use http::{header::*, status::StatusCode, Request, Response};
 use http_range::HttpRange;
 use std::{borrow::Cow, io::SeekFrom};
-use tauri_utils::debug_eprintln;
 use tauri_utils::mime_type::MimeType;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
@@ -40,12 +39,12 @@ fn get_response(
   let mut resp = Response::builder().header("Access-Control-Allow-Origin", window_origin);
 
   if let Err(e) = SafePathBuf::new(path.clone().into()) {
-    debug_eprintln!("asset protocol path \"{}\" is not valid: {}", path, e);
+    log::error!("asset protocol path \"{}\" is not valid: {}", path, e);
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 
   if !scope.is_allowed(&path) {
-    debug_eprintln!("asset protocol not configured to allow the path: {}", path);
+    log::error!("asset protocol not configured to allow the path: {}", path);
     return resp.status(403).body(Vec::new().into()).map_err(Into::into);
   }
 

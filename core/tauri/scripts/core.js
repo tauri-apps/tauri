@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -71,7 +71,7 @@
         true)
 
         const action = () => {
-          window.window.__TAURI_INTERNALS__.ipc({
+          window.__TAURI_INTERNALS__.ipc({
             cmd,
             callback,
             error,

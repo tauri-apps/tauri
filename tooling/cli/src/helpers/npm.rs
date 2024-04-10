@@ -1,9 +1,11 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::cross_command, Result};
-use std::{fmt::Display, path::Path, process::ExitStatus};
+use anyhow::Context;
+
+use crate::helpers::cross_command;
+use std::{fmt::Display, path::Path, process::Command};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PackageManager {
@@ -69,48 +71,42 @@ impl PackageManager {
     found
   }
 
-  pub fn install(&self, dependencies: &[String]) -> Result<ExitStatus> {
+  fn cross_command(&self) -> Command {
     match self {
-      PackageManager::Yarn => {
-        let mut cmd = cross_command("yarn");
-        cmd
-          .arg("add")
-          .args(dependencies)
-          .status()
-          .map_err(Into::into)
-      }
-      PackageManager::YarnBerry => {
-        let mut cmd = cross_command("yarn");
-        cmd
-          .arg("add")
-          .args(dependencies)
-          .status()
-          .map_err(Into::into)
-      }
-      PackageManager::Npm => {
-        let mut cmd = cross_command("npm");
-        cmd
-          .arg("install")
-          .args(dependencies)
-          .status()
-          .map_err(Into::into)
-      }
-      PackageManager::Pnpm => {
-        let mut cmd = cross_command("pnpm");
-        cmd
-          .arg("install")
-          .args(dependencies)
-          .status()
-          .map_err(Into::into)
-      }
-      PackageManager::Bun => {
-        let mut cmd = cross_command("bun");
-        cmd
-          .arg("install")
-          .args(dependencies)
-          .status()
-          .map_err(Into::into)
-      }
+      PackageManager::Yarn => cross_command("yarn"),
+      PackageManager::YarnBerry => cross_command("yarn"),
+      PackageManager::Npm => cross_command("npm"),
+      PackageManager::Pnpm => cross_command("pnpm"),
+      PackageManager::Bun => cross_command("bun"),
     }
+  }
+
+  pub fn install(&self, dependencies: &[String]) -> crate::Result<()> {
+    let dependencies_str = if dependencies.len() > 1 {
+      "dependencies"
+    } else {
+      "dependency"
+    };
+    log::info!(
+      "Installing NPM {dependencies_str} {}...",
+      dependencies
+        .iter()
+        .map(|d| format!("\"{d}\""))
+        .collect::<Vec<_>>()
+        .join(", ")
+    );
+
+    let status = self
+      .cross_command()
+      .arg("add")
+      .args(dependencies)
+      .status()
+      .with_context(|| format!("failed to run {self}"))?;
+
+    if !status.success() {
+      anyhow::bail!("Failed to install NPM {dependencies_str}");
+    }
+
+    Ok(())
   }
 }

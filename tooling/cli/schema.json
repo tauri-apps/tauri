@@ -40,6 +40,7 @@
             "enable": false,
             "scope": []
           },
+          "capabilities": [],
           "dangerousDisableAssetCspModification": false,
           "freezePrototype": false,
           "pattern": {
@@ -158,6 +159,7 @@
               "enable": false,
               "scope": []
             },
+            "capabilities": [],
             "dangerousDisableAssetCspModification": false,
             "freezePrototype": false,
             "pattern": {
@@ -219,8 +221,8 @@
             "null"
           ]
         },
-        "fileDropEnabled": {
-          "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
+        "dragDropEnabled": {
+          "description": "Whether the drag and drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use HTML5 drag and drop on the frontend on Windows.",
           "default": true,
           "type": "boolean"
         },
@@ -448,6 +450,11 @@
             "null"
           ],
           "format": "uri"
+        },
+        "zoomHotkeysEnabled": {
+          "description": "Whether page zooming by hotkeys is enabled\n\n## Platform-specific:\n\n- **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting. - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`, 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission\n\n- **Android / iOS**: Unsupported.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -878,6 +885,14 @@
               "$ref": "#/definitions/PatternKind"
             }
           ]
+        },
+        "capabilities": {
+          "description": "List of capabilities that are enabled on the application.\n\nIf the list is empty, all capabilities are included.",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CapabilityEntry"
+          }
         }
       },
       "additionalProperties": false
@@ -1037,6 +1052,252 @@
               }
             }
           }
+        }
+      ]
+    },
+    "CapabilityEntry": {
+      "description": "A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.",
+      "anyOf": [
+        {
+          "description": "An inlined capability.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Capability"
+            }
+          ]
+        },
+        {
+          "description": "Reference to a capability identifier.",
+          "type": "string"
+        }
+      ]
+    },
+    "Capability": {
+      "description": "a grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
+      "type": "object",
+      "required": [
+        "identifier",
+        "permissions"
+      ],
+      "properties": {
+        "identifier": {
+          "description": "Identifier of the capability.",
+          "type": "string"
+        },
+        "description": {
+          "description": "Description of the capability.",
+          "default": "",
+          "type": "string"
+        },
+        "remote": {
+          "description": "Configure remote URLs that can use the capability permissions.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CapabilityRemote"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "local": {
+          "description": "Whether this capability is enabled for local app URLs or not. Defaults to `true`.",
+          "default": true,
+          "type": "boolean"
+        },
+        "windows": {
+          "description": "List of windows that uses this capability. Can be a glob pattern.\n\nOn multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "webviews": {
+          "description": "List of webviews that uses this capability. Can be a glob pattern.\n\nThis is only required when using on multiwebview contexts, by default all child webviews of a window that matches [`Self::windows`] are linked.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "description": "List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PermissionEntry"
+          }
+        },
+        "platforms": {
+          "description": "Target platforms this capability applies. By default all platforms are affected by this capability.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/Target"
+          }
+        }
+      }
+    },
+    "CapabilityRemote": {
+      "description": "Configuration for remote URLs that are associated with the capability.",
+      "type": "object",
+      "required": [
+        "urls"
+      ],
+      "properties": {
+        "urls": {
+          "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).\n\n# Examples\n\n- \"https://*.mydomain.dev\": allows subdomains of mydomain.dev - \"https://mydomain.dev/api/*\": allows any subpath of mydomain.dev/api",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "PermissionEntry": {
+      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`] or an object that references a permission and extends its scope.",
+      "anyOf": [
+        {
+          "description": "Reference a permission or permission set by identifier.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Identifier"
+            }
+          ]
+        },
+        {
+          "description": "Reference a permission or permission set by identifier and extends its scope.",
+          "type": "object",
+          "required": [
+            "identifier"
+          ],
+          "properties": {
+            "identifier": {
+              "description": "Identifier of the permission or permission set.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Identifier"
+                }
+              ]
+            },
+            "allow": {
+              "description": "Data that defines what is allowed by the scope.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/Value"
+              }
+            },
+            "deny": {
+              "description": "Data that defines what is denied by the scope.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/Value"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Identifier": {
+      "type": "string"
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      ]
+    },
+    "Number": {
+      "description": "A valid ACL number.",
+      "anyOf": [
+        {
+          "description": "Represents an [`i64`].",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "Represents a [`f64`].",
+          "type": "number",
+          "format": "double"
+        }
+      ]
+    },
+    "Target": {
+      "description": "Platform target.",
+      "oneOf": [
+        {
+          "description": "MacOS.",
+          "type": "string",
+          "enum": [
+            "macOS"
+          ]
+        },
+        {
+          "description": "Windows.",
+          "type": "string",
+          "enum": [
+            "windows"
+          ]
+        },
+        {
+          "description": "Linux.",
+          "type": "string",
+          "enum": [
+            "linux"
+          ]
+        },
+        {
+          "description": "Android.",
+          "type": "string",
+          "enum": [
+            "android"
+          ]
+        },
+        {
+          "description": "iOS.",
+          "type": "string",
+          "enum": [
+            "iOS"
+          ]
         }
       ]
     },
@@ -2166,6 +2427,36 @@
             "type": "string"
           }
         },
+        "provides": {
+          "description": "The list of dependencies the package provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of package conflicts.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "The list of package replaces.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "files": {
           "description": "The files to include on the package.",
           "default": {},
@@ -2174,8 +2465,57 @@
             "type": "string"
           }
         },
+        "section": {
+          "description": "Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "priority": {
+          "description": "Change the priority of the Debian Package. By default, it is set to `optional`. Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "changelog": {
+          "description": "Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "desktopTemplate": {
           "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
           "type": [
             "string",
             "null"
@@ -2190,6 +2530,36 @@
       "properties": {
         "depends": {
           "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "The list of RPM dependencies your application provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of RPM dependencies your application conflicts with. They must not be present in order for the package to be installed.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "obsoletes": {
+          "description": "The list of RPM dependencies your application supersedes - if this package is installed, packages listed as “obsoletes” will be automatically removed (if they are present).",
           "type": [
             "array",
             "null"
@@ -2220,6 +2590,34 @@
         },
         "desktopTemplate": {
           "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -34,7 +34,9 @@ import {
   once
 } from './event'
 import { invoke } from './core'
-import { WebviewWindow } from './webview'
+import { WebviewWindow } from './webviewWindow'
+import type { DragDropEvent, DragDropPayload } from './webview'
+import { Image, transformImage } from './image'
 
 /**
  * Allows you to retrieve information about a given monitor.
@@ -191,10 +193,6 @@ export interface ProgressBarState {
    * The progress bar progress. This can be a value ranging from `0` to `100`
    */
   progress?: number
-  /**
-   * The identifier for your app to communicate with the Unity desktop window manager **Linux Only**
-   */
-  unityUri?: string
 }
 
 /**
@@ -238,14 +236,9 @@ export type WindowLabel = string
  *
  * @example
  * ```typescript
- * // loading embedded asset:
- * const appWindow = new Window('theUniqueLabel', {
- *   url: 'path/to/page.html'
- * });
- * // alternatively, load a remote URL:
- * const appWindow = new Window('theUniqueLabel', {
- *   url: 'https://github.com/tauri-apps/tauri'
- * });
+ * import { Window } from "@tauri-apps/api/window"
+ *
+ * const appWindow = new Window('theUniqueLabel');
  *
  * appWindow.once('tauri://created', function () {
  *  // window successfully created
@@ -255,9 +248,9 @@ export type WindowLabel = string
  * });
  *
  * // emit an event to the backend
- * await appWindow.emit("some event", "data");
+ * await appWindow.emit("some-event", "data");
  * // listen to an event from the backend
- * const unlisten = await appWindow.listen("event name", e => {});
+ * const unlisten = await appWindow.listen("event-name", e => {});
  * unlisten();
  * ```
  *
@@ -275,9 +268,7 @@ class Window {
    * @example
    * ```typescript
    * import { Window } from '@tauri-apps/api/window';
-   * const appWindow = new Window('my-label', {
-   *   url: 'https://github.com/tauri-apps/tauri'
-   * });
+   * const appWindow = new Window('my-label');
    * appWindow.once('tauri://created', function () {
    *  // window successfully created
    * });
@@ -458,7 +449,7 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * await getCurrent().emit('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -1393,20 +1384,22 @@ class Window {
    * await getCurrent().setIcon('/tauri/awesome.png');
    * ```
    *
-   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
-   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    *
    * @param icon Icon bytes or path to the icon file.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setIcon(icon: string | Uint8Array): Promise<void> {
+  async setIcon(
+    icon: string | Image | Uint8Array | ArrayBuffer | number[]
+  ): Promise<void> {
     return invoke('plugin:window|set_icon', {
       label: this.label,
-      value: typeof icon === 'string' ? icon : Array.from(icon)
+      value: transformImage(icon)
     })
   }
 
@@ -1715,6 +1708,90 @@ class Window {
     })
   }
   /* eslint-enable */
+
+  /**
+   * Listen to a file drop event.
+   * The listener is triggered when the user hovers the selected files on the webview,
+   * drops the files or cancels the operation.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrent } from "@tauri-apps/api/webview";
+   * const unlisten = await getCurrent().onDragDropEvent((event) => {
+   *  if (event.payload.type === 'hover') {
+   *    console.log('User hovering', event.payload.paths);
+   *  } else if (event.payload.type === 'drop') {
+   *    console.log('User dropped', event.payload.paths);
+   *  } else {
+   *    console.log('File drop cancelled');
+   *  }
+   * });
+   *
+   * // you need to call unlisten if your handler goes out of scope e.g. the component is unmounted
+   * unlisten();
+   * ```
+   *
+   * @returns A promise resolving to a function to unlisten to the event.
+   * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   */
+  async onDragDropEvent(
+    handler: EventCallback<DragDropEvent>
+  ): Promise<UnlistenFn> {
+    const unlistenDrag = await this.listen<DragDropPayload>(
+      TauriEvent.DRAG,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dragged',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDrop = await this.listen<DragDropPayload>(
+      TauriEvent.DROP,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dropped',
+            paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDragOver = await this.listen<DragDropPayload>(
+      TauriEvent.DROP_OVER,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dragOver',
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenCancel = await this.listen<null>(
+      TauriEvent.DROP_CANCELLED,
+      (event) => {
+        handler({ ...event, payload: { type: 'cancelled' } })
+      }
+    )
+
+    return () => {
+      unlistenDrag()
+      unlistenDrop()
+      unlistenDragOver()
+      unlistenCancel()
+    }
+  }
 
   /**
    * Listen to window focus change.
@@ -2200,5 +2277,7 @@ export type {
   TitleBarStyle,
   ScaleFactorChanged,
   WindowOptions,
-  Color
+  Color,
+  DragDropEvent,
+  DragDropPayload
 }

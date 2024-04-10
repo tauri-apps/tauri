@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -94,7 +94,7 @@ jobs:
       - name: test (using cross)
         if: ${{ matrix.platform.cross }}
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross
+          cargo install cross --git https://github.com/cross-rs/cross --locked
           cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
 
       - name: test (using cargo)

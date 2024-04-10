@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -94,19 +94,19 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// Accepts a closure-like syntax to call arbitrary code on a menu item
 /// after matching against `kind` and retrieving it from `resources_table` using `rid`.
 ///
-/// You can optionally pass a third parameter to select which item kinds
+/// You can optionally pass a 5th parameter to select which item kinds
 /// to match against, by providing a `|` separated list of item kinds
 /// ```ignore
-/// do_menu_item!(|i| i.set_text(text), Check | Submenu);
+/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), Check | Submenu);
 /// ```
 /// You could also provide a negated list
 /// ```ignore
-/// do_menu_item!(|i| i.set_text(text), !Check);
-/// do_menu_item!(|i| i.set_text(text), !Check | !Submenu);
+/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check);
+/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | !Submenu);
 /// ```
 /// but you can't have mixed negations and positive kinds.
 /// ```ignore
-/// do_menu_item!(|i| i.set_text(text), !Check | Submeun);
+/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submeun);
 /// ```
 ///
 /// #### Example
@@ -115,7 +115,7 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 ///  let rid = 23;
 ///  let kind = ItemKind::Check;
 ///  let resources_table = app.resources_table();
-///  do_menu_item!(|i| i.set_text(text))
+///  do_menu_item!(resources_table, rid, kind, |i| i.set_text(text))
 /// ```
 /// which will expand into:
 /// ```ignore

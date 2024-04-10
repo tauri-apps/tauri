@@ -1,8 +1,8 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::*, Icon, Manager, Runtime};
+use crate::{image::Image, menu::*, Manager, Runtime};
 
 /// A builder type for [`Submenu`]
 ///
@@ -13,11 +13,7 @@ use crate::{menu::*, Icon, Manager, Runtime};
 /// tauri::Builder::default()
 ///   .setup(move |app| {
 ///     let handle = app.handle();
-///     # let icon1 = tauri::Icon::Rgba {
-///     #   rgba: Vec::new(),
-///     #   width: 0,
-///     #   height: 0,
-///     # };
+///     # let icon1 = tauri::image::Image::new(&[], 0, 0);
 ///     # let icon2 = icon1.clone();
 ///     let menu = Menu::new(handle)?;
 ///     let submenu = SubmenuBuilder::new(handle, "File")
@@ -120,7 +116,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   }
 
   /// Add an [IconMenuItem] to the submenu.
-  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Icon) -> Self {
+  pub fn icon<I: Into<MenuId>, S: AsRef<str>>(mut self, id: I, text: S, icon: Image<'_>) -> Self {
     self.items.push(
       IconMenuItem::with_id(self.manager, id, text, true, Some(icon), None::<&str>)
         .map(|i| i.kind()),
@@ -306,7 +302,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   }
 
   /// Add About app menu item to the submenu.
-  pub fn about(mut self, metadata: Option<AboutMetadata>) -> Self {
+  pub fn about(mut self, metadata: Option<AboutMetadata<'_>>) -> Self {
     self
       .items
       .push(PredefinedMenuItem::about(self.manager, None, metadata).map(|i| i.kind()));

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -21,7 +21,6 @@ pub trait DevProcess {
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
   fn wait(&self) -> std::io::Result<ExitStatus>;
   fn manually_killed_process(&self) -> bool;
-  fn is_building_app(&self) -> bool;
 }
 
 pub trait AppSettings {
@@ -42,10 +41,10 @@ pub trait AppSettings {
 
   fn get_bundler_settings(
     &self,
-    options: &Options,
+    options: Options,
     config: &Config,
     out_dir: &Path,
-    package_types: Option<Vec<PackageType>>,
+    package_types: Vec<PackageType>,
   ) -> crate::Result<Settings> {
     let no_default_features = options.args.contains(&"--no-default-features".into());
     let mut enabled_features = options.features.clone().unwrap_or_default();
@@ -59,18 +58,15 @@ pub trait AppSettings {
       tauri_utils::platform::target_triple()?
     };
 
-    let mut settings_builder = SettingsBuilder::new()
+    SettingsBuilder::new()
       .package_settings(self.get_package_settings())
       .bundle_settings(self.get_bundle_settings(config, &enabled_features)?)
       .binaries(self.get_binaries(config, &target)?)
       .project_out_directory(out_dir)
-      .target(target);
-
-    if let Some(types) = package_types {
-      settings_builder = settings_builder.package_types(types);
-    }
-
-    settings_builder.build().map_err(Into::into)
+      .target(target)
+      .package_types(package_types)
+      .build()
+      .map_err(Into::into)
   }
 }
 

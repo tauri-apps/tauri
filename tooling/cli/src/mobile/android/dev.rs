@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -145,7 +145,12 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
 
     let app = get_app(tauri_config_, &interface);
-    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
+    let (config, metadata) = get_config(
+      &app,
+      tauri_config_,
+      dev_options.features.as_ref(),
+      &Default::default(),
+    );
     (interface, app, config, metadata)
   };
 

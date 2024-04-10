@@ -1,16 +1,17 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
+import { Image, transformImage } from './image'
 
 /**
  * Describes a tray event emitted when a tray icon is clicked
  *
  * #### Platform-specific:
  *
- * - **Linux**: Unsupported. The event is not emmited even though the icon is shown,
+ * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
  * the icon will still show a context menu on right click.
  */
 export interface TrayIconEvent {
@@ -44,21 +45,21 @@ export interface TrayIconEvent {
 
 /** {@link TrayIcon.new|`TrayIcon`} creation options */
 export interface TrayIconOptions {
-  /** The tray icon id. If undefined, a random one will be assigend */
+  /** The tray icon id. If undefined, a random one will be assigned */
   id?: string
   /** The tray icon menu */
   menu?: Menu | Submenu
   /**
    * The tray icon which could be icon bytes or path to the icon file.
    *
-   * Note that you need the `icon-ico` or `icon-png` Cargo features to use this API.
+   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
-   * tauri = { version = "...", features = ["...", "icon-png"] }
+   * tauri = { version = "...", features = ["...", "image-png"] }
    * ```
    */
-  icon?: string | Uint8Array | number[]
+  icon?: string | Uint8Array | ArrayBuffer | number[] | Image
   /** The tray icon tooltip */
   tooltip?: string
   /**
@@ -118,6 +119,23 @@ export class TrayIcon extends Resource {
     this.id = id
   }
 
+  /** Gets a tray icon using the provided id. */
+  static async getById(id: string): Promise<TrayIcon | null> {
+    return invoke<number>('plugin:tray|get_by_id', { id }).then((rid) =>
+      rid ? new TrayIcon(rid, id) : null
+    )
+  }
+
+  /**
+   * Removes a tray icon using the provided id from tauri's internal state.
+   *
+   * Note that this may cause the tray icon to disappear
+   * if it wasn't cloned somewhere else or referenced by JS.
+   */
+  static async removeById(id: string): Promise<void> {
+    return invoke('plugin:tray|remove_by_id', { id })
+  }
+
   /**
    * Creates a new {@linkcode TrayIcon}
    *
@@ -132,10 +150,7 @@ export class TrayIcon extends Resource {
       options.menu = [options.menu.rid, options.menu.kind]
     }
     if (options?.icon) {
-      options.icon =
-        typeof options.icon === 'string'
-          ? options.icon
-          : Array.from(options.icon)
+      options.icon = transformImage(options.icon)
     }
 
     const handler = new Channel<TrayIconEvent>()
@@ -150,11 +165,22 @@ export class TrayIcon extends Resource {
     }).then(([rid, id]) => new TrayIcon(rid, id))
   }
 
-  /** Sets a new tray icon. If `null` is provided, it will remove the icon. */
-  async setIcon(icon: string | Uint8Array | null): Promise<void> {
+  /**
+   *  Sets a new tray icon. If `null` is provided, it will remove the icon.
+   *
+   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   */
+  async setIcon(
+    icon: string | Image | Uint8Array | ArrayBuffer | number[] | null
+  ): Promise<void> {
     let trayIcon = null
     if (icon) {
-      trayIcon = typeof icon === 'string' ? icon : Array.from(icon)
+      trayIcon = transformImage(icon)
     }
     return invoke('plugin:tray|set_icon', { rid: this.rid, icon: trayIcon })
   }

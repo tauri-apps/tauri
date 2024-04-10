@@ -1,5 +1,5 @@
 // Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -13,7 +13,6 @@ use super::{
 use crate::Settings;
 use anyhow::Context;
 use handlebars::Handlebars;
-use log::info;
 use std::{
   collections::BTreeMap,
   fs::{remove_dir_all, write},
@@ -95,7 +94,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
 
-  info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
   write(&sh_file, temp)?;
 

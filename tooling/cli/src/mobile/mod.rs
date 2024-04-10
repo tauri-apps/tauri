@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -69,9 +69,14 @@ impl DevChild {
 
 impl DevProcess for DevChild {
   fn kill(&self) -> std::io::Result<()> {
-    self.child.kill()?;
     self.manually_killed_process.store(true, Ordering::Relaxed);
-    Ok(())
+    match self.child.kill() {
+      Ok(_) => Ok(()),
+      Err(e) => {
+        self.manually_killed_process.store(false, Ordering::Relaxed);
+        Err(e)
+      }
+    }
   }
 
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>> {
@@ -84,10 +89,6 @@ impl DevProcess for DevChild {
 
   fn manually_killed_process(&self) -> bool {
     self.manually_killed_process.load(Ordering::Relaxed)
-  }
-
-  fn is_building_app(&self) -> bool {
-    false
   }
 }
 
@@ -228,7 +229,7 @@ fn env() -> Result<Env, EnvError> {
   Ok(env)
 }
 
-pub struct OptionsHandle(Runtime, ServerHandle);
+pub struct OptionsHandle(#[allow(unused)] Runtime, #[allow(unused)] ServerHandle);
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result<OptionsHandle> {

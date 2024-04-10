@@ -1,5 +1,83 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-codegen@2.0.0-beta.11`
+
+## \[2.0.0-beta.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-codegen@2.0.0-beta.10`
+
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) The `Context` codegen now accepts a `assets` input to define a custom `tauri::Assets` implementation.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-codegen@2.0.0-beta.8`
+
+## \[2.0.0-beta.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-codegen@2.0.0-beta.7`
+
+## \[2.0.0-beta.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.6`
+- Upgraded to `tauri-codegen@2.0.0-beta.6`
+
+## \[2.0.0-beta.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.5`
+- Upgraded to `tauri-codegen@2.0.0-beta.5`
+
+## \[2.0.0-beta.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.4`
+- Upgraded to `tauri-codegen@2.0.0-beta.4`
+
+## \[2.0.0-beta.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.3`
+- Upgraded to `tauri-codegen@2.0.0-beta.3`
+
+## \[2.0.0-beta.2]
+
+### Enhancements
+
+- [`8d16a80d`](https://www.github.com/tauri-apps/tauri/commit/8d16a80d2fb2468667e7987d0cc99dbc7e3b9d0a)([#8802](https://www.github.com/tauri-apps/tauri/pull/8802)) The `generate_context` proc macro now accepts a `capabilities` attribute where the value is an array of file paths that can be [conditionally compiled](https://doc.rust-lang.org/reference/conditional-compilation.html). These capabilities are added to the application along the capabilities defined in the Tauri configuration file.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.2`
+- Upgraded to `tauri-codegen@2.0.0-beta.2`
+
 ## \[2.0.0-beta.1]
 
 ### Dependencies
@@ -140,6 +218,13 @@
   - [98904863](https://www.github.com/tauri-apps/tauri/commit/9890486321c9c79ccfb7c547fafee85b5c3ffa71) feat(core): add `mobile_entry_point` macro ([#4983](https://www.github.com/tauri-apps/tauri/pull/4983)) on 2022-08-21
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.4.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-codegen@1.4.2`
 
 ## \[1.4.2]
 

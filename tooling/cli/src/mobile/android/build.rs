@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -64,6 +64,9 @@ pub struct Options {
   /// Open Android Studio
   #[clap(short, long)]
   pub open: bool,
+  /// Skip prompting for values
+  #[clap(long, env = "CI")]
+  pub ci: bool,
 }
 
 impl From<Options> for BuildOptions {
@@ -74,9 +77,10 @@ impl From<Options> for BuildOptions {
       target: None,
       features: options.features,
       bundles: None,
+      no_bundle: false,
       config: options.config,
       args: Vec::new(),
-      ci: false,
+      ci: options.ci,
     }
   }
 }
@@ -102,9 +106,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
     let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
+    interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
     let app = get_app(tauri_config_, &interface);
-    let (config, metadata) = get_config(&app, tauri_config_, &Default::default());
+    let (config, metadata) = get_config(
+      &app,
+      tauri_config_,
+      build_options.features.as_ref(),
+      &Default::default(),
+    );
     (interface, app, config, metadata)
   };
 
@@ -125,6 +135,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut env = env()?;
   configure_cargo(&app, Some((&mut env, &config)))?;
 
+  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+
   // run an initial build to initialize plugins
   Target::all().values().next().unwrap().build(
     &config,
@@ -132,11 +144,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &env,
     noise_level,
     true,
-    if options.debug {
-      Profile::Debug
-    } else {
-      Profile::Release
-    },
+    profile,
   )?;
 
   let open = options.open;
@@ -162,7 +170,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn run_build(
   interface: AppInterface,
   mut options: Options,
-  mut build_options: BuildOptions,
+  build_options: BuildOptions,
   tauri_config: ConfigHandle,
   profile: Profile,
   config: &AndroidConfig,
@@ -174,8 +182,6 @@ fn run_build(
     options.apk = true;
     options.aab = true;
   }
-
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
@@ -198,11 +204,6 @@ fn run_build(
     &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
     cli_options,
   )?;
-
-  options
-    .features
-    .get_or_insert(Vec::new())
-    .push("custom-protocol".into());
 
   inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 

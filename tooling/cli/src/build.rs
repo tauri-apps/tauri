@@ -22,7 +22,10 @@ use std::{
   str::FromStr,
   sync::OnceLock,
 };
-use tauri_bundler::bundle::{bundle_project, PackageType};
+use tauri_bundler::{
+  bundle::{bundle_project, PackageType},
+  Bundle,
+};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone)]
@@ -305,9 +308,23 @@ fn bundle<A: AppSettings>(
     .map_err(|e| anyhow::anyhow!("{:#}", e))
     .with_context(|| "failed to bundle project")?;
 
+  let updater_bundles: Vec<&Bundle> = bundles
+    .iter()
+    .filter(|bundle| {
+      matches!(
+        bundle.package_type,
+        PackageType::Updater
+          | PackageType::Nsis
+          | PackageType::WindowsMsi
+          | PackageType::AppImage
+          | PackageType::MacOsBundle
+      )
+    })
+    .collect();
+
   // Skip if no updater is active
-  if bundles.is_empty()
-    || !bundles
+  if updater_bundles.is_empty()
+    || !updater_bundles
       .iter()
       .any(|bundle| bundle.package_type == PackageType::Updater)
   {
@@ -353,7 +370,7 @@ fn bundle<A: AppSettings>(
 
     // make sure we have our package built
     let mut signed_paths = Vec::new();
-    for bundle in bundles {
+    for bundle in updater_bundles {
       // we expect to have only one path in the vec but we iter if we add
       // another type of updater package who require multiple file signature
       for path in bundle.bundle_paths.iter() {

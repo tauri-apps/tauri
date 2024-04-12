@@ -313,11 +313,7 @@ fn bundle<A: AppSettings>(
     .filter(|bundle| {
       matches!(
         bundle.package_type,
-        PackageType::Updater
-          | PackageType::Nsis
-          | PackageType::WindowsMsi
-          | PackageType::AppImage
-          | PackageType::MacOsBundle
+        PackageType::Updater | PackageType::Nsis | PackageType::WindowsMsi | PackageType::AppImage
       )
     })
     .collect();

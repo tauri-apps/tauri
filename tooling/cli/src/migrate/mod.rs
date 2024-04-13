@@ -6,6 +6,7 @@ use crate::{
   helpers::app_paths::{app_dir, tauri_dir},
   Result,
 };
+use anyhow::Context;
 
 mod config;
 mod frontend;
@@ -15,8 +16,8 @@ pub fn command() -> Result<()> {
   let tauri_dir = tauri_dir();
   let app_dir = app_dir();
 
-  let migrated = config::migrate(&tauri_dir)?;
-  manifest::migrate(&tauri_dir)?;
+  let migrated = config::migrate(&tauri_dir).context("Could not migrate config")?;
+  manifest::migrate(&tauri_dir).context("Could not migrate manifest")?;
   let skipped = frontend::migrate(app_dir, &tauri_dir)?;
 
   if !skipped.is_empty() {
@@ -29,11 +30,12 @@ pub fn command() -> Result<()> {
   // Add plugins
   for plugin in migrated.plugins {
     crate::add::command(crate::add::Options {
-      plugin,
+      plugin: plugin.clone(),
       branch: None,
       tag: None,
       rev: None,
-    })?
+    })
+    .with_context(|| format!("Could not migrate plugin '{plugin}'"))?
   }
 
   Ok(())

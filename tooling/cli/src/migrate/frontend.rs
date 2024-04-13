@@ -6,6 +6,7 @@ use crate::{
   helpers::{app_paths::walk_builder, cargo, npm::PackageManager},
   Result,
 };
+use anyhow::Context;
 
 use std::{
   fs::{read_to_string, write},
@@ -78,18 +79,21 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<Vec<(PathBuf, String)
           });
 
         if new_contents != js_contents {
-          write(path, new_contents.as_bytes())?;
+          write(path, new_contents.as_bytes())
+            .with_context(|| format!("Error writing {}", path.display()))?;
         }
       }
     }
   }
 
   if !new_npm_packages.is_empty() {
-    pm.install(&new_npm_packages)?;
+    pm.install(&new_npm_packages)
+      .context("Error installing new npm packages")?;
   }
 
   if !new_cargo_packages.is_empty() {
-    cargo::install(&new_cargo_packages, Some(tauri_dir))?;
+    cargo::install(&new_cargo_packages, Some(tauri_dir))
+      .context("Error installing new Cargo packages")?;
   }
 
   Ok(skipped)

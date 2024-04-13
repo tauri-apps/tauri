@@ -9,15 +9,17 @@ use crate::{
 
 use std::{
   fs::{read_to_string, write},
-  path::Path,
+  path::{Path, PathBuf},
 };
 
 const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "core", "window", "mocks"];
 const JS_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs"];
 
-pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
+/// Returns a list of paths that could not be migrated
+pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<Vec<(PathBuf, String)>> {
   let mut new_npm_packages = Vec::new();
   let mut new_cargo_packages = Vec::new();
+  let mut skipped = Vec::new();
 
   let pm = PackageManager::from_project(app_dir)
     .into_iter()
@@ -31,7 +33,13 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
       let path = entry.path();
       let ext = path.extension().unwrap_or_default();
       if JS_EXTENSIONS.iter().any(|e| e == &ext) {
-        let js_contents = read_to_string(path)?;
+        let js_contents = match read_to_string(path) {
+          Ok(js) => js,
+          Err(e) => {
+            skipped.push((path.to_path_buf(), e.to_string()));
+            continue;
+          }
+        };
 
         let new_contents =
           tauri_api_import_regex.replace_all(&js_contents, |cap: &regex::Captures<'_>| {
@@ -84,5 +92,5 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
     cargo::install(&new_cargo_packages, Some(tauri_dir))?;
   }
 
-  Ok(())
+  Ok(skipped)
 }

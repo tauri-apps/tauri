@@ -17,7 +17,14 @@ pub fn command() -> Result<()> {
 
   let migrated = config::migrate(&tauri_dir)?;
   manifest::migrate(&tauri_dir)?;
-  frontend::migrate(app_dir, &tauri_dir)?;
+  let skipped = frontend::migrate(app_dir, &tauri_dir)?;
+
+  if !skipped.is_empty() {
+    log::warn!("Some frontend files could not be migrated, and were skipped:");
+    for (path, reason) in skipped {
+      log::warn!("{}: {reason}", path.display());
+    }
+  }
 
   // Add plugins
   for plugin in migrated.plugins {

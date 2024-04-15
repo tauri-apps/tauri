@@ -2,4 +2,4 @@
 "tauri-runtime-wry": patch:bug
 ---
 
-Revert fix webview's visibility doesn't change with the app window, the previous change causes flickering on show/restore, so revert it for now
+Revert the [fix](https://github.com/tauri-apps/tauri/pull/9246) for webview's visibility doesn't change with the app window on Windows as it caused white flashes on show/restore.

@@ -12,6 +12,7 @@ use tauri_utils::acl::{
 
 use std::{
   collections::{BTreeMap, HashSet},
+  fs,
   path::Path,
 };
 

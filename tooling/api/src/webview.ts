@@ -417,15 +417,15 @@ class Webview {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${size.type}`] = {
+      width: size.width,
+      height: size.height
+    }
+
     return invoke('plugin:webview|set_webview_size', {
       label: this.label,
-      value: {
-        type: size.type,
-        data: {
-          width: size.width,
-          height: size.height
-        }
-      }
+      value
     })
   }
 
@@ -452,15 +452,15 @@ class Webview {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:webview|set_webview_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 

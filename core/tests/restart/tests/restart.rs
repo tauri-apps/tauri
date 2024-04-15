@@ -55,7 +55,7 @@ fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Res
 
     if output.status.success() {
       // gather the output into a string
-      let stdout = String::from_utf8(output.stdout)?;
+      let stdout = String::from_utf8_lossy(&output.stdout);
 
       // we expect the output to be the bin path, twice
       assert_eq!(stdout, format!("{bin}\n{bin}\n", bin = bin.display()));
@@ -64,7 +64,7 @@ fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Res
       not(feature = "process-relaunch-dangerous-allow-symlink-macos")
     )) {
       // we expect this to fail on macOS without the dangerous symlink flag set
-      let stderr = String::from_utf8(output.stderr)?;
+      let stderr = String::from_utf8_lossy(&output.stderr);
 
       // make sure it's the error that we expect
       assert!(stderr.contains(

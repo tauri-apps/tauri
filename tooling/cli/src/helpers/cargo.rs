@@ -63,13 +63,13 @@ pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
 
     match (options.tag, options.rev, options.branch) {
       (Some(tag), None, None) => {
-        cargo.args(["--tag", &tag]);
+        cargo.args(["--tag", tag]);
       }
       (None, Some(rev), None) => {
-        cargo.args(["--rev", &rev]);
+        cargo.args(["--rev", rev]);
       }
       (None, None, Some(branch)) => {
-        cargo.args(["--branch", &branch]);
+        cargo.args(["--branch", branch]);
       }
       (None, None, None) => {}
       _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),

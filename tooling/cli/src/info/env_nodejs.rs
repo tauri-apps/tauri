@@ -40,16 +40,17 @@ pub fn items(metadata: &VersionMetadata) -> Vec<SectionItem> {
               .unwrap_or_default()
               .trim();
             ActionResult::Description(format!("node: {}{}", v, {
-              let version = semver::Version::parse(v).unwrap();
-              let target_version = semver::Version::parse(node_target_ver.as_str()).unwrap();
-              if version < target_version {
-                format!(
-                  " ({}, latest: {})",
-                  "outdated".red(),
-                  target_version.to_string().green()
-                )
-              } else {
-                "".into()
+              let version = semver::Version::parse(v);
+              let target_version = semver::Version::parse(node_target_ver.as_str());
+              match (version, target_version) {
+                (Ok(version), Ok(target_version)) if version < target_version => {
+                  format!(
+                    " ({}, latest: {})",
+                    "outdated".red(),
+                    target_version.to_string().green()
+                  )
+                }
+                _ => "".into(),
               }
             }))
           } else {

@@ -19,7 +19,7 @@ mod desktop_commands {
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
     window::{ProgressBarState, WindowBuilder},
-    AppHandle, CursorIcon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
+    AppHandle, CursorIcon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Webview, Window,
   };
 
@@ -138,8 +138,9 @@ mod desktop_commands {
     value: crate::image::JsImage,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
+    let resources_table = webview.resources_table();
     window
-      .set_icon(value.into_img(&webview)?.as_ref().clone())
+      .set_icon(value.into_img(&resources_table)?.as_ref().clone())
       .map_err(Into::into)
   }
 

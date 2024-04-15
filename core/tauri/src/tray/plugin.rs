@@ -64,7 +64,7 @@ fn new<R: Runtime>(
     };
   }
   if let Some(icon) = options.icon {
-    builder = builder.icon(icon.into_img(&webview)?.as_ref().clone());
+    builder = builder.icon(icon.into_img(&resources_table)?.as_ref().clone());
   }
   if let Some(tooltip) = options.tooltip {
     builder = builder.tooltip(tooltip);
@@ -121,7 +121,7 @@ fn set_icon<R: Runtime>(
   let resources_table = webview.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   let icon = match icon {
-    Some(i) => Some(i.into_img(&webview)?.as_ref().clone()),
+    Some(i) => Some(i.into_img(&resources_table)?.as_ref().clone()),
     None => None,
   };
   tray.set_icon(icon)

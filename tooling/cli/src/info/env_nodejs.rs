@@ -53,6 +53,7 @@ pub fn items(metadata: &VersionMetadata) -> Vec<SectionItem> {
                   )
                 }
                 _ => "".into(),
+              }
             }))
           } else {
             ActionResult::None

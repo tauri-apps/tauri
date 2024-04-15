@@ -35,9 +35,9 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
         let new_contents =
           tauri_api_import_regex.replace_all(&js_contents, |cap: &regex::bytes::Captures<'_>| {
             let module = cap.get(1).unwrap().as_bytes();
+            let module = String::from_utf8_lossy(module).to_string();
             let original = cap.get(0).unwrap().as_bytes();
-            let module = String::from_utf8_lossy(&module).to_string();
-            let original = String::from_utf8_lossy(&original).to_string();
+            let original = String::from_utf8_lossy(original).to_string();
 
             if module == "tauri" {
               let new = "@tauri-apps/api/core".to_string();

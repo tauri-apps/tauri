@@ -73,6 +73,7 @@ http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.4"
 log = "0.4"
+dunce = "1"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.13", default-features = false, features = [ "serde" ] }

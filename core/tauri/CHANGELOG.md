@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.0.0-beta.15]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+- [`4973d73a2`](https://www.github.com/tauri-apps/tauri/commit/4973d73a237dc5c60618c1011e202278e7a29b5c)([#9386](https://www.github.com/tauri-apps/tauri/pull/9386)) Provide a basic zoom hotkey polyfill for non-Windows platforms
+
+### Enhancements
+
+- [`f1674fce6`](https://www.github.com/tauri-apps/tauri/commit/f1674fce6dfb1cf0378a85165bb62c270715211b)([#9420](https://www.github.com/tauri-apps/tauri/pull/9420)) Tauri's built-in commands for the JS api will now return simplified paths on Windows, removing the `\\?\` prefix.
+
+### Bug Fixes
+
+- [`c8a82ad22`](https://www.github.com/tauri-apps/tauri/commit/c8a82ad2236ee1def621b5930bdb136f01dd07e4)([#9379](https://www.github.com/tauri-apps/tauri/pull/9379)) Fix deadlock when using the menu/tray/image JS APIs.
+- [`6251645ac`](https://www.github.com/tauri-apps/tauri/commit/6251645acfe2df2da726f38a09373d7370bfcc86)([#9360](https://www.github.com/tauri-apps/tauri/pull/9360)) Fixes an issue causing `getAll()` to list webviews that were already destroyed.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.12`
+- Upgraded to `tauri-runtime@2.0.0-beta.12`
+- Upgraded to `tauri-macros@2.0.0-beta.12`
+- Upgraded to `tauri-build@2.0.0-beta.12`
+
+### Breaking Changes
+
+- [`c8a82ad22`](https://www.github.com/tauri-apps/tauri/commit/c8a82ad2236ee1def621b5930bdb136f01dd07e4)([#9379](https://www.github.com/tauri-apps/tauri/pull/9379)) Changed `JsImage::into_img` to take a reference to a `ResourceTable` instead of a `Manager`.
+
 ## \[2.0.0-beta.14]
 
 ### New Features

@@ -1127,7 +1127,7 @@ fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   if !output.status.success() {
     return Err(anyhow::anyhow!(
       "cargo metadata command exited with a non zero exit code: {}",
-      String::from_utf8(output.stderr)?
+      String::from_utf8_lossy(&output.stderr)
     ));
   }
 

@@ -66,7 +66,7 @@ The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and 
 
 ### Developing Tauri Core and Related Components (Rust API, Macros, Codegen, and Utils)
 
-The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/core/tauri-(macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `cargo run --example helloworld` after making changes to test them out.
+The code for the Rust crates, including the Core, Macros, Utils, WRY runtime, and a few more are located in `[Tauri repo root]/core/tauri-(macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `cargo run --example helloworld` after making changes to test them out.
 
 #### Building the documentation locally
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`73c1c2d33`](https://www.github.com/tauri-apps/tauri/commit/73c1c2d33872651c32c761c838714b684980c668)([#9457](https://www.github.com/tauri-apps/tauri/pull/9457)) Gracefully handle Non-UTF8 files when using `tauri migrate`
+- [`9331435a5`](https://www.github.com/tauri-apps/tauri/commit/9331435a50cc3769720bd2671da8510699d28671)([#9412](https://www.github.com/tauri-apps/tauri/pull/9412)) Fix `tauri info` crashing when Node.js is not installed.
+
+### What's Changed
+
+- [`8f4b1050c`](https://www.github.com/tauri-apps/tauri/commit/8f4b1050c4de0e9194680408ff3a6902b67045f8)([#9459](https://www.github.com/tauri-apps/tauri/pull/9459)) Show full expected path of `frontendDist` when if can't be found.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
 ## \[2.0.0-beta.12]
 
 ### New Features

@@ -151,7 +151,7 @@ fn update_plist_file<P: AsRef<Path>, F: FnOnce(&mut plist::Dictionary)>(
       let mut plist_buf = Vec::new();
       let writer = Cursor::new(&mut plist_buf);
       plist::to_writer_xml(writer, &plist)?;
-      let new_plist_str = String::from_utf8_lossy(plist_buf)?;
+      let new_plist_str = String::from_utf8(plist_buf)?;
       if new_plist_str != plist_str {
         write(path, new_plist_str)?;
       }

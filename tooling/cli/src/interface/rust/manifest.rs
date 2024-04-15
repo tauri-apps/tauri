@@ -15,7 +15,6 @@ use std::{
   collections::{HashMap, HashSet},
   fs::File,
   io::{Read, Write},
-  iter::FromIterator,
   path::Path,
 };
 

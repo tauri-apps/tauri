@@ -3503,6 +3503,7 @@ dependencies = [
  "cocoa",
  "data-url",
  "dirs-next",
+ "dunce",
  "embed_plist",
  "futures-util",
  "getrandom 0.2.12",

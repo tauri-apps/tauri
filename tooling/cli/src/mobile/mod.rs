@@ -293,7 +293,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     domain.push('.');
   }
   if domain.is_empty() {
-    domain = config.identifier.clone();
+    domain.clone_from(&config.identifier);
     if domain.is_empty() {
       log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
       exit(1);

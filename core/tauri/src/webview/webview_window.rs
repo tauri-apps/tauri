@@ -51,7 +51,7 @@ pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
-  /// Initializes a window builder with the given window label.
+  /// Initializes a webview window builder with the given window label.
   ///
   /// # Known issues
   ///
@@ -108,7 +108,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Initializes a window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new [`WindowBuilder`].
+  /// that the initial window was closed or change the label of the new [`WebviewWindowBuilder`].
   ///
   /// # Known issues
   ///
@@ -119,20 +119,15 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - Create a window in a command:
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-#[tauri::command]
-async fn reopen_window(app: tauri::AppHandle) {
-  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
-    .unwrap()
-    .build()
-    .unwrap();
-}
-```
-  "####
-  )]
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+  ///     .unwrap()
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {

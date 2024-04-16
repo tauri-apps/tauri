@@ -106,7 +106,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     }
   }
 
-  /// Initializes a window builder from a [`WindowConfig`] from tauri.conf.json.
+  /// Initializes a webview window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
   /// that the initial window was closed or change the label of the new [`WebviewWindowBuilder`].
   ///

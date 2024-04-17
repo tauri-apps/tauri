@@ -110,6 +110,8 @@
 |`deny-show`|Denies the show command without any pre-configured scope.|
 |`allow-start-dragging`|Enables the start_dragging command without any pre-configured scope.|
 |`deny-start-dragging`|Denies the start_dragging command without any pre-configured scope.|
+|`allow-start-resize-dragging`|Enables the start_resize_dragging command without any pre-configured scope.|
+|`deny-start-resize-dragging`|Denies the start_resize_dragging command without any pre-configured scope.|
 |`allow-theme`|Enables the theme command without any pre-configured scope.|
 |`deny-theme`|Denies the theme command without any pre-configured scope.|
 |`allow-title`|Enables the title command without any pre-configured scope.|

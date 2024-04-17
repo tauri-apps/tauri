@@ -357,11 +357,12 @@ fn rename_app(
       product_name.into()
     };
 
+    let binary_extension = if target_os == "windows" { ".exe" } else { "" };
+
     let product_path = bin_path
       .parent()
       .unwrap()
-      .join(product_name)
-      .with_extension(bin_path.extension().unwrap_or_default());
+      .join(format!("{product_name}{binary_extension}"));
 
     rename(bin_path, &product_path).with_context(|| {
       format!(

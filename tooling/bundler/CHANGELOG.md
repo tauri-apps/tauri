@@ -225,6 +225,13 @@
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
 
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`516386158`](https://www.github.com/tauri-apps/tauri/commit/5163861588b229fe2e13e61bf65fbf5b88743bb3)([#9040](https://www.github.com/tauri-apps/tauri/pull/9040)) On Windows, fix building WiX installer when resources contains an XML charcter that should be escaped.
+- [`97a05145f`](https://www.github.com/tauri-apps/tauri/commit/97a05145fbb24533526eba6589594f03046e11df)([#9119](https://www.github.com/tauri-apps/tauri/pull/9119)) Fix compilation error due to dependency on unstable features of `log` crate.
+
 ## \[1.5.0]
 
 ### New Features

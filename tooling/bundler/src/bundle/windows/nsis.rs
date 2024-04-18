@@ -210,6 +210,10 @@ fn build_nsis_app_installer(
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
+  data.insert(
+    "long_description",
+    to_json(settings.long_description().unwrap_or_default()),
+  );
   data.insert("copyright", to_json(settings.copyright_string()));
 
   // Code signing is currently only supported on Windows hosts

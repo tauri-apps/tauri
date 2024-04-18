@@ -1759,7 +1759,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.5",
 ]
 
 [[package]]
@@ -3435,7 +3435,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.27.0"
-source = "git+https://github.com/tauri-apps/tao?branch=chore/deps/windows-0-56#b3eec89df0d7b3321b74f3c0a63165ddd817b0a4"
+source = "git+https://github.com/tauri-apps/tao?branch=chore/deps/windows-0-56#ad2f87e4a920b74e9527acf8ac8a6606c6f0bae6"
 dependencies = [
  "bitflags 2.5.0",
  "cocoa",
@@ -3484,7 +3484,7 @@ dependencies = [
 [[package]]
 name = "tao-macros"
 version = "0.1.2"
-source = "git+https://github.com/tauri-apps/tao?branch=chore/deps/windows-0-56#b3eec89df0d7b3321b74f3c0a63165ddd817b0a4"
+source = "git+https://github.com/tauri-apps/tao?branch=chore/deps/windows-0-56#ad2f87e4a920b74e9527acf8ac8a6606c6f0bae6"
 dependencies = [
  "proc-macro2",
  "quote",

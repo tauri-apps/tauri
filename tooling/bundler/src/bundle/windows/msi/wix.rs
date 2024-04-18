@@ -518,6 +518,10 @@ pub fn build_wix_app_installer(
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(app_version));
+  data.insert(
+    "long_description",
+    to_json(settings.long_description().unwrap_or_default()),
+  );
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()

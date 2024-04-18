@@ -738,10 +738,12 @@ impl AppSettings for RustAppSettings {
             BundleBinary::new(
               format!(
                 "{}{}",
-                config
-                  .package
-                  .binary_name()
-                  .unwrap_or_else(|| binary.name.clone()),
+                (if target_os == "windows" {
+                  config.package.product_name.clone()
+                } else {
+                  config.package.binary_name()
+                })
+                .unwrap_or_else(|| binary.name.clone()),
                 &binary_extension
               ),
               true,
@@ -780,17 +782,23 @@ impl AppSettings for RustAppSettings {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
           if let Some(bin_name) = config.package.binary_name() {
-            bin.set_name(bin_name);
+            if target_os == "windows" {
+              bin.set_name(config.package.product_name.clone().unwrap());
+            } else {
+              bin.set_name(bin_name);
+            }
           }
         }
         None => {
           binaries.push(BundleBinary::new(
             format!(
               "{}{}",
-              config
-                .package
-                .binary_name()
-                .unwrap_or_else(|| default_run.to_string()),
+              (if target_os == "windows" {
+                config.package.product_name.clone()
+              } else {
+                config.package.binary_name()
+              })
+              .unwrap_or_else(|| default_run.to_string()),
               &binary_extension
             ),
             true,

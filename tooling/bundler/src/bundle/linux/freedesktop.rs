@@ -163,7 +163,7 @@ pub fn generate_desktop_file(
       icon: bin_name,
       name: settings.product_name(),
       mime_type,
-      long_description: settings.long_description().unwrap_or_default(),
+      long_description: settings.long_description().unwrap_or_default().to_string(),
     },
     file,
   )?;

@@ -3,4 +3,4 @@
 '@tauri-apps/cli': 'patch:bug'
 ---
 
-Fixed an issue causing the NSIS bundler to crash on non-lowercase product names when the installer was built on a non-Windows system.
+Fixed an issue with the CLI renaming the main executable in kebab-case when building for Windows on a non-Windows system which caused the bundler step to fail.

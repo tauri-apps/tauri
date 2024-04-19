@@ -1181,6 +1181,7 @@ pub enum WebviewMessage {
   Close,
   SetPosition(Position),
   SetSize(Size),
+  SetVisible(bool),
   SetBounds(tauri_runtime::Rect),
   SetFocus,
   Reparent(WindowId, Sender<Result<()>>),
@@ -1349,6 +1350,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Close,
+      ),
+    )
+  }
+
+  fn set_visible(&self, visible: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetVisible(visible),
       ),
     )
   }
@@ -2909,6 +2921,11 @@ fn handle_user_message<T: UserEvent>(
               }
               window
             });
+          }
+          WebviewMessage::SetVisible(visible) => {
+            if let Err(e) = webview.set_visible(visible) {
+              log::error!("failed to change webview visibility: {e}");
+            }
           }
           WebviewMessage::SetBounds(bounds) => {
             let bounds: RectWrapper = bounds.into();

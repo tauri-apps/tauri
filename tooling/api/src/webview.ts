@@ -463,6 +463,39 @@ class Webview {
       value
     })
   }
+  
+  /**
+   * Sets the webview visibility to true.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().show();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async show(): Promise<void> {
+    return invoke('plugin:webview|webview_show', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Sets the webview visibility to false.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().hide();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async hide(): Promise<void> {
+    return invoke('plugin:webview|webview_hide', {
+      label: this.label
+    })
+  }
+
 
   /**
    * Bring the webview to front and focus.
@@ -677,6 +710,10 @@ interface WebviewOptions {
    * - **Android / iOS**: Unsupported.
    */
   zoomHotkeysEnabled?: boolean
+  /**
+   * Whether the webview should be visible or not. Defaults to `true`.
+   */
+  visible?: boolean
 }
 
 export { Webview, getCurrent, getAll }

@@ -42,6 +42,7 @@ mod desktop_commands {
     incognito: bool,
     #[serde(default)]
     zoom_hotkeys_enabled: bool,
+    visible: Option<bool>,
   }
 
   #[command(root = "crate")]
@@ -80,6 +81,7 @@ mod desktop_commands {
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
     builder.webview_attributes.zoom_hotkeys_enabled = options.zoom_hotkeys_enabled;
+    builder.webview_attributes.visible = options.visible.unwrap_or(true);
 
     window.add_child(
       builder,
@@ -157,6 +159,8 @@ mod desktop_commands {
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
+  setter!(webview_show, show);
+  setter!(webview_hide, hide);
   setter!(set_webview_zoom, set_zoom, f64);
 
   #[command(root = "crate")]
@@ -238,6 +242,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::webview_close,
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
+            desktop_commands::webview_show,
+            desktop_commands::webview_hide,
             desktop_commands::set_webview_focus,
             desktop_commands::set_webview_zoom,
             desktop_commands::print,

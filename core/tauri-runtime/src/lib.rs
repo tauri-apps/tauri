@@ -460,6 +460,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Closes the webview.
   fn close(&self) -> Result<()>;
 
+  /// Sets the webview's visibility flag.
+  fn set_visible(&self, visible: bool) -> Result<()>;
+
   /// Sets the webview's bounds.
   fn set_bounds(&self, bounds: Rect) -> Result<()>;
 

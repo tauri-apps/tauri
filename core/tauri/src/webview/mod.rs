@@ -631,6 +631,7 @@ tauri::Builder::default()
 }
 
 /// Webview attributes.
+#[cfg_attr(not(feature = "unstable"), allow(dead_code))]
 impl<R: Runtime> WebviewBuilder<R> {
   /// Sets whether clicking an inactive window also clicks through to the webview.
   #[must_use]
@@ -790,6 +791,13 @@ fn main() {
     self.webview_attributes.zoom_hotkeys_enabled = enabled;
     self
   }
+
+  /// Whether the webview is visible or not. Defaults to `true`.
+  #[must_use]
+  pub fn visible(mut self, visible: bool) -> Self {
+    self.webview_attributes.visible = visible;
+    self
+  }
 }
 
 /// Webview.
@@ -900,6 +908,24 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.close()?;
     self.manager().on_webview_close(self.label());
     Ok(())
+  }
+
+  /// Show this window.
+  pub fn show(&self) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_visible(true)
+      .map_err(Into::into)
+  }
+
+  /// Hide this window.
+  pub fn hide(&self) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_visible(false)
+      .map_err(Into::into)
   }
 
   /// Resizes this webview.

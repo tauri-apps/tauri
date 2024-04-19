@@ -208,6 +208,7 @@ pub struct WebviewAttributes {
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
+  pub visible: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -235,6 +236,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       builder = builder.proxy_url(url.to_owned());
     }
     builder = builder.zoom_hotkeys_enabled(config.zoom_hotkeys_enabled);
+    builder = builder.visible(config.visible);
     builder
   }
 }
@@ -258,6 +260,7 @@ impl WebviewAttributes {
       auto_resize: false,
       proxy_url: None,
       zoom_hotkeys_enabled: false,
+      visible: true,
     }
   }
 
@@ -361,6 +364,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
     self.zoom_hotkeys_enabled = enabled;
+    self
+  }
+
+  /// Whether the webview is visible or not.
+  #[must_use]
+  pub fn visible(mut self, visible: bool) -> Self {
+    self.visible = visible;
     self
   }
 }

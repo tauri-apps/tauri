@@ -2,4 +2,4 @@
 "tauri-utils": "patch:enhance"
 ---
 
-Adde `/NS` flag in the return of `WindowsUpdateInstallMode::nsis_args`.
+Added `/NS` flag in the return of `WindowsUpdateInstallMode::nsis_args`.

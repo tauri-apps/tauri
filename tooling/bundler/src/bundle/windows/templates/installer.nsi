@@ -685,6 +685,8 @@ Section Uninstall
   RMDir "$SMPROGRAMS\$AppStartMenuFolder"
 
   ; Remove desktop shortcuts
+  WinShell::UninstAppUserModelId "${BUNDLEID}"
+  WinShell::UninstShortcut "$DESKTOP\${MAINBINARYNAME}.lnk"
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
 
   ; Remove registry information for add/remove programs
@@ -722,11 +724,11 @@ FunctionEnd
 
 Function CreateDesktopShortcut
   CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+  WinShell::SetLnkAUMI "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
 FunctionEnd
 
 Function CreateStartMenuShortcut
   CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
   CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  ApplicationID::Set "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+  WinShell::SetLnkAUMI "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
 FunctionEnd

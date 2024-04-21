@@ -288,14 +288,9 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
+    options
       .runner
-      .clone();
+      .clone_from(&config.lock().unwrap().as_ref().unwrap().build.runner);
   }
 
   let mut cargo_features = config

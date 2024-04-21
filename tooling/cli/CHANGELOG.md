@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`73c1c2d33`](https://www.github.com/tauri-apps/tauri/commit/73c1c2d33872651c32c761c838714b684980c668)([#9457](https://www.github.com/tauri-apps/tauri/pull/9457)) Gracefully handle Non-UTF8 files when using `tauri migrate`
+- [`9331435a5`](https://www.github.com/tauri-apps/tauri/commit/9331435a50cc3769720bd2671da8510699d28671)([#9412](https://www.github.com/tauri-apps/tauri/pull/9412)) Fix `tauri info` crashing when Node.js is not installed.
+
+### What's Changed
+
+- [`8f4b1050c`](https://www.github.com/tauri-apps/tauri/commit/8f4b1050c4de0e9194680408ff3a6902b67045f8)([#9459](https://www.github.com/tauri-apps/tauri/pull/9459)) Show full expected path of `frontendDist` when if can't be found.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
 ## \[2.0.0-beta.12]
 
 ### New Features
@@ -547,6 +563,17 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.11]
+
+### Bug Fixes
+
+- [`97a05145f`](https://www.github.com/tauri-apps/tauri/commit/97a05145fbb24533526eba6589594f03046e11df)([#9119](https://www.github.com/tauri-apps/tauri/pull/9119)) Fix compilation error due to dependency on unstable features of `log` crate.
+- [`b15948b11`](https://www.github.com/tauri-apps/tauri/commit/b15948b11c0e362eea7ef57a4606f15f7dbd886b)([#8903](https://www.github.com/tauri-apps/tauri/pull/8903)) Fix `.taurignore` failing to ignore in some cases.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.5.1`
 
 ## \[1.5.10]
 

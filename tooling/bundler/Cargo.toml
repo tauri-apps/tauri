@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.1-beta.8"
+version = "2.0.1-beta.9"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-beta.11", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-beta.12", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.9"
 flate2 = "1.0"
 anyhow = "1.0"
@@ -63,7 +63,7 @@ plist = "1"
 regex = "1"
 
 [target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.4"
+heck = "0.5"
 ar = "0.9.0"
 md5 = "0.7.0"
 rpm = "0.14.0"

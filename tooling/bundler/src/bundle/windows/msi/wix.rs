@@ -16,7 +16,7 @@ use crate::bundle::{
   },
 };
 use anyhow::{bail, Context};
-use handlebars::{to_json, Handlebars};
+use handlebars::{html_escape, to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -121,7 +121,7 @@ impl ResourceDirectory {
           r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
-          path = file.path.display()
+          path = html_escape(&file.path.display().to_string())
         ).as_str()
       );
     }
@@ -139,7 +139,7 @@ impl ResourceDirectory {
       format!(
         r#"<Directory Id="I{id}" Name="{name}">{files}{directories}</Directory>"#,
         id = Uuid::new_v4().as_simple(),
-        name = self.name,
+        name = html_escape(&self.name),
         files = files,
         directories = directories,
       )
@@ -518,6 +518,10 @@ pub fn build_wix_app_installer(
 
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("version", to_json(app_version));
+  data.insert(
+    "long_description",
+    to_json(settings.long_description().unwrap_or_default()),
+  );
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()

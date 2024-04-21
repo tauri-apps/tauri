@@ -209,4 +209,10 @@ impl ResourceTable {
       .ok_or_else(|| crate::Error::BadResourceId(rid))
       .map(|resource| resource.close())
   }
+
+  /// Removes and frees all resources stored. Note that the
+  /// resource's `close()` method is *not* called.
+  pub(crate) fn clear(&mut self) {
+    self.index.clear()
+  }
 }

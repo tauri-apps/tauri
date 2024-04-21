@@ -674,14 +674,10 @@ Section Uninstall
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
-  ${If} $DeleteAppDataCheckboxState == 1
-    RMDir /R /REBOOTOK "$INSTDIR"
-  ${Else}
-    {{#each resources_ancestors}}
-    RMDir /REBOOTOK "$INSTDIR\\{{this}}"
-    {{/each}}
-    RMDir "$INSTDIR"
-  ${EndIf}
+  {{#each resources_ancestors}}
+  RMDir /REBOOTOK "$INSTDIR\\{{this}}"
+  {{/each}}
+  RMDir "$INSTDIR"
 
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder

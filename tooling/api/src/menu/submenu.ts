@@ -245,9 +245,10 @@ export class Submenu extends MenuItemBase {
   ): Promise<void> {
     let atValue = null
     if (at) {
-      atValue = {
-        type: at instanceof PhysicalPosition ? 'Physical' : 'Logical',
-        data: at
+      atValue = {} as Record<string, unknown>
+      atValue[`${at instanceof PhysicalPosition ? 'Physical' : 'Logical'}`] = {
+        x: at.x,
+        y: at.y
       }
     }
     return invoke('plugin:menu|popup', {

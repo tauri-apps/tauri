@@ -452,7 +452,7 @@ Section WebView2
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
-    nsExec::Exec 'curl --location "https://go.microsoft.com/fwlink/p/?LinkId=2124703" --output "$DESKTOP\MicrosoftEdgeWebview2Setup.exe"'
+    nsExec::Exec 'curl --location "https://go.microsoft.com/fwlink/p/?LinkId=2124703" --output "$TEMP\MicrosoftEdgeWebview2Setup.exe"'
     Pop $0
     ${If} $0 == 0
       DetailPrint "$(webview2DownloadSuccess)"

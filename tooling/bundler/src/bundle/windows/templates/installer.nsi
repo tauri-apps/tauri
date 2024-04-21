@@ -178,7 +178,8 @@ Function PageReinstall
   ${EndIf}
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
-  nsis_tauri_utils::SemverCompare "${VERSION}" $R0
+  ; https://nsis.sourceforge.io/VersionCompare
+  ${VersionCompare} "${VERSION}" $R0 $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0
@@ -195,7 +196,7 @@ Function PageReinstall
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
     StrCpy $R5 "1"
   ; Downgrading
-  ${ElseIf} $R0 == -1
+  ${ElseIf} $R0 == 2
     StrCpy $R1 "$(newerVersionInstalled)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     !if "${ALLOWDOWNGRADES}" == "true"
@@ -451,7 +452,7 @@ Section WebView2
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
-    nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    nsExec::Exec 'curl --location "https://go.microsoft.com/fwlink/p/?LinkId=2124703" --output "$DESKTOP\MicrosoftEdgeWebview2Setup.exe"'
     Pop $0
     ${If} $0 == 0
       DetailPrint "$(webview2DownloadSuccess)"
@@ -494,43 +495,50 @@ Section WebView2
   webview2_done:
 SectionEnd
 
-!macro CheckIfAppIsRunning
+; Modified from https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/templates/nsis/include/allowOnlyOneInstallerInstance.nsh
+!macro FIND_PROCESS _FILE _ERR
   !if "${INSTALLMODE}" == "currentUser"
-    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
+    ExecShell open "cmd" '/c tasklist /fi "USERNAME eq %USERNAME%" /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
+    Pop ${_ERR}
   !else
-    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+    ExecShell open "cmd" '/c tasklist /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
+    Pop ${_ERR}
   !endif
-  Pop $R0
-  ${If} $R0 = 0
-      IfSilent kill 0
-      ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
-      kill:
-        !if "${INSTALLMODE}" == "currentUser"
-          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
-        !else
-          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
-        !endif
-        Pop $R0
-        Sleep 500
-        ${If} $R0 = 0
-          Goto app_check_done
-        ${Else}
-          IfSilent silent ui
-          silent:
-            System::Call 'kernel32::AttachConsole(i -1)i.r0'
-            ${If} $0 != 0
-              System::Call 'kernel32::GetStdHandle(i -11)i.r0'
-              System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-              FileWrite $0 "$(appRunning)$\n"
-            ${EndIf}
-            Abort
-          ui:
-            Abort "$(failedToKillApp)"
-        ${EndIf}
-      cancel:
-        Abort "$(appRunning)"
+!macroend
+
+!macro CheckIfAppIsRunning
+  !insertmacro FIND_PROCESS "${MAINBINARYNAME}.exe" $R0
+  ${If} $R0 == 0
+    IfSilent kill 0
+    ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
+
+    kill:
+      !if "${INSTALLMODE}" == "currentUser"
+        ExecShell open "taskkill" '/im "${MAINBINARYNAME}.exe" /fi "USERNAME eq %USERNAME%" /f' SW_HIDE
+      !else
+        ExecShell open "taskkill" '/im "${MAINBINARYNAME}.exe" /f' SW_HIDE
+      !endif
+
+      !insertmacro FIND_PROCESS "${MAINBINARYNAME}.exe" $R0
+      ${If} $R0 == 0
+        IfSilent silent ui
+        silent:
+          System::Call 'kernel32::AttachConsole(i -1)i.r0'
+          ${If} $0 != 0
+            System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+            System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+            FileWrite $0 "$(appRunning)$\n"
+          ${EndIf}
+          Abort
+        ui:
+          Abort "$(failedToKillApp)"
+      ${Else}
+        Goto app_check_done
+      ${EndIf}
+    cancel:
+      Abort "$(appRunning)"
+    app_check_done:
   ${EndIf}
-  app_check_done:
 !macroend
 
 Section Install

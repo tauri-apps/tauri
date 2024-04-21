@@ -43,6 +43,7 @@ ${StrLoc}
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
 !define ESTIMATEDSIZE "{{estimated_size}}"
+!define USETAURIPLUGIN "{{use_tauri_plugin}}"
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -178,8 +179,12 @@ Function PageReinstall
   ${EndIf}
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
-  ; https://nsis.sourceforge.io/VersionCompare
-  ${VersionCompare} "${VERSION}" $R0 $R0
+  !if "${USETAURIPLUGIN}" == "true"
+    nsis_tauri_utils::SemverCompare "${VERSION}" $R0
+  !else
+    ; https://nsis.sourceforge.io/VersionCompare
+    ${VersionCompare} "${VERSION}" $R0 $R0
+  !endif
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 == 0
@@ -196,7 +201,11 @@ Function PageReinstall
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
     StrCpy $R5 "1"
   ; Downgrading
+  !if "${USETAURIPLUGIN}" == "true"
+  ${ElseIf} $R0 == -1
+  !else
   ${ElseIf} $R0 == 2
+  !endif
     StrCpy $R1 "$(newerVersionInstalled)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     !if "${ALLOWDOWNGRADES}" == "true"
@@ -452,7 +461,11 @@ Section WebView2
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
-    nsExec::Exec 'curl --location "https://go.microsoft.com/fwlink/p/?LinkId=2124703" --output "$TEMP\MicrosoftEdgeWebview2Setup.exe"'
+    !if "${USETAURIPLUGIN}" == "true"
+      nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    !else
+      nsExec::Exec 'curl --location "https://go.microsoft.com/fwlink/p/?LinkId=2124703" --output "$TEMP\MicrosoftEdgeWebview2Setup.exe"'
+    !endif
     Pop $0
     ${If} $0 == 0
       DetailPrint "$(webview2DownloadSuccess)"
@@ -495,18 +508,58 @@ Section WebView2
   webview2_done:
 SectionEnd
 
-; Modified from https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/templates/nsis/include/allowOnlyOneInstallerInstance.nsh
-!macro FIND_PROCESS _FILE _ERR
-  !if "${INSTALLMODE}" == "currentUser"
-    ExecShell open "cmd" '/c tasklist /fi "USERNAME eq %USERNAME%" /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
-    Pop ${_ERR}
-  !else
-    ExecShell open "cmd" '/c tasklist /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
-    Pop ${_ERR}
-  !endif
-!macroend
-
+!if "${USETAURIPLUGIN}" == "true"
 !macro CheckIfAppIsRunning
+  !if "${INSTALLMODE}" == "currentUser"
+    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
+  !else
+    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !endif
+  Pop $R0
+  ${If} $R0 = 0
+      IfSilent kill 0
+      ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
+      kill:
+        !if "${INSTALLMODE}" == "currentUser"
+          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
+        !else
+          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !endif
+        Pop $R0
+        Sleep 500
+        ${If} $R0 = 0
+          Goto app_check_done
+        ${Else}
+          IfSilent silent ui
+          silent:
+            System::Call 'kernel32::AttachConsole(i -1)i.r0'
+            ${If} $0 != 0
+              System::Call 'kernel32::GetStdHandle(i -11)i.r0'
+              System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
+              FileWrite $0 "$(appRunning)$\n"
+            ${EndIf}
+            Abort
+          ui:
+            Abort "$(failedToKillApp)"
+        ${EndIf}
+      cancel:
+        Abort "$(appRunning)"
+  ${EndIf}
+  app_check_done:
+!macroend
+!else
+!macro CheckIfAppIsRunning
+  ; Modified from https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/templates/nsis/include/allowOnlyOneInstallerInstance.nsh
+  !macro FIND_PROCESS _FILE _ERR
+    !if "${INSTALLMODE}" == "currentUser"
+      ExecShell open "cmd" '/c tasklist /fi "USERNAME eq %USERNAME%" /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
+      Pop ${_ERR}
+    !else
+      ExecShell open "cmd" '/c tasklist /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
+      Pop ${_ERR}
+    !endif
+  !macroend
+
   !insertmacro FIND_PROCESS "${MAINBINARYNAME}.exe" $R0
   ${If} $R0 == 0
     IfSilent kill 0
@@ -540,6 +593,7 @@ SectionEnd
     app_check_done:
   ${EndIf}
 !macroend
+!endif
 
 Section Install
   SetOutPath $INSTDIR

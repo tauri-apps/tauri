@@ -285,6 +285,8 @@ fn build_nsis_app_installer(
       "display_language_selector",
       to_json(nsis.display_language_selector && languages.len() > 1),
     );
+
+    data.insert("use_tauri_plugin", to_json(nsis.use_tauri_plugin));
   }
   data.insert(
     "install_mode",

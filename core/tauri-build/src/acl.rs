@@ -360,10 +360,12 @@ pub fn inline_plugins(
       )?);
     } else {
       let default_permissions_path = Path::new("permissions").join(name);
-      println!(
-        "cargo:rerun-if-changed={}",
-        default_permissions_path.display()
-      );
+      if default_permissions_path.exists() {
+        println!(
+          "cargo:rerun-if-changed={}",
+          default_permissions_path.display()
+        );
+      }
       permission_files.extend(tauri_utils::acl::build::define_permissions(
         &default_permissions_path
           .join("**")
@@ -418,10 +420,12 @@ pub fn app_manifest_permissions(
     )?);
   } else {
     let default_permissions_path = Path::new("permissions");
-    println!(
-      "cargo:rerun-if-changed={}",
-      default_permissions_path.display()
-    );
+    if default_permissions_path.exists() {
+      println!(
+        "cargo:rerun-if-changed={}",
+        default_permissions_path.display()
+      );
+    }
 
     let permissions_root = current_dir()?.join("permissions");
     let inlined_plugins_permissions: Vec<_> = inlined_plugins

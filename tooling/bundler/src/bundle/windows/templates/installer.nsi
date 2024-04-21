@@ -679,14 +679,15 @@ Section Uninstall
   {{/each}}
   RMDir "$INSTDIR"
 
+  WinShell::UninstAppUserModelId "${BUNDLEID}"
+  WinShell::UninstShortcut "$DESKTOP\${MAINBINARYNAME}.lnk"
+
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
   Delete "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
   RMDir "$SMPROGRAMS\$AppStartMenuFolder"
 
   ; Remove desktop shortcuts
-  WinShell::UninstAppUserModelId "${BUNDLEID}"
-  WinShell::UninstShortcut "$DESKTOP\${MAINBINARYNAME}.lnk"
   Delete "$DESKTOP\${MAINBINARYNAME}.lnk"
 
   ; Remove registry information for add/remove programs

@@ -63,6 +63,7 @@ class Channel<T = unknown> {
                 break
               }
             }
+            this.#nextMessageId = nextId
           }
         } else {
           this.#pendingMessages[id.toString()] = message

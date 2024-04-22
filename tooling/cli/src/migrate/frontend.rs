@@ -10,8 +10,8 @@ use anyhow::Context;
 
 use std::{fs, path::Path};
 
-const RENAMED_MODULES: &[&str] = &["tauri", "window"];
-const RENAMED_TO_MODULES: &[&str] = &["core", "webviewWindow"];
+// (from, to)
+const RENAMED_MODULES: &[(&str, &str)] = &[("tauri", "core"), ("window", "webviewWindow")];
 const PLUGINIFIED_MODULES: &[&str] = &[
   "cli",
   "clipboard",
@@ -53,8 +53,10 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             let original = cap.get(0).unwrap().as_bytes();
             let original = String::from_utf8_lossy(original).to_string();
 
-            let new = if let Some(m) = RENAMED_MODULES.iter().position(|m| *m == module) {
-              RENAMED_TO_MODULES[m].to_string()
+            let new = if let Some((_, renamed_to)) =
+              RENAMED_MODULES.iter().find(|(from, _to)| *from == module)
+            {
+              renamed_to.to_string()
             } else if PLUGINIFIED_MODULES.contains(&module.as_str()) {
               let plugin = format!("@tauri-apps/plugin-{module}");
               new_npm_packages.push(plugin.clone());

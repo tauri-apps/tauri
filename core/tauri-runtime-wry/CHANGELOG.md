@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### What's Changed
+
+- [`005fe8ce1`](https://www.github.com/tauri-apps/tauri/commit/005fe8ce1ef71ea46a7d86f98bdf397ca81eb920)([#9410](https://www.github.com/tauri-apps/tauri/pull/9410)) Fix `closable`, `maximizable` and `minimizable` options not taking effect when used in tauri.conf.json or from JS APIs.
+
 ## \[2.0.0-beta.12]
 
 ### New Features

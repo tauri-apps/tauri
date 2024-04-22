@@ -464,7 +464,7 @@ Section WebView2
     !if "${USETAURIPLUGIN}" == "true"
       nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     !else
-      nsExec::Exec `powershell -Command 'Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$TEMP\MicrosoftEdgeWebview2Setup.exe"'`
+      nsExec::Exec 'powershell -Command Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile "$TEMP\MicrosoftEdgeWebview2Setup.exe"'
     !endif
     Pop $0
     ${If} $0 == 0

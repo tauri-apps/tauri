@@ -165,6 +165,10 @@ impl<R: Runtime> WebviewManager<R> {
     webview_attributes = webview_attributes
       .initialization_script(
         r#"
+        Object.defineProperty(window, 'isTauri', {
+          value: true,
+        });
+
         if (!window.__TAURI_INTERNALS__) {
           Object.defineProperty(window, '__TAURI_INTERNALS__', {
             value: {

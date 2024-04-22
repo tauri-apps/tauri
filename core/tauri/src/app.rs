@@ -754,6 +754,13 @@ macro_rules! shared_app_impl {
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
+        self.manager.resources_table().clear();
+        for (_, window) in self.manager.windows().iter() {
+          window.resources_table().clear();
+        }
+        for (_, webview) in self.manager.webviews().iter() {
+          webview.resources_table().clear();
+        }
       }
     }
 
@@ -1700,8 +1707,7 @@ tauri::Builder::default()
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
         }
-        let tray = tray.build(handle)?;
-        app.manager.tray.icons.lock().unwrap().push(tray);
+        tray.build(handle)?;
       }
     }
 

@@ -351,6 +351,12 @@
 - Support `with_webview` for Android platform alowing execution of JNI code in context.
   - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
 
+## \[0.14.5]
+
+### What's Changed
+
+- [`d42668ce`](https://www.github.com/tauri-apps/tauri/commit/d42668ce17494ab778f436aaa9b216d6db3f0b31)([#9003](https://www.github.com/tauri-apps/tauri/pull/9003)) Fix panic during intialization on wayland when using `clipboard` feature, instead propagate the error during API usage.
+
 ## \[0.14.4]
 
 ### Bug Fixes

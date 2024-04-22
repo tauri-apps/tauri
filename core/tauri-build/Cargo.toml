@@ -33,7 +33,7 @@ tauri-utils = { version = "2.0.0-beta.12", path = "../tauri-utils", features = [
 cargo_toml = "0.17"
 serde = "1"
 serde_json = "1"
-heck = "0.4"
+heck = "0.5"
 json-patch = "1.2"
 walkdir = "2"
 tauri-winres = "0.1"

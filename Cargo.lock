@@ -2895,9 +2895,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.22.3"
+version = "0.22.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99008d7ad0bbbea527ec27bddbc0e432c5b87d8175178cee68d2eec9c4a1813c"
+checksum = "bf4ef73721ac7bcd79b2b315da7779d8fc09718c6b3d2d1b2d94850eb8c18432"
 dependencies = [
  "log",
  "ring",
@@ -3553,7 +3553,7 @@ dependencies = [
  "cargo_toml",
  "dirs-next",
  "glob",
- "heck 0.4.1",
+ "heck 0.5.0",
  "json-patch",
  "quote",
  "schemars",
@@ -3682,7 +3682,7 @@ dependencies = [
  "dunce",
  "getrandom 0.2.12",
  "glob",
- "heck 0.4.1",
+ "heck 0.5.0",
  "html5ever",
  "infer",
  "json-patch",

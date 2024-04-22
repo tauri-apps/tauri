@@ -568,9 +568,9 @@ SectionEnd
 
     kill:
       !if "${INSTALLMODE}" == "currentUser"
-        ExecShell open "taskkill" '/im "${MAINBINARYNAME}.exe" /fi "USERNAME eq %USERNAME%" /f' SW_HIDE
+        nsExec::Exec 'taskkill /im "${MAINBINARYNAME}.exe" /fi "USERNAME eq %USERNAME%" /f'
       !else
-        ExecShell open "taskkill" '/im "${MAINBINARYNAME}.exe" /f' SW_HIDE
+        nsExec::Exec 'taskkill /im "${MAINBINARYNAME}.exe" /f'
       !endif
 
       !insertmacro FIND_PROCESS "${MAINBINARYNAME}.exe" $R0

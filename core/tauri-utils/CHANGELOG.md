@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`a1e0e268f`](https://www.github.com/tauri-apps/tauri/commit/a1e0e268f02f7e2934bec48de4cac0dc00529a2b)([#9477](https://www.github.com/tauri-apps/tauri/pull/9477)) Replace `tauri:` prefix with `tauri-` for temporary permission file names
+
 ## \[2.0.0-beta.12]
 
 ### New Features

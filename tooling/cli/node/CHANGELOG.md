@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Enhancements
+
+- [`8a63ceb4f`](https://www.github.com/tauri-apps/tauri/commit/8a63ceb4f31c422311b0f7dff173a9c8c0e1a604)([#9473](https://www.github.com/tauri-apps/tauri/pull/9473)) Ignore `.DS_Store` by default for `tauri dev` hot reloads.
+
+### Bug Fixes
+
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) Upgrade `heck` to v0.5 to better support Chinese and Japanese product name, because Chinese do not have word separation.
+- [`aaa332c6e`](https://www.github.com/tauri-apps/tauri/commit/aaa332c6e78c956debd11efda021a0406621a01d)([#9540](https://www.github.com/tauri-apps/tauri/pull/9540)) Fix `tauri migrate` trying to migrate to a non-existing plugin.
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) Fixed an issue causing the `build.runner` and `build.features` configs to not take effect.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.14`
+
 ## \[2.0.0-beta.13]
 
 ### Bug Fixes

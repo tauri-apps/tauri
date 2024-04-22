@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`70c51371e`](https://www.github.com/tauri-apps/tauri/commit/70c51371e01184223312de3dba8030394a5a9406)([#9539](https://www.github.com/tauri-apps/tauri/pull/9539)) Add `isTauri` function in `core` module to check whether running inside tauri or not.
+
+### Bug Fixes
+
+- [`be7eab209`](https://www.github.com/tauri-apps/tauri/commit/be7eab209c60c45e140f7bcb4bab1037d62d4c03)([#9486](https://www.github.com/tauri-apps/tauri/pull/9486)) Set the `exports > types` package.json field.
+- [`cf615e8e4`](https://www.github.com/tauri-apps/tauri/commit/cf615e8e4d5008ee1ac3f77e530ba26fb91e8977)([#9463](https://www.github.com/tauri-apps/tauri/pull/9463)) Fixes a bug when processing channel messages out of order.
+- [`35b25f7e5`](https://www.github.com/tauri-apps/tauri/commit/35b25f7e5c0fe03af4ed3582e22a626863f035f0)([#9530](https://www.github.com/tauri-apps/tauri/pull/9530)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
 ## \[2.0.0-beta.8]
 
 ### New Features

@@ -103,6 +103,8 @@ jobs:
           cargo update -p cc --precise 1.0.94
           cargo update -p home --precise 0.5.5
           cargo update -p tree_magic_mini --precise 3.0.3
+          cargo update -p tokio-test --precise 0.4.3
+          cargo update -p tokio-stream --precise 0.1.14
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

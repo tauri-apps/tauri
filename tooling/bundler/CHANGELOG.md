@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`dbe81b841`](https://www.github.com/tauri-apps/tauri/commit/dbe81b84104bff29bc98ecdb89934a3c6bb68150)([#9282](https://www.github.com/tauri-apps/tauri/pull/9282)) The NSIS uninstaller now won't mindlessly try to remove the whole installation folder when the "Remove application data" checkbox was ticked. This prevents data loss when the app was installed in a folder which contained other files.
+- [`017861e4d`](https://www.github.com/tauri-apps/tauri/commit/017861e4d59f89181aa4d3c35c32d78f14ff0201)([#9281](https://www.github.com/tauri-apps/tauri/pull/9281)) Fixed an issue causing the NSIS bundler to install resources incorrectly when the installer was built on a non-Windows system.
+
 ## \[1.5.1]
 
 ### Bug Fixes

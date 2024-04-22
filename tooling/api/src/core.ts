@@ -238,6 +238,10 @@ export class Resource {
   }
 }
 
+function isTauri() {
+  return 'isTauri' in window && window.isTauri
+}
+
 export type { InvokeArgs, InvokeOptions }
 
 export {
@@ -246,5 +250,6 @@ export {
   PluginListener,
   addPluginListener,
   invoke,
-  convertFileSrc
+  convertFileSrc,
+  isTauri
 }

@@ -988,7 +988,6 @@ pub(crate) use run_main_thread;
 pub mod test;
 
 #[cfg(feature = "specta")]
-#[cfg_attr(docsrs, doc(cfg(feature = "specta")))]
 const _: () = {
   use specta::{function::FunctionArg, DataType, TypeMap};
 
@@ -1005,6 +1004,18 @@ const _: () = {
   }
 
   impl<R: crate::Runtime> FunctionArg for crate::Window<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::Webview<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::WebviewWindow<R> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
       None
     }

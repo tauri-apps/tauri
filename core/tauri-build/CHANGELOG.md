@@ -1,11 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.13]
-
-### Bug Fixes
-
-- [`88c0ad9cf`](https://www.github.com/tauri-apps/tauri/commit/88c0ad9cf5d2f9ed65285540c26b54fb18b10137)([#9471](https://www.github.com/tauri-apps/tauri/pull/9471)) Fix tauri always rebuilding even if source code didn't change.
-
 ## \[2.0.0-beta.12]
 
 ### Dependencies

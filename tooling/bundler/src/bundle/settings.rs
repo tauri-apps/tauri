@@ -415,14 +415,16 @@ pub struct NsisSettings {
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
   pub compression: Option<NsisCompression>,
-  /// Whether include and use tauri nsis plugin for
-  /// compare semver, check and terminate running app, and download webview2 bootstrap,
-  /// this will increase the installer size by around 0.8 MB
-  /// when disabled, uses tools provided by the OS and nsis,
-  /// this option has some downsides:
-  /// - can't compare semver like 2.0.0-alpha.1
-  /// - no Windows 7 support when using webviewInstallMode downloadBootstrapper
-  /// default to true
+  /// Whether to includede and use nsis-tauri-utils.dll plugin to
+  /// compare semver, check and terminate running app, and download webview2 bootstrapper.
+  /// This will increase the installer size by around 0.8 MB.
+  ///
+  /// If disabled, the installer will use alternative tools provided by the OS
+  /// and built-in NSIS plugins but this comes with downsides:
+  /// - Can't compare semver with pre-release labels like `2.0.0-alpha.1`
+  /// - Using `webviewInstallMode: downloadBootstrapper` may fail on Windows 7.
+  ///
+  /// Defaults to `true`.
   pub use_tauri_plugin: bool,
 }
 

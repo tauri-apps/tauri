@@ -20,12 +20,8 @@
 |`deny-set-webview-zoom`|Denies the set_webview_zoom command without any pre-configured scope.|
 |`allow-webview-close`|Enables the webview_close command without any pre-configured scope.|
 |`deny-webview-close`|Denies the webview_close command without any pre-configured scope.|
-|`allow-webview-hide`|Enables the webview_hide command without any pre-configured scope.|
-|`deny-webview-hide`|Denies the webview_hide command without any pre-configured scope.|
 |`allow-webview-position`|Enables the webview_position command without any pre-configured scope.|
 |`deny-webview-position`|Denies the webview_position command without any pre-configured scope.|
-|`allow-webview-show`|Enables the webview_show command without any pre-configured scope.|
-|`deny-webview-show`|Denies the webview_show command without any pre-configured scope.|
 |`allow-webview-size`|Enables the webview_size command without any pre-configured scope.|
 |`deny-webview-size`|Denies the webview_size command without any pre-configured scope.|
 |`default`|Default permissions for the plugin.|

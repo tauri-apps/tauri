@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  helpers::{app_paths::walk_builder, cargo, npm::PackageManager},
-  Result,
-};
+use crate::{helpers::app_paths::walk_builder, Result};
 use anyhow::Context;
 
 use std::{fs, path::Path};
@@ -28,14 +25,8 @@ const PLUGINIFIED_MODULES: &[&str] = &[
 const JS_EXTENSIONS: &[&str] = &["js", "mjs", "jsx", "ts", "mts", "tsx"];
 
 /// Returns a list of paths that could not be migrated
-pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
-  let mut new_npm_packages = Vec::new();
-  let mut new_cargo_packages = Vec::new();
-
-  let pm = PackageManager::from_project(app_dir)
-    .into_iter()
-    .next()
-    .unwrap_or(PackageManager::Npm);
+pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
+  let mut new_plugins = Vec::new();
 
   let tauri_api_import_regex = regex::bytes::Regex::new(r"@tauri-apps/api/(\w+)").unwrap();
 
@@ -56,18 +47,14 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             let new = if let Some((_, renamed_to)) =
               RENAMED_MODULES.iter().find(|(from, _to)| *from == module)
             {
-              renamed_to.to_string()
+              format!("@tauri-apps/api/{renamed_to}")
             } else if PLUGINIFIED_MODULES.contains(&module.as_str()) {
               let plugin = format!("@tauri-apps/plugin-{module}");
-              new_npm_packages.push(plugin.clone());
-              new_cargo_packages.push(format!(
-                "tauri-plugin-{}",
-                if module == "clipboard" {
-                  "clipboard-manager"
-                } else {
-                  &module
-                }
-              ));
+              new_plugins.push(if module == "clipboard" {
+                "clipboard-manager".to_string()
+              } else {
+                module
+              });
               plugin
             } else {
               return original;
@@ -85,15 +72,5 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
     }
   }
 
-  if !new_npm_packages.is_empty() {
-    pm.install(&new_npm_packages)
-      .context("Error installing new npm packages")?;
-  }
-
-  if !new_cargo_packages.is_empty() {
-    cargo::install(&new_cargo_packages, Some(tauri_dir))
-      .context("Error installing new Cargo packages")?;
-  }
-
-  Ok(())
+  Ok(new_plugins)
 }

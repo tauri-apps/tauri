@@ -96,6 +96,10 @@ impl PackageManager {
         .join(", ")
     );
 
+    // because we are using cmd.exe, `>` is a pipe character so we need to escape it
+    #[cfg(windows)]
+    let dependencies = dependencies.iter().map(|d| d.replace('>', "^>"));
+
     let status = self
       .cross_command()
       .arg("add")

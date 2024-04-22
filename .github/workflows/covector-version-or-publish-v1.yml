@@ -102,6 +102,7 @@ jobs:
           cargo update -p os_str_bytes --precise 6.5.1
           cargo update -p thread_local --precise 1.1.7
           cargo update -p cc --precise 1.0.94
+          cargo update -p home --precise 0.5.5 || :
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

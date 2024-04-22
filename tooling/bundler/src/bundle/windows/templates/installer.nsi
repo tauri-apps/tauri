@@ -550,6 +550,7 @@ SectionEnd
 !else
 !macro CheckIfAppIsRunning
   ; Modified from https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/templates/nsis/include/allowOnlyOneInstallerInstance.nsh
+  ; Pipe tasklist output to find to convert not found to an error
   !macro FIND_PROCESS _FILE _ERR
     !if "${INSTALLMODE}" == "currentUser"
       nsExec::Exec 'cmd /c tasklist /fi "USERNAME eq %USERNAME%" /fi "IMAGENAME eq ${_FILE}" /nh | find "${_FILE}"'

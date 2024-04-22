@@ -4856,7 +4856,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-beta.10"
+version = "2.0.1-beta.9"
 dependencies = [
  "anyhow",
  "ar",
@@ -4898,7 +4898,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.14"
+version = "2.0.0-beta.13"
 dependencies = [
  "anyhow",
  "axum",

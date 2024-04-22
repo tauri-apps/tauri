@@ -1,5 +1,19 @@
 # Changelog
 
+## \[1.5.12]
+
+### Bug Fixes
+
+- [`1675e41f0`](https://www.github.com/tauri-apps/tauri/commit/1675e41f05c77d517890f59fddcf536744e6a0ad)([#9481](https://www.github.com/tauri-apps/tauri/pull/9481)) Fixed an issue with the CLI renaming the main executable in kebab-case when building for Windows on a non-Windows system which caused the bundler step to fail.
+- [`9dd67abd9`](https://www.github.com/tauri-apps/tauri/commit/9dd67abd93e96097fc169404b70e729e46c3cd64)([#9298](https://www.github.com/tauri-apps/tauri/pull/9298)) Upgrade `heck` to v0.5 to better support Chinese and Japanese product name, because Chinese do not have word separation.
+- [`f9638b631`](https://www.github.com/tauri-apps/tauri/commit/f9638b6315668ced871f242224f001f474262f85)([#9491](https://www.github.com/tauri-apps/tauri/pull/9491)) Fixed an issue that caused the CLI to rename app binaries incorrectly if the product name contained a `.` which resulted in the bundling step to fail.
+- [`77cc49ac3`](https://www.github.com/tauri-apps/tauri/commit/77cc49ac3cd27368b3be4f67e35ae021acee4c92)([#9188](https://www.github.com/tauri-apps/tauri/pull/9188)) Fixed an issue causing the `build.runner` and `build.features` configs to not take effect.
+- [`aeddc40b9`](https://www.github.com/tauri-apps/tauri/commit/aeddc40b9e461bc118382ae62431d39e29f25915)([#9411](https://www.github.com/tauri-apps/tauri/pull/9411)) Fix `tauri info` crashing when Node.js is not installed.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.5.2`
+
 ## \[1.5.11]
 
 ### Bug Fixes

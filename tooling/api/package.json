@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "1.5.3",
+  "version": "1.5.4",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",

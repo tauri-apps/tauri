@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`70c51371e`](https://www.github.com/tauri-apps/tauri/commit/70c51371e01184223312de3dba8030394a5a9406)([#9539](https://www.github.com/tauri-apps/tauri/pull/9539)) Add `window.isTauri` to check whether running inside tauri or not.
+
+### Bug Fixes
+
+- [`daf018e4f`](https://www.github.com/tauri-apps/tauri/commit/daf018e4f5d5f6dcde51c5de42d73ab15287ec7e)([#9505](https://www.github.com/tauri-apps/tauri/pull/9505)) Fix resource tables not cleaned up on exit which causes tray icon inside resource tables not cleaned up on exit
+- [`a07b51320`](https://www.github.com/tauri-apps/tauri/commit/a07b5132019faa7695c573a6610d2def0ff9c40a)([#9490](https://www.github.com/tauri-apps/tauri/pull/9490)) Add missing permission for `window.start_resize_dragging`
+- [`35b25f7e5`](https://www.github.com/tauri-apps/tauri/commit/35b25f7e5c0fe03af4ed3582e22a626863f035f0)([#9530](https://www.github.com/tauri-apps/tauri/pull/9530)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
+### What's Changed
+
+- [`005fe8ce1`](https://www.github.com/tauri-apps/tauri/commit/005fe8ce1ef71ea46a7d86f98bdf397ca81eb920)([#9410](https://www.github.com/tauri-apps/tauri/pull/9410)) Fix `closable`, `maximizable` and `minimizable` options not taking effect when used in tauri.conf.json or from JS APIs.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.13`
+- Upgraded to `tauri-build@2.0.0-beta.13`
+
 ## \[2.0.0-beta.15]
 
 ### New Features

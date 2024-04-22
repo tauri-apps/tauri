@@ -89,7 +89,6 @@ jobs:
           cargo update -p backtrace --precise 0.3.68
           cargo update -p blocking --precise 1.4.1
           cargo update -p ignore --precise 0.4.18
-          cargo update -p regex --precise 1.9.6
           cargo update -p globset --precise 0.4.13
           cargo update -p crossbeam-channel --precise 0.5.8
           cargo update -p crossbeam-utils --precise 0.8.16
@@ -102,7 +101,7 @@ jobs:
           cargo update -p os_str_bytes --precise 6.5.1
           cargo update -p thread_local --precise 1.1.7
           cargo update -p cc --precise 1.0.94
-          cargo update -p home --precise 0.5.5 || :
+          cargo update -p home --precise 0.5.5
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

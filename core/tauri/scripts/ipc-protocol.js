@@ -29,7 +29,7 @@
           'Content-Type': contentType,
           'Tauri-Callback': callback,
           'Tauri-Error': error,
-          ...options?.headers
+          ...((options && options.headers) || {})
         }
       })
         .then((response) => {

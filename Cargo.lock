@@ -3540,7 +3540,7 @@ dependencies = [
  "urlpattern",
  "uuid",
  "webkit2gtk",
- "webview2-com 0.30.0",
+ "webview2-com",
  "window-vibrancy",
  "windows 0.56.0",
 ]
@@ -3666,7 +3666,7 @@ dependencies = [
  "tracing",
  "url",
  "webkit2gtk",
- "webview2-com 0.30.0",
+ "webview2-com",
  "windows 0.56.0",
  "wry",
 ]
@@ -4453,30 +4453,16 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38d5949fc3f537e90240c3e4f78dda2fa0431b671d50845a2f582173ef8a1201"
-dependencies = [
- "webview2-com-macros",
- "webview2-com-sys 0.29.0",
- "windows 0.54.0",
- "windows-core 0.54.0",
- "windows-implement 0.53.0",
- "windows-interface 0.53.0",
-]
-
-[[package]]
-name = "webview2-com"
 version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c914dd492a52f0377bef56fd1b6e74a79090f9ee631d625d5b505a00e4538b6"
 dependencies = [
  "webview2-com-macros",
- "webview2-com-sys 0.30.0",
+ "webview2-com-sys",
  "windows 0.56.0",
  "windows-core 0.56.0",
- "windows-implement 0.56.0",
- "windows-interface 0.56.0",
+ "windows-implement",
+ "windows-interface",
 ]
 
 [[package]]
@@ -4488,17 +4474,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.57",
-]
-
-[[package]]
-name = "webview2-com-sys"
-version = "0.29.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cd1eaa1be63d6fdcadf893c40d7d53c889a6342b3a94930d34e6964d5bb7e8db"
-dependencies = [
- "thiserror",
- "windows 0.54.0",
- "windows-core 0.54.0",
 ]
 
 [[package]]
@@ -4567,18 +4542,6 @@ dependencies = [
 
 [[package]]
 name = "windows"
-version = "0.54.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9252e5725dbed82865af151df558e754e4a3c2c30818359eb17465f1346a1b49"
-dependencies = [
- "windows-core 0.54.0",
- "windows-implement 0.53.0",
- "windows-interface 0.53.0",
- "windows-targets 0.52.5",
-]
-
-[[package]]
-name = "windows"
 version = "0.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1de69df01bdf1ead2f4ac895dc77c9351aefff65b2f3db429a343f9cbf05e132"
@@ -4598,35 +4561,14 @@ dependencies = [
 
 [[package]]
 name = "windows-core"
-version = "0.54.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12661b9c89351d684a50a8a643ce5f608e20243b9fb84687800163429f161d65"
-dependencies = [
- "windows-result",
- "windows-targets 0.52.5",
-]
-
-[[package]]
-name = "windows-core"
 version = "0.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4698e52ed2d08f8658ab0c39512a7c00ee5fe2688c65f8c0a4f06750d729f2a6"
 dependencies = [
- "windows-implement 0.56.0",
- "windows-interface 0.56.0",
+ "windows-implement",
+ "windows-interface",
  "windows-result",
  "windows-targets 0.52.5",
-]
-
-[[package]]
-name = "windows-implement"
-version = "0.53.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "942ac266be9249c84ca862f0a164a39533dc2f6f33dc98ec89c8da99b82ea0bd"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.57",
 ]
 
 [[package]]
@@ -4634,17 +4576,6 @@ name = "windows-implement"
 version = "0.56.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6fc35f58ecd95a9b71c4f2329b911016e6bec66b3f2e6a4aad86bd2e99e2f9b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.57",
-]
-
-[[package]]
-name = "windows-interface"
-version = "0.53.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "da33557140a288fae4e1d5f8873aaf9eb6613a9cf82c3e070223ff177f598b60"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4916,11 +4847,11 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.39.1"
+version = "0.39.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "798fb0ee725c2d243d463e62c5150fd12002a3f51f12a36d62cd7b1b7befd33d"
+checksum = "1a4e9d37c0bbf497cd42bc2e0ba12e0040ab42e454f2907dc1e9ddb2eaf52d34"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.0",
  "block",
  "cocoa",
  "core-graphics",
@@ -4950,8 +4881,9 @@ dependencies = [
  "tracing",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2-com 0.29.0",
- "windows 0.54.0",
+ "webview2-com",
+ "windows 0.56.0",
+ "windows-core 0.56.0",
  "windows-version",
  "x11-dl",
 ]

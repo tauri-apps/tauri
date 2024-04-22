@@ -24,11 +24,11 @@ tracing = { version = "0.1", optional = true }
 log = "0.4"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.29"
+webview2-com = "0.30"
 softbuffer = { version = "0.4", default-features = false }
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.54"
+  version = "0.56"
   features = [ "Win32_Foundation", "Win32_Graphics_Dwm" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

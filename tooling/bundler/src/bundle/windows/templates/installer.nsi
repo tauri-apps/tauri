@@ -552,10 +552,10 @@ SectionEnd
   ; Modified from https://github.com/electron-userland/electron-builder/blob/master/packages/app-builder-lib/templates/nsis/include/allowOnlyOneInstallerInstance.nsh
   !macro FIND_PROCESS _FILE _ERR
     !if "${INSTALLMODE}" == "currentUser"
-      ExecShell open "cmd" '/c tasklist /fi "USERNAME eq %USERNAME%" /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
+      nsExec::Exec 'cmd /c tasklist /fi "USERNAME eq %USERNAME%" /fi "IMAGENAME eq ${_FILE}" /nh | find "${_FILE}"'
       Pop ${_ERR}
     !else
-      ExecShell open "cmd" '/c tasklist /fi "IMAGENAME eq ${_FILE}" /fo csv | find "${_FILE}"' SW_HIDE
+      nsExec::Exec 'cmd /c tasklist /fi "IMAGENAME eq ${_FILE}" /nh | find "${_FILE}"'
       Pop ${_ERR}
     !endif
   !macroend

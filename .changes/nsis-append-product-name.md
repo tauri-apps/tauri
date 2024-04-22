@@ -2,4 +2,4 @@
 'tauri-bundler': 'patch:enhance'
 ---
 
-Add product name folder automatically on browse install path for nsis installer
+Append product name automatically when choosing a new install path using browse for nsis installer

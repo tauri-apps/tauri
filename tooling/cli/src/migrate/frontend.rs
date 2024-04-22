@@ -10,8 +10,22 @@ use anyhow::Context;
 
 use std::{fs, path::Path};
 
-const CORE_API_MODULES: &[&str] = &["dpi", "event", "path", "core", "window", "mocks"];
-const JS_EXTENSIONS: &[&str] = &["js", "jsx", "ts", "tsx", "mjs"];
+// (from, to)
+const RENAMED_MODULES: &[(&str, &str)] = &[("tauri", "core"), ("window", "webviewWindow")];
+const PLUGINIFIED_MODULES: &[&str] = &[
+  "cli",
+  "clipboard",
+  "dialog",
+  "fs",
+  "globalShortcut",
+  "http",
+  "notification",
+  "os",
+  "process",
+  "shell",
+  "updater",
+];
+const JS_EXTENSIONS: &[&str] = &["js", "mjs", "jsx", "ts", "mts", "tsx"];
 
 /// Returns a list of paths that could not be migrated
 pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
@@ -39,23 +53,12 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             let original = cap.get(0).unwrap().as_bytes();
             let original = String::from_utf8_lossy(original).to_string();
 
-            if module == "tauri" {
-              let new = "@tauri-apps/api/core".to_string();
-              log::info!("Replacing `{original}` with `{new}` on {}", path.display());
-              new
-            } else if module == "window" {
-              let new = "@tauri-apps/api/webviewWindow".to_string();
-              log::info!("Replacing `{original}` with `{new}` on {}", path.display());
-              new
-            } else if CORE_API_MODULES.contains(&module.as_str()) {
-              original
-            } else {
+            let new = if let Some((_, renamed_to)) =
+              RENAMED_MODULES.iter().find(|(from, _to)| *from == module)
+            {
+              renamed_to.to_string()
+            } else if PLUGINIFIED_MODULES.contains(&module.as_str()) {
               let plugin = format!("@tauri-apps/plugin-{module}");
-              log::info!(
-                "Replacing `{original}` with `{plugin}` on {}",
-                path.display()
-              );
-
               new_npm_packages.push(plugin.clone());
               new_cargo_packages.push(format!(
                 "tauri-plugin-{}",
@@ -65,9 +68,13 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
                   &module
                 }
               ));
-
               plugin
-            }
+            } else {
+              return original;
+            };
+
+            log::info!("Replacing `{original}` with `{new}` on {}", path.display());
+            new
           });
 
         if new_contents != js_contents {

@@ -21,14 +21,17 @@
   "type": "module",
   "main": "./index.cjs",
   "module": "./index.js",
+  "types": "./index.d.ts",
   "exports": {
     ".": {
       "import": "./index.js",
-      "require": "./index.cjs"
+      "require": "./index.cjs",
+      "types": "./index.d.ts"
     },
     "./*": {
       "import": "./*.js",
-      "require": "./*.cjs"
+      "require": "./*.cjs",
+      "types": "./*.d.ts"
     },
     "./package.json": "./package.json"
   },

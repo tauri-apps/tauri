@@ -772,6 +772,9 @@ impl WindowBuilder for WindowBuilderWrapper {
         .content_protected(config.content_protected)
         .skip_taskbar(config.skip_taskbar)
         .theme(config.theme)
+        .closable(config.closable)
+        .maximizable(config.maximizable)
+        .minimizable(config.minimizable)
         .shadow(config.shadow);
 
       if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {

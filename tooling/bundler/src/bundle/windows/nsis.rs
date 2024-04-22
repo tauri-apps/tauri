@@ -210,6 +210,10 @@ fn build_nsis_app_installer(
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
+  data.insert(
+    "long_description",
+    to_json(settings.long_description().unwrap_or_default()),
+  );
   data.insert("copyright", to_json(settings.copyright_string()));
 
   // Code signing is currently only supported on Windows hosts
@@ -338,6 +342,31 @@ fn build_nsis_app_installer(
   resources_ancestors.dedup();
   resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
   resources_ancestors.pop(); // Last one is always ""
+
+  // We need to convert / to \ for nsis to move the files into the correct dirs
+  #[cfg(not(target_os = "windows"))]
+  let resources: ResourcesMap = resources
+    .into_iter()
+    .map(|(r, p)| {
+      (
+        r,
+        (
+          p.0.display().to_string().replace('/', "\\").into(),
+          p.1.display().to_string().replace('/', "\\").into(),
+        ),
+      )
+    })
+    .collect();
+  #[cfg(not(target_os = "windows"))]
+  let resources_ancestors: Vec<PathBuf> = resources_ancestors
+    .into_iter()
+    .map(|p| p.display().to_string().replace('/', "\\").into())
+    .collect();
+  #[cfg(not(target_os = "windows"))]
+  let resources_dirs: Vec<PathBuf> = resources_dirs
+    .into_iter()
+    .map(|p| p.display().to_string().replace('/', "\\").into())
+    .collect();
 
   data.insert("resources_ancestors", to_json(resources_ancestors));
   data.insert("resources_dirs", to_json(resources_dirs));

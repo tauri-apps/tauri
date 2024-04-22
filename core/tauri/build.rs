@@ -101,6 +101,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_cursor_position", false),
       ("set_ignore_cursor_events", false),
       ("start_dragging", false),
+      ("start_resize_dragging", false),
       ("set_progress_bar", false),
       ("set_icon", false),
       ("toggle_maximize", false),

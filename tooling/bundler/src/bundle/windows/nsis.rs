@@ -9,8 +9,7 @@ use crate::{
     common::CommandExt,
     windows::util::{
       download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
-      extract_zip, verify_file_hash, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
-      NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      verify_file_hash, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -104,7 +103,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   {
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
-    extract_zip(&data, _tauri_tools_path)?;
+    crate::bundle::windows::util::extract_zip(&data, _tauri_tools_path)?;
     rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 

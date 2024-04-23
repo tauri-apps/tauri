@@ -295,7 +295,7 @@ pub struct Env {
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {
-    let args_os = std::env::args_os().skip(1).collect();
+    let args_os = std::env::args_os().collect();
     #[cfg(target_os = "linux")]
     {
       let env = Self {

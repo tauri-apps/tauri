@@ -34,7 +34,6 @@ const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS_URL: &str =
   "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.2/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "16DF1D1A5B4D5DF3859447279C55BE36D4109DFB";
@@ -45,7 +44,6 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
@@ -55,7 +53,6 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
 ];
 #[cfg(not(target_os = "windows"))]
 const NSIS_REQUIRED_FILES: &[&str] = &[
-  "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
 ];
 
@@ -114,19 +111,6 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
-
-  let data = download(NSIS_APPLICATIONID_URL)?;
-  log::info!("extracting NSIS ApplicationID plugin");
-  extract_zip(&data, &nsis_plugins)?;
-
-  create_dir_all(nsis_plugins.join("x86-unicode"))?;
-
-  copy(
-    nsis_plugins
-      .join("ReleaseUnicode")
-      .join("ApplicationID.dll"),
-    nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
-  )?;
 
   let data = download_and_verify(
     NSIS_TAURI_UTILS_URL,

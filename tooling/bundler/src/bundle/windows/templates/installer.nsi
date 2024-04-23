@@ -13,6 +13,8 @@ ManifestDPIAware true
 !include WordFunc.nsh
 !include "FileAssociation.nsh"
 !include "StrFunc.nsh"
+!include "Win\COM.nsh"
+!include "Win\Propkey.nsh"
 ${StrCase}
 ${StrLoc}
 
@@ -679,8 +681,9 @@ Section Uninstall
   {{/each}}
   RMDir "$INSTDIR"
 
-  WinShell::UninstAppUserModelId "${BUNDLEID}"
-  WinShell::UninstShortcut "$DESKTOP\${MAINBINARYNAME}.lnk"
+  !insertmacro DeleteAppUserModelId
+  !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
+  !insertmacro UnpinShortcut "$DESKTOP\${MAINBINARYNAME}.lnk"
 
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
@@ -725,11 +728,66 @@ FunctionEnd
 
 Function CreateDesktopShortcut
   CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  WinShell::SetLnkAUMI "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+  SetLnkAppUserModelId "$DESKTOP\${MAINBINARYNAME}.lnk"
 FunctionEnd
 
 Function CreateStartMenuShortcut
   CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
   CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  WinShell::SetLnkAUMI "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
 FunctionEnd
+
+!macro SetLnkAppUserModelId shortcut
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}",.r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READWRITE})'
+      ${IUnknown::QueryInterface} $0 '("${IID_IPropertyStore}",.r2)'
+      ${If} $2 P<> 0
+        System::Call 'Oleaut32::SysAllocString(w "${BUNDLEID}") i.r3'
+        System::Call '*${SYSSTRUCT_PROPERTYKEY}(${PKEY_AppUserModel_ID})p.r4'
+        System::Call '*${SYSSTRUCT_PROPVARIANT}(${VT_BSTR},,&i4 $3)p.r5'
+        ${IPropertyStore::SetValue} $2 '($4,$5)'
+
+        System::Call 'Oleaut32::SysFreeString($3)'
+        System::Free $4
+        System::Free $5
+        ${IPropertyStore::Commit} $2 ""
+        ${IUnknown::Release} $2 ""
+        ${IPersistFile::Save} $1 '("${shortcut}",1)'
+      ${EndIf}
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend
+
+!macro DeleteAppUserModelId
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_DestinationList} ${IID_ICustomDestinationList} r1 ""
+  ${If} $1 P<> 0
+    ${ICustomDestinationList::DeleteList} $1 '("${BUNDLEID}")'
+    ${IUnknown::Release} $1 ""
+  ${EndIf}
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ApplicationDestinations} ${IID_IApplicationDestinations} r1 ""
+  ${If} $1 P<> 0
+    ${IApplicationDestinations::SetAppID} $1 '("${BUNDLEID}")i.r0'
+    ${If} $0 >= 0
+      ${IApplicationDestinations::RemoveAllDestinations} $1 ''
+    ${EndIf}
+    ${IUnknown::Release} $1 ""
+  ${EndIf}
+!macroend
+
+; From https://stackoverflow.com/a/42816728/16993372
+!macro UnpinShortcut shortcut
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_StartMenuPin} ${IID_IStartMenuPinnedList} r0 ""
+  ${If} $0 P<> 0
+      System::Call 'SHELL32::SHCreateItemFromParsingName(ws, p0, g "${IID_IShellItem}", *p0r1)' "${shortcut}"
+      ${If} $1 P<> 0
+          ${IStartMenuPinnedList::RemoveFromList} $0 '(r1)'
+          ${IUnknown::Release} $1 ""
+      ${EndIf}
+      ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend

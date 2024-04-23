@@ -8,9 +8,9 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
-      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      extract_zip, verify_file_hash, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME,
+      NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -23,7 +23,7 @@ use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{copy, create_dir_all, remove_dir_all, rename, write},
+  fs::{create_dir_all, remove_dir_all, rename, write},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -52,9 +52,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/WinMessages.nsh",
 ];
 #[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &[
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
-];
+const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/nsis_tauri_utils.dll"];
 
 const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   "Plugins/x86-unicode/nsis_tauri_utils.dll",

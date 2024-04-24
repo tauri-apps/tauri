@@ -573,7 +573,7 @@ Section Install
       ${If} $UpdateMode <> 1
         Call CreateDesktopShortcut
         Call CreateStartMenuShortcut
-      {$EndIf}
+      ${EndIf}
   shortcuts_done:
 
   ; Auto close this page for passive mode

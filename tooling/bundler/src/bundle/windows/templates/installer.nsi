@@ -640,6 +640,35 @@ Function un.onInit
   !insertmacro MUI_UNGETLANGUAGE
 FunctionEnd
 
+!macro DeleteAppUserModelId
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_DestinationList} ${IID_ICustomDestinationList} r1 ""
+  ${If} $1 P<> 0
+    ${ICustomDestinationList::DeleteList} $1 '("${BUNDLEID}")'
+    ${IUnknown::Release} $1 ""
+  ${EndIf}
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ApplicationDestinations} ${IID_IApplicationDestinations} r1 ""
+  ${If} $1 P<> 0
+    ${IApplicationDestinations::SetAppID} $1 '("${BUNDLEID}")i.r0'
+    ${If} $0 >= 0
+      ${IApplicationDestinations::RemoveAllDestinations} $1 ''
+    ${EndIf}
+    ${IUnknown::Release} $1 ""
+  ${EndIf}
+!macroend
+
+; From https://stackoverflow.com/a/42816728/16993372
+!macro UnpinShortcut shortcut
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_StartMenuPin} ${IID_IStartMenuPinnedList} r0 ""
+  ${If} $0 P<> 0
+      System::Call 'SHELL32::SHCreateItemFromParsingName(ws, p0, g "${IID_IShellItem}", *p0r1)' "${shortcut}"
+      ${If} $1 P<> 0
+          ${IStartMenuPinnedList::RemoveFromList} $0 '(r1)'
+          ${IUnknown::Release} $1 ""
+      ${EndIf}
+      ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend
+
 Section Uninstall
   !insertmacro CheckIfAppIsRunning
 
@@ -726,17 +755,6 @@ Function SkipIfPassive
   ${IfThen} $PassiveMode == 1  ${|} Abort ${|}
 FunctionEnd
 
-Function CreateDesktopShortcut
-  CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  SetLnkAppUserModelId "$DESKTOP\${MAINBINARYNAME}.lnk"
-FunctionEnd
-
-Function CreateStartMenuShortcut
-  CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
-  CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
-FunctionEnd
-
 !macro SetLnkAppUserModelId shortcut
   !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
   ${If} $0 P<> 0
@@ -763,31 +781,13 @@ FunctionEnd
   ${EndIf}
 !macroend
 
-!macro DeleteAppUserModelId
-  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_DestinationList} ${IID_ICustomDestinationList} r1 ""
-  ${If} $1 P<> 0
-    ${ICustomDestinationList::DeleteList} $1 '("${BUNDLEID}")'
-    ${IUnknown::Release} $1 ""
-  ${EndIf}
-  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ApplicationDestinations} ${IID_IApplicationDestinations} r1 ""
-  ${If} $1 P<> 0
-    ${IApplicationDestinations::SetAppID} $1 '("${BUNDLEID}")i.r0'
-    ${If} $0 >= 0
-      ${IApplicationDestinations::RemoveAllDestinations} $1 ''
-    ${EndIf}
-    ${IUnknown::Release} $1 ""
-  ${EndIf}
-!macroend
+Function CreateDesktopShortcut
+  CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro SetLnkAppUserModelId "$DESKTOP\${MAINBINARYNAME}.lnk"
+FunctionEnd
 
-; From https://stackoverflow.com/a/42816728/16993372
-!macro UnpinShortcut shortcut
-  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_StartMenuPin} ${IID_IStartMenuPinnedList} r0 ""
-  ${If} $0 P<> 0
-      System::Call 'SHELL32::SHCreateItemFromParsingName(ws, p0, g "${IID_IShellItem}", *p0r1)' "${shortcut}"
-      ${If} $1 P<> 0
-          ${IStartMenuPinnedList::RemoveFromList} $0 '(r1)'
-          ${IUnknown::Release} $1 ""
-      ${EndIf}
-      ${IUnknown::Release} $0 ""
-  ${EndIf}
-!macroend
+Function CreateStartMenuShortcut
+  CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
+  CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
+FunctionEnd

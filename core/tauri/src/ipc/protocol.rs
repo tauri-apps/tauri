@@ -137,10 +137,8 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
       Method::OPTIONS => {
         let mut r = http::Response::new(Vec::new().into());
-        r.headers_mut().insert(
-          ACCESS_CONTROL_ALLOW_HEADERS,
-          HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error, Tauri-Channel-Id"),
-        );
+        r.headers_mut()
+          .insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
         respond(r);
       }
 

@@ -101,7 +101,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 !endif
 
 ; Installer icon
-!if "${ICON}" != ""
+!if "${INSTALLERICON}" != ""
   !define MUI_ICON "${INSTALLERICON}"
 !endif
 

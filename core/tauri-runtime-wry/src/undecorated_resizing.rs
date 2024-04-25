@@ -89,7 +89,10 @@ fn hit_test(
 mod windows {
   use super::{hit_test, HitTestResult};
 
-  use tao::window::{CursorIcon, ResizeDirection, Window};
+  use tao::{
+    dpi::LogicalPosition,
+    window::{CursorIcon, ResizeDirection, Window},
+  };
   use windows::Win32::UI::WindowsAndMessaging::{
     GetSystemMetrics, SM_CXFRAME, SM_CXPADDEDBORDER, SM_CYFRAME,
   };
@@ -165,12 +168,21 @@ mod windows {
             && !window.is_window_fullscreen
           {
             let (x, y) = args.split_once(',').unwrap();
-            let (x, y) = (x.parse().unwrap(), y.parse().unwrap());
+            let (x, y): (i32, i32) = (x.parse().unwrap(), y.parse().unwrap());
+            let postion = LogicalPosition::new(x, y).to_physical::<i32>(w.scale_factor());
             let size = w.inner_size();
             let padded_border = unsafe { GetSystemMetrics(SM_CXPADDEDBORDER) };
             let border_x = unsafe { GetSystemMetrics(SM_CXFRAME) + padded_border };
             let border_y = unsafe { GetSystemMetrics(SM_CYFRAME) + padded_border };
-            hit_test(size.width, size.height, x, y, border_x, border_y).change_cursor(w);
+            hit_test(
+              size.width,
+              size.height,
+              postion.x,
+              postion.y,
+              border_x,
+              border_y,
+            )
+            .change_cursor(w);
           }
         }
       }
@@ -186,12 +198,21 @@ mod windows {
             && !window.is_window_fullscreen
           {
             let (x, y) = args.split_once(',').unwrap();
-            let (x, y) = (x.parse().unwrap(), y.parse().unwrap());
+            let (x, y): (i32, i32) = (x.parse().unwrap(), y.parse().unwrap());
+            let postion = LogicalPosition::new(x, y).to_physical::<i32>(w.scale_factor());
             let size = w.inner_size();
             let padded_border = unsafe { GetSystemMetrics(SM_CXPADDEDBORDER) };
             let border_x = unsafe { GetSystemMetrics(SM_CXFRAME) + padded_border };
             let border_y = unsafe { GetSystemMetrics(SM_CYFRAME) + padded_border };
-            hit_test(size.width, size.height, x, y, border_x, border_y).drag_resize_window(w);
+            hit_test(
+              size.width,
+              size.height,
+              postion.x,
+              postion.y,
+              border_x,
+              border_y,
+            )
+            .drag_resize_window(w);
           }
         }
       }

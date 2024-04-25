@@ -30,7 +30,7 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
             build: |
-              yarn build:release
+              yarn build:release --target=x86_64-apple-darwin
               strip -x *.node
           - host: windows-latest
             build: yarn build:release
@@ -197,7 +197,7 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-latest
+          - host: macos-13
             target: 'x86_64-apple-darwin'
           - host: windows-latest
             target: x86_64-pc-windows-msvc

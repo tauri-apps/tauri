@@ -29,6 +29,4 @@
       window.__TAURI_INVOKE__('__initialized', { url: window.location.href })
     })
   }
-
-  __RAW_plugin_initialization_script__
 })()

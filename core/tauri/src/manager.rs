@@ -427,7 +427,7 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
-    let plugin_init = self
+    let plugin_init_scripts = self
       .inner
       .plugins
       .lock()
@@ -471,8 +471,11 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),is_init_global)?);
+
+    for plugin_init_script in plugin_init_scripts {
+      webview_attributes = webview_attributes.initialization_script(&plugin_init_script);
+    }
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -781,7 +784,6 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     ipc_script: &str,
     pattern_script: &str,
-    plugin_initialization_script: &str,
     with_global_tauri: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -800,8 +802,6 @@ impl<R: Runtime> WindowManager<R> {
       core_script: &'a str,
       #[raw]
       event_initialization_script: &'a str,
-      #[raw]
-      plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
       #[raw]
@@ -867,7 +867,6 @@ impl<R: Runtime> WindowManager<R> {
       .render_default(&Default::default())?
       .into_string(),
       event_initialization_script: &self.event_initialization_script(),
-      plugin_initialization_script,
       freeze_prototype,
       hotkeys: &hotkeys,
     }

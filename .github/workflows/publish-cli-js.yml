@@ -199,9 +199,9 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
-          - '14'
           - '16'
           - '18'
+          - '20'
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
@@ -232,9 +232,9 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
           - '16'
           - '18'
+          - '20'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -269,9 +269,9 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
           - '16'
           - '18'
+          - '20'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -312,9 +312,9 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
           - '16'
           - '18'
+          - '20'
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
           - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16

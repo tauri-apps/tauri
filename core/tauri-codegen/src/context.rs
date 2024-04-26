@@ -325,17 +325,21 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
       if let Some(version) = &config.version {
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-      }
-      let format =
-        time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
-      if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
-        plist.insert("CFBundleVersion".into(), build_number.into());
+        plist.insert("CFBundleVersion".into(), version.clone().into());
       }
     }
-
-    info_plist
-      .to_file_xml(out_dir.join("Info.plist"))
-      .expect("failed to write Info.plist");
+    
+    let plist_file = out_dir.join("Info.plist");
+    let old = if plist_file.exists() {
+      plist::Value::from_file(&plist_file).expect("failed to read old Info.plist")
+    } else {
+      plist::Value::Dictionary(Default::default())
+    };
+    let old = serde_json::to_string(&old).unwrap();
+    let n = serde_json::to_string(&info_plist).unwrap();
+    if old.ne(&n) {
+      info_plist.to_file_xml(plist_file).expect("failed to write Info.plist");
+    }
     quote!({
       tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })

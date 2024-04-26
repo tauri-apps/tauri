@@ -197,8 +197,8 @@ jobs:
       fail-fast: false
       matrix:
         settings:
-          - host: macos-13
-            target: 'x86_64-apple-darwin'
+          - host: macos-latest
+            target: 'aarch64-apple-darwin'
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
@@ -375,7 +375,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
           check-latest: true
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
@@ -393,6 +393,7 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          cd npm/darwin-x64
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

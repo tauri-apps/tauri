@@ -394,7 +394,7 @@ jobs:
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           cd npm/darwin-x64
-          npm unpublish @tauri-apps/cli-darwin-x64@0.0.0
+          npm deprecate '@tauri-apps/cli-darwin-x64@0.0.0' "this version has been deprecated"
 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

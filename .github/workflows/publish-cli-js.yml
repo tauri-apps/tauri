@@ -393,7 +393,9 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
+          npm run prepublishOnly
           cd npm/darwin-x64
+          npm unpublish 0.0.0
           npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

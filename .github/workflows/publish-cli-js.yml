@@ -32,62 +32,62 @@ jobs:
             build: |
               yarn build:release --target=x86_64-apple-darwin
               strip -x *.node
-          # - host: windows-latest
-          #   build: yarn build:release
-          #   target: x86_64-pc-windows-msvc
-          #   architecture: x64
-          # - host: windows-latest
-          #   build: yarn build:release --target i686-pc-windows-msvc
-          #   target: i686-pc-windows-msvc
-          #   architecture: x64
-          # - host: windows-latest
-          #   architecture: x64
-          #   target: aarch64-pc-windows-msvc
-          #   build: yarn build:release --target aarch64-pc-windows-msvc --features native-tls,native-tls-vendored --cargo-flags="--no-default-features"
-          # - host: ubuntu-20.04
-          #   target: x86_64-unknown-linux-gnu
-          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
-          #   build: |
-          #     cd tooling/cli/node
-          #     yarn build:release --target x86_64-unknown-linux-gnu
-          #     strip *.node
-          # - host: ubuntu-20.04
-          #   target: x86_64-unknown-linux-musl
-          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-          #   build: |
-          #     cd tooling/cli/node
-          #     yarn build:release
-          #     strip *.node
-          # - host: macos-latest
-          #   target: aarch64-apple-darwin
-          #   build: |
-          #     yarn build:release --target=aarch64-apple-darwin
-          #     strip -x *.node
-          # - host: ubuntu-20.04
-          #   target: aarch64-unknown-linux-gnu
-          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
-          #   build: |
-          #     cd tooling/cli/node
-          #     yarn build:release --target aarch64-unknown-linux-gnu
-          #     aarch64-unknown-linux-gnu-strip *.node
-          # - host: ubuntu-20.04
-          #   architecture: x64
-          #   target: armv7-unknown-linux-gnueabihf
-          #   setup: |
-          #     sudo apt-get update
-          #     sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
-          #   build: |
-          #     yarn build:release --target=armv7-unknown-linux-gnueabihf
-          #     arm-linux-gnueabihf-strip *.node
-          # - host: ubuntu-20.04
-          #   architecture: x64
-          #   target: aarch64-unknown-linux-musl
-          #   docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-          #   build: |
-          #     cd tooling/cli/node
-          #     rustup target add aarch64-unknown-linux-musl
-          #     yarn build:release --target aarch64-unknown-linux-musl
-          #     /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
+          - host: windows-latest
+            build: yarn build:release
+            target: x86_64-pc-windows-msvc
+            architecture: x64
+          - host: windows-latest
+            build: yarn build:release --target i686-pc-windows-msvc
+            target: i686-pc-windows-msvc
+            architecture: x64
+          - host: windows-latest
+            architecture: x64
+            target: aarch64-pc-windows-msvc
+            build: yarn build:release --target aarch64-pc-windows-msvc --features native-tls,native-tls-vendored --cargo-flags="--no-default-features"
+          - host: ubuntu-20.04
+            target: x86_64-unknown-linux-gnu
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
+            build: |
+              cd tooling/cli/node
+              yarn build:release --target x86_64-unknown-linux-gnu
+              strip *.node
+          - host: ubuntu-20.04
+            target: x86_64-unknown-linux-musl
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            build: |
+              cd tooling/cli/node
+              yarn build:release
+              strip *.node
+          - host: macos-latest
+            target: aarch64-apple-darwin
+            build: |
+              yarn build:release --target=aarch64-apple-darwin
+              strip -x *.node
+          - host: ubuntu-20.04
+            target: aarch64-unknown-linux-gnu
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+            build: |
+              cd tooling/cli/node
+              yarn build:release --target aarch64-unknown-linux-gnu
+              aarch64-unknown-linux-gnu-strip *.node
+          - host: ubuntu-20.04
+            architecture: x64
+            target: armv7-unknown-linux-gnueabihf
+            setup: |
+              sudo apt-get update
+              sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
+            build: |
+              yarn build:release --target=armv7-unknown-linux-gnueabihf
+              arm-linux-gnueabihf-strip *.node
+          - host: ubuntu-20.04
+            architecture: x64
+            target: aarch64-unknown-linux-musl
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+            build: |
+              cd tooling/cli/node
+              rustup target add aarch64-unknown-linux-musl
+              yarn build:release --target aarch64-unknown-linux-musl
+              /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
@@ -227,148 +227,148 @@ jobs:
         shell: bash
       - name: Test bindings
         run: yarn test
-  # test-linux-x64-gnu-binding:
-  #   name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
-  #   needs:
-  #     - build
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       node:
-  #         - '16'
-  #         - '18'
-  #         - '20'
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #         check-latest: true
-  #         cache: yarn
-  #         cache-dependency-path: 'tooling/cli/node/yarn.lock'
-  #     - name: Install dependencies
-  #       run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: bindings-x86_64-unknown-linux-gnu
-  #         path: 'tooling/cli/node/'
-  #     - name: List packages
-  #       run: ls -R .
-  #       shell: bash
-  #     - name: install system dependencies
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
-  #     - name: Test bindings
-  #       run: yarn test
-  # test-linux-x64-musl-binding:
-  #   name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
-  #   needs:
-  #     - build
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       node:
-  #         - '16'
-  #         - '18'
-  #         - '20'
-  #   runs-on: ubuntu-latest
-  #   container:
-  #     image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
-  #   steps:
-  #     - uses: actions/checkout@v3
-  #     - name: Setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: ${{ matrix.node }}
-  #         check-latest: true
-  #         cache: yarn
-  #         cache-dependency-path: 'tooling/cli/node/yarn.lock'
-  #     - name: Install dependencies
-  #       run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #     - name: Download artifacts
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: bindings-x86_64-unknown-linux-musl
-  #         path: 'tooling/cli/node/'
-  #     - name: List packages
-  #       run: ls -R .
-  #       shell: bash
-  #     - name: Setup and run tests
-  #       run: |
-  #         yarn tauri --help
-  #         ls -la
+  test-linux-x64-gnu-binding:
+    name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - '16'
+          - '18'
+          - '20'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+          cache: yarn
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+      - name: Install dependencies
+        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: bindings-x86_64-unknown-linux-gnu
+          path: 'tooling/cli/node/'
+      - name: List packages
+        run: ls -R .
+        shell: bash
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
+      - name: Test bindings
+        run: yarn test
+  test-linux-x64-musl-binding:
+    name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - '16'
+          - '18'
+          - '20'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node }}
+          check-latest: true
+          cache: yarn
+          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+      - name: Install dependencies
+        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: bindings-x86_64-unknown-linux-musl
+          path: 'tooling/cli/node/'
+      - name: List packages
+        run: ls -R .
+        shell: bash
+      - name: Setup and run tests
+        run: |
+          yarn tauri --help
+          ls -la
       #- name: Setup and run tests
       #  run: |
       #    rustup install stable
       #    rustup default stable
       #    yarn test
       #    ls -la
-  # test-linux-arm-bindings:
-  #   name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
-  #   needs:
-  #     - build
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       node:
-  #         - '16'
-  #         - '18'
-  #         - '20'
-  #       image:
-  #         - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
-  #         - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
-  #       working-directory: ${{ github.workspace }}
-  #     - uses: actions/checkout@v3
-  #     - name: List packages
-  #       run: ls -R .
-  #       shell: bash
-  #     - name: Install dependencies
-  #       run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #     - name: Download aarch64-gnu artifacts
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: bindings-aarch64-unknown-linux-gnu
-  #         path: 'tooling/cli/node/'
-  #     - name: Download armv7-gnueabihf artifacts
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: bindings-armv7-unknown-linux-gnueabihf
-  #         path: 'tooling/cli/node/'
-  #     # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
-  #     - uses: addnab/docker-run-action@v3
-  #       with:
-  #         image: ${{ matrix.image }}
-  #         options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
-  #         shell: bash
-  #         run: |
-  #           set -e
-  #           export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
-  #           apt-get update
-  #           DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip webkit2gtk-4.0 libayatana-appindicator3-dev
-  #           bash
-  #           curl https://sh.rustup.rs -sSf | bash -s -- -y
-  #           curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
-  #           eval "$(fnm env --use-on-cd)"
-  #           fnm install ${{ matrix.node }}
-  #           fnm use ${{ matrix.node }}
-  #           cd tooling/cli/node
-  #           yarn tauri --help
-  #           ls -la
+  test-linux-arm-bindings:
+    name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
+    needs:
+      - build
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - '16'
+          - '18'
+          - '20'
+        image:
+          - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
+          - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
+    runs-on: ubuntu-latest
+    steps:
+      - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
+        working-directory: ${{ github.workspace }}
+      - uses: actions/checkout@v3
+      - name: List packages
+        run: ls -R .
+        shell: bash
+      - name: Install dependencies
+        run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+      - name: Download aarch64-gnu artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: bindings-aarch64-unknown-linux-gnu
+          path: 'tooling/cli/node/'
+      - name: Download armv7-gnueabihf artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: bindings-armv7-unknown-linux-gnueabihf
+          path: 'tooling/cli/node/'
+      # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
+      - uses: addnab/docker-run-action@v3
+        with:
+          image: ${{ matrix.image }}
+          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
+          shell: bash
+          run: |
+            set -e
+            export PATH=/usr/local/cargo/bin/:/usr/local/fnm:$PATH
+            apt-get update
+            DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y unzip webkit2gtk-4.0 libayatana-appindicator3-dev
+            bash
+            curl https://sh.rustup.rs -sSf | bash -s -- -y
+            curl -fsSL https://fnm.vercel.app/install | bash -s -- --install-dir "/usr/local/fnm" --skip-shell
+            eval "$(fnm env --use-on-cd)"
+            fnm install ${{ matrix.node }}
+            fnm use ${{ matrix.node }}
+            cd tooling/cli/node
+            yarn tauri --help
+            ls -la
   publish:
     name: Publish
     runs-on: ubuntu-latest
-    #needs:
+    needs:
       #- build-freebsd
-      #- test-macOS-windows-binding
-      #- test-linux-x64-gnu-binding
-      #- test-linux-x64-musl-binding
+      - test-macOS-windows-binding
+      - test-linux-x64-gnu-binding
+      - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
     steps:
       - uses: actions/checkout@v3
@@ -393,9 +393,7 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          cd npm/darwin-x64
-          npm deprecate '@tauri-apps/cli-darwin-x64@0.0.0' "this version has been deprecated"
-
+          npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}

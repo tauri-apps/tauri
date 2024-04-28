@@ -28,7 +28,7 @@ jobs:
             }
           - {
               target: x86_64-apple-darwin,
-              os: macos-latest,
+              os: macos-13,
               toolchain: '1.60.0'
             }
     steps:
@@ -116,7 +116,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, macos-13, windows-latest]
 
     steps:
       - uses: actions/checkout@v4

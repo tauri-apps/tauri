@@ -96,9 +96,13 @@ resvg = "0.40.0"
 dunce = "1"
 glob = "0.3"
 
-[target."cfg(windows)".dependencies]
-winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }
-cc = "1"
+[target."cfg(windows)".dependencies.windows-sys]
+version = "0.52"
+features = [
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Console"
+]
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"

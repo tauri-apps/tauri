@@ -30,7 +30,7 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
             build: |
-              yarn build:release
+              yarn build:release --target=x86_64-apple-darwin
               strip -x *.node
           - host: windows-latest
             build: yarn build:release
@@ -198,7 +198,7 @@ jobs:
       matrix:
         settings:
           - host: macos-latest
-            target: 'x86_64-apple-darwin'
+            target: 'aarch64-apple-darwin'
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
@@ -375,7 +375,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: 20
           check-latest: true
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'

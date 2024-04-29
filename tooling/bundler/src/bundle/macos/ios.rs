@@ -16,7 +16,7 @@
 use crate::{bundle::common, Settings};
 
 use anyhow::Context;
-use image::{self, codecs::png::PngDecoder, GenericImageView, ImageDecoder};
+use image::{codecs::png::PngDecoder, GenericImageView, ImageDecoder};
 
 use std::{
   collections::BTreeSet,

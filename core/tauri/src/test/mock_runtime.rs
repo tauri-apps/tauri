@@ -268,6 +268,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   {
     todo!()
   }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -483,6 +487,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   #[cfg(any(debug_assertions, feature = "devtools"))]
   fn is_devtools_open(&self) -> Result<bool> {
     Ok(false)
+  }
+
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    Ok(())
   }
 
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
@@ -1147,5 +1155,9 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
 
     callback(RunEvent::Exit);
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
   }
 }

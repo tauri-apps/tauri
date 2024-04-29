@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+- [`4973d73a2`](https://www.github.com/tauri-apps/tauri/commit/4973d73a237dc5c60618c1011e202278e7a29b5c)([#9386](https://www.github.com/tauri-apps/tauri/pull/9386)) Provide a basic zoom hotkey polyfill for non-Windows platforms
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
 ## \[2.0.0-beta.11]
 
 ### What's Changed

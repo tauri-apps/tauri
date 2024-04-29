@@ -1291,7 +1291,15 @@ pub struct WindowConfig {
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
   pub proxy_url: Option<Url>,
-  /// Whether page zooming by hotkeys is enabled **Windows Only**
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
   #[serde(default)]
   pub zoom_hotkeys_enabled: bool,
 }

@@ -51,7 +51,7 @@ pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
-  /// Initializes a window builder with the given window label.
+  /// Initializes a webview window builder with the given window label.
   ///
   /// # Known issues
   ///
@@ -106,9 +106,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     }
   }
 
-  /// Initializes a window builder from a [`WindowConfig`] from tauri.conf.json.
+  /// Initializes a webview window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new [`WindowBuilder`].
+  /// that the initial window was closed or change the label of the new [`WebviewWindowBuilder`].
   ///
   /// # Known issues
   ///
@@ -119,20 +119,15 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - Create a window in a command:
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-#[tauri::command]
-async fn reopen_window(app: tauri::AppHandle) {
-  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
-    .unwrap()
-    .build()
-    .unwrap();
-}
-```
-  "####
-  )]
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+  ///     .unwrap()
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
@@ -839,7 +834,15 @@ fn main() {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled **Windows only**
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
   #[must_use]
   pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
     self.webview_builder = self.webview_builder.zoom_hotkeys_enabled(enabled);
@@ -1215,6 +1218,22 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<crate::Theme> {
     self.webview.window().theme()
+  }
+}
+
+/// Desktop window getters.
+#[cfg(desktop)]
+impl<R: Runtime> WebviewWindow<R> {
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.webview.cursor_position()
   }
 }
 
@@ -1712,6 +1731,17 @@ tauri::Builder::default()
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
     self.webview.is_devtools_open()
+  }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self.webview.set_zoom(scale_factor)
   }
 }
 

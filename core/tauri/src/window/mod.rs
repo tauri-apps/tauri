@@ -424,17 +424,22 @@ tauri::Builder::default()
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
 
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&app_manager.window.labels())?,
-    ))?;
+    let app_manager = self.manager.manager_owned();
+    let window_label = window.label().to_string();
+    // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
+    let _ = window.run_on_main_thread(move || {
+      let _ = app_manager.webview.eval_script_all(format!(
+        "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+        window_labels_array = serde_json::to_string(&app_manager.window.labels()).unwrap(),
+      ));
 
-    app_manager.emit(
-      "tauri://window-created",
-      Some(crate::webview::CreatedEvent {
-        label: window.label().into(),
-      }),
-    )?;
+      let _ = app_manager.emit(
+        "tauri://window-created",
+        Some(crate::webview::CreatedEvent {
+          label: window_label,
+        }),
+      );
+    });
 
     Ok(window)
   }
@@ -1545,6 +1550,22 @@ impl<R: Runtime> Window<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
+  }
+}
+
+/// Desktop window getters.
+#[cfg(desktop)]
+impl<R: Runtime> Window<R> {
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
   }
 }
 

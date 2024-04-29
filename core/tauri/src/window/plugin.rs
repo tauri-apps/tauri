@@ -19,7 +19,7 @@ mod desktop_commands {
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
     window::{ProgressBarState, WindowBuilder},
-    AppHandle, CursorIcon, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
+    AppHandle, CursorIcon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Webview, Window,
   };
 
@@ -90,6 +90,7 @@ mod desktop_commands {
   getter!(current_monitor, Option<Monitor>);
   getter!(primary_monitor, Option<Monitor>);
   getter!(available_monitors, Vec<Monitor>);
+  getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
 
   setter!(center);
@@ -138,8 +139,9 @@ mod desktop_commands {
     value: crate::image::JsImage,
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
+    let resources_table = webview.resources_table();
     window
-      .set_icon(value.into_img(&webview)?.as_ref().clone())
+      .set_icon(value.into_img(&resources_table)?.as_ref().clone())
       .map_err(Into::into)
   }
 
@@ -221,6 +223,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::current_monitor,
             desktop_commands::primary_monitor,
             desktop_commands::available_monitors,
+            desktop_commands::cursor_position,
             desktop_commands::theme,
             // setters
             desktop_commands::center,

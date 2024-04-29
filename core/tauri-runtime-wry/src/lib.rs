@@ -772,6 +772,9 @@ impl WindowBuilder for WindowBuilderWrapper {
         .content_protected(config.content_protected)
         .skip_taskbar(config.skip_taskbar)
         .theme(config.theme)
+        .closable(config.closable)
+        .maximizable(config.maximizable)
+        .minimizable(config.minimizable)
         .shadow(config.shadow);
 
       if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
@@ -1185,6 +1188,7 @@ pub enum WebviewMessage {
   SetFocus,
   Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
+  SetZoom(f64),
   // Getters
   Url(Sender<Result<Url>>),
   Bounds(Sender<Result<tauri_runtime::Rect>>),
@@ -1448,6 +1452,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetZoom(scale_factor),
       ),
     )
   }
@@ -2147,6 +2162,17 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .collect()
   }
 
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .cursor_position()
+      .map(PhysicalPositionWrapper)
+      .map(Into::into)
+      .map_err(|_| Error::FailedToGetCursorPosition)
+  }
+
   #[cfg(target_os = "macos")]
   fn show(&self) -> tauri_runtime::Result<()> {
     send_user_message(
@@ -2392,6 +2418,17 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .available_monitors()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .cursor_position()
+      .map(PhysicalPositionWrapper)
+      .map(Into::into)
+      .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
   #[cfg(target_os = "macos")]
@@ -2687,16 +2724,8 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::Show => {
-            window.set_visible(true);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, !window.is_minimized());
-          }
-          WindowMessage::Hide => {
-            window.set_visible(false);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, false);
-          }
+          WindowMessage::Show => window.set_visible(true),
+          WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -2967,6 +2996,11 @@ fn handle_user_message<T: UserEvent>(
               log::error!("failed to get webview bounds: {e}");
             }
           },
+          WebviewMessage::SetZoom(scale_factor) => {
+            if let Err(e) = webview.zoom(scale_factor) {
+              log::error!("failed to set webview zoom: {e}");
+            }
+          }
           // Getters
           WebviewMessage::Url(tx) => {
             tx.send(
@@ -3352,7 +3386,7 @@ fn handle_event_loop<T: UserEvent>(
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
               let size = size.to_logical::<f32>(window.scale_factor());
-              for webview in &webviews {
+              for webview in webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
                   if let Err(e) = webview.set_bounds(wry::Rect {
                     position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
@@ -3364,9 +3398,6 @@ fn handle_event_loop<T: UserEvent>(
                   }
                 }
               }
-              #[cfg(windows)]
-              let _ =
-                set_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
             }
           }
           _ => {}
@@ -4076,7 +4107,7 @@ fn inner_size(
   webviews: &[WebviewWrapper],
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
-  if !has_children {
+  if !has_children && webviews.len() > 0 {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
@@ -4140,16 +4171,4 @@ fn clear_window_surface(
     buffer.fill(0);
     let _ = buffer.present();
   }
-}
-
-#[cfg(windows)]
-fn set_webview_visibility(
-  webviews: &[WebviewWrapper],
-  is_visible: bool,
-) -> windows::core::Result<()> {
-  for webview in webviews {
-    let controller = webview.controller();
-    unsafe { controller.SetIsVisible(is_visible) }?;
-  }
-  Ok(())
 }

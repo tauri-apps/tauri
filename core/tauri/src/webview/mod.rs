@@ -776,7 +776,15 @@ fn main() {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled **Windows Only**
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
   #[must_use]
   pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes.zoom_hotkeys_enabled = enabled;
@@ -885,6 +893,18 @@ impl<R: Runtime> Webview<R> {
   /// `window.print()` works on all platforms.
   pub fn print(&self) -> crate::Result<()> {
     self.webview.dispatcher.print().map_err(Into::into)
+  }
+
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
   }
 
   /// Closes this webview.
@@ -1423,6 +1443,21 @@ tauri::Builder::default()
       .dispatcher
       .is_devtools_open()
       .unwrap_or_default()
+  }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_zoom(scale_factor)
+      .map_err(Into::into)
   }
 }
 

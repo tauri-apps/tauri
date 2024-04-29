@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`a1e0e268f`](https://www.github.com/tauri-apps/tauri/commit/a1e0e268f02f7e2934bec48de4cac0dc00529a2b)([#9477](https://www.github.com/tauri-apps/tauri/pull/9477)) Replace `tauri:` prefix with `tauri-` for temporary permission file names
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`36b4c1249`](https://www.github.com/tauri-apps/tauri/commit/36b4c12497fbe636066f4848c6877b3ab6cc892e)([#9331](https://www.github.com/tauri-apps/tauri/pull/9331)) Added support for `provides`, `conflicts` and `replaces` (`obsoletes` for RPM) options for `bundler > deb` and `bundler > rpm` configs.
+
 ## \[2.0.0-beta.11]
 
 ### New Features

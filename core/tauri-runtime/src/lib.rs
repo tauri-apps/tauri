@@ -158,6 +158,9 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
+  /// Failed to get cursor position.
+  #[error("failed to get cursor position")]
+  FailedToGetCursorPosition,
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -293,6 +296,8 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -372,6 +377,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
   /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
@@ -480,6 +487,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
+
+  /// Set the webview zoom level
+  fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.

@@ -1227,15 +1227,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${size.type}`] = {
+      width: size.width,
+      height: size.height
+    }
+
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value: {
-        type: size.type,
-        data: {
-          width: size.width,
-          height: size.height
-        }
-      }
+      value
     })
   }
 
@@ -1259,17 +1259,18 @@ class Window {
       )
     }
 
+    let value = null as Record<string, unknown> | null
+    if (size) {
+      value = {}
+      value[`${size.type}`] = {
+        width: size.width,
+        height: size.height
+      }
+    }
+
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value: size
-        ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
-          }
-        : null
+      value
     })
   }
 
@@ -1293,17 +1294,18 @@ class Window {
       )
     }
 
+    let value = null as Record<string, unknown> | null
+    if (size) {
+      value = {}
+      value[`${size.type}`] = {
+        width: size.width,
+        height: size.height
+      }
+    }
+
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value: size
-        ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
-          }
-        : null
+      value
     })
   }
 
@@ -1330,15 +1332,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -1516,15 +1518,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -2254,6 +2256,22 @@ async function availableMonitors(): Promise<Monitor[]> {
   )
 }
 
+/**
+ * Get the cursor position relative to the top-left hand corner of the desktop.
+ *
+ * Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+ * If the user uses a desktop with multiple monitors,
+ * the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+ * or the top-left of the leftmost monitor on X11.
+ *
+ * The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+ */
+async function cursorPosition(): Promise<PhysicalPosition> {
+  return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
+    mapPhysicalPosition
+  )
+}
+
 export {
   Window,
   CloseRequestedEvent,
@@ -2268,7 +2286,8 @@ export {
   EffectState,
   currentMonitor,
   primaryMonitor,
-  availableMonitors
+  availableMonitors,
+  cursorPosition
 }
 
 export type {

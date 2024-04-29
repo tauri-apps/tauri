@@ -133,7 +133,7 @@ impl<R: Runtime> WebviewManager<R> {
     let app_manager = manager.manager();
 
     let is_init_global = app_manager.config.app.with_global_tauri;
-    let plugin_init = app_manager
+    let plugin_init_scripts = app_manager
       .plugins
       .lock()
       .expect("poisoned plugin store")
@@ -165,6 +165,10 @@ impl<R: Runtime> WebviewManager<R> {
     webview_attributes = webview_attributes
       .initialization_script(
         r#"
+        Object.defineProperty(window, 'isTauri', {
+          value: true,
+        });
+
         if (!window.__TAURI_INTERNALS__) {
           Object.defineProperty(window, '__TAURI_INTERNALS__', {
             value: {
@@ -195,9 +199,12 @@ impl<R: Runtime> WebviewManager<R> {
         app_manager,
         &ipc_init.into_string(),
         &pattern_init.into_string(),
-        &plugin_init,
         is_init_global,
       )?);
+
+    for plugin_init_script in plugin_init_scripts {
+      webview_attributes = webview_attributes.initialization_script(&plugin_init_script);
+    }
 
     #[cfg(feature = "isolation")]
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
@@ -341,7 +348,6 @@ impl<R: Runtime> WebviewManager<R> {
     app_manager: &AppManager<R>,
     ipc_script: &str,
     pattern_script: &str,
-    plugin_initialization_script: &str,
     with_global_tauri: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -357,8 +363,6 @@ impl<R: Runtime> WebviewManager<R> {
       core_script: &'a str,
       #[raw]
       event_initialization_script: &'a str,
-      #[raw]
-      plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
     }
@@ -394,7 +398,6 @@ impl<R: Runtime> WebviewManager<R> {
         app_manager.listeners().function_name(),
         app_manager.listeners().listeners_object_name(),
       ),
-      plugin_initialization_script,
       freeze_prototype,
     }
     .render_default(&Default::default())
@@ -532,6 +535,23 @@ impl<R: Runtime> WebviewManager<R> {
       if !user_data_dir.exists() {
         create_dir_all(user_data_dir)?;
       }
+    }
+
+    #[cfg(all(desktop, not(target_os = "windows")))]
+    if pending.webview_attributes.zoom_hotkeys_enabled {
+      #[derive(Template)]
+      #[default_template("../webview/scripts/zoom-hotkey.js")]
+      struct HotkeyZoom<'a> {
+        os_name: &'a str,
+      }
+
+      pending.webview_attributes.initialization_scripts.push(
+        HotkeyZoom {
+          os_name: std::env::consts::OS,
+        }
+        .render_default(&Default::default())?
+        .into_string(),
+      )
     }
 
     #[cfg(feature = "isolation")]

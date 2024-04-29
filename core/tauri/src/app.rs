@@ -596,6 +596,23 @@ macro_rules! shared_app_impl {
           _ => unreachable!(),
         })
       }
+
+      /// Get the cursor position relative to the top-left hand corner of the desktop.
+      ///
+      /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+      /// If the user uses a desktop with multiple monitors,
+      /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+      /// or the top-left of the leftmost monitor on X11.
+      ///
+      /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+      pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.cursor_position()?,
+          RuntimeOrDispatch::RuntimeHandle(h) => h.cursor_position()?,
+          _ => unreachable!(),
+        })
+      }
+
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()
@@ -754,6 +771,13 @@ macro_rules! shared_app_impl {
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
+        self.manager.resources_table().clear();
+        for (_, window) in self.manager.windows().iter() {
+          window.resources_table().clear();
+        }
+        for (_, webview) in self.manager.webviews().iter() {
+          webview.resources_table().clear();
+        }
       }
     }
 
@@ -1700,8 +1724,7 @@ tauri::Builder::default()
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
         }
-        let tray = tray.build(handle)?;
-        app.manager.tray.icons.lock().unwrap().push(tray);
+        tray.build(handle)?;
       }
     }
 

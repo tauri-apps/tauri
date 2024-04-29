@@ -175,9 +175,14 @@ pub fn setup(
 
   if let Some(FrontendDist::Directory(web_asset_path)) = &config_.build.frontend_dist {
     if !web_asset_path.exists() {
+      let absolute_path = web_asset_path
+        .parent()
+        .and_then(|p| p.canonicalize().ok())
+        .map(|p| p.join(web_asset_path.file_name().unwrap()))
+        .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
       return Err(anyhow::anyhow!(
-          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{:?}\".",
-          web_asset_path
+          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
+          web_asset_path.display(), absolute_path.display(),
         ));
     }
     if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
@@ -203,7 +208,7 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner = config_.build.runner.clone();
+    options.runner.clone_from(&config_.build.runner);
   }
 
   options

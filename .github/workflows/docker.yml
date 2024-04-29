@@ -77,7 +77,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: lts
 
       - name: Download cross
         uses: actions/download-artifact@v3

@@ -88,7 +88,7 @@ jobs:
               rustup target add aarch64-unknown-linux-musl
               yarn build:release --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
-    name: stable - ${{ matrix.settings.target }} - node@lts
+    name: stable - ${{ matrix.settings.target }} - node@lts/*
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v3
@@ -96,7 +96,7 @@ jobs:
         uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: lts
+          node-version: 'lts/*'
           check-latest: true
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'
@@ -375,7 +375,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: lts
+          node-version: 'lts/*'
           check-latest: true
           cache: yarn
           cache-dependency-path: 'tooling/cli/node/yarn.lock'

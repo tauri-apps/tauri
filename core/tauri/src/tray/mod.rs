@@ -420,6 +420,23 @@ impl<R: Runtime> TrayIcon<R> {
       .set_show_menu_on_left_click(enable))?;
     Ok(())
   }
+
+  
+  /// Get tray icon rect.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported, always returns `None`.
+  pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
+    run_item_main_thread!(self, |self_: Self| self_.inner.rect().map(
+      |rect| {
+        Rect {
+          position: rect.position.into(),
+          size: rect.size.into(),
+        }
+      }
+    ))
+  }
 }
 
 impl<R: Runtime> Resource for TrayIcon<R> {

@@ -13,6 +13,7 @@ use crate::{
     AppManager, Asset,
   },
   plugin::{Plugin, PluginStore},
+  resources::ResourceTable,
   runtime::{
     window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
@@ -45,7 +46,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc},
+  sync::{mpsc::Sender, Arc, MutexGuard},
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -416,7 +417,12 @@ impl<R: Runtime> AppHandle<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for AppHandle<R> {}
+impl<R: Runtime> Manager<R> for AppHandle<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self.manager.resources_table()
+  }
+}
+
 impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
@@ -457,7 +463,12 @@ impl<R: Runtime> fmt::Debug for App<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for App<R> {}
+impl<R: Runtime> Manager<R> for App<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self.manager.resources_table()
+  }
+}
+
 impl<R: Runtime> ManagerBase<R> for App<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
@@ -753,7 +764,13 @@ macro_rules! shared_app_impl {
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
-        self.resources_table().clear();
+        self.manager.resources_table().clear();
+        for (_, window) in self.manager.windows().iter() {
+          window.resources_table().clear();
+        }
+        for (_, webview) in self.manager.webviews().iter() {
+          webview.resources_table().clear();
+        }
       }
     }
 
@@ -1700,8 +1717,7 @@ tauri::Builder::default()
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
         }
-        let tray = tray.build(handle)?;
-        app.manager.tray.icons.lock().unwrap().push(tray);
+        tray.build(handle)?;
       }
     }
 

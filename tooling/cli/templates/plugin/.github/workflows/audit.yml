@@ -8,24 +8,27 @@ on:
     branches:
       - main
     paths:
+      - ".github/workflows/audit.yml"
       - "**/Cargo.lock"
       - "**/Cargo.toml"
   pull_request:
     branches:
       - main
     paths:
+      - ".github/workflows/audit.yml"
       - "**/Cargo.lock"
       - "**/Cargo.toml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-    permissions:
-      issues: write
-      checks: write
 {{{{/raw}}}}

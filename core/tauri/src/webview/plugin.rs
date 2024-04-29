@@ -40,6 +40,8 @@ mod desktop_commands {
     window_effects: Option<WindowEffectsConfig>,
     #[serde(default)]
     incognito: bool,
+    #[serde(default)]
+    zoom_hotkeys_enabled: bool,
   }
 
   #[command(root = "crate")]
@@ -77,6 +79,7 @@ mod desktop_commands {
     builder.webview_attributes.accept_first_mouse = options.accept_first_mouse;
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
+    builder.webview_attributes.zoom_hotkeys_enabled = options.zoom_hotkeys_enabled;
 
     window.add_child(
       builder,
@@ -154,6 +157,7 @@ mod desktop_commands {
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
+  setter!(set_webview_zoom, set_zoom, f64);
 
   #[command(root = "crate")]
   pub async fn reparent<R: Runtime>(
@@ -235,6 +239,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
+            desktop_commands::set_webview_zoom,
             desktop_commands::print,
             desktop_commands::reparent,
             #[cfg(any(debug_assertions, feature = "devtools"))]

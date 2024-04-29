@@ -4,12 +4,17 @@
 
 //! [`Window`] that hosts a single [`Webview`].
 
-use std::{borrow::Cow, path::PathBuf, sync::Arc};
+use std::{
+  borrow::Cow,
+  path::PathBuf,
+  sync::{Arc, MutexGuard},
+};
 
 use crate::{
   event::EventTarget,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
+  ResourceTable,
 };
 #[cfg(desktop)]
 use crate::{
@@ -46,7 +51,7 @@ pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
 }
 
 impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
-  /// Initializes a window builder with the given window label.
+  /// Initializes a webview window builder with the given window label.
   ///
   /// # Known issues
   ///
@@ -101,9 +106,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     }
   }
 
-  /// Initializes a window builder from a [`WindowConfig`] from tauri.conf.json.
+  /// Initializes a webview window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new [`WindowBuilder`].
+  /// that the initial window was closed or change the label of the new [`WebviewWindowBuilder`].
   ///
   /// # Known issues
   ///
@@ -114,20 +119,15 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - Create a window in a command:
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-#[tauri::command]
-async fn reopen_window(app: tauri::AppHandle) {
-  let webview_window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
-    .unwrap()
-    .build()
-    .unwrap();
-}
-```
-  "####
-  )]
+  /// ```
+  /// #[tauri::command]
+  /// async fn reopen_window(app: tauri::AppHandle) {
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+  ///     .unwrap()
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
@@ -831,6 +831,21 @@ fn main() {
   #[must_use]
   pub fn proxy_url(mut self, url: Url) -> Self {
     self.webview_builder = self.webview_builder.proxy_url(url);
+    self
+  }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.zoom_hotkeys_enabled(enabled);
     self
   }
 }
@@ -1710,6 +1725,17 @@ tauri::Builder::default()
   pub fn is_devtools_open(&self) -> bool {
     self.webview.is_devtools_open()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self.webview.set_zoom(scale_factor)
+  }
 }
 
 /// Event system APIs.
@@ -1799,7 +1825,15 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for WebviewWindow<R> {}
+impl<R: Runtime> Manager<R> for WebviewWindow<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .webview
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for WebviewWindow<R> {
   fn manager(&self) -> &AppManager<R> {

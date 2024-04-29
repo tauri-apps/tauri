@@ -772,6 +772,9 @@ impl WindowBuilder for WindowBuilderWrapper {
         .content_protected(config.content_protected)
         .skip_taskbar(config.skip_taskbar)
         .theme(config.theme)
+        .closable(config.closable)
+        .maximizable(config.maximizable)
+        .minimizable(config.minimizable)
         .shadow(config.shadow);
 
       if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
@@ -1185,6 +1188,7 @@ pub enum WebviewMessage {
   SetFocus,
   Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
+  SetZoom(f64),
   // Getters
   Url(Sender<Result<Url>>),
   Bounds(Sender<Result<tauri_runtime::Rect>>),
@@ -1451,6 +1455,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       ),
     )
   }
+
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetZoom(scale_factor),
+      ),
+    )
+  }
 }
 
 /// The Tauri [`WindowDispatch`] for [`Wry`].
@@ -1525,12 +1540,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::IsFocused)
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsDecorated)
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsResizable)
   }
@@ -2664,13 +2679,37 @@ fn handle_user_message<T: UserEvent>(
           }
           // Setters
           WindowMessage::Center => {
+            #[cfg(not(target_os = "macos"))]
             if let Some(monitor) = window.current_monitor() {
-              let window_size = inner_size(&window, &webviews, has_children);
-              let screen_size = monitor.size();
-              let monitor_pos = monitor.position();
-              let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-              let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-              window.set_outer_position(TaoPhysicalPosition::new(x, y));
+              #[allow(unused_mut)]
+              let mut window_size = window.outer_size();
+              #[cfg(windows)]
+              if window.is_decorated() {
+                use windows::Win32::Foundation::RECT;
+                use windows::Win32::Graphics::Dwm::{
+                  DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
+                };
+                let mut rect = RECT::default();
+                let result = unsafe {
+                  DwmGetWindowAttribute(
+                    HWND(window.hwnd()),
+                    DWMWA_EXTENDED_FRAME_BOUNDS,
+                    &mut rect as *mut _ as *mut _,
+                    std::mem::size_of::<RECT>() as u32,
+                  )
+                };
+                if result.is_ok() {
+                  window_size.height = (rect.bottom - rect.top) as u32;
+                }
+              }
+              window.set_outer_position(calculate_window_center_position(window_size, monitor));
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+              use cocoa::{appkit::NSWindow, base::id};
+              let ns_window: id = window.ns_window() as _;
+              unsafe { ns_window.center() };
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {
@@ -2685,16 +2724,8 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::Show => {
-            window.set_visible(true);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, !window.is_minimized());
-          }
-          WindowMessage::Hide => {
-            window.set_visible(false);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, false);
-          }
+          WindowMessage::Show => window.set_visible(true),
+          WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -2965,6 +2996,11 @@ fn handle_user_message<T: UserEvent>(
               log::error!("failed to get webview bounds: {e}");
             }
           },
+          WebviewMessage::SetZoom(scale_factor) => {
+            if let Err(e) = webview.zoom(scale_factor) {
+              log::error!("failed to set webview zoom: {e}");
+            }
+          }
           // Getters
           WebviewMessage::Url(tx) => {
             tx.send(
@@ -3350,7 +3386,7 @@ fn handle_event_loop<T: UserEvent>(
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
               let size = size.to_logical::<f32>(window.scale_factor());
-              for webview in &webviews {
+              for webview in webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
                   if let Err(e) = webview.set_bounds(wry::Rect {
                     position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
@@ -3362,9 +3398,6 @@ fn handle_event_loop<T: UserEvent>(
                   }
                 }
               }
-              #[cfg(windows)]
-              let _ =
-                set_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
             }
           }
           _ => {}
@@ -3515,7 +3548,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         let monitor_pos = m.position();
         let monitor_size = m.size();
 
-        let window_position = window_position.to_logical(m.scale_factor());
+        // type annotations required for 32bit targets.
+        let window_position: LogicalPosition<i32> = window_position.to_logical(m.scale_factor());
 
         monitor_pos.x <= window_position.x
           && window_position.x <= monitor_pos.x + monitor_size.width as i32
@@ -3533,18 +3567,29 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
       let scale_factor = monitor.scale_factor();
-      let window_size = window_builder
+      #[allow(unused_mut)]
+      let mut window_size = window_builder
         .inner
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
-        .to_logical::<i32>(scale_factor);
-      let screen_size = monitor.size().to_logical::<i32>(scale_factor);
-      let monitor_pos = monitor.position().to_logical::<i32>(scale_factor);
-      let x = (screen_size.width - window_size.width) / 2 + monitor_pos.x;
-      let y = (screen_size.height - window_size.height) / 2 + monitor_pos.y;
-
-      window_builder = window_builder.position(x as f64, y as f64);
+        .to_physical::<u32>(scale_factor);
+      #[cfg(windows)]
+      {
+        if window_builder.inner.window.decorations {
+          use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
+          let mut rect = windows::Win32::Foundation::RECT::default();
+          let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
+          if result.is_ok() {
+            window_size.width += (rect.right - rect.left) as u32;
+            // rect.bottom is made out of shadow, and we don't care about it
+            window_size.height += -rect.top as u32;
+          }
+        }
+      }
+      let position = calculate_window_center_position(window_size, monitor);
+      let logical_position = position.to_logical::<f64>(scale_factor);
+      window_builder = window_builder.position(logical_position.x, logical_position.y);
     }
   }
 
@@ -3721,7 +3766,8 @@ fn create_webview<T: UserEvent>(
     .with_focused(window.is_focused())
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
-    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+    .with_accept_first_mouse(webview_attributes.accept_first_mouse)
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
   #[cfg(windows)]
   if kind == WebviewKind::WindowContent {
@@ -4061,7 +4107,7 @@ fn inner_size(
   webviews: &[WebviewWrapper],
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
-  if !has_children {
+  if !has_children && webviews.len() > 0 {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
@@ -4082,6 +4128,32 @@ fn inner_size(
   window.inner_size()
 }
 
+fn calculate_window_center_position(
+  window_size: TaoPhysicalSize<u32>,
+  target_monitor: MonitorHandle,
+) -> TaoPhysicalPosition<i32> {
+  #[cfg(windows)]
+  {
+    use tao::platform::windows::MonitorHandleExtWindows;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
+    let mut monitor_info = MONITORINFO::default();
+    monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    if status.into() {
+      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
+      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
+      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
+      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
+      return TaoPhysicalPosition::new(x, y);
+    }
+  }
+  let screen_size = target_monitor.size();
+  let monitor_pos = target_monitor.position();
+  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
+  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
+  TaoPhysicalPosition::new(x, y)
+}
+
 #[cfg(windows)]
 fn clear_window_surface(
   window: &Window,
@@ -4097,16 +4169,4 @@ fn clear_window_surface(
     buffer.fill(0);
     let _ = buffer.present();
   }
-}
-
-#[cfg(windows)]
-fn set_webview_visibility(
-  webviews: &[WebviewWrapper],
-  is_visible: bool,
-) -> windows::core::Result<()> {
-  for webview in webviews {
-    let controller = webview.controller();
-    unsafe { controller.SetIsVisible(is_visible) }?;
-  }
-  Ok(())
 }

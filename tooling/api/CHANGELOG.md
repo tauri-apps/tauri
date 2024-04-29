@@ -1,5 +1,38 @@
 # Changelog
 
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`70c51371e`](https://www.github.com/tauri-apps/tauri/commit/70c51371e01184223312de3dba8030394a5a9406)([#9539](https://www.github.com/tauri-apps/tauri/pull/9539)) Add `isTauri` function in `core` module to check whether running inside tauri or not.
+
+### Bug Fixes
+
+- [`be7eab209`](https://www.github.com/tauri-apps/tauri/commit/be7eab209c60c45e140f7bcb4bab1037d62d4c03)([#9486](https://www.github.com/tauri-apps/tauri/pull/9486)) Set the `exports > types` package.json field.
+- [`cf615e8e4`](https://www.github.com/tauri-apps/tauri/commit/cf615e8e4d5008ee1ac3f77e530ba26fb91e8977)([#9463](https://www.github.com/tauri-apps/tauri/pull/9463)) Fixes a bug when processing channel messages out of order.
+- [`35b25f7e5`](https://www.github.com/tauri-apps/tauri/commit/35b25f7e5c0fe03af4ed3582e22a626863f035f0)([#9530](https://www.github.com/tauri-apps/tauri/pull/9530)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
+## \[2.0.0-beta.8]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+
+### Bug Fixes
+
+- [`48a7a78f8`](https://www.github.com/tauri-apps/tauri/commit/48a7a78f8094d08e5e403e88050391642d29151b)([#9376](https://www.github.com/tauri-apps/tauri/pull/9376)) Fix `Window/Webview/WebviewWindow.setSize`, `Window/Webview/WebviewWindow.setPostion`, `Window/WebviewWindow.setMinSize`, `Window/WebviewWindow.setMaxSize`, `Window/WebviewWindow.setCursorPosition` and `Menu/Submenu.popup` methods failing with invalid args.
+
+## \[2.0.0-beta.7]
+
+### Bug Fixes
+
+- [`c33f6e6cf`](https://www.github.com/tauri-apps/tauri/commit/c33f6e6cf35a0d34b5598875a2e5b642a01c8b38)([#9211](https://www.github.com/tauri-apps/tauri/pull/9211)) Re-added the `TauriEvent.WINDOW_CREATED` (`tauri://window-created`) event.
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+
 ## \[2.0.0-beta.6]
 
 ### New Features

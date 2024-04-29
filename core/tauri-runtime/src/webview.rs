@@ -207,6 +207,7 @@ pub struct WebviewAttributes {
   pub bounds: Option<Rect>,
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
+  pub zoom_hotkeys_enabled: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -233,6 +234,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(url) = &config.proxy_url {
       builder = builder.proxy_url(url.to_owned());
     }
+    builder = builder.zoom_hotkeys_enabled(config.zoom_hotkeys_enabled);
     builder
   }
 }
@@ -255,6 +257,7 @@ impl WebviewAttributes {
       bounds: None,
       auto_resize: false,
       proxy_url: None,
+      zoom_hotkeys_enabled: false,
     }
   }
 
@@ -343,6 +346,21 @@ impl WebviewAttributes {
   #[must_use]
   pub fn proxy_url(mut self, url: Url) -> Self {
     self.proxy_url = Some(url);
+    self
+  }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.zoom_hotkeys_enabled = enabled;
     self
   }
 }

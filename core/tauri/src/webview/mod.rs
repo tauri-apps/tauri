@@ -34,14 +34,14 @@ use crate::{
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Event, EventId, EventLoopMessage, Manager, Runtime, Window,
+  AppHandle, Event, EventId, EventLoopMessage, Manager, ResourceTable, Runtime, Window,
 };
 
 use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 pub(crate) type WebResourceRequestHandler =
@@ -775,6 +775,21 @@ fn main() {
     self.webview_attributes.auto_resize = true;
     self
   }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes.zoom_hotkeys_enabled = enabled;
+    self
+  }
 }
 
 /// Webview.
@@ -786,6 +801,7 @@ pub struct Webview<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
@@ -804,6 +820,7 @@ impl<R: Runtime> Clone for Webview<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       webview: self.webview.clone(),
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -832,6 +849,7 @@ impl<R: Runtime> Webview<R> {
       manager: window.manager.clone(),
       app_handle: window.app_handle.clone(),
       webview,
+      resources_table: Default::default(),
     }
   }
 
@@ -1419,6 +1437,21 @@ tauri::Builder::default()
       .is_devtools_open()
       .unwrap_or_default()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_zoom(scale_factor)
+      .map_err(Into::into)
+  }
 }
 
 /// Event system APIs.
@@ -1507,7 +1540,14 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for Webview<R> {}
+impl<R: Runtime> Manager<R> for Webview<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {

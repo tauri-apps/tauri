@@ -82,7 +82,7 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let (plugin, version) = options
     .plugin
-    .split_once("@")
+    .split_once('@')
     .map(|(p, v)| (p, Some(v)))
     .unwrap_or((&options.plugin, None));
 

@@ -487,6 +487,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
+
+  /// Set the webview zoom level
+  fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.

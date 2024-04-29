@@ -16,6 +16,8 @@
 |`deny-set-webview-position`|Denies the set_webview_position command without any pre-configured scope.|
 |`allow-set-webview-size`|Enables the set_webview_size command without any pre-configured scope.|
 |`deny-set-webview-size`|Denies the set_webview_size command without any pre-configured scope.|
+|`allow-set-webview-zoom`|Enables the set_webview_zoom command without any pre-configured scope.|
+|`deny-set-webview-zoom`|Denies the set_webview_zoom command without any pre-configured scope.|
 |`allow-webview-close`|Enables the webview_close command without any pre-configured scope.|
 |`deny-webview-close`|Denies the webview_close command without any pre-configured scope.|
 |`allow-webview-position`|Enables the webview_position command without any pre-configured scope.|

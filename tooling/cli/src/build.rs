@@ -247,23 +247,6 @@ fn bundle<A: AppSettings>(
     return Ok(());
   }
 
-  let updater_pub_key = config
-    .plugins
-    .0
-    .get("updater")
-    .and_then(|k| k.get("pubkey"))
-    .and_then(|v| v.as_str())
-    .map(|v| v.to_string());
-
-  if updater_pub_key
-    .as_ref()
-    .map(|v| !v.is_empty())
-    .unwrap_or(false)
-    && !package_types.contains(&PackageType::Updater)
-  {
-    log::warn!("`plugins > updater > pubkey` is set, but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
-  }
-
   // if we have a package to bundle, let's run the `before_bundle_command`.
   if !package_types.is_empty() {
     if let Some(before_bundle) = config.build.before_bundle_command.clone() {
@@ -308,7 +291,7 @@ fn bundle<A: AppSettings>(
     .map_err(|e| anyhow::anyhow!("{:#}", e))
     .with_context(|| "failed to bundle project")?;
 
-  let updater_bundles: Vec<&Bundle> = bundles
+  let update_enabled_bundles: Vec<&Bundle> = bundles
     .iter()
     .filter(|bundle| {
       matches!(
@@ -319,34 +302,36 @@ fn bundle<A: AppSettings>(
     .collect();
 
   // Skip if no updater is active
-  if updater_bundles.is_empty()
-    || !updater_bundles
-      .iter()
-      .any(|bundle| bundle.package_type == PackageType::Updater)
-  {
-    return Ok(());
-  }
-  if let Some(pubkey) = updater_pub_key {
-    // get the public key
-    // check if pubkey points to a file...
-    let maybe_path = Path::new(&pubkey);
-    let pubkey = if maybe_path.exists() {
-      std::fs::read_to_string(maybe_path)?
-    } else {
-      pubkey
-    };
+  if !update_enabled_bundles.is_empty() {
+    let updater_pub_key = config
+      .plugins
+      .0
+      .get("updater")
+      .and_then(|k| k.get("pubkey"))
+      .and_then(|v| v.as_str())
+      .map(|v| v.to_string());
 
-    // if no password provided we use an empty string
-    let password = var("TAURI_SIGNING_PRIVATE_KEY_PASSWORD").ok().or_else(|| {
-      if ci {
-        Some("".into())
+    if let Some(pubkey) = updater_pub_key {
+      // get the public key
+      // check if pubkey points to a file...
+      let maybe_path = Path::new(&pubkey);
+      let pubkey = if maybe_path.exists() {
+        std::fs::read_to_string(maybe_path)?
       } else {
-        None
-      }
-    });
+        pubkey
+      };
 
-    // get the private key
-    let secret_key = match var("TAURI_SIGNING_PRIVATE_KEY") {
+      // if no password provided we use an empty string
+      let password = var("TAURI_SIGNING_PRIVATE_KEY_PASSWORD").ok().or_else(|| {
+        if ci {
+          Some("".into())
+        } else {
+          None
+        }
+      });
+
+      // get the private key
+      let secret_key = match var("TAURI_SIGNING_PRIVATE_KEY") {
       Ok(private_key) => {
         // check if private_key points to a file...
         let maybe_path = Path::new(&private_key);
@@ -360,28 +345,29 @@ fn bundle<A: AppSettings>(
       _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
     }?;
 
-    let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
-    let pub_key_decoded = String::from_utf8_lossy(&pubkey);
-    let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
+      let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
+      let pub_key_decoded = String::from_utf8_lossy(&pubkey);
+      let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
-    // make sure we have our package built
-    let mut signed_paths = Vec::new();
-    for bundle in updater_bundles {
-      // we expect to have only one path in the vec but we iter if we add
-      // another type of updater package who require multiple file signature
-      for path in bundle.bundle_paths.iter() {
-        // sign our path from environment variables
-        let (signature_path, signature) = sign_file(&secret_key, path)?;
-        if signature.keynum() != public_key.keynum() {
-          log::warn!(
+      // make sure we have our package built
+      let mut signed_paths = Vec::new();
+      for bundle in update_enabled_bundles {
+        // we expect to have only one path in the vec but we iter if we add
+        // another type of updater package who require multiple file signature
+        for path in bundle.bundle_paths.iter() {
+          // sign our path from environment variables
+          let (signature_path, signature) = sign_file(&secret_key, path)?;
+          if signature.keynum() != public_key.keynum() {
+            log::warn!(
             "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
           );
+          }
+          signed_paths.push(signature_path);
         }
-        signed_paths.push(signature_path);
       }
-    }
 
-    print_signed_updater_archive(&signed_paths)?;
+      print_signed_updater_archive(&signed_paths)?;
+    }
   }
 
   Ok(())

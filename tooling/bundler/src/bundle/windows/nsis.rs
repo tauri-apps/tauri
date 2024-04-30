@@ -8,9 +8,8 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
-      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      verify_file_hash, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -24,7 +23,7 @@ use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{copy, create_dir_all, remove_dir_all, rename, write},
+  fs::{create_dir_all, remove_dir_all, rename, write},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -35,7 +34,6 @@ const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS_URL: &str =
   "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.3.0/nsis_tauri_utils.dll";
 const NSIS_TAURI_UTILS_SHA1: &str = "01E48D6429B48B640230C6CE8F257C84758943AA";
@@ -105,25 +103,12 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   #[cfg(target_os = "windows")]
   {
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
-    info!("extracting NSIS");
-    extract_zip(&data, _tauri_tools_path)?;
+    log::info!("extracting NSIS");
+    crate::bundle::windows::util::extract_zip(&data, _tauri_tools_path)?;
     rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
-
-  let data = download(NSIS_APPLICATIONID_URL)?;
-  info!("extracting NSIS ApplicationID plugin");
-  extract_zip(&data, &nsis_plugins)?;
-
-  create_dir_all(nsis_plugins.join("x86-unicode"))?;
-
-  copy(
-    nsis_plugins
-      .join("ReleaseUnicode")
-      .join("ApplicationID.dll"),
-    nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
-  )?;
 
   let data = download_and_verify(
     NSIS_TAURI_UTILS_URL,

@@ -4895,7 +4895,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.15"
+version = "2.0.0-beta.14"
 dependencies = [
  "anyhow",
  "axum",

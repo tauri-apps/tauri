@@ -3472,8 +3472,7 @@ dependencies = [
 [[package]]
 name = "tao"
 version = "0.27.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92bcf8885e147b56d6e26751263b45876284f32ca404703f6d3b8f80d16ff4dd"
+source = "git+https://github.com/tauri-apps/tao#cd38f237481b58585cc2da98c3bb9a0ce8e64b9f"
 dependencies = [
  "bitflags 2.5.0",
  "cocoa",
@@ -3499,7 +3498,7 @@ dependencies = [
  "parking_lot",
  "raw-window-handle 0.6.0",
  "scopeguard",
- "tao-macros",
+ "tao-macros 0.1.2 (git+https://github.com/tauri-apps/tao)",
  "unicode-segmentation",
  "url",
  "windows 0.56.0",
@@ -3517,6 +3516,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "tao-macros"
+version = "0.1.2"
+source = "git+https://github.com/tauri-apps/tao#cd38f237481b58585cc2da98c3bb9a0ce8e64b9f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.57",
 ]
 
 [[package]]
@@ -4914,7 +4923,7 @@ dependencies = [
  "raw-window-handle 0.6.0",
  "sha2",
  "soup3",
- "tao-macros",
+ "tao-macros 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "tracing",
  "webkit2gtk",

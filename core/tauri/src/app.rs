@@ -1592,6 +1592,15 @@ tauri::Builder::default()
     ));
 
     let runtime_args = RuntimeInitArgs {
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      app_id: Some(manager.config.identifier.clone()),
+
       #[cfg(windows)]
       msg_hook: {
         let menus = manager.menu.menus.clone();

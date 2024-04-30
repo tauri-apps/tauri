@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.1-beta.11]
+
+### Enhancements
+
+- [`128c58000`](https://www.github.com/tauri-apps/tauri/commit/128c5800091b7fda54bf7d157b785066281e0c74)([#9604](https://www.github.com/tauri-apps/tauri/pull/9604)) Update `nsis_tauri_utils` plugin to `0.3` and use the built-in NSIS download plugin, which reduces the NSIS installer size by 775kb.
+- [`68c39b8c0`](https://www.github.com/tauri-apps/tauri/commit/68c39b8c0ca79e2fa9e250fccdf966136af18c0e)([#9527](https://www.github.com/tauri-apps/tauri/pull/9527)) Use nsis's built-in COM plugin instead of `ApplicationID` plugin, this reduces the installer size by 100 KB, and also fixes pinned shortcut not getting cleaned up on uninstall.
+
 ## \[2.0.1-beta.10]
 
 ### New Features

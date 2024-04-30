@@ -72,7 +72,7 @@ serialize-to-javascript = "=0.1.1"
 image = { version = "0.24", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
-heck = "0.4"
+heck = "0.5"
 log = "0.4"
 dunce = "1"
 specta = { version = "^2.0.0-rc.9", optional = true,  default-features = false, features = ["function"] }
@@ -109,7 +109,7 @@ cocoa = "0.25"
 swift-rs = "1.0.6"
 
 [build-dependencies]
-heck = "0.4"
+heck = "0.5"
 tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-beta.13" }
 tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.13", features = [ "build" ] }
 

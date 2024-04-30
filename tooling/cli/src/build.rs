@@ -332,18 +332,18 @@ fn bundle<A: AppSettings>(
 
       // get the private key
       let secret_key = match var("TAURI_SIGNING_PRIVATE_KEY") {
-      Ok(private_key) => {
-        // check if private_key points to a file...
-        let maybe_path = Path::new(&private_key);
-        let private_key = if maybe_path.exists() {
-          std::fs::read_to_string(maybe_path)?
-        } else {
-          private_key
-        };
-        updater_secret_key(private_key, password)
-      }
-      _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
-    }?;
+        Ok(private_key) => {
+          // check if private_key points to a file...
+          let maybe_path = Path::new(&private_key);
+          let private_key = if maybe_path.exists() {
+            std::fs::read_to_string(maybe_path)?
+          } else {
+            private_key
+          };
+          updater_secret_key(private_key, password)
+        }
+        _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
+      }?;
 
       let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
       let pub_key_decoded = String::from_utf8_lossy(&pubkey);
@@ -358,9 +358,7 @@ fn bundle<A: AppSettings>(
           // sign our path from environment variables
           let (signature_path, signature) = sign_file(&secret_key, path)?;
           if signature.keynum() != public_key.keynum() {
-            log::warn!(
-            "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
-          );
+            log::warn!("The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
           }
           signed_paths.push(signature_path);
         }

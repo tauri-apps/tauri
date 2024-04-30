@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.11]
+
+### Bug Fixes
+
+- [`aa080696e`](https://www.github.com/tauri-apps/tauri/commit/aa080696e0952abff416dd9088d519eaf2587a3a)([#9618](https://www.github.com/tauri-apps/tauri/pull/9618)) Fix `isTauri` incorrect return type.
+
 ## \[2.0.0-beta.10]
 
 ### New Features

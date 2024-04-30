@@ -238,7 +238,7 @@ export class Resource {
   }
 }
 
-function isTauri() {
+function isTauri(): boolean {
   return 'isTauri' in window && !!window.isTauri
 }
 

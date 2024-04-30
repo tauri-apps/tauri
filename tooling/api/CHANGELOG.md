@@ -1,11 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.10]
-
-### New Features
-
-- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `cursorPosition` function in `window` module to get the current cursor position.
-
 ## \[2.0.0-beta.9]
 
 ### New Features

@@ -1,15 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.15]
-
-### Bug Fixes
-
-- [`3f0805488`](https://www.github.com/tauri-apps/tauri/commit/3f0805488506e013e15cfb3cc1cfc8c2c5f84bd2)([#9603](https://www.github.com/tauri-apps/tauri/pull/9603)) Use `windows-sys` crate instead of `winapi` which fixes installing the published cli from crates.io using `cargo install tauri-cli --version "^2.0.0-beta"`.
-
-### Dependencies
-
-- Upgraded to `tauri-bundler@2.0.1-beta.11`
-
 ## \[2.0.0-beta.14]
 
 ### Enhancements

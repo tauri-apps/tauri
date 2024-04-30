@@ -37,8 +37,8 @@ const NSIS_URL: &str =
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.2/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "16DF1D1A5B4D5DF3859447279C55BE36D4109DFB";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.3.0/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "01E48D6429B48B640230C6CE8F257C84758943AA";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -46,7 +46,6 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
@@ -55,10 +54,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/WinMessages.nsh",
 ];
 #[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &[
-  "Plugins/x86-unicode/ApplicationID.dll",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
-];
+const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/nsis_tauri_utils.dll"];
 
 const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   "Plugins/x86-unicode/nsis_tauri_utils.dll",

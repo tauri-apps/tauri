@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.15`
+
 ## \[2.0.0-beta.14]
 
 ### Enhancements

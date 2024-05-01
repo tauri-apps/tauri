@@ -70,7 +70,7 @@ macro_rules! gen_wrappers {
     ),*
   ) => {
     $(
-      pub(crate) struct $inner<R: $crate::Runtime> {
+      pub(crate) struct $inner<R: $crate::Runtime = crate::Wry> {
         id: $crate::menu::MenuId,
         inner: ::std::option::Option<::muda::$type>,
         app_handle: $crate::AppHandle<R>,

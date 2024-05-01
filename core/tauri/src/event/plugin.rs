@@ -9,7 +9,7 @@ use serde_json::Value as JsonValue;
 use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
-use crate::{command, ipc::CallbackFn, EventId, Manager, Result, Runtime};
+use crate::{command, ipc::CallbackFn, EventId, Result, Runtime};
 use crate::{AppHandle, Webview};
 
 use super::{is_event_name_valid, EventTarget};

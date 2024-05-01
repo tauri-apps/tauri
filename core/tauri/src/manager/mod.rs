@@ -480,6 +480,61 @@ impl<R: Runtime> AppManager<R> {
     self.listeners().once(event, target, handler)
   }
 
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit", skip(self, payload))
+  )]
+  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    assert_event_name_is_valid(event);
+
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
+    let emit_args = EmitArgs::new(event, payload)?;
+
+    let listeners = self.listeners();
+
+    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
+    listeners.emit(emit_args)?;
+
+    Ok(())
+  }
+
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
+  )]
+  pub fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
+  where
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
+  {
+    let target = target.into();
+    #[cfg(feature = "tracing")]
+    tracing::Span::current().record("target", format!("{target:?}"));
+
+    match target {
+      // if targeting all, emit to all using emit without filter
+      EventTarget::Any => self.emit(event, payload),
+
+      // if targeting any label, emit using emit_filter and filter labels
+      EventTarget::AnyLabel {
+        label: target_label,
+      } => self.emit_filter(event, payload, |t| match t {
+        EventTarget::Window { label }
+        | EventTarget::Webview { label }
+        | EventTarget::WebviewWindow { label } => label == &target_label,
+        _ => false,
+      }),
+
+      // otherwise match same target
+      _ => self.emit_filter(event, payload, |t| t == &target),
+    }
+  }
+
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
   pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
@@ -501,21 +556,6 @@ impl<R: Runtime> AppManager<R> {
     )?;
 
     listeners.emit_filter(emit_args, Some(filter))?;
-
-    Ok(())
-  }
-
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    assert_event_name_is_valid(event);
-
-    #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
-
-    let listeners = self.listeners();
-
-    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
-    listeners.emit(emit_args)?;
 
     Ok(())
   }
@@ -624,7 +664,8 @@ mod test {
     test::{mock_app, MockRuntime},
     webview::WebviewBuilder,
     window::WindowBuilder,
-    App, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder, Window, Wry,
+    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
+    Window, Wry,
   };
 
   use super::AppManager;
@@ -771,7 +812,11 @@ mod test {
     run_emit_test("emit (webview_window)", webview_window, &rx);
   }
 
-  fn run_emit_test<M: Manager<MockRuntime>>(kind: &str, m: M, rx: &Receiver<(&str, String)>) {
+  fn run_emit_test<M: Manager<MockRuntime> + Emitter<MockRuntime>>(
+    kind: &str,
+    m: M,
+    rx: &Receiver<(&str, String)>,
+  ) {
     let mut received = Vec::new();
     let payload = "global-payload";
     m.emit(TEST_EVENT_NAME, payload).unwrap();
@@ -844,7 +889,7 @@ mod test {
     );
   }
 
-  fn run_emit_to_test<M: Manager<MockRuntime>>(
+  fn run_emit_to_test<M: Manager<MockRuntime> + Emitter<MockRuntime>>(
     kind: &str,
     m: &M,
     window: &Window<MockRuntime>,

@@ -19,7 +19,7 @@ thiserror = "1"
 phf = { version = "0.11", features = [ "macros" ] }
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 url = { version = "2", features = [ "serde" ] }
-html5ever = "0.26"
+html5ever = "0.27"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }

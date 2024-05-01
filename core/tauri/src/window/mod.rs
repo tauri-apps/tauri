@@ -2006,177 +2006,6 @@ pub struct ProgressBarState {
   pub progress: Option<u64>,
 }
 
-/// Event system APIs.
-impl<R: Runtime> Window<R> {
-  /// Listen to an event on this window.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::Manager;
-
-tauri::Builder::default()
-  .setup(|app| {
-    let window = app.get_window("main").unwrap();
-    window.listen("component-loaded", move |event| {
-      println!("window just loaded a component");
-    });
-
-    Ok(())
-  });
-```
-  "####
-  )]
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
-  where
-    F: Fn(Event) + Send + 'static,
-  {
-    self.manager.listen(
-      event.into(),
-      EventTarget::Window {
-        label: self.label().to_string(),
-      },
-      handler,
-    )
-  }
-
-  /// Unlisten to an event on this window.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::Manager;
-
-tauri::Builder::default()
-  .setup(|app| {
-    let window = app.get_window("main").unwrap();
-    let window_ = window.clone();
-    let handler = window.listen("component-loaded", move |event| {
-      println!("window just loaded a component");
-
-      // we no longer need to listen to the event
-      // we also could have used `window.once` instead
-      window_.unlisten(event.id());
-    });
-
-    // stop listening to the event when you do not need it anymore
-    window.unlisten(handler);
-
-    Ok(())
-  });
-```
-  "####
-  )]
-  pub fn unlisten(&self, id: EventId) {
-    self.manager.unlisten(id)
-  }
-
-  /// Listen to an event on this window only once.
-  ///
-  /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
-  where
-    F: FnOnce(Event) + Send + 'static,
-  {
-    self.manager.once(
-      event.into(),
-      EventTarget::Window {
-        label: self.label().to_string(),
-      },
-      handler,
-    )
-  }
-
-  /// Emits an event to all [targets](EventTarget).
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-#[tauri::command]
-fn synchronize(window: tauri::Window) {
-  // emits the synchronized event to all webviews
-  window.emit("synchronized", ());
-}
-  ```
-  "####
-  )]
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager.emit(event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) matching the given target.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::EventTarget;
-
-#[tauri::command]
-fn download(window: tauri::Window) {
-  for i in 1..100 {
-    std::thread::sleep(std::time::Duration::from_millis(150));
-    // emit a download progress event to all listeners
-    window.emit_to(EventTarget::any(), "download-progress", i);
-    // emit an event to listeners that used App::listen or AppHandle::listen
-    window.emit_to(EventTarget::app(), "download-progress", i);
-    // emit an event to any webview/window/webviewWindow matching the given label
-    window.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-    window.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-    // emit an event to listeners that used WebviewWindow::listen
-    window.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-  }
-}
-```
-"####
-  )]
-  pub fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
-  where
-    I: Into<EventTarget>,
-    S: Serialize + Clone,
-  {
-    self.manager.emit_to(target, event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) based on the given filter.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::EventTarget;
-
-#[tauri::command]
-fn download(window: tauri::Window) {
-  for i in 1..100 {
-    std::thread::sleep(std::time::Duration::from_millis(150));
-    // emit a download progress event to the updater window
-    window.emit_filter("download-progress", i, |t| match t {
-      EventTarget::WebviewWindow { label } => label == "main",
-      _ => false,
-    });
-  }
-}
-  ```
-  "####
-  )]
-  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    self.manager.emit_filter(event, payload, filter)
-  }
-}
-
 impl<R: Runtime> Listener<R> for Window<R> {
   /// Listen to an event on this window.
   ///
@@ -2203,7 +2032,13 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
-    self.listen(event, handler)
+    self.manager.listen(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
   /// Listen to an event on this window only once.
@@ -2213,7 +2048,13 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.once(event, handler)
+    self.manager.once(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
   }
 
   /// Unlisten to an event on this window.
@@ -2246,7 +2087,7 @@ tauri::Builder::default()
   "####
   )]
   fn unlisten(&self, id: EventId) {
-    self.unlisten(id)
+    self.manager.unlisten(id)
   }
 }
 
@@ -2269,7 +2110,7 @@ fn synchronize(window: tauri::Window) {
   "####
   )]
   fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.emit(event, payload)
+    self.manager.emit(event, payload)
   }
 
   /// Emits an event to all [targets](EventTarget) matching the given target.
@@ -2304,7 +2145,7 @@ fn download(window: tauri::Window) {
     I: Into<EventTarget>,
     S: Serialize + Clone,
   {
-    self.emit_to(target, event, payload)
+    self.manager.emit_to(target, event, payload)
   }
 
   /// Emits an event to all [targets](EventTarget) based on the given filter.
@@ -2335,7 +2176,7 @@ fn download(window: tauri::Window) {
     S: Serialize + Clone,
     F: Fn(&EventTarget) -> bool,
   {
-    self.emit_filter(event, payload, filter)
+    self.manager.emit_filter(event, payload, filter)
   }
 }
 

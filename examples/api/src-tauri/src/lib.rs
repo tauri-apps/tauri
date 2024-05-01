@@ -12,7 +12,7 @@ use serde::Serialize;
 use tauri::{
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
+  App, AppHandle, Emitter, Listener, Manager, RunEvent, Runtime, WebviewUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
 

@@ -784,131 +784,6 @@ macro_rules! shared_app_impl {
       }
     }
 
-    /// Event system APIs.
-    impl<R: Runtime> $app {
-      /// Listen to an event on this app.
-      ///
-      /// # Examples
-      ///
-      /// ```
-      /// tauri::Builder::default()
-      ///   .setup(|app| {
-      ///     app.listen("component-loaded", move |event| {
-      ///       println!("window just loaded a component");
-      ///     });
-      ///
-      ///     Ok(())
-      ///   });
-      /// ```
-      pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
-      where
-        F: Fn(Event) + Send + 'static,
-      {
-        self.manager.listen(event.into(), EventTarget::App, handler)
-      }
-
-      /// Listen to an event on this app only once.
-      ///
-      /// See [`Self::listen`] for more information.
-      pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
-      where
-        F: FnOnce(Event) + Send + 'static,
-      {
-        self.manager.once(event.into(), EventTarget::App, handler)
-      }
-
-      /// Unlisten to an event on this app.
-      ///
-      /// # Examples
-      ///
-      /// ```
-      /// tauri::Builder::default()
-      ///   .setup(|app| {
-      ///     let handler = app.listen("component-loaded", move |event| {
-      ///       println!("app just loaded a component");
-      ///     });
-      ///
-      ///     // stop listening to the event when you do not need it anymore
-      ///     app.unlisten(handler);
-      ///
-      ///     Ok(())
-      ///   });
-      /// ```
-      pub fn unlisten(&self, id: EventId) {
-        self.manager.unlisten(id)
-      }
-
-      /// Emits an event to all [targets](EventTarget).
-      ///
-      /// # Examples
-      /// ```
-      /// #[tauri::command]
-      /// fn synchronize(app: tauri::AppHandle) {
-      ///   // emits the synchronized event to all webviews
-      ///   app.emit("synchronized", ());
-      /// }
-      /// ```
-      pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-        self.manager.emit(event, payload)
-      }
-
-      /// Emits an event to all [targets](EventTarget) matching the given target.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::EventTarget;
-      ///
-      /// #[tauri::command]
-      /// fn download(app: tauri::AppHandle) {
-      ///   for i in 1..100 {
-      ///     std::thread::sleep(std::time::Duration::from_millis(150));
-      ///     // emit a download progress event to all listeners
-      ///     app.emit_to(EventTarget::any(), "download-progress", i);
-      ///     // emit an event to listeners that used App::listen or AppHandle::listen
-      ///     app.emit_to(EventTarget::app(), "download-progress", i);
-      ///     // emit an event to any webview/window/webviewWindow matching the given label
-      ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-      ///     app.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-      ///     // emit an event to listeners that used WebviewWindow::listen
-      ///     app.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-      ///   }
-      /// }
-      /// ```
-      pub fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
-      where
-        I: Into<EventTarget>,
-        S: Serialize + Clone,
-      {
-        self.manager.emit_to(target, event, payload)
-      }
-
-      /// Emits an event to all [targets](EventTarget) based on the given filter.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::EventTarget;
-      ///
-      /// #[tauri::command]
-      /// fn download(app: tauri::AppHandle) {
-      ///   for i in 1..100 {
-      ///     std::thread::sleep(std::time::Duration::from_millis(150));
-      ///     // emit a download progress event to the updater window
-      ///     app.emit_filter("download-progress", i, |t| match t {
-      ///       EventTarget::WebviewWindow { label } => label == "main",
-      ///       _ => false,
-      ///     });
-      ///   }
-      /// }
-      /// ```
-      pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
-      where
-        S: Serialize + Clone,
-        F: Fn(&EventTarget) -> bool,
-      {
-        self.manager.emit_filter(event, payload, filter)
-      }
-    }
-
     impl<R: Runtime> Listener<R> for $app {
       /// Listen to an event on this app.
       ///
@@ -930,7 +805,7 @@ macro_rules! shared_app_impl {
       where
         F: Fn(Event) + Send + 'static,
       {
-        self.listen(event.into(), handler)
+        self.manager.listen(event.into(), EventTarget::App, handler)
       }
 
       /// Listen to an event on this app only once.
@@ -940,7 +815,7 @@ macro_rules! shared_app_impl {
       where
         F: FnOnce(Event) + Send + 'static,
       {
-        self.once(event, handler)
+        self.manager.once(event.into(), EventTarget::App, handler)
       }
 
       /// Unlisten to an event on this app.
@@ -963,7 +838,7 @@ macro_rules! shared_app_impl {
       ///   });
       /// ```
       fn unlisten(&self, id: EventId) {
-        self.unlisten(id)
+        self.manager.unlisten(id)
       }
     }
 
@@ -981,7 +856,7 @@ macro_rules! shared_app_impl {
       /// }
       /// ```
       fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-        self.emit(event, payload)
+        self.manager.emit(event, payload)
       }
 
       /// Emits an event to all [targets](EventTarget) matching the given target.
@@ -1011,7 +886,7 @@ macro_rules! shared_app_impl {
         I: Into<EventTarget>,
         S: Serialize + Clone,
       {
-        self.emit_to(target, event, payload)
+        self.manager.emit_to(target, event, payload)
       }
 
       /// Emits an event to all [targets](EventTarget) based on the given filter.
@@ -1037,7 +912,7 @@ macro_rules! shared_app_impl {
         S: Serialize + Clone,
         F: Fn(&EventTarget) -> bool,
       {
-        self.emit_filter(event, payload, filter)
+        self.manager.emit_filter(event, payload, filter)
       }
     }
   };

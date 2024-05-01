@@ -25,7 +25,7 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
+  AppHandle, Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
 };
 
 use super::{

@@ -10,7 +10,7 @@ use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
 use crate::{command, ipc::CallbackFn, EventId, Result, Runtime};
-use crate::{AppHandle, Webview};
+use crate::{AppHandle, Emitter, Webview};
 
 use super::{is_event_name_valid, EventTarget};
 

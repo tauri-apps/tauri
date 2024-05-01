@@ -466,10 +466,6 @@ impl<R: Runtime> AppManager<R> {
     self.listeners().listen(event, target, handler)
   }
 
-  pub fn unlisten(&self, id: EventId) {
-    self.listeners().unlisten(id)
-  }
-
   pub fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
@@ -478,6 +474,10 @@ impl<R: Runtime> AppManager<R> {
   ) -> EventId {
     assert_event_name_is_valid(&event);
     self.listeners().once(event, target, handler)
+  }
+
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
   }
 
   #[cfg_attr(
@@ -495,6 +495,35 @@ impl<R: Runtime> AppManager<R> {
 
     listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
     listeners.emit(emit_args)?;
+
+    Ok(())
+  }
+
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
+  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&EventTarget) -> bool,
+  {
+    assert_event_name_is_valid(event);
+
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
+    let emit_args = EmitArgs::new(event, payload)?;
+
+    let listeners = self.listeners();
+
+    listeners.emit_js_filter(
+      self.webview.webviews_lock().values(),
+      event,
+      &emit_args,
+      Some(&filter),
+    )?;
+
+    listeners.emit_filter(emit_args, Some(filter))?;
 
     Ok(())
   }
@@ -529,35 +558,6 @@ impl<R: Runtime> AppManager<R> {
       // otherwise match same target
       _ => self.emit_filter(event, payload, |t| t == &target),
     }
-  }
-
-  #[cfg_attr(
-    feature = "tracing",
-    tracing::instrument("app::emit::filter", skip(self, payload, filter))
-  )]
-  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    assert_event_name_is_valid(event);
-
-    #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
-
-    let listeners = self.listeners();
-
-    listeners.emit_js_filter(
-      self.webview.webviews_lock().values(),
-      event,
-      &emit_args,
-      Some(&filter),
-    )?;
-
-    listeners.emit_filter(emit_args, Some(filter))?;
-
-    Ok(())
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {

@@ -243,6 +243,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 ///
 /// See [TrayIconBuilder] to construct this type.
+#[tauri_macros::default_runtime(crate::Wry, wry)]
 pub struct TrayIcon<R: Runtime> {
   id: TrayIconId,
   inner: tray_icon::TrayIcon,

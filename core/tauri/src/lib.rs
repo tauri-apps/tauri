@@ -772,7 +772,7 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, Listener, Emitter};
   ///
   /// #[tauri::command]
   /// fn synchronize(window: tauri::Window) {
@@ -804,7 +804,7 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, Listener};
   ///
   /// tauri::Builder::default()
   ///   .setup(|app| {
@@ -830,7 +830,7 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// # Examples
   /// ```
-  /// use tauri::Manager;
+  /// use tauri::{Manager, Emitter, Listener};
   ///
   /// #[tauri::command]
   /// fn synchronize(window: tauri::Window) {

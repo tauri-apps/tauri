@@ -2014,7 +2014,7 @@ impl<R: Runtime> Listener<R> for Window<R> {
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Listener;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {

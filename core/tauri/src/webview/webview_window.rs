@@ -933,6 +933,8 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// ```
   /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// use tauri::{WebviewWindowBuilder, WebviewUrl};
+  ///
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     let handle = app.handle();
@@ -942,7 +944,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///         &save_menu_item,
   ///       ])?,
   ///     ])?;
-  ///     let webview_window = tauri::WebviewWindowBuilder::new(app, "editor")
+  ///     let webview_window = WebviewWindowBuilder::new(app, "editor", WebviewUrl::default())
   ///       .menu(menu)
   ///       .build()
   ///       .unwrap();

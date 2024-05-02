@@ -235,6 +235,12 @@ pub enum RunEvent<T: UserEvent> {
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   Opened { urls: Vec<url::Url> },
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[cfg(target_os = "macos")]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
   /// A custom event defined by the user.
   UserEvent(T),
 }

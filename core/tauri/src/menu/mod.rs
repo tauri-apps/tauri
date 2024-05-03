@@ -70,6 +70,7 @@ macro_rules! gen_wrappers {
     ),*
   ) => {
     $(
+      #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
         id: $crate::menu::MenuId,
         inner: ::std::option::Option<::muda::$type>,

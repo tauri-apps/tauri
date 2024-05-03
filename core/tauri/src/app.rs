@@ -772,10 +772,12 @@ macro_rules! shared_app_impl {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
-        for (_, window) in self.manager.windows().iter() {
+        for (_, window) in self.manager.windows() {
           window.resources_table().clear();
+          #[cfg(windows)]
+          let _ = window.hide();
         }
-        for (_, webview) in self.manager.webviews().iter() {
+        for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
       }

@@ -1078,7 +1078,7 @@ fn main() {
       .webview
       .dispatcher
       .url()
-      .map(|url| url.parse().map_err(|e| crate::Error::InvalidUrl(e)))?
+      .map(|url| url.parse().map_err(crate::Error::InvalidUrl))?
   }
 
   /// Navigates the webview to the defined url.

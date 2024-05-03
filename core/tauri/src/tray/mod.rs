@@ -421,21 +421,18 @@ impl<R: Runtime> TrayIcon<R> {
     Ok(())
   }
 
-  
   /// Get tray icon rect.
   ///
   /// ## Platform-specific:
   ///
   /// - **Linux**: Unsupported, always returns `None`.
   pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
-    run_item_main_thread!(self, |self_: Self| self_.inner.rect().map(
-      |rect| {
-        Rect {
-          position: rect.position.into(),
-          size: rect.size.into(),
-        }
+    run_item_main_thread!(self, |self_: Self| self_.inner.rect().map(|rect| {
+      Rect {
+        position: rect.position.into(),
+        size: rect.size.into(),
       }
-    ))
+    }))
   }
 }
 

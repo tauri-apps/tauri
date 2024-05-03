@@ -590,9 +590,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
-    fragment_paths = wix.fragment_paths.clone();
+    fragment_paths.clone_from(&wix.fragment_paths);
     enable_elevated_update_task = wix.enable_elevated_update_task;
-    custom_template_path = wix.template.clone();
+    custom_template_path.clone_from(&wix.template);
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path

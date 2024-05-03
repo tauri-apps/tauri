@@ -1073,9 +1073,12 @@ fn main() {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
-    self.webview.dispatcher.url().unwrap()
+  pub fn url(&self) -> crate::Result<Url> {
+    self
+      .webview
+      .dispatcher
+      .url()
+      .map(|url| url.parse().map_err(|e| crate::Error::InvalidUrl(e)))?
   }
 
   /// Navigates the webview to the defined url.

@@ -445,7 +445,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   // GETTERS
 
   /// Returns the webview's current URL.
-  fn url(&self) -> Result<Url>;
+  fn url(&self) -> Result<String>;
 
   /// Returns the webview's bounds.
   fn bounds(&self) -> Result<Rect>;

@@ -1765,7 +1765,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.5",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -4077,9 +4077,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.13.0"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8713f74e697917aa794800289e15bce534fc91450312ab2d3edf5b8907f7301a"
+checksum = "39240037d755a1832e752d64f99078c3b0b21c09a71c12405070c75ef4e7cd3c"
 dependencies = [
  "cocoa",
  "core-graphics",

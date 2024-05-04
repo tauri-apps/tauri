@@ -90,7 +90,7 @@ export class Menu extends MenuItemBase {
   /**
    * Add a menu item to the end of this menu.
    *
-   * ## Platform-spcific:
+   * ## Platform-specific:
    *
    * - **macOS:** Only {@linkcode Submenu}s can be added to a {@linkcode Menu}.
    */
@@ -119,7 +119,7 @@ export class Menu extends MenuItemBase {
   /**
    * Add a menu item to the beginning of this menu.
    *
-   * ## Platform-spcific:
+   * ## Platform-specific:
    *
    * - **macOS:** Only {@linkcode Submenu}s can be added to a {@linkcode Menu}.
    */
@@ -148,7 +148,7 @@ export class Menu extends MenuItemBase {
   /**
    * Add a menu item to the specified position in this menu.
    *
-   * ## Platform-spcific:
+   * ## Platform-specific:
    *
    * - **macOS:** Only {@linkcode Submenu}s can be added to a {@linkcode Menu}.
    */

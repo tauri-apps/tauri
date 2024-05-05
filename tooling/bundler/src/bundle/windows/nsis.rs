@@ -417,6 +417,7 @@ fn build_nsis_app_installer(
   }
 
   let mut handlebars = Handlebars::new();
+  handlebars.register_helper("unescape-dollar-sign", Box::new(unescape_dollar_sign));
   handlebars.register_escape_fn(|s| {
     let mut output = String::new();
     for c in s.chars() {
@@ -502,6 +503,18 @@ fn build_nsis_app_installer(
   try_sign(&nsis_installer_path, settings)?;
 
   Ok(vec![nsis_installer_path])
+}
+
+fn unescape_dollar_sign(
+  h: &handlebars::Helper<'_, '_>,
+  _: &Handlebars<'_>,
+  _: &handlebars::Context,
+  _: &mut handlebars::RenderContext<'_, '_>,
+  out: &mut dyn handlebars::Output
+) -> handlebars::HelperResult {
+  let content = h.param(0).unwrap().render();
+  out.write(&content.replace("$$", "$"))?;
+  Ok(())
 }
 
 /// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>

@@ -543,15 +543,15 @@ Section Install
 
   ; Copy resources
   {{#each resources_dirs}}
-    CreateDirectory "$INSTDIR\\{{this}}"
+    CreateDirectory "$INSTDIR\\{{unescape-dollar-sign this}}"
   {{/each}}
   {{#each resources}}
-    File /a "/oname={{this.[1]}}" "{{@key}}"
+    File /a "/oname={{unescape-dollar-sign this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
-    File /a "/oname={{this}}" "{{@key}}"
+    File /a "/oname={{unescape-dollar-sign this}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Create uninstaller
@@ -661,19 +661,19 @@ Section Uninstall
 
   ; Delete resources
   {{#each resources}}
-    Delete "$INSTDIR\\{{this.[1]}}"
+    Delete "$INSTDIR\\{{unescape-dollar-sign this.[1]}}"
   {{/each}}
 
   ; Delete external binaries
   {{#each binaries}}
-    Delete "$INSTDIR\\{{this}}"
+    Delete "$INSTDIR\\{{unescape-dollar-sign this}}"
   {{/each}}
 
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
   {{#each resources_ancestors}}
-  RMDir /REBOOTOK "$INSTDIR\\{{this}}"
+  RMDir /REBOOTOK "$INSTDIR\\{{unescape-dollar-sign this}}"
   {{/each}}
   RMDir "$INSTDIR"
 

@@ -2294,6 +2294,14 @@
               "type": "null"
             }
           ]
+        },
+        "files": {
+          "description": "The files to include into NSIS installer.",
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

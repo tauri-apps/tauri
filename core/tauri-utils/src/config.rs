@@ -744,6 +744,9 @@ pub struct NsisConfig {
   ///
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
   pub compression: Option<NsisCompression>,
+  /// The files to include into NSIS installer.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
 }
 
 /// Install Modes for the NSIS installer.

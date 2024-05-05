@@ -557,6 +557,14 @@ Section Install
     File /a "/oname={{this.[1]}}" "{{@key}}"
   {{/each}}
 
+  ; Copy files
+  {{#each files_dirs}}
+    CreateDirectory "$INSTDIR\\{{this}}"
+  {{/each}}
+  {{#each files}}
+    File /a "/oname={{this.[1]}}" "{{@key}}"
+  {{/each}}
+
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{@key}}"

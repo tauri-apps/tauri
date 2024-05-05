@@ -324,6 +324,13 @@ fn build_nsis_app_installer(
   resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
   resources_ancestors.pop(); // Last one is always ""
 
+  let files = generate_files_data(settings)?;
+  let files_dirs =
+    std::collections::HashSet::<PathBuf>::from_iter(
+        files.values()
+        .filter_map(|r| r.0.to_owned())
+    );
+
   // We need to convert / to \ for nsis to move the files into the correct dirs
   #[cfg(not(target_os = "windows"))]
   let resources: ResourcesMap = resources
@@ -352,11 +359,14 @@ fn build_nsis_app_installer(
   data.insert("resources_ancestors", to_json(resources_ancestors));
   data.insert("resources_dirs", to_json(resources_dirs));
   data.insert("resources", to_json(&resources));
+  
+  data.insert("files", to_json(&files));
+  data.insert("files_dirs", to_json(files_dirs));
 
   let binaries = generate_binaries_data(settings)?;
   data.insert("binaries", to_json(&binaries));
 
-  let estimated_size = generate_estimated_size(&main_binary_path, &binaries, &resources)?;
+  let estimated_size = generate_estimated_size(&main_binary_path, &binaries, &resources, &files)?;
   data.insert("estimated_size", to_json(estimated_size));
 
   if let Some(file_associations) = settings.file_associations() {
@@ -602,6 +612,34 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   Ok(resources)
 }
 
+/// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>
+type FilesMap = BTreeMap<PathBuf, (Option<PathBuf>, PathBuf)>;
+fn generate_files_data(settings: &Settings) -> crate::Result<FilesMap> {
+  if let Some(nsis) = settings.windows().nsis.as_ref() {
+    let mut files = FilesMap::new();
+    let cwd = std::env::current_dir()?;
+
+    for (install_path, source_path) in nsis.files.iter() {
+      let src = cwd.join(source_path);
+      let file_path = dunce::simplified(&src).to_path_buf();
+      files.insert(
+        file_path,
+        (
+          install_path
+            .parent()
+            .map(|x| x.to_path_buf()),
+            install_path.to_path_buf(),
+        ),
+      );
+    }
+
+    Ok(files)
+  } else {
+    Ok(FilesMap::new())
+  }
+
+}
+
 /// BTreeMap<OriginalPath, TargetFileName>
 type BinariesMap = BTreeMap<PathBuf, String>;
 fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
@@ -640,12 +678,13 @@ fn generate_estimated_size(
   main: &Path,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
+  files: &FilesMap,
 ) -> crate::Result<String> {
   use std::fs::metadata;
 
   let mut size = metadata(main)?.len();
 
-  for k in binaries.keys().chain(resources.keys()) {
+  for k in binaries.keys().chain(resources.keys()).chain(files.keys()) {
     size += metadata(k)?.len();
   }
 

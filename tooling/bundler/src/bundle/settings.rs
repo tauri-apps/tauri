@@ -415,6 +415,8 @@ pub struct NsisSettings {
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
   pub compression: Option<NsisCompression>,
+  /// The files to include into NSIS installer.
+  pub files: HashMap<PathBuf, PathBuf>,
 }
 
 /// The Windows bundle settings.

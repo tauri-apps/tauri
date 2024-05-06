@@ -34,7 +34,7 @@ tauri-utils = { version = "2.0.0-beta.13", default-features = false, features = 
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }
-schemars = { version = "0.8", features = [ "preserve_order" ] }
+schemars = { version = "0.8.18", features = [ "preserve_order" ] }
 walkdir = { version = "2", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]

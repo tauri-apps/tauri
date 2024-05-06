@@ -160,7 +160,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   }
 
   if options.runner.is_none() {
-    options.runner = config_.build.runner.clone();
+    options.runner.clone_from(&config_.build.runner);
   }
 
   options

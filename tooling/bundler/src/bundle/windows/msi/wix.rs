@@ -570,7 +570,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(&app_exe_source));
+  data.insert("app_exe_source", to_json(app_exe_source));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
@@ -589,9 +589,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
-    fragment_paths = wix.fragment_paths.clone();
+    fragment_paths.clone_from(&wix.fragment_paths);
     enable_elevated_update_task = wix.enable_elevated_update_task;
-    custom_template_path = wix.template.clone();
+    custom_template_path.clone_from(&wix.template);
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path

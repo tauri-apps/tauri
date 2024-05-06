@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Bug Fixes
+
+- [`3fbc1703f`](https://www.github.com/tauri-apps/tauri/commit/3fbc1703f107dfb2c5a75e848805dcf60d449eb1)([#9676](https://www.github.com/tauri-apps/tauri/pull/9676)) Fixes `schemars` compilation issue.
+
 ## \[2.0.0-beta.13]
 
 ### Bug Fixes

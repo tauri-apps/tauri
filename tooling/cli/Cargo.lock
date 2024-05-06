@@ -4945,7 +4945,7 @@ dependencies = [
  "sublime_fuzzy",
  "tauri-bundler",
  "tauri-icns",
- "tauri-utils 1.5.3",
+ "tauri-utils 1.5.4",
  "tauri-utils 2.0.0-beta.13",
  "thiserror",
  "tokio",
@@ -4981,15 +4981,15 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.5.3"
+version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75ad0bbb31fccd1f4c56275d0a5c3abdf1f59999f72cb4ef8b79b4ed42082a21"
+checksum = "450b17a7102e5d46d4bdabae0d1590fd27953e704e691fc081f06c06d2253b35"
 dependencies = [
  "aes-gcm",
  "ctor",
  "dunce",
  "getrandom 0.2.12",
- "heck 0.4.1",
+ "heck 0.5.0",
  "html5ever",
  "infer 0.13.0",
  "json-patch",

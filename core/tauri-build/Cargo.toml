@@ -41,7 +41,7 @@ semver = "1"
 dirs-next = "2"
 glob = "0.3"
 toml = "0.8"
-schemars = { version = "0.8", features = [ "preserve_order" ] }
+schemars = { version = "<=0.8.17", features = [ "preserve_order" ] }
 
 [features]
 default = [ "config-json" ]

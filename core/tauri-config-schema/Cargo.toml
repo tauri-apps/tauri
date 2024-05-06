@@ -8,7 +8,7 @@ publish = false
 tauri-utils = { version = "1.0.0", features = [
   "schema",
 ], path = "../tauri-utils" }
-schemars = { version = "0.8", features = ["url", "preserve_order"] }
+schemars = { version = "<=0.8.17", features = ["url", "preserve_order"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 url = { version = "2.3", features = ["serde"] }

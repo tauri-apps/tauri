@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.5.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-codegen@1.4.3`
+
 ## \[1.5.1]
 
 ### Dependencies

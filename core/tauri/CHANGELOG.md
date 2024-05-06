@@ -1,5 +1,18 @@
 # Changelog
 
+## \[1.6.3]
+
+### Enhancements
+
+- [`3e98145ac`](https://www.github.com/tauri-apps/tauri/commit/3e98145ac3f45d37230661e136e4afc08b072285)([#9570](https://www.github.com/tauri-apps/tauri/pull/9570)) Run each plugin initialization script on its own context so they do not interfere with each other or the Tauri init script.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-runtime@0.14.3`
+- Upgraded to `tauri-runtime-wry@0.14.6`
+- Upgraded to `tauri-macros@1.4.4`
+
 ## \[1.6.2]
 
 ### Bug Fixes

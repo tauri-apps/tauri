@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.4]
+
+### Bug Fixes
+
+- [`5ee5ed4dc`](https://www.github.com/tauri-apps/tauri/commit/5ee5ed4dc668aa8b60741b57ffe616a5a7aefd88)([#9680](https://www.github.com/tauri-apps/tauri/pull/9680)) Fixes `schemars` compilation issue.
+
 ## \[1.5.3]
 
 ### New features

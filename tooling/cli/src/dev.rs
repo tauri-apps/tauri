@@ -469,7 +469,7 @@ pub fn kill_before_dev_process() {
     {
       use std::io::Write;
       let mut kill_children_script_path = std::env::temp_dir();
-      kill_children_script_path.push("kill-children.sh");
+      kill_children_script_path.push("tauri-stop-dev-processes.sh");
 
       if !kill_children_script_path.exists() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {

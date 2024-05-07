@@ -228,7 +228,7 @@ pub enum RunEvent<T: UserEvent> {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
@@ -545,10 +545,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Gets the window's current focus state.
   fn is_focused(&self) -> Result<bool>;
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool>;
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
   /// Gets the window's native maximize button state.
@@ -716,10 +716,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;
 
-  /// Updates the window min size.
+  /// Updates the window min inner size.
   fn set_min_size(&self, size: Option<Size>) -> Result<()>;
 
-  /// Updates the window max size.
+  /// Updates the window max inner size.
   fn set_max_size(&self, size: Option<Size>) -> Result<()>;
 
   /// Updates the window position.

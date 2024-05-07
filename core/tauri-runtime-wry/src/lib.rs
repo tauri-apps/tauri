@@ -1190,7 +1190,7 @@ pub enum WebviewMessage {
   SetAutoResize(bool),
   SetZoom(f64),
   // Getters
-  Url(Sender<Result<Url>>),
+  Url(Sender<Result<String>>),
   Bounds(Sender<Result<tauri_runtime::Rect>>),
   Position(Sender<Result<PhysicalPosition<i32>>>),
   Size(Sender<Result<PhysicalSize<u32>>>),
@@ -1305,7 +1305,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   // Getters
 
-  fn url(&self) -> Result<Url> {
+  fn url(&self) -> Result<String> {
     webview_getter!(self, WebviewMessage::Url)?
   }
 

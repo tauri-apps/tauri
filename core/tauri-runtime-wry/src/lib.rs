@@ -691,13 +691,25 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
   }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct WindowBuilderWrapper {
   inner: TaoWindowBuilder,
   center: bool,
   prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
+}
+
+impl Default for WindowBuilderWrapper {
+  fn default() -> Self {
+    Self {
+      inner: Default::default(),
+      center: Default::default(),
+      prevent_overflow: Some(PhysicalSize::new(0, 0).into()),
+      #[cfg(target_os = "macos")]
+      tabbing_identifier: Default::default(),
+    }
+  }
 }
 
 impl std::fmt::Debug for WindowBuilderWrapper {

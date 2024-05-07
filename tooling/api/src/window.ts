@@ -673,7 +673,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native maximize button state.
+   * Gets the window's native maximize button state.
    *
    * #### Platform-specific
    *
@@ -694,7 +694,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native minimize button state.
+   * Gets the window's native minimize button state.
    *
    * #### Platform-specific
    *
@@ -715,7 +715,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native close button state.
+   * Gets the window's native close button state.
    *
    * #### Platform-specific
    *

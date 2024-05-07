@@ -448,13 +448,13 @@ pub enum NativeIcon {
   Slideshow,
   /// A badge for a `smart` item.
   SmartBadge,
-  /// Small green indicator, similar to iChat’s available image.
+  /// Small green indicator, similar to iChat's available image.
   StatusAvailable,
   /// Small clear indicator.
   StatusNone,
-  /// Small yellow indicator, similar to iChat’s idle image.
+  /// Small yellow indicator, similar to iChat's idle image.
   StatusPartiallyAvailable,
-  /// Small red indicator, similar to iChat’s unavailable image.
+  /// Small red indicator, similar to iChat's unavailable image.
   StatusUnavailable,
   /// A stop progress template image.
   StopProgressFreestanding,

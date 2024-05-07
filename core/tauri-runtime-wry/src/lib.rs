@@ -695,6 +695,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
 pub struct WindowBuilderWrapper {
   inner: TaoWindowBuilder,
   center: bool,
+  prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
 }
@@ -702,7 +703,9 @@ pub struct WindowBuilderWrapper {
 impl std::fmt::Debug for WindowBuilderWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut s = f.debug_struct("WindowBuilderWrapper");
-    s.field("inner", &self.inner).field("center", &self.center);
+    s.field("inner", &self.inner)
+      .field("center", &self.center)
+      .field("prevent_overflow", &self.prevent_overflow);
     #[cfg(target_os = "macos")]
     {
       s.field("tabbing_identifier", &self.tabbing_identifier);
@@ -823,6 +826,13 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner = self
       .inner
       .with_max_inner_size(TaoLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation
+  #[must_use]
+  fn prevent_overflow(mut self, margin: Option<Size>) -> Self {
+    self.prevent_overflow = margin;
     self
   }
 
@@ -2702,7 +2712,7 @@ fn handle_user_message<T: UserEvent>(
                   window_size.height = (rect.bottom - rect.top) as u32;
                 }
               }
-              window.set_outer_position(calculate_window_center_position(window_size, monitor));
+              window.set_outer_position(calculate_window_center_position(window_size, &monitor));
             }
 
             #[cfg(target_os = "macos")]
@@ -3542,7 +3552,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   #[cfg(desktop)]
-  if window_builder.center {
+  if window_builder.prevent_overflow.is_some() || window_builder.center {
     let monitor = if let Some(window_position) = &window_builder.inner.window.position {
       event_loop.available_monitors().find(|m| {
         let monitor_pos = m.position();
@@ -3559,21 +3569,20 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     } else {
       event_loop.primary_monitor()
     };
-
     if let Some(monitor) = monitor {
+      let scale_factor = monitor.scale_factor();
       let desired_size = window_builder
         .inner
         .window
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
-      let scale_factor = monitor.scale_factor();
-      #[allow(unused_mut)]
-      let mut window_size = window_builder
+      let mut inner_size = window_builder
         .inner
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
         .to_physical::<u32>(scale_factor);
+      let mut window_size = inner_size;
       #[cfg(windows)]
       {
         if window_builder.inner.window.decorations {
@@ -3587,11 +3596,31 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
           }
         }
       }
-      let position = calculate_window_center_position(window_size, monitor);
-      let logical_position = position.to_logical::<f64>(scale_factor);
-      window_builder = window_builder.position(logical_position.x, logical_position.y);
+
+      if let Some(margin) = window_builder.prevent_overflow {
+        let size = get_work_area_size(&monitor);
+        let margin = margin.to_physical::<u32>(scale_factor);
+        let constraint = PhysicalSize::new(size.width - margin.width, size.height - margin.height);
+        if window_size.width > constraint.width || window_size.height > constraint.height {
+          if window_size.width > constraint.width {
+            inner_size.width -= window_size.width - constraint.width;
+            window_size.width = constraint.width;
+          }
+          if window_size.height > constraint.height {
+            inner_size.height -= window_size.height - constraint.height;
+            window_size.height = constraint.height;
+          }
+          window_builder.inner.window.inner_size = Some(inner_size.into());
+        }
+      }
+
+      if window_builder.center {
+        let position = calculate_window_center_position(window_size, &monitor);
+        let logical_position = position.to_logical::<f64>(scale_factor);
+        window_builder = window_builder.position(logical_position.x, logical_position.y);
+      }
     }
-  }
+  };
 
   let window = window_builder.inner.build(event_loop).unwrap();
 
@@ -4128,9 +4157,29 @@ fn inner_size(
   window.inner_size()
 }
 
+fn get_work_area_size(target_monitor: &MonitorHandle) -> TaoPhysicalSize<u32> {
+  #[cfg(windows)]
+  {
+    use tao::platform::windows::MonitorHandleExtWindows;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
+    let mut monitor_info = MONITORINFO {
+      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+      ..Default::default()
+    };
+    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    if status.into() {
+      return TaoPhysicalSize::new(
+        (monitor_info.rcWork.right - monitor_info.rcWork.left) as u32,
+        (monitor_info.rcWork.bottom - monitor_info.rcWork.top) as u32,
+      );
+    }
+  }
+  target_monitor.size()
+}
+
 fn calculate_window_center_position(
   window_size: TaoPhysicalSize<u32>,
-  target_monitor: MonitorHandle,
+  target_monitor: &MonitorHandle,
 ) -> TaoPhysicalPosition<i32> {
   #[cfg(windows)]
   {

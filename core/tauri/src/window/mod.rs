@@ -491,6 +491,13 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation
+  #[must_use]
+  pub fn prevent_overflow(mut self, margin: Option<Size>) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow(margin);
+    self
+  }
+
   /// Whether the window is resizable or not.
   /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]

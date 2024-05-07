@@ -328,6 +328,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn prevent_overflow(self, margin: Option<Size>) -> Self {
+    self
+  }
+
   fn resizable(self, resizable: bool) -> Self {
     self
   }

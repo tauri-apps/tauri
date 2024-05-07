@@ -51,7 +51,7 @@ normal = [ "reqwest", "nix" ]
 [dependencies]
 serde_json = { version = "1.0", features = [ "raw_value", "preserve_order" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+tokio = { version = "1", features = ["time", "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
 uuid = { version = "1", features = [ "v4" ] }
 url = { version = "2.3" }

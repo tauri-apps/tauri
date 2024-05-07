@@ -230,8 +230,8 @@ fn build_nsis_app_installer(
   let mut custom_template_path = None;
   let mut custom_language_files = None;
   if let Some(nsis) = &settings.windows().nsis {
-    custom_template_path = nsis.template.clone();
-    custom_language_files = nsis.custom_language_files.clone();
+    custom_template_path.clone_from(&nsis.template);
+    custom_language_files.clone_from(&nsis.custom_language_files);
     install_mode = nsis.install_mode;
     if let Some(langs) = &nsis.languages {
       languages.clear();

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-build"
-version = "2.0.0-beta.13"
+version = "2.0.0-beta.14"
 description = "build time code to pair with https://crates.io/crates/tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -28,8 +28,8 @@ rustdoc-args = [ "--cfg", "docsrs" ]
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.0.0-beta.13", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "2.0.0-beta.13", path = "../tauri-utils", features = [ "build", "resources" ] }
+tauri-codegen = { version = "2.0.0-beta.14", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "2.0.0-beta.14", path = "../tauri-utils", features = [ "build", "resources" ] }
 cargo_toml = "0.17"
 serde = "1"
 serde_json = "1"
@@ -41,7 +41,7 @@ semver = "1"
 dirs-next = "2"
 glob = "0.3"
 toml = "0.8"
-schemars = { version = "0.8", features = [ "preserve_order" ] }
+schemars = { version = "0.8.18", features = [ "preserve_order" ] }
 
 [features]
 default = [ "config-json" ]

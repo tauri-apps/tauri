@@ -221,7 +221,7 @@ pub enum RunEvent {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,

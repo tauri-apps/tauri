@@ -60,7 +60,10 @@ use tao::{
 };
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{
+  config::{PreventOverflowMarginConfig, WindowConfig},
+  Theme,
+};
 use url::Url;
 use wry::{
   DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
@@ -804,6 +807,16 @@ impl WindowBuilder for WindowBuilderWrapper {
 
       if config.center {
         window = window.center();
+      }
+
+      if let Some(prevent_overflow) = &config.prevent_overflow {
+        window = match prevent_overflow {
+          PreventOverflowMarginConfig::Enable(false) => window.prevent_overflow(None),
+          PreventOverflowMarginConfig::Margin(margin) => window.prevent_overflow(Some(
+            TaoPhysicalSize::new(margin.width, margin.height).into(),
+          )),
+          _ => window,
+        };
       }
     }
 

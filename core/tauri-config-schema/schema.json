@@ -291,6 +291,17 @@
           ],
           "format": "double"
         },
+        "preventOverflow": {
+          "description": "Whether or not to prevent window overflow",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PreventOverflowMarginConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "resizable": {
           "description": "Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.",
           "default": true,
@@ -477,6 +488,46 @@
           "format": "uri"
         }
       ]
+    },
+    "PreventOverflowMarginConfig": {
+      "description": "Prevent overflow with a margin",
+      "anyOf": [
+        {
+          "description": "Enable prevent overflow or not",
+          "type": "boolean"
+        },
+        {
+          "description": "Enable prevent overflow with a margin",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PreventOverflowMargin"
+            }
+          ]
+        }
+      ]
+    },
+    "PreventOverflowMargin": {
+      "description": "Enable prevent overflow with a margin",
+      "type": "object",
+      "required": [
+        "height",
+        "width"
+      ],
+      "properties": {
+        "width": {
+          "description": "Horizontal margin in physical unit",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "height": {
+          "description": "Vertical margin in physical unit",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "Theme": {
       "description": "System theme.",

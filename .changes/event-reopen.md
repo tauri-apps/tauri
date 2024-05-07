@@ -4,4 +4,4 @@
 'tauri-runtime-wry': 'minor:feat'
 ---
 
-Expose tao event `Event::Reopen` for handle click on dock icon on macOS.
+Add `RunEvent::Reopen` for handle click on dock icon on macOS.

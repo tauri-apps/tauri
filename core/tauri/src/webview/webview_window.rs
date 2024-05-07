@@ -1106,17 +1106,17 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_focused()
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.webview.window().is_decorated()
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.webview.window().is_resizable()
   }
 
-  /// Gets the window’s native maximize button state
+  /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
   ///
@@ -1125,7 +1125,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_maximizable()
   }
 
-  /// Gets the window’s native minimize button state
+  /// Gets the window's native minimize button state
   ///
   /// ## Platform-specific
   ///
@@ -1134,7 +1134,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_minimizable()
   }
 
-  /// Gets the window’s native close button state
+  /// Gets the window's native close button state
   ///
   /// ## Platform-specific
   ///
@@ -1438,12 +1438,12 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().set_size(size.into())
   }
 
-  /// Sets this window's minimum size.
+  /// Sets this window's minimum inner size.
   pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_min_size(size.map(|s| s.into()))
   }
 
-  /// Sets this window's maximum size.
+  /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_max_size(size.map(|s| s.into()))
   }

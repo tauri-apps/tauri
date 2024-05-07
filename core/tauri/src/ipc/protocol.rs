@@ -11,8 +11,9 @@ use crate::{
 };
 use http::{
   header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
-  HeaderValue, Method, StatusCode,
+  HeaderValue, Method, Request, StatusCode,
 };
+use url::Url;
 
 use super::{CallbackFn, InvokeBody, InvokeResponse};
 
@@ -136,10 +137,8 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
       Method::OPTIONS => {
         let mut r = http::Response::new(Vec::new().into());
-        r.headers_mut().insert(
-          ACCESS_CONTROL_ALLOW_HEADERS,
-          HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error, Tauri-Channel-Id"),
-        );
+        r.headers_mut()
+          .insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
         respond(r);
       }
 
@@ -161,11 +160,16 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
   })
 }
 
-fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, label: &str) {
+fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager<R>, label: &str) {
   if let Some(webview) = manager.get_webview(label) {
     #[cfg(feature = "tracing")]
-    let _span =
-      tracing::trace_span!("ipc::request", kind = "post-message", request = message).entered();
+    let _span = tracing::trace_span!(
+      "ipc::request",
+      kind = "post-message",
+      uri = request.uri().to_string(),
+      body = request.body()
+    )
+    .entered();
 
     use serde::{Deserialize, Deserializer};
 
@@ -227,7 +231,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
         let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
 
         invoke_message.replace(
-          serde_json::from_str::<IsolationMessage<'_>>(&message)
+          serde_json::from_str::<IsolationMessage<'_>>(request.body())
             .map_err(Into::into)
             .and_then(|message| {
               Ok(Message {
@@ -245,7 +249,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
     let message = invoke_message.unwrap_or_else(|| {
       #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("ipc::request::deserialize").entered();
-      serde_json::from_str::<Message>(&message).map_err(Into::into)
+      serde_json::from_str::<Message>(request.body()).map_err(Into::into)
     });
 
     match message {
@@ -254,6 +258,7 @@ fn handle_ipc_message<R: Runtime>(message: String, manager: &AppManager<R>, labe
           cmd: message.cmd,
           callback: message.callback,
           error: message.error,
+          url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
           body: message.payload.into(),
           headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
         };
@@ -389,6 +394,16 @@ fn parse_invoke_request<R: Runtime>(
     }
   }
 
+  let url = Url::parse(
+    parts
+      .headers
+      .get("Origin")
+      .ok_or("missing Origin header")?
+      .to_str()
+      .map_err(|_| "Origin header value must be a string")?,
+  )
+  .map_err(|_| "Origin header is not a valid URL")?;
+
   let callback = CallbackFn(
     parts
       .headers
@@ -412,7 +427,7 @@ fn parse_invoke_request<R: Runtime>(
 
   let content_type = parts
     .headers
-    .get(reqwest::header::CONTENT_TYPE)
+    .get(http::header::CONTENT_TYPE)
     .and_then(|h| h.to_str().ok())
     .map(|mime| mime.parse())
     .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
@@ -443,6 +458,7 @@ fn parse_invoke_request<R: Runtime>(
     cmd,
     callback,
     error,
+    url,
     body,
     headers: parts.headers,
   };

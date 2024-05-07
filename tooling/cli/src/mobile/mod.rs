@@ -229,7 +229,7 @@ fn env() -> Result<Env, EnvError> {
   Ok(env)
 }
 
-pub struct OptionsHandle(Runtime, ServerHandle);
+pub struct OptionsHandle(#[allow(unused)] Runtime, #[allow(unused)] ServerHandle);
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
 pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result<OptionsHandle> {
@@ -293,7 +293,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     domain.push('.');
   }
   if domain.is_empty() {
-    domain = config.identifier.clone();
+    domain.clone_from(&config.identifier);
     if domain.is_empty() {
       log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
       exit(1);

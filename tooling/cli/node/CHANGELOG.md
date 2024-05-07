@@ -1,5 +1,62 @@
 # Changelog
 
+## \[2.0.0-beta.16]
+
+### Bug Fixes
+
+- [`97ec422f2`](https://www.github.com/tauri-apps/tauri/commit/97ec422f22d069b9570931834241c7e47bc68cc3)([#9638](https://www.github.com/tauri-apps/tauri/pull/9638)) Exit `tauri icon` with non-zero code when it fails.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.16`
+
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.15`
+
+## \[2.0.0-beta.14]
+
+### Enhancements
+
+- [`8a63ceb4f`](https://www.github.com/tauri-apps/tauri/commit/8a63ceb4f31c422311b0f7dff173a9c8c0e1a604)([#9473](https://www.github.com/tauri-apps/tauri/pull/9473)) Ignore `.DS_Store` by default for `tauri dev` hot reloads.
+
+### Bug Fixes
+
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) Upgrade `heck` to v0.5 to better support Chinese and Japanese product name, because Chinese do not have word separation.
+- [`aaa332c6e`](https://www.github.com/tauri-apps/tauri/commit/aaa332c6e78c956debd11efda021a0406621a01d)([#9540](https://www.github.com/tauri-apps/tauri/pull/9540)) Fix `tauri migrate` trying to migrate to a non-existing plugin.
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) Fixed an issue causing the `build.runner` and `build.features` configs to not take effect.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`73c1c2d33`](https://www.github.com/tauri-apps/tauri/commit/73c1c2d33872651c32c761c838714b684980c668)([#9457](https://www.github.com/tauri-apps/tauri/pull/9457)) Gracefully handle Non-UTF8 files when using `tauri migrate`
+- [`9331435a5`](https://www.github.com/tauri-apps/tauri/commit/9331435a50cc3769720bd2671da8510699d28671)([#9412](https://www.github.com/tauri-apps/tauri/pull/9412)) Fix `tauri info` crashing when Node.js is not installed.
+
+### What's Changed
+
+- [`8f4b1050c`](https://www.github.com/tauri-apps/tauri/commit/8f4b1050c4de0e9194680408ff3a6902b67045f8)([#9459](https://www.github.com/tauri-apps/tauri/pull/9459)) Show full expected path of `frontendDist` when if can't be found.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`93e0e1392`](https://www.github.com/tauri-apps/tauri/commit/93e0e1392ec341fcadf696c03e78f0ca1e73c941) Support specifying a version for `tauri add` subcommand, for example: `tauri add window-state@2.0.0-beta.2`
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.12`
+
 ## \[2.0.0-beta.11]
 
 ### Enhancements
@@ -502,6 +559,16 @@
   - [a9c8e565](https://www.github.com/tauri-apps/tauri/commit/a9c8e565c6495961940877df7090f307be16b554) feat: add `android open` and `ios open` commands ([#4946](https://www.github.com/tauri-apps/tauri/pull/4946)) on 2022-08-15
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.11]
+
+### Bug Fixes
+
+- [`b15948b11`](https://www.github.com/tauri-apps/tauri/commit/b15948b11c0e362eea7ef57a4606f15f7dbd886b)([#8903](https://www.github.com/tauri-apps/tauri/pull/8903)) Fix `.taurignore` failing to ignore in some cases.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.11`
 
 ## \[1.5.10]
 

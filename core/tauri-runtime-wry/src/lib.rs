@@ -11,14 +11,15 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
+use http::Request;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
+  dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, FileDropEvent, PendingWindow, RawWindow, WebviewEvent,
+    CursorIcon, DetachedWindow, DragDropEvent, PendingWindow, RawWindow, WebviewEvent,
     WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
@@ -62,7 +63,7 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 use wry::{
-  FileDropEvent as WryFileDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
+  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
   WebViewBuilder,
 };
 
@@ -112,7 +113,7 @@ use std::{
 };
 
 pub type WebviewId = u32;
-type IpcHandler = dyn Fn(String) + 'static;
+type IpcHandler = dyn Fn(Request<String>) + 'static;
 
 #[cfg(any(
   windows,
@@ -412,6 +413,16 @@ impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
       DeviceEventFilter::Never => Self(TaoDeviceEventFilter::Never),
       DeviceEventFilter::Unfocused => Self(TaoDeviceEventFilter::Unfocused),
     }
+  }
+}
+
+pub struct RectWrapper(pub wry::Rect);
+impl From<tauri_runtime::Rect> for RectWrapper {
+  fn from(value: tauri_runtime::Rect) -> Self {
+    RectWrapper(wry::Rect {
+      position: value.position,
+      size: value.size,
+    })
   }
 }
 
@@ -761,6 +772,9 @@ impl WindowBuilder for WindowBuilderWrapper {
         .content_protected(config.content_protected)
         .skip_taskbar(config.skip_taskbar)
         .theme(config.theme)
+        .closable(config.closable)
+        .maximizable(config.maximizable)
+        .minimizable(config.minimizable)
         .shadow(config.shadow);
 
       if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
@@ -1144,14 +1158,14 @@ pub enum WindowMessage {
 #[derive(Debug, Clone)]
 pub enum SynthesizedWindowEvent {
   Focused(bool),
-  FileDrop(FileDropEvent),
+  DragDrop(DragDropEvent),
 }
 
 impl From<SynthesizedWindowEvent> for WindowEventWrapper {
   fn from(event: SynthesizedWindowEvent) -> Self {
     let event = match event {
       SynthesizedWindowEvent::Focused(focused) => WindowEvent::Focused(focused),
-      SynthesizedWindowEvent::FileDrop(event) => WindowEvent::FileDrop(event),
+      SynthesizedWindowEvent::DragDrop(event) => WindowEvent::DragDrop(event),
     };
     Self(Some(event))
   }
@@ -1170,13 +1184,16 @@ pub enum WebviewMessage {
   Close,
   SetPosition(Position),
   SetSize(Size),
+  SetBounds(tauri_runtime::Rect),
   SetFocus,
-  Reparent(WindowId),
+  Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
+  SetZoom(f64),
   // Getters
-  Url(Sender<Url>),
-  Position(Sender<PhysicalPosition<i32>>),
-  Size(Sender<PhysicalSize<u32>>),
+  Url(Sender<Result<String>>),
+  Bounds(Sender<Result<tauri_runtime::Rect>>),
+  Position(Sender<Result<PhysicalPosition<i32>>>),
+  Size(Sender<Result<PhysicalSize<u32>>>),
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
   // Devtools
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -1288,16 +1305,20 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   // Getters
 
-  fn url(&self) -> Result<Url> {
-    webview_getter!(self, WebviewMessage::Url)
+  fn url(&self) -> Result<String> {
+    webview_getter!(self, WebviewMessage::Url)?
+  }
+
+  fn bounds(&self) -> Result<tauri_runtime::Rect> {
+    webview_getter!(self, WebviewMessage::Bounds)?
   }
 
   fn position(&self) -> Result<PhysicalPosition<i32>> {
-    webview_getter!(self, WebviewMessage::Position)
+    webview_getter!(self, WebviewMessage::Position)?
   }
 
   fn size(&self) -> Result<PhysicalSize<u32>> {
-    webview_getter!(self, WebviewMessage::Size)
+    webview_getter!(self, WebviewMessage::Size)?
   }
 
   // Setters
@@ -1331,6 +1352,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Close,
+      ),
+    )
+  }
+
+  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetBounds(bounds),
       ),
     )
   }
@@ -1370,14 +1402,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn reparent(&self, window_id: WindowId) -> Result<()> {
     let mut current_window_id = self.window_id.lock().unwrap();
+    let (tx, rx) = channel();
     send_user_message(
       &self.context,
       Message::Webview(
         *current_window_id,
         self.webview_id,
-        WebviewMessage::Reparent(window_id),
+        WebviewMessage::Reparent(window_id, tx),
       ),
     )?;
+
+    rx.recv().unwrap()?;
 
     *current_window_id = window_id;
     Ok(())
@@ -1417,6 +1452,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::EvaluateScript(script.into()),
+      ),
+    )
+  }
+
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetZoom(scale_factor),
       ),
     )
   }
@@ -1494,12 +1540,12 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::IsFocused)
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsDecorated)
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsResizable)
   }
@@ -2116,6 +2162,17 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .collect()
   }
 
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .cursor_position()
+      .map(PhysicalPositionWrapper)
+      .map(Into::into)
+      .map_err(|_| Error::FailedToGetCursorPosition)
+  }
+
   #[cfg(target_os = "macos")]
   fn show(&self) -> tauri_runtime::Result<()> {
     send_user_message(
@@ -2361,6 +2418,17 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .available_monitors()
       .map(|m| MonitorHandleWrapper(m).into())
       .collect()
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .cursor_position()
+      .map(PhysicalPositionWrapper)
+      .map(Into::into)
+      .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
   #[cfg(target_os = "macos")]
@@ -2611,13 +2679,37 @@ fn handle_user_message<T: UserEvent>(
           }
           // Setters
           WindowMessage::Center => {
+            #[cfg(not(target_os = "macos"))]
             if let Some(monitor) = window.current_monitor() {
-              let window_size = inner_size(&window, &webviews, has_children);
-              let screen_size = monitor.size();
-              let monitor_pos = monitor.position();
-              let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-              let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-              window.set_outer_position(TaoPhysicalPosition::new(x, y));
+              #[allow(unused_mut)]
+              let mut window_size = window.outer_size();
+              #[cfg(windows)]
+              if window.is_decorated() {
+                use windows::Win32::Foundation::RECT;
+                use windows::Win32::Graphics::Dwm::{
+                  DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
+                };
+                let mut rect = RECT::default();
+                let result = unsafe {
+                  DwmGetWindowAttribute(
+                    HWND(window.hwnd()),
+                    DWMWA_EXTENDED_FRAME_BOUNDS,
+                    &mut rect as *mut _ as *mut _,
+                    std::mem::size_of::<RECT>() as u32,
+                  )
+                };
+                if result.is_ok() {
+                  window_size.height = (rect.bottom - rect.top) as u32;
+                }
+              }
+              window.set_outer_position(calculate_window_center_position(window_size, monitor));
+            }
+
+            #[cfg(target_os = "macos")]
+            {
+              use cocoa::{appkit::NSWindow, base::id};
+              let ns_window: id = window.ns_window() as _;
+              unsafe { ns_window.center() };
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {
@@ -2632,16 +2724,8 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
-          WindowMessage::Show => {
-            window.set_visible(true);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, !window.is_minimized());
-          }
-          WindowMessage::Hide => {
-            window.set_visible(false);
-            #[cfg(windows)]
-            let _ = set_webview_visibility(&webviews, false);
-          }
+          WindowMessage::Show => window.set_visible(true),
+          WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
             panic!("cannot handle `WindowMessage::Close` on the main thread")
           }
@@ -2746,7 +2830,7 @@ fn handle_user_message<T: UserEvent>(
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      if let WebviewMessage::Reparent(new_parent_window_id) = webview_message {
+      if let WebviewMessage::Reparent(new_parent_window_id, tx) = webview_message {
         let webview_handle = windows.0.borrow_mut().get_mut(&window_id).and_then(|w| {
           w.webviews
             .iter()
@@ -2762,16 +2846,13 @@ fn handle_user_message<T: UserEvent>(
             .map(|w| (w.inner.clone(), &mut w.webviews))
           {
             #[cfg(target_os = "macos")]
-            {
+            let reparent_result = {
               use wry::WebViewExtMacOS;
-              webview.inner.reparent(new_parent_window.ns_window() as _);
-              new_parent_window_webviews.push(webview);
-            }
+              webview.inner.reparent(new_parent_window.ns_window() as _)
+            };
             #[cfg(windows)]
-            {
-              webview.inner.reparent(new_parent_window.hwnd());
-              new_parent_window_webviews.push(webview);
-            }
+            let reparent_result = { webview.inner.reparent(new_parent_window.hwnd()) };
+
             #[cfg(any(
               target_os = "linux",
               target_os = "dragonfly",
@@ -2779,13 +2860,27 @@ fn handle_user_message<T: UserEvent>(
               target_os = "netbsd",
               target_os = "openbsd"
             ))]
-            {
+            let reparent_result = {
               if let Some(container) = new_parent_window.default_vbox() {
-                webview.inner.reparent(container);
+                webview.inner.reparent(container)
+              } else {
+                Err(wry::Error::MessageSender)
+              }
+            };
+
+            match reparent_result {
+              Ok(_) => {
                 new_parent_window_webviews.push(webview);
+                tx.send(Ok(())).unwrap();
+              }
+              Err(e) => {
+                log::error!("failed to reparent webview: {e}");
+                tx.send(Err(Error::FailedToSendMessage)).unwrap();
               }
             }
           }
+        } else {
+          tx.send(Err(Error::FailedToSendMessage)).unwrap();
         }
 
         return;
@@ -2801,7 +2896,7 @@ fn handle_user_message<T: UserEvent>(
         match webview_message {
           WebviewMessage::WebviewEvent(_) => { /* already handled */ }
           WebviewMessage::SynthesizedWindowEvent(_) => { /* already handled */ }
-          WebviewMessage::Reparent(_window_id) => { /* already handled */ }
+          WebviewMessage::Reparent(_window_id, _tx) => { /* already handled */ }
           WebviewMessage::AddEventListener(id, listener) => {
             webview
               .webview_event_listeners
@@ -2824,7 +2919,11 @@ fn handle_user_message<T: UserEvent>(
               log::error!("{}", e);
             }
           }
-          WebviewMessage::Navigate(url) => webview.load_url(url.as_str()),
+          WebviewMessage::Navigate(url) => {
+            if let Err(e) = webview.load_url(url.as_str()) {
+              log::error!("failed to navigate to url {}: {}", url, e);
+            }
+          }
           WebviewMessage::Print => {
             let _ = webview.print();
           }
@@ -2836,67 +2935,138 @@ fn handle_user_message<T: UserEvent>(
               window
             });
           }
-          WebviewMessage::SetSize(size) => {
-            let mut bounds = webview.bounds();
-            let size = size.to_logical(window.scale_factor());
-            bounds.width = size.width;
-            bounds.height = size.height;
+          WebviewMessage::SetBounds(bounds) => {
+            let bounds: RectWrapper = bounds.into();
+            let bounds = bounds.0;
 
             if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-              b.width_rate = size.width as f32 / window_size.width;
-              b.height_rate = size.height as f32 / window_size.height;
+              let scale_factor = window.scale_factor();
+              let size = bounds.size.to_logical::<f32>(scale_factor);
+              let position = bounds.position.to_logical::<f32>(scale_factor);
+              let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+              b.width_rate = size.width / window_size.width;
+              b.height_rate = size.height / window_size.height;
+              b.x_rate = position.x / window_size.width;
+              b.y_rate = position.y / window_size.height;
             }
 
-            webview.set_bounds(bounds);
+            if let Err(e) = webview.set_bounds(bounds) {
+              log::error!("failed to set webview size: {e}");
+            }
           }
-          WebviewMessage::SetPosition(position) => {
-            let mut bounds = webview.bounds();
-            let position = position.to_logical(window.scale_factor());
-            bounds.x = position.x;
-            bounds.y = position.y;
+          WebviewMessage::SetSize(size) => match webview.bounds() {
+            Ok(mut bounds) => {
+              bounds.size = size;
 
-            if let Some(b) = &mut *webview.bounds.lock().unwrap() {
-              let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-              b.x_rate = position.x as f32 / window_size.width;
-              b.y_rate = position.y as f32 / window_size.height;
+              let scale_factor = window.scale_factor();
+              let size = size.to_logical::<f32>(scale_factor);
+
+              if let Some(b) = &mut *webview.bounds.lock().unwrap() {
+                let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+                b.width_rate = size.width / window_size.width;
+                b.height_rate = size.height / window_size.height;
+              }
+
+              if let Err(e) = webview.set_bounds(bounds) {
+                log::error!("failed to set webview size: {e}");
+              }
             }
+            Err(e) => {
+              log::error!("failed to get webview bounds: {e}");
+            }
+          },
+          WebviewMessage::SetPosition(position) => match webview.bounds() {
+            Ok(mut bounds) => {
+              bounds.position = position;
 
-            webview.set_bounds(bounds);
+              let scale_factor = window.scale_factor();
+              let position = position.to_logical::<f32>(scale_factor);
+
+              if let Some(b) = &mut *webview.bounds.lock().unwrap() {
+                let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+                b.x_rate = position.x / window_size.width;
+                b.y_rate = position.y / window_size.height;
+              }
+
+              if let Err(e) = webview.set_bounds(bounds) {
+                log::error!("failed to set webview position: {e}");
+              }
+            }
+            Err(e) => {
+              log::error!("failed to get webview bounds: {e}");
+            }
+          },
+          WebviewMessage::SetZoom(scale_factor) => {
+            if let Err(e) = webview.zoom(scale_factor) {
+              log::error!("failed to set webview zoom: {e}");
+            }
           }
           // Getters
           WebviewMessage::Url(tx) => {
-            tx.send(webview.url().parse().unwrap()).unwrap();
+            tx.send(
+              webview
+                .url()
+                .map(|u| u.parse().expect("invalid webview URL"))
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
+          }
+          WebviewMessage::Bounds(tx) => {
+            tx.send(
+              webview
+                .bounds()
+                .map(|bounds| tauri_runtime::Rect {
+                  size: bounds.size,
+                  position: bounds.position,
+                })
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
           }
           WebviewMessage::Position(tx) => {
-            let bounds = webview.bounds();
-            let position =
-              LogicalPosition::new(bounds.x, bounds.y).to_physical(window.scale_factor());
-            tx.send(position).unwrap();
+            tx.send(
+              webview
+                .bounds()
+                .map(|bounds| bounds.position.to_physical(window.scale_factor()))
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
           }
           WebviewMessage::Size(tx) => {
-            let bounds = webview.bounds();
-            let size =
-              LogicalSize::new(bounds.width, bounds.height).to_physical(window.scale_factor());
-            tx.send(size).unwrap();
+            tx.send(
+              webview
+                .bounds()
+                .map(|bounds| bounds.size.to_physical(window.scale_factor()))
+                .map_err(|_| Error::FailedToSendMessage),
+            )
+            .unwrap();
           }
           WebviewMessage::SetFocus => {
-            webview.focus();
+            if let Err(e) = webview.focus() {
+              log::error!("failed to focus webview: {e}");
+            }
           }
-          WebviewMessage::SetAutoResize(auto_resize) => {
-            let bounds = webview.bounds();
-            let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
-            *webview.bounds.lock().unwrap() = if auto_resize {
-              Some(WebviewBounds {
-                x_rate: (bounds.x as f32) / window_size.width,
-                y_rate: (bounds.y as f32) / window_size.height,
-                width_rate: (bounds.width as f32) / window_size.width,
-                height_rate: (bounds.height as f32) / window_size.height,
-              })
-            } else {
-              None
-            };
-          }
+          WebviewMessage::SetAutoResize(auto_resize) => match webview.bounds() {
+            Ok(bounds) => {
+              let scale_factor = window.scale_factor();
+              let window_size = window.inner_size().to_logical::<f32>(scale_factor);
+              *webview.bounds.lock().unwrap() = if auto_resize {
+                let size = bounds.size.to_logical::<f32>(scale_factor);
+                let position = bounds.position.to_logical::<f32>(scale_factor);
+                Some(WebviewBounds {
+                  x_rate: position.x / window_size.width,
+                  y_rate: position.y / window_size.height,
+                  width_rate: size.width / window_size.width,
+                  height_rate: size.height / window_size.height,
+                })
+              } else {
+                None
+              };
+            }
+            Err(e) => {
+              log::error!("failed to get webview bounds: {e}");
+            }
+          },
           WebviewMessage::WithWebview(f) => {
             #[cfg(any(
               target_os = "linux",
@@ -3182,7 +3352,9 @@ fn handle_event_loop<T: UserEvent>(
                   TaoTheme::Light => wry::Theme::Light,
                   _ => wry::Theme::Light,
                 };
-                webview.set_theme(theme);
+                if let Err(e) = webview.set_theme(theme) {
+                  log::error!("failed to set theme: {e}");
+                }
               }
             }
           }
@@ -3214,19 +3386,18 @@ fn handle_event_loop<T: UserEvent>(
               .map(|w| (w.inner.clone(), w.webviews.clone()))
             {
               let size = size.to_logical::<f32>(window.scale_factor());
-              for webview in &webviews {
+              for webview in webviews {
                 if let Some(b) = &*webview.bounds.lock().unwrap() {
-                  webview.set_bounds(wry::Rect {
-                    x: (size.width * b.x_rate) as i32,
-                    y: (size.height * b.y_rate) as i32,
-                    width: (size.width * b.width_rate) as u32,
-                    height: (size.height * b.height_rate) as u32,
-                  });
+                  if let Err(e) = webview.set_bounds(wry::Rect {
+                    position: LogicalPosition::new(size.width * b.x_rate, size.height * b.y_rate)
+                      .into(),
+                    size: LogicalSize::new(size.width * b.width_rate, size.height * b.height_rate)
+                      .into(),
+                  }) {
+                    log::error!("failed to autoresize webview: {e}");
+                  }
                 }
               }
-              #[cfg(windows)]
-              let _ =
-                set_webview_visibility(&webviews, window.is_visible() && !window.is_minimized());
             }
           }
           _ => {}
@@ -3270,6 +3441,13 @@ fn handle_event_loop<T: UserEvent>(
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }
+    #[cfg(target_os = "macos")]
+    Event::Reopen {
+      has_visible_windows,
+      ..
+    } => callback(RunEvent::Reopen {
+      has_visible_windows,
+    }),
     _ => (),
   }
 }
@@ -3377,7 +3555,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         let monitor_pos = m.position();
         let monitor_size = m.size();
 
-        let window_position = window_position.to_logical(m.scale_factor());
+        // type annotations required for 32bit targets.
+        let window_position: LogicalPosition<i32> = window_position.to_logical(m.scale_factor());
 
         monitor_pos.x <= window_position.x
           && window_position.x <= monitor_pos.x + monitor_size.width as i32
@@ -3395,18 +3574,29 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
       let scale_factor = monitor.scale_factor();
-      let window_size = window_builder
+      #[allow(unused_mut)]
+      let mut window_size = window_builder
         .inner
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
-        .to_logical::<i32>(scale_factor);
-      let screen_size = monitor.size().to_logical::<i32>(scale_factor);
-      let monitor_pos = monitor.position().to_logical::<i32>(scale_factor);
-      let x = (screen_size.width - window_size.width) / 2 + monitor_pos.x;
-      let y = (screen_size.height - window_size.height) / 2 + monitor_pos.y;
-
-      window_builder = window_builder.position(x as f64, y as f64);
+        .to_physical::<u32>(scale_factor);
+      #[cfg(windows)]
+      {
+        if window_builder.inner.window.decorations {
+          use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
+          let mut rect = windows::Win32::Foundation::RECT::default();
+          let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
+          if result.is_ok() {
+            window_size.width += (rect.right - rect.left) as u32;
+            // rect.bottom is made out of shadow, and we don't care about it
+            window_size.height += -rect.top as u32;
+          }
+        }
+      }
+      let position = calculate_window_center_position(window_size, monitor);
+      let logical_position = position.to_logical::<f64>(scale_factor);
+      window_builder = window_builder.position(logical_position.x, logical_position.y);
     }
   }
 
@@ -3583,40 +3773,44 @@ fn create_webview<T: UserEvent>(
     .with_focused(window.is_focused())
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
-    .with_accept_first_mouse(webview_attributes.accept_first_mouse);
+    .with_accept_first_mouse(webview_attributes.accept_first_mouse)
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
   #[cfg(windows)]
   if kind == WebviewKind::WindowContent {
     webview_builder = webview_builder.with_initialization_script(undecorated_resizing::SCRIPT);
   }
 
-  if webview_attributes.file_drop_handler_enabled {
+  if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
     let window_id_ = window_id.clone();
-    webview_builder = webview_builder.with_file_drop_handler(move |event| {
+    webview_builder = webview_builder.with_drag_drop_handler(move |event| {
       let event = match event {
-        WryFileDropEvent::Hovered {
+        WryDragDropEvent::Enter {
           paths,
           position: (x, y),
-        } => FileDropEvent::Hovered {
+        } => DragDropEvent::Dragged {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryFileDropEvent::Dropped {
+        WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::DragOver {
+          position: PhysicalPosition::new(x as _, y as _),
+        },
+        WryDragDropEvent::Drop {
           paths,
           position: (x, y),
-        } => FileDropEvent::Dropped {
+        } => DragDropEvent::Dropped {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryFileDropEvent::Cancelled => FileDropEvent::Cancelled,
+        WryDragDropEvent::Leave => DragDropEvent::Cancelled,
         _ => unimplemented!(),
       };
 
       let message = if kind == WebviewKind::WindowContent {
-        WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::FileDrop(event))
+        WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::DragDrop(event))
       } else {
-        WebviewMessage::WebviewEvent(WebviewEvent::FileDrop(event))
+        WebviewMessage::WebviewEvent(WebviewEvent::DragDrop(event))
       };
 
       let _ = proxy.send_event(Message::Webview(*window_id_.lock().unwrap(), id, message));
@@ -3633,24 +3827,24 @@ fn create_webview<T: UserEvent>(
     });
   }
 
-  let webview_bounds = if let Some((position, size)) = webview_attributes.bounds {
-    let size = size.to_logical(window.scale_factor());
-    let position = position.to_logical(window.scale_factor());
-    webview_builder = webview_builder.with_bounds(wry::Rect {
-      x: position.x,
-      y: position.y,
-      width: size.width,
-      height: size.height,
-    });
+  let webview_bounds = if let Some(bounds) = webview_attributes.bounds {
+    let bounds: RectWrapper = bounds.into();
+    let bounds = bounds.0;
 
-    let window_size = window.inner_size().to_logical::<f32>(window.scale_factor());
+    let scale_factor = window.scale_factor();
+    let position = bounds.position.to_logical::<f32>(scale_factor);
+    let size = bounds.size.to_logical::<f32>(scale_factor);
+
+    webview_builder = webview_builder.with_bounds(bounds);
+
+    let window_size = window.inner_size().to_logical::<f32>(scale_factor);
 
     if webview_attributes.auto_resize {
       Some(WebviewBounds {
-        x_rate: (position.x as f32) / window_size.width,
-        y_rate: (position.y as f32) / window_size.height,
-        width_rate: (size.width as f32) / window_size.width,
-        height_rate: (size.height as f32) / window_size.height,
+        x_rate: position.x / window_size.width,
+        y_rate: position.y / window_size.height,
+        width_rate: size.width / window_size.width,
+        height_rate: size.height / window_size.height,
       })
     } else {
       None
@@ -3658,13 +3852,9 @@ fn create_webview<T: UserEvent>(
   } else {
     #[cfg(feature = "unstable")]
     {
-      let window_size = window.inner_size().to_logical::<u32>(window.scale_factor());
-
       webview_builder = webview_builder.with_bounds(wry::Rect {
-        x: 0,
-        y: 0,
-        width: window_size.width,
-        height: window_size.height,
+        position: LogicalPosition::new(0, 0).into(),
+        size: window.inner_size().into(),
       });
       Some(WebviewBounds {
         x_rate: 0.,
@@ -3924,7 +4114,7 @@ fn inner_size(
   webviews: &[WebviewWrapper],
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
-  if !has_children {
+  if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
@@ -3945,6 +4135,34 @@ fn inner_size(
   window.inner_size()
 }
 
+fn calculate_window_center_position(
+  window_size: TaoPhysicalSize<u32>,
+  target_monitor: MonitorHandle,
+) -> TaoPhysicalPosition<i32> {
+  #[cfg(windows)]
+  {
+    use tao::platform::windows::MonitorHandleExtWindows;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
+    let mut monitor_info = MONITORINFO {
+      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+      ..Default::default()
+    };
+    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    if status.into() {
+      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
+      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
+      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
+      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
+      return TaoPhysicalPosition::new(x, y);
+    }
+  }
+  let screen_size = target_monitor.size();
+  let monitor_pos = target_monitor.position();
+  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
+  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
+  TaoPhysicalPosition::new(x, y)
+}
+
 #[cfg(windows)]
 fn clear_window_surface(
   window: &Window,
@@ -3960,16 +4178,4 @@ fn clear_window_surface(
     buffer.fill(0);
     let _ = buffer.present();
   }
-}
-
-#[cfg(windows)]
-fn set_webview_visibility(
-  webviews: &[WebviewWrapper],
-  is_visible: bool,
-) -> windows::core::Result<()> {
-  for webview in webviews {
-    let controller = webview.controller();
-    unsafe { controller.SetIsVisible(is_visible) }?;
-  }
-  Ok(())
 }

@@ -37,6 +37,7 @@
 //! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
 //! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
 //!
 //! ## Cargo allowlist features
 //!
@@ -217,12 +218,10 @@ pub use {
   },
   self::manager::Asset,
   self::runtime::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
     webview::WebviewAttributes,
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, FileDropEvent,
-    },
-    DeviceEventFilter, UserAttentionType,
+    window::{CursorIcon, DragDropEvent},
+    DeviceEventFilter, Rect, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
@@ -897,10 +896,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state.try_get()
   }
 
-  /// Get a reference to the resources table.
-  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self.manager().resources_table()
-  }
+  /// Get a reference to the resources table of this manager.
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable>;
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
@@ -989,6 +986,41 @@ pub(crate) use run_main_thread;
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
+
+#[cfg(feature = "specta")]
+const _: () = {
+  use specta::{function::FunctionArg, DataType, TypeMap};
+
+  impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::AppHandle<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::Window<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::Webview<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::WebviewWindow<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+};
 
 #[cfg(test)]
 mod tests {

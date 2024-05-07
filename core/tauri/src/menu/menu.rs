@@ -40,7 +40,7 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
     window: crate::Window<T>,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(Into::into).map(super::into_position);
+    let position = position.map(Into::into);
     run_item_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {

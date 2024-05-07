@@ -20,13 +20,32 @@ pub struct DoMenuItemInput {
 }
 
 #[derive(Clone)]
-struct NegatedIdent(bool, Ident);
+struct NegatedIdent {
+  negated: bool,
+  ident: Ident,
+}
+
+impl NegatedIdent {
+  fn new(ident: &str) -> Self {
+    Self {
+      negated: false,
+      ident: Ident::new(ident, Span::call_site()),
+    }
+  }
+
+  fn is_negated(&self) -> bool {
+    self.negated
+  }
+}
 
 impl Parse for NegatedIdent {
   fn parse(input: ParseStream) -> syn::Result<Self> {
-    let t = input.parse::<Token![!]>();
-    let i: Ident = input.parse()?;
-    Ok(NegatedIdent(t.is_ok(), i))
+    let negated_token = input.parse::<Token![!]>();
+    let ident: Ident = input.parse()?;
+    Ok(NegatedIdent {
+      negated: negated_token.is_ok(),
+      ident,
+    })
   }
 }
 
@@ -67,32 +86,31 @@ pub fn do_menu_item(input: DoMenuItemInput) -> TokenStream {
   } = input;
 
   let defaults = vec![
-    NegatedIdent(false, Ident::new("Submenu", Span::call_site())),
-    NegatedIdent(false, Ident::new("MenuItem", Span::call_site())),
-    NegatedIdent(false, Ident::new("Predefined", Span::call_site())),
-    NegatedIdent(false, Ident::new("Check", Span::call_site())),
-    NegatedIdent(false, Ident::new("Icon", Span::call_site())),
+    NegatedIdent::new("Submenu"),
+    NegatedIdent::new("MenuItem"),
+    NegatedIdent::new("Predefined"),
+    NegatedIdent::new("Check"),
+    NegatedIdent::new("Icon"),
   ];
 
   if kinds.is_empty() {
     kinds.extend(defaults.clone());
   }
 
-  let has_negated = kinds.iter().any(|n| n.0);
-
+  let has_negated = kinds.iter().any(|n| n.is_negated());
   if has_negated {
     kinds.extend(defaults);
-    kinds.sort_by(|a, b| a.1.cmp(&b.1));
-    kinds.dedup_by(|a, b| a.1 == b.1);
+    kinds.sort_by(|a, b| a.ident.cmp(&b.ident));
+    kinds.dedup_by(|a, b| a.ident == b.ident);
   }
 
   let (kinds, types): (Vec<Ident>, Vec<Ident>) = kinds
     .into_iter()
     .filter_map(|nident| {
-      if nident.0 {
+      if nident.is_negated() {
         None
       } else {
-        match nident.1 {
+        match nident.ident {
           i if i == "MenuItem" => Some((i, Ident::new("MenuItem", Span::call_site()))),
           i if i == "Submenu" => Some((i, Ident::new("Submenu", Span::call_site()))),
           i if i == "Predefined" => Some((i, Ident::new("PredefinedMenuItem", Span::call_site()))),

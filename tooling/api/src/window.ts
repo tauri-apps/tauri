@@ -35,7 +35,7 @@ import {
 } from './event'
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
-import type { FileDropEvent, FileDropPayload } from './webview'
+import type { DragDropEvent, DragDropPayload } from './webview'
 import { Image, transformImage } from './image'
 
 /**
@@ -673,7 +673,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native maximize button state.
+   * Gets the window's native maximize button state.
    *
    * #### Platform-specific
    *
@@ -694,7 +694,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native minimize button state.
+   * Gets the window's native minimize button state.
    *
    * #### Platform-specific
    *
@@ -715,7 +715,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native close button state.
+   * Gets the window's native close button state.
    *
    * #### Platform-specific
    *
@@ -1227,15 +1227,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${size.type}`] = {
+      width: size.width,
+      height: size.height
+    }
+
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value: {
-        type: size.type,
-        data: {
-          width: size.width,
-          height: size.height
-        }
-      }
+      value
     })
   }
 
@@ -1259,17 +1259,18 @@ class Window {
       )
     }
 
+    let value = null as Record<string, unknown> | null
+    if (size) {
+      value = {}
+      value[`${size.type}`] = {
+        width: size.width,
+        height: size.height
+      }
+    }
+
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value: size
-        ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
-          }
-        : null
+      value
     })
   }
 
@@ -1293,17 +1294,18 @@ class Window {
       )
     }
 
+    let value = null as Record<string, unknown> | null
+    if (size) {
+      value = {}
+      value[`${size.type}`] = {
+        width: size.width,
+        height: size.height
+      }
+    }
+
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value: size
-        ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
-          }
-        : null
+      value
     })
   }
 
@@ -1330,15 +1332,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -1516,15 +1518,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -1717,7 +1719,7 @@ class Window {
    * @example
    * ```typescript
    * import { getCurrent } from "@tauri-apps/api/webview";
-   * const unlisten = await getCurrent().onFileDropEvent((event) => {
+   * const unlisten = await getCurrent().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -1734,16 +1736,16 @@ class Window {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async onFileDropEvent(
-    handler: EventCallback<FileDropEvent>
+  async onDragDropEvent(
+    handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<FileDropPayload>(
-      TauriEvent.FILE_DROP,
+    const unlistenDrag = await this.listen<DragDropPayload>(
+      TauriEvent.DRAG,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'drop',
+            type: 'dragged',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -1751,14 +1753,27 @@ class Window {
       }
     )
 
-    const unlistenFileHover = await this.listen<FileDropPayload>(
-      TauriEvent.FILE_DROP_HOVER,
+    const unlistenDrop = await this.listen<DragDropPayload>(
+      TauriEvent.DROP,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'hover',
+            type: 'dropped',
             paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDragOver = await this.listen<DragDropPayload>(
+      TauriEvent.DROP_OVER,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dragOver',
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -1766,15 +1781,16 @@ class Window {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.FILE_DROP_CANCELLED,
+      TauriEvent.DROP_CANCELLED,
       (event) => {
-        handler({ ...event, payload: { type: 'cancel' } })
+        handler({ ...event, payload: { type: 'cancelled' } })
       }
     )
 
     return () => {
-      unlistenFileDrop()
-      unlistenFileHover()
+      unlistenDrag()
+      unlistenDrop()
+      unlistenDragOver()
       unlistenCancel()
     }
   }
@@ -2240,6 +2256,22 @@ async function availableMonitors(): Promise<Monitor[]> {
   )
 }
 
+/**
+ * Get the cursor position relative to the top-left hand corner of the desktop.
+ *
+ * Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+ * If the user uses a desktop with multiple monitors,
+ * the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+ * or the top-left of the leftmost monitor on X11.
+ *
+ * The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+ */
+async function cursorPosition(): Promise<PhysicalPosition> {
+  return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
+    mapPhysicalPosition
+  )
+}
+
 export {
   Window,
   CloseRequestedEvent,
@@ -2254,7 +2286,8 @@ export {
   EffectState,
   currentMonitor,
   primaryMonitor,
-  availableMonitors
+  availableMonitors,
+  cursorPosition
 }
 
 export type {
@@ -2264,6 +2297,6 @@ export type {
   ScaleFactorChanged,
   WindowOptions,
   Color,
-  FileDropEvent,
-  FileDropPayload
+  DragDropEvent,
+  DragDropPayload
 }

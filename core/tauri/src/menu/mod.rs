@@ -70,6 +70,7 @@ macro_rules! gen_wrappers {
     ),*
   ) => {
     $(
+      #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
         id: $crate::menu::MenuId,
         inner: ::std::option::Option<::muda::$type>,
@@ -447,13 +448,13 @@ pub enum NativeIcon {
   Slideshow,
   /// A badge for a `smart` item.
   SmartBadge,
-  /// Small green indicator, similar to iChat’s available image.
+  /// Small green indicator, similar to iChat's available image.
   StatusAvailable,
   /// Small clear indicator.
   StatusNone,
-  /// Small yellow indicator, similar to iChat’s idle image.
+  /// Small yellow indicator, similar to iChat's idle image.
   StatusPartiallyAvailable,
-  /// Small red indicator, similar to iChat’s unavailable image.
+  /// Small red indicator, similar to iChat's unavailable image.
   StatusUnavailable,
   /// A stop progress template image.
   StopProgressFreestanding,
@@ -760,24 +761,5 @@ pub(crate) mod sealed {
       window: crate::Window<R>,
       position: Option<P>,
     ) -> crate::Result<()>;
-  }
-}
-
-pub(crate) fn into_logical_position<P: crate::Pixel>(
-  p: crate::LogicalPosition<P>,
-) -> muda::LogicalPosition<P> {
-  muda::LogicalPosition { x: p.x, y: p.y }
-}
-
-pub(crate) fn into_physical_position<P: crate::Pixel>(
-  p: crate::PhysicalPosition<P>,
-) -> muda::PhysicalPosition<P> {
-  muda::PhysicalPosition { x: p.x, y: p.y }
-}
-
-pub(crate) fn into_position(p: crate::Position) -> muda::Position {
-  match p {
-    crate::Position::Physical(p) => muda::Position::Physical(into_physical_position(p)),
-    crate::Position::Logical(p) => muda::Position::Logical(into_logical_position(p)),
   }
 }

@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-codegen@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`88c0ad9cf`](https://www.github.com/tauri-apps/tauri/commit/88c0ad9cf5d2f9ed65285540c26b54fb18b10137)([#9471](https://www.github.com/tauri-apps/tauri/pull/9471)) Fix tauri always rebuilding even if source code didn't change.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-codegen@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-codegen@2.0.0-beta.12`
+
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-codegen@2.0.0-beta.11`
+
 ## \[2.0.0-beta.10]
 
 ### New Features

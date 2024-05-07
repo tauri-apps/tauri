@@ -4,10 +4,9 @@
 
 [![status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/tauri-apps/tauri)
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)
-[![devto](https://img.shields.io/badge/blog-dev.to-black.svg)](https://dev.to/tauri)
 
 [![test core](https://img.shields.io/github/actions/workflow/status/tauri-apps/tauri/test-core.yml?label=test%20core&logo=github)](https://github.com/tauri-apps/tauri/actions/workflows/test-core.yml)
-[![devto](https://img.shields.io/badge/documentation-site-purple.svg)](https://tauri.app)
+[![website](https://img.shields.io/badge/website-tauri.app-purple.svg)](https://tauri.app)
 
 [![https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg](https://good-labs.github.io/greater-good-affirmation/assets/images/badge.svg)](https://good-labs.github.io/greater-good-affirmation)
 [![support](https://img.shields.io/badge/sponsor-Opencollective-blue.svg)](https://opencollective.com/tauri)

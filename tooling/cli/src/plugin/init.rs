@@ -20,7 +20,7 @@ use std::{
   path::{Component, Path, PathBuf},
 };
 
-pub const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/plugin");
+pub const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/plugin");
 
 #[derive(Debug, Parser)]
 #[clap(about = "Initialize a Tauri plugin project on an existing directory")]
@@ -194,10 +194,10 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "ios" if !(options.ios || options.mobile) => return Ok(None),
-            "webview-dist" | "webview-src" | "package.json" => {
-              if options.no_api {
-                return Ok(None);
-              }
+            "guest-js" | "rollup.config.js" | "tsconfig.json" | "package.json"
+              if options.no_api =>
+            {
+              return Ok(None);
             }
             _ => (),
           }

@@ -9,6 +9,7 @@ use anyhow::Context;
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CargoInstallOptions<'a> {
   pub name: &'a str,
+  pub version: Option<&'a str>,
   pub rev: Option<&'a str>,
   pub tag: Option<&'a str>,
   pub branch: Option<&'a str>,
@@ -49,25 +50,31 @@ pub fn install(dependencies: &[String], cwd: Option<&Path>) -> crate::Result<()>
 
 pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
   let mut cargo = Command::new("cargo");
-  cargo.args(["add", options.name]);
+  cargo.arg("add");
 
-  if options.tag.is_some() || options.rev.is_some() || options.branch.is_some() {
-    cargo.args(["--git", "https://github.com/tauri-apps/plugins-workspace"]);
+  if let Some(version) = options.version {
+    cargo.arg(format!("{}@{}", options.name, version));
+  } else {
+    cargo.arg(options.name);
+
+    if options.tag.is_some() || options.rev.is_some() || options.branch.is_some() {
+      cargo.args(["--git", "https://github.com/tauri-apps/plugins-workspace"]);
+    }
+
+    match (options.tag, options.rev, options.branch) {
+      (Some(tag), None, None) => {
+        cargo.args(["--tag", tag]);
+      }
+      (None, Some(rev), None) => {
+        cargo.args(["--rev", rev]);
+      }
+      (None, None, Some(branch)) => {
+        cargo.args(["--branch", branch]);
+      }
+      (None, None, None) => {}
+      _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
+    };
   }
-
-  match (options.tag, options.rev, options.branch) {
-    (Some(tag), None, None) => {
-      cargo.args(["--tag", &tag]);
-    }
-    (None, Some(rev), None) => {
-      cargo.args(["--rev", &rev]);
-    }
-    (None, None, Some(branch)) => {
-      cargo.args(["--branch", &branch]);
-    }
-    (None, None, None) => {}
-    _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
-  };
 
   if let Some(target) = options.target {
     cargo.args(["--target", target]);

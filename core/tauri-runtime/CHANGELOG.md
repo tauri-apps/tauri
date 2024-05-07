@@ -1,5 +1,51 @@
 # Changelog
 
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+- [`4973d73a2`](https://www.github.com/tauri-apps/tauri/commit/4973d73a237dc5c60618c1011e202278e7a29b5c)([#9386](https://www.github.com/tauri-apps/tauri/pull/9386)) Provide a basic zoom hotkey polyfill for non-Windows platforms
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
+## \[2.0.0-beta.11]
+
+### What's Changed
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Updated `http` crate to `1.1`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) The IPC handler closure now receives a `http::Request` instead of a String representing the request body.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Moved `window::dpi` module to the root of the crate.
+
 ## \[2.0.0-beta.10]
 
 ### Dependencies

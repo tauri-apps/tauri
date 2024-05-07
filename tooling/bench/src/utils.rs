@@ -92,8 +92,8 @@ pub fn run_collect(cmd: &[&str]) -> (String, String) {
     stderr,
     status,
   } = prog.wait_with_output().expect("failed to wait on child");
-  let stdout = String::from_utf8(stdout).unwrap();
-  let stderr = String::from_utf8(stderr).unwrap();
+  let stdout = String::from_utf8_lossy(&stdout).to_string();
+  let stderr = String::from_utf8_lossy(&stderr).to_string();
   if !status.success() {
     eprintln!("stdout: <<<{}>>>", stdout);
     eprintln!("stderr: <<<{}>>>", stderr);

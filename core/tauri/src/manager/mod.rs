@@ -544,6 +544,12 @@ impl<R: Runtime> AppManager<R> {
 
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
+
+    if let Ok(webview_labels_array) = serde_json::to_string(&self.webview.labels()) {
+      let _ = self.webview.eval_script_all(format!(
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }}) }} }})()"#,
+        ));
+    }
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -558,7 +564,6 @@ impl<R: Runtime> AppManager<R> {
     self.webview.webviews_lock().clone()
   }
 
-  /// Resources table managed by the application.
   pub(crate) fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
     self
       .resources_table

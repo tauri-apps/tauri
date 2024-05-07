@@ -1,5 +1,38 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Bug Fixes
+
+- [`3fbc1703f`](https://www.github.com/tauri-apps/tauri/commit/3fbc1703f107dfb2c5a75e848805dcf60d449eb1)([#9676](https://www.github.com/tauri-apps/tauri/pull/9676)) Fixes `schemars` compilation issue.
+
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`a1e0e268f`](https://www.github.com/tauri-apps/tauri/commit/a1e0e268f02f7e2934bec48de4cac0dc00529a2b)([#9477](https://www.github.com/tauri-apps/tauri/pull/9477)) Replace `tauri:` prefix with `tauri-` for temporary permission file names
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`36b4c1249`](https://www.github.com/tauri-apps/tauri/commit/36b4c12497fbe636066f4848c6877b3ab6cc892e)([#9331](https://www.github.com/tauri-apps/tauri/pull/9331)) Added support for `provides`, `conflicts` and `replaces` (`obsoletes` for RPM) options for `bundler > deb` and `bundler > rpm` configs.
+
+## \[2.0.0-beta.11]
+
+### New Features
+
+- [`259d84529`](https://www.github.com/tauri-apps/tauri/commit/259d845290dde40639537258b2810567910f47f3)([#9209](https://www.github.com/tauri-apps/tauri/pull/9209)) Added `preInstallScript`, `postInstallScript`, `preRemoveScript` and `postRemoveScript` options for `bundler > deb` and `bundler > rpm` configs.
+
+### Enhancements
+
+- [`7c334cb18`](https://www.github.com/tauri-apps/tauri/commit/7c334cb1851ab034a3cfb472dd99dfc61ad3ca7f)([#9327](https://www.github.com/tauri-apps/tauri/pull/9327)) Make the isolation pattern encrypt key unextractable.
+- [`a804a70a7`](https://www.github.com/tauri-apps/tauri/commit/a804a70a7aa1dc40fa9043206ad2265c6a5a437b)([#9328](https://www.github.com/tauri-apps/tauri/pull/9328)) The isolation iframe script now removes itself after execution.
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+
 ## \[2.0.0-beta.10]
 
 ### New Features

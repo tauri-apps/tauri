@@ -19,7 +19,7 @@ use tauri_utils::display_path;
 
 use std::{
   fs::{self, File},
-  io::{prelude::*, Write},
+  io::prelude::*,
   path::{Path, PathBuf},
 };
 

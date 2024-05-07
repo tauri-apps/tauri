@@ -1,5 +1,33 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Enhancements
+
+- [`bf2635ab6`](https://www.github.com/tauri-apps/tauri/commit/bf2635ab6241a5b82569eafc939046d6e245f3ad)([#9632](https://www.github.com/tauri-apps/tauri/pull/9632)) Improve the error message that is shown when the `links` property is missing from a Tauri Plugin.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
 ## \[2.0.0-beta.10]
 
 ### New Features

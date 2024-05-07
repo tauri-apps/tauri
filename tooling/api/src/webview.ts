@@ -33,16 +33,21 @@ import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import { WebviewWindow } from './webviewWindow'
 
-interface FileDropPayload {
+interface DragDropPayload {
   paths: string[]
   position: PhysicalPosition
 }
 
-/** The file drop event types. */
-type FileDropEvent =
-  | ({ type: 'hover' } & FileDropPayload)
-  | ({ type: 'drop' } & FileDropPayload)
-  | { type: 'cancel' }
+interface DragOverPayload {
+  position: PhysicalPosition
+}
+
+/** The drag and drop event types. */
+type DragDropEvent =
+  | ({ type: 'dragged' } & DragDropPayload)
+  | ({ type: 'dragOver' } & DragOverPayload)
+  | ({ type: 'dropped' } & DragDropPayload)
+  | { type: 'cancelled' }
 
 /**
  * Get an instance of `Webview` for the current webview.
@@ -412,15 +417,15 @@ class Webview {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${size.type}`] = {
+      width: size.width,
+      height: size.height
+    }
+
     return invoke('plugin:webview|set_webview_size', {
       label: this.label,
-      value: {
-        type: size.type,
-        data: {
-          width: size.width,
-          height: size.height
-        }
-      }
+      value
     })
   }
 
@@ -447,15 +452,15 @@ class Webview {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:webview|set_webview_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -472,6 +477,23 @@ class Webview {
   async setFocus(): Promise<void> {
     return invoke('plugin:webview|set_webview_focus', {
       label: this.label
+    })
+  }
+
+  /**
+   * Set webview zoom level.
+   * @example
+   * ```typescript
+   * import { getCurrent } from '@tauri-apps/api/webview';
+   * await getCurrent().setZoom(1.5);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setZoom(scaleFactor: number): Promise<void> {
+    return invoke('plugin:webview|set_webview_zoom', {
+      label: this.label,
+      value: scaleFactor
     })
   }
 
@@ -502,7 +524,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from "@tauri-apps/api/webview";
-   * const unlisten = await getCurrent().onFileDropEvent((event) => {
+   * const unlisten = await getCurrent().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -519,16 +541,16 @@ class Webview {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async onFileDropEvent(
-    handler: EventCallback<FileDropEvent>
+  async onDragDropEvent(
+    handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenFileDrop = await this.listen<FileDropPayload>(
-      TauriEvent.FILE_DROP,
+    const unlistenDrag = await this.listen<DragDropPayload>(
+      TauriEvent.DRAG,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'drop',
+            type: 'dragged',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -536,14 +558,27 @@ class Webview {
       }
     )
 
-    const unlistenFileHover = await this.listen<FileDropPayload>(
-      TauriEvent.FILE_DROP_HOVER,
+    const unlistenDrop = await this.listen<DragDropPayload>(
+      TauriEvent.DROP,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'hover',
+            type: 'dropped',
             paths: event.payload.paths,
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDragOver = await this.listen<DragDropPayload>(
+      TauriEvent.DROP_CANCELLED,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'dragOver',
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -551,15 +586,16 @@ class Webview {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.FILE_DROP_CANCELLED,
+      TauriEvent.DROP_CANCELLED,
       (event) => {
-        handler({ ...event, payload: { type: 'cancel' } })
+        handler({ ...event, payload: { type: 'cancelled' } })
       }
     )
 
     return () => {
-      unlistenFileDrop()
-      unlistenFileHover()
+      unlistenDrag()
+      unlistenDrop()
+      unlistenDragOver()
       unlistenCancel()
     }
   }
@@ -598,11 +634,11 @@ interface WebviewOptions {
    */
   transparent?: boolean
   /**
-   * Whether the file drop is enabled or not on the webview. By default it is enabled.
+   * Whether the drag and drop is enabled or not on the webview. By default it is enabled.
    *
-   * Disabling it is required to use drag and drop on the frontend on Windows.
+   * Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
    */
-  fileDropEnabled?: boolean
+  dragDropEnabled?: boolean
   /**
    * Whether clicking an inactive webview also clicks through to the webview on macOS.
    */
@@ -629,8 +665,20 @@ interface WebviewOptions {
    * - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
    * */
   proxyUrl?: string
+  /**
+   * Whether page zooming by hotkeys is enabled
+   *
+   * ## Platform-specific:
+   *
+   * - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+   * - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+   * 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+   *
+   * - **Android / iOS**: Unsupported.
+   */
+  zoomHotkeysEnabled?: boolean
 }
 
 export { Webview, getCurrent, getAll }
 
-export type { FileDropEvent, FileDropPayload, WebviewOptions }
+export type { DragDropEvent, DragDropPayload, WebviewOptions }

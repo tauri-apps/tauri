@@ -6,12 +6,10 @@
 #![allow(missing_docs)]
 
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-    CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId,
-  },
+  window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WindowEvent, WindowId},
   window::{WindowBuilder, WindowBuilderBase},
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
   Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
@@ -270,6 +268,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   {
     todo!()
   }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -487,6 +489,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(false)
   }
 
+  fn set_zoom(&self, scale_factor: f64) -> Result<()> {
+    Ok(())
+  }
+
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()> {
     self
       .last_evaluated_script
@@ -496,13 +502,12 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
-  fn url(&self) -> Result<url::Url> {
-    self
-      .url
-      .lock()
-      .unwrap()
-      .parse()
-      .map_err(|_| Error::FailedToReceiveMessage)
+  fn url(&self) -> Result<String> {
+    Ok(self.url.lock().unwrap().clone())
+  }
+
+  fn bounds(&self) -> Result<tauri_runtime::Rect> {
+    Ok(tauri_runtime::Rect::default())
   }
 
   fn position(&self) -> Result<PhysicalPosition<i32>> {
@@ -526,6 +531,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn close(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
     Ok(())
   }
 
@@ -1141,5 +1150,9 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
 
     callback(RunEvent::Exit);
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
   }
 }

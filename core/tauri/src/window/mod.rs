@@ -7,8 +7,8 @@
 pub(crate) mod plugin;
 
 use tauri_runtime::{
+  dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
-  window::dpi::{PhysicalPosition, PhysicalSize},
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
@@ -25,18 +25,17 @@ use crate::{
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
     RuntimeHandle, WindowDispatch,
   },
-  sealed::ManagerBase,
-  sealed::RuntimeOrDispatch,
+  sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  EventLoopMessage, Manager, Runtime, Theme, Webview, WindowEvent,
+  EventLoopMessage, Manager, ResourceTable, Runtime, Theme, Webview, WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
   image::Image,
   menu::{ContextMenu, Menu, MenuId},
   runtime::{
-    window::dpi::{Position, Size},
+    dpi::{Position, Size},
     UserAttentionType,
   },
   CursorIcon,
@@ -51,7 +50,7 @@ use tauri_macros::default_runtime;
 use std::{
   fmt,
   hash::{Hash, Hasher},
-  sync::Arc,
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 /// Monitor descriptor.
@@ -425,17 +424,22 @@ tauri::Builder::default()
       crate::vibrancy::set_window_effects(&window, Some(effects))?;
     }
 
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&app_manager.window.labels())?,
-    ))?;
+    let app_manager = self.manager.manager_owned();
+    let window_label = window.label().to_string();
+    // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
+    let _ = window.run_on_main_thread(move || {
+      let _ = app_manager.webview.eval_script_all(format!(
+        "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+        window_labels_array = serde_json::to_string(&app_manager.window.labels()).unwrap(),
+      ));
 
-    app_manager.emit(
-      "tauri://window-created",
-      Some(crate::webview::CreatedEvent {
-        label: window.label().into(),
-      }),
-    )?;
+      let _ = app_manager.emit(
+        "tauri://window-created",
+        Some(crate::webview::CreatedEvent {
+          label: window_label,
+        }),
+      );
+    });
 
     Ok(window)
   }
@@ -876,7 +880,8 @@ pub struct Window<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   // The menu set for this window
   #[cfg(desktop)]
-  pub(crate) menu: Arc<std::sync::Mutex<Option<WindowMenu<R>>>>,
+  pub(crate) menu: Arc<Mutex<Option<WindowMenu<R>>>>,
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Window<R> {
@@ -913,6 +918,7 @@ impl<R: Runtime> Clone for Window<R> {
       app_handle: self.app_handle.clone(),
       #[cfg(desktop)]
       menu: self.menu.clone(),
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -932,7 +938,14 @@ impl<R: Runtime> PartialEq for Window<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for Window<R> {}
+impl<R: Runtime> Manager<R> for Window<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &AppManager<R> {
@@ -974,6 +987,7 @@ impl<R: Runtime> Window<R> {
       app_handle,
       #[cfg(desktop)]
       menu: Arc::new(std::sync::Mutex::new(menu)),
+      resources_table: Default::default(),
     }
   }
 
@@ -1364,17 +1378,17 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_focused().map_err(Into::into)
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native maximize button state
+  /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
   ///
@@ -1383,7 +1397,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_maximizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native minimize button state
+  /// Gets the window's native minimize button state
   ///
   /// ## Platform-specific
   ///
@@ -1392,7 +1406,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_minimizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native close button state
+  /// Gets the window's native close button state
   ///
   /// ## Platform-specific
   ///
@@ -1536,6 +1550,22 @@ impl<R: Runtime> Window<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
+  }
+}
+
+/// Desktop window getters.
+#[cfg(desktop)]
+impl<R: Runtime> Window<R> {
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
   }
 }
 
@@ -1791,7 +1821,7 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Sets this window's minimum size.
+  /// Sets this window's minimum inner size.
   pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self
       .window
@@ -1800,7 +1830,7 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Sets this window's maximum size.
+  /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self
       .window

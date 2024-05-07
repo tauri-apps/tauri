@@ -22,7 +22,10 @@ use std::{
   str::FromStr,
   sync::OnceLock,
 };
-use tauri_bundler::bundle::{bundle_project, Bundle, PackageType};
+use tauri_bundler::{
+  bundle::{bundle_project, PackageType},
+  Bundle,
+};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone)]
@@ -175,9 +178,14 @@ pub fn setup(
 
   if let Some(FrontendDist::Directory(web_asset_path)) = &config_.build.frontend_dist {
     if !web_asset_path.exists() {
+      let absolute_path = web_asset_path
+        .parent()
+        .and_then(|p| p.canonicalize().ok())
+        .map(|p| p.join(web_asset_path.file_name().unwrap()))
+        .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
       return Err(anyhow::anyhow!(
-          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{:?}\".",
-          web_asset_path
+          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
+          web_asset_path.display(), absolute_path.display(),
         ));
     }
     if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
@@ -203,7 +211,7 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner = config_.build.runner.clone();
+    options.runner.clone_from(&config_.build.runner);
   }
 
   options
@@ -242,23 +250,6 @@ fn bundle<A: AppSettings>(
 
   if package_types.is_empty() {
     return Ok(());
-  }
-
-  let updater_pub_key = config
-    .plugins
-    .0
-    .get("updater")
-    .and_then(|k| k.get("pubkey"))
-    .and_then(|v| v.as_str())
-    .map(|v| v.to_string());
-
-  if updater_pub_key
-    .as_ref()
-    .map(|v| !v.is_empty())
-    .unwrap_or(false)
-    && !package_types.contains(&PackageType::Updater)
-  {
-    log::warn!("`plugins > updater > pubkey` is set, but the bundle target list does not contain `updater`, so the updater artifacts won't be generated.");
   }
 
   // if we have a package to bundle, let's run the `before_bundle_command`.
@@ -305,13 +296,26 @@ fn bundle<A: AppSettings>(
     .map_err(|e| anyhow::anyhow!("{:#}", e))
     .with_context(|| "failed to bundle project")?;
 
-  let updater_bundles: Vec<&Bundle> = bundles
+  let update_enabled_bundles: Vec<&Bundle> = bundles
     .iter()
-    .filter(|bundle| bundle.package_type == PackageType::Updater)
+    .filter(|bundle| {
+      matches!(
+        bundle.package_type,
+        PackageType::Updater | PackageType::Nsis | PackageType::WindowsMsi | PackageType::AppImage
+      )
+    })
     .collect();
 
-  // If updater is active and we bundled it
-  if !updater_bundles.is_empty() {
+  // Skip if no updater is active
+  if !update_enabled_bundles.is_empty() {
+    let updater_pub_key = config
+      .plugins
+      .0
+      .get("updater")
+      .and_then(|k| k.get("pubkey"))
+      .and_then(|v| v.as_str())
+      .map(|v| v.to_string());
+
     if let Some(pubkey) = updater_pub_key {
       // get the public key
       // check if pubkey points to a file...
@@ -352,16 +356,14 @@ fn bundle<A: AppSettings>(
 
       // make sure we have our package built
       let mut signed_paths = Vec::new();
-      for elem in updater_bundles {
+      for bundle in update_enabled_bundles {
         // we expect to have only one path in the vec but we iter if we add
         // another type of updater package who require multiple file signature
-        for path in elem.bundle_paths.iter() {
+        for path in bundle.bundle_paths.iter() {
           // sign our path from environment variables
           let (signature_path, signature) = sign_file(&secret_key, path)?;
           if signature.keynum() != public_key.keynum() {
-            log::warn!(
-              "The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update."
-            );
+            log::warn!("The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
           }
           signed_paths.push(signature_path);
         }

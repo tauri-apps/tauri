@@ -29,7 +29,7 @@
     'raw',
     aesGcmKeyRaw,
     'AES-GCM',
-    true,
+    false,
     ['encrypt']
   )
 
@@ -135,4 +135,6 @@
   }
 
   setTimeout(waitUntilReady, readyIntervalMs)
+
+  document.currentScript.remove()
 })()

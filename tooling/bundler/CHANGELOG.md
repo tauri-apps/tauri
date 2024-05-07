@@ -1,5 +1,57 @@
 # Changelog
 
+## \[2.0.1-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.1-beta.11]
+
+### Enhancements
+
+- [`128c58000`](https://www.github.com/tauri-apps/tauri/commit/128c5800091b7fda54bf7d157b785066281e0c74)([#9604](https://www.github.com/tauri-apps/tauri/pull/9604)) Update `nsis_tauri_utils` plugin to `0.3` and use the built-in NSIS download plugin, which reduces the NSIS installer size by 775kb.
+- [`68c39b8c0`](https://www.github.com/tauri-apps/tauri/commit/68c39b8c0ca79e2fa9e250fccdf966136af18c0e)([#9527](https://www.github.com/tauri-apps/tauri/pull/9527)) Use nsis's built-in COM plugin instead of `ApplicationID` plugin, this reduces the installer size by 100 KB, and also fixes pinned shortcut not getting cleaned up on uninstall.
+
+## \[2.0.1-beta.10]
+
+### New Features
+
+- [`05088b067`](https://www.github.com/tauri-apps/tauri/commit/05088b0679912ab352e54bfed02e0b97dd3f0f08)([#9494](https://www.github.com/tauri-apps/tauri/pull/9494)) Expose `{{long_description}}` variable for custom templates.
+
+### Enhancements
+
+- [`de7bcf3cc`](https://www.github.com/tauri-apps/tauri/commit/de7bcf3cc5cea6754491a9a4a8657ef3321c8398)([#9478](https://www.github.com/tauri-apps/tauri/pull/9478)) Append product name automatically when choosing a new install path using browse for nsis installer
+
+### Bug Fixes
+
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) The NSIS uninstaller now won't mindlessly try to remove the whole installation folder when the "Remove application data" checkbox was ticked. This prevents data loss when the app was installed in a folder which contained other files.
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) Fixed an issue causing the NSIS bundler to install resources incorrectly when the installer was built on a non-Windows system.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
+## \[2.0.1-beta.9]
+
+### New Features
+
+- [`36b4c1249`](https://www.github.com/tauri-apps/tauri/commit/36b4c12497fbe636066f4848c6877b3ab6cc892e)([#9331](https://www.github.com/tauri-apps/tauri/pull/9331)) Added support for `provides`, `conflicts` and `replaces` (`obsoletes` for RPM) options for `bundler > deb` and `bundler > rpm` configs.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
+## \[2.0.1-beta.8]
+
+### New Features
+
+- [`259d84529`](https://www.github.com/tauri-apps/tauri/commit/259d845290dde40639537258b2810567910f47f3)([#9209](https://www.github.com/tauri-apps/tauri/pull/9209)) Add suport for include `preinstall`, `postinstall`, `preremove` and `postremove` scripts into Debian and RPM packages.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
 ## \[2.0.1-beta.7]
 
 ### Bug Fixes
@@ -204,6 +256,13 @@
 
 - First mobile alpha release!
   - [fa3a1098](https://www.github.com/tauri-apps/tauri/commit/fa3a10988a03aed1b66fb17d893b1a9adb90f7cd) feat(ci): prepare 2.0.0-alpha.0 ([#5786](https://www.github.com/tauri-apps/tauri/pull/5786)) on 2022-12-08
+
+## \[1.5.1]
+
+### Bug Fixes
+
+- [`516386158`](https://www.github.com/tauri-apps/tauri/commit/5163861588b229fe2e13e61bf65fbf5b88743bb3)([#9040](https://www.github.com/tauri-apps/tauri/pull/9040)) On Windows, fix building WiX installer when resources contains an XML charcter that should be escaped.
+- [`97a05145f`](https://www.github.com/tauri-apps/tauri/commit/97a05145fbb24533526eba6589594f03046e11df)([#9119](https://www.github.com/tauri-apps/tauri/pull/9119)) Fix compilation error due to dependency on unstable features of `log` crate.
 
 ## \[1.5.0]
 

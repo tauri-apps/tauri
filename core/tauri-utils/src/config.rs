@@ -213,19 +213,13 @@ impl schemars::JsonSchema for BundleTarget {
         ..Default::default()
       }
       .into(),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<Vec<BundleType>>(),
-        schemars::schema::Metadata {
-          description: Some("A list of bundle targets.".to_owned()),
-          ..Default::default()
-        },
+        "A list of bundle targets.",
       ),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<BundleType>(),
-        schemars::schema::Metadata {
-          description: Some("A single bundle target.".to_owned()),
-          ..Default::default()
-        },
+        "A single bundle target.",
       ),
     ];
 
@@ -323,6 +317,12 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
@@ -384,6 +384,14 @@ pub struct LinuxConfig {
 pub struct RpmConfig {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   #[serde(default = "default_release")]
   pub release: String,
@@ -420,6 +428,9 @@ impl Default for RpmConfig {
   fn default() -> Self {
     Self {
       depends: None,
+      provides: None,
+      conflicts: None,
+      obsoletes: None,
       release: default_release(),
       epoch: 0,
       files: Default::default(),
@@ -1114,11 +1125,11 @@ pub struct WindowConfig {
   /// The user agent for the webview
   #[serde(alias = "user-agent")]
   pub user_agent: Option<String>,
-  /// Whether the file drop is enabled or not on the webview. By default it is enabled.
+  /// Whether the drag and drop is enabled or not on the webview. By default it is enabled.
   ///
-  /// Disabling it is required to use drag and drop on the frontend on Windows.
-  #[serde(default = "default_true", alias = "file-drop-enabled")]
-  pub file_drop_enabled: bool,
+  /// Disabling it is required to use HTML5 drag and drop on the frontend on Windows.
+  #[serde(default = "default_true", alias = "drag-drop-enabled")]
+  pub drag_drop_enabled: bool,
   /// Whether or not the window starts centered or not.
   #[serde(default)]
   pub center: bool,
@@ -1286,6 +1297,17 @@ pub struct WindowConfig {
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
   pub proxy_url: Option<Url>,
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[serde(default)]
+  pub zoom_hotkeys_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -1294,7 +1316,7 @@ impl Default for WindowConfig {
       label: default_window_label(),
       url: WebviewUrl::default(),
       user_agent: None,
-      file_drop_enabled: true,
+      drag_drop_enabled: true,
       center: false,
       x: None,
       y: None,
@@ -1331,6 +1353,7 @@ impl Default for WindowConfig {
       incognito: false,
       parent: None,
       proxy_url: None,
+      zoom_hotkeys_enabled: false,
     }
   }
 }
@@ -2215,7 +2238,7 @@ mod build {
       let label = str_lit(&self.label);
       let url = &self.url;
       let user_agent = opt_str_lit(self.user_agent.as_ref());
-      let file_drop_enabled = self.file_drop_enabled;
+      let drag_drop_enabled = self.drag_drop_enabled;
       let center = self.center;
       let x = opt_lit(self.x.as_ref());
       let y = opt_lit(self.y.as_ref());
@@ -2230,7 +2253,7 @@ mod build {
       let minimizable = self.minimizable;
       let closable = self.closable;
       let title = str_lit(&self.title);
-      let proxy_url = opt_str_lit(self.proxy_url.as_ref());
+      let proxy_url = opt_lit(self.proxy_url.as_ref().map(url_lit).as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
       let transparent = self.transparent;
@@ -2252,6 +2275,7 @@ mod build {
       let window_effects = opt_lit(self.window_effects.as_ref());
       let incognito = self.incognito;
       let parent = opt_str_lit(self.parent.as_ref());
+      let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
 
       literal_struct!(
         tokens,
@@ -2259,7 +2283,7 @@ mod build {
         label,
         url,
         user_agent,
-        file_drop_enabled,
+        drag_drop_enabled,
         center,
         x,
         y,
@@ -2295,7 +2319,8 @@ mod build {
         shadow,
         window_effects,
         incognito,
-        parent
+        parent,
+        zoom_hotkeys_enabled
       );
     }
   }

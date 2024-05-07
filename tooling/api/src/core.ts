@@ -63,6 +63,7 @@ class Channel<T = unknown> {
                 break
               }
             }
+            this.#nextMessageId = nextId
           }
         } else {
           this.#pendingMessages[id.toString()] = message
@@ -237,6 +238,10 @@ export class Resource {
   }
 }
 
+function isTauri(): boolean {
+  return 'isTauri' in window && !!window.isTauri
+}
+
 export type { InvokeArgs, InvokeOptions }
 
 export {
@@ -245,5 +250,6 @@ export {
   PluginListener,
   addPluginListener,
   invoke,
-  convertFileSrc
+  convertFileSrc,
+  isTauri
 }

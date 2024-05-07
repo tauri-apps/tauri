@@ -92,7 +92,7 @@ pub fn resolve_directory<R: Runtime>(
   directory: BaseDirectory,
   path: Option<PathBuf>,
 ) -> Result<PathBuf> {
-  super::resolve_path(&resolver, directory, path)
+  super::resolve_path(&resolver, directory, path).map(|p| dunce::simplified(&p).to_path_buf())
 }
 
 #[command(root = "crate")]
@@ -107,12 +107,12 @@ pub fn resolve(paths: Vec<String>) -> Result<PathBuf> {
   for p in paths {
     path.push(p);
   }
-  Ok(normalize_path(&path))
+  Ok(dunce::simplified(&normalize_path(&path)).to_path_buf())
 }
 
 #[command(root = "crate")]
 pub fn normalize(path: String) -> String {
-  let mut p = normalize_path_no_absolute(Path::new(&path))
+  let mut p = dunce::simplified(&normalize_path_no_absolute(Path::new(&path)))
     .to_string_lossy()
     .to_string();
 
@@ -149,9 +149,10 @@ pub fn join(mut paths: Vec<String>) -> String {
       .collect::<String>(),
   );
 
-  let p = normalize_path_no_absolute(&path)
+  let p = dunce::simplified(&normalize_path_no_absolute(&path))
     .to_string_lossy()
     .to_string();
+
   if p.is_empty() {
     ".".into()
   } else {
@@ -162,7 +163,7 @@ pub fn join(mut paths: Vec<String>) -> String {
 #[command(root = "crate")]
 pub fn dirname(path: String) -> Result<PathBuf> {
   match Path::new(&path).parent() {
-    Some(p) => Ok(p.to_path_buf()),
+    Some(p) => Ok(dunce::simplified(p).to_path_buf()),
     None => Err(Error::NoParent),
   }
 }

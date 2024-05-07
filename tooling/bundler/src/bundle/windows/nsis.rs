@@ -8,9 +8,8 @@ use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
-      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      verify_file_hash, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -23,7 +22,7 @@ use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{copy, create_dir_all, remove_dir_all, rename, write},
+  fs::{create_dir_all, remove_dir_all, rename, write},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -34,10 +33,9 @@ const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.2/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "16DF1D1A5B4D5DF3859447279C55BE36D4109DFB";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.3.0/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "01E48D6429B48B640230C6CE8F257C84758943AA";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -45,7 +43,6 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
@@ -54,10 +51,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/WinMessages.nsh",
 ];
 #[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &[
-  "Plugins/x86-unicode/ApplicationID.dll",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
-];
+const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/nsis_tauri_utils.dll"];
 
 const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
@@ -109,24 +103,11 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   {
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
-    extract_zip(&data, _tauri_tools_path)?;
+    crate::bundle::windows::util::extract_zip(&data, _tauri_tools_path)?;
     rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
-
-  let data = download(NSIS_APPLICATIONID_URL)?;
-  log::info!("extracting NSIS ApplicationID plugin");
-  extract_zip(&data, &nsis_plugins)?;
-
-  create_dir_all(nsis_plugins.join("x86-unicode"))?;
-
-  copy(
-    nsis_plugins
-      .join("ReleaseUnicode")
-      .join("ApplicationID.dll"),
-    nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
-  )?;
 
   let data = download_and_verify(
     NSIS_TAURI_UTILS_URL,
@@ -210,6 +191,10 @@ fn build_nsis_app_installer(
   data.insert("manufacturer", to_json(manufacturer));
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
+  data.insert(
+    "long_description",
+    to_json(settings.long_description().unwrap_or_default()),
+  );
   data.insert("copyright", to_json(settings.copyright_string()));
 
   // Code signing is currently only supported on Windows hosts
@@ -245,8 +230,8 @@ fn build_nsis_app_installer(
   let mut custom_template_path = None;
   let mut custom_language_files = None;
   if let Some(nsis) = &settings.windows().nsis {
-    custom_template_path = nsis.template.clone();
-    custom_language_files = nsis.custom_language_files.clone();
+    custom_template_path.clone_from(&nsis.template);
+    custom_language_files.clone_from(&nsis.custom_language_files);
     install_mode = nsis.install_mode;
     if let Some(langs) = &nsis.languages {
       languages.clear();
@@ -338,6 +323,31 @@ fn build_nsis_app_installer(
   resources_ancestors.dedup();
   resources_ancestors.sort_by_key(|p| std::cmp::Reverse(p.components().count()));
   resources_ancestors.pop(); // Last one is always ""
+
+  // We need to convert / to \ for nsis to move the files into the correct dirs
+  #[cfg(not(target_os = "windows"))]
+  let resources: ResourcesMap = resources
+    .into_iter()
+    .map(|(r, p)| {
+      (
+        r,
+        (
+          p.0.display().to_string().replace('/', "\\").into(),
+          p.1.display().to_string().replace('/', "\\").into(),
+        ),
+      )
+    })
+    .collect();
+  #[cfg(not(target_os = "windows"))]
+  let resources_ancestors: Vec<PathBuf> = resources_ancestors
+    .into_iter()
+    .map(|p| p.display().to_string().replace('/', "\\").into())
+    .collect();
+  #[cfg(not(target_os = "windows"))]
+  let resources_dirs: Vec<PathBuf> = resources_dirs
+    .into_iter()
+    .map(|p| p.display().to_string().replace('/', "\\").into())
+    .collect();
 
   data.insert("resources_ancestors", to_json(resources_ancestors));
   data.insert("resources_dirs", to_json(resources_dirs));

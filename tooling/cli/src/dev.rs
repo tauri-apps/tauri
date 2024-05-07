@@ -29,6 +29,8 @@ use std::{
   },
 };
 
+mod builtin_dev_server;
+
 static BEFORE_DEV: OnceLock<Mutex<Arc<SharedChild>>> = OnceLock::new();
 static KILL_BEFORE_DEV_FLAG: OnceLock<AtomicBool> = OnceLock::new();
 
@@ -286,14 +288,9 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner = config
-      .lock()
-      .unwrap()
-      .as_ref()
-      .unwrap()
-      .build
+    options
       .runner
-      .clone();
+      .clone_from(&config.lock().unwrap().as_ref().unwrap().build.runner);
   }
 
   let mut cargo_features = config
@@ -327,7 +324,6 @@ pub fn setup(
     .clone();
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
-      use crate::helpers::web_dev_server;
       if path.exists() {
         let path = path.canonicalize()?;
         let ip = if mobile {
@@ -335,7 +331,7 @@ pub fn setup(
         } else {
           Ipv4Addr::new(127, 0, 0, 1).into()
         };
-        let server_url = web_dev_server::start(path, ip, options.port)?;
+        let server_url = builtin_dev_server::start(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 
@@ -473,7 +469,7 @@ pub fn kill_before_dev_process() {
     {
       use std::io::Write;
       let mut kill_children_script_path = std::env::temp_dir();
-      kill_children_script_path.push("kill-children.sh");
+      kill_children_script_path.push("tauri-stop-dev-processes.sh");
 
       if !kill_children_script_path.exists() {
         if let Ok(mut file) = std::fs::File::create(&kill_children_script_path) {

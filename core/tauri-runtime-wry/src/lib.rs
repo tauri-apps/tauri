@@ -3583,17 +3583,19 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         .clamp(desired_size, scale_factor)
         .to_physical::<u32>(scale_factor);
       let mut window_size = inner_size;
+      #[allow(unused_mut)]
+      // Left and right window shadow counts as part of the window on Windows
+      // We need to include it when calculating positions, but not size
+      let mut shadow_width = 0;
       #[cfg(windows)]
-      {
-        if window_builder.inner.window.decorations {
-          use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
-          let mut rect = windows::Win32::Foundation::RECT::default();
-          let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
-          if result.is_ok() {
-            window_size.width += (rect.right - rect.left) as u32;
-            // rect.bottom is made out of shadow, and we don't care about it
-            window_size.height += -rect.top as u32;
-          }
+      if window_builder.inner.window.decorations {
+        use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
+        let mut rect = windows::Win32::Foundation::RECT::default();
+        let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
+        if result.is_ok() {
+          shadow_width = (rect.right - rect.left) as u32;
+          // rect.bottom is made out of shadow, and we don't care about it
+          window_size.height += -rect.top as u32;
         }
       }
 
@@ -3615,6 +3617,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       }
 
       if window_builder.center {
+        window_size.width += shadow_width;
         let position = calculate_window_center_position(window_size, &monitor);
         let logical_position = position.to_logical::<f64>(scale_factor);
         window_builder = window_builder.position(logical_position.x, logical_position.y);

@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
 ## \[2.0.0-beta.13]
 
 ### Dependencies

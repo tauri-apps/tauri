@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`07ff78c2d`](https://www.github.com/tauri-apps/tauri/commit/07ff78c2de74d3bd85328ce6536f8a858be89128)([#9615](https://www.github.com/tauri-apps/tauri/pull/9615)) Add `TrayIcon::rect` method to retrieve the tray icon rectangle
+
+### Enhancements
+
+- [`7f6d2698c`](https://www.github.com/tauri-apps/tauri/commit/7f6d2698c923019e4ce53f794e68aa7e56fd7b86)([#9631](https://www.github.com/tauri-apps/tauri/pull/9631)) Improve the error message that is shown when deserializing the Tauri plugin config.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `Menu`, `MenuItem`, `Submenu`, `PredefinedMenuItem`, `CheckMenuItem` and `IconMenuItem`.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `TrayIcon`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-runtime@2.0.0-beta.15`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.15`
+- Upgraded to `tauri-macros@2.0.0-beta.14`
+- Upgraded to `tauri-build@2.0.0-beta.14`
+
 ## \[2.0.0-beta.17]
 
 ### New Features
@@ -13,7 +33,13 @@
 
 ### Bug Fixes
 
+- [`6c047aee1`](https://www.github.com/tauri-apps/tauri/commit/6c047aee14fcae86b341e4fcefdbbf8f8378ac20)([#9612](https://www.github.com/tauri-apps/tauri/pull/9612)) Fix window white flashing on exit on Windows
 - [`98101cb17`](https://www.github.com/tauri-apps/tauri/commit/98101cb17fe49f305a75fcb4267f82d89f7ac0c3)([#9561](https://www.github.com/tauri-apps/tauri/pull/9561)) Allow any headers on the IPC custom protocol.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.14`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.14`
 
 ## \[2.0.0-beta.16]
 

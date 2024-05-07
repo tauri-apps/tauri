@@ -677,7 +677,12 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
           name: self.name,
           handle: app.clone(),
           raw_config: Arc::new(config.clone()),
-          config: serde_json::from_value(config)?,
+          config: serde_json::from_value(config).map_err(|err| {
+            format!(
+              "Error deserializing 'plugins.{}' within your Tauri configuration: {err}",
+              self.name
+            )
+          })?,
         },
       )?;
     }

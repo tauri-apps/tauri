@@ -4165,9 +4165,9 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.8.16"
+version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "45a28f4c49489add4ce10783f7911893516f15afe45d015608d41faca6bc4d29"
+checksum = "fc6e7ed6919cb46507fb01ff1654309219f62b4d603822501b0b80d42f6f21ef"
 dependencies = [
  "dyn-clone",
  "schemars_derive",
@@ -4178,14 +4178,14 @@ dependencies = [
 
 [[package]]
 name = "schemars_derive"
-version = "0.8.16"
+version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c767fd6fa65d9ccf9cf026122c1b555f2ef9a4f0cea69da4d7dbc3e258d30967"
+checksum = "185f2b7aa7e02d418e453790dde16890256bbd2bcd04b7dc5348811052b53f49"
 dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 1.0.109",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4300,13 +4300,13 @@ dependencies = [
 
 [[package]]
 name = "serde_derive_internals"
-version = "0.26.0"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85bf8229e7920a9f636479437026331ce11aa132b4dde37d121944a44d6e5f3c"
+checksum = "330f01ce65a3a5fe59a60c82f3c9a024b573b8a6e875bd233fe5f934e71d54e3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.52",
 ]
 
 [[package]]
@@ -4853,7 +4853,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-beta.11"
+version = "2.0.1-beta.12"
 dependencies = [
  "anyhow",
  "ar",
@@ -4881,7 +4881,7 @@ dependencies = [
  "strsim 0.11.0",
  "tar",
  "tauri-icns",
- "tauri-utils 2.0.0-beta.13",
+ "tauri-utils 2.0.0-beta.14",
  "tempfile",
  "thiserror",
  "time",
@@ -4895,7 +4895,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.15"
+version = "2.0.0-beta.16"
 dependencies = [
  "anyhow",
  "axum",
@@ -4945,8 +4945,8 @@ dependencies = [
  "sublime_fuzzy",
  "tauri-bundler",
  "tauri-icns",
- "tauri-utils 1.5.3",
- "tauri-utils 2.0.0-beta.13",
+ "tauri-utils 1.5.4",
+ "tauri-utils 2.0.0-beta.14",
  "thiserror",
  "tokio",
  "toml 0.8.10",
@@ -4981,15 +4981,15 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.5.3"
+version = "1.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75ad0bbb31fccd1f4c56275d0a5c3abdf1f59999f72cb4ef8b79b4ed42082a21"
+checksum = "450b17a7102e5d46d4bdabae0d1590fd27953e704e691fc081f06c06d2253b35"
 dependencies = [
  "aes-gcm",
  "ctor",
  "dunce",
  "getrandom 0.2.12",
- "heck 0.4.1",
+ "heck 0.5.0",
  "html5ever",
  "infer 0.13.0",
  "json-patch",
@@ -5012,7 +5012,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.13"
+version = "2.0.0-beta.14"
 dependencies = [
  "aes-gcm",
  "ctor",

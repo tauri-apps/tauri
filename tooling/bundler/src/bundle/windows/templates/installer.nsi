@@ -543,7 +543,7 @@ Section Install
 
   ; Copy resources
   {{#each resources_dirs}}
-    CreateDirectory "$INSTDIR\\{{unescape-dollar-sign this}}"
+    CreateDirectory "$INSTDIR\\{{this}}"
   {{/each}}
   {{#each resources}}
     File /a "/oname={{unescape-dollar-sign this.[1]}}" "{{unescape-dollar-sign @key}}"
@@ -661,19 +661,19 @@ Section Uninstall
 
   ; Delete resources
   {{#each resources}}
-    Delete "$INSTDIR\\{{unescape-dollar-sign this.[1]}}"
+    Delete "$INSTDIR\\{{this.[1]}}"
   {{/each}}
 
   ; Delete external binaries
   {{#each binaries}}
-    Delete "$INSTDIR\\{{unescape-dollar-sign this}}"
+    Delete "$INSTDIR\\{{this}}"
   {{/each}}
 
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
   {{#each resources_ancestors}}
-  RMDir /REBOOTOK "$INSTDIR\\{{unescape-dollar-sign this}}"
+  RMDir /REBOOTOK "$INSTDIR\\{{this}}"
   {{/each}}
   RMDir "$INSTDIR"
 

@@ -294,7 +294,7 @@ fn prepare_cmd<R: Runtime>(
           .prepare_sidecar(&program.to_string_lossy(), sidecar, args)
           .map_err(crate::error::into_anyhow)
       } else {
-        return Err(crate::Error::SidecarNotAllowed(program).into_anyhow());
+        Err(crate::Error::SidecarNotAllowed(program).into_anyhow())
       }
     }
   } else {
@@ -305,13 +305,13 @@ fn prepare_cmd<R: Runtime>(
       .window
       .state::<Scopes>()
       .shell
-      .prepare(&program, args)
+      .prepare(program, args)
     {
       Ok(cmd) => Ok(cmd),
       Err(e) => {
         #[cfg(debug_assertions)]
         eprintln!("{e}");
-        return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow());
+        Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow())
       }
     }
   }

@@ -179,8 +179,8 @@ impl Cmd {
               js: &'a str,
             ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
               Box::pin(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(15)).await;
                 if window.eval(js).is_err() {
-                  tokio::time::sleep(std::time::Duration::from_millis(15)).await;
                   eval(window, js).await;
                 }
               })

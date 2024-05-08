@@ -173,19 +173,21 @@ impl Cmd {
           let js = crate::api::ipc::format_callback(on_event_fn, &event)
             .expect("unable to serialize CommandEvent");
 
-          fn eval<'a, R: Runtime>(
-            window: &'a crate::Window<R>,
-            js: &'a str,
-          ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-            Box::pin(async move {
-              if window.eval(js).is_err() {
-                tokio::time::sleep(std::time::Duration::from_millis(15)).await;
-                eval(window, js).await;
-              }
-            })
-          }
+          if context.window.eval(js.as_str()).is_err() {
+            fn eval<'a, R: Runtime>(
+              window: &'a crate::Window<R>,
+              js: &'a str,
+            ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
+              Box::pin(async move {
+                if window.eval(js).is_err() {
+                  tokio::time::sleep(std::time::Duration::from_millis(15)).await;
+                  eval(window, js).await;
+                }
+              })
+            }
 
-          eval(&context.window, js.as_str()).await;
+            eval(&context.window, js.as_str()).await;
+          }
         }
       });
 

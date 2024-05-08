@@ -546,7 +546,7 @@ Section Install
     CreateDirectory "$INSTDIR\\{{this}}"
   {{/each}}
   {{#each resources}}
-    File /a "/oname={{unescape-dollar-sign this.[1]}}" "{{unescape-dollar-sign @key}}"
+    File /a "/oname={{this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Copy external binaries

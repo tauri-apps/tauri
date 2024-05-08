@@ -249,7 +249,7 @@ fn run(
   options: MobileOptions,
   config: &AppleConfig,
   env: &Env,
-) -> Result<DevChild, RunError> {
+) -> crate::Result<DevChild> {
   let profile = if options.debug {
     Profile::Debug
   } else {

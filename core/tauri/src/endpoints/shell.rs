@@ -8,7 +8,7 @@ use super::InvokeContext;
 use crate::{api::ipc::CallbackFn, Runtime};
 #[cfg(shell_scope)]
 use crate::{Manager, Scopes};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tauri_macros::{command_enum, module_command_handler, CommandModule};
 
 #[cfg(shell_scope)]
@@ -63,6 +63,15 @@ pub struct CommandOptions {
 #[derive(Deserialize, CommandModule)]
 #[serde(tag = "cmd", rename_all = "camelCase")]
 pub enum Cmd {
+  /// The execute and return script API.
+  #[cmd(shell_script, "shell > execute or shell > sidecar")]
+  #[serde(rename_all = "camelCase")]
+  ExecuteAndReturn {
+    program: String,
+    args: ExecuteArgs,
+    #[serde(default)]
+    options: CommandOptions,
+  },
   /// The execute script API.
   #[cmd(shell_script, "shell > execute or shell > sidecar")]
   #[serde(rename_all = "camelCase")]
@@ -81,7 +90,73 @@ pub enum Cmd {
   Open { path: String, with: Option<String> },
 }
 
+#[derive(Serialize)]
+#[cfg(any(shell_execute, shell_sidecar))]
+struct ChildProcessReturn {
+  code: Option<i32>,
+  signal: Option<i32>,
+  stdout: String,
+  stderr: String,
+}
+
 impl Cmd {
+  #[module_command_handler(shell_script)]
+  #[allow(unused_variables)]
+  fn execute_and_return<R: Runtime>(
+    context: InvokeContext<R>,
+    program: String,
+    args: ExecuteArgs,
+    options: CommandOptions,
+  ) -> super::Result<ChildProcessReturn> {
+    let mut command = prepare_cmd(&context, &program, args, &options)?;
+
+    #[cfg(any(shell_execute, shell_sidecar))]
+    {
+      if let Some(cwd) = options.cwd {
+        command = command.current_dir(cwd);
+      }
+      if let Some(env) = options.env {
+        command = command.envs(env);
+      } else {
+        command = command.env_clear();
+      }
+
+      let encoding = if let Some(encoding) = options.encoding {
+        if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
+          Some(encoding)
+        } else {
+          return Err(anyhow::anyhow!(format!("unknown encoding {encoding}")));
+        }
+      } else {
+        None
+      };
+
+      let mut command: std::process::Command = command.into();
+      let output = command.output()?;
+
+      let (stdout, stderr) = match encoding {
+        Some(encoding) => (
+          encoding.decode_with_bom_removal(&output.stdout).0.into(),
+          encoding.decode_with_bom_removal(&output.stderr).0.into(),
+        ),
+        None => (
+          String::from_utf8(output.stdout)?,
+          String::from_utf8(output.stderr)?,
+        ),
+      };
+
+      Ok(ChildProcessReturn {
+        code: output.status.code(),
+        #[cfg(windows)]
+        signal: None,
+        #[cfg(unix)]
+        signal: output.status.signal(),
+        stdout,
+        stderr,
+      })
+    }
+  }
+
   #[module_command_handler(shell_script)]
   #[allow(unused_variables)]
   fn execute<R: Runtime>(
@@ -91,55 +166,11 @@ impl Cmd {
     on_event_fn: CallbackFn,
     options: CommandOptions,
   ) -> super::Result<ChildId> {
-    let mut command = if options.sidecar {
-      #[cfg(not(shell_sidecar))]
-      return Err(crate::Error::ApiNotAllowlisted("shell > sidecar".to_string()).into_anyhow());
-      #[cfg(shell_sidecar)]
-      {
-        let program = PathBuf::from(program);
-        let program_as_string = program.display().to_string();
-        let program_no_ext_as_string = program.with_extension("").display().to_string();
-        let configured_sidecar = context
-          .config
-          .tauri
-          .bundle
-          .external_bin
-          .as_ref()
-          .map(|bins| {
-            bins
-              .iter()
-              .find(|b| b == &&program_as_string || b == &&program_no_ext_as_string)
-          })
-          .unwrap_or_default();
-        if let Some(sidecar) = configured_sidecar {
-          context
-            .window
-            .state::<Scopes>()
-            .shell
-            .prepare_sidecar(&program.to_string_lossy(), sidecar, args)
-            .map_err(crate::error::into_anyhow)?
-        } else {
-          return Err(crate::Error::SidecarNotAllowed(program).into_anyhow());
-        }
-      }
-    } else {
-      #[cfg(not(shell_execute))]
-      return Err(crate::Error::ApiNotAllowlisted("shell > execute".to_string()).into_anyhow());
-      #[cfg(shell_execute)]
-      match context
-        .window
-        .state::<Scopes>()
-        .shell
-        .prepare(&program, args)
-      {
-        Ok(cmd) => cmd,
-        Err(e) => {
-          #[cfg(debug_assertions)]
-          eprintln!("{e}");
-          return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow());
-        }
-      }
-    };
+    use std::future::Future;
+    use std::pin::Pin;
+
+    let mut command = prepare_cmd(&context, &program, args, &options)?;
+
     #[cfg(any(shell_execute, shell_sidecar))]
     {
       if let Some(cwd) = options.cwd {
@@ -223,6 +254,63 @@ impl Cmd {
         crate::api::shell::open(&context.window.state::<Scopes>().shell, path, with)
           .map_err(Into::into)
       })
+  }
+}
+
+fn prepare_cmd<R: Runtime>(
+  context: &InvokeContext<R>,
+  program: &String,
+  args: ExecuteArgs,
+  options: &CommandOptions,
+) -> super::Result<crate::api::process::Command> {
+  if options.sidecar {
+    #[cfg(not(shell_sidecar))]
+    return Err(crate::Error::ApiNotAllowlisted("shell > sidecar".to_string()).into_anyhow());
+    #[cfg(shell_sidecar)]
+    {
+      let program = PathBuf::from(program);
+      let program_as_string = program.display().to_string();
+      let program_no_ext_as_string = program.with_extension("").display().to_string();
+      let configured_sidecar = context
+        .config
+        .tauri
+        .bundle
+        .external_bin
+        .as_ref()
+        .map(|bins| {
+          bins
+            .iter()
+            .find(|b| b == &&program_as_string || b == &&program_no_ext_as_string)
+        })
+        .unwrap_or_default();
+      if let Some(sidecar) = configured_sidecar {
+        context
+          .window
+          .state::<Scopes>()
+          .shell
+          .prepare_sidecar(&program.to_string_lossy(), sidecar, args)
+          .map_err(crate::error::into_anyhow)
+      } else {
+        return Err(crate::Error::SidecarNotAllowed(program).into_anyhow());
+      }
+    }
+  } else {
+    #[cfg(not(shell_execute))]
+    return Err(crate::Error::ApiNotAllowlisted("shell > execute".to_string()).into_anyhow());
+    #[cfg(shell_execute)]
+    match context
+      .window
+      .state::<Scopes>()
+      .shell
+      .prepare(&program, args)
+    {
+      Ok(cmd) => Ok(cmd),
+      Err(e) => {
+        #[cfg(debug_assertions)]
+        eprintln!("{e}");
+        return Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow());
+      }
+    }
   }
 }
 

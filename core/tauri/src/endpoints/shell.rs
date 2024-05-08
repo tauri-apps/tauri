@@ -145,6 +145,9 @@ impl Cmd {
         ),
       };
 
+      #[cfg(unix)]
+      use std::os::unix::process::ExitStatusExt;
+
       Ok(ChildProcessReturn {
         code: output.status.code(),
         #[cfg(windows)]

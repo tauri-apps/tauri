@@ -244,11 +244,6 @@ fn run_dev(
   )
 }
 
-#[derive(Debug, thiserror::Error)]
-enum RunError {
-  #[error("{0}")]
-  RunFailed(String),
-}
 fn run(
   device: &Device<'_>,
   options: MobileOptions,
@@ -270,5 +265,5 @@ fn run(
       profile,
     )
     .map(DevChild::new)
-    .map_err(|e| RunError::RunFailed(e.to_string()))
+    .map_err(Into::into)
 }

@@ -1225,7 +1225,7 @@ pub enum WebviewMessage {
   SetAutoResize(bool),
   SetZoom(f64),
   // Getters
-  Url(Sender<Result<Url>>),
+  Url(Sender<Result<String>>),
   Bounds(Sender<Result<tauri_runtime::Rect>>),
   Position(Sender<Result<PhysicalPosition<i32>>>),
   Size(Sender<Result<PhysicalSize<u32>>>),
@@ -1340,7 +1340,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   // Getters
 
-  fn url(&self) -> Result<Url> {
+  fn url(&self) -> Result<String> {
     webview_getter!(self, WebviewMessage::Url)?
   }
 
@@ -3476,6 +3476,13 @@ fn handle_event_loop<T: UserEvent>(
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }
+    #[cfg(target_os = "macos")]
+    Event::Reopen {
+      has_visible_windows,
+      ..
+    } => callback(RunEvent::Reopen {
+      has_visible_windows,
+    }),
     _ => (),
   }
 }

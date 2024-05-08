@@ -1612,8 +1612,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
+  pub fn url(&self) -> crate::Result<Url> {
     self.webview.url()
   }
 

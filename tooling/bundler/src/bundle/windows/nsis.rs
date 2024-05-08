@@ -510,7 +510,7 @@ fn unescape_dollar_sign(
   _: &Handlebars<'_>,
   _: &handlebars::Context,
   _: &mut handlebars::RenderContext<'_, '_>,
-  out: &mut dyn handlebars::Output
+  out: &mut dyn handlebars::Output,
 ) -> handlebars::HelperResult {
   let content = h.param(0).unwrap().render();
   out.write(&content.replace("$$", "$"))?;

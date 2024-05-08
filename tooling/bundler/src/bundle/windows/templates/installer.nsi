@@ -546,12 +546,12 @@ Section Install
     CreateDirectory "$INSTDIR\\{{this}}"
   {{/each}}
   {{#each resources}}
-    File /a "/oname={{this.[1]}}" "{{@key}}"
+    File /a "/oname={{this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
-    File /a "/oname={{this}}" "{{@key}}"
+    File /a "/oname={{this}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Create uninstaller

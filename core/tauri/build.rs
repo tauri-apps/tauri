@@ -64,6 +64,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("current_monitor", true),
       ("primary_monitor", true),
       ("available_monitors", true),
+      ("cursor_position", true),
       ("theme", true),
       // setters
       ("center", false),
@@ -101,6 +102,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_cursor_position", false),
       ("set_ignore_cursor_events", false),
       ("start_dragging", false),
+      ("start_resize_dragging", false),
       ("set_progress_bar", false),
       ("set_icon", false),
       ("toggle_maximize", false),
@@ -121,6 +123,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_webview_size", false),
       ("set_webview_position", false),
       ("set_webview_focus", false),
+      ("set_webview_zoom", false),
       ("print", false),
       ("reparent", false),
       // internal
@@ -142,12 +145,9 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     &[
       ("new", true),
       ("from_bytes", true),
-      ("from_png_bytes", true),
-      ("from_ico_bytes", true),
       ("from_path", true),
       ("rgba", true),
-      ("width", true),
-      ("height", true),
+      ("size", true),
     ],
   ),
   ("resources", &[("close", true)]),
@@ -182,6 +182,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     "tray",
     &[
       ("new", false),
+      ("get_by_id", false),
+      ("remove_by_id", false),
       ("set_icon", false),
       ("set_menu", false),
       ("set_tooltip", false),

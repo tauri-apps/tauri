@@ -12,6 +12,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
+use syn::Expr;
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::resolved::Resolved;
@@ -21,6 +22,7 @@ use tauri_utils::html::{
   inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef,
 };
 use tauri_utils::platform::Target;
+use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
@@ -36,6 +38,8 @@ pub struct ContextData {
   pub root: TokenStream,
   /// Additional capabilities to include.
   pub capabilities: Option<Vec<PathBuf>>,
+  /// The custom assets implementation
+  pub assets: Option<Expr>,
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
@@ -132,6 +136,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     config_parent,
     root,
     capabilities: additional_capabilities,
+    assets,
   } = data;
 
   let target = std::env::var("TARGET")
@@ -163,10 +168,13 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     options = options.with_csp();
   }
 
-  let assets = if dev && config.build.dev_url.is_some() {
-    Default::default()
+  let assets = if let Some(assets) = assets {
+    quote!(#assets)
+  } else if dev && config.build.dev_url.is_some() {
+    let assets = EmbeddedAssets::default();
+    quote!(#assets)
   } else {
-    match &config.build.frontend_dist {
+    let assets = match &config.build.frontend_dist {
       Some(url) => match url {
         FrontendDist::Url(_url) => Default::default(),
         FrontendDist::Directory(path) => {
@@ -190,7 +198,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         _ => unimplemented!(),
       },
       None => Default::default(),
-    }
+    };
+    quote!(#assets)
   };
 
   let out_dir = {
@@ -337,10 +346,10 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let info_plist = quote!(());
 
   let pattern = match &options.pattern {
-    PatternKind::Brownfield => quote!(#root::Pattern::Brownfield(std::marker::PhantomData)),
+    PatternKind::Brownfield => quote!(#root::Pattern::Brownfield),
     #[cfg(not(feature = "isolation"))]
     PatternKind::Isolation { dir: _ } => {
-      quote!(#root::Pattern::Brownfield(std::marker::PhantomData))
+      quote!(#root::Pattern::Brownfield)
     }
     #[cfg(feature = "isolation")]
     PatternKind::Isolation { dir } => {
@@ -448,6 +457,36 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
   let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
+  let plugin_global_api_script_file_list_path = out_dir.join(GLOBAL_API_SCRIPT_FILE_LIST_PATH);
+  let plugin_global_api_script =
+    if config.app.with_global_tauri && plugin_global_api_script_file_list_path.exists() {
+      let file_list_str = std::fs::read_to_string(plugin_global_api_script_file_list_path)
+        .expect("failed to read plugin global API script paths");
+      let file_list = serde_json::from_str::<Vec<PathBuf>>(&file_list_str)
+        .expect("failed to parse plugin global API script paths");
+
+      let mut plugins = Vec::new();
+      for path in file_list {
+        plugins.push(std::fs::read_to_string(&path).unwrap_or_else(|e| {
+          panic!(
+            "failed to read plugin global API script {}: {e}",
+            path.display()
+          )
+        }));
+      }
+
+      Some(plugins)
+    } else {
+      None
+    };
+
+  let plugin_global_api_script = if let Some(scripts) = plugin_global_api_script {
+    let scripts = scripts.into_iter().map(|s| quote!(#s));
+    quote!(::std::option::Option::Some(&[#(#scripts),*]))
+  } else {
+    quote!(::std::option::Option::None)
+  };
+
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -458,7 +497,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       #package_info,
       #info_plist,
       #pattern,
-      #runtime_authority
+      #runtime_authority,
+      #plugin_global_api_script
     );
     #with_tray_icon_code
     context
@@ -493,7 +533,7 @@ fn ico_icon<P: AsRef<Path>>(
   })?;
 
   let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
+  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
   Ok(icon)
 }
 
@@ -551,7 +591,7 @@ fn png_icon<P: AsRef<Path>>(
   })?;
 
   let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
+  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
   Ok(icon)
 }
 

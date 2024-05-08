@@ -13,7 +13,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use raw_window_handle::DisplayHandle;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::Theme;
 use url::Url;
@@ -24,11 +24,9 @@ pub mod monitor;
 pub mod webview;
 pub mod window;
 
+use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
 use monitor::Monitor;
-use window::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
-  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
-};
+use window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent};
 use window::{WindowBuilder, WindowId};
 
 use http::{
@@ -37,8 +35,29 @@ use http::{
   status::InvalidStatusCode,
 };
 
+/// UI scaling utilities.
+pub use dpi;
+
 pub type WindowEventId = u32;
 pub type WebviewEventId = u32;
+
+/// A rectangular region.
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Rect {
+  /// Rect position.
+  pub position: dpi::Position,
+  /// Rect size.
+  pub size: dpi::Size,
+}
+
+impl Default for Rect {
+  fn default() -> Self {
+    Self {
+      position: Position::Logical((0, 0).into()),
+      size: Size::Logical((0, 0).into()),
+    }
+  }
+}
 
 /// Progress bar status.
 #[derive(Debug, Clone, Copy, Deserialize)]
@@ -139,6 +158,9 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
+  /// Failed to get cursor position.
+  #[error("failed to get cursor position")]
+  FailedToGetCursorPosition,
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -206,13 +228,19 @@ pub enum RunEvent<T: UserEvent> {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   Opened { urls: Vec<url::Url> },
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[cfg(target_os = "macos")]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
   /// A custom event defined by the user.
   UserEvent(T),
 }
@@ -273,6 +301,8 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
@@ -354,6 +384,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn primary_monitor(&self) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
+
   /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -419,7 +451,10 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   // GETTERS
 
   /// Returns the webview's current URL.
-  fn url(&self) -> Result<Url>;
+  fn url(&self) -> Result<String>;
+
+  /// Returns the webview's bounds.
+  fn bounds(&self) -> Result<Rect>;
 
   /// Returns the position of the top-left hand corner of the webviews's client area relative to the top-left hand corner of the window.
   fn position(&self) -> Result<PhysicalPosition<i32>>;
@@ -429,7 +464,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   // SETTER
 
-  /// Naviagte to the given URL.
+  /// Navigate to the given URL.
   fn navigate(&self, url: Url) -> Result<()>;
 
   /// Opens the dialog to prints the contents of the webview.
@@ -437,6 +472,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Closes the webview.
   fn close(&self) -> Result<()>;
+
+  /// Sets the webview's bounds.
+  fn set_bounds(&self, bounds: Rect) -> Result<()>;
 
   /// Resizes the webview.
   fn set_size(&self, size: Size) -> Result<()>;
@@ -455,6 +493,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
+
+  /// Set the webview zoom level
+  fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.
@@ -504,10 +545,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Gets the window's current focus state.
   fn is_focused(&self) -> Result<bool>;
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool>;
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
   /// Gets the window's native maximize button state.
@@ -517,7 +558,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / iOS / Android:** Unsupported.
   fn is_maximizable(&self) -> Result<bool>;
 
-  /// Gets the window's native minize button state.
+  /// Gets the window's native minimize button state.
   ///
   /// ## Platform-specific
   ///
@@ -675,10 +716,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;
 
-  /// Updates the window min size.
+  /// Updates the window min inner size.
   fn set_min_size(&self, size: Option<Size>) -> Result<()>;
 
-  /// Updates the window max size.
+  /// Updates the window max inner size.
   fn set_max_size(&self, size: Option<Size>) -> Result<()>;
 
   /// Updates the window position.

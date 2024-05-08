@@ -1,5 +1,268 @@
 # Changelog
 
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`07ff78c2d`](https://www.github.com/tauri-apps/tauri/commit/07ff78c2de74d3bd85328ce6536f8a858be89128)([#9615](https://www.github.com/tauri-apps/tauri/pull/9615)) Add `TrayIcon::rect` method to retrieve the tray icon rectangle
+
+### Enhancements
+
+- [`7f6d2698c`](https://www.github.com/tauri-apps/tauri/commit/7f6d2698c923019e4ce53f794e68aa7e56fd7b86)([#9631](https://www.github.com/tauri-apps/tauri/pull/9631)) Improve the error message that is shown when deserializing the Tauri plugin config.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `Menu`, `MenuItem`, `Submenu`, `PredefinedMenuItem`, `CheckMenuItem` and `IconMenuItem`.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `TrayIcon`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-runtime@2.0.0-beta.15`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.15`
+- Upgraded to `tauri-macros@2.0.0-beta.14`
+- Upgraded to `tauri-build@2.0.0-beta.14`
+
+## \[2.0.0-beta.17]
+
+### New Features
+
+- [`12b4159bd`](https://www.github.com/tauri-apps/tauri/commit/12b4159bdaf6e1f8d7b58ed8ff96345fa69c2ef0)([#9392](https://www.github.com/tauri-apps/tauri/pull/9392)) Add `specta` feature flag which adds `specta` support for `AppHandle`, `State`, `Window`, `Webview` and `WebviewWindow` types.
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
+### Enhancements
+
+- [`eff778b8f`](https://www.github.com/tauri-apps/tauri/commit/eff778b8f0c675fda3f6f6d1041bc94afd765d1c)([#9571](https://www.github.com/tauri-apps/tauri/pull/9571)) Run each plugin initialization script on its own context so they do not interfere with each other or the Tauri init script.
+
+### Bug Fixes
+
+- [`6c047aee1`](https://www.github.com/tauri-apps/tauri/commit/6c047aee14fcae86b341e4fcefdbbf8f8378ac20)([#9612](https://www.github.com/tauri-apps/tauri/pull/9612)) Fix window white flashing on exit on Windows
+- [`98101cb17`](https://www.github.com/tauri-apps/tauri/commit/98101cb17fe49f305a75fcb4267f82d89f7ac0c3)([#9561](https://www.github.com/tauri-apps/tauri/pull/9561)) Allow any headers on the IPC custom protocol.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.14`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.14`
+
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`70c51371e`](https://www.github.com/tauri-apps/tauri/commit/70c51371e01184223312de3dba8030394a5a9406)([#9539](https://www.github.com/tauri-apps/tauri/pull/9539)) Add `window.isTauri` to check whether running inside tauri or not.
+
+### Bug Fixes
+
+- [`daf018e4f`](https://www.github.com/tauri-apps/tauri/commit/daf018e4f5d5f6dcde51c5de42d73ab15287ec7e)([#9505](https://www.github.com/tauri-apps/tauri/pull/9505)) Fix resource tables not cleaned up on exit which causes tray icon inside resource tables not cleaned up on exit
+- [`a07b51320`](https://www.github.com/tauri-apps/tauri/commit/a07b5132019faa7695c573a6610d2def0ff9c40a)([#9490](https://www.github.com/tauri-apps/tauri/pull/9490)) Add missing permission for `window.start_resize_dragging`
+- [`35b25f7e5`](https://www.github.com/tauri-apps/tauri/commit/35b25f7e5c0fe03af4ed3582e22a626863f035f0)([#9530](https://www.github.com/tauri-apps/tauri/pull/9530)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
+### What's Changed
+
+- [`005fe8ce1`](https://www.github.com/tauri-apps/tauri/commit/005fe8ce1ef71ea46a7d86f98bdf397ca81eb920)([#9410](https://www.github.com/tauri-apps/tauri/pull/9410)) Fix `closable`, `maximizable` and `minimizable` options not taking effect when used in tauri.conf.json or from JS APIs.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.13`
+- Upgraded to `tauri-build@2.0.0-beta.13`
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-runtime@2.0.0-beta.13`
+- Upgraded to `tauri-macros@2.0.0-beta.13`
+
+## \[2.0.0-beta.15]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+- [`4973d73a2`](https://www.github.com/tauri-apps/tauri/commit/4973d73a237dc5c60618c1011e202278e7a29b5c)([#9386](https://www.github.com/tauri-apps/tauri/pull/9386)) Provide a basic zoom hotkey polyfill for non-Windows platforms
+
+### Enhancements
+
+- [`f1674fce6`](https://www.github.com/tauri-apps/tauri/commit/f1674fce6dfb1cf0378a85165bb62c270715211b)([#9420](https://www.github.com/tauri-apps/tauri/pull/9420)) Tauri's built-in commands for the JS api will now return simplified paths on Windows, removing the `\\?\` prefix.
+
+### Bug Fixes
+
+- [`c8a82ad22`](https://www.github.com/tauri-apps/tauri/commit/c8a82ad2236ee1def621b5930bdb136f01dd07e4)([#9379](https://www.github.com/tauri-apps/tauri/pull/9379)) Fix deadlock when using the menu/tray/image JS APIs.
+- [`6251645ac`](https://www.github.com/tauri-apps/tauri/commit/6251645acfe2df2da726f38a09373d7370bfcc86)([#9360](https://www.github.com/tauri-apps/tauri/pull/9360)) Fixes an issue causing `getAll()` to list webviews that were already destroyed.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.12`
+- Upgraded to `tauri-runtime@2.0.0-beta.12`
+- Upgraded to `tauri-macros@2.0.0-beta.12`
+- Upgraded to `tauri-build@2.0.0-beta.12`
+
+### Breaking Changes
+
+- [`c8a82ad22`](https://www.github.com/tauri-apps/tauri/commit/c8a82ad2236ee1def621b5930bdb136f01dd07e4)([#9379](https://www.github.com/tauri-apps/tauri/pull/9379)) Changed `JsImage::into_img` to take a reference to a `ResourceTable` instead of a `Manager`.
+
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Added `Rect` struct.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Add `Webview::bounds` and `Webview::set_bounds` APIs.
+
+### Enhancements
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Enhance the IPC URL check by using the Origin header on the custom protocol IPC and the new request URI field on the postMessage IPC instead of using `Webview::url()` which only returns the URL of the main frame and is not suitable for iframes (iframe URL fetch is still not supported on Android and on Linux when using the postMessage IPC).
+
+### Bug Fixes
+
+- [`c33f6e6cf`](https://www.github.com/tauri-apps/tauri/commit/c33f6e6cf35a0d34b5598875a2e5b642a01c8b38)([#9211](https://www.github.com/tauri-apps/tauri/pull/9211)) Fixed an issue preventing webview/window creation events to not be emitted. This also fixed the `getByLabel` and `getAll` JavaScript functions.
+
+### What's Changed
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Updated `http` crate to `1.1`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.11`
+- Upgraded to `tauri-runtime@2.0.0-beta.11`
+- Upgraded to `tauri-macros@2.0.0-beta.11`
+- Upgraded to `tauri-build@2.0.0-beta.11`
+
+### Breaking Changes
+
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Rename `FileDrop` to `DragDrop` on structs, enums and enum variants. Also renamed `file_drop` to `drag_drop` on fields and function names.
+- [`284eca9ef`](https://www.github.com/tauri-apps/tauri/commit/284eca9ef2396b76ce3df6f32fb3b2d2c40044ad)([#9272](https://www.github.com/tauri-apps/tauri/pull/9272)) `Manager::resources_table` is now scoped so each `App/AppHandle/Window/Webview/WebviewWindow` has its own resource collection.
+- [`06833f4fa`](https://www.github.com/tauri-apps/tauri/commit/06833f4fa8e63ecc55fe3fc874a9e397e77a5709)([#9100](https://www.github.com/tauri-apps/tauri/pull/9100)) Refactored the tray icon event struct:
+
+  - Changed `TrayIconEvent.icon_rect` type to use the new `tauri::Rect` type.
+  - Removed `TrayIconEvent.x` and `TrayIconEvent.y` fields and combined them into `TrayIconEvent.position` field.
+  - Removed `tauri::tray::Rectangle` struct.
+
+## \[2.0.0-beta.13]
+
+### Enhancements
+
+- [`75f5cb401`](https://www.github.com/tauri-apps/tauri/commit/75f5cb4015f72745161110ad0076cf4945411a6d)([#9214](https://www.github.com/tauri-apps/tauri/pull/9214)) `tauri::Window` and `tauri::WebviewWindow` now implement `raw_window_handle::HasDisplayHandle`.
+
+### Bug Fixes
+
+- [`81b853bc8`](https://www.github.com/tauri-apps/tauri/commit/81b853bc875ce2da4e300614ca234f10d54966a6)([#9213](https://www.github.com/tauri-apps/tauri/pull/9213)) Fixed an issue where errors where returned as strings instead of objects from commands.
+- [`43230cb6b`](https://www.github.com/tauri-apps/tauri/commit/43230cb6b7a4b14a23ea8f05636ae06f03c718e9)([#9219](https://www.github.com/tauri-apps/tauri/pull/9219)) Fixes the menu plugin `remove` command signature.
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`e227fe02f`](https://www.github.com/tauri-apps/tauri/commit/e227fe02f986e145c0731a64693e1c830a9eb5b0)([#9156](https://www.github.com/tauri-apps/tauri/pull/9156)) Allow plugins to define (at compile time) JavaScript that are initialized when `withGlobalTauri` is true.
+
+### Enhancements
+
+- [`79b8a3514`](https://www.github.com/tauri-apps/tauri/commit/79b8a3514baedcd9c35e777d2b6d89a7a086ddec)([#9151](https://www.github.com/tauri-apps/tauri/pull/9151)) Improve and optimize event emit calls.
+
+### Bug Fixes
+
+- [`379cc2b35`](https://www.github.com/tauri-apps/tauri/commit/379cc2b3547395474d4b66b4222679cf4538428d)([#9165](https://www.github.com/tauri-apps/tauri/pull/9165)) Fix `basename(path, 'ext')` JS API when removing all occurances of `ext` where it should only remove the last one.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.10`
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-runtime@2.0.0-beta.10`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.10`
+- Upgraded to `tauri-macros@2.0.0-beta.10`
+
+### Breaking Changes
+
+- [`acdd76833`](https://www.github.com/tauri-apps/tauri/commit/acdd76833db6d81f4012418133d0042220de100b)([#9155](https://www.github.com/tauri-apps/tauri/pull/9155)) Removed `App/AppHandle::tray` and `App/AppHandle::remove_tray`, use `App/AppHandle::tray_by_id` and `App/AppHandle::remove_tray_by_id` instead. If these APIs were used to access tray icon configured in `tauri.conf.json`, you can use `App/AppHandle::tray_by_id` with ID `main` or the configured value.
+- [`ea0242db4`](https://www.github.com/tauri-apps/tauri/commit/ea0242db4aa6c127d2bb4a2e275000ba47c9e68c)([#9179](https://www.github.com/tauri-apps/tauri/pull/9179)) Removed `width` and `height` methods on the JS `Image` class, use `size` instead.
+
+## \[2.0.0-beta.11]
+
+### New Features
+
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) The `Assets` trait now include a `setup` method that lets you run initialization code for your custom asset provider.
+
+### Bug Fixes
+
+- [`85de230f3`](https://www.github.com/tauri-apps/tauri/commit/85de230f313da81cbbd061e66e8de64e5b33104c)([#9144](https://www.github.com/tauri-apps/tauri/pull/9144)) Fix old JS listeners being dropped on page load after it was possible to create new listeners.
+- [`e673854c8`](https://www.github.com/tauri-apps/tauri/commit/e673854c8333cb8a8d298471737293f17ec5a3ee)([#9133](https://www.github.com/tauri-apps/tauri/pull/9133)) Fixes capability remote domain not allowing subpaths, query parameters and hash when those values are empty.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.0.0-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+- Upgraded to `tauri-build@2.0.0-beta.9`
+- Upgraded to `tauri-runtime@2.0.0-beta.9`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.9`
+
+### Breaking Changes
+
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) The `Context` struct and the `Assets` trait now takes a `R: Runtime` generic.
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) `Context::assets` now returns `&dyn Assets` instead of `&A` generic.
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) The `Context` type no longer uses the `<A: Assets>` generic so the assets implementation can be swapped with `Context::assets_mut`.
+- [`490a6b424`](https://www.github.com/tauri-apps/tauri/commit/490a6b424e81714524150aef96fbf6cf7004b940)([#9147](https://www.github.com/tauri-apps/tauri/pull/9147)) Removed `Context::assets_mut` and added `Context::set_assets`.
+- [`db0a24a97`](https://www.github.com/tauri-apps/tauri/commit/db0a24a973191752aeecfbd556faa254b0f17e79)([#9132](https://www.github.com/tauri-apps/tauri/pull/9132)) Use the image crate for `tauri::image::Image` and remove the `from_png_bytes` and `from_ico_bytes` APIs.
+
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Added `CapabilityBuilder::platform` to link the runtime capability with a specific platform.
+
+### Enhancements
+
+- [`3e472d0af`](https://www.github.com/tauri-apps/tauri/commit/3e472d0afcd67545dd6d9f18d304580a3b2759a8)([#9115](https://www.github.com/tauri-apps/tauri/pull/9115)) Changed the permission and capability platforms to be optional.
+- [`9dc9ca6e3`](https://www.github.com/tauri-apps/tauri/commit/9dc9ca6e38be62ef2746c7a4c2b77b2d67c0d998)([#9113](https://www.github.com/tauri-apps/tauri/pull/9113)) Added `tauri::dev()` to determine whether we are running in development mode or not.
+
+### Bug Fixes
+
+- [`5541aafef`](https://www.github.com/tauri-apps/tauri/commit/5541aafef33113bc292558ba125e685135aabab4)([#9107](https://www.github.com/tauri-apps/tauri/pull/9107)) Fix `emit` and `emit_to` (when used with `EventTarget::Any`) always skipping the webview listeners.
+- [`80c12ead4`](https://www.github.com/tauri-apps/tauri/commit/80c12ead4655af91f08046f19c2d478a4cbf94cd)([#9121](https://www.github.com/tauri-apps/tauri/pull/9121)) Fix regression on IPC response when using a channel to return objects.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-runtime@2.0.0-beta.8`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.8`
+- Upgraded to `tauri-macros@2.0.0-beta.8`
+- Upgraded to `tauri-build@2.0.0-beta.8`
+
+### Breaking Changes
+
+- [`4ef17d083`](https://www.github.com/tauri-apps/tauri/commit/4ef17d08336a2e0df4a7ef9adea746d7419710b6)([#9116](https://www.github.com/tauri-apps/tauri/pull/9116)) The ACL configuration for remote URLs now uses the URLPattern standard instead of glob patterns.
+- [`ed48e2b3c`](https://www.github.com/tauri-apps/tauri/commit/ed48e2b3c7fa914e4c9af432c02b8154f872c68a)([#9122](https://www.github.com/tauri-apps/tauri/pull/9122)) Expose `tauri::image` module to export the `JsImage` type and removed the `Image` root re-export.
+
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`46de49aaa`](https://www.github.com/tauri-apps/tauri/commit/46de49aaad4a148fafc31d591be0e2ed12256507)([#9059](https://www.github.com/tauri-apps/tauri/pull/9059)) Added `set_auto_resize` method for the webview.
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Add a new `Image` type in Rust and JS.
+
+### Enhancements
+
+- [`a77be9747`](https://www.github.com/tauri-apps/tauri/commit/a77be9747443ffc29c34160b55893483bb5f0d74)([#9038](https://www.github.com/tauri-apps/tauri/pull/9038)) Fallback to the postMessage IPC interface if we cannot reach the IPC custom protocol.
+- [`e62ca4ee9`](https://www.github.com/tauri-apps/tauri/commit/e62ca4ee95f4308a6ad128d0f100c85634e28223)([#9070](https://www.github.com/tauri-apps/tauri/pull/9070)) Added a mechanism to preserve channel message order.
+- [`03098b531`](https://www.github.com/tauri-apps/tauri/commit/03098b531562e4d58ab12ad9da2acb1eb3480497)([#9036](https://www.github.com/tauri-apps/tauri/pull/9036)) `Manager::add_capability` now allows adding a dynamically defined capability instead of only relying on static strings.
+- [`b5c743276`](https://www.github.com/tauri-apps/tauri/commit/b5c7432769b84ffe22db721dcfc6af218026f5d4)([#9086](https://www.github.com/tauri-apps/tauri/pull/9086)) Use a strict content security policy on the isolation pattern iframe.
+- [`46de49aaa`](https://www.github.com/tauri-apps/tauri/commit/46de49aaad4a148fafc31d591be0e2ed12256507)([#9059](https://www.github.com/tauri-apps/tauri/pull/9059)) When using the `unstable` feature flag, `WebviewWindow` will internally use the child webview interface for flexibility.
+
+### Bug Fixes
+
+- [`86fa339de`](https://www.github.com/tauri-apps/tauri/commit/86fa339de7b176efafa9b3e89f94dcad5fcd03da)([#9071](https://www.github.com/tauri-apps/tauri/pull/9071)) Fix compile time error in context generation when using `app.windows.windowEffects.color`
+- [`947a50b8e`](https://www.github.com/tauri-apps/tauri/commit/947a50b8e28379c452c32eddc3e0101870e50055)([#9049](https://www.github.com/tauri-apps/tauri/pull/9049)) Fix `tauri migrate` for http plugin ACL.
+- [`fe18012d3`](https://www.github.com/tauri-apps/tauri/commit/fe18012d30d1d8b3ffa10c8e321710eba644ef94)([#9072](https://www.github.com/tauri-apps/tauri/pull/9072)) Resolve symlinks on the filesystem scope check.
+- [`6c0683224`](https://www.github.com/tauri-apps/tauri/commit/6c068322460300e9d56a4fac5b018d4c437daa9e)([#9068](https://www.github.com/tauri-apps/tauri/pull/9068)) Fixes scope resolution grouping scopes for all windows.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.7`
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-runtime@2.0.0-beta.7`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.7`
+- Upgraded to `tauri-macros@2.0.0-beta.7`
+
+### Breaking Changes
+
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Renamed `icon-ico` and `icon-png` feature flags to `image-ico` and `image-png` respectively
+- [`720357fd5`](https://www.github.com/tauri-apps/tauri/commit/720357fd5cd1fefef8485077dfb116ee39ef4ab4)([#9104](https://www.github.com/tauri-apps/tauri/pull/9104)) Removed `tauri::path::Result` and `tauri::path::Error` which were merely an unintentional re-export of `tauri::Result` and `tauri::Error` so use those instead.
+- [`6c0683224`](https://www.github.com/tauri-apps/tauri/commit/6c068322460300e9d56a4fac5b018d4c437daa9e)([#9068](https://www.github.com/tauri-apps/tauri/pull/9068)) The `allows` and `denies` methods from `ipc::ScopeValue`, `ipc::CommandScope` and `ipc::GlobalScope` now returns `&Vec<Arc<T>>` instead of `&Vec<T>`.
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Removed `Context::default_window_icon_mut` and `Context::tray_icon_mut`, use `Context::set_default_window_icon` and `Context::set_tray_icon` instead. Also changed `Context::set_tray_icon` to accept `Option<T>`.
+- [`d1e77acd8`](https://www.github.com/tauri-apps/tauri/commit/d1e77acd8dfdf554b90b542513a58a2de1ef2360)([#9011](https://www.github.com/tauri-apps/tauri/pull/9011)) Removed `Icon` enum, use the new `Image` type instead. All APIs that previously accepted `Icon` have changed to accept `Image` instead.
+
 ## \[2.0.0-beta.8]
 
 ### New Features

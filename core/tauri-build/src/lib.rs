@@ -294,7 +294,7 @@ impl WindowsAttributes {
   /// # Example
   ///
   /// The following manifest will brand the exe as requesting administrator privileges.
-  /// Thus, everytime it is executed, a Windows UAC dialog will appear.
+  /// Thus, every time it is executed, a Windows UAC dialog will appear.
   ///
   /// ```rust,no_run
   /// let mut windows = tauri_build::WindowsAttributes::new();
@@ -523,6 +523,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
   acl::save_acl_manifests(&acl_manifests)?;
+
+  tauri_utils::plugin::load_global_api_scripts(&out_dir);
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
 

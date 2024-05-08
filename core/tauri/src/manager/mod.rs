@@ -24,8 +24,8 @@ use crate::{
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, InvokeResponder, RuntimeAuthority},
   plugin::PluginStore,
-  utils::{assets::Assets, config::Config, PackageInfo},
-  Context, Pattern, Runtime, StateManager, Window,
+  utils::{config::Config, PackageInfo},
+  Assets, Context, Pattern, Runtime, StateManager, Window,
 };
 use crate::{event::EmitArgs, resources::ResourceTable, Webview};
 
@@ -48,7 +48,7 @@ struct CspHashStrings {
 #[allow(clippy::borrowed_box)]
 pub(crate) fn set_csp<R: Runtime>(
   asset: &mut String,
-  assets: &impl std::borrow::Borrow<dyn Assets>,
+  assets: &impl std::borrow::Borrow<dyn Assets<R>>,
   asset_path: &AssetKey,
   manager: &AppManager<R>,
   csp: Csp,
@@ -179,7 +179,7 @@ pub struct AppManager<R: Runtime> {
   pub listeners: Listeners,
   pub state: Arc<StateManager>,
   pub config: Config,
-  pub assets: Box<dyn Assets>,
+  pub assets: Box<dyn Assets<R>>,
 
   pub app_icon: Option<Vec<u8>>,
 
@@ -187,6 +187,9 @@ pub struct AppManager<R: Runtime> {
 
   /// Application pattern.
   pub pattern: Arc<Pattern>,
+
+  /// Global API scripts collected from plugins.
+  pub plugin_global_api_scripts: Arc<Option<&'static [&'static str]>>,
 
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
@@ -216,7 +219,7 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
 impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
-    #[allow(unused_mut)] mut context: Context<impl Assets>,
+    #[allow(unused_mut)] mut context: Context<R>,
     plugins: PluginStore<R>,
     invoke_handler: Box<InvokeHandler<R>>,
     on_page_load: Option<Arc<OnPageLoad<R>>>,
@@ -274,6 +277,7 @@ impl<R: Runtime> AppManager<R> {
       app_icon: context.app_icon,
       package_info: context.package_info,
       pattern: Arc::new(context.pattern),
+      plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
     }
   }
@@ -320,7 +324,7 @@ impl<R: Runtime> AppManager<R> {
   }
 
   fn csp(&self) -> Option<Csp> {
-    if cfg!(feature = "custom-protocol") {
+    if !crate::dev() {
       self.config.app.security.csp.clone()
     } else {
       self
@@ -540,6 +544,12 @@ impl<R: Runtime> AppManager<R> {
 
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
+
+    if let Ok(webview_labels_array) = serde_json::to_string(&self.webview.labels()) {
+      let _ = self.webview.eval_script_all(format!(
+          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }}) }} }})()"#,
+        ));
+    }
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -554,7 +564,6 @@ impl<R: Runtime> AppManager<R> {
     self.webview.webviews_lock().clone()
   }
 
-  /// Resources table managed by the application.
   pub(crate) fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
     self
       .resources_table

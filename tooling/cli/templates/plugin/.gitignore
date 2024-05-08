@@ -12,3 +12,6 @@ yarn.lock
 /target
 Cargo.lock
 node_modules/
+
+dist-js
+dist

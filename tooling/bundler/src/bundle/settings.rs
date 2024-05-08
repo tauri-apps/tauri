@@ -168,6 +168,12 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
+  /// the list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// the list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// the list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
@@ -188,6 +194,18 @@ pub struct DebianSettings {
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
   /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
   pub changelog: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// The Linux AppImage bundle settings.
@@ -202,6 +220,14 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   pub release: String,
   /// The RPM epoch.
@@ -218,6 +244,18 @@ pub struct RpmSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
+  /// Path to script that will be executed before the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub pre_install_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is unpacked. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub post_install_script: Option<PathBuf>,
+  /// Path to script that will be executed before the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub pre_remove_script: Option<PathBuf>,
+  /// Path to script that will be executed after the package is removed. See
+  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  pub post_remove_script: Option<PathBuf>,
 }
 
 /// Position coordinates struct.

@@ -6,8 +6,6 @@
 
 use std::{collections::BTreeMap, fmt};
 
-use glob::Pattern;
-
 use crate::platform::Target;
 
 use super::{
@@ -94,7 +92,12 @@ impl Resolved {
 
     // resolve commands
     for capability in capabilities.values() {
-      if !capability.platforms.contains(&target) {
+      if !capability
+        .platforms
+        .as_ref()
+        .map(|platforms| platforms.contains(&target))
+        .unwrap_or(true)
+      {
         continue;
       }
 
@@ -224,7 +227,12 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>) -> Result<(), Erro
 
     let permissions = get_permissions(key, permission_name, acl)?
       .into_iter()
-      .filter(|p| p.platforms.contains(&target))
+      .filter(|p| {
+        p.platforms
+          .as_ref()
+          .map(|platforms| platforms.contains(&target))
+          .unwrap_or(true)
+      })
       .collect::<Vec<_>>();
 
     let mut resolved_scope = Scopes::default();
@@ -292,8 +300,9 @@ fn resolve_command(
   if let Some(remote) = &capability.remote {
     contexts.extend(remote.urls.iter().map(|url| {
       ExecutionContext::Remote {
-        url: Pattern::new(url)
-          .unwrap_or_else(|e| panic!("invalid glob pattern for remote URL {url}: {e}")),
+        url: url
+          .parse()
+          .unwrap_or_else(|e| panic!("invalid URL pattern for remote URL {url}: {e}")),
       }
     }));
   }
@@ -358,15 +367,8 @@ fn get_permissions<'a>(
     manifest
       .default_permission
       .as_ref()
-      .ok_or_else(|| Error::UnknownPermission {
-        key: if key == APP_ACL_KEY {
-          "app manifest".to_string()
-        } else {
-          key.to_string()
-        },
-        permission: permission_name.to_string(),
-      })
-      .and_then(|default| get_permission_set_permissions(manifest, default))
+      .map(|default| get_permission_set_permissions(manifest, default))
+      .unwrap_or_else(|| Ok(Vec::new()))
   } else if let Some(set) = manifest.permission_sets.get(permission_name) {
     get_permission_set_permissions(manifest, set)
   } else if let Some(permission) = manifest.permissions.get(permission_name) {

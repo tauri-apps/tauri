@@ -40,7 +40,7 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
     window: crate::Window<T>,
     position: Option<P>,
   ) -> crate::Result<()> {
-    let position = position.map(Into::into).map(super::into_position);
+    let position = position.map(Into::into);
     run_item_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
@@ -253,7 +253,7 @@ impl<R: Runtime> Menu<R> {
 
   /// Add a menu item to the end of this menu.
   ///
-  /// ## Platform-spcific:
+  /// ## Platform-specific:
   ///
   /// - **macOS:** Only [`Submenu`] can be added to the menu.
   ///
@@ -268,7 +268,7 @@ impl<R: Runtime> Menu<R> {
 
   /// Add menu items to the end of this menu. It calls [`Menu::append`] in a loop internally.
   ///
-  /// ## Platform-spcific:
+  /// ## Platform-specific:
   ///
   /// - **macOS:** Only [`Submenu`] can be added to the menu
   ///
@@ -283,7 +283,7 @@ impl<R: Runtime> Menu<R> {
 
   /// Add a menu item to the beginning of this menu.
   ///
-  /// ## Platform-spcific:
+  /// ## Platform-specific:
   ///
   /// - **macOS:** Only [`Submenu`] can be added to the menu
   ///
@@ -298,7 +298,7 @@ impl<R: Runtime> Menu<R> {
 
   /// Add menu items to the beginning of this menu. It calls [`Menu::insert_items`] with position of `0` internally.
   ///
-  /// ## Platform-spcific:
+  /// ## Platform-specific:
   ///
   /// - **macOS:** Only [`Submenu`] can be added to the menu
   ///
@@ -307,9 +307,9 @@ impl<R: Runtime> Menu<R> {
     self.insert_items(items, 0)
   }
 
-  /// Insert a menu item at the specified `postion` in the menu.
+  /// Insert a menu item at the specified `position` in the menu.
   ///
-  /// ## Platform-spcific:
+  /// ## Platform-specific:
   ///
   /// - **macOS:** Only [`Submenu`] can be added to the menu
   ///
@@ -322,9 +322,9 @@ impl<R: Runtime> Menu<R> {
     .map_err(Into::into)
   }
 
-  /// Insert menu items at the specified `postion` in the menu.
+  /// Insert menu items at the specified `position` in the menu.
   ///
-  /// ## Platform-spcific:
+  /// ## Platform-specific:
   ///
   /// - **macOS:** Only [`Submenu`] can be added to the menu
   ///

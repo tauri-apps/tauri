@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-pub mod plugin;
+//! Image types used by this crate and also referenced by the JavaScript API layer.
+
+pub(crate) mod plugin;
 
 use std::borrow::Cow;
-use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 
-use crate::{Manager, Resource, ResourceId, Runtime};
+use crate::{Resource, ResourceId, ResourceTable};
 
 /// An RGBA Image in row-major order from top to bottom.
 #[derive(Debug, Clone)]
@@ -43,80 +44,24 @@ impl<'a> Image<'a> {
     }
   }
 
-  /// Creates a new image using the provided png bytes.
-  #[cfg(feature = "image-png")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "image-png")))]
-  pub fn from_png_bytes(bytes: &[u8]) -> std::io::Result<Self> {
-    let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-    let mut reader = decoder.read_info()?;
-    let mut buffer = Vec::new();
-    while let Ok(Some(row)) = reader.next_row() {
-      buffer.extend(row.data());
-    }
-    Ok(Self {
-      rgba: Cow::Owned(buffer),
-      width: reader.info().width,
-      height: reader.info().height,
-    })
-  }
-
-  /// Creates a new image using the provided ico bytes.
-  #[cfg(feature = "image-ico")]
-  #[cfg_attr(docsrs, doc(cfg(feature = "image-ico")))]
-  pub fn from_ico_bytes(bytes: &[u8]) -> std::io::Result<Self> {
-    let icon_dir = ico::IconDir::read(std::io::Cursor::new(&bytes))?;
-    let first = icon_dir.entries().first().ok_or_else(|| {
-      Error::new(
-        ErrorKind::NotFound,
-        "Couldn't find any icons inside provided ico bytes",
-      )
-    })?;
-
-    let rgba = first.decode()?.rgba_data().to_vec();
-
-    Ok(Self {
-      rgba: Cow::Owned(rgba),
-      width: first.width(),
-      height: first.height(),
-    })
-  }
-
   /// Creates a new image using the provided bytes.
   ///
   /// Only `ico` and `png` are supported (based on activated feature flag).
   #[cfg(any(feature = "image-ico", feature = "image-png"))]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "image-ico", feature = "image-png"))))]
-  pub fn from_bytes(bytes: &[u8]) -> std::io::Result<Self> {
-    let extension = infer::get(bytes)
-      .expect("could not determine icon extension")
-      .extension();
+  pub fn from_bytes(bytes: &[u8]) -> crate::Result<Self> {
+    use image::GenericImageView;
 
-    match extension {
-      #[cfg(feature = "image-ico")]
-      "ico" => Self::from_ico_bytes(bytes),
-      #[cfg(feature = "image-png")]
-      "png" => Self::from_png_bytes(bytes),
-      _ => {
-        let supported = [
-          #[cfg(feature = "image-png")]
-          "'png'",
-          #[cfg(feature = "image-ico")]
-          "'ico'",
-        ];
-
-        Err(Error::new(
-          ErrorKind::InvalidInput,
-          format!(
-            "Unexpected image format, expected {}, found '{extension}'. Please check the `image-*` Cargo features on the tauri crate to see if Tauri has optional support for this format.",
-            if supported.is_empty() {
-              "''".to_string()
-            } else {
-              supported.join(" or ")
-            }
-          ),
-        ))
-      }
-    }
+    let img = image::load_from_memory(bytes)?;
+    let pixels = img
+      .pixels()
+      .flat_map(|(_, _, pixel)| pixel.0)
+      .collect::<Vec<_>>();
+    Ok(Self {
+      rgba: Cow::Owned(pixels),
+      width: img.width(),
+      height: img.height(),
+    })
   }
 
   /// Creates a new image using the provided path.
@@ -124,7 +69,7 @@ impl<'a> Image<'a> {
   /// Only `ico` and `png` are supported (based on activated feature flag).
   #[cfg(any(feature = "image-ico", feature = "image-png"))]
   #[cfg_attr(docsrs, doc(cfg(any(feature = "image-ico", feature = "image-png"))))]
-  pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+  pub fn from_path<P: AsRef<std::path::Path>>(path: P) -> crate::Result<Self> {
     let bytes = std::fs::read(path)?;
     Self::from_bytes(&bytes)
   }
@@ -186,42 +131,64 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
   }
 }
 
+/// An image type that accepts file paths, raw bytes, previously loaded images and image objects.
+/// This type is meant to be used along the [transformImage](https://beta.tauri.app/references/v2/js/image/namespaceimage/#transformimage) API.
+///
+/// # Stability
+///
+/// The stability of the variants are not guaranteed, and matching against them is not recommended.
+/// Use [`JsImage::into_img`] instead.
 #[derive(serde::Deserialize)]
 #[serde(untagged)]
-pub enum JsImage<'a> {
+#[non_exhaustive]
+pub enum JsImage {
+  /// A reference to a image in the filesystem.
+  #[non_exhaustive]
   Path(std::path::PathBuf),
-  Bytes(&'a [u8]),
+  /// Image from raw bytes.
+  #[non_exhaustive]
+  Bytes(Vec<u8>),
+  /// An image that was previously loaded with the API and is stored in the resource table.
+  #[non_exhaustive]
   Resource(ResourceId),
+  /// Raw RGBA definition of an image.
+  #[non_exhaustive]
   Rgba {
-    rgba: &'a [u8],
+    /// Image bytes.
+    rgba: Vec<u8>,
+    /// Image width.
     width: u32,
+    /// Image height.
     height: u32,
   },
 }
 
-impl<'a> JsImage<'a> {
-  pub fn into_img<R: Runtime, M: Manager<R>>(self, app: &M) -> crate::Result<Arc<Image<'a>>> {
+impl JsImage {
+  /// Converts this intermediate image format into an actual [`Image`].
+  ///
+  /// This will retrieve the image from the passed [`ResourceTable`] if it is [`JsImage::Resource`]
+  /// and will return an error if it doesn't exist in the passed [`ResourceTable`] so make sure
+  /// the passed [`ResourceTable`] is the same one used to store the image, usually this should be
+  /// the webview [resources table](crate::webview::Webview::resources_table).
+  pub fn into_img(self, resources_table: &ResourceTable) -> crate::Result<Arc<Image<'_>>> {
     match self {
-      Self::Resource(rid) => {
-        let resources_table = app.resources_table();
-        resources_table.get::<Image<'static>>(rid)
-      }
+      Self::Resource(rid) => resources_table.get::<Image<'static>>(rid),
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
       Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
 
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      Self::Bytes(bytes) => Image::from_bytes(bytes).map(Arc::new).map_err(Into::into),
+      Self::Bytes(bytes) => Image::from_bytes(&bytes).map(Arc::new).map_err(Into::into),
 
       Self::Rgba {
         rgba,
         width,
         height,
-      } => Ok(Arc::new(Image::new(rgba, width, height))),
+      } => Ok(Arc::new(Image::new_owned(rgba, width, height))),
 
       #[cfg(not(any(feature = "image-ico", feature = "image-png")))]
       _ => Err(
-        Error::new(
-          ErrorKind::InvalidInput,
+        std::io::Error::new(
+          std::io::ErrorKind::InvalidInput,
           format!(
             "expected RGBA image data, found {}",
             match self {

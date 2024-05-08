@@ -2,12 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::Assets;
 use http::header::CONTENT_TYPE;
 use serialize_to_javascript::Template;
-use tauri_utils::{
-  assets::{Assets, EmbeddedAssets},
-  config::Csp,
-};
+use tauri_utils::{assets::EmbeddedAssets, config::Csp};
 
 use std::sync::Arc;
 
@@ -29,7 +27,7 @@ pub fn get<R: Runtime>(
     format!("{schema}:")
   };
 
-  let assets = assets as Arc<dyn Assets>;
+  let assets = assets as Arc<dyn Assets<R>>;
 
   Box::new(move |request, responder| {
     let response = match request_to_path(&request).as_str() {

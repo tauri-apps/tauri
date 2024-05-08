@@ -174,21 +174,19 @@ pub fn listen_js_script(
   handler: &str,
 ) -> String {
   format!(
-    "
-    (function () {{
+    "(function () {{
       if (window['{listeners}'] === void 0) {{
         Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
       }}
       if (window['{listeners}']['{event}'] === void 0) {{
-        Object.defineProperty(window['{listeners}'], '{event}', {{ value: [] }});
+        Object.defineProperty(window['{listeners}'], '{event}', {{ value: Object.create(null) }});
       }}
       const eventListeners = window['{listeners}']['{event}']
       const listener = {{
-        id: {event_id},
         target: {target},
         handler: {handler}
       }};
-      eventListeners.push(listener);
+      Object.defineProperty(eventListeners, '{event_id}', {{ value: listener, configurable: true }});
     }})()
   ",
     listeners = listeners_object_name,
@@ -199,14 +197,14 @@ pub fn listen_js_script(
 pub fn emit_js_script(
   event_emit_function_name: &str,
   emit_args: &EmitArgs,
-  serialized_target: &str,
+  serialized_ids: &str,
 ) -> crate::Result<String> {
   Ok(format!(
-    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, payload: {}}}, {target}) }})()",
+    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, payload: {}}}, {ids}) }})()",
     event_emit_function_name,
     emit_args.event,
     emit_args.payload,
-    target = serialized_target,
+    ids = serialized_ids,
   ))
 }
 
@@ -216,14 +214,10 @@ pub fn unlisten_js_script(
   event_id: EventId,
 ) -> String {
   format!(
-    "
-      (function () {{
+    "(function () {{
         const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
         if (listeners) {{
-          const index = window['{listeners_object_name}']['{event_name}'].findIndex(e => e.id === {event_id})
-          if (index > -1) {{
-            window['{listeners_object_name}']['{event_name}'].splice(index, 1)
-          }}
+          delete window['{listeners_object_name}']['{event_name}'][{event_id}];
         }}
       }})()
     ",
@@ -232,14 +226,13 @@ pub fn unlisten_js_script(
 
 pub fn event_initialization_script(function: &str, listeners: &str) -> String {
   format!(
-    "
-    Object.defineProperty(window, '{function}', {{
-      value: function (eventData, target) {{
+    "Object.defineProperty(window, '{function}', {{
+      value: function (eventData, ids) {{
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
-        for (let i = listeners.length - 1; i >= 0; i--) {{
-          const listener = listeners[i]
-          if (listener.target.kind === 'Any' || (listener.target.kind === target.kind && listener.target.label === target.label)) {{
-            eventData.id = listener.id
+        for (const id of ids) {{
+          const listener = listeners[id]
+          if (listener) {{
+            eventData.id = id
             listener.handler(eventData)
           }}
         }}

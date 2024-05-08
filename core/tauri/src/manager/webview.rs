@@ -14,7 +14,7 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview},
-  window::FileDropEvent,
+  window::DragDropEvent,
 };
 use tauri_utils::config::WebviewUrl;
 use url::Url;
@@ -29,7 +29,10 @@ use crate::{
 };
 
 use super::{
-  window::{FileDropPayload, DROP_CANCELLED_EVENT, DROP_EVENT, DROP_HOVER_EVENT},
+  window::{
+    DragDropPayload, DragOverPayload, DRAG_EVENT, DROP_CANCELLED_EVENT, DROP_EVENT,
+    DROP_HOVER_EVENT,
+  },
   AppManager,
 };
 
@@ -130,7 +133,7 @@ impl<R: Runtime> WebviewManager<R> {
     let app_manager = manager.manager();
 
     let is_init_global = app_manager.config.app.with_global_tauri;
-    let plugin_init = app_manager
+    let plugin_init_scripts = app_manager
       .plugins
       .lock()
       .expect("poisoned plugin store")
@@ -162,6 +165,10 @@ impl<R: Runtime> WebviewManager<R> {
     webview_attributes = webview_attributes
       .initialization_script(
         r#"
+        Object.defineProperty(window, 'isTauri', {
+          value: true,
+        });
+
         if (!window.__TAURI_INTERNALS__) {
           Object.defineProperty(window, '__TAURI_INTERNALS__', {
             value: {
@@ -192,9 +199,12 @@ impl<R: Runtime> WebviewManager<R> {
         app_manager,
         &ipc_init.into_string(),
         &pattern_init.into_string(),
-        &plugin_init,
         is_init_global,
       )?);
+
+    for plugin_init_script in plugin_init_scripts {
+      webview_attributes = webview_attributes.initialization_script(&plugin_init_script);
+    }
 
     #[cfg(feature = "isolation")]
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
@@ -206,6 +216,12 @@ impl<R: Runtime> WebviewManager<R> {
         .render_default(&Default::default())?
         .into_string(),
       );
+    }
+
+    if let Some(plugin_global_api_scripts) = &*app_manager.plugin_global_api_scripts {
+      for script in plugin_global_api_scripts.iter() {
+        webview_attributes = webview_attributes.initialization_script(script);
+      }
     }
 
     pending.webview_attributes = webview_attributes;
@@ -332,7 +348,6 @@ impl<R: Runtime> WebviewManager<R> {
     app_manager: &AppManager<R>,
     ipc_script: &str,
     pattern_script: &str,
-    plugin_initialization_script: &str,
     with_global_tauri: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -348,8 +363,6 @@ impl<R: Runtime> WebviewManager<R> {
       core_script: &'a str,
       #[raw]
       event_initialization_script: &'a str,
-      #[raw]
-      plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
     }
@@ -385,7 +398,6 @@ impl<R: Runtime> WebviewManager<R> {
         app_manager.listeners().function_name(),
         app_manager.listeners().listeners_object_name(),
       ),
-      plugin_initialization_script,
       freeze_prototype,
     }
     .render_default(&Default::default())
@@ -525,6 +537,23 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
+    #[cfg(all(desktop, not(target_os = "windows")))]
+    if pending.webview_attributes.zoom_hotkeys_enabled {
+      #[derive(Template)]
+      #[default_template("../webview/scripts/zoom-hotkey.js")]
+      struct HotkeyZoom<'a> {
+        os_name: &'a str,
+      }
+
+      pending.webview_attributes.initialization_scripts.push(
+        HotkeyZoom {
+          os_name: std::env::consts::OS,
+        }
+        .render_default(&Default::default())?
+        .into_string(),
+      )
+    }
+
     #[cfg(feature = "isolation")]
     let pattern = app_manager.pattern.clone();
     let navigation_handler = pending.navigation_handler.take();
@@ -604,6 +633,19 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("failed to run on_webview_created hook");
     }
 
+    if let Ok(webview_labels_array) = serde_json::to_string(&webview.manager.webview.labels()) {
+      let _ = webview.manager.webview.eval_script_all(format!(
+      "window.__TAURI_INTERNALS__.metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+    ));
+    }
+
+    let _ = webview.manager.emit(
+      "tauri://webview-created",
+      Some(crate::webview::CreatedEvent {
+        label: webview.label().into(),
+      }),
+    );
+
     webview
   }
 
@@ -635,12 +677,16 @@ impl<R: Runtime> Webview<R> {
 
 fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> crate::Result<()> {
   match event {
-    WebviewEvent::FileDrop(event) => match event {
-      FileDropEvent::Hovered { paths, position } => {
-        let payload = FileDropPayload { paths, position };
+    WebviewEvent::DragDrop(event) => match event {
+      DragDropEvent::Dragged { paths, position } => {
+        let payload = DragDropPayload { paths, position };
+        webview.emit_to_webview(DRAG_EVENT, payload)?
+      }
+      DragDropEvent::DragOver { position } => {
+        let payload = DragOverPayload { position };
         webview.emit_to_webview(DROP_HOVER_EVENT, payload)?
       }
-      FileDropEvent::Dropped { paths, position } => {
+      DragDropEvent::Dropped { paths, position } => {
         let scopes = webview.state::<Scopes>();
         for path in paths {
           if path.is_file() {
@@ -649,10 +695,10 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
             let _ = scopes.allow_directory(path, false);
           }
         }
-        let payload = FileDropPayload { paths, position };
+        let payload = DragDropPayload { paths, position };
         webview.emit_to_webview(DROP_EVENT, payload)?
       }
-      FileDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
+      DragDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
       _ => unimplemented!(),
     },
   }

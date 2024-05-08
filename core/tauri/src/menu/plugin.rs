@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  collections::HashMap,
-  sync::{Mutex, MutexGuard},
-};
+use std::{collections::HashMap, sync::Mutex};
 
 use serde::{Deserialize, Serialize};
-use tauri_runtime::window::dpi::Position;
+use tauri_runtime::dpi::Position;
 
 use super::{sealed::ContextMenuBase, *};
 use crate::{
@@ -16,9 +13,9 @@ use crate::{
   image::JsImage,
   ipc::{channel::JavaScriptChannelId, Channel},
   plugin::{Builder, TauriPlugin},
-  resources::{ResourceId, ResourceTable},
+  resources::ResourceId,
   sealed::ManagerBase,
-  AppHandle, Manager, RunEvent, Runtime, State, Webview, Window,
+  Manager, ResourceTable, RunEvent, Runtime, State, Webview, Window,
 };
 use tauri_macros::do_menu_item;
 
@@ -34,7 +31,7 @@ pub(crate) enum ItemKind {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct AboutMetadata<'a> {
+pub(crate) struct AboutMetadata {
   pub name: Option<String>,
   pub version: Option<String>,
   pub short_version: Option<String>,
@@ -45,17 +42,16 @@ pub(crate) struct AboutMetadata<'a> {
   pub website: Option<String>,
   pub website_label: Option<String>,
   pub credits: Option<String>,
-  #[serde(borrow)]
-  pub icon: Option<JsImage<'a>>,
+  pub icon: Option<JsImage>,
 }
 
-impl<'a> AboutMetadata<'a> {
-  pub fn into_metdata<R: Runtime, M: Manager<R>>(
+impl AboutMetadata {
+  pub fn into_metadata(
     self,
-    app: &M,
-  ) -> crate::Result<super::AboutMetadata<'a>> {
+    resources_table: &ResourceTable,
+  ) -> crate::Result<super::AboutMetadata<'_>> {
     let icon = match self.icon {
-      Some(i) => Some(i.into_img(app)?.as_ref().clone()),
+      Some(i) => Some(i.into_img(resources_table)?.as_ref().clone()),
       None => None,
     };
 
@@ -77,7 +73,7 @@ impl<'a> AboutMetadata<'a> {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Deserialize)]
-enum Predefined<'a> {
+enum Predefined {
   Separator,
   Copy,
   Cut,
@@ -93,25 +89,23 @@ enum Predefined<'a> {
   ShowAll,
   CloseWindow,
   Quit,
-  #[serde(borrow)]
-  About(Option<AboutMetadata<'a>>),
+  About(Option<AboutMetadata>),
   Services,
 }
 
 #[derive(Deserialize)]
-struct SubmenuPayload<'a> {
+struct SubmenuPayload {
   id: Option<MenuId>,
   text: String,
   enabled: Option<bool>,
-  #[serde(borrow)]
-  items: Vec<MenuItemPayloadKind<'a>>,
+  items: Vec<MenuItemPayloadKind>,
 }
 
-impl<'a> SubmenuPayload<'a> {
+impl SubmenuPayload {
   pub fn create_item<R: Runtime>(
     self,
     webview: &Webview<R>,
-    resources_table: &MutexGuard<'_, ResourceTable>,
+    resources_table: &ResourceTable,
   ) -> crate::Result<Submenu<R>> {
     let mut builder = if let Some(id) = self.id {
       SubmenuBuilder::with_id(webview, id, self.text)
@@ -171,26 +165,28 @@ impl CheckMenuItemPayload {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum Icon<'a> {
+enum Icon {
   Native(NativeIcon),
-  #[serde(borrow)]
-  Icon(JsImage<'a>),
+  Icon(JsImage),
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct IconMenuItemPayload<'a> {
+struct IconMenuItemPayload {
   handler: Option<JavaScriptChannelId>,
   id: Option<MenuId>,
   text: String,
-  #[serde(borrow)]
-  icon: Icon<'a>,
+  icon: Icon,
   enabled: Option<bool>,
   accelerator: Option<String>,
 }
 
-impl<'a> IconMenuItemPayload<'a> {
-  pub fn create_item<R: Runtime>(self, webview: &Webview<R>) -> crate::Result<IconMenuItem<R>> {
+impl IconMenuItemPayload {
+  pub fn create_item<R: Runtime>(
+    self,
+    webview: &Webview<R>,
+    resources_table: &ResourceTable,
+  ) -> crate::Result<IconMenuItem<R>> {
     let mut builder = if let Some(id) = self.id {
       IconMenuItemBuilder::with_id(id, self.text)
     } else {
@@ -204,7 +200,7 @@ impl<'a> IconMenuItemPayload<'a> {
     }
     builder = match self.icon {
       Icon::Native(native_icon) => builder.native_icon(native_icon),
-      Icon::Icon(icon) => builder.icon(icon.into_img(webview)?.as_ref().clone()),
+      Icon::Icon(icon) => builder.icon(icon.into_img(resources_table)?.as_ref().clone()),
     };
 
     let item = builder.build(webview)?;
@@ -263,16 +259,16 @@ impl MenuItemPayload {
 }
 
 #[derive(Deserialize)]
-struct PredefinedMenuItemPayload<'a> {
-  #[serde(borrow)]
-  item: Predefined<'a>,
+struct PredefinedMenuItemPayload {
+  item: Predefined,
   text: Option<String>,
 }
 
-impl<'a> PredefinedMenuItemPayload<'a> {
+impl PredefinedMenuItemPayload {
   pub fn create_item<R: Runtime>(
     self,
     webview: &Webview<R>,
+    resources_table: &ResourceTable,
   ) -> crate::Result<PredefinedMenuItem<R>> {
     match self.item {
       Predefined::Separator => PredefinedMenuItem::separator(webview),
@@ -292,7 +288,7 @@ impl<'a> PredefinedMenuItemPayload<'a> {
       Predefined::Quit => PredefinedMenuItem::quit(webview, self.text.as_deref()),
       Predefined::About(metadata) => {
         let metadata = match metadata {
-          Some(m) => Some(m.into_metdata(webview)?),
+          Some(m) => Some(m.into_metadata(resources_table)?),
           None => None,
         };
         PredefinedMenuItem::about(webview, self.text.as_deref(), metadata)
@@ -304,23 +300,20 @@ impl<'a> PredefinedMenuItemPayload<'a> {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum MenuItemPayloadKind<'a> {
+enum MenuItemPayloadKind {
   ExistingItem((ResourceId, ItemKind)),
-  #[serde(borrow)]
-  Predefined(PredefinedMenuItemPayload<'a>),
+  Predefined(PredefinedMenuItemPayload),
   Check(CheckMenuItemPayload),
-  #[serde(borrow)]
-  Submenu(SubmenuPayload<'a>),
-  #[serde(borrow)]
-  Icon(IconMenuItemPayload<'a>),
+  Submenu(SubmenuPayload),
+  Icon(IconMenuItemPayload),
   MenuItem(MenuItemPayload),
 }
 
-impl<'a> MenuItemPayloadKind<'a> {
+impl MenuItemPayloadKind {
   pub fn with_item<T, R: Runtime, F: FnOnce(&dyn IsMenuItem<R>) -> crate::Result<T>>(
     self,
     webview: &Webview<R>,
-    resources_table: &MutexGuard<'_, ResourceTable>,
+    resources_table: &ResourceTable,
     f: F,
   ) -> crate::Result<T> {
     match self {
@@ -328,9 +321,9 @@ impl<'a> MenuItemPayloadKind<'a> {
         do_menu_item!(resources_table, rid, kind, |i| f(&*i))
       }
       Self::Submenu(i) => f(&i.create_item(webview, resources_table)?),
-      Self::Predefined(i) => f(&i.create_item(webview)?),
+      Self::Predefined(i) => f(&i.create_item(webview, resources_table)?),
       Self::Check(i) => f(&i.create_item(webview)?),
-      Self::Icon(i) => f(&i.create_item(webview)?),
+      Self::Icon(i) => f(&i.create_item(webview, resources_table)?),
       Self::MenuItem(i) => f(&i.create_item(webview)?),
     }
   }
@@ -338,26 +331,24 @@ impl<'a> MenuItemPayloadKind<'a> {
 
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
-struct NewOptions<'a> {
+struct NewOptions {
   id: Option<MenuId>,
   text: Option<String>,
   enabled: Option<bool>,
   checked: Option<bool>,
   accelerator: Option<String>,
-  #[serde(borrow, rename = "item")]
-  predefined_item: Option<Predefined<'a>>,
-  #[serde(borrow)]
-  icon: Option<Icon<'a>>,
-  #[serde(borrow)]
-  items: Option<Vec<MenuItemPayloadKind<'a>>>,
+  #[serde(rename = "item")]
+  predefined_item: Option<Predefined>,
+  icon: Option<Icon>,
+  items: Option<Vec<MenuItemPayloadKind>>,
 }
 
 #[command(root = "crate")]
 fn new<R: Runtime>(
-  app: AppHandle<R>,
+  app: Webview<R>,
   webview: Webview<R>,
   kind: ItemKind,
-  options: Option<NewOptions<'_>>,
+  options: Option<NewOptions>,
   channels: State<'_, MenuChannels>,
   handler: Channel,
 ) -> crate::Result<(ResourceId, MenuId)> {
@@ -416,7 +407,7 @@ fn new<R: Runtime>(
         item: options.predefined_item.unwrap(),
         text: options.text,
       }
-      .create_item(&webview)?;
+      .create_item(&webview, &resources_table)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -448,7 +439,7 @@ fn new<R: Runtime>(
         enabled: options.enabled,
         accelerator: options.accelerator,
       }
-      .create_item(&webview)?;
+      .create_item(&webview, &resources_table)?;
       let id = item.id().clone();
       let rid = resources_table.add(item);
       (rid, id)
@@ -465,7 +456,7 @@ fn append<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
-  items: Vec<MenuItemPayloadKind<'_>>,
+  items: Vec<MenuItemPayloadKind>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   match kind {
@@ -492,7 +483,7 @@ fn prepend<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
-  items: Vec<MenuItemPayloadKind<'_>>,
+  items: Vec<MenuItemPayloadKind>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
   match kind {
@@ -519,7 +510,7 @@ fn insert<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
-  items: Vec<MenuItemPayloadKind<'_>>,
+  items: Vec<MenuItemPayloadKind>,
   mut position: usize,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
@@ -546,21 +537,22 @@ fn insert<R: Runtime>(
 
 #[command(root = "crate")]
 fn remove<R: Runtime>(
-  app: AppHandle<R>,
-  menu_rid: ResourceId,
-  menu_kind: ItemKind,
+  webview: Webview<R>,
+  rid: ResourceId,
+  kind: ItemKind,
   item: (ResourceId, ItemKind),
 ) -> crate::Result<()> {
-  let resources_table = app.resources_table();
-  let (rid, kind) = item;
-  match menu_kind {
+  let resources_table = webview.resources_table();
+  let (item_rid, item_kind) = item;
+  match kind {
     ItemKind::Menu => {
-      let menu = resources_table.get::<Menu<R>>(menu_rid)?;
-      do_menu_item!(resources_table, rid, kind, |i| menu.remove(&*i))?;
+      let menu = resources_table.get::<Menu<R>>(rid)?;
+      do_menu_item!(resources_table, item_rid, item_kind, |i| menu.remove(&*i))?;
     }
     ItemKind::Submenu => {
-      let submenu = resources_table.get::<Submenu<R>>(menu_rid)?;
-      do_menu_item!(resources_table, rid, kind, |i| submenu.remove(&*i))?;
+      let submenu = resources_table.get::<Submenu<R>>(rid)?;
+      do_menu_item!(resources_table, item_rid, item_kind, |i| submenu
+        .remove(&*i))?;
     }
     _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),
   };
@@ -584,12 +576,12 @@ macro_rules! make_item_resource {
 
 #[command(root = "crate")]
 fn remove_at<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
   position: usize,
 ) -> crate::Result<Option<(ResourceId, MenuId, ItemKind)>> {
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -611,11 +603,11 @@ fn remove_at<R: Runtime>(
 
 #[command(root = "crate")]
 fn items<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
 ) -> crate::Result<Vec<(ResourceId, MenuId, ItemKind)>> {
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   let items = match kind {
     ItemKind::Menu => resources_table.get::<Menu<R>>(rid)?.items()?,
     ItemKind::Submenu => resources_table.get::<Submenu<R>>(rid)?.items()?,
@@ -632,12 +624,12 @@ fn items<R: Runtime>(
 
 #[command(root = "crate")]
 fn get<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
   id: MenuId,
 ) -> crate::Result<Option<(ResourceId, MenuId, ItemKind)>> {
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   match kind {
     ItemKind::Menu => {
       let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -659,7 +651,7 @@ fn get<R: Runtime>(
 
 #[command(root = "crate")]
 async fn popup<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   current_window: Window<R>,
   rid: ResourceId,
   kind: ItemKind,
@@ -667,11 +659,11 @@ async fn popup<R: Runtime>(
   at: Option<Position>,
 ) -> crate::Result<()> {
   let window = window
-    .map(|w| app.manager().get_window(&w))
+    .map(|w| webview.manager().get_window(&w))
     .unwrap_or(Some(current_window));
 
   if let Some(window) = window {
-    let resources_table = app.resources_table();
+    let resources_table = webview.resources_table();
     match kind {
       ItemKind::Menu => {
         let menu = resources_table.get::<Menu<R>>(rid)?;
@@ -689,8 +681,11 @@ async fn popup<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn create_default<R: Runtime>(app: AppHandle<R>) -> crate::Result<(ResourceId, MenuId)> {
-  let mut resources_table = app.resources_table();
+fn create_default<R: Runtime>(
+  app: AppHandle<R>,
+  webview: Webview<R>,
+) -> crate::Result<(ResourceId, MenuId)> {
+  let mut resources_table = webview.resources_table();
   let menu = Menu::default(&app)?;
   let id = menu.id().clone();
   let rid = resources_table.add(menu);
@@ -699,10 +694,10 @@ fn create_default<R: Runtime>(app: AppHandle<R>) -> crate::Result<(ResourceId, M
 
 #[command(root = "crate")]
 async fn set_as_app_menu<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   let menu = resources_table.get::<Menu<R>>(rid)?;
   if let Some(menu) = menu.set_as_app_menu()? {
     let id = menu.id().clone();
@@ -714,17 +709,17 @@ async fn set_as_app_menu<R: Runtime>(
 
 #[command(root = "crate")]
 async fn set_as_window_menu<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   current_window: Window<R>,
   rid: ResourceId,
   window: Option<String>,
 ) -> crate::Result<Option<(ResourceId, MenuId)>> {
   let window = window
-    .map(|w| app.manager().get_window(&w))
+    .map(|w| webview.manager().get_window(&w))
     .unwrap_or(Some(current_window));
 
   if let Some(window) = window {
-    let mut resources_table = app.resources_table();
+    let mut resources_table = webview.resources_table();
     let menu = resources_table.get::<Menu<R>>(rid)?;
     if let Some(menu) = menu.set_as_window_menu(&window)? {
       let id = menu.id().clone();
@@ -736,40 +731,40 @@ async fn set_as_window_menu<R: Runtime>(
 }
 
 #[command(root = "crate")]
-fn text<R: Runtime>(app: AppHandle<R>, rid: ResourceId, kind: ItemKind) -> crate::Result<String> {
-  let resources_table = app.resources_table();
+fn text<R: Runtime>(webview: Webview<R>, rid: ResourceId, kind: ItemKind) -> crate::Result<String> {
+  let resources_table = webview.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.text())
 }
 
 #[command(root = "crate")]
 fn set_text<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
   text: String,
 ) -> crate::Result<()> {
-  let resources_table = app.resources_table();
+  let resources_table = webview.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.set_text(text))
 }
 
 #[command(root = "crate")]
 fn is_enabled<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
 ) -> crate::Result<bool> {
-  let resources_table = app.resources_table();
+  let resources_table = webview.resources_table();
   do_menu_item!(resources_table, rid, kind, |i| i.is_enabled(), !Predefined)
 }
 
 #[command(root = "crate")]
 fn set_enabled<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
   enabled: bool,
 ) -> crate::Result<()> {
-  let resources_table = app.resources_table();
+  let resources_table = webview.resources_table();
   do_menu_item!(
     resources_table,
     rid,
@@ -781,12 +776,12 @@ fn set_enabled<R: Runtime>(
 
 #[command(root = "crate")]
 fn set_accelerator<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   kind: ItemKind,
   accelerator: Option<String>,
 ) -> crate::Result<()> {
-  let resources_table = app.resources_table();
+  let resources_table = webview.resources_table();
   do_menu_item!(
     resources_table,
     rid,
@@ -798,62 +793,71 @@ fn set_accelerator<R: Runtime>(
 
 #[command(root = "crate")]
 fn set_as_windows_menu_for_nsapp<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
 ) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   {
-    let resources_table = app.resources_table();
+    let resources_table = webview.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
     submenu.set_as_help_menu_for_nsapp()?;
   }
 
   let _ = rid;
-  let _ = app;
+  let _ = webview;
   Ok(())
 }
 
 #[command(root = "crate")]
-fn set_as_help_menu_for_nsapp<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<()> {
+fn set_as_help_menu_for_nsapp<R: Runtime>(
+  webview: Webview<R>,
+  rid: ResourceId,
+) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   {
-    let resources_table = app.resources_table();
+    let resources_table = webview.resources_table();
     let submenu = resources_table.get::<Submenu<R>>(rid)?;
     submenu.set_as_help_menu_for_nsapp()?;
   }
 
   let _ = rid;
-  let _ = app;
+  let _ = webview;
 
   Ok(())
 }
 
 #[command(root = "crate")]
-fn is_checked<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<bool> {
-  let resources_table = app.resources_table();
+fn is_checked<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<bool> {
+  let resources_table = webview.resources_table();
   let check_item = resources_table.get::<CheckMenuItem<R>>(rid)?;
   check_item.is_checked()
 }
 
 #[command(root = "crate")]
-fn set_checked<R: Runtime>(app: AppHandle<R>, rid: ResourceId, checked: bool) -> crate::Result<()> {
-  let resources_table = app.resources_table();
+fn set_checked<R: Runtime>(
+  webview: Webview<R>,
+  rid: ResourceId,
+  checked: bool,
+) -> crate::Result<()> {
+  let resources_table = webview.resources_table();
   let check_item = resources_table.get::<CheckMenuItem<R>>(rid)?;
   check_item.set_checked(checked)
 }
 
 #[command(root = "crate")]
 fn set_icon<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
-  icon: Option<Icon<'_>>,
+  icon: Option<Icon>,
 ) -> crate::Result<()> {
-  let resources_table = app.resources_table();
+  let resources_table = webview.resources_table();
   let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
 
   match icon {
     Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
-    Some(Icon::Icon(icon)) => icon_item.set_icon(Some(icon.into_img(&app)?.as_ref().clone())),
+    Some(Icon::Icon(icon)) => {
+      icon_item.set_icon(Some(icon.into_img(&resources_table)?.as_ref().clone()))
+    }
     None => {
       icon_item.set_icon(None)?;
       icon_item.set_native_icon(None)?;

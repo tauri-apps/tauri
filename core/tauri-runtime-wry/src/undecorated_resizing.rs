@@ -154,9 +154,9 @@ mod windows {
   pub fn handle_request<T: crate::UserEvent>(
     context: crate::Context<T>,
     window_id: crate::WindowId,
-    request: &str,
+    request: &http::Request<String>,
   ) -> bool {
-    if let Some(args) = request.strip_prefix(MESSAGE_MOUSEMOVE) {
+    if let Some(args) = request.body().strip_prefix(MESSAGE_MOUSEMOVE) {
       if let Some(window) = context.main_thread.windows.0.borrow().get(&window_id) {
         if let Some(w) = window.inner.as_ref() {
           if !w.is_decorated()
@@ -177,7 +177,7 @@ mod windows {
 
       return true;
     }
-    if let Some(args) = request.strip_prefix(MESSAGE_MOUSEDOWN) {
+    if let Some(args) = request.body().strip_prefix(MESSAGE_MOUSEDOWN) {
       if let Some(window) = context.main_thread.windows.0.borrow().get(&window_id) {
         if let Some(w) = window.inner.as_ref() {
           if !w.is_decorated()

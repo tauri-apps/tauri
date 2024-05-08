@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-beta.3",
+  "version": "2.0.0-beta.11",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -21,14 +21,17 @@
   "type": "module",
   "main": "./index.cjs",
   "module": "./index.js",
+  "types": "./index.d.ts",
   "exports": {
     ".": {
       "import": "./index.js",
-      "require": "./index.cjs"
+      "require": "./index.cjs",
+      "types": "./index.d.ts"
     },
     "./*": {
       "import": "./*.js",
-      "require": "./*.cjs"
+      "require": "./*.cjs",
+      "types": "./*.d.ts"
     },
     "./package.json": "./package.json"
   },
@@ -57,7 +60,7 @@
     "eslint-plugin-security": "2.1.1",
     "fast-glob": "3.3.2",
     "prettier": "3.2.5",
-    "rollup": "4.12.0",
+    "rollup": "4.12.1",
     "tslib": "2.6.2",
     "typescript": "5.3.3"
   },

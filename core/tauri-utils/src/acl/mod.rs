@@ -4,10 +4,10 @@
 
 //! Access Control List types.
 
-use glob::Pattern;
 use serde::{Deserialize, Serialize};
-use std::num::NonZeroU64;
+use std::{num::NonZeroU64, str::FromStr, sync::Arc};
 use thiserror::Error;
+use url::Url;
 
 use crate::platform::Target;
 
@@ -176,18 +176,8 @@ pub struct Permission {
   pub scope: Scopes,
 
   /// Target platforms this permission applies. By default all platforms are affected by this permission.
-  #[serde(default = "default_platforms", skip_serializing_if = "Vec::is_empty")]
-  pub platforms: Vec<Target>,
-}
-
-fn default_platforms() -> Vec<Target> {
-  vec![
-    Target::Linux,
-    Target::MacOS,
-    Target::Windows,
-    Target::Android,
-    Target::Ios,
-  ]
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub platforms: Option<Vec<Target>>,
 }
 
 /// A set of direct permissions grouped together under a new name.
@@ -204,17 +194,115 @@ pub struct PermissionSet {
   pub permissions: Vec<String>,
 }
 
+/// UrlPattern for [`ExecutionContext::Remote`].
+#[derive(Debug, Clone)]
+pub struct RemoteUrlPattern(Arc<urlpattern::UrlPattern>, String);
+
+impl FromStr for RemoteUrlPattern {
+  type Err = urlpattern::quirks::Error;
+
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    let mut init = urlpattern::UrlPatternInit::parse_constructor_string::<regex::Regex>(s, None)?;
+    if init.search.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
+      init.search.replace("*".to_string());
+    }
+    if init.hash.as_ref().map(|p| p.is_empty()).unwrap_or(true) {
+      init.hash.replace("*".to_string());
+    }
+    if init
+      .pathname
+      .as_ref()
+      .map(|p| p.is_empty() || p == "/")
+      .unwrap_or(true)
+    {
+      init.pathname.replace("*".to_string());
+    }
+    let pattern = urlpattern::UrlPattern::parse(init)?;
+    Ok(Self(Arc::new(pattern), s.to_string()))
+  }
+}
+
+impl RemoteUrlPattern {
+  #[doc(hidden)]
+  pub fn as_str(&self) -> &str {
+    &self.1
+  }
+
+  /// Test if a given URL matches the pattern.
+  pub fn test(&self, url: &Url) -> bool {
+    self
+      .0
+      .test(urlpattern::UrlPatternMatchInput::Url(url.clone()))
+      .unwrap_or_default()
+  }
+}
+
+impl PartialEq for RemoteUrlPattern {
+  fn eq(&self, other: &Self) -> bool {
+    self.0.protocol() == other.0.protocol()
+      && self.0.username() == other.0.username()
+      && self.0.password() == other.0.password()
+      && self.0.hostname() == other.0.hostname()
+      && self.0.port() == other.0.port()
+      && self.0.pathname() == other.0.pathname()
+      && self.0.search() == other.0.search()
+      && self.0.hash() == other.0.hash()
+  }
+}
+
+impl Eq for RemoteUrlPattern {}
+
 /// Execution context of an IPC call.
-#[derive(Debug, Default, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Default, Clone, Eq, PartialEq)]
 pub enum ExecutionContext {
   /// A local URL is used (the Tauri app URL).
   #[default]
   Local,
-  /// Remote URL is tring to use the IPC.
+  /// Remote URL is trying to use the IPC.
   Remote {
-    /// The URL trying to access the IPC (glob pattern).
-    url: Pattern,
+    /// The URL trying to access the IPC (URL pattern).
+    url: RemoteUrlPattern,
   },
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::acl::RemoteUrlPattern;
+
+  #[test]
+  fn url_pattern_domain_wildcard() {
+    let pattern: RemoteUrlPattern = "http://*".parse().unwrap();
+
+    assert!(pattern.test(&"http://tauri.app/path".parse().unwrap()));
+    assert!(pattern.test(&"http://tauri.app/path?q=1".parse().unwrap()));
+
+    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
+
+    let pattern: RemoteUrlPattern = "http://*.tauri.app".parse().unwrap();
+
+    assert!(!pattern.test(&"http://tauri.app/path".parse().unwrap()));
+    assert!(!pattern.test(&"http://tauri.app/path?q=1".parse().unwrap()));
+    assert!(pattern.test(&"http://api.tauri.app/path".parse().unwrap()));
+    assert!(pattern.test(&"http://api.tauri.app/path?q=1".parse().unwrap()));
+    assert!(!pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(!pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
+  }
+
+  #[test]
+  fn url_pattern_path_wildcard() {
+    let pattern: RemoteUrlPattern = "http://localhost/*".parse().unwrap();
+    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(pattern.test(&"http://localhost/path?q=1".parse().unwrap()));
+  }
+
+  #[test]
+  fn url_pattern_scheme_wildcard() {
+    let pattern: RemoteUrlPattern = "*://localhost".parse().unwrap();
+    assert!(pattern.test(&"http://localhost/path".parse().unwrap()));
+    assert!(pattern.test(&"https://localhost/path?q=1".parse().unwrap()));
+    assert!(pattern.test(&"custom://localhost/path".parse().unwrap()));
+  }
 }
 
 #[cfg(feature = "build")]
@@ -269,7 +357,7 @@ mod build_ {
       let description = opt_str_lit(self.description.as_ref());
       let commands = &self.commands;
       let scope = &self.scope;
-      let platforms = vec_lit(&self.platforms, identity);
+      let platforms = opt_vec_lit(self.platforms.as_ref(), identity);
 
       literal_struct!(
         tokens,

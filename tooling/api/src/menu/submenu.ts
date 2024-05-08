@@ -90,7 +90,7 @@ export class Submenu extends MenuItemBase {
   /**
    * Add a menu item to the end of this submenu.
    *
-   * ## Platform-spcific:
+   * ## Platform-specific:
    *
    * - **macOS:** Only {@linkcode Submenu}s can be added to a {@linkcode Menu}.
    */
@@ -119,7 +119,7 @@ export class Submenu extends MenuItemBase {
   /**
    * Add a menu item to the beginning of this submenu.
    *
-   * ## Platform-spcific:
+   * ## Platform-specific:
    *
    * - **macOS:** Only {@linkcode Submenu}s can be added to a {@linkcode Menu}.
    */
@@ -148,7 +148,7 @@ export class Submenu extends MenuItemBase {
   /**
    * Add a menu item to the specified position in this submenu.
    *
-   * ## Platform-spcific:
+   * ## Platform-specific:
    *
    * - **macOS:** Only {@linkcode Submenu}s can be added to a {@linkcode Menu}.
    */
@@ -245,9 +245,10 @@ export class Submenu extends MenuItemBase {
   ): Promise<void> {
     let atValue = null
     if (at) {
-      atValue = {
-        type: at instanceof PhysicalPosition ? 'Physical' : 'Logical',
-        data: at
+      atValue = {} as Record<string, unknown>
+      atValue[`${at instanceof PhysicalPosition ? 'Physical' : 'Logical'}`] = {
+        x: at.x,
+        y: at.y
       }
     }
     return invoke('plugin:menu|popup', {

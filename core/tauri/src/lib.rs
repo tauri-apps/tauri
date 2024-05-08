@@ -37,6 +37,7 @@
 //! - **image-ico**: Adds support to parse `.ico` image, see [`Image`].
 //! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
+//! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
 //!
 //! ## Cargo allowlist features
 //!
@@ -94,10 +95,11 @@ mod vibrancy;
 pub mod webview;
 pub mod window;
 use tauri_runtime as runtime;
-mod image;
+pub mod image;
 #[cfg(target_os = "ios")]
 mod ios;
 #[cfg(desktop)]
+#[cfg_attr(docsrs, doc(cfg(desktop)))]
 pub mod menu;
 /// Path APIs.
 pub mod path;
@@ -191,10 +193,12 @@ pub type SyncTask = Box<dyn FnOnce() + Send>;
 
 use serde::Serialize;
 use std::{
+  borrow::Cow,
   collections::HashMap,
   fmt::{self, Debug},
   sync::MutexGuard,
 };
+use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
 #[cfg(feature = "wry")]
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
@@ -212,19 +216,15 @@ pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
   },
-  self::image::Image,
   self::manager::Asset,
   self::runtime::{
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
     webview::WebviewAttributes,
-    window::{
-      dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-      CursorIcon, FileDropEvent,
-    },
-    DeviceEventFilter, UserAttentionType,
+    window::{CursorIcon, DragDropEvent},
+    DeviceEventFilter, Rect, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{
-    assets::Assets,
     config::{Config, WebviewUrl},
     Env, PackageInfo, Theme,
   },
@@ -333,32 +333,72 @@ macro_rules! tauri_build_context {
 
 pub use pattern::Pattern;
 
+/// Whether we are running in development mode or not.
+pub fn dev() -> bool {
+  !cfg!(feature = "custom-protocol")
+}
+
+/// Represents a container of file assets that are retrievable during runtime.
+pub trait Assets<R: Runtime>: Send + Sync + 'static {
+  /// Initialize the asset provider.
+  fn setup(&self, app: &App<R>) {
+    let _ = app;
+  }
+
+  /// Get the content of the passed [`AssetKey`].
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
+
+  /// Iterator for the assets.
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_>;
+
+  /// Gets the hashes for the CSP tag of the HTML on the given path.
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
+}
+
+impl<R: Runtime> Assets<R> for EmbeddedAssets {
+  fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
+    EmbeddedAssets::get(self, key)
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+    EmbeddedAssets::iter(self)
+  }
+
+  fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
+    EmbeddedAssets::csp_hashes(self, html_path)
+  }
+}
+
 /// User supplied data required inside of a Tauri application.
 ///
 /// # Stability
 /// This is the output of the [`generate_context`] macro, and is not considered part of the stable API.
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
-pub struct Context<A: Assets> {
+#[tauri_macros::default_runtime(Wry, wry)]
+pub struct Context<R: Runtime> {
   pub(crate) config: Config,
-  pub(crate) assets: Box<A>,
-  pub(crate) default_window_icon: Option<Image<'static>>,
+  /// Asset provider.
+  pub assets: Box<dyn Assets<R>>,
+  pub(crate) default_window_icon: Option<image::Image<'static>>,
   pub(crate) app_icon: Option<Vec<u8>>,
   #[cfg(all(desktop, feature = "tray-icon"))]
-  pub(crate) tray_icon: Option<Image<'static>>,
+  pub(crate) tray_icon: Option<image::Image<'static>>,
   pub(crate) package_info: PackageInfo,
   pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
   pub(crate) runtime_authority: RuntimeAuthority,
+  pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
 }
 
-impl<A: Assets> fmt::Debug for Context<A> {
+impl<R: Runtime> fmt::Debug for Context<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
       .field("app_icon", &self.app_icon)
       .field("package_info", &self.package_info)
-      .field("pattern", &self.pattern);
+      .field("pattern", &self.pattern)
+      .field("plugin_global_api_scripts", &self.plugin_global_api_scripts);
 
     #[cfg(all(desktop, feature = "tray-icon"))]
     d.field("tray_icon", &self.tray_icon);
@@ -367,7 +407,7 @@ impl<A: Assets> fmt::Debug for Context<A> {
   }
 }
 
-impl<A: Assets> Context<A> {
+impl<R: Runtime> Context<R> {
   /// The config the application was prepared with.
   #[inline(always)]
   pub fn config(&self) -> &Config {
@@ -382,25 +422,25 @@ impl<A: Assets> Context<A> {
 
   /// The assets to be served directly by Tauri.
   #[inline(always)]
-  pub fn assets(&self) -> &A {
-    &self.assets
+  pub fn assets(&self) -> &dyn Assets<R> {
+    self.assets.as_ref()
   }
 
-  /// A mutable reference to the assets to be served directly by Tauri.
+  /// Replace the [`Assets`] implementation and returns the previous value so you can use it as a fallback if desired.
   #[inline(always)]
-  pub fn assets_mut(&mut self) -> &mut A {
-    &mut self.assets
+  pub fn set_assets(&mut self, assets: Box<dyn Assets<R>>) -> Box<dyn Assets<R>> {
+    std::mem::replace(&mut self.assets, assets)
   }
 
   /// The default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn default_window_icon(&self) -> Option<&Image<'_>> {
+  pub fn default_window_icon(&self) -> Option<&image::Image<'_>> {
     self.default_window_icon.as_ref()
   }
 
   /// Set the default window icon Tauri should use when creating windows.
   #[inline(always)]
-  pub fn set_default_window_icon(&mut self, icon: Option<Image<'static>>) {
+  pub fn set_default_window_icon(&mut self, icon: Option<image::Image<'static>>) {
     self.default_window_icon = icon;
   }
 
@@ -408,7 +448,7 @@ impl<A: Assets> Context<A> {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn tray_icon(&self) -> Option<&Image<'_>> {
+  pub fn tray_icon(&self) -> Option<&image::Image<'_>> {
     self.tray_icon.as_ref()
   }
 
@@ -416,7 +456,7 @@ impl<A: Assets> Context<A> {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   #[inline(always)]
-  pub fn set_tray_icon(&mut self, icon: Option<Image<'static>>) {
+  pub fn set_tray_icon(&mut self, icon: Option<image::Image<'static>>) {
     self.tray_icon = icon;
   }
 
@@ -454,13 +494,14 @@ impl<A: Assets> Context<A> {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     config: Config,
-    assets: Box<A>,
-    default_window_icon: Option<Image<'static>>,
+    assets: Box<dyn Assets<R>>,
+    default_window_icon: Option<image::Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
     info_plist: (),
     pattern: Pattern,
     runtime_authority: RuntimeAuthority,
+    plugin_global_api_scripts: Option<&'static [&'static str]>,
   ) -> Self {
     Self {
       config,
@@ -473,6 +514,7 @@ impl<A: Assets> Context<A> {
       _info_plist: info_plist,
       pattern,
       runtime_authority,
+      plugin_global_api_scripts,
     }
   }
 
@@ -854,10 +896,8 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state.try_get()
   }
 
-  /// Get a reference to the resources table.
-  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
-    self.manager().resources_table()
-  }
+  /// Get a reference to the resources table of this manager.
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable>;
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
@@ -946,6 +986,41 @@ pub(crate) use run_main_thread;
 #[cfg(any(test, feature = "test"))]
 #[cfg_attr(docsrs, doc(cfg(feature = "test")))]
 pub mod test;
+
+#[cfg(feature = "specta")]
+const _: () = {
+  use specta::{function::FunctionArg, DataType, TypeMap};
+
+  impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::AppHandle<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::Window<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::Webview<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+
+  impl<R: crate::Runtime> FunctionArg for crate::WebviewWindow<R> {
+    fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
+      None
+    }
+  }
+};
 
 #[cfg(test)]
 mod tests {

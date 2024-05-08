@@ -1,5 +1,77 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-codegen@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`88c0ad9cf`](https://www.github.com/tauri-apps/tauri/commit/88c0ad9cf5d2f9ed65285540c26b54fb18b10137)([#9471](https://www.github.com/tauri-apps/tauri/pull/9471)) Fix tauri always rebuilding even if source code didn't change.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-codegen@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-codegen@2.0.0-beta.12`
+
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-codegen@2.0.0-beta.11`
+
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`e227fe02f`](https://www.github.com/tauri-apps/tauri/commit/e227fe02f986e145c0731a64693e1c830a9eb5b0)([#9156](https://www.github.com/tauri-apps/tauri/pull/9156)) Allow plugins to define (at compile time) JavaScript that are initialized when `withGlobalTauri` is true.
+
+### Enhancements
+
+- [`7213b9e47`](https://www.github.com/tauri-apps/tauri/commit/7213b9e47242bef814aa7257e0bf84631bf5fe7e)([#9124](https://www.github.com/tauri-apps/tauri/pull/9124)) Fallback to an empty permission set if the plugin did not define its `default` permissions.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-codegen@2.0.0-beta.10`
+
+## \[2.0.0-beta.9]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-codegen@2.0.0-beta.8`
+
+## \[2.0.0-beta.7]
+
+### Bug Fixes
+
+- [`bb23511ea`](https://www.github.com/tauri-apps/tauri/commit/bb23511ea80bcaffbdebf057301e463fff268c90)([#9079](https://www.github.com/tauri-apps/tauri/pull/9079)) Fixed generation of capability schema for permissions field which previously disallowed mixed (strings and objects) permission definition.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-codegen@2.0.0-beta.7`
+
 ## \[2.0.0-beta.6]
 
 ### Dependencies

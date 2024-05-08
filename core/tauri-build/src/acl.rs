@@ -131,13 +131,14 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
       permission_schemas.push(schema_from(key, set_id, Some(&set.description)));
     }
 
-    if let Some(default) = &manifest.default_permission {
-      permission_schemas.push(schema_from(
-        key,
-        "default",
-        Some(default.description.as_ref()),
-      ));
-    }
+    permission_schemas.push(schema_from(
+      key,
+      "default",
+      manifest
+        .default_permission
+        .as_ref()
+        .map(|d| d.description.as_ref()),
+    ));
 
     for (permission_id, permission) in &manifest.permissions {
       permission_schemas.push(schema_from(
@@ -198,9 +199,14 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
           };
 
           let mut permission_schemas = Vec::new();
-          if let Some(default) = &manifest.default_permission {
-            permission_schemas.push(schema_from(key, "default", Some(&default.description)));
-          }
+          permission_schemas.push(schema_from(
+            key,
+            "default",
+            manifest
+              .default_permission
+              .as_ref()
+              .map(|d| d.description.as_ref()),
+          ));
           for set in manifest.permission_sets.values() {
             permission_schemas.push(schema_from(key, &set.identifier, Some(&set.description)));
           }
@@ -354,10 +360,12 @@ pub fn inline_plugins(
       )?);
     } else {
       let default_permissions_path = Path::new("permissions").join(name);
-      println!(
-        "cargo:rerun-if-changed={}",
-        default_permissions_path.display()
-      );
+      if default_permissions_path.exists() {
+        println!(
+          "cargo:rerun-if-changed={}",
+          default_permissions_path.display()
+        );
+      }
       permission_files.extend(tauri_utils::acl::build::define_permissions(
         &default_permissions_path
           .join("**")
@@ -412,10 +420,12 @@ pub fn app_manifest_permissions(
     )?);
   } else {
     let default_permissions_path = Path::new("permissions");
-    println!(
-      "cargo:rerun-if-changed={}",
-      default_permissions_path.display()
-    );
+    if default_permissions_path.exists() {
+      println!(
+        "cargo:rerun-if-changed={}",
+        default_permissions_path.display()
+      );
+    }
 
     let permissions_root = current_dir()?.join("permissions");
     let inlined_plugins_permissions: Vec<_> = inlined_plugins
@@ -452,7 +462,12 @@ pub fn validate_capabilities(
   let target = tauri_utils::platform::Target::from_triple(&std::env::var("TARGET").unwrap());
 
   for capability in capabilities.values() {
-    if !capability.platforms.contains(&target) {
+    if !capability
+      .platforms
+      .as_ref()
+      .map(|platforms| platforms.contains(&target))
+      .unwrap_or(true)
+    {
       continue;
     }
 
@@ -466,12 +481,10 @@ pub fn validate_capabilities(
       let permission_exists = acl_manifests
         .get(key)
         .map(|manifest| {
-          if permission_name == "default" {
-            manifest.default_permission.is_some()
-          } else {
-            manifest.permissions.contains_key(permission_name)
-              || manifest.permission_sets.contains_key(permission_name)
-          }
+          // the default permission is always treated as valid, the CLI automatically adds it on the `tauri add` command
+          permission_name == "default"
+            || manifest.permissions.contains_key(permission_name)
+            || manifest.permission_sets.contains_key(permission_name)
         })
         .unwrap_or(false);
 

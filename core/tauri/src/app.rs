@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  image::Image,
   ipc::{
     channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
     InvokeHandler, InvokeResponder, InvokeResponse,
@@ -12,16 +13,17 @@ use crate::{
     AppManager, Asset,
   },
   plugin::{Plugin, PluginStore},
+  resources::ResourceTable,
   runtime::{
     window::{WebviewEvent as RuntimeWebviewEvent, WindowEvent as RuntimeWindowEvent},
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::Config,
-  utils::{assets::Assets, Env},
+  utils::Env,
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, EventLoopMessage, Image, Manager, Monitor, Runtime, Scopes,
-  StateManager, Theme, Webview, WebviewWindowBuilder, Window,
+  Context, DeviceEventFilter, EventLoopMessage, Manager, Monitor, Runtime, Scopes, StateManager,
+  Theme, Webview, WebviewWindowBuilder, Window,
 };
 
 #[cfg(desktop)]
@@ -34,10 +36,8 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
-  window::{
-    dpi::{PhysicalPosition, PhysicalSize},
-    FileDropEvent,
-  },
+  dpi::{PhysicalPosition, PhysicalSize},
+  window::DragDropEvent,
   RuntimeInitArgs,
 };
 use tauri_utils::PackageInfo;
@@ -46,7 +46,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc},
+  sync::{mpsc::Sender, Arc, MutexGuard},
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -131,8 +131,8 @@ pub enum WindowEvent {
     /// The window inner size.
     new_inner_size: PhysicalSize<u32>,
   },
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
   /// The system window theme has changed. Only delivered if the window [`theme`](`crate::window::WindowBuilder#method.theme`) is `None`.
   ///
   /// Applications might wish to react to this to change the theme of the content of the window when the system changes the window theme.
@@ -160,7 +160,7 @@ impl From<RuntimeWindowEvent> for WindowEvent {
         scale_factor,
         new_inner_size,
       },
-      RuntimeWindowEvent::FileDrop(event) => Self::FileDrop(event),
+      RuntimeWindowEvent::DragDrop(event) => Self::DragDrop(event),
       RuntimeWindowEvent::ThemeChanged(theme) => Self::ThemeChanged(theme),
     }
   }
@@ -170,14 +170,14 @@ impl From<RuntimeWindowEvent> for WindowEvent {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum WebviewEvent {
-  /// An event associated with the file drop action.
-  FileDrop(FileDropEvent),
+  /// An event associated with the drag and drop action.
+  DragDrop(DragDropEvent),
 }
 
 impl From<RuntimeWebviewEvent> for WebviewEvent {
   fn from(event: RuntimeWebviewEvent) -> Self {
     match event {
-      RuntimeWebviewEvent::FileDrop(e) => Self::FileDrop(e),
+      RuntimeWebviewEvent::DragDrop(e) => Self::DragDrop(e),
     }
   }
 }
@@ -195,7 +195,7 @@ pub enum RunEvent {
   ExitRequested {
     /// Exit code.
     /// [`Option::None`] when the exit is requested by user interaction,
-    /// [`Option::Some`] when requested programatically via [`AppHandle#method.exit`] and [`AppHandle#method.restart`].
+    /// [`Option::Some`] when requested programmatically via [`AppHandle#method.exit`] and [`AppHandle#method.restart`].
     code: Option<i32>,
     /// Event API
     api: ExitRequestApi,
@@ -220,7 +220,7 @@ pub enum RunEvent {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
@@ -239,6 +239,14 @@ pub enum RunEvent {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(crate::tray::TrayIconEvent),
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[non_exhaustive]
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -265,7 +273,7 @@ impl<R: Runtime> AssetResolver<R> {
   }
 
   /// Iterate on all assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
     self.manager.assets.iter()
   }
 }
@@ -417,7 +425,12 @@ impl<R: Runtime> AppHandle<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for AppHandle<R> {}
+impl<R: Runtime> Manager<R> for AppHandle<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self.manager.resources_table()
+  }
+}
+
 impl<R: Runtime> ManagerBase<R> for AppHandle<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
@@ -458,7 +471,12 @@ impl<R: Runtime> fmt::Debug for App<R> {
   }
 }
 
-impl<R: Runtime> Manager<R> for App<R> {}
+impl<R: Runtime> Manager<R> for App<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self.manager.resources_table()
+  }
+}
+
 impl<R: Runtime> ManagerBase<R> for App<R> {
   fn manager(&self) -> &AppManager<R> {
     &self.manager
@@ -508,13 +526,7 @@ macro_rules! shared_app_impl {
         &self,
         handler: F,
       ) {
-        self
-          .manager
-          .menu
-          .global_event_listeners
-          .lock()
-          .unwrap()
-          .push(Box::new(handler));
+        self.manager.menu.on_menu_event(handler)
       }
 
       /// Registers a global tray icon menu event listener.
@@ -524,35 +536,7 @@ macro_rules! shared_app_impl {
         &self,
         handler: F,
       ) {
-        self
-          .manager
-          .tray
-          .global_event_listeners
-          .lock()
-          .unwrap()
-          .push(Box::new(handler));
-      }
-
-      /// Gets the first tray icon registered,
-      /// usually the one configured in the Tauri configuration file.
-      #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-      pub fn tray(&self) -> Option<TrayIcon<R>> {
-        self.manager.tray.icons.lock().unwrap().first().cloned()
-      }
-
-      /// Removes the first tray icon registerd, usually the one configured in
-      /// tauri config file, from tauri's internal state and returns it.
-      ///
-      /// Note that dropping the returned icon, will cause the tray icon to disappear.
-      #[cfg(all(desktop, feature = "tray-icon"))]
-      #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
-      pub fn remove_tray(&self) -> Option<TrayIcon<R>> {
-        let mut icons = self.manager.tray.icons.lock().unwrap();
-        if !icons.is_empty() {
-          return Some(icons.swap_remove(0));
-        }
-        None
+        self.manager.tray.on_tray_icon_event(handler)
       }
 
       /// Gets a tray icon using the provided id.
@@ -563,20 +547,13 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        self
-          .manager
-          .tray
-          .icons
-          .lock()
-          .unwrap()
-          .iter()
-          .find(|t| t.id() == &id)
-          .cloned()
+        self.manager.tray.tray_by_id(id)
       }
 
       /// Removes a tray icon using the provided id from tauri's internal state and returns it.
       ///
-      /// Note that dropping the returned icon, will cause the tray icon to disappear.
+      /// Note that dropping the returned icon, may cause the tray icon to disappear
+      /// if it wasn't cloned somewhere else or referenced by JS.
       #[cfg(all(desktop, feature = "tray-icon"))]
       #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
       pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
@@ -584,12 +561,7 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        let mut icons = self.manager.tray.icons.lock().unwrap();
-        let idx = icons.iter().position(|t| t.id() == &id);
-        if let Some(idx) = idx {
-          return Some(icons.swap_remove(idx));
-        }
-        None
+        self.manager.tray.remove_tray_by_id(id)
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.
@@ -632,6 +604,23 @@ macro_rules! shared_app_impl {
           _ => unreachable!(),
         })
       }
+
+      /// Get the cursor position relative to the top-left hand corner of the desktop.
+      ///
+      /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+      /// If the user uses a desktop with multiple monitors,
+      /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+      /// or the top-left of the leftmost monitor on X11.
+      ///
+      /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+      pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.cursor_position()?,
+          RuntimeOrDispatch::RuntimeHandle(h) => h.cursor_position()?,
+          _ => unreachable!(),
+        })
+      }
+
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()
@@ -790,7 +779,15 @@ macro_rules! shared_app_impl {
       pub fn cleanup_before_exit(&self) {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
-        self.resources_table().clear();
+        self.manager.resources_table().clear();
+        for (_, window) in self.manager.windows() {
+          window.resources_table().clear();
+          #[cfg(windows)]
+          let _ = window.hide();
+        }
+        for (_, webview) in self.manager.webviews() {
+          webview.resources_table().clear();
+        }
       }
     }
 
@@ -1437,7 +1434,7 @@ tauri::Builder::default()
   /// ```
   /// tauri::Builder::default()
   ///   .on_webview_event(|window, event| match event {
-  ///     tauri::WebviewEvent::FileDrop(event) => {
+  ///     tauri::WebviewEvent::DragDrop(event) => {
   ///       println!("{:?}", event);
   ///     }
   ///     _ => {}
@@ -1580,7 +1577,7 @@ tauri::Builder::default()
     feature = "tracing",
     tracing::instrument(name = "app::build", skip_all)
   )]
-  pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
+  pub fn build(mut self, context: Context<R>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
       self.menu = Some(Box::new(|app_handle| {
@@ -1737,8 +1734,7 @@ tauri::Builder::default()
         if let Some(tooltip) = &tray_config.tooltip {
           tray = tray.tooltip(tooltip);
         }
-        let tray = tray.build(handle)?;
-        app.manager.tray.icons.lock().unwrap().push(tray);
+        tray.build(handle)?;
       }
     }
 
@@ -1748,7 +1744,7 @@ tauri::Builder::default()
   }
 
   /// Runs the configured Tauri application.
-  pub fn run<A: Assets>(self, context: Context<A>) -> crate::Result<()> {
+  pub fn run(self, context: Context<R>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())
   }
@@ -1822,6 +1818,8 @@ fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
     WebviewWindowBuilder::from_config(app.handle(), &window_config)?
       .build_internal(&window_labels, &webview_labels)?;
   }
+
+  app.manager.assets.setup(app);
 
   if let Some(setup) = app.setup.take() {
     (setup)(app).map_err(|e| crate::Error::Setup(e.into()))?;
@@ -1928,6 +1926,12 @@ fn on_event_loop_event<R: Runtime>(
     }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
+    #[cfg(target_os = "macos")]
+    RuntimeRunEvent::Reopen {
+      has_visible_windows,
+    } => RunEvent::Reopen {
+      has_visible_windows,
+    },
     _ => unimplemented!(),
   };
 

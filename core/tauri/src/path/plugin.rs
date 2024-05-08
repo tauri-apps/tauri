@@ -92,7 +92,7 @@ pub fn resolve_directory<R: Runtime>(
   directory: BaseDirectory,
   path: Option<PathBuf>,
 ) -> Result<PathBuf> {
-  super::resolve_path(&resolver, directory, path)
+  super::resolve_path(&resolver, directory, path).map(|p| dunce::simplified(&p).to_path_buf())
 }
 
 #[command(root = "crate")]
@@ -107,12 +107,12 @@ pub fn resolve(paths: Vec<String>) -> Result<PathBuf> {
   for p in paths {
     path.push(p);
   }
-  Ok(normalize_path(&path))
+  Ok(dunce::simplified(&normalize_path(&path)).to_path_buf())
 }
 
 #[command(root = "crate")]
 pub fn normalize(path: String) -> String {
-  let mut p = normalize_path_no_absolute(Path::new(&path))
+  let mut p = dunce::simplified(&normalize_path_no_absolute(Path::new(&path)))
     .to_string_lossy()
     .to_string();
 
@@ -149,9 +149,10 @@ pub fn join(mut paths: Vec<String>) -> String {
       .collect::<String>(),
   );
 
-  let p = normalize_path_no_absolute(&path)
+  let p = dunce::simplified(&normalize_path_no_absolute(&path))
     .to_string_lossy()
     .to_string();
+
   if p.is_empty() {
     ".".into()
   } else {
@@ -162,7 +163,7 @@ pub fn join(mut paths: Vec<String>) -> String {
 #[command(root = "crate")]
 pub fn dirname(path: String) -> Result<PathBuf> {
   match Path::new(&path).parent() {
-    Some(p) => Ok(p.to_path_buf()),
+    Some(p) => Ok(dunce::simplified(p).to_path_buf()),
     None => Err(Error::NoParent),
   }
 }
@@ -179,16 +180,17 @@ pub fn extname(path: String) -> Result<String> {
 }
 
 #[command(root = "crate")]
-pub fn basename(path: String, ext: Option<String>) -> Result<String> {
-  match Path::new(&path)
-    .file_name()
-    .and_then(std::ffi::OsStr::to_str)
-  {
-    Some(p) => Ok(if let Some(ext) = ext {
-      p.replace(ext.as_str(), "")
-    } else {
-      p.to_string()
-    }),
+pub fn basename(path: &str, ext: Option<&str>) -> Result<String> {
+  let file_name = Path::new(path).file_name().map(|f| f.to_string_lossy());
+  match file_name {
+    Some(p) => {
+      let maybe_stripped = if let Some(ext) = ext {
+        p.strip_suffix(ext).unwrap_or(&p).to_string()
+      } else {
+        p.to_string()
+      };
+      Ok(maybe_stripped)
+    }
     None => Err(Error::NoBasename),
   }
 }
@@ -244,4 +246,41 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       Ok(())
     })
     .build()
+}
+
+#[cfg(test)]
+mod tests {
+
+  #[test]
+  fn basename() {
+    let path = "/path/to/some-json-file.json";
+    assert_eq!(
+      super::basename(path, Some(".json")).unwrap(),
+      "some-json-file"
+    );
+
+    let path = "/path/to/some-json-file.json";
+    assert_eq!(
+      super::basename(path, Some("json")).unwrap(),
+      "some-json-file."
+    );
+
+    let path = "/path/to/some-json-file.html.json";
+    assert_eq!(
+      super::basename(path, Some(".json")).unwrap(),
+      "some-json-file.html"
+    );
+
+    let path = "/path/to/some-json-file.json.json";
+    assert_eq!(
+      super::basename(path, Some(".json")).unwrap(),
+      "some-json-file.json"
+    );
+
+    let path = "/path/to/some-json-file.json.html";
+    assert_eq!(
+      super::basename(path, Some(".json")).unwrap(),
+      "some-json-file.json.html"
+    );
+  }
 }

@@ -17,12 +17,12 @@ use cargo_mobile2::{
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 use std::{
-  ffi::{OsStr, OsString},
+  ffi::OsString,
   fs::{create_dir_all, OpenOptions},
   path::{Component, PathBuf},
 };
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/mobile/ios");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile/ios");
 
 // unprefixed app_root seems pretty dangerous!!
 // TODO: figure out what cargo-mobile meant by that

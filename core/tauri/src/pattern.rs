@@ -2,28 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::marker::PhantomData;
 #[cfg(feature = "isolation")]
 use std::sync::Arc;
 
 use serde::Serialize;
 use serialize_to_javascript::{default_template, Template};
 
-use tauri_utils::assets::{Assets, EmbeddedAssets};
-
 /// The domain of the isolation iframe source.
 pub const ISOLATION_IFRAME_SRC_DOMAIN: &str = "localhost";
 
 /// An application pattern.
 #[derive(Debug)]
-pub enum Pattern<A: Assets = EmbeddedAssets> {
+pub enum Pattern {
   /// The brownfield pattern.
-  Brownfield(PhantomData<A>),
+  Brownfield,
   /// Isolation pattern. Recommended for security purposes.
   #[cfg(feature = "isolation")]
   Isolation {
     /// The HTML served on `isolation://index.html`.
-    assets: Arc<A>,
+    assets: Arc<tauri_utils::assets::EmbeddedAssets>,
 
     /// The schema used for the isolation frames.
     schema: String,
@@ -55,7 +52,7 @@ pub(crate) enum PatternObject {
 impl From<&Pattern> for PatternObject {
   fn from(pattern: &Pattern) -> Self {
     match pattern {
-      Pattern::Brownfield(_) => Self::Brownfield,
+      Pattern::Brownfield => Self::Brownfield,
       #[cfg(feature = "isolation")]
       Pattern::Isolation { .. } => Self::Isolation {
         side: IsolationSide::default(),

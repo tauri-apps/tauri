@@ -2,27 +2,30 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use serde::Serialize;
+
 use crate::plugin::{Builder, TauriPlugin};
-use crate::{command, AppHandle, Image, Manager, ResourceId, Runtime};
+use crate::Manager;
+use crate::{command, image::Image, ResourceId, Runtime, Webview};
 
 #[command(root = "crate")]
 fn new<R: Runtime>(
-  app: AppHandle<R>,
+  webview: Webview<R>,
   rgba: Vec<u8>,
   width: u32,
   height: u32,
 ) -> crate::Result<ResourceId> {
   let image = Image::new_owned(rgba, width, height);
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   let rid = resources_table.add(image);
   Ok(rid)
 }
 
 #[cfg(any(feature = "image-ico", feature = "image-png"))]
 #[command(root = "crate")]
-fn from_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
+fn from_bytes<R: Runtime>(webview: Webview<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
   let image = Image::from_bytes(&bytes)?.to_owned();
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   let rid = resources_table.add(image);
   Ok(rid)
 }
@@ -33,41 +36,14 @@ fn from_bytes() -> std::result::Result<(), &'static str> {
   Err("from_bytes is only supported if the `image-ico` or `image-png` Cargo features are enabled")
 }
 
-#[cfg(feature = "image-ico")]
-#[command(root = "crate")]
-fn from_ico_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
-  let image = Image::from_ico_bytes(&bytes)?.to_owned();
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
-  Ok(rid)
-}
-
-#[cfg(not(feature = "image-ico"))]
-#[command(root = "crate")]
-fn from_ico_bytes() -> std::result::Result<(), &'static str> {
-  Err("from_ico_bytes is only supported if the `image-ico` Cargo feature is enabled")
-}
-
-#[cfg(feature = "image-png")]
-#[command(root = "crate")]
-fn from_png_bytes<R: Runtime>(app: AppHandle<R>, bytes: Vec<u8>) -> crate::Result<ResourceId> {
-  let image = Image::from_png_bytes(&bytes)?.to_owned();
-  let mut resources_table = app.resources_table();
-  let rid = resources_table.add(image);
-  Ok(rid)
-}
-
-#[cfg(not(feature = "image-png"))]
-#[command(root = "crate")]
-fn from_png_bytes() -> std::result::Result<(), &'static str> {
-  Err("from_png_bytes is only supported if the `image-ico` Cargo feature is enabled")
-}
-
 #[cfg(any(feature = "image-ico", feature = "image-png"))]
 #[command(root = "crate")]
-fn from_path<R: Runtime>(app: AppHandle<R>, path: std::path::PathBuf) -> crate::Result<ResourceId> {
+fn from_path<R: Runtime>(
+  webview: Webview<R>,
+  path: std::path::PathBuf,
+) -> crate::Result<ResourceId> {
   let image = Image::from_path(path)?.to_owned();
-  let mut resources_table = app.resources_table();
+  let mut resources_table = webview.resources_table();
   let rid = resources_table.add(image);
   Ok(rid)
 }
@@ -79,38 +55,33 @@ fn from_path() -> std::result::Result<(), &'static str> {
 }
 
 #[command(root = "crate")]
-fn rgba<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
-  let resources_table = app.resources_table();
+fn rgba<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<Vec<u8>> {
+  let resources_table = webview.resources_table();
   let image = resources_table.get::<Image<'_>>(rid)?;
   Ok(image.rgba().to_vec())
 }
 
-#[command(root = "crate")]
-fn width<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<u32> {
-  let resources_table = app.resources_table();
-  let image = resources_table.get::<Image<'_>>(rid)?;
-  Ok(image.width())
+#[derive(Serialize)]
+struct Size {
+  width: u32,
+  height: u32,
 }
 
 #[command(root = "crate")]
-fn height<R: Runtime>(app: AppHandle<R>, rid: ResourceId) -> crate::Result<u32> {
-  let resources_table = app.resources_table();
+fn size<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<Size> {
+  let resources_table = webview.resources_table();
   let image = resources_table.get::<Image<'_>>(rid)?;
-  Ok(image.height())
+  Ok(Size {
+    width: image.width(),
+    height: image.height(),
+  })
 }
 
 /// Initializes the plugin.
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("image")
     .invoke_handler(crate::generate_handler![
-      new,
-      from_bytes,
-      from_ico_bytes,
-      from_png_bytes,
-      from_path,
-      rgba,
-      width,
-      height
+      new, from_bytes, from_path, rgba, size
     ])
     .build()
 }

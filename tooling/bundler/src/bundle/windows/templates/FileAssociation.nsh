@@ -16,7 +16,7 @@
 ;   !insertmacro APP_ASSOCIATE "txt" "myapp.textfile" "Description of txt files" \
 ;     "$INSTDIR\myapp.exe,0" "Open with myapp" "$INSTDIR\myapp.exe $\"%1$\""
 ;
-; Never insert the APP_ASSOCIATE macro multiple times, it is only ment
+; Never insert the APP_ASSOCIATE macro multiple times, it is only meant
 ; to associate an application with a single file and using the
 ; the "open" verb as default. To add more verbs (actions) to a file
 ; use the APP_ASSOCIATE_ADDVERB macro.

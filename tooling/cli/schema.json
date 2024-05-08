@@ -221,8 +221,8 @@
             "null"
           ]
         },
-        "fileDropEnabled": {
-          "description": "Whether the file drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use drag and drop on the frontend on Windows.",
+        "dragDropEnabled": {
+          "description": "Whether the drag and drop is enabled or not on the webview. By default it is enabled.\n\nDisabling it is required to use HTML5 drag and drop on the frontend on Windows.",
           "default": true,
           "type": "boolean"
         },
@@ -450,6 +450,11 @@
             "null"
           ],
           "format": "uri"
+        },
+        "zoomHotkeysEnabled": {
+          "description": "Whether page zooming by hotkeys is enabled\n\n## Platform-specific:\n\n- **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting. - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`, 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission\n\n- **Android / iOS**: Unsupported.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -1072,8 +1077,7 @@
       "type": "object",
       "required": [
         "identifier",
-        "permissions",
-        "windows"
+        "permissions"
       ],
       "properties": {
         "identifier": {
@@ -1124,14 +1128,10 @@
         },
         "platforms": {
           "description": "Target platforms this capability applies. By default all platforms are affected by this capability.",
-          "default": [
-            "linux",
-            "macOS",
-            "windows",
-            "android",
-            "iOS"
+          "type": [
+            "array",
+            "null"
           ],
-          "type": "array",
           "items": {
             "$ref": "#/definitions/Target"
           }
@@ -1146,7 +1146,7 @@
       ],
       "properties": {
         "urls": {
-          "description": "Remote domains this capability refers to. Can use glob patterns.",
+          "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).\n\n# Examples\n\n- \"https://*.mydomain.dev\": allows subdomains of mydomain.dev - \"https://mydomain.dev/api/*\": allows any subpath of mydomain.dev/api",
           "type": "array",
           "items": {
             "type": "string"
@@ -2427,6 +2427,36 @@
             "type": "string"
           }
         },
+        "provides": {
+          "description": "The list of dependencies the package provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of package conflicts.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "The list of package replaces.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "files": {
           "description": "The files to include on the package.",
           "default": {},
@@ -2434,13 +2464,6 @@
           "additionalProperties": {
             "type": "string"
           }
-        },
-        "desktopTemplate": {
-          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
-          "type": [
-            "string",
-            "null"
-          ]
         },
         "section": {
           "description": "Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections",
@@ -2462,6 +2485,41 @@
             "string",
             "null"
           ]
+        },
+        "desktopTemplate": {
+          "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -2472,6 +2530,36 @@
       "properties": {
         "depends": {
           "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "The list of RPM dependencies your application provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of RPM dependencies your application conflicts with. They must not be present in order for the package to be installed.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "obsoletes": {
+          "description": "The list of RPM dependencies your application supersedes - if this package is installed, packages listed as “obsoletes” will be automatically removed (if they are present).",
           "type": [
             "array",
             "null"
@@ -2502,6 +2590,34 @@
         },
         "desktopTemplate": {
           "description": "Path to a custom desktop file Handlebars template.\n\nAvailable variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preInstallScript": {
+          "description": "Path to script that will be executed before the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postInstallScript": {
+          "description": "Path to script that will be executed after the package is unpacked. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preRemoveScript": {
+          "description": "Path to script that will be executed before the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "postRemoveScript": {
+          "description": "Path to script that will be executed after the package is removed. See http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
           "type": [
             "string",
             "null"

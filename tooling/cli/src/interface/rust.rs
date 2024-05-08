@@ -263,7 +263,11 @@ struct IgnoreMatcher(Vec<Gitignore>);
 impl IgnoreMatcher {
   fn is_ignore(&self, path: &Path, is_dir: bool) -> bool {
     for gitignore in &self.0 {
-      if gitignore.matched(path, is_dir).is_ignore() {
+      if path.starts_with(gitignore.path())
+        && gitignore
+          .matched_path_or_any_parents(path, is_dir)
+          .is_ignore()
+      {
         return true;
       }
     }
@@ -776,7 +780,7 @@ impl WindowsUpdateInstallMode {
 }
 
 #[derive(Default, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdaterWindowsConfig {
   #[serde(default, alias = "install-mode")]
   pub install_mode: WindowsUpdateInstallMode,
@@ -1127,7 +1131,7 @@ fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   if !output.status.success() {
     return Err(anyhow::anyhow!(
       "cargo metadata command exited with a non zero exit code: {}",
-      String::from_utf8(output.stderr)?
+      String::from_utf8_lossy(&output.stderr)
     ));
   }
 
@@ -1208,6 +1212,7 @@ fn tauri_config_to_bundle_settings(
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
   let mut depends_deb = config.linux.deb.depends.unwrap_or_default();
+
   #[allow(unused_mut)]
   let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
@@ -1330,11 +1335,18 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_deb)
       },
+      provides: config.linux.deb.provides,
+      conflicts: config.linux.deb.conflicts,
+      replaces: config.linux.deb.replaces,
       files: config.linux.deb.files,
       desktop_template: config.linux.deb.desktop_template,
       section: config.linux.deb.section,
       priority: config.linux.deb.priority,
       changelog: config.linux.deb.changelog,
+      pre_install_script: config.linux.deb.pre_install_script,
+      post_install_script: config.linux.deb.post_install_script,
+      pre_remove_script: config.linux.deb.pre_remove_script,
+      post_remove_script: config.linux.deb.post_remove_script,
     },
     appimage: AppImageSettings {
       files: config.linux.appimage.files,
@@ -1345,10 +1357,17 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_rpm)
       },
+      provides: config.linux.rpm.provides,
+      conflicts: config.linux.rpm.conflicts,
+      obsoletes: config.linux.rpm.obsoletes,
       release: config.linux.rpm.release,
       epoch: config.linux.rpm.epoch,
       files: config.linux.rpm.files,
       desktop_template: config.linux.rpm.desktop_template,
+      pre_install_script: config.linux.rpm.pre_install_script,
+      post_install_script: config.linux.rpm.post_install_script,
+      pre_remove_script: config.linux.rpm.pre_remove_script,
+      post_remove_script: config.linux.rpm.post_remove_script,
     },
     dmg: DmgSettings {
       background: config.macos.dmg.background,

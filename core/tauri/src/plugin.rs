@@ -518,7 +518,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// # Known limitations
   ///
-  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registed after a webview has been created, this protocol won't be available.
+  /// URI scheme protocols are registered when the webview is created. Due to this limitation, if the plugin is registered after a webview has been created, this protocol won't be available.
   ///
   /// # Arguments
   ///
@@ -677,7 +677,12 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
           name: self.name,
           handle: app.clone(),
           raw_config: Arc::new(config.clone()),
-          config: serde_json::from_value(config)?,
+          config: serde_json::from_value(config).map_err(|err| {
+            format!(
+              "Error deserializing 'plugins.{}' within your Tauri configuration: {err}",
+              self.name
+            )
+          })?,
         },
       )?;
     }
@@ -783,14 +788,13 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Generates an initialization script from all plugins in the store.
-  pub(crate) fn initialization_script(&self) -> String {
+  pub(crate) fn initialization_script(&self) -> Vec<String> {
     self
       .store
       .iter()
       .filter_map(|p| p.initialization_script())
-      .fold(String::new(), |acc, script| {
-        format!("{acc}\n(function () {{ {script} }})();")
-      })
+      .map(|script| format!("(function () {{ {script} }})();"))
+      .collect()
   }
 
   /// Runs the created hook for all plugins in the store.

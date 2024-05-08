@@ -5,17 +5,14 @@
 use crate::Result;
 
 use serde_json::{Map, Value};
-use tauri_utils::{
-  acl::{
-    capability::{Capability, PermissionEntry},
-    Scopes, Value as AclValue,
-  },
-  platform::Target,
+use tauri_utils::acl::{
+  capability::{Capability, PermissionEntry},
+  Scopes, Value as AclValue,
 };
 
 use std::{
   collections::{BTreeMap, HashSet},
-  fs::{create_dir_all, write},
+  fs,
   path::Path,
 };
 
@@ -24,7 +21,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
     let migrated = migrate_config(&mut config)?;
-    write(&config_path, serde_json::to_string_pretty(&config)?)?;
+    fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
 
     let mut permissions: Vec<PermissionEntry> = vec![
       "path:default",
@@ -41,8 +38,8 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
-    create_dir_all(&capabilities_path)?;
-    write(
+    fs::create_dir_all(&capabilities_path)?;
+    fs::write(
       capabilities_path.join("migrated.json"),
       serde_json::to_string_pretty(&Capability {
         identifier: "migrated".to_string(),
@@ -52,13 +49,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         windows: vec!["main".into()],
         webviews: vec![],
         permissions,
-        platforms: vec![
-          Target::Linux,
-          Target::MacOS,
-          Target::Windows,
-          Target::Android,
-          Target::Ios,
-        ],
+        platforms: None,
       })?,
     )?;
 

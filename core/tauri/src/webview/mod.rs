@@ -13,14 +13,14 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
-use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
-  WebviewDispatch,
-};
 #[cfg(desktop)]
 use tauri_runtime::{
-  window::dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   WindowDispatch,
+};
+use tauri_runtime::{
+  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  Rect, WebviewDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
@@ -34,14 +34,14 @@ use crate::{
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Event, EventId, EventLoopMessage, Manager, Runtime, Window,
+  AppHandle, Event, EventId, EventLoopMessage, Manager, ResourceTable, Runtime, Window,
 };
 
 use std::{
   borrow::Cow,
   hash::{Hash, Hasher},
   path::PathBuf,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, MutexGuard},
 };
 
 pub(crate) type WebResourceRequestHandler =
@@ -54,8 +54,8 @@ pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send +
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
-struct CreatedEvent {
-  label: String,
+pub(crate) struct CreatedEvent {
+  pub(crate) label: String,
 }
 
 /// Download event for the [`WebviewBuilder#method.on_download`] hook.
@@ -118,6 +118,8 @@ pub struct InvokeRequest {
   pub callback: CallbackFn,
   /// The error callback.
   pub error: CallbackFn,
+  /// URL of the frame that requested this command.
+  pub url: Url,
   /// The body of the request.
   pub body: InvokeBody,
   /// The request headers.
@@ -571,9 +573,6 @@ tauri::Builder::default()
       .on_page_load_handler
       .replace(Box::new(move |url, event| {
         if let Some(w) = manager_.get_webview(&label_) {
-          if let PageLoadEvent::Finished = event {
-            w.unlisten_all_js();
-          }
           if let Some(handler) = self.on_page_load_handler.as_ref() {
             handler(w, PageLoadPayload { url: &url, event });
           }
@@ -619,29 +618,13 @@ tauri::Builder::default()
     let mut pending =
       self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
 
-    pending.webview_attributes.bounds = Some((position, size));
+    pending.webview_attributes.bounds = Some(Rect { size, position });
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
       _ => unimplemented!(),
     }
     .map(|webview| app_manager.webview.attach_webview(window.clone(), webview))?;
-
-    app_manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&app_manager.webview.labels())?,
-    ))?;
-
-    app_manager.emit_filter(
-      "tauri://webview-created",
-      Some(CreatedEvent {
-        label: webview.label().into(),
-      }),
-      |s| match s {
-        EventTarget::Webview { label } => label == webview.label(),
-        _ => false,
-      },
-    )?;
 
     Ok(webview)
   }
@@ -733,10 +716,10 @@ fn main() {
     self
   }
 
-  /// Disables the file drop handler. This is required to use drag and drop APIs on the front end on Windows.
+  /// Disables the drag and drop handler. This is required to use HTML5 drag and drop APIs on the frontend on Windows.
   #[must_use]
-  pub fn disable_file_drop_handler(mut self) -> Self {
-    self.webview_attributes.file_drop_handler_enabled = false;
+  pub fn disable_drag_drop_handler(mut self) -> Self {
+    self.webview_attributes.drag_drop_handler_enabled = false;
     self
   }
 
@@ -792,6 +775,21 @@ fn main() {
     self.webview_attributes.auto_resize = true;
     self
   }
+
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
+  #[must_use]
+  pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes.zoom_hotkeys_enabled = enabled;
+    self
+  }
 }
 
 /// Webview.
@@ -803,6 +801,7 @@ pub struct Webview<R: Runtime> {
   pub(crate) app_handle: AppHandle<R>,
   /// The webview created by the runtime.
   pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
+  pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
@@ -821,6 +820,7 @@ impl<R: Runtime> Clone for Webview<R> {
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
       webview: self.webview.clone(),
+      resources_table: self.resources_table.clone(),
     }
   }
 }
@@ -849,6 +849,7 @@ impl<R: Runtime> Webview<R> {
       manager: window.manager.clone(),
       app_handle: window.app_handle.clone(),
       webview,
+      resources_table: Default::default(),
     }
   }
 
@@ -894,11 +895,32 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.print().map_err(Into::into)
   }
 
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
+  }
+
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
     self.webview.dispatcher.close()?;
     self.manager().on_webview_close(self.label());
     Ok(())
+  }
+
+  /// Resizes this webview.
+  pub fn set_bounds(&self, bounds: Rect) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_bounds(bounds)
+      .map_err(Into::into)
   }
 
   /// Resizes this webview.
@@ -946,6 +968,11 @@ impl<R: Runtime> Webview<R> {
       .dispatcher
       .set_auto_resize(auto_resize)
       .map_err(Into::into)
+  }
+
+  /// Returns the bounds of the webviews's client area.
+  pub fn bounds(&self) -> crate::Result<Rect> {
+    self.webview.dispatcher.bounds().map_err(Into::into)
   }
 
   /// Returns the webview position.
@@ -1046,9 +1073,12 @@ fn main() {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
-    self.webview.dispatcher.url().unwrap()
+  pub fn url(&self) -> crate::Result<Url> {
+    self
+      .webview
+      .dispatcher
+      .url()
+      .map(|url| url.parse().map_err(crate::Error::InvalidUrl))?
   }
 
   /// Navigates the webview to the defined url.
@@ -1100,8 +1130,7 @@ fn main() {
   /// Handles this window receiving an [`InvokeRequest`].
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
-    let current_url = self.url();
-    let is_local = self.is_local_url(&current_url);
+    let is_local = self.is_local_url(&request.url);
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
@@ -1137,7 +1166,7 @@ fn main() {
       Origin::Local
     } else {
       Origin::Remote {
-        url: current_url.to_string(),
+        url: request.url.clone(),
       }
     };
     let (resolved_acl, has_app_acl_manifest) = {
@@ -1297,22 +1326,16 @@ fn main() {
       id,
     ))?;
 
-    listeners.unlisten_js(id);
+    listeners.unlisten_js(event, id);
 
     Ok(())
   }
 
-  /// Unregister all JS event listeners.
-  pub(crate) fn unlisten_all_js(&self) {
-    let listeners = self.manager().listeners();
-    listeners.unlisten_all_js(self.label());
-  }
-
-  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, target: &EventTarget) -> crate::Result<()> {
+  pub(crate) fn emit_js(&self, emit_args: &EmitArgs, ids: &[u32]) -> crate::Result<()> {
     self.eval(&crate::event::emit_js_script(
       self.manager().listeners().function_name(),
       emit_args,
-      &serde_json::to_string(target)?,
+      &serde_json::to_string(ids)?,
     )?)?;
     Ok(())
   }
@@ -1424,6 +1447,21 @@ tauri::Builder::default()
       .is_devtools_open()
       .unwrap_or_default()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_zoom(scale_factor)
+      .map_err(Into::into)
+  }
 }
 
 /// Event system APIs.
@@ -1512,7 +1550,14 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Manager<R> for Webview<R> {}
+impl<R: Runtime> Manager<R> for Webview<R> {
+  fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {
+    self
+      .resources_table
+      .lock()
+      .expect("poisoned window resources table")
+  }
+}
 
 impl<R: Runtime> ManagerBase<R> for Webview<R> {
   fn manager(&self) -> &AppManager<R> {

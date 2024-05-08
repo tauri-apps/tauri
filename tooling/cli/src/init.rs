@@ -22,7 +22,7 @@ use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use include_dir::{include_dir, Dir};
 
-const TEMPLATE_DIR: Dir<'_> = include_dir!("templates/app");
+const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/app");
 const TAURI_CONF_TEMPLATE: &str = include_str!("../templates/tauri.conf.json");
 
 #[derive(Debug, Parser)]
@@ -89,18 +89,28 @@ impl Options {
     self.app_name = self.app_name.map(|s| Ok(Some(s))).unwrap_or_else(|| {
       prompts::input(
         "What is your app name?",
-        init_defaults.app_name.clone(),
+        Some(
+          init_defaults
+            .app_name
+            .clone()
+            .unwrap_or_else(|| "Tauri App".to_string()),
+        ),
         self.ci,
-        false,
+        true,
       )
     })?;
 
     self.window_title = self.window_title.map(|s| Ok(Some(s))).unwrap_or_else(|| {
       prompts::input(
         "What should the window title be?",
-        init_defaults.app_name.clone(),
+        Some(
+          init_defaults
+            .app_name
+            .clone()
+            .unwrap_or_else(|| "Tauri".to_string()),
+        ),
         self.ci,
-        false,
+        true,
       )
     })?;
 
@@ -116,7 +126,7 @@ impl Options {
         "What is the url of your dev server?",
         init_defaults.framework.map(|f| f.dev_url()),
         self.ci,
-        false,
+        true,
       )
     })?;
 
@@ -131,6 +141,7 @@ impl Options {
           true,
         )
       })?;
+
     self.before_build_command = self
       .before_build_command
       .map(|s| Ok(Some(s)))
@@ -186,35 +197,21 @@ pub fn command(mut options: Options) -> Result<()> {
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert(
       "frontend_dist",
-      to_json(
-        options
-          .frontend_dist
-          .unwrap_or_else(|| "../dist".to_string()),
-      ),
+      to_json(options.frontend_dist.as_deref().unwrap_or("../dist")),
     );
-    data.insert(
-      "dev_url",
-      to_json(
-        options
-          .dev_url
-          .unwrap_or_else(|| "http://localhost:4000".to_string()),
-      ),
-    );
+    data.insert("dev_url", to_json(options.dev_url));
     data.insert(
       "app_name",
-      to_json(options.app_name.unwrap_or_else(|| "Tauri App".to_string())),
+      to_json(options.app_name.as_deref().unwrap_or("Tauri App")),
     );
     data.insert(
       "window_title",
-      to_json(options.window_title.unwrap_or_else(|| "Tauri".to_string())),
+      to_json(options.window_title.as_deref().unwrap_or("Tauri")),
     );
-    data.insert(
-      "before_dev_command",
-      to_json(options.before_dev_command.unwrap_or_default()),
-    );
+    data.insert("before_dev_command", to_json(options.before_dev_command));
     data.insert(
       "before_build_command",
-      to_json(options.before_build_command.unwrap_or_default()),
+      to_json(options.before_build_command),
     );
 
     let mut config = serde_json::from_str(

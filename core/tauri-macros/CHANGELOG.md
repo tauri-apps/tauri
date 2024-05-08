@@ -1,5 +1,65 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-codegen@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-codegen@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-codegen@2.0.0-beta.12`
+
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+- Upgraded to `tauri-codegen@2.0.0-beta.11`
+
+## \[2.0.0-beta.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+- Upgraded to `tauri-codegen@2.0.0-beta.10`
+
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`ba0206d8a`](https://www.github.com/tauri-apps/tauri/commit/ba0206d8a30a9b43ec5090dcaabd1a23baa1420c)([#9141](https://www.github.com/tauri-apps/tauri/pull/9141)) The `Context` codegen now accepts a `assets` input to define a custom `tauri::Assets` implementation.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.9`
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+- Upgraded to `tauri-codegen@2.0.0-beta.8`
+
+## \[2.0.0-beta.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+- Upgraded to `tauri-codegen@2.0.0-beta.7`
+
 ## \[2.0.0-beta.6]
 
 ### Dependencies

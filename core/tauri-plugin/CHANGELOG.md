@@ -1,5 +1,62 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### Enhancements
+
+- [`bf2635ab6`](https://www.github.com/tauri-apps/tauri/commit/bf2635ab6241a5b82569eafc939046d6e245f3ad)([#9632](https://www.github.com/tauri-apps/tauri/pull/9632)) Improve the error message that is shown when the `links` property is missing from a Tauri Plugin.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+
+## \[2.0.0-beta.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.11`
+
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`e227fe02f`](https://www.github.com/tauri-apps/tauri/commit/e227fe02f986e145c0731a64693e1c830a9eb5b0)([#9156](https://www.github.com/tauri-apps/tauri/pull/9156)) Allow plugins to define (at compile time) JavaScript that are initialized when `withGlobalTauri` is true.
+- [`e227fe02f`](https://www.github.com/tauri-apps/tauri/commit/e227fe02f986e145c0731a64693e1c830a9eb5b0)([#9156](https://www.github.com/tauri-apps/tauri/pull/9156)) Added `Builder::global_api_script_path` to define a JavaScript file containing the initialization script for the plugin API bindings when `withGlobalTauri` is used.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.10`
+
+## \[2.0.0-beta.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.9`
+
+## \[2.0.0-beta.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.8`
+
+## \[2.0.0-beta.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.7`
+
 ## \[2.0.0-beta.6]
 
 ### Dependencies

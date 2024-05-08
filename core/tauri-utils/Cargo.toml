@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "1.5.3"
+version = "1.5.4"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
@@ -22,7 +22,7 @@ html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
-schemars = { version = "0.8", features = [ "url" ], optional = true }
+schemars = { version = "0.8.18", features = [ "url" ], optional = true }
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.2", optional = true, features = [ "std" ] }

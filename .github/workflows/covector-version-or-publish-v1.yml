@@ -74,7 +74,7 @@ jobs:
           cargo update -p colored --precise 2.0.2
           cargo update -p arboard --precise 3.2.1
           cargo update -p tempfile --precise 3.6.0
-          cargo update -p serde_with:3.7.0 --precise 3.0.0
+          cargo update -p serde_with:3.8.1 --precise 3.0.0
           cargo update -p tokio --precise 1.29.0
           cargo update -p flate2 --precise 1.0.26
           cargo update -p h2 --precise 0.3.20
@@ -105,6 +105,7 @@ jobs:
           cargo update -p tree_magic_mini --precise 3.0.3
           cargo update -p tokio-test --precise 0.4.3
           cargo update -p tokio-stream --precise 0.1.14
+          cargo update -p tokio-util --precise 0.7.10
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

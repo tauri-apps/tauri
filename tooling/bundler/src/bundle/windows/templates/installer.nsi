@@ -551,7 +551,7 @@ Section Install
 
   ; Copy external binaries
   {{#each binaries}}
-    File /a "/oname={{unescape-dollar-sign this}}" "{{unescape-dollar-sign @key}}"
+    File /a "/oname={{this}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Create uninstaller

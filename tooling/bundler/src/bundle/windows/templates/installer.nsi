@@ -12,11 +12,15 @@ ManifestDPIAware true
 !include x64.nsh
 !include WordFunc.nsh
 !include "FileAssociation.nsh"
-!include "StrFunc.nsh"
 !include "Win\COM.nsh"
 !include "Win\Propkey.nsh"
+!include "StrFunc.nsh"
 ${StrCase}
 ${StrLoc}
+
+{{#if installer_hooks}}
+!include "{{installer_hooks}}"
+{{/if}}
 
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
@@ -546,6 +550,10 @@ Section Install
 
   !insertmacro CheckIfAppIsRunning
 
+  !ifdef NSIS_HOOK_PREINSTALL
+    !insertmacro "${NSIS_HOOK_PREINSTALL}"
+  !endif
+
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
 
@@ -618,6 +626,10 @@ Section Install
       Call CreateStartMenuShortcut
   shortcuts_done:
 
+  !ifdef NSIS_HOOK_POSTINSTALL
+    !insertmacro "${NSIS_HOOK_POSTINSTALL}"
+  !endif
+
   ; Auto close this page for passive mode
   ${IfThen} $PassiveMode == 1 ${|} SetAutoClose true ${|}
 SectionEnd
@@ -677,6 +689,10 @@ FunctionEnd
 
 Section Uninstall
   !insertmacro CheckIfAppIsRunning
+
+  !ifdef NSIS_HOOK_PREUNINSTALL
+    !insertmacro "${NSIS_HOOK_PREUNINSTALL}"
+  !endif
 
   ; Delete the app directory and its content from disk
   ; Copy main executable
@@ -746,6 +762,11 @@ Section Uninstall
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}
 
+  !ifdef NSIS_HOOK_POSTUNINSTALL
+    !insertmacro "${NSIS_HOOK_POSTUNINSTALL}"
+  !endif
+
+  ; Auto close if passive mode
   ${GetOptions} $CMDLINE "/P" $R0
   IfErrors +2 0
     SetAutoClose true

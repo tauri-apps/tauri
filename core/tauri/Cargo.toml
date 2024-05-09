@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.6.4"
+version = "1.6.5"
 
 [package.metadata.docs.rs]
 no-default-features = true

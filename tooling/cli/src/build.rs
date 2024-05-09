@@ -90,7 +90,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let app_settings = interface.app_settings();
 
-  if !options.no_bundle && (options.bundles.is_some() && config_.bundle.active) {
+  if !options.no_bundle && (config_.bundle.active || options.bundle.is_some()) {
     crate::bundle::bundle(
       &options.into(),
       verbosity,

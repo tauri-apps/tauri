@@ -17,6 +17,7 @@ pub use anyhow::Result;
 mod acl;
 mod add;
 mod build;
+mod bundle;
 mod completions;
 mod dev;
 mod helpers;
@@ -135,6 +136,7 @@ enum Commands {
   Init(init::Options),
   Dev(dev::Options),
   Build(build::Options),
+  Bundle(bundle::Options),
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
@@ -238,6 +240,7 @@ where
 
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
+    Commands::Bundle(options) => bundle::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Add(options) => add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,

@@ -345,14 +345,11 @@ pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
-  pub fn remove_window_draw(&self, window_id: TaoWindowId) {
-    let mut store = self.0.borrow_mut();
-    if let Some(index) = store
-      .iter()
-      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
-    {
-      store.remove(index);
-    }
+  pub fn remove_window_draw(&self) {
+    self
+      .0
+      .borrow_mut()
+      .retain(|t| !matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }));
   }
 }
 
@@ -1190,7 +1187,7 @@ pub enum WebviewMessage {
   SetAutoResize(bool),
   SetZoom(f64),
   // Getters
-  Url(Sender<Result<Url>>),
+  Url(Sender<Result<String>>),
   Bounds(Sender<Result<tauri_runtime::Rect>>),
   Position(Sender<Result<PhysicalPosition<i32>>>),
   Size(Sender<Result<PhysicalSize<u32>>>),
@@ -1305,7 +1302,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   // Getters
 
-  fn url(&self) -> Result<Url> {
+  fn url(&self) -> Result<String> {
     webview_getter!(self, WebviewMessage::Url)?
   }
 
@@ -3242,9 +3239,8 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Exit);
     }
 
-    #[cfg(any(feature = "tracing", windows))]
+    #[cfg(windows)]
     Event::RedrawRequested(id) => {
-      #[cfg(windows)]
       if let Some(window_id) = window_id_map.get(&id) {
         let mut windows_ref = windows.0.borrow_mut();
         if let Some(window) = windows_ref.get_mut(&window_id) {
@@ -3257,9 +3253,11 @@ fn handle_event_loop<T: UserEvent>(
           }
         }
       }
+    }
 
-      #[cfg(feature = "tracing")]
-      active_tracing_spans.remove_window_draw(id);
+    #[cfg(feature = "tracing")]
+    Event::RedrawEventsCleared => {
+      active_tracing_spans.remove_window_draw();
     }
 
     Event::UserEvent(Message::Webview(
@@ -3441,6 +3439,13 @@ fn handle_event_loop<T: UserEvent>(
     Event::Opened { urls } => {
       callback(RunEvent::Opened { urls });
     }
+    #[cfg(target_os = "macos")]
+    Event::Reopen {
+      has_visible_windows,
+      ..
+    } => callback(RunEvent::Reopen {
+      has_visible_windows,
+    }),
     _ => (),
   }
 }
@@ -4107,7 +4112,7 @@ fn inner_size(
   webviews: &[WebviewWrapper],
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
-  if !has_children && webviews.len() > 0 {
+  if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
     let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
@@ -4136,8 +4141,10 @@ fn calculate_window_center_position(
   {
     use tao::platform::windows::MonitorHandleExtWindows;
     use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
-    let mut monitor_info = MONITORINFO::default();
-    monitor_info.cbSize = std::mem::size_of::<MONITORINFO>() as u32;
+    let mut monitor_info = MONITORINFO {
+      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+      ..Default::default()
+    };
     let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
     if status.into() {
       let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;

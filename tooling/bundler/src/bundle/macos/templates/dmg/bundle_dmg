@@ -358,7 +358,7 @@ else
 			| perl -pe "s/APPLICATION_CLAUSE/$APPLICATION_CLAUSE/g" \
 			| perl -pe "s/HIDING_CLAUSE/$HIDING_CLAUSE/" \
 			> "$APPLESCRIPT_FILE"
-		sleep 2 # pause to workaround occasional "Can’t get disk" (-1728) issues
+		sleep 2 # pause to workaround occasional "Can't get disk" (-1728) issues
 		echo "Running AppleScript to make Finder stuff pretty: /usr/bin/osascript \"${APPLESCRIPT_FILE}\" \"${VOLUME_NAME}\""
 		if /usr/bin/osascript "${APPLESCRIPT_FILE}" "${VOLUME_NAME}"; then
 			# Okay, we're cool

@@ -220,7 +220,7 @@ pub enum RunEvent {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
@@ -239,6 +239,14 @@ pub enum RunEvent {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(crate::tray::TrayIconEvent),
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[non_exhaustive]
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -1918,6 +1926,12 @@ fn on_event_loop_event<R: Runtime>(
     }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
+    #[cfg(target_os = "macos")]
+    RuntimeRunEvent::Reopen {
+      has_visible_windows,
+    } => RunEvent::Reopen {
+      has_visible_windows,
+    },
     _ => unimplemented!(),
   };
 

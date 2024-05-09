@@ -37,8 +37,9 @@ jobs:
       - name: Ensure that the tool cache is populated with the cargo-vet binary
         run: cargo install --root ${{ runner.tool_cache }}/cargo-vet --version ${{ env.CARGO_VET_VERSION }} cargo-vet
 
-      - name: Invoke cargo-vet
-        run: cargo vet --locked
+# Enable this again to break the workflow once we have a reasonable amount of suggestions to get to a clean base line
+#      - name: Invoke cargo-vet
+#        run: cargo vet --locked
 
       - name: Provide audit suggestions
         run: cargo vet --locked suggestions

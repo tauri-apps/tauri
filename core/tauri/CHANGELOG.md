@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.6.5]
+
+### Bug Fixes
+
+- [`ef35a793c`](https://www.github.com/tauri-apps/tauri/commit/ef35a793c5d923d55e338b51e04e6c280f7c810d)([#9729](https://www.github.com/tauri-apps/tauri/pull/9729)) Fix compilation error when `shell-execute` or `shell-sidecar` features are not active
+
 ## \[1.6.4]
 
 ### Enhancements

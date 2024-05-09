@@ -101,67 +101,47 @@ struct ChildProcessReturn {
 
 impl Cmd {
   #[module_command_handler(shell_script)]
-  #[allow(unused_variables)]
   fn execute_and_return<R: Runtime>(
     context: InvokeContext<R>,
     program: String,
     args: ExecuteArgs,
     options: CommandOptions,
   ) -> super::Result<ChildProcessReturn> {
-    let mut command = prepare_cmd(&context, &program, args, &options)?;
+    let encoding = options
+      .encoding
+      .as_ref()
+      .and_then(|encoding| crate::api::process::Encoding::for_label(encoding.as_bytes()));
+    let command = prepare_cmd(&context, &program, args, options)?;
 
-    #[cfg(any(shell_execute, shell_sidecar))]
-    {
-      if let Some(cwd) = options.cwd {
-        command = command.current_dir(cwd);
-      }
-      if let Some(env) = options.env {
-        command = command.envs(env);
-      } else {
-        command = command.env_clear();
-      }
+    let mut command: std::process::Command = command.into();
+    let output = command.output()?;
 
-      let encoding = if let Some(encoding) = options.encoding {
-        if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
-          Some(encoding)
-        } else {
-          return Err(anyhow::anyhow!(format!("unknown encoding {encoding}")));
-        }
-      } else {
-        None
-      };
+    let (stdout, stderr) = match encoding {
+      Some(encoding) => (
+        encoding.decode_with_bom_removal(&output.stdout).0.into(),
+        encoding.decode_with_bom_removal(&output.stderr).0.into(),
+      ),
+      None => (
+        String::from_utf8(output.stdout)?,
+        String::from_utf8(output.stderr)?,
+      ),
+    };
 
-      let mut command: std::process::Command = command.into();
-      let output = command.output()?;
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
 
-      let (stdout, stderr) = match encoding {
-        Some(encoding) => (
-          encoding.decode_with_bom_removal(&output.stdout).0.into(),
-          encoding.decode_with_bom_removal(&output.stderr).0.into(),
-        ),
-        None => (
-          String::from_utf8(output.stdout)?,
-          String::from_utf8(output.stderr)?,
-        ),
-      };
-
+    Ok(ChildProcessReturn {
+      code: output.status.code(),
+      #[cfg(windows)]
+      signal: None,
       #[cfg(unix)]
-      use std::os::unix::process::ExitStatusExt;
-
-      Ok(ChildProcessReturn {
-        code: output.status.code(),
-        #[cfg(windows)]
-        signal: None,
-        #[cfg(unix)]
-        signal: output.status.signal(),
-        stdout,
-        stderr,
-      })
-    }
+      signal: output.status.signal(),
+      stdout,
+      stderr,
+    })
   }
 
   #[module_command_handler(shell_script)]
-  #[allow(unused_variables)]
   fn execute<R: Runtime>(
     context: InvokeContext<R>,
     program: String,
@@ -172,44 +152,26 @@ impl Cmd {
     use std::future::Future;
     use std::pin::Pin;
 
-    let mut command = prepare_cmd(&context, &program, args, &options)?;
+    let command = prepare_cmd(&context, &program, args, options)?;
 
-    #[cfg(any(shell_execute, shell_sidecar))]
-    {
-      if let Some(cwd) = options.cwd {
-        command = command.current_dir(cwd);
-      }
-      if let Some(env) = options.env {
-        command = command.envs(env);
-      } else {
-        command = command.env_clear();
-      }
-      if let Some(encoding) = options.encoding {
-        if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
-          command = command.encoding(encoding);
-        } else {
-          return Err(anyhow::anyhow!(format!("unknown encoding {encoding}")));
+    let (mut rx, child) = command.spawn()?;
+
+    let pid = child.pid();
+    command_child_store().lock().unwrap().insert(pid, child);
+
+    crate::async_runtime::spawn(async move {
+      while let Some(event) = rx.recv().await {
+        if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
+          command_child_store().lock().unwrap().remove(&pid);
         }
+        let js = crate::api::ipc::format_callback(on_event_fn, &event)
+          .expect("unable to serialize CommandEvent");
+
+        let _ = context.window.eval(js.as_str());
       }
-      let (mut rx, child) = command.spawn()?;
+    });
 
-      let pid = child.pid();
-      command_child_store().lock().unwrap().insert(pid, child);
-
-      crate::async_runtime::spawn(async move {
-        while let Some(event) = rx.recv().await {
-          if matches!(event, crate::api::process::CommandEvent::Terminated(_)) {
-            command_child_store().lock().unwrap().remove(&pid);
-          }
-          let js = crate::api::ipc::format_callback(on_event_fn, &event)
-            .expect("unable to serialize CommandEvent");
-
-          let _ = context.window.eval(js.as_str());
-        }
-      });
-
-      Ok(pid)
-    }
+    Ok(pid)
   }
 
   #[module_command_handler(shell_script)]
@@ -264,9 +226,9 @@ fn prepare_cmd<R: Runtime>(
   context: &InvokeContext<R>,
   program: &String,
   args: ExecuteArgs,
-  options: &CommandOptions,
+  options: CommandOptions,
 ) -> super::Result<crate::api::process::Command> {
-  if options.sidecar {
+  let mut command = if options.sidecar {
     #[cfg(not(shell_sidecar))]
     return Err(crate::Error::ApiNotAllowlisted("shell > sidecar".to_string()).into_anyhow());
     #[cfg(shell_sidecar)]
@@ -314,7 +276,25 @@ fn prepare_cmd<R: Runtime>(
         Err(crate::Error::ProgramNotAllowed(PathBuf::from(program)).into_anyhow())
       }
     }
+  }?;
+
+  if let Some(cwd) = options.cwd {
+    command = command.current_dir(cwd);
   }
+  if let Some(env) = options.env {
+    command = command.envs(env);
+  } else {
+    command = command.env_clear();
+  }
+  if let Some(encoding) = &options.encoding {
+    if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
+      command = command.encoding(encoding);
+    } else {
+      return Err(anyhow::anyhow!(format!("unknown encoding {encoding}")));
+    }
+  }
+
+  Ok(command)
 }
 
 #[cfg(test)]

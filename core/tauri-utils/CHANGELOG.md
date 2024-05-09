@@ -1,11 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.15]
-
-### Bug Fixes
-
-- [`a5205f179`](https://www.github.com/tauri-apps/tauri/commit/a5205f179e577cce5c05b710b597da8f4e1d0780)([#9691](https://www.github.com/tauri-apps/tauri/pull/9691)) Fixes the ToTokens implementation of the window configuration `proxy_url` field.
-
 ## \[2.0.0-beta.14]
 
 ### Bug Fixes

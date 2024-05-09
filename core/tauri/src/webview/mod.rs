@@ -895,6 +895,18 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.print().map_err(Into::into)
   }
 
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
+  }
+
   /// Closes this webview.
   pub fn close(&self) -> crate::Result<()> {
     self.webview.dispatcher.close()?;
@@ -1061,9 +1073,12 @@ fn main() {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
-    self.webview.dispatcher.url().unwrap()
+  pub fn url(&self) -> crate::Result<Url> {
+    self
+      .webview
+      .dispatcher
+      .url()
+      .map(|url| url.parse().map_err(crate::Error::InvalidUrl))?
   }
 
   /// Navigates the webview to the defined url.

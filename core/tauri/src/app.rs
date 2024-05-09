@@ -220,7 +220,7 @@ pub enum RunEvent {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
@@ -239,6 +239,14 @@ pub enum RunEvent {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(crate::tray::TrayIconEvent),
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[non_exhaustive]
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -596,6 +604,23 @@ macro_rules! shared_app_impl {
           _ => unreachable!(),
         })
       }
+
+      /// Get the cursor position relative to the top-left hand corner of the desktop.
+      ///
+      /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+      /// If the user uses a desktop with multiple monitors,
+      /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+      /// or the top-left of the leftmost monitor on X11.
+      ///
+      /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+      pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.cursor_position()?,
+          RuntimeOrDispatch::RuntimeHandle(h) => h.cursor_position()?,
+          _ => unreachable!(),
+        })
+      }
+
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()
@@ -755,10 +780,12 @@ macro_rules! shared_app_impl {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
-        for (_, window) in self.manager.windows().iter() {
+        for (_, window) in self.manager.windows() {
           window.resources_table().clear();
+          #[cfg(windows)]
+          let _ = window.hide();
         }
-        for (_, webview) in self.manager.webviews().iter() {
+        for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
       }
@@ -1899,6 +1926,12 @@ fn on_event_loop_event<R: Runtime>(
     }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
+    #[cfg(target_os = "macos")]
+    RuntimeRunEvent::Reopen {
+      has_visible_windows,
+    } => RunEvent::Reopen {
+      has_visible_windows,
+    },
     _ => unimplemented!(),
   };
 

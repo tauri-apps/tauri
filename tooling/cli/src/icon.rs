@@ -138,11 +138,11 @@ pub fn command(options: Options) -> Result<()> {
       ))
     }
   } else {
-    panic!("Error loading image");
+    anyhow::bail!("Error loading image");
   };
 
   if source.height() != source.width() {
-    panic!("Source image must be square");
+    anyhow::bail!("Source image must be square");
   }
 
   if png_icon_sizes.is_empty() {

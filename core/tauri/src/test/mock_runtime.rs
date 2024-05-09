@@ -268,6 +268,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   {
     todo!()
   }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -498,13 +502,8 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
-  fn url(&self) -> Result<url::Url> {
-    self
-      .url
-      .lock()
-      .unwrap()
-      .parse()
-      .map_err(|_| Error::FailedToReceiveMessage)
+  fn url(&self) -> Result<String> {
+    Ok(self.url.lock().unwrap().clone())
   }
 
   fn bounds(&self) -> Result<tauri_runtime::Rect> {
@@ -1151,5 +1150,9 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
 
     callback(RunEvent::Exit);
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
   }
 }

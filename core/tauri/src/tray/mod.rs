@@ -243,6 +243,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 ///
 /// See [TrayIconBuilder] to construct this type.
+#[tauri_macros::default_runtime(crate::Wry, wry)]
 pub struct TrayIcon<R: Runtime> {
   id: TrayIconId,
   inner: tray_icon::TrayIcon,
@@ -419,6 +420,20 @@ impl<R: Runtime> TrayIcon<R> {
       .inner
       .set_show_menu_on_left_click(enable))?;
     Ok(())
+  }
+
+  /// Get tray icon rect.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported, always returns `None`.
+  pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
+    run_item_main_thread!(self, |self_: Self| self_.inner.rect().map(|rect| {
+      Rect {
+        position: rect.position.into(),
+        size: rect.size.into(),
+      }
+    }))
   }
 }
 

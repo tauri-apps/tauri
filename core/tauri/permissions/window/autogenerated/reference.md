@@ -10,6 +10,8 @@
 |`deny-create`|Denies the create command without any pre-configured scope.|
 |`allow-current-monitor`|Enables the current_monitor command without any pre-configured scope.|
 |`deny-current-monitor`|Denies the current_monitor command without any pre-configured scope.|
+|`allow-cursor-position`|Enables the cursor_position command without any pre-configured scope.|
+|`deny-cursor-position`|Denies the cursor_position command without any pre-configured scope.|
 |`allow-destroy`|Enables the destroy command without any pre-configured scope.|
 |`deny-destroy`|Denies the destroy command without any pre-configured scope.|
 |`allow-hide`|Enables the hide command without any pre-configured scope.|

@@ -106,6 +106,19 @@ async function invoke<T>(cmd: string, args: InvokeArgs = {}): Promise<T> {
  *
  * Additionally, `asset` must be added to [`tauri.allowlist.protocol`](https://tauri.app/v1/api/config/#allowlistconfig.protocol)
  * in `tauri.conf.json` and its access scope must be defined on the `assetScope` array on the same `protocol` object.
+ * For example: 
+ * ```json
+ * {
+ *   "tauri": {
+ *     "allowlist": {
+ *       "protocol": {
+ *         "asset": true,
+ *         "assetScope": ["$APPDATA/assets/*"]
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
  *
  * @param  filePath The file path.
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.

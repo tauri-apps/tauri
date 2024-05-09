@@ -248,11 +248,11 @@ pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
-  pub fn remove_window_draw(&self, window_id: WindowId) {
+  pub fn remove_window_draw(&self) {
     let mut store = self.0.borrow_mut();
-    if let Some(index) = store
+    while let Some(index) = store
       .iter()
-      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
+      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }))
     {
       store.remove(index);
     }
@@ -2839,8 +2839,8 @@ fn handle_event_loop<T: UserEvent>(
     }
 
     #[cfg(feature = "tracing")]
-    Event::RedrawRequested(id) => {
-      active_tracing_spans.remove_window_draw(id);
+    Event::RedrawEventsCleared => {
+      active_tracing_spans.remove_window_draw();
     }
 
     #[cfg(all(desktop, feature = "global-shortcut"))]

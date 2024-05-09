@@ -110,7 +110,8 @@ impl Cmd {
     let encoding = options
       .encoding
       .as_ref()
-      .and_then(|encoding| crate::api::process::Encoding::for_label(encoding.as_bytes()));
+      .and_then(|encoding| encoding_rs::Encoding::for_label(encoding.as_bytes()));
+
     let command = prepare_cmd(&context, &program, args, options)?;
 
     let mut command: std::process::Command = command.into();
@@ -222,6 +223,7 @@ impl Cmd {
   }
 }
 
+#[cfg(any(shell_execute, shell_sidecar))]
 fn prepare_cmd<R: Runtime>(
   context: &InvokeContext<R>,
   program: &String,
@@ -287,7 +289,7 @@ fn prepare_cmd<R: Runtime>(
     command = command.env_clear();
   }
   if let Some(encoding) = &options.encoding {
-    if let Some(encoding) = crate::api::process::Encoding::for_label(encoding.as_bytes()) {
+    if let Some(encoding) = encoding_rs::Encoding::for_label(encoding.as_bytes()) {
       command = command.encoding(encoding);
     } else {
       return Err(anyhow::anyhow!(format!("unknown encoding {encoding}")));

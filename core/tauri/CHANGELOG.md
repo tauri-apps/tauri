@@ -1,5 +1,68 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### New Features
+
+- [`78839b6d2`](https://www.github.com/tauri-apps/tauri/commit/78839b6d2f1005a5e6e1a54b0305136bae0c3a7c)([#4865](https://www.github.com/tauri-apps/tauri/pull/4865)) Add `RunEvent::Reopen` for handle click on dock icon on macOS.
+
+### Bug Fixes
+
+- [`fedca7386`](https://www.github.com/tauri-apps/tauri/commit/fedca7386079fe639c629d6084cc13031150baf6)([#9720](https://www.github.com/tauri-apps/tauri/pull/9720)) Fix IPC tracing format incompatible between the custom protocol and the postMessage implementations.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.16`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.16`
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+- Upgraded to `tauri-macros@2.0.0-beta.15`
+- Upgraded to `tauri-build@2.0.0-beta.15`
+
+### Breaking Changes
+
+- [`783ef0f2d`](https://www.github.com/tauri-apps/tauri/commit/783ef0f2d331f520fa827c3112f36c0b519b9292)([#9647](https://www.github.com/tauri-apps/tauri/pull/9647)) Changed `WebviewWindow::url` and `Webview::url` getter to return a result.
+
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`07ff78c2d`](https://www.github.com/tauri-apps/tauri/commit/07ff78c2de74d3bd85328ce6536f8a858be89128)([#9615](https://www.github.com/tauri-apps/tauri/pull/9615)) Add `TrayIcon::rect` method to retrieve the tray icon rectangle
+
+### Enhancements
+
+- [`7f6d2698c`](https://www.github.com/tauri-apps/tauri/commit/7f6d2698c923019e4ce53f794e68aa7e56fd7b86)([#9631](https://www.github.com/tauri-apps/tauri/pull/9631)) Improve the error message that is shown when deserializing the Tauri plugin config.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `Menu`, `MenuItem`, `Submenu`, `PredefinedMenuItem`, `CheckMenuItem` and `IconMenuItem`.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `TrayIcon`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-runtime@2.0.0-beta.15`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.15`
+- Upgraded to `tauri-macros@2.0.0-beta.14`
+- Upgraded to `tauri-build@2.0.0-beta.14`
+
+## \[2.0.0-beta.17]
+
+### New Features
+
+- [`12b4159bd`](https://www.github.com/tauri-apps/tauri/commit/12b4159bdaf6e1f8d7b58ed8ff96345fa69c2ef0)([#9392](https://www.github.com/tauri-apps/tauri/pull/9392)) Add `specta` feature flag which adds `specta` support for `AppHandle`, `State`, `Window`, `Webview` and `WebviewWindow` types.
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
+### Enhancements
+
+- [`eff778b8f`](https://www.github.com/tauri-apps/tauri/commit/eff778b8f0c675fda3f6f6d1041bc94afd765d1c)([#9571](https://www.github.com/tauri-apps/tauri/pull/9571)) Run each plugin initialization script on its own context so they do not interfere with each other or the Tauri init script.
+
+### Bug Fixes
+
+- [`6c047aee1`](https://www.github.com/tauri-apps/tauri/commit/6c047aee14fcae86b341e4fcefdbbf8f8378ac20)([#9612](https://www.github.com/tauri-apps/tauri/pull/9612)) Fix window white flashing on exit on Windows
+- [`98101cb17`](https://www.github.com/tauri-apps/tauri/commit/98101cb17fe49f305a75fcb4267f82d89f7ac0c3)([#9561](https://www.github.com/tauri-apps/tauri/pull/9561)) Allow any headers on the IPC custom protocol.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.14`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.14`
+
 ## \[2.0.0-beta.16]
 
 ### New Features

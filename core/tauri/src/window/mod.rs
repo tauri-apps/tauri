@@ -1378,17 +1378,17 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_focused().map_err(Into::into)
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native maximize button state
+  /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
   ///
@@ -1397,7 +1397,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_maximizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native minimize button state
+  /// Gets the window's native minimize button state
   ///
   /// ## Platform-specific
   ///
@@ -1406,7 +1406,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_minimizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native close button state
+  /// Gets the window's native close button state
   ///
   /// ## Platform-specific
   ///
@@ -1821,7 +1821,7 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Sets this window's minimum size.
+  /// Sets this window's minimum inner size.
   pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self
       .window
@@ -1830,7 +1830,7 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Sets this window's maximum size.
+  /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self
       .window

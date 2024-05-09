@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-beta.13"
+version = "2.0.0-beta.15"
 description = "Utilities for Tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -23,7 +23,7 @@ html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
-schemars = { version = "0.8", features = [ "url" ], optional = true }
+schemars = { version = "0.8.18", features = [ "url" ], optional = true }
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.2", optional = true, features = [ "std" ] }

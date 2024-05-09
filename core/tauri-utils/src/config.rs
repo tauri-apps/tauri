@@ -211,19 +211,13 @@ impl schemars::JsonSchema for BundleTarget {
         ..Default::default()
       }
       .into(),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<Vec<BundleType>>(),
-        schemars::schema::Metadata {
-          description: Some("A list of bundle targets.".to_owned()),
-          ..Default::default()
-        },
+        "A list of bundle targets.",
       ),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<BundleType>(),
-        schemars::schema::Metadata {
-          description: Some("A single bundle target.".to_owned()),
-          ..Default::default()
-        },
+        "A single bundle target.",
       ),
     ];
 
@@ -2232,7 +2226,7 @@ mod build {
       let minimizable = self.minimizable;
       let closable = self.closable;
       let title = str_lit(&self.title);
-      let proxy_url = opt_str_lit(self.proxy_url.as_ref());
+      let proxy_url = opt_lit(self.proxy_url.as_ref().map(url_lit).as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
       let transparent = self.transparent;

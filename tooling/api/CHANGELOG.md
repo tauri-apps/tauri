@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.5.5]
+
+### Enhancements
+
+- [`7f885bd5e`](https://www.github.com/tauri-apps/tauri/commit/7f885bd5edf3e179ddf0b674c3ea7a96e26ce39e)([#9706](https://www.github.com/tauri-apps/tauri/pull/9706)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Bug Fixes
+
+- [`7f885bd5e`](https://www.github.com/tauri-apps/tauri/commit/7f885bd5edf3e179ddf0b674c3ea7a96e26ce39e)([#9706](https://www.github.com/tauri-apps/tauri/pull/9706)) Fix The JS `Command.execute` API from `shell` module including extra new lines.
+
 ## \[1.5.4]
 
 ### Bug Fixes

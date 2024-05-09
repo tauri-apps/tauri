@@ -1,11 +1,5 @@
 # Changelog
 
-## \[1.5.4]
-
-### Bug Fixes
-
-- [`ab9ec42c1`](https://www.github.com/tauri-apps/tauri/commit/ab9ec42c102da7594f5d83998aa095d558e86d90)([#9659](https://www.github.com/tauri-apps/tauri/pull/9659)) Fix failing to create NSIS installer when including resources that has `$` in its path.
-
 ## \[1.5.3]
 
 ### Enhancements

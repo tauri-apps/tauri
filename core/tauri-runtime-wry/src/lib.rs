@@ -346,13 +346,10 @@ pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
   pub fn remove_window_draw(&self) {
-    let mut store = self.0.borrow_mut();
-    while let Some(index) = store
-      .iter()
-      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }))
-    {
-      store.remove(index);
-    }
+    self
+      .0
+      .borrow_mut()
+      .retain(|t| !matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }));
   }
 }
 

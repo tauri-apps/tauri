@@ -167,7 +167,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       "ipc::request",
       kind = "post-message",
       uri = request.uri().to_string(),
-      body = request.body()
+      request = request.body()
     )
     .entered();
 

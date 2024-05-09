@@ -4947,15 +4947,12 @@ dependencies = [
  "tauri-icns",
  "tauri-utils 1.5.4",
  "tauri-utils 2.0.0-beta.15",
- "thiserror",
  "tokio",
  "toml 0.8.10",
  "toml_edit 0.22.6",
- "unicode-width",
  "ureq",
  "url",
  "windows-sys 0.52.0",
- "zeroize",
 ]
 
 [[package]]

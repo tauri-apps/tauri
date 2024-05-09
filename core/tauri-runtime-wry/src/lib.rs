@@ -345,11 +345,11 @@ pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
-  pub fn remove_window_draw(&self, window_id: TaoWindowId) {
+  pub fn remove_window_draw(&self) {
     let mut store = self.0.borrow_mut();
-    if let Some(index) = store
+    while let Some(index) = store
       .iter()
-      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
+      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }))
     {
       store.remove(index);
     }
@@ -3242,9 +3242,8 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Exit);
     }
 
-    #[cfg(any(feature = "tracing", windows))]
+    #[cfg(windows)]
     Event::RedrawRequested(id) => {
-      #[cfg(windows)]
       if let Some(window_id) = window_id_map.get(&id) {
         let mut windows_ref = windows.0.borrow_mut();
         if let Some(window) = windows_ref.get_mut(&window_id) {
@@ -3257,9 +3256,11 @@ fn handle_event_loop<T: UserEvent>(
           }
         }
       }
+    }
 
-      #[cfg(feature = "tracing")]
-      active_tracing_spans.remove_window_draw(id);
+    #[cfg(feature = "tracing")]
+    Event::RedrawEventsCleared => {
+      active_tracing_spans.remove_window_draw();
     }
 
     Event::UserEvent(Message::Webview(

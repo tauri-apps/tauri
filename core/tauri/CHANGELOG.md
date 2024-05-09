@@ -1,27 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.19]
-
-### New Features
-
-- [`78839b6d2`](https://www.github.com/tauri-apps/tauri/commit/78839b6d2f1005a5e6e1a54b0305136bae0c3a7c)([#4865](https://www.github.com/tauri-apps/tauri/pull/4865)) Add `RunEvent::Reopen` for handle click on dock icon on macOS.
-
-### Bug Fixes
-
-- [`fedca7386`](https://www.github.com/tauri-apps/tauri/commit/fedca7386079fe639c629d6084cc13031150baf6)([#9720](https://www.github.com/tauri-apps/tauri/pull/9720)) Fix IPC tracing format incompatible between the custom protocol and the postMessage implementations.
-
-### Dependencies
-
-- Upgraded to `tauri-runtime@2.0.0-beta.16`
-- Upgraded to `tauri-runtime-wry@2.0.0-beta.16`
-- Upgraded to `tauri-utils@2.0.0-beta.15`
-- Upgraded to `tauri-macros@2.0.0-beta.15`
-- Upgraded to `tauri-build@2.0.0-beta.15`
-
-### Breaking Changes
-
-- [`783ef0f2d`](https://www.github.com/tauri-apps/tauri/commit/783ef0f2d331f520fa827c3112f36c0b519b9292)([#9647](https://www.github.com/tauri-apps/tauri/pull/9647)) Changed `WebviewWindow::url` and `Webview::url` getter to return a result.
-
 ## \[2.0.0-beta.18]
 
 ### New Features

@@ -380,9 +380,9 @@ Function .onInit
   IfErrors +2 0
     StrCpy $PassiveMode 1
 
-  ${GetOptions} $CMDLINE "/UPDATE" $PassiveMode
+  ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
   IfErrors +2 0
-    StrCpy $PassiveMode 1
+    StrCpy $UpdateMode 1
 
   !if "${DISPLAYLANGUAGESELECTOR}" == "true"
     !insertmacro MUI_LANGDLL_DISPLAY
@@ -449,51 +449,55 @@ Section WebView2
   StrCmp $4 "" 0 webview2_done
   StrCmp $5 "" 0 webview2_done
 
-  ; Webview2 install modes
-  !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
-    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-    DetailPrint "$(webview2Downloading)"
-    nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-    Pop $0
-    ${If} $0 == 0
-      DetailPrint "$(webview2DownloadSuccess)"
-    ${Else}
-      DetailPrint "$(webview2DownloadError)"
-      Abort "$(webview2AbortError)"
-    ${EndIf}
-    StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-    Goto install_webview2
-  !endif
+  ; Webview2 installation
+  ;
+  ; Skip if updating
+  ${If} $UpdateMode <> 1
+    !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
+      Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+      DetailPrint "$(webview2Downloading)"
+      nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+      Pop $0
+      ${If} $0 == 0
+        DetailPrint "$(webview2DownloadSuccess)"
+      ${Else}
+        DetailPrint "$(webview2DownloadError)"
+        Abort "$(webview2AbortError)"
+      ${EndIf}
+      StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+      Goto install_webview2
+    !endif
 
-  !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
-    Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-    File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
-    DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-    Goto install_webview2
-  !endif
+    !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
+      Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+      File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
+      DetailPrint "$(installingWebview2)"
+      StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+      Goto install_webview2
+    !endif
 
-  !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
-    Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
-    File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
-    DetailPrint "$(installingWebview2)"
-    StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
-    Goto install_webview2
-  !endif
+    !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
+      Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+      File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
+      DetailPrint "$(installingWebview2)"
+      StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+      Goto install_webview2
+    !endif
 
-  Goto webview2_done
+    Goto webview2_done
 
-  install_webview2:
-    DetailPrint "$(installingWebview2)"
-    ; $6 holds the path to the webview2 installer
-    ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
-    ${If} $1 == 0
-      DetailPrint "$(webview2InstallSuccess)"
-    ${Else}
-      DetailPrint "$(webview2InstallError)"
-      Abort "$(webview2AbortError)"
-    ${EndIf}
-  webview2_done:
+    install_webview2:
+      DetailPrint "$(installingWebview2)"
+      ; $6 holds the path to the webview2 installer
+      ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
+      ${If} $1 == 0
+        DetailPrint "$(webview2InstallSuccess)"
+      ${Else}
+        DetailPrint "$(webview2InstallError)"
+        Abort "$(webview2AbortError)"
+      ${EndIf}
+    webview2_done:
+  ${EndIf}
 SectionEnd
 
 Section Install

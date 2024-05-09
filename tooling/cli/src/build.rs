@@ -86,6 +86,8 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   interface.build(interface_options)?;
 
+  log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(&bin_path));
+
   let app_settings = interface.app_settings();
 
   if !options.no_bundle && (options.bundles.is_some() && config_.bundle.active) {

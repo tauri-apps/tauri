@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`78839b6d2`](https://www.github.com/tauri-apps/tauri/commit/78839b6d2f1005a5e6e1a54b0305136bae0c3a7c)([#4865](https://www.github.com/tauri-apps/tauri/pull/4865)) Add `RunEvent::Reopen` for handle click on dock icon on macOS.
+
+### Bug Fixes
+
+- [`c0bcc6c0b`](https://www.github.com/tauri-apps/tauri/commit/c0bcc6c0b74ef7167de85002a5c29b6f731bae41)([#9717](https://www.github.com/tauri-apps/tauri/pull/9717)) Fixes redraw tracing span not closing.
+
+### What's Changed
+
+- [`783ef0f2d`](https://www.github.com/tauri-apps/tauri/commit/783ef0f2d331f520fa827c3112f36c0b519b9292)([#9647](https://www.github.com/tauri-apps/tauri/pull/9647)) Changed `WebviewDispatch::url` getter to return a result.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.16`
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+
 ## \[2.0.0-beta.15]
 
 ### Dependencies

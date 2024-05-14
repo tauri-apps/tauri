@@ -1092,6 +1092,7 @@ pub enum WindowMessage {
   Title(Sender<String>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
+  MonitorFromPoint(Sender<Option<MonitorHandle>>), // TODO: believe x and y should be received here?
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   #[cfg(any(
     target_os = "linux",
@@ -1576,6 +1577,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
     Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+  }
+
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
+    // TODO: how do I pass x and y?
+    Ok(
+      window_getter!(self, WindowMessage::MonitorFromPoint)?
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
@@ -2149,6 +2158,15 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .monitor_from_point(x, y)
+      .map(|m| MonitorHandleWrapper(m).into())
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     self
       .context
@@ -2407,6 +2425,15 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .monitor_from_point(x, y)
+      .map(|m| MonitorHandleWrapper(m).into())
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     self
       .context
@@ -2643,6 +2670,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
           WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
           WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
+          WindowMessage::MonitorFromPoint(tx) => {
+            tx.send(window.monitor_from_point(0.0, 0.0)).unwrap() // TODO: how to get x and y here?
+          }
           WindowMessage::AvailableMonitors(tx) => {
             tx.send(window.available_monitors().collect()).unwrap()
           }

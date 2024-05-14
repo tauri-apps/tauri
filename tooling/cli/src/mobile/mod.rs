@@ -261,12 +261,15 @@ fn read_options(identifier: &str) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
+      let addr_path = temp_dir().join(format!("{identifier}-server-addr"));
       let (tx, rx) = WsTransportClientBuilder::default()
         .build(
           format!(
             "ws://{}",
-            read_to_string(temp_dir().join(format!("{identifier}-server-addr")))
-              .expect("missing addr file")
+            read_to_string(&addr_path).unwrap_or_else(|e| panic!(
+              "failed to read missing addr file {}: {e}",
+              addr_path.display()
+            ))
           )
           .parse()
           .unwrap(),

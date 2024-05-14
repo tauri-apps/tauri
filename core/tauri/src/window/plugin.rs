@@ -159,17 +159,6 @@ mod desktop_commands {
   }
 
   #[command(root = "crate")]
-  pub async fn monitor_from_point<R: Runtime>(
-    window: Window<R>,
-    label: Option<String>,
-    x: f64,
-    y: f64,
-  ) -> crate::Result<Option<Monitor>> {
-    let window = get_window(window, label)?;
-    window.monitor_from_point(x, y)
-  }
-
-  #[command(root = "crate")]
   pub async fn internal_toggle_maximize<R: Runtime>(
     window: Window<R>,
     label: Option<String>,
@@ -182,6 +171,17 @@ mod desktop_commands {
       };
     }
     Ok(())
+  }
+
+  #[command(root = "crate")]
+  pub async fn monitor_from_point<R: Runtime>(
+    window: Window<R>,
+    label: Option<String>,
+    x: f64,
+    y: f64,
+  ) -> crate::Result<Option<Monitor>> {
+    let window = get_window(window, label)?;
+    window.monitor_from_point(x, y)
   }
 }
 

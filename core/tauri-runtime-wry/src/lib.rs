@@ -1092,7 +1092,7 @@ pub enum WindowMessage {
   Title(Sender<String>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
-  MonitorFromPoint(Sender<Option<MonitorHandle>>), // TODO: believe x and y should be received here?
+  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   #[cfg(any(
     target_os = "linux",
@@ -1580,9 +1580,16 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
   }
 
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
-    // TODO: how do I pass x and y?
+    let (tx, rx) = channel();
+
+    let _ = send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::MonitorFromPoint(tx, (x, y))),
+    );
+
     Ok(
-      window_getter!(self, WindowMessage::MonitorFromPoint)?
+      rx.recv()
+        .map_err(|_| crate::Error::FailedToReceiveMessage)?
         .map(|m| MonitorHandleWrapper(m).into()),
     )
   }
@@ -2670,8 +2677,8 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
           WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
           WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
-          WindowMessage::MonitorFromPoint(tx) => {
-            tx.send(window.monitor_from_point(0.0, 0.0)).unwrap() // TODO: how to get x and y here?
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
+            tx.send(window.monitor_from_point(x, y)).unwrap()
           }
           WindowMessage::AvailableMonitors(tx) => {
             tx.send(window.available_monitors().collect()).unwrap()

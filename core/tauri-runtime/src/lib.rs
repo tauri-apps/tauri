@@ -589,9 +589,7 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Returns None if it can't identify any monitor as a primary one.
   fn primary_monitor(&self) -> Result<Option<Monitor>>;
 
-  /// Find out the monitor on which the given point is located.
-  ///
-  /// Returns None if current monitor can't be detected.
+  /// Returns the monitor that contains the given point.
   fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.

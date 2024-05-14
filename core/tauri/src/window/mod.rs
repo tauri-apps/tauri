@@ -1437,9 +1437,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
-  /// Returns the monitor on which the provided point is.
-  ///
-  /// Returns None if monitor can't be detected.
+  /// Returns the monitor that contains the given point.
   pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
     self
       .window

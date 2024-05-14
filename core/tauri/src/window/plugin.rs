@@ -89,7 +89,6 @@ mod desktop_commands {
   getter!(title, String);
   getter!(current_monitor, Option<Monitor>);
   getter!(primary_monitor, Option<Monitor>);
-  // getter!(monitor_from_point(0.0, 0.0), Option<Monitor>); // TODO: how do I get coordinates here?
   getter!(available_monitors, Vec<Monitor>);
   getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
@@ -160,6 +159,17 @@ mod desktop_commands {
   }
 
   #[command(root = "crate")]
+  pub async fn monitor_from_point<R: Runtime>(
+    window: Window<R>,
+    label: Option<String>,
+    x: f64,
+    y: f64,
+  ) -> crate::Result<Option<Monitor>> {
+    let window = get_window(window, label)?;
+    window.monitor_from_point(x, y)
+  }
+
+  #[command(root = "crate")]
   pub async fn internal_toggle_maximize<R: Runtime>(
     window: Window<R>,
     label: Option<String>,
@@ -223,7 +233,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::title,
             desktop_commands::current_monitor,
             desktop_commands::primary_monitor,
-            // desktop_commands::monitor_from_point, // TODO: how do I get coordinates here?
+            desktop_commands::monitor_from_point,
             desktop_commands::available_monitors,
             desktop_commands::cursor_position,
             desktop_commands::theme,

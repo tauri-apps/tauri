@@ -2241,7 +2241,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
 }
 
 /**
-  * Returns the monitor that contains the given point. Returns `null` if can't find any.
+ * Returns the monitor that contains the given point. Returns `null` if can't find any.
  * @example
  * ```typescript
  * import { monitorFromPoint } from '@tauri-apps/api/window';
@@ -2251,9 +2251,10 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * @since 1.0.0
  */
 async function monitorFromPoint(x: number, y: number): Promise<Monitor | null> {
-  return invoke<Monitor | null>('plugin:window|monitor_from_point', {x, y}).then(
-    mapMonitor
-  )
+  return invoke<Monitor | null>('plugin:window|monitor_from_point', {
+    x,
+    y
+  }).then(mapMonitor)
 }
 
 /**

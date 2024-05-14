@@ -2241,6 +2241,23 @@ async function primaryMonitor(): Promise<Monitor | null> {
 }
 
 /**
+ * Returns the monitor on which the given point currently resides.
+ * Returns `null` if current monitor can't be detected.
+ * @example
+ * ```typescript
+ * import { monitorFromPoint } from '@tauri-apps/api/window';
+ * const monitor = monitorFromPoint();
+ * ```
+ *
+ * @since 1.0.0
+ */
+async function monitorFromPoint(x: Number, y: Number): Promise<Monitor | null> {
+  return invoke<Monitor | null>('plugin:window|monitor_from_point', {x, y}).then(
+    mapMonitor
+  )
+}
+
+/**
  * Returns the list of all the monitors available on the system.
  * @example
  * ```typescript
@@ -2285,6 +2302,7 @@ export {
   Effect,
   EffectState,
   currentMonitor,
+  monitorFromPoint,
   primaryMonitor,
   availableMonitors,
   cursorPosition

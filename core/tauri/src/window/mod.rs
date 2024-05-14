@@ -1437,6 +1437,18 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
   }
 
+  /// Returns the monitor on which the provided point is.
+  ///
+  /// Returns None if monitor can't be detected.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+    self
+      .window
+      .dispatcher
+      .monitor_from_point(x, y)
+      .map(|m| m.map(Into::into))
+      .map_err(Into::into)
+  }
+
   /// Returns the primary monitor of the system.
   ///
   /// Returns None if it can't identify any monitor as a primary one.

@@ -2241,8 +2241,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
 }
 
 /**
- * Returns the monitor on which the given point currently resides.
- * Returns `null` if current monitor can't be detected.
+  * Returns the monitor that contains the given point. Returns `null` if can't find any.
  * @example
  * ```typescript
  * import { monitorFromPoint } from '@tauri-apps/api/window';

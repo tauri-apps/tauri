@@ -1912,7 +1912,7 @@ fn on_event_loop_event<R: Runtime>(
           }
 
           for (id, listener) in &*app_handle.manager.tray.event_listeners.lock().unwrap() {
-            if e.id == id {
+            if e.id() == id {
               if let Some(tray) = app_handle.tray_by_id(id) {
                 listener(&tray, e.clone());
               }

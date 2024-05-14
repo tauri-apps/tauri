@@ -592,7 +592,7 @@ macro_rules! shared_app_impl {
         })
       }
 
-  /// Returns the monitor that contains the given point.
+      /// Returns the monitor that contains the given point.
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),

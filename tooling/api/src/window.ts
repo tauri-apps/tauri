@@ -2251,7 +2251,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  *
  * @since 1.0.0
  */
-async function monitorFromPoint(x: Number, y: Number): Promise<Monitor | null> {
+async function monitorFromPoint(x: number, y: number): Promise<Monitor | null> {
   return invoke<Monitor | null>('plugin:window|monitor_from_point', {x, y}).then(
     mapMonitor
   )

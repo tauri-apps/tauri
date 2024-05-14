@@ -592,9 +592,7 @@ macro_rules! shared_app_impl {
         })
       }
 
-      /// Returns the monitor on which the given point exists.
-      ///
-      /// Returns None if it can't identify any monitor as a primary one.
+  /// Returns the monitor that contains the given point.
       pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
         Ok(match self.runtime() {
           RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),

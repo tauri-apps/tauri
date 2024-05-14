@@ -235,6 +235,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    unimplemented!()
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     unimplemented!()
   }
@@ -650,6 +654,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(None)
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
+    Ok(None)
+  }
+
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
     Ok(Vec::new())
   }
@@ -1051,6 +1059,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
+    unimplemented!()
+  }
+
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
     unimplemented!()
   }
 

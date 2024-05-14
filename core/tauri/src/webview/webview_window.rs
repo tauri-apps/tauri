@@ -1160,9 +1160,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().primary_monitor()
   }
 
-  /// Returns the monitor on which the given point is.
-  ///
-  /// Returns None if monitor can't be detected.
+  /// Returns the monitor that contains the given point.
   pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
     self.webview.window().monitor_from_point(x, y)
   }

@@ -103,7 +103,9 @@ pub fn exec(
       if let Some(bin_stem) = bin_path.file_stem() {
         let r = regex::Regex::new("(nodejs|node)\\-?([1-9]*)*$").unwrap();
         if r.is_match(&bin_stem.to_string_lossy()) {
-          if let Some(npm_execpath) = var_os("npm_execpath") {
+          if var_os("PNPM_PACKAGE_NAME").is_some() {
+            return ("pnpm".into(), build_args);
+          } else if let Some(npm_execpath) = var_os("npm_execpath") {
             let manager_stem = PathBuf::from(&npm_execpath)
               .file_stem()
               .unwrap()

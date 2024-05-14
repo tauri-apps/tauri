@@ -244,17 +244,12 @@ fn run_dev(
   )
 }
 
-#[derive(Debug, thiserror::Error)]
-enum RunError {
-  #[error("{0}")]
-  RunFailed(String),
-}
 fn run(
   device: &Device<'_>,
   options: MobileOptions,
   config: &AppleConfig,
   env: &Env,
-) -> Result<DevChild, RunError> {
+) -> crate::Result<DevChild> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -270,5 +265,5 @@ fn run(
       profile,
     )
     .map(DevChild::new)
-    .map_err(|e| RunError::RunFailed(e.to_string()))
+    .map_err(Into::into)
 }

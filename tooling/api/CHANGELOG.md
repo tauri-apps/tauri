@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.6]
+
+### Bug Fixes
+
+- [`3b69c1384`](https://www.github.com/tauri-apps/tauri/commit/3b69c1384bd089ad5dcff0c1b12fbfadeb585c6a)([#9792](https://www.github.com/tauri-apps/tauri/pull/9792)) Revert [#9706](https://github.com/tauri-apps/tauri/pull/9706) which broke compatability between `tauri` crate and the JS `@tauri-apps/api` npm package in a patch release where it should've been in a minor release.
+
 ## \[1.5.5]
 
 ### Enhancements

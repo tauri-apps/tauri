@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.6.6]
+
+### Bug Fixes
+
+- [`704260bb3`](https://www.github.com/tauri-apps/tauri/commit/704260bb3c2bc54c149f2fe508bff09535b083ad)([#9784](https://www.github.com/tauri-apps/tauri/pull/9784)) Fix dialog crash on macOS when the `default_path` value is empty.
+- [`3b69c1384`](https://www.github.com/tauri-apps/tauri/commit/3b69c1384bd089ad5dcff0c1b12fbfadeb585c6a)([#9792](https://www.github.com/tauri-apps/tauri/pull/9792)) Revert [#9706](https://github.com/tauri-apps/tauri/pull/9706) which broke compatability between `tauri` crate and the JS `@tauri-apps/api` npm package in a patch release where it should've been in a minor release.
+
 ## \[1.6.5]
 
 ### Bug Fixes

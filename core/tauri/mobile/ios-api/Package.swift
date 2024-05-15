@@ -8,7 +8,7 @@ import PackageDescription
 let package = Package(
   name: "Tauri",
   platforms: [
-    .macOS(.v10_15),
+    .macOS(.v10_13),
     .iOS(.v11),
   ],
   products: [
@@ -20,9 +20,7 @@ let package = Package(
   ],
   dependencies: [
     // Dependencies declare other packages that this package depends on.
-    .package(name: "SwiftRs", url: "https://github.com/Brendonovich/swift-rs", from: "1.0.0"),
-    .package(
-      name: "GoogleSignIn", url: "https://github.com/google/GoogleSignIn-iOS", from: "7.1.0"),
+    .package(name: "SwiftRs", url: "https://github.com/Brendonovich/swift-rs", from: "1.0.0")
   ],
   targets: [
     // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -30,8 +28,7 @@ let package = Package(
     .target(
       name: "Tauri",
       dependencies: [
-        .byName(name: "SwiftRs"),
-        .byName(name: "GoogleSignIn"),
+        .byName(name: "SwiftRs")
       ],
       path: "Sources"
     ),

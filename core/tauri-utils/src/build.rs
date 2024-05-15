@@ -6,59 +6,72 @@
 
 /// Link a Swift library.
 #[cfg(target_os = "macos")]
-pub fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
+pub fn link_apple_library(name: &str, source: impl AsRef<std::path::Path>) {
+  if source.as_ref().join("Package.swift").exists() {
+    link_swift_library(name, source);
+  } else {
+    link_xcode_library(name, source);
+  }
+}
+
+/// Link a Swift library.
+#[cfg(target_os = "macos")]
+fn link_swift_library(name: &str, source: impl AsRef<std::path::Path>) {
+  let source = source.as_ref();
+
+  let sdk_root = std::env::var_os("SDKROOT");
+  std::env::remove_var("SDKROOT");
+
+  swift_rs::SwiftLinker::new(
+    &std::env::var("MACOSX_DEPLOYMENT_TARGET").unwrap_or_else(|_| "10.13".into()),
+  )
+  .with_ios(&std::env::var("IPHONEOS_DEPLOYMENT_TARGET").unwrap_or_else(|_| "13.0".into()))
+  .with_package(name, source)
+  .link();
+
+  if let Some(root) = sdk_root {
+    std::env::set_var("SDKROOT", root);
+  }
+}
+
+/// Link a Xcode library.
+#[cfg(target_os = "macos")]
+fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
   use std::{path::PathBuf, process::Command};
 
   let source = source.as_ref();
 
-  let (sdk, platform) = match std::env::var("TARGET").unwrap().as_str() {
-    "aarch64-apple-ios" => ("iphoneos", "iOS"),
-    "aarch64-apple-ios-sim" => ("iphoneos", "iOS Simulator"),
-    "x86_64-apple-ios" => ("iphonesimulator", "iOS Simulator"),
+  let (sdk, arch) = match std::env::var("TARGET").unwrap().as_str() {
+    "aarch64-apple-ios" => ("iphoneos", "arm64"),
+    "aarch64-apple-ios-sim" => ("iphonesimulator", "arm64"),
+    "x86_64-apple-ios" => ("iphonesimulator", "x86_64"),
     _ => return,
   };
 
   let out_dir = std::env::var_os("OUT_DIR").map(PathBuf::from).unwrap();
-  let archive_path = out_dir.join("out.xcarchive");
+  let derived_data_path = out_dir.join("derivedData");
+
   let status = Command::new("xcodebuild")
-    .current_dir(source)
-    .arg("archive")
+    .arg("build")
     .arg("-scheme")
     .arg(name)
-    .arg("-archivePath")
-    .arg(&archive_path)
     .arg("-sdk")
     .arg(sdk)
-    .arg("-destination")
-    .arg(format!("generic/platform={platform}"))
+    .arg("-arch")
+    .arg(arch)
+    .arg("-derivedDataPath")
+    .arg(&derived_data_path)
     .arg("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
-    .arg("SKIP_INSTALL=NO")
-    .arg("OTHER_SWIFT_FLAGS=-no-verify-emitted-module-interface")
+    .current_dir(source)
     .status()
     .unwrap();
 
   assert!(status.success());
 
-  let lib_out_dir = out_dir.join("__lib");
-  std::fs::create_dir_all(&lib_out_dir).unwrap();
-
-  let lib_path = lib_out_dir.join(format!("lib{name}.a"));
-
-  if !archive_path.exists() {
-    panic!("failed to archive");
-  }
-
-  let status = Command::new("/usr/bin/libtool")
-    .arg("-static")
-    //.arg("-arch_only")
-    //.arg("arm64")
-    .arg(format!("{name}.o"))
-    .arg("-o")
-    .arg(lib_path)
-    .current_dir(&archive_path.join("Products/Users/lucas/Objects"))
-    .status()
-    .unwrap();
-  assert!(status.success());
+  let lib_out_dir = derived_data_path
+    .join("Build")
+    .join("Products")
+    .join(format!("Debug-{sdk}"));
 
   println!("cargo:rerun-if-changed={}", source.display());
   println!("cargo:rustc-link-search=native={}", lib_out_dir.display());

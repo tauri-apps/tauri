@@ -108,6 +108,8 @@
 |`deny-set-skip-taskbar`|Denies the set_skip_taskbar command without any pre-configured scope.|
 |`allow-set-title`|Enables the set_title command without any pre-configured scope.|
 |`deny-set-title`|Denies the set_title command without any pre-configured scope.|
+|`allow-set-title-bar-style`|Enables the set_title_bar_style command without any pre-configured scope.|
+|`deny-set-title-bar-style`|Denies the set_title_bar_style command without any pre-configured scope.|
 |`allow-set-visible-on-all-workspaces`|Enables the set_visible_on_all_workspaces command without any pre-configured scope.|
 |`deny-set-visible-on-all-workspaces`|Denies the set_visible_on_all_workspaces command without any pre-configured scope.|
 |`allow-show`|Enables the show command without any pre-configured scope.|

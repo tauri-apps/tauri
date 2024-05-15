@@ -106,6 +106,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("start_resize_dragging", false),
       ("set_progress_bar", false),
       ("set_icon", false),
+      ("set_title_bar_style", false),
       ("toggle_maximize", false),
       // internal
       ("internal_toggle_maximize", true),

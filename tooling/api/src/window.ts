@@ -1624,6 +1624,22 @@ class Window {
     })
   }
 
+  /**
+   * Sets the title bar style. Available on macOS only.
+   *
+   * ## Platform-specific
+   *
+   * - **Linux / Windows / iOS / Android:**: Unsupported.
+   *
+   * @since 2.0.0
+   */
+  async setTitleBarStyle(style: TitleBarStyle): Promise<void> {
+    return invoke('plugin:window|set_title_bar_style', {
+      label: this.label,
+      value: style
+    })
+  }
+
   // Listeners
 
   /**

@@ -1534,6 +1534,15 @@ impl<R: Runtime> WebviewWindow<R> {
   ) -> crate::Result<()> {
     self.webview.window().set_progress_bar(progress_state)
   }
+
+  /// Sets the title bar style. Available on macOS only.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
+    self.webview.window().set_title_bar_style(style)
+  }
 }
 
 /// Desktop webview setters and actions.

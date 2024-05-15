@@ -929,6 +929,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     Ok(())
   }
+
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]

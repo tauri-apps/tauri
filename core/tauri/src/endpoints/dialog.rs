@@ -301,6 +301,10 @@ fn set_default_path(
   mut dialog_builder: FileDialogBuilder,
   default_path: PathBuf,
 ) -> FileDialogBuilder {
+  if default_path.as_os_str().is_empty() {
+    return dialog_builder;
+  }
+
   // we need to adjust the separator on Windows: https://github.com/tauri-apps/tauri/issues/8074
   let default_path: PathBuf = default_path.components().collect();
   if default_path.is_file() || !default_path.exists() {

@@ -215,6 +215,10 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
     "reverse-domain-snake-case",
     Box::new(reverse_domain_snake_case),
   );
+  h.register_helper(
+    "reverse-domain-escape-kotlin-keyword",
+    Box::new(reverse_domain_escape_kotlin_keyword),
+  );
   // don't mix these up or very bad things will happen to all of us
   h.register_helper("prefix-path", Box::new(prefix_path));
   h.register_helper("unprefix-path", Box::new(unprefix_path));
@@ -358,6 +362,46 @@ fn reverse_domain_snake_case(
   out
     .write(&util::reverse_domain(get_str(helper)).to_snek_case())
     .map_err(Into::into)
+}
+
+fn reverse_domain_escape_kotlin_keyword(
+  helper: &Helper,
+  _: &Handlebars,
+  _: &Context,
+  _: &mut RenderContext,
+  out: &mut dyn Output,
+) -> HelperResult {
+  let rev_domain = util::reverse_domain(get_str(helper));
+  dbg!(&rev_domain);
+  let result = rev_domain
+    .split('.')
+    .map(|s| {
+      let should_escaped_words: &[&str] = &[
+        "as",
+        "false",
+        "fun",
+        "in",
+        "is",
+        "null",
+        "object",
+        "true",
+        "typealias",
+        "typeof",
+        "val",
+        "var",
+        "when",
+      ];
+      if should_escaped_words.contains(&s) {
+        dbg!("escaped", &s);
+        format!("`{}`", s)
+      } else {
+        dbg!("not escaped", &s);
+        s.to_string()
+      }
+    })
+    .collect::<Vec<_>>()
+    .join(".");
+  out.write(&result).map_err(Into::into)
 }
 
 fn app_root(ctx: &Context) -> Result<&str, RenderError> {

@@ -40,6 +40,14 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
   use std::{path::PathBuf, process::Command};
 
   let source = source.as_ref();
+  let configuration = if std::env::var("DEBUG")
+    .map(|v| v == "true")
+    .unwrap_or_default()
+  {
+    "Debug"
+  } else {
+    "Release"
+  };
 
   let (sdk, arch) = match std::env::var("TARGET").unwrap().as_str() {
     "aarch64-apple-ios" => ("iphoneos", "arm64"),
@@ -49,12 +57,14 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
   };
 
   let out_dir = std::env::var_os("OUT_DIR").map(PathBuf::from).unwrap();
-  let derived_data_path = out_dir.join("derivedData");
+  let derived_data_path = out_dir.join(format!("derivedData-{name}"));
 
   let status = Command::new("xcodebuild")
     .arg("build")
     .arg("-scheme")
     .arg(name)
+    .arg("-configuration")
+    .arg(configuration)
     .arg("-sdk")
     .arg(sdk)
     .arg("-arch")
@@ -62,6 +72,7 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
     .arg("-derivedDataPath")
     .arg(&derived_data_path)
     .arg("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
+    .arg("OTHER_SWIFT_FLAGS=-no-verify-emitted-module-interface")
     .current_dir(source)
     .status()
     .unwrap();
@@ -71,7 +82,7 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
   let lib_out_dir = derived_data_path
     .join("Build")
     .join("Products")
-    .join(format!("Debug-{sdk}"));
+    .join(format!("{configuration}-{sdk}"));
 
   println!("cargo:rerun-if-changed={}", source.display());
   println!("cargo:rustc-link-search=native={}", lib_out_dir.display());

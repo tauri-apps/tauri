@@ -74,6 +74,7 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
     .arg("BUILD_LIBRARY_FOR_DISTRIBUTION=YES")
     .arg("OTHER_SWIFT_FLAGS=-no-verify-emitted-module-interface")
     .current_dir(source)
+    .env_clear()
     .status()
     .unwrap();
 

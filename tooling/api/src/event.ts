@@ -193,7 +193,6 @@ async function emit(event: string, payload?: unknown): Promise<void> {
  * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
  * @param payload Event payload.
  *
- * @since 1.0.0
  */
 async function emitTo(
   target: EventTarget | string,

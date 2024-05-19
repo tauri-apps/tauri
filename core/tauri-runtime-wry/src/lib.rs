@@ -3764,23 +3764,6 @@ fn create_webview<T: UserEvent>(
   } = pending;
 
   let builder = match kind {
-    #[cfg(not(any(
-      target_os = "windows",
-      target_os = "macos",
-      target_os = "ios",
-      target_os = "android"
-    )))]
-    WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      WebViewBuilder::new_gtk(vbox)
-    }
-    #[cfg(any(
-      target_os = "windows",
-      target_os = "macos",
-      target_os = "ios",
-      target_os = "android"
-    ))]
     WebviewKind::WindowChild => WebViewBuilder::new_as_child(&window),
     WebviewKind::WindowContent => {
       #[cfg(any(

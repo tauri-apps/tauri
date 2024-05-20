@@ -462,6 +462,10 @@ impl WindowBuilder for MockWindowBuilder {
   fn has_icon(&self) -> bool {
     false
   }
+
+  fn get_theme(&self) -> Option<Theme> {
+    None
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {

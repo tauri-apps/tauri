@@ -1023,6 +1023,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
   }
+
+  fn get_theme(&self) -> Option<Theme> {
+    self.inner.window.preferred_theme.map(|theme| match theme {
+      TaoTheme::Dark => Theme::Dark,
+      _ => Theme::Light,
+    })
+  }
 }
 
 #[cfg(any(

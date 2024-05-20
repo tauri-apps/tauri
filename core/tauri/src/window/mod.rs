@@ -390,7 +390,7 @@ tauri::Builder::default()
     #[cfg(desktop)]
     let handler = app_manager
       .menu
-      .prepare_window_menu_creation_handler(window_menu.as_ref());
+      .prepare_window_menu_creation_handler(window_menu.as_ref(), self.window_builder.get_theme());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
     let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
@@ -1160,7 +1160,12 @@ tauri::Builder::default()
     self.run_on_main_thread(move || {
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        let _ = menu_.inner().init_for_hwnd(hwnd.0);
+        let theme = window
+          .theme()
+          .map(crate::menu::map_to_menu_theme)
+          .unwrap_or(muda::MenuTheme::Auto);
+
+        let _ = menu_.inner().init_for_hwnd_with_theme(hwnd.0, theme);
       }
       #[cfg(any(
         target_os = "linux",

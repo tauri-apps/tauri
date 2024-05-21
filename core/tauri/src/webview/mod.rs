@@ -733,7 +733,7 @@ fn main() {
     self
   }
 
-  /// Enable or disable incognito mode for the WebView..
+  /// Enable or disable incognito mode for the WebView.
   ///
   ///  ## Platform-specific:
   ///

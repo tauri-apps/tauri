@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.6.5"
+version = "1.6.6"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -115,12 +115,11 @@ objc = "0.2"
 [target."cfg(windows)".dependencies]
 dunce = "1"
 webview2-com = "0.19.1"
-windows-sys = { version = "0.52.0", features = [ "Win32_Foundation", "Win32_UI_WindowsAndMessaging" ] }
 win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.39.0"
-  features = [ "Win32_Foundation" ]
+  features = [ "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell" ]
 
 [build-dependencies]
 heck = "0.5"

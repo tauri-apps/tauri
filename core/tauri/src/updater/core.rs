@@ -816,9 +816,13 @@ fn copy_files_and_run<R: Read + Seek>(
   // is done, otherwise we have a huge memory leak.
 
   use std::fs;
-  use windows_sys::{
+  use windows::{
+    core::{PCWSTR},
     w,
-    Win32::UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOW},
+    Win32::{
+      Foundation::HWND,
+      UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOW},
+    },
   };
 
   let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
@@ -832,7 +836,14 @@ fn copy_files_and_run<R: Read + Seek>(
 
   let paths = read_dir(&tmp_dir)?;
 
-  let mut installer_args = config
+  let system_root = std::env::var("SYSTEMROOT");
+  let powershell_path = system_root.as_ref().map_or_else(
+    |_| "powershell.exe".to_string(),
+    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+  );
+
+  let current_exe_args = env.args.clone();
+  let mut installer_args_common = config
     .tauri
     .updater
     .windows
@@ -846,7 +857,7 @@ fn copy_files_and_run<R: Read + Seek>(
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an NSIS installer.
     if found_path.extension() == Some(OsStr::new("exe")) {
-      installer_args.extend(config
+      installer_args_common.extend(config
         .tauri
         .updater
         .windows
@@ -856,29 +867,122 @@ fn copy_files_and_run<R: Read + Seek>(
         .map(OsStr::new)
       );
     } else if found_path.extension() == Some(OsStr::new("msi")) {
-      installer_args.extend(config.tauri.updater.windows.install_mode.msiexec_args().iter().map(OsStr::new));
-      installer_args.push(OsStr::new("/promptrestart"));
+      if with_elevated_task {
+        if let Some(bin_name) = current_exe()
+          .ok()
+          .and_then(|pb| pb.file_name().map(|s| s.to_os_string()))
+          .and_then(|s| s.into_string().ok())
+        {
+          let product_name = bin_name.replace(".exe", "");
+
+          // Check if there is a task that enables the updater to skip the UAC prompt
+          let update_task_name = format!("Update {product_name} - Skip UAC");
+          if let Ok(output) = Command::new("schtasks")
+            .arg("/QUERY")
+            .arg("/TN")
+            .arg(update_task_name.clone())
+            .output()
+          {
+            if output.status.success() {
+              // Rename the MSI to the match file name the Skip UAC task is expecting it to be
+              let temp_msi = tmp_dir.with_file_name(bin_name).with_extension("msi");
+              Move::from_source(&found_path)
+                .to_dest(&temp_msi)
+                .expect("Unable to move update MSI");
+              let exit_status = Command::new("schtasks")
+                .arg("/RUN")
+                .arg("/TN")
+                .arg(update_task_name)
+                .status()
+                .expect("failed to start updater task");
+
+              if exit_status.success() {
+                // Successfully launched task that skips the UAC prompt
+                exit(0);
+              }
+            }
+            // Failed to run update task. Following UAC Path
+          }
+        }
+      }
+
+      // we need to wrap the current exe path in quotes for Start-Process
+      let mut current_executable = std::ffi::OsString::new();
+      current_executable.push("\"");
+      current_executable.push(dunce::simplified(&current_exe()?));
+      current_executable.push("\"");
+
+      let mut msi_path = std::ffi::OsString::new();
+      msi_path.push("\"\"\"");
+      msi_path.push(&found_path);
+      msi_path.push("\"\"\"");
+
+      let installer_args = [
+        config.tauri.updater.windows.install_mode.msiexec_args(),
+        config
+          .tauri
+          .updater
+          .windows
+          .installer_args
+          .iter()
+          .map(AsRef::as_ref)
+          .collect::<Vec<_>>()
+          .as_slice(),
+      ]
+        .concat();
+
+      // run the installer and relaunch the application
+      let mut powershell_cmd = Command::new(powershell_path);
+
+      powershell_cmd
+        .args(["-NoProfile", "-WindowStyle", "Hidden"])
+        .args([
+          "Start-Process",
+          "-Wait",
+          "-FilePath",
+          "$Env:SYSTEMROOT\\System32\\msiexec.exe",
+          "-ArgumentList",
+        ])
+        .arg("/i,")
+        .arg(&msi_path)
+        .arg(format!(", {}, /promptrestart;", installer_args.join(", ")))
+        .arg("Start-Process")
+        .arg(current_executable);
+
+      if !current_exe_args.is_empty() {
+        powershell_cmd
+          .arg("-ArgumentList")
+          .arg(current_exe_args.join(", "));
+      }
+
+      let powershell_install_res = powershell_cmd.spawn();
+      if powershell_install_res.is_err() {
+        // fallback to running msiexec directly - relaunch won't be available
+        installer_args_common.extend(config.tauri.updater.windows.install_mode.msiexec_args().iter().map(OsStr::new));
+        installer_args_common.push(OsStr::new("/promptrestart"));
+      } else {
+        exit(0);
+      }
     } else {
       continue;
     }
     let file = encode_wide(found_path.as_os_str());
-    let parameters = encode_wide(installer_args.join(OsStr::new(" ")).as_os_str());
-    let operation: Vec<u16> = OsStr::new("open\0").encode_wide().collect();
+    let parameters = encode_wide(installer_args_common.join(OsStr::new(" ")).as_os_str());
 
     let ret = unsafe {
       ShellExecuteW(
-        0,
-        operation.as_ptr(),
-        file.as_ptr(),
-        parameters.as_ptr(),
-        std::ptr::null(),
-        SW_SHOW,
+        HWND(0),
+        w!("open"),
+        PCWSTR(file.as_ptr()),
+        PCWSTR(parameters.as_ptr()),
+        PCWSTR::null(),
+        std::mem::transmute(SW_SHOW),
       )
     };
-    if ret <= 32 {
+    if ret.0 <= 32 {
       return Err(Error::Io(std::io::Error::last_os_error()));
     }
-    std::process::exit(0);
+    exit(0);
   }
 
   Ok(())

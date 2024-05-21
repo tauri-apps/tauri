@@ -36,7 +36,7 @@ use std::{
 };
 
 #[cfg(any(target_os = "linux", windows))]
-use std::{ffi::OsStr, os::windows::ffi::OsStrExt, ptr};
+use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
 
 #[cfg(all(desktop, not(target_os = "windows")))]
 use crate::api::file::Compression;
@@ -815,7 +815,6 @@ fn copy_files_and_run<R: Read + Seek>(
   // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
   // is done, otherwise we have a huge memory leak.
 
-  use std::fs;
   use windows::{
     core::{PCWSTR},
     w,
@@ -849,7 +848,7 @@ fn copy_files_and_run<R: Read + Seek>(
     .windows
     .installer_args
     .iter()
-    .map(|a| OsStr::new(a))
+    .map(OsStr::new)
     .collect::<Vec<_>>();
 
   for path in paths {
@@ -990,8 +989,6 @@ fn copy_files_and_run<R: Read + Seek>(
 
 #[cfg(target_os = "windows")]
 fn encode_wide(string: impl AsRef<OsStr>) -> Vec<u16> {
-  use std::os::windows::ffi::OsStrExt;
-
   string
     .as_ref()
     .encode_wide()

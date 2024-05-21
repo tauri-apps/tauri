@@ -2,5 +2,4 @@
 "tauri-bundler": "patch:bug"
 ---
 
-Fix NSIS isntaller deep links registeration.
-
+Fix NSIS installer deep links registration.

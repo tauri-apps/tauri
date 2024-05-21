@@ -929,7 +929,7 @@ fn copy_files_and_run<R: Read + Seek>(
           .collect::<Vec<_>>()
           .as_slice(),
       ]
-        .concat();
+      .concat();
 
       // run the installer and relaunch the application
       let mut powershell_cmd = Command::new(powershell_path);

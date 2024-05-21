@@ -563,11 +563,14 @@ Section Install
   {{/each}}
 
   ; Create file associations
-  {{#each file_associations as |association| ~}}
-    {{#each association.ext as |ext| ~}}
-       !insertmacro APP_ASSOCIATE "{{ext}}" "{{or association.name ext}}" "{{association-description association.description ext}}" "$INSTDIR\${MAINBINARYNAME}.exe,0" "Open with ${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe $\"%1$\""
+  {{#if file_associations}}
+    !insertmacro APP_ASSOCIATE_INTO_APPLICATIONS "${MAINBINARYNAME}.exe" "$INSTDIR\${MAINBINARYNAME}.exe,0" "$INSTDIR\${MAINBINARYNAME}.exe $\"%1$\""
+    {{#each file_associations as |association| ~}}
+      {{#each association.ext as |ext| ~}}
+        !insertmacro APP_ASSOCIATE "{{ext}}" "${PRODUCTNAME}.{{ext}}" "{{association-description association.description ext}}" "$INSTDIR\${MAINBINARYNAME}.exe,0" "Open with ${PRODUCTNAME}" "$INSTDIR\${MAINBINARYNAME}.exe $\"%1$\"" "${BUNDLEID}" "${MAINBINARYNAME}.exe" "${PRODUCTNAME}"
+      {{/each}}
     {{/each}}
-  {{/each}}
+  {{/if}}
 
   ; Register deep links
   {{#each deep_link_protocols as |protocol| ~}}
@@ -693,11 +696,14 @@ Section Uninstall
   {{/each}}
 
   ; Delete app associations
-  {{#each file_associations as |association| ~}}
-    {{#each association.ext as |ext| ~}}
-      !insertmacro APP_UNASSOCIATE "{{ext}}" "{{or association.name ext}}"
+  {{#if file_associations}}
+    !insertmacro APP_ASSOCIATE_REMOVE_FROM_APPLICATIONS "${MAINBINARYNAME}.exe"
+    {{#each file_associations as |association| ~}}
+      {{#each association.ext as |ext| ~}}
+        !insertmacro APP_UNASSOCIATE "{{ext}}" "${PRODUCTNAME}.{{ext}}" "${PRODUCTNAME}"
+      {{/each}}
     {{/each}}
-  {{/each}}
+  {{/if}}
 
   ; Delete deep links
   {{#each deep_link_protocols as |protocol| ~}}

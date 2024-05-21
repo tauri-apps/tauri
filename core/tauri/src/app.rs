@@ -423,6 +423,26 @@ impl<R: Runtime> AppHandle<R> {
     }
     crate::process::restart(&self.env());
   }
+
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .set_activation_policy(activation_policy)
+      .map_err(Into::into)
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {
@@ -898,13 +918,12 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let mut app = tauri::Builder::default()
-  ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///   .expect("error while building tauri application");
-  /// #[cfg(target_os = "macos")]
-  /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-  /// app.run(|_app_handle, _event| {});
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///     Ok(())
+  ///   });
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -912,10 +931,7 @@ impl<R: Runtime> App<R> {
     if let Some(runtime) = self.runtime.as_mut() {
       runtime.set_activation_policy(activation_policy);
     } else {
-      let _ = self
-        .app_handle()
-        .runtime_handle
-        .set_activation_policy(activation_policy);
+      let _ = self.app_handle().set_activation_policy(activation_policy);
     }
   }
 

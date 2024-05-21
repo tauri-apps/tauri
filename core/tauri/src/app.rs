@@ -1776,6 +1776,8 @@ tauri::Builder::default()
 }
 
 pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>;
+
+/// Async uri scheme protocol responder.
 pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
 
 impl UriSchemeResponder {

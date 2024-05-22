@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.14.8]
+
+### Security fixes
+
+- [`f6d81dfe0`](https://www.github.com/tauri-apps/tauri/commit/f6d81dfe0871e0ccd012e5190d41e3767e733608) Only process IPC commands from the main frame.
+
 ## \[0.14.7]
 
 ### Bug Fixes

@@ -856,18 +856,11 @@ fn copy_files_and_run<R: Read + Seek>(
           .install_mode
           .nsis_args()
           .iter()
-          .map(OsStr::new)
-          .collect::<Vec<_>>(),
-        vec![OsStr::new("/ARGS")],
-        env.args.iter().map(OsStr::new).collect::<Vec<_>>(),
-        config
-          .tauri
-          .updater
-          .windows
-          .installer_args
-          .iter()
-          .map(OsStr::new)
-          .collect::<Vec<_>>(),
+          .map(|a| a.to_string())
+          .collect(),
+        vec!["/ARGS".to_string()],
+        env.args.clone(),
+        config.tauri.updater.windows.installer_args.clone(),
       ]
       .concat();
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -970,19 +963,12 @@ fn copy_files_and_run<R: Read + Seek>(
             .install_mode
             .msiexec_args()
             .iter()
-            .map(OsStr::new)
-            .collect::<Vec<_>>(),
-          config
-            .tauri
-            .updater
-            .windows
-            .installer_args
-            .iter()
-            .map(OsStr::new)
-            .collect::<Vec<_>>(),
+            .map(|a| a.to_string())
+            .collect(),
+          config.tauri.updater.windows.installer_args.clone(),
         ]
         .concat();
-        installer_args_shellexecute.push(OsStr::new("/promptrestart"));
+        installer_args_shellexecute.push("/promptrestart".to_string());
       } else {
         exit(0);
       }
@@ -991,7 +977,7 @@ fn copy_files_and_run<R: Read + Seek>(
     }
 
     let file = HSTRING::from(found_path.as_os_str());
-    let parameters = HSTRING::from(installer_args_shellexecute.join(OsStr::new(" ")));
+    let parameters = HSTRING::from(installer_args_shellexecute.join(" "));
     let ret = unsafe {
       ShellExecuteW(
         HWND(0),

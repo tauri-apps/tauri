@@ -212,6 +212,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
   if has_feature {
+    println!("cargo::rustc-cfg={alias}");
     println!("cargo:rustc-cfg={alias}");
   }
 }

@@ -856,15 +856,23 @@ fn copy_files_and_run<R: Read + Seek>(
     // we support 2 type of files exe & msi for now
     // If it's an `exe` we expect an NSIS installer.
     if found_path.extension() == Some(OsStr::new("exe")) {
-      installer_args_common.extend(config
-        .tauri
-        .updater
-        .windows
-        .install_mode
-        .nsis_args()
-        .iter()
-        .map(OsStr::new)
-      );
+      let installer_args: Vec<&OsStr> = [
+        config
+          .tauri
+          .updater
+          .windows
+          .install_mode
+          .nsis_args()
+          .iter()
+          .map(OsStr::new)
+          .collect::<Vec<_>>(),
+        vec![OsStr::new("/ARGS")],
+        current_exe_args
+          .iter()
+          .map(OsStr::new)
+          .collect::<Vec<_>>(),
+      ].concat();
+      installer_args_common.splice(0..0, installer_args);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
       if with_elevated_task {
         if let Some(bin_name) = current_exe()
@@ -957,7 +965,17 @@ fn copy_files_and_run<R: Read + Seek>(
       let powershell_install_res = powershell_cmd.spawn();
       if powershell_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
-        installer_args_common.extend(config.tauri.updater.windows.install_mode.msiexec_args().iter().map(OsStr::new));
+        installer_args_common.splice(
+          0..0,
+          config
+            .tauri
+            .updater
+            .windows
+            .install_mode
+            .msiexec_args()
+            .iter()
+            .map(OsStr::new)
+        );
         installer_args_common.push(OsStr::new("/promptrestart"));
       } else {
         exit(0);
@@ -966,7 +984,14 @@ fn copy_files_and_run<R: Read + Seek>(
       continue;
     }
     let file = encode_wide(found_path.as_os_str());
-    let parameters = encode_wide(installer_args_common.join(OsStr::new(" ")).as_os_str());
+    let parameters = encode_wide(
+      installer_args_common
+        .iter()
+        .map(|&arg| arg.to_string_lossy().into_owned())
+        .collect::<Vec<String>>()
+        .join(" ")
+        .as_str()
+    );
 
     let ret = unsafe {
       ShellExecuteW(
@@ -975,7 +1000,7 @@ fn copy_files_and_run<R: Read + Seek>(
         PCWSTR(file.as_ptr()),
         PCWSTR(parameters.as_ptr()),
         PCWSTR::null(),
-        std::mem::transmute(SW_SHOW),
+        SW_SHOW.0.try_into().unwrap(),
       )
     };
     if ret.0 <= 32 {

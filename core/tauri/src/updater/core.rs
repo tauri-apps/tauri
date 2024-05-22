@@ -816,7 +816,7 @@ fn copy_files_and_run<R: Read + Seek>(
   // is done, otherwise we have a huge memory leak.
 
   use windows::{
-    core::PCWSTR,
+    core::{HSTRING, PCWSTR},
     w,
     Win32::{
       Foundation::HWND,
@@ -981,8 +981,8 @@ fn copy_files_and_run<R: Read + Seek>(
     } else {
       continue;
     }
-    let file = encode_wide(found_path.as_os_str());
-    let parameters = encode_wide(
+    let file = HSTRING::from(found_path.as_os_str());
+    let parameters = HSTRING::from(
       installer_args_common
         .iter()
         .map(|&arg| arg.to_string_lossy().into_owned())
@@ -995,10 +995,10 @@ fn copy_files_and_run<R: Read + Seek>(
       ShellExecuteW(
         HWND(0),
         w!("open"),
-        PCWSTR(file.as_ptr()),
-        PCWSTR(parameters.as_ptr()),
+        &file,
+        &parameters,
         PCWSTR::null(),
-        SW_SHOW.0.try_into().unwrap(),
+        SW_SHOW.0 as _,
       )
     };
     if ret.0 <= 32 {
@@ -1008,16 +1008,6 @@ fn copy_files_and_run<R: Read + Seek>(
   }
 
   Ok(())
-}
-
-#[cfg(target_os = "windows")]
-fn encode_wide(string: impl AsRef<OsStr>) -> Vec<u16> {
-  use std::os::windows::ffi::OsStrExt;
-  string
-    .as_ref()
-    .encode_wide()
-    .chain(std::iter::once(0))
-    .collect()
 }
 
 // MacOS

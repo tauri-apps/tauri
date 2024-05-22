@@ -214,7 +214,8 @@ pub use self::utils::TitleBarStyle;
 pub use self::event::{Event, EventId, EventTarget};
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, WebviewEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, UriSchemeResponder,
+    WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
@@ -1090,4 +1091,53 @@ mod test_utils {
       crate::async_runtime::spawn(dummy_task);
     }
   }
+}
+
+/// Simple dependency-free string encoder using [Z85].
+mod z85 {
+  const TABLE: &[u8; 85] =
+    b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#";
+
+  /// Encode bytes with [Z85].
+  ///
+  /// # Panics
+  ///
+  /// Will panic if the input bytes are not a multiple of 4.
+  pub fn encode(bytes: &[u8]) -> String {
+    assert_eq!(bytes.len() % 4, 0);
+
+    let mut buf = String::with_capacity(bytes.len() * 5 / 4);
+    for chunk in bytes.chunks_exact(4) {
+      let mut chars = [0u8; 5];
+      let mut chunk = u32::from_be_bytes(chunk.try_into().unwrap()) as usize;
+      for byte in chars.iter_mut().rev() {
+        *byte = TABLE[chunk % 85];
+        chunk /= 85;
+      }
+
+      buf.push_str(std::str::from_utf8(&chars).unwrap());
+    }
+
+    buf
+  }
+
+  #[cfg(test)]
+  mod tests {
+    #[test]
+    fn encode() {
+      assert_eq!(
+        super::encode(&[0x86, 0x4F, 0xD2, 0x6F, 0xB5, 0x59, 0xF7, 0x5B]),
+        "HelloWorld"
+      );
+    }
+  }
+}
+
+/// Generate a random 128-bit [Z85] encoded [`String`].
+///
+/// [Z85]: https://rfc.zeromq.org/spec/32/
+pub(crate) fn generate_invoke_key() -> Result<String> {
+  let mut bytes = [0u8; 16];
+  getrandom::getrandom(&mut bytes)?;
+  Ok(z85::encode(&bytes))
 }

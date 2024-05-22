@@ -89,6 +89,9 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
+
+  /// A runtime generated invoke key.
+  pub(crate) invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for WebviewManager<R> {
@@ -98,6 +101,7 @@ impl<R: Runtime> fmt::Debug for WebviewManager<R> {
         "invoke_initialization_script",
         &self.invoke_initialization_script,
       )
+      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -371,6 +375,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[default_template("../../scripts/core.js")]
     struct CoreJavascript<'a> {
       os_name: &'a str,
+      invoke_key: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -391,6 +396,7 @@ impl<R: Runtime> WebviewManager<R> {
       bundle_script,
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
+        invoke_key: self.invoke_key(),
       }
       .render_default(&Default::default())?
       .into_string(),
@@ -659,6 +665,10 @@ impl<R: Runtime> WebviewManager<R> {
 
   pub fn labels(&self) -> HashSet<String> {
     self.webviews_lock().keys().cloned().collect()
+  }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.invoke_key
   }
 }
 

@@ -423,6 +423,26 @@ impl<R: Runtime> AppHandle<R> {
     }
     crate::process::restart(&self.env());
   }
+
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .set_activation_policy(activation_policy)
+      .map_err(Into::into)
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {
@@ -898,13 +918,12 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let mut app = tauri::Builder::default()
-  ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///   .expect("error while building tauri application");
-  /// #[cfg(target_os = "macos")]
-  /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-  /// app.run(|_app_handle, _event| {});
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///     Ok(())
+  ///   });
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -912,10 +931,7 @@ impl<R: Runtime> App<R> {
     if let Some(runtime) = self.runtime.as_mut() {
       runtime.set_activation_policy(activation_policy);
     } else {
-      let _ = self
-        .app_handle()
-        .runtime_handle
-        .set_activation_policy(activation_policy);
+      let _ = self.app_handle().set_activation_policy(activation_policy);
     }
   }
 
@@ -1081,6 +1097,8 @@ pub struct Builder<R: Runtime> {
 
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
+
+  invoke_key: String,
 }
 
 #[derive(Template)]
@@ -1092,6 +1110,7 @@ struct InvokeInitializationScript<'a> {
   os_name: &'a str,
   fetch_channel_data_command: &'a str,
   linux_ipc_protocol_enabled: bool,
+  invoke_key: &'a str,
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`
@@ -1114,6 +1133,8 @@ impl<R: Runtime> Default for Builder<R> {
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
+    let invoke_key = crate::generate_invoke_key().unwrap();
+
     Self {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
@@ -1125,6 +1146,7 @@ impl<R: Runtime> Builder<R> {
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
         linux_ipc_protocol_enabled: cfg!(feature = "linux-ipc-protocol"),
+        invoke_key: &invoke_key.clone(),
       }
       .render_default(&Default::default())
       .unwrap()
@@ -1139,6 +1161,7 @@ impl<R: Runtime> Builder<R> {
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
+      invoke_key,
     }
   }
 }
@@ -1606,6 +1629,7 @@ tauri::Builder::default()
       #[cfg(desktop)]
       HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
+      self.invoke_key,
     ));
 
     let runtime_args = RuntimeInitArgs {
@@ -1760,6 +1784,8 @@ tauri::Builder::default()
 }
 
 pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>;
+
+/// Async uri scheme protocol responder.
 pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
 
 impl UriSchemeResponder {

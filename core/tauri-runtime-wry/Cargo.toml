@@ -13,7 +13,7 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.39.3", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
+wry = { version = "0.40", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
 tao = { version = "0.28", default-features = false, features = [ "rwh_06" ] }
 tauri-runtime = { version = "2.0.0-beta.16", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-beta.15", path = "../tauri-utils" }

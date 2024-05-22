@@ -119,7 +119,7 @@ win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.39.0"
-  features = [ "Win32_Foundation" ]
+  features = [ "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell" ]
 
 [build-dependencies]
 heck = "0.5"

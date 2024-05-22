@@ -36,7 +36,7 @@ use std::{
 };
 
 #[cfg(any(target_os = "linux", windows))]
-use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
+use std::ffi::OsStr;
 
 #[cfg(all(desktop, not(target_os = "windows")))]
 use crate::api::file::Compression;
@@ -816,7 +816,7 @@ fn copy_files_and_run<R: Read + Seek>(
   // is done, otherwise we have a huge memory leak.
 
   use windows::{
-    core::{PCWSTR},
+    core::PCWSTR,
     w,
     Win32::{
       Foundation::HWND,
@@ -867,11 +867,9 @@ fn copy_files_and_run<R: Read + Seek>(
           .map(OsStr::new)
           .collect::<Vec<_>>(),
         vec![OsStr::new("/ARGS")],
-        current_exe_args
-          .iter()
-          .map(OsStr::new)
-          .collect::<Vec<_>>(),
-      ].concat();
+        current_exe_args.iter().map(OsStr::new).collect::<Vec<_>>(),
+      ]
+      .concat();
       installer_args_common.splice(0..0, installer_args);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
       if with_elevated_task {
@@ -974,7 +972,7 @@ fn copy_files_and_run<R: Read + Seek>(
             .install_mode
             .msiexec_args()
             .iter()
-            .map(OsStr::new)
+            .map(OsStr::new),
         );
         installer_args_common.push(OsStr::new("/promptrestart"));
       } else {
@@ -990,7 +988,7 @@ fn copy_files_and_run<R: Read + Seek>(
         .map(|&arg| arg.to_string_lossy().into_owned())
         .collect::<Vec<String>>()
         .join(" ")
-        .as_str()
+        .as_str(),
     );
 
     let ret = unsafe {
@@ -1014,6 +1012,7 @@ fn copy_files_and_run<R: Read + Seek>(
 
 #[cfg(target_os = "windows")]
 fn encode_wide(string: impl AsRef<OsStr>) -> Vec<u16> {
+  use std::os::windows::ffi::OsStrExt;
   string
     .as_ref()
     .encode_wide()

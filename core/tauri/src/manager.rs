@@ -238,6 +238,8 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_initialization_script: String,
   /// Application pattern.
   pub(crate) pattern: Pattern,
+  /// A runtime generated key to ensure an IPC call comes from an initialized frame.
+  invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -252,6 +254,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
       .field("pattern", &self.pattern)
+      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -303,6 +306,7 @@ impl<R: Runtime> WindowManager<R> {
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -333,6 +337,7 @@ impl<R: Runtime> WindowManager<R> {
         window_event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
+        invoke_key,
       }),
     }
   }
@@ -449,6 +454,7 @@ impl<R: Runtime> WindowManager<R> {
         }
         _ => "".to_string(),
       },
+      invoke_key: self.invoke_key(),
     }
     .render_default(&Default::default())?;
 
@@ -896,6 +902,10 @@ impl<R: Runtime> WindowManager<R> {
       listeners = self.event_listeners_object_name()
     )
   }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.inner.invoke_key
+  }
 }
 
 #[cfg(test)]
@@ -917,6 +927,7 @@ mod test {
       Default::default(),
       Default::default(),
       (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
+      crate::generate_invoke_key().unwrap(),
     );
 
     #[cfg(custom_protocol)]

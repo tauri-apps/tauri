@@ -82,6 +82,58 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
+  // Copy Webkit Libraries
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libwebkit2gtk-4.0.so"),
+    2,
+  );
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libjavascriptcoregtk-4.0.so"),
+    2,
+  );
+
+  // Copy icu libraries
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libicudata.so"),
+    1,
+  );
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libicui18n.so"),
+    1,
+  );
+  let _ = copy_lib(&package_dir, &mut PathBuf::from("/usr/lib/libicuio.so"), 1);
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libicutest.so"),
+    1,
+  );
+  let _ = copy_lib(&package_dir, &mut PathBuf::from("/usr/lib/libicutu.so"), 1);
+  let _ = copy_lib(&package_dir, &mut PathBuf::from("/usr/lib/libicuuc.so"), 1);
+
+  // Copy jxl libraries
+  let _ = copy_lib(&package_dir, &mut PathBuf::from("/usr/lib/libjxl.so"), 1);
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libjxl_cms.so"),
+    1,
+  );
+  let _ = copy_lib(
+    &package_dir,
+    &mut PathBuf::from("/usr/lib/libjxl_threads.so"),
+    1,
+  );
+
+  // Copy WebKit files
+  common::copy_dir(
+    &PathBuf::from("/usr/lib/webkit2gtk-4.0"),
+    &package_dir.join("data/usr/lib/webkit2gtk-4.0"),
+  )
+  .with_context(|| format!("Failed to copy the webkit2gtk-4.0 files"))?;
+
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
   copy_custom_files(settings, &data_dir).with_context(|| "Failed to copy custom files")?;
@@ -109,6 +161,38 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   )
   .with_context(|| "Failed to create package archive")?;
   Ok(vec![package_path])
+}
+
+// Copy libwebkit2gtk-4.0 to make it work on Ubuntu 24.04 and later
+fn copy_lib(
+  package_dir: &Path,
+  lib_path: &mut PathBuf,
+  to_remove: usize,
+) -> crate::Result<PathBuf> {
+  let target_dir = package_dir.join(format!("data/usr/lib"));
+
+  // Follow the symlink
+  while lib_path.is_symlink() {
+    let link_name = lib_path.read_link()?;
+    lib_path.set_file_name(link_name);
+  }
+
+  let mut lib_name = lib_path.clone();
+
+  for _ in 0..to_remove {
+    lib_name = PathBuf::from(lib_name.file_stem().unwrap());
+  }
+
+  println!(
+    "Copying file {} \n file name : {}",
+    lib_path.display(),
+    lib_name.display()
+  );
+  // Copy the library file to lib directory
+  common::copy_file(&lib_path, &target_dir.join(&lib_name))
+    .with_context(|| format!("Failed to copy the library {}", lib_path.display()))?;
+
+  Ok(target_dir)
 }
 
 /// Generate the debian data folders and files.

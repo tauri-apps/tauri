@@ -1,6 +1,6 @@
 ---
 "tauri": "patch:bug"
-"tauri-runtmie-wry": "patch:bug"
+"tauri-runtime-wry": "patch:bug"
 ---
 
 On Windows, handle resizing undecorated windows natively which improves performance and fixes a couple of annoyances with previous JS implementation:

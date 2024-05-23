@@ -413,8 +413,8 @@ mod gtk {
                 let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
                 let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
                 let edge = hit_test(
-                  0,
-                  0,
+                  0.0,
+                  0.0,
                   window.width(),
                   window.height(),
                   client_x,
@@ -454,8 +454,8 @@ mod gtk {
                   let (client_x, client_y) = (root_x - window_x as f64, root_y - window_y as f64);
                   let border = window.scale_factor() * BORDERLESS_RESIZE_INSET;
                   let edge = hit_test(
-                    0,
-                    0,
+                    0.0,
+                    0.0,
                     window.width(),
                     window.height(),
                     client_x,

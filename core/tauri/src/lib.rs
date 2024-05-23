@@ -129,24 +129,33 @@ pub type WryHandle = tauri_runtime_wry::WryHandle<EventLoopMessage>;
 #[doc(hidden)]
 #[macro_export]
 macro_rules! android_binding {
-  ($domain:ident, $main:ident, $wry:path) => {
+  ($domain:ident, $app_name:ident, $main:ident, $wry:path) => {
     use $wry::{
       android_setup,
       prelude::{JClass, JNIEnv, JString},
     };
 
-    ::tauri::wry::android_binding!($domain, $wry);
+    ::tauri::wry::android_binding!($domain, $app_name, $wry);
 
-    ::tauri::tao::android_binding!($domain, WryActivity, android_setup, $main, ::tauri::tao);
+    ::tauri::tao::android_binding!(
+      $domain,
+      $app_name,
+      WryActivity,
+      android_setup,
+      $main,
+      ::tauri::tao
+    );
 
     ::tauri::tao::platform::android::prelude::android_fn!(
-      app_tauri_plugin,
+      app_tauri,
+      plugin,
       PluginManager,
       handlePluginResponse,
       [i32, JString, JString],
     );
     ::tauri::tao::platform::android::prelude::android_fn!(
-      app_tauri_plugin,
+      app_tauri,
+      plugin,
       PluginManager,
       sendChannelData,
       [i64, JString],

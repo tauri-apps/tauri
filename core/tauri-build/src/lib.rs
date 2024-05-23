@@ -457,13 +457,20 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let s = config.identifier.split('.');
   let last = s.clone().count() - 1;
-  let mut android_package_name = String::new();
+  let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
-    android_package_name.push_str(w);
-    android_package_name.push('_');
+    if i == last {
+      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}", w);
+    } else {
+      android_package_prefix.push_str(w);
+      android_package_prefix.push('_');
+    }
   }
-  android_package_name.pop();
-  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME={android_package_name}");
+  android_package_prefix.pop();
+  println!(
+    "cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={}",
+    android_package_prefix
+  );
 
   if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     mobile::generate_gradle_files(project_dir)?;

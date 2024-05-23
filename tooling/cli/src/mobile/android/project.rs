@@ -110,7 +110,7 @@ pub fn gen(
   map.insert("windows", cfg!(windows));
 
   let domain = config.app().reverse_domain().replace('.', "/");
-  let package_path = format!("java/{}/{}", domain, config.app().name_snake());
+  let package_path = format!("java/{}", domain);
 
   map.insert("package-path", &package_path);
 

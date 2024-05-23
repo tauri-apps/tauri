@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: {{app.stylized-name}}
-      PRODUCT_BUNDLE_IDENTIFIER: {{reverse-domain app.domain}}.{{app.name}}
+      PRODUCT_BUNDLE_IDENTIFIER: {{reverse-domain app.domain}}
       {{#if apple.development-team}}
       DEVELOPMENT_TEAM: {{apple.development-team}}
       {{/if}}

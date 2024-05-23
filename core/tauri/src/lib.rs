@@ -147,14 +147,14 @@ macro_rules! android_binding {
     );
 
     ::tauri::tao::platform::android::prelude::android_fn!(
-      app_tauri,
+      app_tauri_plugin,
       plugin,
       PluginManager,
       handlePluginResponse,
       [i32, JString, JString],
     );
     ::tauri::tao::platform::android::prelude::android_fn!(
-      app_tauri,
+      app_tauri_plugin,
       plugin,
       PluginManager,
       sendChannelData,

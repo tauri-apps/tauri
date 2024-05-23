@@ -1,3 +1,3 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package {{reverse-domain app.domain}}
 
 class MainActivity : TauriActivity()

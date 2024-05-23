@@ -1064,7 +1064,7 @@ pub struct Builder<R: Runtime> {
   invoke_responder: Option<Arc<InvokeResponder<R>>>,
 
   /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
-  invoke_initialization_script: String,
+  pub(crate) invoke_initialization_script: String,
 
   /// The setup hook.
   setup: SetupHook<R>,
@@ -1098,19 +1098,19 @@ pub struct Builder<R: Runtime> {
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
 
-  invoke_key: String,
+  pub(crate) invoke_key: String,
 }
 
 #[derive(Template)]
 #[default_template("../scripts/ipc-protocol.js")]
-struct InvokeInitializationScript<'a> {
+pub(crate) struct InvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]
-  process_ipc_message_fn: &'a str,
-  os_name: &'a str,
-  fetch_channel_data_command: &'a str,
-  linux_ipc_protocol_enabled: bool,
-  invoke_key: &'a str,
+  pub(crate) process_ipc_message_fn: &'a str,
+  pub(crate) os_name: &'a str,
+  pub(crate) fetch_channel_data_command: &'a str,
+  pub(crate) linux_ipc_protocol_enabled: bool,
+  pub(crate) invoke_key: &'a str,
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`

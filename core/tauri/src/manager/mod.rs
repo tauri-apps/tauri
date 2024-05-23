@@ -663,6 +663,7 @@ mod test {
       Default::default(),
       Default::default(),
       (None, "".into()),
+      crate::generate_invoke_key().unwrap(),
     );
 
     #[cfg(custom_protocol)]

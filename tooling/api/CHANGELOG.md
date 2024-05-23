@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`ec0e092ec`](https://www.github.com/tauri-apps/tauri/commit/ec0e092ecd23b547c756c7476f23a0d95be6db80)([#9770](https://www.github.com/tauri-apps/tauri/pull/9770)) Add `monitorFromPoint` function in `window` module to get the monitor from a given point.
+
 ## \[2.0.0-beta.11]
 
 ### Bug Fixes

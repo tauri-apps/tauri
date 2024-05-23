@@ -124,7 +124,8 @@ pub struct InvokeRequest {
   pub body: InvokeBody,
   /// The request headers.
   pub headers: HeaderMap,
-  pub(crate) invoke_key: String,
+  /// The invoke key. Must match what was passed to the app manager.
+  pub invoke_key: String,
 }
 
 /// The platform webview handle. Accessed with [`Webview#method.with_webview`];

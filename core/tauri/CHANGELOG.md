@@ -1,5 +1,19 @@
 # Changelog
 
+## \[1.6.7]
+
+### Bug Fixes
+
+- [`50aabad1f`](https://www.github.com/tauri-apps/tauri/commit/50aabad1f602066417d815b0f2d2c5948848bb00)([#9818](https://www.github.com/tauri-apps/tauri/pull/9818)) On Windows, fix flashing PowerShell for updates for NSIS installer, and address possible "permission denied" problems.
+
+### Security fixes
+
+- [`f6d81dfe0`](https://www.github.com/tauri-apps/tauri/commit/f6d81dfe0871e0ccd012e5190d41e3767e733608) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.8`
+
 ## \[1.6.6]
 
 ### Bug Fixes

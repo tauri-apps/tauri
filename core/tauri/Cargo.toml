@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.6.6"
+version = "1.6.7"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -61,7 +61,7 @@ once_cell = "1"
 tauri-runtime = { version = "0.14.3", path = "../tauri-runtime" }
 tauri-macros = { version = "1.4.4", path = "../tauri-macros" }
 tauri-utils = { version = "1.5.4", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.14.7", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "0.14.8", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = { version = "1.0", features = [ "serde" ] }
 serde_repr = "0.1"
@@ -120,7 +120,11 @@ win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.39.0"
-  features = [ "Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_UI_Shell" ]
+  features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell"
+]
 
 [build-dependencies]
 heck = "0.5"

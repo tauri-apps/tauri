@@ -45,6 +45,7 @@ enum HitTestResult {
   NoWhere,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn hit_test(
   left: WindowPositions,
   top: WindowPositions,
@@ -86,7 +87,7 @@ mod windows {
   use windows::Win32::{Graphics::Gdi::*, UI::Shell::DefSubclassProc};
 
   impl HitTestResult {
-    fn to_win32(&self) -> i32 {
+    fn to_win32(self) -> i32 {
       match self {
         HitTestResult::Left => HTLEFT as _,
         HitTestResult::Right => HTRIGHT as _,

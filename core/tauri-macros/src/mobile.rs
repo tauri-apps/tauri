@@ -38,7 +38,6 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
 
   let mut error = None;
   let domain = get_env_var("TAURI_ANDROID_PACKAGE_PREFIX", |r| r, &mut error, &function);
-  let app_name = get_env_var("TAURI_ANDROID_PACKAGE_PREFIX", |r| r, &mut error, &function);
 
   if let Some(e) = error {
     quote!(#e).into()
@@ -61,7 +60,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         ::tauri::log_stdout();
         #[cfg(target_os = "android")]
         {
-          ::tauri::android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
+          ::tauri::android_binding!(#domain, _start_app, ::tauri::wry);
         }
         stop_unwind(#function_name);
       }

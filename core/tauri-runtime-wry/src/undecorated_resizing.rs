@@ -416,8 +416,8 @@ mod gtk {
                 let edge = hit_test(
                   0.0,
                   0.0,
-                  window.width(),
-                  window.height(),
+                  window.width() as f64,
+                  window.height() as f64,
                   client_x,
                   client_y,
                   border as _,
@@ -457,8 +457,8 @@ mod gtk {
                   let edge = hit_test(
                     0.0,
                     0.0,
-                    window.width(),
-                    window.height(),
+                    window.width() as f64,
+                    window.height() as f64,
                     client_x,
                     client_y,
                     border as _,

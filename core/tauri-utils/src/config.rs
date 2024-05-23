@@ -1770,12 +1770,16 @@ pub struct AndroidConfig {
   /// The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.
   #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
   pub min_sdk_version: u32,
+
+  #[serde(alias = "version-code")]
+  pub version_code: Option<u32>,
 }
 
 impl Default for AndroidConfig {
   fn default() -> Self {
     Self {
       min_sdk_version: default_min_sdk_version(),
+      version_code: None,
     }
   }
 }

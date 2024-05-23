@@ -20,6 +20,7 @@
     ".changes/api-window-on-filedrop.md",
     ".changes/app-handle-set-activation-policy.md",
     ".changes/app-manifest.md",
+    ".changes/app-region-drag.md",
     ".changes/assets-setup.md",
     ".changes/beta.md",
     ".changes/better-error-for-invalid-plugin-config.md",

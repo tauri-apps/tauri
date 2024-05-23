@@ -37,7 +37,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
   let function_name = &function.sig.ident;
 
   let mut error = None;
-  let domain = get_env_var("TAURI_ANDROID_PACKAGE_PREFIX", |r| r, &mut error, &function);
+  let domain = get_env_var("TAURI_ANDROID_PACKAGE_NAME", |r| r, &mut error, &function);
 
   if let Some(e) = error {
     quote!(#e).into()

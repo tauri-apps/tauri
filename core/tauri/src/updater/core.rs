@@ -815,6 +815,15 @@ fn copy_files_and_run<R: Read + Seek>(
   // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
   // is done, otherwise we have a huge memory leak.
 
+  use windows::{
+    core::{HSTRING, PCWSTR},
+    w,
+    Win32::{
+      Foundation::HWND,
+      UI::{Shell::ShellExecuteW, WindowsAndMessaging::SW_SHOW},
+    },
+  };
+
   let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
 
   // extract the buffer to the tmp_dir
@@ -832,20 +841,14 @@ fn copy_files_and_run<R: Read + Seek>(
     |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
   );
 
-  let current_exe_args = env.args.clone();
+  let mut installer_args_shellexecute;
 
   for path in paths {
     let found_path = path?.path();
     // we support 2 type of files exe & msi for now
-    // If it's an `exe` we expect an installer not a runtime.
+    // If it's an `exe` we expect an NSIS installer.
     if found_path.extension() == Some(OsStr::new("exe")) {
-      // we need to wrap the installer path in quotes for Start-Process
-      let mut installer_path = std::ffi::OsString::new();
-      installer_path.push("\"");
-      installer_path.push(&found_path);
-      installer_path.push("\"");
-
-      let installer_args = [
+      installer_args_shellexecute = [
         config
           .tauri
           .updater
@@ -853,34 +856,13 @@ fn copy_files_and_run<R: Read + Seek>(
           .install_mode
           .nsis_args()
           .iter()
-          .map(ToString::to_string)
+          .map(|a| a.to_string())
           .collect(),
         vec!["/ARGS".to_string()],
-        current_exe_args,
-        config
-          .tauri
-          .updater
-          .windows
-          .installer_args
-          .iter()
-          .map(ToString::to_string)
-          .collect::<Vec<_>>(),
+        env.args.clone(),
+        config.tauri.updater.windows.installer_args.clone(),
       ]
       .concat();
-
-      // Run the EXE
-      let mut cmd = Command::new(powershell_path);
-      cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
-        .arg(installer_path);
-      if !installer_args.is_empty() {
-        cmd.arg("-ArgumentList").arg(installer_args.join(", "));
-      }
-      cmd
-        .spawn()
-        .expect("Running NSIS installer from powershell has failed to start");
-
-      exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
       if with_elevated_task {
         if let Some(bin_name) = current_exe()
@@ -932,7 +914,7 @@ fn copy_files_and_run<R: Read + Seek>(
       msi_path.push(&found_path);
       msi_path.push("\"\"\"");
 
-      let installer_args = [
+      let msi_installer_args = [
         config.tauri.updater.windows.install_mode.msiexec_args(),
         config
           .tauri
@@ -960,34 +942,57 @@ fn copy_files_and_run<R: Read + Seek>(
         ])
         .arg("/i,")
         .arg(&msi_path)
-        .arg(format!(", {}, /promptrestart;", installer_args.join(", ")))
+        .arg(format!(
+          ", {}, /promptrestart;",
+          msi_installer_args.join(", ")
+        ))
         .arg("Start-Process")
         .arg(current_executable);
 
-      if !current_exe_args.is_empty() {
-        powershell_cmd
-          .arg("-ArgumentList")
-          .arg(current_exe_args.join(", "));
+      if !env.args.is_empty() {
+        powershell_cmd.arg("-ArgumentList").arg(env.args.join(", "));
       }
 
       let powershell_install_res = powershell_cmd.spawn();
       if powershell_install_res.is_err() {
-        // fallback to running msiexec directly - relaunch won't be available
-        // we use this here in case powershell fails in an older machine somehow
-        let msiexec_path = system_root.as_ref().map_or_else(
-          |_| "msiexec.exe".to_string(),
-          |p| format!("{p}\\System32\\msiexec.exe"),
-        );
-        let _ = Command::new(msiexec_path)
-          .arg("/i")
-          .arg(msi_path)
-          .args(installer_args)
-          .arg("/promptrestart")
-          .spawn();
+        installer_args_shellexecute = [
+          config
+            .tauri
+            .updater
+            .windows
+            .install_mode
+            .msiexec_args()
+            .iter()
+            .map(|a| a.to_string())
+            .collect(),
+          config.tauri.updater.windows.installer_args.clone(),
+        ]
+        .concat();
+        installer_args_shellexecute.push("/promptrestart".to_string());
+      } else {
+        exit(0);
       }
-
-      exit(0);
+    } else {
+      continue;
     }
+
+    let file = HSTRING::from(found_path.as_os_str());
+    let parameters = HSTRING::from(installer_args_shellexecute.join(" "));
+    let ret = unsafe {
+      ShellExecuteW(
+        HWND(0),
+        w!("open"),
+        &file,
+        &parameters,
+        PCWSTR::null(),
+        SW_SHOW.0 as _,
+      )
+    };
+    if ret.0 <= 32 {
+      return Err(Error::Io(std::io::Error::last_os_error()));
+    }
+
+    exit(0);
   }
 
   Ok(())

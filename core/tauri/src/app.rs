@@ -1569,6 +1569,7 @@ impl<R: Runtime> Builder<R> {
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
       (self.invoke_responder, self.invoke_initialization_script),
+      crate::generate_invoke_key()?,
     );
 
     let http_scheme = manager.config().tauri.security.dangerous_use_http_scheme;

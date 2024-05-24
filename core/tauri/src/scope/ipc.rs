@@ -171,6 +171,7 @@ impl Scope {
 #[cfg(test)]
 mod tests {
   use super::RemoteDomainAccessScope;
+  use crate::sealed::ManagerBase;
   use crate::{
     api::ipc::CallbackFn,
     test::{assert_ipc_response, mock_app, MockRuntime},
@@ -190,7 +191,7 @@ mod tests {
     (app, window)
   }
 
-  fn app_version_payload() -> InvokePayload {
+  fn app_version_payload(invoke_key: &str) -> InvokePayload {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
@@ -208,10 +209,11 @@ mod tests {
       callback,
       error,
       inner: serde_json::Value::Object(payload),
+      invoke_key: Some(invoke_key.into()),
     }
   }
 
-  fn plugin_test_payload() -> InvokePayload {
+  fn plugin_test_payload(invoke_key: &str) -> InvokePayload {
     let callback = CallbackFn(0);
     let error = CallbackFn(1);
 
@@ -221,19 +223,25 @@ mod tests {
       callback,
       error,
       inner: Default::default(),
+      invoke_key: Some(invoke_key.into()),
     }
+  }
+
+  fn invoke_key(app: &App<MockRuntime>) -> &str {
+    app.manager().invoke_key()
   }
 
   #[test]
   fn scope_not_defined() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
+    let (app, mut window) = test_context(vec![RemoteDomainAccessScope::new("app.tauri.app")
       .add_window("other")
       .enable_tauri_api()]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Err(&crate::window::ipc_scope_not_found_error_message(
         "main",
         "https://tauri.app/",
@@ -243,28 +251,30 @@ mod tests {
 
   #[test]
   fn scope_not_defined_for_window() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("second")
       .enable_tauri_api()]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Err(&crate::window::ipc_scope_window_error_message("main")),
     );
   }
 
   #[test]
   fn scope_not_defined_for_url() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
+    let (app, mut window) = test_context(vec![RemoteDomainAccessScope::new("github.com")
       .add_window("main")
       .enable_tauri_api()]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Err(&crate::window::ipc_scope_domain_error_message(
         "https://tauri.app/",
       )),
@@ -281,18 +291,19 @@ mod tests {
         .add_window("main")
         .enable_tauri_api(),
     ]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Ok(app.package_info().version.to_string().as_str()),
     );
 
     window.navigate("https://blog.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Err(&crate::window::ipc_scope_domain_error_message(
         "https://blog.tauri.app/",
       )),
@@ -301,7 +312,7 @@ mod tests {
     window.navigate("https://sub.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Ok(app.package_info().version.to_string().as_str()),
     );
 
@@ -309,7 +320,7 @@ mod tests {
     window.navigate("https://dev.tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Err(&crate::window::ipc_scope_not_found_error_message(
         "test",
         "https://dev.tauri.app/",
@@ -322,53 +333,57 @@ mod tests {
     let (app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .enable_tauri_api()]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app/inner/path".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Ok(app.package_info().version.to_string().as_str()),
     );
   }
 
   #[test]
   fn tauri_api_not_allowed() {
-    let (_app, mut window) = test_context(vec![
+    let (app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      app_version_payload(),
+      app_version_payload(invoke_key),
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }
 
   #[test]
   fn plugin_allowed() {
-    let (_app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
+    let (app, mut window) = test_context(vec![RemoteDomainAccessScope::new("tauri.app")
       .add_window("main")
       .add_plugin(PLUGIN_NAME)]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      plugin_test_payload(),
+      plugin_test_payload(invoke_key),
       Err(&format!("plugin {PLUGIN_NAME} not found")),
     );
   }
 
   #[test]
   fn plugin_not_allowed() {
-    let (_app, mut window) = test_context(vec![
+    let (app, mut window) = test_context(vec![
       RemoteDomainAccessScope::new("tauri.app").add_window("main")
     ]);
+    let invoke_key = invoke_key(&app);
 
     window.navigate("https://tauri.app".parse().unwrap());
     assert_ipc_response(
       &window,
-      plugin_test_payload(),
+      plugin_test_payload(invoke_key),
       Err(crate::window::IPC_SCOPE_DOES_NOT_ALLOW),
     );
   }

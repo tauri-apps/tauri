@@ -67,6 +67,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
   if !nsis_toolset_path.exists() {
+    create_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else if NSIS_REQUIRED_FILES
     .iter()
@@ -114,12 +115,10 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     NSIS_TAURI_UTILS_SHA1,
     HashAlgorithm::Sha1,
   )?;
-  write(
-    nsis_plugins
-      .join("x86-unicode")
-      .join("nsis_tauri_utils.dll"),
-    data,
-  )?;
+
+  let target_folder = nsis_plugins.join("x86-unicode");
+  create_dir_all(&target_folder)?;
+  write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
   Ok(())
 }

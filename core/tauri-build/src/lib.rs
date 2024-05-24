@@ -211,9 +211,8 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
-  println!("cargo::rustc-check-cfg=cfg({alias})");
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
-    println!("cargo::rustc-cfg={alias}");
     println!("cargo:rustc-cfg={alias}");
   }
 }

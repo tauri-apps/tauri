@@ -240,7 +240,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
-    #[cfg_attr(not(unstable), allow(unused_mut))]
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut builder = Self {
       manager,
       label: config.label.clone(),

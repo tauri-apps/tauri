@@ -7,7 +7,7 @@
  */
 
 ;
-(function () {
+(function() {
   /**
    * @type {string}
    */
@@ -17,6 +17,15 @@
    * @type {string}
    */
   const isolationOrigin = __TEMPLATE_isolation_origin__
+
+  /**
+   * A runtime generated key to ensure an IPC call comes from an initialized frame.
+   *
+   * This is declared outside the `window.__TAURI_INVOKE__` definition to prevent
+   * the key from being leaked by `window.__TAURI_INVOKE__.toString()`.
+   * @var {string} __TEMPLATE_invoke_key__
+   */
+  const __TAURI_INVOKE_KEY__ = __TEMPLATE_invoke_key__
 
   /**
    * @type {{queue: object[], ready: boolean, frame: HTMLElement | null}}
@@ -85,6 +94,7 @@
   Object.defineProperty(window, '__TAURI_IPC__', {
     // todo: JSDoc this function
     value: Object.freeze((message) => {
+      message.__TAURI_INVOKE_KEY__ = __TAURI_INVOKE_KEY__
       switch (pattern) {
         case 'brownfield':
           window.__TAURI_POST_MESSAGE__(message)

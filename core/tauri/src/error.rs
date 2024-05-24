@@ -131,6 +131,12 @@ pub enum Error {
   /// The Window's raw handle is invalid for the platform.
   #[error("Unexpected `raw_window_handle` for the current platform")]
   InvalidWindowHandle,
+  /// Something went wrong with the CSPRNG.
+  #[error("unable to generate random bytes from the operating system: {0}")]
+  Csprng(#[from] getrandom::Error),
+  /// Bad `__TAURI_INVOKE_KEY__` value received in ipc message.
+  #[error("bad __TAURI_INVOKE_KEY__ value received in ipc message")]
+  InvokeKey,
 }
 
 pub(crate) fn into_anyhow<T: std::fmt::Display>(err: T) -> anyhow::Error {

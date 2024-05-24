@@ -511,7 +511,6 @@ fn build_nsis_app_installer(
 
   rename(nsis_output_path, &nsis_installer_path)?;
 
-  // Code signing is currently only supported on Windows hosts
   if settings.can_sign() {
     try_sign(&nsis_installer_path, settings)?;
   } else {

@@ -14,6 +14,8 @@ use std::{
   process::Command,
   sync::OnceLock,
 };
+
+#[cfg(windows)]
 use winreg::{
   enums::{HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY},
   RegKey,
@@ -58,6 +60,7 @@ pub struct SignParams {
   pub sign_command: Option<String>,
 }
 
+#[cfg(windows)]
 fn signtool() -> Option<PathBuf> {
   // sign code forked from https://github.com/forbjok/rust-codesign
   static SIGN_TOOL: OnceLock<crate::Result<PathBuf>> = OnceLock::new();
@@ -130,6 +133,7 @@ fn signtool() -> Option<PathBuf> {
 
 /// Check if binary is already signed.
 /// Used to skip sidecar binaries that are already signed.
+#[cfg(windows)]
 pub fn verify(path: &Path) -> crate::Result<bool> {
   let signtool = signtool().ok_or(crate::Error::SignToolNotFound)?;
 
@@ -166,6 +170,7 @@ pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &str) -> crate::Res
   Ok(cmd)
 }
 
+#[cfg(windows)]
 pub fn sign_command_default<P: AsRef<Path>>(
   path: P,
   params: &SignParams,
@@ -219,6 +224,7 @@ pub fn sign_custom<P: AsRef<Path>>(path: P, custom_command: &str) -> crate::Resu
   Ok(())
 }
 
+#[cfg(windows)]
 pub fn sign_default<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   let signtool = signtool().ok_or(crate::Error::SignToolNotFound)?;
   let path = path.as_ref();

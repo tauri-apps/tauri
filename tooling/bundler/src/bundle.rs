@@ -74,15 +74,20 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     for bin in settings.external_binaries() {
       let path = bin?;
       let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
+      if skip {
+        continue;
+      }
 
-      if !skip && windows::sign::verify(&path)? {
+      #[cfg(windows)]
+      if windows::sign::verify(&path)? {
         log::info!(
           "sidecar at \"{}\" already signed. Skipping...",
           path.display()
-        )
-      } else {
-        windows::sign::try_sign(&path, &settings)?;
+        );
+        continue;
       }
+
+      windows::sign::try_sign(&path, &settings)?;
     }
   } else {
     #[cfg(not(target_os = "windows"))]

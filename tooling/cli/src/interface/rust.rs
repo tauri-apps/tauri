@@ -1420,6 +1420,7 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
+      sign_command: config.windows.sign_command,
     },
     license: config.license.or_else(|| {
       settings

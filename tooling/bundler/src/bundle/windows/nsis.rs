@@ -200,13 +200,8 @@ fn build_nsis_app_installer(
   // Code signing is currently only supported on Windows hosts
   #[cfg(target_os = "windows")]
   if settings.can_sign() {
-    data.insert(
-      "uninstaller_sign_cmd",
-      to_json(format!(
-        "{:?}",
-        sign_command("%1", &settings.sign_params())?.0
-      )),
-    );
+    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
   }
 
   let version = settings.version_string();
@@ -522,8 +517,12 @@ fn build_nsis_app_installer(
   rename(nsis_output_path, &nsis_installer_path)?;
 
   // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
-  try_sign(&nsis_installer_path, settings)?;
+  if settings.can_sign() {
+    try_sign(&nsis_installer_path, settings)?;
+  } else {
+    #[cfg(not(target_os = "windows"))]
+    tracing::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+  }
 
   Ok(vec![nsis_installer_path])
 }

@@ -63,8 +63,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 
-  #[cfg(target_os = "windows")]
-  {
+  if settings.can_sign() {
     // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
     for bin in settings.binaries() {
       let bin_path = settings.binary_path(bin);
@@ -85,6 +84,9 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
         windows::sign::try_sign(&path, &settings)?;
       }
     }
+  } else {
+    #[cfg(not(target_os = "windows"))]
+    tracing::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
   }
 
   for package_type in &package_types {

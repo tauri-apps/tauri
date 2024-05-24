@@ -2837,7 +2837,7 @@
           "minimum": 0.0
         },
         "versionCode": {
-          "description": "The version code of the application. It was limited to 2,100,000,000 as per Google Play Store requirements.",
+          "description": "The version code of the application. It is limited to 2,100,000,000 as per Google Play Store requirements.\n\nBy default we use your configured version and perform the following math: versionCode = version.major * 1000000 + version.minor * 1000 + version.patch",
           "type": [
             "integer",
             "null"

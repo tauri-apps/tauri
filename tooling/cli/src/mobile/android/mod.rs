@@ -133,14 +133,14 @@ pub fn get_config(
     ..Default::default()
   };
 
-  set_var("WRY_ANDROID_PACKAGE", app.reverse_domain());
+  set_var("WRY_ANDROID_PACKAGE", app.reverse_identifier());
   set_var("WRY_ANDROID_LIBRARY", app.lib_name());
   set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
 
-  let src_main_dir = config
-    .project_dir()
-    .join("app/src/main")
-    .join(format!("java/{}", app.reverse_domain().replace('.', "/"),));
+  let src_main_dir = config.project_dir().join("app/src/main").join(format!(
+    "java/{}",
+    app.reverse_identifier().replace('.', "/"),
+  ));
   if config.project_dir().exists() {
     if src_main_dir.exists() {
       let _ = create_dir(src_main_dir.join("generated"));

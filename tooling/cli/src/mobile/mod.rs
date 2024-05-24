@@ -289,16 +289,16 @@ fn read_options(identifier: &str) -> CliOptions {
 
 pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
   let s = config.identifier.rsplit('.');
-  let mut domain = String::new();
+  let mut identifier = String::new();
   for w in s {
-    domain.push_str(w);
-    domain.push('.');
+    identifier.push_str(w);
+    identifier.push('.');
   }
-  if domain.is_empty() {
+  if identifier.is_empty() {
     log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
     exit(1);
   } else {
-    domain.pop();
+    identifier.pop();
   }
 
   let app_name = interface
@@ -314,7 +314,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     name: app_name,
     lib_name: Some(lib_name),
     stylized_name: config.product_name.clone(),
-    domain,
+    identifier,
     asset_dir: None,
     template_pack: None,
   };

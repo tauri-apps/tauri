@@ -518,13 +518,6 @@ impl<R: Runtime> Context<R> {
       plugin_global_api_scripts,
     }
   }
-
-  /// Sets the app shell scope.
-  #[cfg(shell_scope)]
-  #[inline(always)]
-  pub fn set_shell_scope(&mut self, scope: scope::ShellScopeConfig) {
-    self.shell_scope = scope;
-  }
 }
 
 // TODO: expand these docs

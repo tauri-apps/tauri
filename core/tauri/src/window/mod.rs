@@ -240,7 +240,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
-    #[cfg_attr(not(unstable), allow(unused_mut))]
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut builder = Self {
       manager,
       label: config.label.clone(),
@@ -968,7 +968,7 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.webview().window().clone())
+    Ok(command.message.webview().window())
   }
 }
 

@@ -2840,6 +2840,16 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
+        },
+        "versionCode": {
+          "description": "The version code of the application. It was limited to 2,100,000,000 as per Google Play Store requirements.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 2100000000.0,
+          "minimum": 1.0
         }
       },
       "additionalProperties": false

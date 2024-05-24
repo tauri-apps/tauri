@@ -1771,7 +1771,10 @@ pub struct AndroidConfig {
   #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
   pub min_sdk_version: u32,
 
+  /// The version code of the application.
+  /// It was limited to 2,100,000,000 as per Google Play Store requirements.
   #[serde(alias = "version-code")]
+  #[validate(range(min = 1, max = 2_100_000_000))]
   pub version_code: Option<u32>,
 }
 

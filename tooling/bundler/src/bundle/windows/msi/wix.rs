@@ -437,10 +437,6 @@ pub fn build_wix_app_installer(
       webview_install_mode = WebviewInstallMode::FixedRuntime {
         path: fixed_runtime_path,
       };
-    } else if let Some(wix) = &settings.windows().wix {
-      if wix.skip_webview_install {
-        webview_install_mode = WebviewInstallMode::Skip;
-      }
     }
     webview_install_mode
   };

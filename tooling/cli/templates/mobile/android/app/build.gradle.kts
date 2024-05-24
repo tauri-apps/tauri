@@ -8,10 +8,10 @@ plugins {
 
 android {
     compileSdk = 33
-    namespace = "{{reverse-domain app.domain}}.{{snake-case app.name}}"
+    namespace = "{{reverse-domain app.identifier}}"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "{{reverse-domain app.domain}}.{{snake-case app.name}}"
+        applicationId = "{{reverse-domain app.identifier}}"
         minSdk = {{android.min-sdk-version}}
         targetSdk = 33
         versionCode = 1

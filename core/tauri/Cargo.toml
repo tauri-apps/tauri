@@ -78,7 +78,7 @@ dunce = "1"
 specta = { version = "^2.0.0-rc.9", optional = true, default-features = false, features = [ "function" ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.13", default-features = false, features = [ "serde" ] }
+muda = { version = "0.13.4", default-features = false, features = [ "serde" ] }
 tray-icon = { version = "0.13", default-features = false, features = [ "serde" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

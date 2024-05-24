@@ -3,3 +3,4 @@
 /src/main/assets/tauri.conf.json
 /tauri.build.gradle.kts
 /proguard-tauri.pro
+/tauri.properties

@@ -211,6 +211,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }
@@ -459,16 +460,18 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let last = s.clone().count() - 1;
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
-    if i == 0 || i != last {
+    if i == last {
+      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}", w);
+    } else {
       android_package_prefix.push_str(w);
       android_package_prefix.push('_');
     }
   }
   android_package_prefix.pop();
-  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
+  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
   if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-    mobile::generate_gradle_files(project_dir)?;
+    mobile::generate_gradle_files(project_dir, &config)?;
   }
 
   cfg_alias("dev", dev());

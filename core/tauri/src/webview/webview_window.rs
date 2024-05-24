@@ -1044,7 +1044,7 @@ tauri::Builder::default()
     menu: &M,
     position: P,
   ) -> crate::Result<()> {
-    menu.popup_at(self.webview.window().clone(), position)
+    menu.popup_at(self.webview.window(), position)
   }
 }
 

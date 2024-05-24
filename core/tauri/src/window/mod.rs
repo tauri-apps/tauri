@@ -968,7 +968,7 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.webview().window().clone())
+    Ok(command.message.webview().window())
   }
 }
 

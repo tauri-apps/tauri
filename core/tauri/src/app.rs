@@ -329,7 +329,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.webview().window().app_handle.clone())
+    Ok(command.message.webview().window().app_handle)
   }
 }
 

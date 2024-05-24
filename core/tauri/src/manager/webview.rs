@@ -275,8 +275,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol =
-        crate::ipc::protocol::get(manager.manager_owned().clone(), pending.label.clone());
+      let protocol = crate::ipc::protocol::get(manager.manager_owned(), pending.label.clone());
       pending.register_uri_scheme_protocol("ipc", move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });
@@ -613,7 +612,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     // let plugins know that a new webview has been added to the manager
-    let manager = webview.manager_owned().clone();
+    let manager = webview.manager_owned();
     let webview_ = webview.clone();
     // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
     let _ = webview.run_on_main_thread(move || {

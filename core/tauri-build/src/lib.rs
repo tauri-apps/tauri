@@ -468,8 +468,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   android_package_prefix.pop();
   println!(
-    "cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={}",
-    android_package_prefix
+    "cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}"
   );
 
   if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {

@@ -163,9 +163,6 @@ fn build_nsis_app_installer(
 
   log::info!("Target: {}", arch);
 
-  #[cfg(not(target_os = "windows"))]
-  log::info!("Code signing is currently only supported on Windows hosts, skipping...");
-
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
     remove_dir_all(&output_path)?;

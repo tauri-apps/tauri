@@ -859,6 +859,20 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  #[serde(alias = "sign-command")]
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsConfig {
@@ -873,6 +887,7 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
+      sign_command: None,
     }
   }
 }

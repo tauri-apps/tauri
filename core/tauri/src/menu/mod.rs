@@ -763,3 +763,12 @@ pub(crate) mod sealed {
     ) -> crate::Result<()>;
   }
 }
+
+#[cfg(windows)]
+pub(crate) fn map_to_menu_theme(theme: tauri_utils::Theme) -> muda::MenuTheme {
+  match theme {
+    tauri_utils::Theme::Light => muda::MenuTheme::Light,
+    tauri_utils::Theme::Dark => muda::MenuTheme::Dark,
+    _ => muda::MenuTheme::Auto,
+  }
+}

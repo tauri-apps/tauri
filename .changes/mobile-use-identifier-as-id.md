@@ -2,6 +2,7 @@
 "tauri": patch:breaking
 "tauri-build": patch:breaking
 "tauri-cli": patch:breaking
+"@tauri-apps/cli": patch:breaking
 "tauri-macros": patch:breaking
 ---
 

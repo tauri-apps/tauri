@@ -9,6 +9,7 @@ use crate::{
 };
 use anyhow::Context;
 use std::{
+  ffi::OsStr,
   path::{Path, PathBuf},
   process::Command,
   sync::OnceLock,
@@ -141,13 +142,19 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
 }
 
 pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &str) -> crate::Result<Command> {
-  let custom_command = command.replace(
-    "%1",
-    &format!(
-      "\"{}\"",
-      tauri_utils::display_path(dunce::simplified(path.as_ref()))
-    ),
-  );
+  let path = path.as_ref();
+
+  let custom_command = if path.as_os_str() == OsStr::new("%1") {
+    command.to_string()
+  } else {
+    command.replace(
+      "%1",
+      &format!(
+        "\"{}\"",
+        tauri_utils::display_path(dunce::simplified(path.as_ref()))
+      ),
+    )
+  };
 
   let mut args = custom_command.trim().split(' ');
   let bin = args

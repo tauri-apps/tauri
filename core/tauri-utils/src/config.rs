@@ -657,11 +657,6 @@ pub struct WixConfig {
   /// The Merge element ids you want to reference from the fragments.
   #[serde(default, alias = "merge-refs")]
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install.
-  ///
-  /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
-  #[serde(default, alias = "skip-webview-install")]
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   #[serde(default, alias = "enable-elevated-update-task")]
   pub enable_elevated_update_task: bool,

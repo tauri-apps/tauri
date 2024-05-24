@@ -2154,11 +2154,6 @@
             "type": "string"
           }
         },
-        "skipWebviewInstall": {
-          "description": "Disables the Webview2 runtime installation after app install.\n\nWill be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.",
-          "default": false,
-          "type": "boolean"
-        },
         "enableElevatedUpdateTask": {
           "description": "Create an elevated update task within Windows Task Scheduler.",
           "default": false,

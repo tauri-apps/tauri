@@ -521,7 +521,7 @@ fn build_nsis_app_installer(
     try_sign(&nsis_installer_path, settings)?;
   } else {
     #[cfg(not(target_os = "windows"))]
-    tracing::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
   }
 
   Ok(vec![nsis_installer_path])

@@ -107,7 +107,6 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tauri-plugin-sample",
- "tauri-plugin-xcode",
  "tiny_http",
 ]
 
@@ -3134,16 +3133,6 @@ name = "tauri-plugin-sample"
 version = "0.1.0"
 dependencies = [
  "log",
- "serde",
- "tauri",
- "tauri-plugin",
- "thiserror",
-]
-
-[[package]]
-name = "tauri-plugin-xcode"
-version = "0.0.0"
-dependencies = [
  "serde",
  "tauri",
  "tauri-plugin",

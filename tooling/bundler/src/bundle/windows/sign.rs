@@ -8,8 +8,6 @@ use crate::bundle::windows::util;
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
 #[cfg(windows)]
-use std::path::PathBuf;
-#[cfg(windows)]
 use std::sync::OnceLock;
 use std::{
   ffi::OsStr,

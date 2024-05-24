@@ -5,7 +5,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
   menu::{Menu, MenuItem},
-  tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
   Manager, Runtime, WebviewUrl,
 };
 
@@ -109,7 +109,8 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     })
     .on_tray_icon_event(|tray, event| {
       if let TrayIconEvent::Click {
-        button: MouseButton::Left,
+        button: MouseButton::Down,
+        button_state: MouseButtonState::Up,
         ..
       } = event
       {

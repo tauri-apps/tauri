@@ -11,7 +11,7 @@ use anyhow::Context;
 use std::path::PathBuf;
 #[cfg(windows)]
 use std::sync::OnceLock;
-use std::{ffi::OsStr, path::Path, process::Command};
+use std::{path::Path, process::Command};
 
 impl Settings {
   pub(crate) fn can_sign(&self) -> bool {
@@ -134,22 +134,19 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
 pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &str) -> crate::Result<Command> {
   let path = path.as_ref();
 
-  let custom_command = if path.as_os_str() == OsStr::new("%1") {
-    command.to_string()
-  } else {
-    command.replace(
-      "%1",
-      &format!("\"{}\"", tauri_utils::display_path(dunce::simplified(path))),
-    )
-  };
-
-  let mut args = custom_command.trim().split(' ');
+  let mut args = command.trim().split(' ');
   let bin = args
     .next()
     .context("custom signing command doesn't contain a bin?")?;
 
   let mut cmd = Command::new(bin);
-  cmd.args(args);
+  for arg in args {
+    if arg == "%1" {
+      cmd.arg(path);
+    } else {
+      cmd.arg(arg);
+    }
+  }
   Ok(cmd)
 }
 

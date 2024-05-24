@@ -63,4 +63,9 @@
       }
     })
   }
+  if (osName === 'windows' && 'adoptedStyleSheets' in document) {
+    const sheet = new CSSStyleSheet()
+    sheet.replaceSync('*[data-tauri-drag-region] { app-region: drag; }')
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+  }
 })()

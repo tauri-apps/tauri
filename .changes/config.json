@@ -71,7 +71,7 @@
       ],
       "assets": [
         {
-          "path": "${ pkg.path }/target/package/${ pkg.pkg }-${ pkgFile.version }.crate",
+          "path": "./target/package/${ pkg.pkg }-${ pkgFile.version }.crate",
           "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
         }
       ]

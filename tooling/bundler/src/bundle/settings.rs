@@ -362,8 +362,6 @@ pub struct WixSettings {
   pub feature_refs: Vec<String>,
   /// The Merge element ids you want to reference from the fragments.
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install. Will be removed in v2, use [`WindowsSettings::webview_install_mode`] instead.
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.
@@ -449,6 +447,20 @@ pub struct WindowsSettings {
   ///
   /// /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
+
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsSettings {
@@ -464,6 +476,7 @@ impl Default for WindowsSettings {
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: true,
+      sign_command: None,
     }
   }
 }

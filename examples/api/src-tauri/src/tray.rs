@@ -109,7 +109,7 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
     })
     .on_tray_icon_event(|tray, event| {
       if let TrayIconEvent::Click {
-        button: MouseButton::Down,
+        button: MouseButton::Left,
         button_state: MouseButtonState::Up,
         ..
       } = event

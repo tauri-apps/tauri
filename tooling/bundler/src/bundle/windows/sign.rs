@@ -3,16 +3,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{
-  bundle::{common::CommandExt, windows::util},
-  Settings,
-};
+#[cfg(windows)]
+use crate::bundle::windows::util;
+use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
+#[cfg(windows)]
+use std::path::PathBuf;
+#[cfg(windows)]
+use std::sync::OnceLock;
 use std::{
   ffi::OsStr,
   path::{Path, PathBuf},
   process::Command,
-  sync::OnceLock,
 };
 
 #[cfg(windows)]
@@ -153,10 +155,7 @@ pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &str) -> crate::Res
   } else {
     command.replace(
       "%1",
-      &format!(
-        "\"{}\"",
-        tauri_utils::display_path(dunce::simplified(path.as_ref()))
-      ),
+      &format!("\"{}\"", tauri_utils::display_path(dunce::simplified(path))),
     )
   };
 
@@ -245,7 +244,7 @@ pub fn sign_default<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
 
 pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   match &params.sign_command {
-    Some(custom_command) => sign_custom(path, &custom_command),
+    Some(custom_command) => sign_custom(path, custom_command),
     #[cfg(windows)]
     None => sign_default(path, params),
     // should not be reachable, as user should either use Windows

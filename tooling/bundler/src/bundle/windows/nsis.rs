@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::bundle::windows::sign::{sign_command, try_sign};
+
 use crate::{
   bundle::{
     common::CommandExt,
@@ -196,8 +197,6 @@ fn build_nsis_app_installer(
   );
   data.insert("copyright", to_json(settings.copyright_string()));
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
   if settings.can_sign() {
     let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
     data.insert("uninstaller_sign_cmd", to_json(sign_cmd));

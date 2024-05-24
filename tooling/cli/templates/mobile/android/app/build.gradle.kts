@@ -1,9 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("rust")
     {{~#each android-app-plugins}}
     id("{{this}}"){{/each}}
+}
+
+val tauriProperties = Properties().apply {
+    val propFile = file("tauri.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
 }
 
 android {
@@ -14,8 +23,8 @@ android {
         applicationId = "{{reverse-domain app.identifier}}"
         minSdk = {{android.min-sdk-version}}
         targetSdk = 33
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
+        versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
     buildTypes {
         getByName("debug") {

@@ -1780,12 +1780,22 @@ pub struct AndroidConfig {
   /// The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.
   #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
   pub min_sdk_version: u32,
+
+  /// The version code of the application.
+  /// It is limited to 2,100,000,000 as per Google Play Store requirements.
+  ///
+  /// By default we use your configured version and perform the following math:
+  /// versionCode = version.major * 1000000 + version.minor * 1000 + version.patch
+  #[serde(alias = "version-code")]
+  #[cfg_attr(feature = "schema", validate(range(min = 1, max = 2_100_000_000)))]
+  pub version_code: Option<u32>,
 }
 
 impl Default for AndroidConfig {
   fn default() -> Self {
     Self {
       min_sdk_version: default_min_sdk_version(),
+      version_code: None,
     }
   }
 }
@@ -2045,6 +2055,8 @@ pub struct Config {
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  ///
+  /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).

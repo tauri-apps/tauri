@@ -255,6 +255,11 @@ fn build_nsis_app_installer(
       "display_language_selector",
       to_json(nsis.display_language_selector && languages.len() > 1),
     );
+
+    if let Some(installer_hooks) = &nsis.installer_hooks {
+      let installer_hooks = dunce::canonicalize(installer_hooks)?;
+      data.insert("installer_hooks", to_json(installer_hooks));
+    }
   }
   data.insert(
     "install_mode",

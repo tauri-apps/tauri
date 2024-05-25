@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.16]
+
+### Bug Fixes
+
+- [`be95d8d37`](https://www.github.com/tauri-apps/tauri/commit/be95d8d37c4b1a420c0d28a83b7efa40ab0b0ab5)([#9782](https://www.github.com/tauri-apps/tauri/pull/9782)) Fixes the `ToTokens` implementation for `Capability`.
+
 ## \[2.0.0-beta.15]
 
 ### Bug Fixes

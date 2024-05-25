@@ -20,7 +20,7 @@
       "pattern": "^[^/\\:*?\"<>|]+$"
     },
     "version": {
-      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.",
+      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.\n\nBy default version 1.0 is used on Android.",
       "type": [
         "string",
         "null"
@@ -112,6 +112,7 @@
           "certificateThumbprint": null,
           "digestAlgorithm": null,
           "nsis": null,
+          "signCommand": null,
           "timestampUrl": null,
           "tsp": false,
           "webviewFixedRuntimePath": null,
@@ -1619,6 +1620,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "nsis": null,
+            "signCommand": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -1977,6 +1979,13 @@
               "type": "null"
             }
           ]
+        },
+        "signCommand": {
+          "description": "Specify a custom command to sign the binaries. This command needs to have a `%1` in it which is just a placeholder for the binary path, which we will detect and replace before calling the command.\n\nExample: ```text sign-cli --arg1 --arg2 %1 ```\n\nBy Default we use `signtool.exe` which can be found only on Windows so if you are on another platform and want to cross-compile and sign you will need to use another tool like `osslsigncode`.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -2154,11 +2163,6 @@
             "type": "string"
           }
         },
-        "skipWebviewInstall": {
-          "description": "Disables the Webview2 runtime installation after app install.\n\nWill be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.",
-          "default": false,
-          "type": "boolean"
-        },
         "enableElevatedUpdateTask": {
           "description": "Create an elevated update task within Windows Task Scheduler.",
           "default": false,
@@ -2293,6 +2297,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "installerHooks": {
+          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the main installer.nsi script.\n\nSupported hooks are: - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts. - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts. - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts. - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n### Example\n\n```nsh !define NSIS_HOOK_PREINSTALL \"NSIS_HOOK_PREINSTALL_\" !macro NSIS_HOOK_PREINSTALL_ MessageBox MB_OK \"PreInstall\" !macroend\n\n!define NSIS_HOOK_POSTINSTALL \"NSIS_HOOK_POSTINSTALL_\" !macro NSIS_HOOK_POSTINSTALL_ MessageBox MB_OK \"PostInstall\" !macroend\n\n!define NSIS_HOOK_PREUNINSTALL \"NSIS_HOOK_PREUNINSTALL_\" !macro NSIS_HOOK_PREUNINSTALL_ MessageBox MB_OK \"PreUnInstall\" !macroend\n\n!define NSIS_HOOK_POSTUNINSTALL \"NSIS_HOOK_POSTUNINSTALL_\" !macro NSIS_HOOK_POSTUNINSTALL_ MessageBox MB_OK \"PostUninstall\" !macroend ```",
+          "type": [
+            "string",
+            "null"
           ]
         }
       },
@@ -2840,6 +2851,16 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
+        },
+        "versionCode": {
+          "description": "The version code of the application. It is limited to 2,100,000,000 as per Google Play Store requirements.\n\nBy default we use your configured version and perform the following math: versionCode = version.major * 1000000 + version.minor * 1000 + version.patch",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 2100000000.0,
+          "minimum": 1.0
         }
       },
       "additionalProperties": false

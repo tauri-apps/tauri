@@ -87,7 +87,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     feature_group_refs: config.feature_group_refs,
     feature_refs: config.feature_refs,
     merge_refs: config.merge_refs,
-    skip_webview_install: config.skip_webview_install,
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,

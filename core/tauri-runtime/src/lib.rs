@@ -300,6 +300,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
@@ -382,6 +383,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ) -> Result<DetachedWebview<T, Self>>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
@@ -586,6 +588,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ///
   /// Returns None if it can't identify any monitor as a primary one.
   fn primary_monitor(&self) -> Result<Option<Monitor>>;
+
+  /// Returns the monitor that contains the given point.
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;

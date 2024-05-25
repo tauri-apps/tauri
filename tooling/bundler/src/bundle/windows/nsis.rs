@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(target_os = "windows")]
 use crate::bundle::windows::sign::{sign_command, try_sign};
+
 use crate::{
   bundle::{
     common::CommandExt,
@@ -67,6 +67,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
   if !nsis_toolset_path.exists() {
+    create_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else if NSIS_REQUIRED_FILES
     .iter()
@@ -114,12 +115,10 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     NSIS_TAURI_UTILS_SHA1,
     HashAlgorithm::Sha1,
   )?;
-  write(
-    nsis_plugins
-      .join("x86-unicode")
-      .join("nsis_tauri_utils.dll"),
-    data,
-  )?;
+
+  let target_folder = nsis_plugins.join("x86-unicode");
+  create_dir_all(&target_folder)?;
+  write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
   Ok(())
 }
@@ -163,9 +162,6 @@ fn build_nsis_app_installer(
 
   log::info!("Target: {}", arch);
 
-  #[cfg(not(target_os = "windows"))]
-  log::info!("Code signing is currently only supported on Windows hosts, skipping...");
-
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
     remove_dir_all(&output_path)?;
@@ -197,16 +193,9 @@ fn build_nsis_app_installer(
   );
   data.insert("copyright", to_json(settings.copyright_string()));
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
   if settings.can_sign() {
-    data.insert(
-      "uninstaller_sign_cmd",
-      to_json(format!(
-        "{:?}",
-        sign_command("%1", &settings.sign_params())?.0
-      )),
-    );
+    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
   }
 
   let version = settings.version_string();
@@ -391,10 +380,6 @@ fn build_nsis_app_installer(
       webview_install_mode = WebviewInstallMode::FixedRuntime {
         path: fixed_runtime_path,
       };
-    } else if let Some(wix) = &settings.windows().wix {
-      if wix.skip_webview_install {
-        webview_install_mode = WebviewInstallMode::Skip;
-      }
     }
     webview_install_mode
   };
@@ -521,9 +506,12 @@ fn build_nsis_app_installer(
 
   rename(nsis_output_path, &nsis_installer_path)?;
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
-  try_sign(&nsis_installer_path, settings)?;
+  if settings.can_sign() {
+    try_sign(&nsis_installer_path, settings)?;
+  } else {
+    #[cfg(not(target_os = "windows"))]
+    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+  }
 
   Ok(vec![nsis_installer_path])
 }

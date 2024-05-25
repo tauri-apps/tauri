@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -6,16 +8,23 @@ plugins {
     id("{{this}}"){{/each}}
 }
 
+val tauriProperties = Properties().apply {
+    val propFile = file("tauri.properties")
+    if (propFile.exists()) {
+        propFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     compileSdk = 33
-    namespace = "{{reverse-domain app.domain}}.{{snake-case app.name}}"
+    namespace = "{{reverse-domain app.identifier}}"
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "{{reverse-domain app.domain}}.{{snake-case app.name}}"
+        applicationId = "{{reverse-domain app.identifier}}"
         minSdk = {{android.min-sdk-version}}
         targetSdk = 33
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
+        versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
     buildTypes {
         getByName("debug") {

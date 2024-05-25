@@ -20,7 +20,7 @@
       "pattern": "^[^/\\:*?\"<>|]+$"
     },
     "version": {
-      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.",
+      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.\n\nBy default version 1.0 is used on Android.",
       "type": [
         "string",
         "null"
@@ -112,6 +112,7 @@
           "certificateThumbprint": null,
           "digestAlgorithm": null,
           "nsis": null,
+          "signCommand": null,
           "timestampUrl": null,
           "tsp": false,
           "webviewFixedRuntimePath": null,
@@ -1670,6 +1671,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "nsis": null,
+            "signCommand": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -2028,6 +2030,13 @@
               "type": "null"
             }
           ]
+        },
+        "signCommand": {
+          "description": "Specify a custom command to sign the binaries. This command needs to have a `%1` in it which is just a placeholder for the binary path, which we will detect and replace before calling the command.\n\nExample: ```text sign-cli --arg1 --arg2 %1 ```\n\nBy Default we use `signtool.exe` which can be found only on Windows so if you are on another platform and want to cross-compile and sign you will need to use another tool like `osslsigncode`.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -2204,11 +2213,6 @@
           "items": {
             "type": "string"
           }
-        },
-        "skipWebviewInstall": {
-          "description": "Disables the Webview2 runtime installation after app install.\n\nWill be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.",
-          "default": false,
-          "type": "boolean"
         },
         "enableElevatedUpdateTask": {
           "description": "Create an elevated update task within Windows Task Scheduler.",
@@ -2891,6 +2895,16 @@
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0
+        },
+        "versionCode": {
+          "description": "The version code of the application. It is limited to 2,100,000,000 as per Google Play Store requirements.\n\nBy default we use your configured version and perform the following math: versionCode = version.major * 1000000 + version.minor * 1000 + version.patch",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "maximum": 2100000000.0,
+          "minimum": 1.0
         }
       },
       "additionalProperties": false

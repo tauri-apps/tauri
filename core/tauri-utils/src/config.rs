@@ -657,11 +657,6 @@ pub struct WixConfig {
   /// The Merge element ids you want to reference from the fragments.
   #[serde(default, alias = "merge-refs")]
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install.
-  ///
-  /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
-  #[serde(default, alias = "skip-webview-install")]
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   #[serde(default, alias = "enable-elevated-update-task")]
   pub enable_elevated_update_task: bool,
@@ -864,6 +859,20 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  #[serde(alias = "sign-command")]
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsConfig {
@@ -878,6 +887,7 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
+      sign_command: None,
     }
   }
 }
@@ -1802,12 +1812,22 @@ pub struct AndroidConfig {
   /// The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.
   #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
   pub min_sdk_version: u32,
+
+  /// The version code of the application.
+  /// It is limited to 2,100,000,000 as per Google Play Store requirements.
+  ///
+  /// By default we use your configured version and perform the following math:
+  /// versionCode = version.major * 1000000 + version.minor * 1000 + version.patch
+  #[serde(alias = "version-code")]
+  #[cfg_attr(feature = "schema", validate(range(min = 1, max = 2_100_000_000)))]
+  pub version_code: Option<u32>,
 }
 
 impl Default for AndroidConfig {
   fn default() -> Self {
     Self {
       min_sdk_version: default_min_sdk_version(),
+      version_code: None,
     }
   }
 }
@@ -2067,6 +2087,8 @@ pub struct Config {
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  ///
+  /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).

@@ -23,7 +23,7 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::super::common;
+use super::super::common::{self, CommandExt};
 use crate::Settings;
 use anyhow::Context;
 use handlebars::Handlebars;
@@ -41,6 +41,7 @@ use std::{
   io::{self, Write},
   os::unix::fs::MetadataExt,
   path::{Path, PathBuf},
+  process::Command,
 };
 
 use flate2::{write::GzEncoder, Compression};
@@ -127,12 +128,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     1,
   );
 
-  // Copy WebKit files
-  common::copy_dir(
-    &PathBuf::from("/usr/lib/webkit2gtk-4.0"),
-    &package_dir.join("data/usr/lib/webkit2gtk-4.0"),
-  )
-  .with_context(|| format!("Failed to copy the webkit2gtk-4.0 files"))?;
+  // Copy WebKit files. Follow symlinks in case `/usr/lib64` is a symlink to `/usr/lib`
+  Command::new("sh")
+    .arg("-c")
+    .arg(r#"find -L /usr/lib* -name webkit2gtk-4.0 -exec mkdir -p "$(dirname '{}')" \; -exec cp -r --parents '{}' "." \; || true"#)
+    .current_dir(&package_dir.join("data"))
+    .output_ok()
+    .context("Failed to copy the webkit2gtk-4.0 files")?;
 
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
@@ -183,11 +185,6 @@ fn copy_lib(
     lib_name = PathBuf::from(lib_name.file_stem().unwrap());
   }
 
-  println!(
-    "Copying file {} \n file name : {}",
-    lib_path.display(),
-    lib_name.display()
-  );
   // Copy the library file to lib directory
   common::copy_file(&lib_path, &target_dir.join(&lib_name))
     .with_context(|| format!("Failed to copy the library {}", lib_path.display()))?;

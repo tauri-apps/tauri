@@ -451,6 +451,10 @@ fn build_nsis_app_installer(
     output_path.join("FileAssociation.nsh"),
     include_str!("./templates/FileAssociation.nsh"),
   )?;
+  write_ut16_le_with_bom(
+    output_path.join("utils.nsh"),
+    include_str!("./templates/utils.nsh"),
+  )?;
 
   let installer_nsi_path = output_path.join("installer.nsi");
   write_ut16_le_with_bom(

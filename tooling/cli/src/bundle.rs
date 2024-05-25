@@ -199,7 +199,10 @@ pub fn bundle<A: AppSettings>(
   }
 
   let bundles = tauri_bundler::bundle_project(settings)
-    .map_err(|e| anyhow::anyhow!("{:#}", e))
+    .map_err(|e| match e {
+      tauri_bundler::Error::BundlerError(e) => e,
+      e => anyhow::anyhow!("{e:#}"),
+    })
     .with_context(|| "failed to bundle project")?;
 
   let update_enabled_bundles: Vec<&tauri_bundler::Bundle> = bundles

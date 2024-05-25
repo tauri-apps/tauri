@@ -14,7 +14,7 @@ pub enum Error {
   #[error("{0}")]
   Resource(#[from] tauri_utils::Error),
   /// Bundler error.
-  #[error("{0}")]
+  #[error("{0:#}")]
   BundlerError(#[from] anyhow::Error),
   /// I/O error.
   #[error("`{0}`")]

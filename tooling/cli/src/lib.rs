@@ -175,7 +175,19 @@ where
   A: Into<OsString> + Clone,
 {
   if let Err(e) = try_run(args, bin_name) {
-    log::error!("{:#}", e);
+    let mut message = e.to_string();
+    if e.chain().count() > 1 {
+      message.push(':');
+    }
+    e.chain().skip(1).for_each(|cause| {
+      let m = cause.to_string();
+      if !message.contains(&m) {
+        message.push('\n');
+        message.push_str("    - ");
+        message.push_str(&m);
+      }
+    });
+    log::error!("{message}");
     exit(1);
   }
 }

@@ -3681,15 +3681,13 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
           if window_size.width > constraint.width {
             inner_size.width = inner_size
               .width
-              .checked_sub(window_size.width - constraint.width)
-              .unwrap_or_default();
+              .saturating_sub(window_size.width - constraint.width);
             window_size.width = constraint.width;
           }
           if window_size.height > constraint.height {
             inner_size.height = inner_size
               .height
-              .checked_sub(window_size.height - constraint.height)
-              .unwrap_or_default();
+              .saturating_sub(window_size.height - constraint.height);
             window_size.height = constraint.height;
           }
           window_builder.inner.window.inner_size = Some(inner_size.into());

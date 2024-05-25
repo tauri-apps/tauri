@@ -413,6 +413,40 @@ pub struct NsisSettings {
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
   pub compression: Option<NsisCompression>,
+  /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
+  /// main installer.nsi script.
+  ///
+  /// Supported hooks are:
+  /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
+  /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
+  /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
+  /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  ///
+  ///
+  /// ### Example
+  ///
+  /// ```nsh
+  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
+  /// !macro NSIS_HOOK_PREINSTALL_
+  ///   MessageBox MB_OK "PreInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
+  /// !macro NSIS_HOOK_POSTINSTALL_
+  ///   MessageBox MB_OK "PostInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
+  /// !macro NSIS_HOOK_PREUNINSTALL_
+  ///   MessageBox MB_OK "PreUnInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
+  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  ///   MessageBox MB_OK "PostUninstall"
+  /// !macroend
+  /// ```
+  pub installer_hooks: Option<PathBuf>,
 }
 
 /// The Windows bundle settings.

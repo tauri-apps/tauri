@@ -117,6 +117,10 @@ native-tls = [
 native-tls-vendored = [ "native-tls", "tauri-bundler/native-tls-vendored" ]
 rustls = [ "tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls" ]
 
+# optimize flate2 on debug
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+
 [profile.release-size-optimized]
 inherits = "release"
 codegen-units = 1

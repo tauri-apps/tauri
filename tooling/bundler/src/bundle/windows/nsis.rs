@@ -466,7 +466,7 @@ fn build_nsis_app_installer(
 
   let package_base_name = format!(
     "{}_{}_{}-setup",
-    main_binary.name().replace(".exe", ""),
+    settings.product_name(),
     settings.version_string(),
     arch,
   );

@@ -192,7 +192,7 @@ fn app_installer_output_path(
 
   let package_base_name = format!(
     "{}_{}_{}_{}",
-    settings.main_binary_name().replace(".exe", ""),
+    settings.product_name(),
     version,
     arch,
     language,

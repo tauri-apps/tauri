@@ -50,7 +50,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.main_binary_name(),
+    settings.product_name(),
     settings.version_string(),
     arch
   );

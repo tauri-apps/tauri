@@ -69,6 +69,19 @@ impl From<crate::build::Options> for Options {
   }
 }
 
+impl From<crate::bundle::Options> for Options {
+  fn from(options: crate::bundle::Options) -> Self {
+    Self {
+      debug: options.debug,
+      config: options.config,
+      target: options.target,
+      features: options.features,
+      no_watch: true,
+      ..Default::default()
+    }
+  }
+}
+
 impl From<crate::dev::Options> for Options {
   fn from(options: crate::dev::Options) -> Self {
     Self {

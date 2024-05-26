@@ -140,30 +140,29 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     });
   }
 
-  if package_types.iter().any(|package_type| {
-    if settings
-      .updater()
-      .is_some_and(|updater| updater.v1_compatible)
-    {
-      matches!(
-        package_type,
-        PackageType::AppImage
-          | PackageType::MacOsBundle
-          | PackageType::Dmg
-          | PackageType::Nsis
-          | PackageType::WindowsMsi
-      )
+  if let Some(updater) = settings.updater() {
+    if package_types.iter().any(|package_type| {
+      if updater.v1_compatible {
+        matches!(
+          package_type,
+          PackageType::AppImage
+            | PackageType::MacOsBundle
+            | PackageType::Dmg
+            | PackageType::Nsis
+            | PackageType::WindowsMsi
+        )
+      } else {
+        matches!(package_type, PackageType::MacOsBundle | PackageType::Dmg)
+      }
+    }) {
+      let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
+      bundles.push(Bundle {
+        package_type: PackageType::Updater,
+        bundle_paths: updater_paths,
+      });
     } else {
-      matches!(package_type, PackageType::MacOsBundle | PackageType::Dmg)
+      log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
     }
-  }) {
-    let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
-    bundles.push(Bundle {
-      package_type: PackageType::Updater,
-      bundle_paths: updater_paths,
-    });
-  } else {
-    log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
   }
 
   #[cfg(target_os = "macos")]

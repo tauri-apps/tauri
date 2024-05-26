@@ -107,6 +107,7 @@
           "minimumSystemVersion": "10.13"
         },
         "targets": "all",
+        "updater": false,
         "windows": {
           "allowDowngrades": true,
           "certificateThumbprint": null,
@@ -1517,11 +1518,20 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
               "$ref": "#/definitions/BundleTarget"
+            }
+          ]
+        },
+        "updater": {
+          "description": "Produce updaters and their signatures or not",
+          "default": false,
+          "allOf": [
+            {
+              "$ref": "#/definitions/Updater"
             }
           ]
         },
@@ -1784,12 +1794,34 @@
           "enum": [
             "dmg"
           ]
+        }
+      ]
+    },
+    "Updater": {
+      "description": "Updater type",
+      "anyOf": [
+        {
+          "description": "Generates lagacy zipped v1 compatible updaters",
+          "allOf": [
+            {
+              "$ref": "#/definitions/V1Compatible"
+            }
+          ]
         },
         {
-          "description": "The Tauri updater bundle.",
+          "description": "Produce updaters and their signatures or not",
+          "type": "boolean"
+        }
+      ]
+    },
+    "V1Compatible": {
+      "description": "Generates lagacy zipped v1 compatible updaters",
+      "oneOf": [
+        {
+          "description": "Generates lagacy zipped v1 compatible updaters",
           "type": "string",
           "enum": [
-            "updater"
+            "v1Compatible"
           ]
         }
       ]

@@ -25,7 +25,7 @@ use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
   MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
@@ -812,11 +812,25 @@ impl AppSettings for RustAppSettings {
     let arch64bits =
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
-    let updater_settings = if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
-      let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
+    let updater_enabled = config.bundle.updater != Updater::Bool(false);
+    let v1_compatible = matches!(config.bundle.updater, Updater::String(_));
+    let updater_settings = if updater_enabled {
+      let (pubkey, msiexec_args) =
+        if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
+          let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
+          let pubkey = if !updater.pubkey.is_empty() {
+            Some(updater.pubkey)
+          } else {
+            None
+          };
+          (pubkey, Some(updater.windows.install_mode.msiexec_args()))
+        } else {
+          (None, None)
+        };
       Some(UpdaterSettings {
-        pubkey: updater.pubkey,
-        msiexec_args: Some(updater.windows.install_mode.msiexec_args()),
+        v1_compatible,
+        pubkey,
+        msiexec_args,
       })
     } else {
       None

@@ -50,7 +50,6 @@ impl From<BundleType> for PackageType {
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
       BundleType::Dmg => Self::Dmg,
-      BundleType::Updater => Self::Updater,
     }
   }
 }
@@ -156,8 +155,10 @@ pub struct PackageSettings {
 /// The updater settings.
 #[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
+  /// Should generate v1 compatible unzipped updater
+  pub v1_compatible: bool,
   /// Signature public key.
-  pub pubkey: String,
+  pub pubkey: Option<String>,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
   pub msiexec_args: Option<&'static [&'static str]>,
 }
@@ -840,7 +841,7 @@ impl Settings {
       .unwrap_or(std::env::consts::OS)
       .replace("darwin", "macos");
 
-    let mut platform_types = match target_os.as_str() {
+    let platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
@@ -851,10 +852,6 @@ impl Settings {
         )))
       }
     };
-
-    if self.is_update_enabled() {
-      platform_types.push(PackageType::Updater);
-    }
 
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
@@ -1057,15 +1054,5 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
-  }
-
-  /// Is update enabled
-  pub fn is_update_enabled(&self) -> bool {
-    self
-      .bundle_settings
-      .updater
-      .as_ref()
-      .map(|u| !u.pubkey.is_empty())
-      .unwrap_or_default()
   }
 }

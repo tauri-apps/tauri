@@ -224,6 +224,37 @@ fn process_bundle(config: &mut Map<String, Value>) {
       if let Some(license_file) = license_file {
         bundle_config.insert("licenseFile".into(), license_file);
       }
+
+      // Migrate updater from targets to update field
+      if let Some(targets) = bundle_config.get_mut("targets") {
+        let shuold_migrate = if let Some(targets) = targets.as_array_mut() {
+          // targets: ["updater", ...]
+          if let Some(index) = targets
+            .iter()
+            .position(|target| *target == serde_json::Value::String("updater".to_owned()))
+          {
+            targets.remove(index);
+            true
+          } else {
+            false
+          }
+        } else {
+          // targets: "updater"
+          if let Some(target) = targets.as_str() {
+            if target == "updater" {
+              bundle_config.remove("targets");
+              true
+            } else {
+              target == "all"
+            }
+          } else {
+            false
+          }
+        };
+        if shuold_migrate {
+          bundle_config.insert("updater".to_owned(), "v1Compatible".into());
+        }
+      }
     }
 
     config.insert("bundle".into(), bundle_config);
@@ -771,6 +802,20 @@ mod test {
       migrated["plugins"]["updater"]["pubkey"],
       original["tauri"]["updater"]["pubkey"]
     );
+  }
+
+  #[test]
+  fn migrate_updater_target() {
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": ["nsis", "updater"]
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
   }
 
   #[test]

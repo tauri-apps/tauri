@@ -238,18 +238,17 @@ fn process_bundle(config: &mut Map<String, Value>) {
           } else {
             false
           }
-        } else {
+        } else if let Some(target) = targets.as_str() {
           // targets: "updater"
-          if let Some(target) = targets.as_str() {
-            if target == "updater" {
-              bundle_config.remove("targets");
-              true
-            } else {
-              target == "all"
-            }
+          // targets: "all"
+          if target == "updater" {
+            bundle_config.remove("targets");
+            true
           } else {
-            false
+            target == "all"
           }
+        } else {
+          false
         };
         if shuold_migrate {
           bundle_config.insert("updater".to_owned(), "v1Compatible".into());

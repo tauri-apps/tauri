@@ -67,7 +67,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
     for bin in settings.binaries() {
       let bin_path = settings.binary_path(bin);
-      windows::sign::try_sign(&bin_path, &settings)?;
+      windows::sign::try_sign(&bin_path, settings)?;
     }
 
     // Sign the sidecar binaries
@@ -87,7 +87,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         continue;
       }
 
-      windows::sign::try_sign(&path, &settings)?;
+      windows::sign::try_sign(&path, settings)?;
     }
   } else {
     #[cfg(not(target_os = "windows"))]
@@ -102,13 +102,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
-      PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
+      PackageType::MacOsBundle => macos::app::bundle_project(settings)?,
       #[cfg(target_os = "macos")]
-      PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
+      PackageType::IosBundle => macos::ios::bundle_project(settings)?,
       // dmg is dependent of MacOsBundle, we send our bundles to prevent rebuilding
       #[cfg(target_os = "macos")]
       PackageType::Dmg => {
-        let bundled = macos::dmg::bundle_project(&settings, &bundles)?;
+        let bundled = macos::dmg::bundle_project(settings, &bundles)?;
         if !bundled.app.is_empty() {
           bundles.push(Bundle {
             package_type: PackageType::MacOsBundle,
@@ -119,15 +119,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       }
 
       #[cfg(target_os = "windows")]
-      PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
-      PackageType::Nsis => windows::nsis::bundle_project(&settings, false)?,
+      PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
+      PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]
-      PackageType::Deb => linux::debian::bundle_project(&settings)?,
+      PackageType::Deb => linux::debian::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
-      PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
+      PackageType::Rpm => linux::rpm::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
-      PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
+      PackageType::AppImage => linux::appimage::bundle_project(settings)?,
       _ => {
         log::warn!("ignoring {}", package_type.short_name());
         continue;
@@ -157,7 +157,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       matches!(package_type, PackageType::MacOsBundle | PackageType::Dmg)
     }
   }) {
-    let updater_paths = updater_bundle::bundle_project(&settings, &bundles)?;
+    let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
     bundles.push(Bundle {
       package_type: PackageType::Updater,
       bundle_paths: updater_paths,

@@ -147,12 +147,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
           package_type,
           PackageType::AppImage
             | PackageType::MacOsBundle
-            | PackageType::Dmg
             | PackageType::Nsis
             | PackageType::WindowsMsi
         )
       } else {
-        matches!(package_type, PackageType::MacOsBundle | PackageType::Dmg)
+        matches!(package_type, PackageType::MacOsBundle)
       }
     }) {
       let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;

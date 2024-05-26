@@ -4,6 +4,7 @@
 
 use std::collections::BTreeMap;
 use std::convert::identity;
+use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
@@ -328,18 +329,20 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         plist.insert("CFBundleVersion".into(), version.clone().into());
       }
     }
-    
+
     let plist_file = out_dir.join("Info.plist");
-    let old = if plist_file.exists() {
-      plist::Value::from_file(&plist_file).expect("failed to read old Info.plist")
-    } else {
-      plist::Value::Dictionary(Default::default())
-    };
-    let old = serde_json::to_string(&old).unwrap();
-    let n = serde_json::to_string(&info_plist).unwrap();
-    if old.ne(&n) {
-      info_plist.to_file_xml(plist_file).expect("failed to write Info.plist");
+
+    let mut plist_contents = BufWriter::new(Vec::new());
+    info_plist
+      .to_writer_xml(&mut plist_contents)
+      .expect("failed to serialize plist");
+    let plist_contents =
+      String::from_utf8_lossy(&plist_contents.into_inner().unwrap()).into_owned();
+
+    if plist_contents != std::fs::read_to_string(&plist_file).unwrap_or_default() {
+      std::fs::write(&plist_file, &plist_contents).expect("failed to write Info.plist");
     }
+
     quote!({
       tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })

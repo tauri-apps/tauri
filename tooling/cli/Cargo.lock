@@ -483,7 +483,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.12.0"
+version = "0.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7ac384d832f346303c9f80328bb11e04000b66743b543578ed8926a6fbc264f"
 dependencies = [
  "colored",
  "core-foundation",

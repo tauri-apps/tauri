@@ -14,6 +14,7 @@ use cargo_mobile2::{
   },
   config::app::App,
   dot_cargo,
+  reserved_names::KOTLIN_ONLY_KEYWORDS,
   target::TargetTrait as _,
   util::{
     self,
@@ -25,22 +26,6 @@ use handlebars::{
 };
 
 use std::{env::var_os, path::PathBuf};
-
-static KOTLIN_ONLY_KEYWORDS: &[&str] = &[
-  "as",
-  "false",
-  "fun",
-  "in",
-  "is",
-  "null",
-  "object",
-  "true",
-  "typealias",
-  "typeof",
-  "val",
-  "var",
-  "when",
-];
 
 pub fn command(
   target: Target,

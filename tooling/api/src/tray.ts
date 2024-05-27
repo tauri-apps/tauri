@@ -5,16 +5,13 @@
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
 import { Image, transformImage } from './image'
+import { PhysicalPosition, PhysicalSize } from './dpi'
 
-/**
- * Describes a tray event emitted when a tray icon is clicked
- *
- * #### Platform-specific:
- *
- * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
- * the icon will still show a context menu on right click.
- */
-export interface TrayIconEvent {
+export type MouseButtonState = 'Up' | 'Down'
+export type MouseButton = 'Left' | 'Right' | 'Middle'
+
+/** A click happened on the tray icon. */
+export interface TrayIconClickEvent {
   /** Id of the tray icon which triggered this event. */
   id: string
   /** Physical X Position of the click the triggered this event. */
@@ -22,19 +19,74 @@ export interface TrayIconEvent {
   /** Physical Y Position of the click the triggered this event. */
   y: number
   /** Position and size of the tray icon. */
-  iconRect: {
-    /** The x-coordinate of the upper-left corner of the rectangle. */
-    left: number
-    /** The y-coordinate of the upper-left corner of the rectangle. */
-    top: number
-    /** The x-coordinate of the lower-right corner of the rectangle. */
-    right: number
-    /** The y-coordinate of the lower-right corner of the rectangle. */
-    bottom: number
+  rect: {
+    position: PhysicalPosition
+    size: PhysicalSize
   }
-  /** The click type that triggered this event. */
-  clickType: 'Left' | 'Right' | 'Double'
+  /** Mouse button that triggered this event. */
+  button: MouseButton
+  /** Mouse button state when this event was triggered. */
+  button_state: MouseButtonState
 }
+
+/** The mouse entered the tray icon region. */
+export interface TrayIconEnterEvent {
+  /** Id of the tray icon which triggered this event. */
+  id: string
+  /** Physical X Position of the click the triggered this event. */
+  x: number
+  /** Physical Y Position of the click the triggered this event. */
+  y: number
+  /** Position and size of the tray icon. */
+  rect: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
+}
+
+/** The mouse moved over the tray icon region. */
+export interface TrayIconMoveEvent {
+  /** Id of the tray icon which triggered this event. */
+  id: string
+  /** Physical X Position of the click the triggered this event. */
+  x: number
+  /** Physical Y Position of the click the triggered this event. */
+  y: number
+  /** Position and size of the tray icon. */
+  rect: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
+}
+
+/** The mouse left the tray icon region. */
+export interface TrayIconLeaveEvent {
+  /** Id of the tray icon which triggered this event. */
+  id: string
+  /** Physical X Position of the click the triggered this event. */
+  x: number
+  /** Physical Y Position of the click the triggered this event. */
+  y: number
+  /** Position and size of the tray icon. */
+  rect: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
+}
+
+/**
+ * Describes a tray icon event.
+ *
+ * #### Platform-specific:
+ *
+ * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
+ * the icon will still show a context menu on right click.
+ */
+export type TrayIconEvent =
+  | { click: TrayIconClickEvent }
+  | { enter: TrayIconEnterEvent }
+  | { move: TrayIconMoveEvent }
+  | { leave: TrayIconLeaveEvent }
 
 /**
  * Tray icon types and utilities.

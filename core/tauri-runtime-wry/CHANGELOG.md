@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.17]
+
+### Security fixes
+
+- [`d950ac123`](https://www.github.com/tauri-apps/tauri/commit/d950ac1239817d17324c035e5c4769ee71fc197d) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-runtime@2.0.0-beta.17`
+
 ## \[2.0.0-beta.16]
 
 ### New Features

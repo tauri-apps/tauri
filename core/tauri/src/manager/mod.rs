@@ -193,6 +193,9 @@ pub struct AppManager<R: Runtime> {
 
   /// Application Resources Table
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
+
+  /// Runtime-generated invoke key.
+  pub(crate) invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -232,6 +235,7 @@ impl<R: Runtime> AppManager<R> {
       crate::app::GlobalMenuEventListener<Window<R>>,
     >,
     (invoke_responder, invoke_initialization_script): (Option<Arc<InvokeResponder<R>>>, String),
+    invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -254,6 +258,7 @@ impl<R: Runtime> AppManager<R> {
         event_listeners: Arc::new(webiew_event_listeners),
         invoke_responder,
         invoke_initialization_script,
+        invoke_key: invoke_key.clone(),
       },
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray: tray::TrayManager {
@@ -279,6 +284,7 @@ impl<R: Runtime> AppManager<R> {
       pattern: Arc::new(context.pattern),
       plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
+      invoke_key,
     }
   }
 
@@ -570,6 +576,10 @@ impl<R: Runtime> AppManager<R> {
       .lock()
       .expect("poisoned window manager")
   }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.invoke_key
+  }
 }
 
 #[cfg(desktop)]
@@ -653,6 +663,7 @@ mod test {
       Default::default(),
       Default::default(),
       (None, "".into()),
+      crate::generate_invoke_key().unwrap(),
     );
 
     #[cfg(custom_protocol)]

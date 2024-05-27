@@ -141,9 +141,8 @@ pub fn get_config(
   set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
 
   let src_main_dir = config.project_dir().join("app/src/main").join(format!(
-    "java/{}/{}",
-    app.reverse_domain().replace('.', "/"),
-    app.name_snake()
+    "java/{}",
+    app.reverse_identifier().replace('.', "/"),
   ));
   if config.project_dir().exists() {
     if src_main_dir.exists() {

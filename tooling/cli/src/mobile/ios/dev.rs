@@ -234,7 +234,7 @@ fn run_dev(
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();
-            Err(e.into())
+            Err(e)
           }
         }
       } else {

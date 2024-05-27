@@ -159,7 +159,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         package_type: PackageType::Updater,
         bundle_paths: updater_paths,
       });
-    } else {
+    } else if updater.v1_compatible {
       log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
     }
   }

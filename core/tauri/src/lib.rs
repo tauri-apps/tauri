@@ -335,7 +335,7 @@ macro_rules! tauri_build_context {
 pub use pattern::Pattern;
 
 /// Whether we are running in development mode or not.
-pub const fn dev() -> bool {
+pub const fn is_dev() -> bool {
   !cfg!(feature = "custom-protocol")
 }
 

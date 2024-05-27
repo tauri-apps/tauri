@@ -19,6 +19,7 @@ use super::{CallbackFn, InvokeBody, InvokeResponse};
 
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
+const TAURI_INVOKE_KEY_HEADER_NAME: &str = "Tauri-Invoke-Key";
 
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
@@ -167,7 +168,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       "ipc::request",
       kind = "post-message",
       uri = request.uri().to_string(),
-      body = request.body()
+      request = request.body()
     )
     .entered();
 
@@ -210,6 +211,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       error: CallbackFn,
       payload: serde_json::Value,
       options: Option<RequestOptions>,
+      #[serde(rename = "__TAURI_INVOKE_KEY__")]
+      invoke_key: String,
     }
 
     #[allow(unused_mut)]
@@ -224,6 +227,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
         error: CallbackFn,
         payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
         options: Option<RequestOptions>,
+        #[serde(rename = "__TAURI_INVOKE_KEY__")]
+        invoke_key: String,
       }
 
       if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
@@ -240,6 +245,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                 error: message.error,
                 payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
                 options: message.options,
+                invoke_key: message.invoke_key,
               })
             }),
         );
@@ -261,6 +267,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
           url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
           body: message.payload.into(),
           headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
+          invoke_key: message.invoke_key,
         };
 
         #[cfg(feature = "tracing")]
@@ -394,6 +401,14 @@ fn parse_invoke_request<R: Runtime>(
     }
   }
 
+  let invoke_key = parts
+    .headers
+    .get(TAURI_INVOKE_KEY_HEADER_NAME)
+    .ok_or("missing Tauri-Invoke-Key header")?
+    .to_str()
+    .map_err(|_| "Tauri invoke key header value must be a string")?
+    .to_owned();
+
   let url = Url::parse(
     parts
       .headers
@@ -461,6 +476,7 @@ fn parse_invoke_request<R: Runtime>(
     url,
     body,
     headers: parts.headers,
+    invoke_key,
   };
 
   Ok(payload)

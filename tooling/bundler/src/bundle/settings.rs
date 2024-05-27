@@ -366,8 +366,6 @@ pub struct WixSettings {
   pub feature_refs: Vec<String>,
   /// The Merge element ids you want to reference from the fragments.
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install. Will be removed in v2, use [`WindowsSettings::webview_install_mode`] instead.
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.
@@ -419,6 +417,40 @@ pub struct NsisSettings {
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
   pub compression: Option<NsisCompression>,
+  /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
+  /// main installer.nsi script.
+  ///
+  /// Supported hooks are:
+  /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
+  /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
+  /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
+  /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  ///
+  ///
+  /// ### Example
+  ///
+  /// ```nsh
+  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
+  /// !macro NSIS_HOOK_PREINSTALL_
+  ///   MessageBox MB_OK "PreInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
+  /// !macro NSIS_HOOK_POSTINSTALL_
+  ///   MessageBox MB_OK "PostInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
+  /// !macro NSIS_HOOK_PREUNINSTALL_
+  ///   MessageBox MB_OK "PreUnInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
+  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  ///   MessageBox MB_OK "PostUninstall"
+  /// !macroend
+  /// ```
+  pub installer_hooks: Option<PathBuf>,
 }
 
 /// The Windows bundle settings.
@@ -453,6 +485,20 @@ pub struct WindowsSettings {
   ///
   /// /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
+
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsSettings {
@@ -468,6 +514,7 @@ impl Default for WindowsSettings {
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: true,
+      sign_command: None,
     }
   }
 }

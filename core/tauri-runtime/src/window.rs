@@ -409,6 +409,8 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
+
+  fn get_theme(&self) -> Option<Theme>;
 }
 
 /// A window that has yet to be built.

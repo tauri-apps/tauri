@@ -1044,7 +1044,7 @@ tauri::Builder::default()
     menu: &M,
     position: P,
   ) -> crate::Result<()> {
-    menu.popup_at(self.webview.window().clone(), position)
+    menu.popup_at(self.webview.window(), position)
   }
 }
 
@@ -1158,6 +1158,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Returns None if it can't identify any monitor as a primary one.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self.webview.window().primary_monitor()
+  }
+
+  /// Returns the monitor that contains the given point.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+    self.webview.window().monitor_from_point(x, y)
   }
 
   /// Returns the list of all the monitors available on the system.

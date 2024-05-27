@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.1-beta.14]
+
+### Enhancements
+
+- [`781d74799`](https://www.github.com/tauri-apps/tauri/commit/781d74799a543def205a255fa6fced19967c9872)([#9840](https://www.github.com/tauri-apps/tauri/pull/9840)) Reduced the compression level for rpm bundles from 9 (max) to 6. This has almost no effect on file size but should reduce build time by roughly 25%.
+
+### Bug Fixes
+
+- [`d0d974fa5`](https://www.github.com/tauri-apps/tauri/commit/d0d974fa5ef250b2a9219e4c6a2ca175f495e88f)([#9833](https://www.github.com/tauri-apps/tauri/pull/9833)) Fix NSIS installer deep links registration.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+
+## \[2.0.1-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+
 ## \[2.0.1-beta.12]
 
 ### Dependencies

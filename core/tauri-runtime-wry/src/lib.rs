@@ -345,14 +345,11 @@ pub struct ActiveTraceSpanStore(Rc<RefCell<Vec<ActiveTracingSpan>>>);
 
 #[cfg(feature = "tracing")]
 impl ActiveTraceSpanStore {
-  pub fn remove_window_draw(&self, window_id: TaoWindowId) {
-    let mut store = self.0.borrow_mut();
-    if let Some(index) = store
-      .iter()
-      .position(|t| matches!(t, ActiveTracingSpan::WindowDraw { id, span: _ } if id == &window_id))
-    {
-      store.remove(index);
-    }
+  pub fn remove_window_draw(&self) {
+    self
+      .0
+      .borrow_mut()
+      .retain(|t| !matches!(t, ActiveTracingSpan::WindowDraw { id: _, span: _ }));
   }
 }
 
@@ -1026,6 +1023,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
   }
+
+  fn get_theme(&self) -> Option<Theme> {
+    self.inner.window.preferred_theme.map(|theme| match theme {
+      TaoTheme::Dark => Theme::Dark,
+      _ => Theme::Light,
+    })
+  }
 }
 
 #[cfg(any(
@@ -1095,6 +1099,7 @@ pub enum WindowMessage {
   Title(Sender<String>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
+  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   #[cfg(any(
     target_os = "linux",
@@ -1579,6 +1584,21 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
     Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
+  }
+
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
+    let (tx, rx) = channel();
+
+    let _ = send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::MonitorFromPoint(tx, (x, y))),
+    );
+
+    Ok(
+      rx.recv()
+        .map_err(|_| crate::Error::FailedToReceiveMessage)?
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
   }
 
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
@@ -2152,6 +2172,15 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .monitor_from_point(x, y)
+      .map(|m| MonitorHandleWrapper(m).into())
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     self
       .context
@@ -2410,6 +2439,15 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .monitor_from_point(x, y)
+      .map(|m| MonitorHandleWrapper(m).into())
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     self
       .context
@@ -2646,6 +2684,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
           WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
           WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
+            tx.send(window.monitor_from_point(x, y)).unwrap()
+          }
           WindowMessage::AvailableMonitors(tx) => {
             tx.send(window.available_monitors().collect()).unwrap()
           }
@@ -3242,9 +3283,8 @@ fn handle_event_loop<T: UserEvent>(
       callback(RunEvent::Exit);
     }
 
-    #[cfg(any(feature = "tracing", windows))]
+    #[cfg(windows)]
     Event::RedrawRequested(id) => {
-      #[cfg(windows)]
       if let Some(window_id) = window_id_map.get(&id) {
         let mut windows_ref = windows.0.borrow_mut();
         if let Some(window) = windows_ref.get_mut(&window_id) {
@@ -3257,9 +3297,11 @@ fn handle_event_loop<T: UserEvent>(
           }
         }
       }
+    }
 
-      #[cfg(feature = "tracing")]
-      active_tracing_spans.remove_window_draw(id);
+    #[cfg(feature = "tracing")]
+    Event::RedrawEventsCleared => {
+      active_tracing_spans.remove_window_draw();
     }
 
     Event::UserEvent(Message::Webview(
@@ -3359,7 +3401,7 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
           TaoWindowEvent::CloseRequested => {
-            on_close_requested(callback, window_id, windows.clone());
+            on_close_requested(callback, window_id, windows);
           }
           TaoWindowEvent::Destroyed => {
             let removed = windows.0.borrow_mut().remove(&window_id).is_some();
@@ -3420,10 +3462,10 @@ fn handle_event_loop<T: UserEvent>(
         }
       }
       Message::Window(id, WindowMessage::Close) => {
-        on_close_requested(callback, id, windows.clone());
+        on_close_requested(callback, id, windows);
       }
       Message::Window(id, WindowMessage::Destroy) => {
-        on_window_close(id, windows.clone());
+        on_window_close(id, windows);
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {

@@ -84,13 +84,13 @@ jobs:
 
       - name: build CLI
         run: cargo build --manifest-path ./tooling/cli/Cargo.toml
-      
+
       - name: move CLI to cargo bin dir
-        if: matrix.os != "windows-latest"
+        if: matrix.platform != 'windows-latest'
         run: mv ./tooling/cli/target/debug/cargo-tauri $HOME/.cargo/bin
-          
+
       - name: move CLI to cargo bin dir
-        if: matrix.os == "windows-latest"
+        if: matrix.platform == 'windows-latest'
         run: mv ./tooling/cli/target/debug/cargo-tauri.exe $HOME/.cargo/bin
 
       - name: build Tauri API

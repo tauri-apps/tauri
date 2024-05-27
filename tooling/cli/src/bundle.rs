@@ -275,7 +275,7 @@ fn sign_updaters(
   for bundle in update_enabled_bundles {
     // we expect to have only one path in the vec but we iter if we add
     // another type of updater package who require multiple file signature
-    for path in bundle.bundle_paths.iter() {
+    for path in &bundle.bundle_paths {
       // sign our path from environment variables
       let (signature_path, signature) = updater_signature::sign_file(&secret_key, path)?;
       if signature.keynum() != public_key.keynum() {
@@ -293,7 +293,8 @@ fn sign_updaters(
 fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
   use std::fmt::Write;
   if !output_paths.is_empty() {
-    let pluralised = if output_paths.len() == 1 {
+    let finished_bundles = output_paths.len();
+    let pluralised = if finished_bundles == 1 {
       "updater signature"
     } else {
       "updater signatures"
@@ -306,7 +307,7 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
         tauri_utils::display_path(path)
       )?;
     }
-    log::info!( action = "Finished"; "{} {} at:\n{}", output_paths.len(), pluralised, printable_paths);
+    log::info!( action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
   }
   Ok(())
 }

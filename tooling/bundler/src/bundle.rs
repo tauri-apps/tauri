@@ -190,34 +190,37 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  if !bundles.is_empty() {
-    let bundles_wo_updater = bundles
-      .iter()
-      .filter(|b| b.package_type != PackageType::Updater)
-      .collect::<Vec<_>>();
-    let pluralised = if bundles_wo_updater.len() == 1 {
-      "bundle"
-    } else {
-      "bundles"
-    };
-
-    let mut printable_paths = String::new();
-    for bundle in &bundles {
-      for path in &bundle.bundle_paths {
-        let mut note = "";
-        if bundle.package_type == crate::PackageType::Updater {
-          note = " (updater)";
-        }
-        writeln!(printable_paths, "        {}{}", display_path(path), note).unwrap();
-      }
-    }
-
-    log::info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
-
-    Ok(bundles)
-  } else {
-    Err(anyhow::anyhow!("No bundles were built").into())
+  if bundles.is_empty() {
+    return Err(anyhow::anyhow!("No bundles were built").into());
   }
+
+  let bundles_wo_updater = bundles
+    .iter()
+    .filter(|b| b.package_type != PackageType::Updater)
+    .collect::<Vec<_>>();
+  let finished_bundles = bundles_wo_updater.len();
+  let pluralised = if finished_bundles == 1 {
+    "bundle"
+  } else {
+    "bundles"
+  };
+
+  let mut printable_paths = String::new();
+  for bundle in &bundles {
+    for path in &bundle.bundle_paths {
+      let note = if bundle.package_type == crate::PackageType::Updater {
+        " (updater)"
+      } else {
+        ""
+      };
+      let path_display = display_path(path);
+      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+    }
+  }
+
+  log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
+
+  Ok(bundles)
 }
 
 /// Check to see if there are icons in the settings struct

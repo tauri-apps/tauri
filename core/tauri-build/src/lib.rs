@@ -386,7 +386,7 @@ impl Attributes {
   }
 }
 
-pub fn dev() -> bool {
+pub fn is_dev() -> bool {
   std::env::var("DEP_TAURI_DEV")
     .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
@@ -474,7 +474,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     mobile::generate_gradle_files(project_dir, &config)?;
   }
 
-  cfg_alias("dev", dev());
+  cfg_alias("dev", is_dev());
 
   let ws_path = get_workspace_dir()?;
   let mut manifest =

@@ -50,8 +50,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
   package_types.sort_by_key(|a| a.priority());
 
-  let mut bundles: Vec<Bundle> = Vec::new();
-
   let target_os = settings
     .target()
     .split('-')
@@ -94,6 +92,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
   }
 
+  let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {

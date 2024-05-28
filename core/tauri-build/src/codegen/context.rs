@@ -121,7 +121,7 @@ impl CodegenContext {
     );
 
     let code = context_codegen(ContextData {
-      dev: crate::dev(),
+      dev: crate::is_dev(),
       config,
       config_parent,
       // it's very hard to have a build script for unit tests, so assume this is always called from

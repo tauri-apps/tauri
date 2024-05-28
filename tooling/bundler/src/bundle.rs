@@ -63,35 +63,38 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 
-  if settings.can_sign() {
-    // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
-    for bin in settings.binaries() {
-      let bin_path = settings.binary_path(bin);
-      windows::sign::try_sign(&bin_path, &settings)?;
-    }
-
-    // Sign the sidecar binaries
-    for bin in settings.external_binaries() {
-      let path = bin?;
-      let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
-      if skip {
-        continue;
+  // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
+  if target_os == "windows" {
+    if settings.can_sign() {
+      for bin in settings.binaries() {
+        let bin_path = settings.binary_path(bin);
+        windows::sign::try_sign(&bin_path, &settings)?;
       }
 
-      #[cfg(windows)]
-      if windows::sign::verify(&path)? {
-        log::info!(
-          "sidecar at \"{}\" already signed. Skipping...",
-          path.display()
-        );
-        continue;
-      }
+      // Sign the sidecar binaries
+      for bin in settings.external_binaries() {
+        let path = bin?;
+        let skip =
+          std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
+        if skip {
+          continue;
+        }
 
-      windows::sign::try_sign(&path, &settings)?;
+        #[cfg(windows)]
+        if windows::sign::verify(&path)? {
+          log::info!(
+            "sidecar at \"{}\" already signed. Skipping...",
+            path.display()
+          );
+          continue;
+        }
+
+        windows::sign::try_sign(&path, &settings)?;
+      }
+    } else {
+      #[cfg(not(target_os = "windows"))]
+      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
     }
-  } else {
-    #[cfg(not(target_os = "windows"))]
-    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
   }
 
   for package_type in &package_types {

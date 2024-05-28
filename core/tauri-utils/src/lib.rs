@@ -57,20 +57,6 @@ pub struct PackageInfo {
   pub crate_name: &'static str,
 }
 
-impl PackageInfo {
-  /// Returns the application package name.
-  /// On macOS and Windows it's the `name` field, and on Linux it's the `name` in `kebab-case`.
-  pub fn package_name(&self) -> String {
-    #[cfg(target_os = "linux")]
-    {
-      use heck::ToKebabCase;
-      self.name.clone().to_kebab_case()
-    }
-    #[cfg(not(target_os = "linux"))]
-    self.name.clone()
-  }
-}
-
 #[allow(deprecated)]
 mod window_effects {
   use super::*;

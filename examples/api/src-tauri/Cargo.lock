@@ -3189,7 +3189,6 @@ dependencies = [
  "dunce",
  "getrandom 0.2.15",
  "glob",
- "heck 0.5.0",
  "html5ever",
  "infer",
  "json-patch",

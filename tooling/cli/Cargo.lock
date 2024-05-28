@@ -5002,7 +5002,6 @@ dependencies = [
  "dunce",
  "getrandom 0.2.12",
  "glob",
- "heck 0.5.0",
  "html5ever",
  "infer 0.15.0",
  "json-patch",

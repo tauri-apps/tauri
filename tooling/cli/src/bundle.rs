@@ -223,10 +223,17 @@ fn sign_updaters(
   let update_enabled_bundles: Vec<&tauri_bundler::Bundle> = bundles
     .iter()
     .filter(|bundle| {
-      matches!(
-        bundle.package_type,
-        PackageType::Updater | PackageType::Nsis | PackageType::WindowsMsi | PackageType::AppImage
-      )
+      if update_settings.v1_compatible {
+        matches!(bundle.package_type, PackageType::Updater)
+      } else {
+        matches!(
+          bundle.package_type,
+          PackageType::Updater
+            | PackageType::Nsis
+            | PackageType::WindowsMsi
+            | PackageType::AppImage
+        )
+      }
     })
     .collect();
 

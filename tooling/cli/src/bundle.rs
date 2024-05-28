@@ -258,7 +258,7 @@ fn sign_updaters(
 
   // get the private key
   let private_key = std::env::var("TAURI_SIGNING_PRIVATE_KEY")
-    .context("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")?;
+    .map_err(|_| anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable."))?;
   // check if private_key points to a file...
   let maybe_path = Path::new(&private_key);
   let private_key = if maybe_path.exists() {

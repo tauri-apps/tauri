@@ -72,6 +72,7 @@
         "android": {
           "minSdkVersion": 24
         },
+        "createUpdaterArtifacts": false,
         "iOS": {},
         "icon": [],
         "linux": {
@@ -107,7 +108,6 @@
           "minimumSystemVersion": "10.13"
         },
         "targets": "all",
-        "updater": false,
         "windows": {
           "allowDowngrades": true,
           "certificateThumbprint": null,
@@ -1526,7 +1526,7 @@
             }
           ]
         },
-        "updater": {
+        "createUpdaterArtifacts": {
           "description": "Produce updaters and their signatures or not",
           "default": false,
           "allOf": [

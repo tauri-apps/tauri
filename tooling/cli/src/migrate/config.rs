@@ -251,7 +251,7 @@ fn process_bundle(config: &mut Map<String, Value>) {
           false
         };
         if shuold_migrate {
-          bundle_config.insert("updater".to_owned(), "v1Compatible".into());
+          bundle_config.insert("createUpdaterArtifacts".to_owned(), "v1Compatible".into());
         }
       }
     }
@@ -814,7 +814,7 @@ mod test {
     });
 
     let migrated = migrate(&original);
-    assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
     assert_eq!(
       migrated["bundle"]["targets"].as_array(),
       Some(&vec!["nsis".into()])
@@ -829,7 +829,7 @@ mod test {
     });
 
     let migrated = migrate(&original);
-    assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
     assert_eq!(migrated["bundle"]["targets"], "all");
 
     let original = serde_json::json!({
@@ -841,7 +841,7 @@ mod test {
     });
 
     let migrated = migrate(&original);
-    assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
     assert_eq!(migrated["bundle"].get("targets"), None);
   }
 

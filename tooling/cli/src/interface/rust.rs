@@ -812,8 +812,8 @@ impl AppSettings for RustAppSettings {
     let arch64bits =
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
-    let updater_enabled = config.bundle.updater != Updater::Bool(false);
-    let v1_compatible = matches!(config.bundle.updater, Updater::String(_));
+    let updater_enabled = config.bundle.create_updater_artifacts != Updater::Bool(false);
+    let v1_compatible = matches!(config.bundle.create_updater_artifacts, Updater::String(_));
     let updater_settings = if updater_enabled {
       let updater: UpdaterConfig = serde_json::from_value(
         config

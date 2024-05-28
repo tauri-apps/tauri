@@ -1076,7 +1076,7 @@ pub struct BundleConfig {
   pub targets: BundleTarget,
   #[serde(default)]
   /// Produce updaters and their signatures or not
-  pub updater: Updater,
+  pub create_updater_artifacts: Updater,
   /// The application's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
@@ -2460,7 +2460,7 @@ mod build {
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
-      let updater = quote!(Default::default());
+      let create_updater_artifacts = quote!(Default::default());
       let resources = quote!(None);
       let copyright = quote!(None);
       let category = quote!(None);
@@ -2483,7 +2483,7 @@ mod build {
         publisher,
         icon,
         targets,
-        updater,
+        create_updater_artifacts,
         resources,
         copyright,
         category,
@@ -2798,7 +2798,7 @@ mod test {
     let bundle = BundleConfig {
       active: false,
       targets: Default::default(),
-      updater: Default::default(),
+      create_updater_artifacts: Default::default(),
       publisher: None,
       icon: Vec::new(),
       resources: None,

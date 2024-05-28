@@ -3,53 +3,19 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  bundle::BundleFormat,
   helpers::{
-    app_paths::{app_dir, tauri_dir},
-    command_env,
-    config::{get as get_config, ConfigHandle, ConfigMetadata, FrontendDist, HookCommand},
-    updater_signature::{secret_key as updater_secret_key, sign_file},
+    self,
+    app_paths::tauri_dir,
+    config::{get as get_config, ConfigHandle, FrontendDist},
   },
   interface::{AppInterface, AppSettings, Interface},
-  CommandExt, ConfigValue, Result,
+  ConfigValue, Result,
 };
-use anyhow::{bail, Context};
-use base64::Engine;
-use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
-use std::{
-  env::{set_current_dir, var},
-  path::{Path, PathBuf},
-  process::Command,
-  str::FromStr,
-  sync::OnceLock,
-};
-use tauri_bundler::{
-  bundle::{bundle_project, PackageType},
-  Bundle,
-};
+use anyhow::Context;
+use clap::{ArgAction, Parser};
+use std::env::set_current_dir;
 use tauri_utils::platform::Target;
-
-#[derive(Debug, Clone)]
-pub struct BundleFormat(PackageType);
-
-impl FromStr for BundleFormat {
-  type Err = anyhow::Error;
-  fn from_str(s: &str) -> Result<Self> {
-    PackageType::from_short_name(s)
-      .map(Self)
-      .ok_or_else(|| anyhow::anyhow!("unknown bundle format {s}"))
-  }
-}
-
-impl ValueEnum for BundleFormat {
-  fn value_variants<'a>() -> &'a [Self] {
-    static VARIANTS: OnceLock<Vec<BundleFormat>> = OnceLock::new();
-    VARIANTS.get_or_init(|| PackageType::all().iter().map(|t| Self(*t)).collect())
-  }
-
-  fn to_possible_value(&self) -> Option<PossibleValue> {
-    Some(PossibleValue::new(self.0.short_name()))
-  }
-}
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -120,17 +86,21 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   interface.build(interface_options)?;
 
+  log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(&bin_path));
+
   let app_settings = interface.app_settings();
 
-  bundle(
-    &options,
-    verbosity,
-    ci,
-    &interface,
-    &app_settings,
-    config_,
-    out_dir,
-  )?;
+  if !options.no_bundle && (config_.bundle.active || options.bundles.is_some()) {
+    crate::bundle::bundle(
+      &options.into(),
+      verbosity,
+      ci,
+      &interface,
+      &app_settings,
+      config_,
+      out_dir,
+    )?;
+  }
 
   Ok(())
 }
@@ -173,7 +143,7 @@ pub fn setup(
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
+    helpers::run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
   }
 
   if let Some(FrontendDist::Directory(web_asset_path)) = &config_.build.frontend_dist {
@@ -220,225 +190,5 @@ pub fn setup(
     .extend(config_.build.features.clone().unwrap_or_default());
   interface.build_options(&mut options.args, &mut options.features, mobile);
 
-  Ok(())
-}
-
-fn bundle<A: AppSettings>(
-  options: &Options,
-  verbosity: u8,
-  ci: bool,
-  interface: &AppInterface,
-  app_settings: &std::sync::Arc<A>,
-  config: &ConfigMetadata,
-  out_dir: &Path,
-) -> crate::Result<()> {
-  if options.no_bundle || (options.bundles.is_none() && !config.bundle.active) {
-    return Ok(());
-  }
-
-  let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
-    bundles.iter().map(|bundle| bundle.0).collect::<Vec<_>>()
-  } else {
-    config
-      .bundle
-      .targets
-      .to_vec()
-      .into_iter()
-      .map(Into::into)
-      .collect()
-  };
-
-  if package_types.is_empty() {
-    return Ok(());
-  }
-
-  // if we have a package to bundle, let's run the `before_bundle_command`.
-  if !package_types.is_empty() {
-    if let Some(before_bundle) = config.build.before_bundle_command.clone() {
-      run_hook(
-        "beforeBundleCommand",
-        before_bundle,
-        interface,
-        options.debug,
-      )?;
-    }
-  }
-
-  let mut settings = app_settings
-    .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
-    .with_context(|| "failed to build bundler settings")?;
-
-  settings.set_log_level(match verbosity {
-    0 => log::Level::Error,
-    1 => log::Level::Info,
-    _ => log::Level::Trace,
-  });
-
-  // set env vars used by the bundler
-  #[cfg(target_os = "linux")]
-  {
-    if config.bundle.linux.appimage.bundle_media_framework {
-      std::env::set_var("APPIMAGE_BUNDLE_GSTREAMER", "1");
-    }
-
-    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open")) {
-      if open.as_bool().is_some_and(|x| x) || open.is_string() {
-        std::env::set_var("APPIMAGE_BUNDLE_XDG_OPEN", "1");
-      }
-    }
-
-    if settings.deep_link_protocols().is_some() {
-      std::env::set_var("APPIMAGE_BUNDLE_XDG_MIME", "1");
-    }
-  }
-
-  let bundles = bundle_project(settings)
-    .map_err(|e| anyhow::anyhow!("{:#}", e))
-    .with_context(|| "failed to bundle project")?;
-
-  let update_enabled_bundles: Vec<&Bundle> = bundles
-    .iter()
-    .filter(|bundle| {
-      matches!(
-        bundle.package_type,
-        PackageType::Updater | PackageType::Nsis | PackageType::WindowsMsi | PackageType::AppImage
-      )
-    })
-    .collect();
-
-  // Skip if no updater is active
-  if !update_enabled_bundles.is_empty() {
-    let updater_pub_key = config
-      .plugins
-      .0
-      .get("updater")
-      .and_then(|k| k.get("pubkey"))
-      .and_then(|v| v.as_str())
-      .map(|v| v.to_string());
-
-    if let Some(pubkey) = updater_pub_key {
-      // get the public key
-      // check if pubkey points to a file...
-      let maybe_path = Path::new(&pubkey);
-      let pubkey = if maybe_path.exists() {
-        std::fs::read_to_string(maybe_path)?
-      } else {
-        pubkey
-      };
-
-      // if no password provided we use an empty string
-      let password = var("TAURI_SIGNING_PRIVATE_KEY_PASSWORD").ok().or_else(|| {
-        if ci {
-          Some("".into())
-        } else {
-          None
-        }
-      });
-
-      // get the private key
-      let secret_key = match var("TAURI_SIGNING_PRIVATE_KEY") {
-        Ok(private_key) => {
-          // check if private_key points to a file...
-          let maybe_path = Path::new(&private_key);
-          let private_key = if maybe_path.exists() {
-            std::fs::read_to_string(maybe_path)?
-          } else {
-            private_key
-          };
-          updater_secret_key(private_key, password)
-        }
-        _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
-      }?;
-
-      let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
-      let pub_key_decoded = String::from_utf8_lossy(&pubkey);
-      let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
-
-      // make sure we have our package built
-      let mut signed_paths = Vec::new();
-      for bundle in update_enabled_bundles {
-        // we expect to have only one path in the vec but we iter if we add
-        // another type of updater package who require multiple file signature
-        for path in bundle.bundle_paths.iter() {
-          // sign our path from environment variables
-          let (signature_path, signature) = sign_file(&secret_key, path)?;
-          if signature.keynum() != public_key.keynum() {
-            log::warn!("The updater secret key from `TAURI_PRIVATE_KEY` does not match the public key from `plugins > updater > pubkey`. If you are not rotating keys, this means your configuration is wrong and won't be accepted at runtime when performing update.");
-          }
-          signed_paths.push(signature_path);
-        }
-      }
-
-      print_signed_updater_archive(&signed_paths)?;
-    }
-  }
-
-  Ok(())
-}
-
-fn run_hook(name: &str, hook: HookCommand, interface: &AppInterface, debug: bool) -> Result<()> {
-  let (script, script_cwd) = match hook {
-    HookCommand::Script(s) if s.is_empty() => (None, None),
-    HookCommand::Script(s) => (Some(s), None),
-    HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
-  };
-  let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-  if let Some(script) = script {
-    log::info!(action = "Running"; "{} `{}`", name, script);
-
-    let mut env = command_env(debug);
-    env.extend(interface.env());
-
-    log::debug!("Setting environment for hook {:?}", env);
-
-    #[cfg(target_os = "windows")]
-    let status = Command::new("cmd")
-      .arg("/S")
-      .arg("/C")
-      .arg(&script)
-      .current_dir(cwd)
-      .envs(env)
-      .piped()
-      .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
-    #[cfg(not(target_os = "windows"))]
-    let status = Command::new("sh")
-      .arg("-c")
-      .arg(&script)
-      .current_dir(cwd)
-      .envs(env)
-      .piped()
-      .with_context(|| format!("failed to run `{script}` with `sh -c`"))?;
-
-    if !status.success() {
-      bail!(
-        "{} `{}` failed with exit code {}",
-        name,
-        script,
-        status.code().unwrap_or_default()
-      );
-    }
-  }
-
-  Ok(())
-}
-
-fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
-  use std::fmt::Write;
-  if !output_paths.is_empty() {
-    let pluralised = if output_paths.len() == 1 {
-      "updater signature"
-    } else {
-      "updater signatures"
-    };
-    let mut printable_paths = String::new();
-    for path in output_paths {
-      writeln!(
-        printable_paths,
-        "        {}",
-        tauri_utils::display_path(path)
-      )?;
-    }
-    log::info!( action = "Finished"; "{} {} at:\n{}", output_paths.len(), pluralised, printable_paths);
-  }
   Ok(())
 }

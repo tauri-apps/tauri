@@ -216,6 +216,7 @@ fn has_feature(feature: &str) -> bool {
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }
@@ -313,7 +314,7 @@ fn main() {
     if target_os == "ios" {
       let lib_path =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
-      tauri_utils::build::link_swift_library("Tauri", &lib_path);
+      tauri_utils::build::link_apple_library("Tauri", &lib_path);
       println!("cargo:ios_library_path={}", lib_path.display());
     }
   }

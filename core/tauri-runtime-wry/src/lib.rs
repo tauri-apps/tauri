@@ -1023,6 +1023,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
   }
+
+  fn get_theme(&self) -> Option<Theme> {
+    self.inner.window.preferred_theme.map(|theme| match theme {
+      TaoTheme::Dark => Theme::Dark,
+      _ => Theme::Light,
+    })
+  }
 }
 
 #[cfg(any(
@@ -3419,7 +3426,7 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
           TaoWindowEvent::CloseRequested => {
-            on_close_requested(callback, window_id, windows.clone());
+            on_close_requested(callback, window_id, windows);
           }
           TaoWindowEvent::Destroyed => {
             let removed = windows.0.borrow_mut().remove(&window_id).is_some();
@@ -3480,10 +3487,10 @@ fn handle_event_loop<T: UserEvent>(
         }
       }
       Message::Window(id, WindowMessage::Close) => {
-        on_close_requested(callback, id, windows.clone());
+        on_close_requested(callback, id, windows);
       }
       Message::Window(id, WindowMessage::Destroy) => {
-        on_window_close(id, windows.clone());
+        on_window_close(id, windows);
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {

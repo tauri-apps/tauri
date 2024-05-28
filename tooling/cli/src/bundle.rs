@@ -229,6 +229,7 @@ fn sign_updaters(
       )
     })
     .collect();
+
   if update_enabled_bundles.is_empty() {
     return Ok(());
   }
@@ -237,6 +238,7 @@ fn sign_updaters(
     // Maybe return error here?
     return Ok(());
   };
+
   // get the public key
   // check if pubkey points to a file...
   let maybe_path = Path::new(&pubkey);
@@ -270,7 +272,6 @@ fn sign_updaters(
   let pub_key_decoded = String::from_utf8_lossy(&pubkey);
   let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
 
-  // make sure we have our package built
   let mut signed_paths = Vec::new();
   for bundle in update_enabled_bundles {
     // we expect to have only one path in the vec but we iter if we add

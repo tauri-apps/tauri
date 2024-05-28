@@ -155,7 +155,7 @@ pub struct PackageSettings {
 /// The updater settings.
 #[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
-  /// Should generate v1 compatible unzipped updater
+  /// Should generate v1 compatible zipped updater
   pub v1_compatible: bool,
   /// Signature public key.
   pub pubkey: Option<String>,

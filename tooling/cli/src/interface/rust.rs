@@ -815,22 +815,18 @@ impl AppSettings for RustAppSettings {
     let updater_enabled = config.bundle.updater != Updater::Bool(false);
     let v1_compatible = matches!(config.bundle.updater, Updater::String(_));
     let updater_settings = if updater_enabled {
-      let (pubkey, msiexec_args) =
-        if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
-          let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
-          let pubkey = if !updater.pubkey.is_empty() {
-            Some(updater.pubkey)
-          } else {
-            None
-          };
-          (pubkey, Some(updater.windows.install_mode.msiexec_args()))
-        } else {
-          (None, None)
-        };
+      let updater: UpdaterConfig = serde_json::from_value(
+        config
+          .plugins
+          .0
+          .get("updater")
+          .context("plugins > updater doesn't exist")?
+          .clone(),
+      )?;
       Some(UpdaterSettings {
         v1_compatible,
-        pubkey,
-        msiexec_args,
+        pubkey: updater.pubkey,
+        msiexec_args: updater.windows.install_mode.msiexec_args(),
       })
     } else {
       None

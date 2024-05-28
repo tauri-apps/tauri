@@ -645,7 +645,7 @@ pub fn build_wix_app_installer(
       to_json(
         settings
           .updater()
-          .and_then(|updater| updater.msiexec_args)
+          .map(|updater| updater.msiexec_args)
           .map(|args| args.join(" "))
           .unwrap_or_else(|| "/passive".to_string()),
       ),

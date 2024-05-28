@@ -234,14 +234,10 @@ fn sign_updaters(
     return Ok(());
   }
 
-  let Some(pubkey) = &update_settings.pubkey else {
-    // Maybe return error here?
-    return Ok(());
-  };
-
   // get the public key
   // check if pubkey points to a file...
-  let maybe_path = Path::new(&pubkey);
+  let pubkey = &update_settings.pubkey;
+  let maybe_path = Path::new(pubkey);
   let pubkey = if maybe_path.exists() {
     std::fs::read_to_string(maybe_path)?
   } else {

@@ -158,9 +158,9 @@ pub struct UpdaterSettings {
   /// Should generate v1 compatible zipped updater
   pub v1_compatible: bool,
   /// Signature public key.
-  pub pubkey: Option<String>,
+  pub pubkey: String,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
-  pub msiexec_args: Option<&'static [&'static str]>,
+  pub msiexec_args: &'static [&'static str],
 }
 
 /// The Linux debian bundle settings.

@@ -9,7 +9,7 @@ use crate::{
   VersionMetadata,
 };
 use anyhow::Context;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
@@ -53,6 +53,17 @@ pub struct Options {
   /// Whether to initialize Android and iOS projects for the plugin.
   #[clap(long)]
   pub(crate) mobile: bool,
+  /// Type of framework to use for the iOS project.
+  #[clap(long)]
+  pub(crate) ios_framework: Option<IosFrameworkKind>,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum IosFrameworkKind {
+  /// Swift Package Manager project
+  Spm,
+  /// Xcode project
+  Xcode,
 }
 
 impl Options {
@@ -155,6 +166,8 @@ pub fn command(mut options: Options) -> Result<()> {
       None
     };
 
+    let ios_framework = options.ios_framework.unwrap_or(IosFrameworkKind::Spm);
+
     let mut created_dirs = Vec::new();
     template::render_with_generator(
       &handlebars,
@@ -193,7 +206,18 @@ pub fn command(mut options: Options) -> Result<()> {
                 return Ok(None);
               }
             }
-            "ios" if !(options.ios || options.mobile) => return Ok(None),
+            "ios-spm" | "ios-xcode" if !(options.ios || options.mobile) => return Ok(None),
+            "ios-spm" if !matches!(ios_framework, IosFrameworkKind::Spm) => return Ok(None),
+            "ios-xcode" if !matches!(ios_framework, IosFrameworkKind::Xcode) => return Ok(None),
+            "ios-spm" | "ios-xcode" => {
+              let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
+
+              path = Path::new("ios")
+                .join(Component::Normal(&std::ffi::OsString::from(
+                  &folder_name.replace("{{ plugin_name }}", &plugin_name),
+                )))
+                .join(components.collect::<PathBuf>());
+            }
             "guest-js" | "rollup.config.js" | "tsconfig.json" | "package.json"
               if options.no_api =>
             {

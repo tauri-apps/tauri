@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-beta.14"
+version = "2.0.0-beta.18"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.70"
@@ -39,17 +39,16 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.11", default-features = false }
+cargo-mobile2 = { version = "0.12.1", default-features = false }
 jsonrpsee = { version = "0.22", features = [ "server" ] }
 jsonrpsee-core = "0.22"
 jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
 jsonrpsee-ws-client = { version = "0.22", default-features = false }
-thiserror = "1"
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = [ "derive", "env" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.1-beta.10", default-features = false, path = "../bundler" }
+tauri-bundler = { version = "2.0.1-beta.14", default-features = false, path = "../bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = { version = "1.0", features = [ "preserve_order" ] }
@@ -59,7 +58,7 @@ shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = [ "serde" ] }
 json-patch = "1.2"
-tauri-utils = { version = "2.0.0-beta.13", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+tauri-utils = { version = "2.0.0-beta.16", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
@@ -71,9 +70,7 @@ ureq = { version = "2.9.6", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
 regex = "1.10.3"
-unicode-width = "0.1"
-zeroize = "1.7"
-heck = { version = "0.4", features = [ "unicode" ] }
+heck = "0.5"
 dialoguer = "0.11"
 url = { version = "2.5", features = [ "serde" ] }
 os_pipe = "1"
@@ -96,9 +93,13 @@ resvg = "0.40.0"
 dunce = "1"
 glob = "0.3"
 
-[target."cfg(windows)".dependencies]
-winapi = { version = "0.3", features = [ "handleapi", "processenv", "winbase", "wincon", "winnt" ] }
-cc = "1"
+[target."cfg(windows)".dependencies.windows-sys]
+version = "0.52"
+features = [
+  "Win32_Storage_FileSystem",
+  "Win32_System_IO",
+  "Win32_System_Console"
+]
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"

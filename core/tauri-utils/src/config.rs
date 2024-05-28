@@ -213,19 +213,13 @@ impl schemars::JsonSchema for BundleTarget {
         ..Default::default()
       }
       .into(),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<Vec<BundleType>>(),
-        schemars::schema::Metadata {
-          description: Some("A list of bundle targets.".to_owned()),
-          ..Default::default()
-        },
+        "A list of bundle targets.",
       ),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<BundleType>(),
-        schemars::schema::Metadata {
-          description: Some("A single bundle target.".to_owned()),
-          ..Default::default()
-        },
+        "A single bundle target.",
       ),
     ];
 
@@ -663,11 +657,6 @@ pub struct WixConfig {
   /// The Merge element ids you want to reference from the fragments.
   #[serde(default, alias = "merge-refs")]
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install.
-  ///
-  /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
-  #[serde(default, alias = "skip-webview-install")]
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   #[serde(default, alias = "enable-elevated-update-task")]
   pub enable_elevated_update_task: bool,
@@ -744,6 +733,41 @@ pub struct NsisConfig {
   ///
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
   pub compression: Option<NsisCompression>,
+  /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
+  /// main installer.nsi script.
+  ///
+  /// Supported hooks are:
+  /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
+  /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
+  /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
+  /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  ///
+  ///
+  /// ### Example
+  ///
+  /// ```nsh
+  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
+  /// !macro NSIS_HOOK_PREINSTALL_
+  ///   MessageBox MB_OK "PreInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
+  /// !macro NSIS_HOOK_POSTINSTALL_
+  ///   MessageBox MB_OK "PostInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
+  /// !macro NSIS_HOOK_PREUNINSTALL_
+  ///   MessageBox MB_OK "PreUnInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
+  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  ///   MessageBox MB_OK "PostUninstall"
+  /// !macroend
+  /// ```
+  #[serde(alias = "installer-hooks")]
+  pub installer_hooks: Option<PathBuf>,
 }
 
 /// Install Modes for the NSIS installer.
@@ -870,6 +894,20 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  #[serde(alias = "sign-command")]
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsConfig {
@@ -884,6 +922,7 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
+      sign_command: None,
     }
   }
 }
@@ -1776,12 +1815,22 @@ pub struct AndroidConfig {
   /// The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.
   #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
   pub min_sdk_version: u32,
+
+  /// The version code of the application.
+  /// It is limited to 2,100,000,000 as per Google Play Store requirements.
+  ///
+  /// By default we use your configured version and perform the following math:
+  /// versionCode = version.major * 1000000 + version.minor * 1000 + version.patch
+  #[serde(alias = "version-code")]
+  #[cfg_attr(feature = "schema", validate(range(min = 1, max = 2_100_000_000)))]
+  pub version_code: Option<u32>,
 }
 
 impl Default for AndroidConfig {
   fn default() -> Self {
     Self {
       min_sdk_version: default_min_sdk_version(),
+      version_code: None,
     }
   }
 }
@@ -2041,6 +2090,8 @@ pub struct Config {
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  ///
+  /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -2249,7 +2300,7 @@ mod build {
       let minimizable = self.minimizable;
       let closable = self.closable;
       let title = str_lit(&self.title);
-      let proxy_url = opt_str_lit(self.proxy_url.as_ref());
+      let proxy_url = opt_lit(self.proxy_url.as_ref().map(url_lit).as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
       let transparent = self.transparent;

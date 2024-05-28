@@ -240,7 +240,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
-    #[cfg_attr(not(unstable), allow(unused_mut))]
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut builder = Self {
       manager,
       label: config.label.clone(),
@@ -390,7 +390,7 @@ tauri::Builder::default()
     #[cfg(desktop)]
     let handler = app_manager
       .menu
-      .prepare_window_menu_creation_handler(window_menu.as_ref());
+      .prepare_window_menu_creation_handler(window_menu.as_ref(), self.window_builder.get_theme());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
     let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
@@ -968,7 +968,7 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.webview().window().clone())
+    Ok(command.message.webview().window())
   }
 }
 
@@ -1160,7 +1160,12 @@ tauri::Builder::default()
     self.run_on_main_thread(move || {
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        let _ = menu_.inner().init_for_hwnd(hwnd.0);
+        let theme = window
+          .theme()
+          .map(crate::menu::map_to_menu_theme)
+          .unwrap_or(muda::MenuTheme::Auto);
+
+        let _ = menu_.inner().init_for_hwnd_with_theme(hwnd.0, theme);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1378,17 +1383,17 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_focused().map_err(Into::into)
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_decorated().map_err(Into::into)
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native maximize button state
+  /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
   ///
@@ -1397,7 +1402,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_maximizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native minimize button state
+  /// Gets the window's native minimize button state
   ///
   /// ## Platform-specific
   ///
@@ -1406,7 +1411,7 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_minimizable().map_err(Into::into)
   }
 
-  /// Gets the window’s native close button state
+  /// Gets the window's native close button state
   ///
   /// ## Platform-specific
   ///
@@ -1433,6 +1438,16 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .current_monitor()
+      .map(|m| m.map(Into::into))
+      .map_err(Into::into)
+  }
+
+  /// Returns the monitor that contains the given point.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+    self
+      .window
+      .dispatcher
+      .monitor_from_point(x, y)
       .map(|m| m.map(Into::into))
       .map_err(Into::into)
   }
@@ -1550,6 +1565,22 @@ impl<R: Runtime> Window<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<Theme> {
     self.window.dispatcher.theme().map_err(Into::into)
+  }
+}
+
+/// Desktop window getters.
+#[cfg(desktop)]
+impl<R: Runtime> Window<R> {
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
   }
 }
 
@@ -1805,7 +1836,7 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Sets this window's minimum size.
+  /// Sets this window's minimum inner size.
   pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self
       .window
@@ -1814,7 +1845,7 @@ tauri::Builder::default()
       .map_err(Into::into)
   }
 
-  /// Sets this window's maximum size.
+  /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self
       .window

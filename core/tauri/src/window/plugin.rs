@@ -90,6 +90,7 @@ mod desktop_commands {
   getter!(current_monitor, Option<Monitor>);
   getter!(primary_monitor, Option<Monitor>);
   getter!(available_monitors, Vec<Monitor>);
+  getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
 
   setter!(center);
@@ -171,6 +172,17 @@ mod desktop_commands {
     }
     Ok(())
   }
+
+  #[command(root = "crate")]
+  pub async fn monitor_from_point<R: Runtime>(
+    window: Window<R>,
+    label: Option<String>,
+    x: f64,
+    y: f64,
+  ) -> crate::Result<Option<Monitor>> {
+    let window = get_window(window, label)?;
+    window.monitor_from_point(x, y)
+  }
 }
 
 /// Initializes the plugin.
@@ -221,7 +233,9 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::title,
             desktop_commands::current_monitor,
             desktop_commands::primary_monitor,
+            desktop_commands::monitor_from_point,
             desktop_commands::available_monitors,
+            desktop_commands::cursor_position,
             desktop_commands::theme,
             // setters
             desktop_commands::center,

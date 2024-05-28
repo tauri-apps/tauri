@@ -238,8 +238,8 @@ export class Resource {
   }
 }
 
-function isTauri() {
-  return 'isTauri' in window && window.isTauri
+function isTauri(): boolean {
+  return 'isTauri' in window && !!window.isTauri
 }
 
 export type { InvokeArgs, InvokeOptions }

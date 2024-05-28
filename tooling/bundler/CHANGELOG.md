@@ -1,5 +1,38 @@
 # Changelog
 
+## \[2.0.1-beta.14]
+
+### Enhancements
+
+- [`781d74799`](https://www.github.com/tauri-apps/tauri/commit/781d74799a543def205a255fa6fced19967c9872)([#9840](https://www.github.com/tauri-apps/tauri/pull/9840)) Reduced the compression level for rpm bundles from 9 (max) to 6. This has almost no effect on file size but should reduce build time by roughly 25%.
+
+### Bug Fixes
+
+- [`d0d974fa5`](https://www.github.com/tauri-apps/tauri/commit/d0d974fa5ef250b2a9219e4c6a2ca175f495e88f)([#9833](https://www.github.com/tauri-apps/tauri/pull/9833)) Fix NSIS installer deep links registration.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+
+## \[2.0.1-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+
+## \[2.0.1-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.1-beta.11]
+
+### Enhancements
+
+- [`128c58000`](https://www.github.com/tauri-apps/tauri/commit/128c5800091b7fda54bf7d157b785066281e0c74)([#9604](https://www.github.com/tauri-apps/tauri/pull/9604)) Update `nsis_tauri_utils` plugin to `0.3` and use the built-in NSIS download plugin, which reduces the NSIS installer size by 775kb.
+- [`68c39b8c0`](https://www.github.com/tauri-apps/tauri/commit/68c39b8c0ca79e2fa9e250fccdf966136af18c0e)([#9527](https://www.github.com/tauri-apps/tauri/pull/9527)) Use nsis's built-in COM plugin instead of `ApplicationID` plugin, this reduces the installer size by 100 KB, and also fixes pinned shortcut not getting cleaned up on uninstall.
+
 ## \[2.0.1-beta.10]
 
 ### New Features

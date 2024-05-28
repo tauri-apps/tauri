@@ -124,6 +124,8 @@ pub struct InvokeRequest {
   pub body: InvokeBody,
   /// The request headers.
   pub headers: HeaderMap,
+  /// The invoke key. Must match what was passed to the app manager.
+  pub invoke_key: String,
 }
 
 /// The platform webview handle. Accessed with [`Webview#method.with_webview`];
@@ -733,7 +735,7 @@ fn main() {
     self
   }
 
-  /// Enable or disable incognito mode for the WebView..
+  /// Enable or disable incognito mode for the WebView.
   ///
   ///  ## Platform-specific:
   ///
@@ -893,6 +895,18 @@ impl<R: Runtime> Webview<R> {
   /// `window.print()` works on all platforms.
   pub fn print(&self) -> crate::Result<()> {
     self.webview.dispatcher.print().map_err(Into::into)
+  }
+
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
   }
 
   /// Closes this webview.
@@ -1061,9 +1075,12 @@ fn main() {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
-    self.webview.dispatcher.url().unwrap()
+  pub fn url(&self) -> crate::Result<Url> {
+    self
+      .webview
+      .dispatcher
+      .url()
+      .map(|url| url.parse().map_err(crate::Error::InvalidUrl))?
   }
 
   /// Navigates the webview to the defined url.
@@ -1116,6 +1133,24 @@ fn main() {
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
     let is_local = self.is_local_url(&request.url);
+
+    // ensure the passed key matches what our manager should have injected
+    let expected = manager.invoke_key();
+    if request.invoke_key != expected {
+      #[cfg(feature = "tracing")]
+      tracing::error!(
+        "__TAURI_INVOKE_KEY__ expected {expected} but received {}",
+        request.invoke_key
+      );
+
+      #[cfg(not(feature = "tracing"))]
+      eprintln!(
+        "__TAURI_INVOKE_KEY__ expected {expected} but received {}",
+        request.invoke_key
+      );
+
+      return;
+    }
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 

@@ -35,6 +35,9 @@ pub struct Options {
   /// Whether to initialize Android and iOS projects for the plugin.
   #[clap(long)]
   mobile: bool,
+  /// Type of framework to use for the iOS project.
+  #[clap(long)]
+  pub(crate) ios_framework: Option<super::init::IosFrameworkKind>,
 }
 
 impl From<Options> for super::init::Options {
@@ -49,6 +52,7 @@ impl From<Options> for super::init::Options {
       android: o.android,
       ios: o.ios,
       mobile: o.mobile,
+      ios_framework: o.ios_framework,
     }
   }
 }

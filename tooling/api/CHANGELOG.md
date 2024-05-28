@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`ec0e092ec`](https://www.github.com/tauri-apps/tauri/commit/ec0e092ecd23b547c756c7476f23a0d95be6db80)([#9770](https://www.github.com/tauri-apps/tauri/pull/9770)) Add `monitorFromPoint` function in `window` module to get the monitor from a given point.
+
+## \[2.0.0-beta.11]
+
+### Bug Fixes
+
+- [`aa080696e`](https://www.github.com/tauri-apps/tauri/commit/aa080696e0952abff416dd9088d519eaf2587a3a)([#9618](https://www.github.com/tauri-apps/tauri/pull/9618)) Fix `isTauri` incorrect return type.
+
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `cursorPosition` function in `window` module to get the current cursor position.
+
 ## \[2.0.0-beta.9]
 
 ### New Features

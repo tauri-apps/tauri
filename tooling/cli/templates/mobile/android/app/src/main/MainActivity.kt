@@ -1,3 +1,3 @@
-package {{reverse-domain app.domain}}.{{snake-case app.name}}
+package {{escape-kotlin-keyword (reverse-domain app.identifier)}}
 
 class MainActivity : TauriActivity()

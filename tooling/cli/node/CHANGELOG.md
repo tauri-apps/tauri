@@ -1,5 +1,38 @@
 # Changelog
 
+## \[2.0.0-beta.18]
+
+### Bug Fixes
+
+- [`beda18bce`](https://www.github.com/tauri-apps/tauri/commit/beda18bce95fd6e10543b2d8f1eca5fb7ca0655b)([#9855](https://www.github.com/tauri-apps/tauri/pull/9855)) Fixed an issue that caused `tauri add` to fail for multiple rust-only and platform-specific plugins.
+- [`4a33bc6a6`](https://www.github.com/tauri-apps/tauri/commit/4a33bc6a62d2ed9371191c8a7f78ff3f33930455)([#9553](https://www.github.com/tauri-apps/tauri/pull/9553)) Fixes `pnpm` detection when initializing and running a mobile project.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.18`
+
+## \[2.0.0-beta.17]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.17`
+
+## \[2.0.0-beta.16]
+
+### Bug Fixes
+
+- [`97ec422f2`](https://www.github.com/tauri-apps/tauri/commit/97ec422f22d069b9570931834241c7e47bc68cc3)([#9638](https://www.github.com/tauri-apps/tauri/pull/9638)) Exit `tauri icon` with non-zero code when it fails.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.16`
+
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.15`
+
 ## \[2.0.0-beta.14]
 
 ### Enhancements

@@ -37,7 +37,6 @@ pub fn get<R: Runtime>(
     url
   };
 
-  let manager = manager.clone();
   let window_origin = window_origin.to_string();
 
   #[cfg(all(dev, mobile))]

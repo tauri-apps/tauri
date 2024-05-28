@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function () {
+;(function() {
+  /**
+   * A runtime generated key to ensure an IPC call comes from an initialized frame.
+   *
+   * This is declared outside the `window.__TAURI_INVOKE__` definition to prevent
+   * the key from being leaked by `window.__TAURI_INVOKE__.toString()`.
+   * @var {string} __TEMPLATE_invoke_key__
+   */
+  const __TAURI_INVOKE_KEY__ = __TEMPLATE_invoke_key__
+
   const processIpcMessage = __RAW_process_ipc_message_fn__
   const osName = __TEMPLATE_os_name__
   const fetchChannelDataCommand = __TEMPLATE_fetch_channel_data_command__
@@ -29,6 +38,7 @@
           'Content-Type': contentType,
           'Tauri-Callback': callback,
           'Tauri-Error': error,
+          'Tauri-Invoke-Key': __TAURI_INVOKE_KEY__,
           ...((options && options.headers) || {})
         }
       })
@@ -66,7 +76,8 @@
         callback,
         error,
         options,
-        payload
+        payload,
+        __TAURI_INVOKE_KEY__
       })
       window.ipc.postMessage(data)
     }

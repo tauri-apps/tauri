@@ -330,7 +330,7 @@ impl<R: Runtime> AppManager<R> {
   }
 
   fn csp(&self) -> Option<Csp> {
-    if !crate::dev() {
+    if !crate::is_dev() {
       self.config.app.security.csp.clone()
     } else {
       self

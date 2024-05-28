@@ -250,19 +250,17 @@ fn sign_updaters(
     .or_else(|| if ci { Some("".into()) } else { None });
 
   // get the private key
-  let secret_key = match std::env::var("TAURI_SIGNING_PRIVATE_KEY") {
-            Ok(private_key) => {
-              // check if private_key points to a file...
-              let maybe_path = Path::new(&private_key);
-              let private_key = if maybe_path.exists() {
-                std::fs::read_to_string(maybe_path)?
-              } else {
-                private_key
-              };
-              updater_signature::secret_key(private_key, password)
-            }
-            _ => Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")),
-          }?;
+  let Ok(private_key) = std::env::var("TAURI_SIGNING_PRIVATE_KEY") else {
+    return Err(anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable."));
+  };
+  // check if private_key points to a file...
+  let maybe_path = Path::new(&private_key);
+  let private_key = if maybe_path.exists() {
+    std::fs::read_to_string(maybe_path)?
+  } else {
+    private_key
+  };
+  let secret_key = updater_signature::secret_key(private_key, password)?;
 
   let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
   let pub_key_decoded = String::from_utf8_lossy(&pubkey);

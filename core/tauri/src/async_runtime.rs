@@ -42,7 +42,7 @@ impl GlobalRuntime {
     }
   }
 
-  fn spawn<F: Future>(&self, task: F) -> JoinHandle<F::Output>
+  fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
@@ -96,7 +96,7 @@ impl Runtime {
   }
 
   /// Spawns a future onto the runtime.
-  pub fn spawn<F: Future>(&self, task: F) -> JoinHandle<F::Output>
+  pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
@@ -189,7 +189,7 @@ impl RuntimeHandle {
   }
 
   /// Spawns a future onto the runtime.
-  pub fn spawn<F: Future>(&self, task: F) -> JoinHandle<F::Output>
+  pub fn spawn<F>(&self, task: F) -> JoinHandle<F::Output>
   where
     F: Future + Send + 'static,
     F::Output: Send + 'static,

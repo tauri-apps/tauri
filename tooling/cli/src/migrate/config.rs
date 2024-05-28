@@ -815,7 +815,10 @@ mod test {
 
     let migrated = migrate(&original);
     assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
-    assert_eq!(migrated["bundle"]["targets"].as_array(), Some(&vec!["nsis".into()]));
+    assert_eq!(
+      migrated["bundle"]["targets"].as_array(),
+      Some(&vec!["nsis".into()])
+    );
 
     let original = serde_json::json!({
       "tauri": {

@@ -242,8 +242,8 @@ fn sign_updaters(
   }
 
   // get the public key
-  // check if pubkey points to a file...
   let pubkey = &update_settings.pubkey;
+  // check if pubkey points to a file...
   let maybe_path = Path::new(pubkey);
   let pubkey = if maybe_path.exists() {
     std::fs::read_to_string(maybe_path)?

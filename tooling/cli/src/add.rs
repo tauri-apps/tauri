@@ -21,6 +21,7 @@ use std::{collections::HashMap, process::Command};
 #[derive(Default)]
 struct PluginMetadata {
   desktop_only: bool,
+  mobile_only: bool,
   rust_only: bool,
   builder: bool,
 }
@@ -32,12 +33,20 @@ fn plugins() -> HashMap<&'static str, PluginMetadata> {
   // desktop-only
   for p in [
     "authenticator",
+    "autostart",
     "cli",
     "global-shortcut",
+    "positioner",
+    "single-instance",
     "updater",
     "window-state",
   ] {
     plugins.entry(p).or_default().desktop_only = true;
+  }
+
+  // mobile-only
+  for p in ["barcode-scanner", "biometric", "nfc"] {
+    plugins.entry(p).or_default().mobile_only = true;
   }
 
   // uses builder pattern
@@ -56,7 +65,7 @@ fn plugins() -> HashMap<&'static str, PluginMetadata> {
 
   // rust-only
   #[allow(clippy::single_element_loop)]
-  for p in ["localhost"] {
+  for p in ["localhost", "persisted-scope", "single-instance"] {
     plugins.entry(p).or_default().rust_only = true;
   }
 
@@ -95,6 +104,15 @@ pub fn command(options: Options) -> Result<()> {
 
   let tauri_dir = tauri_dir();
 
+  let target_str = metadata
+    .desktop_only
+    .then_some(r#"cfg(not(any(target_os = "android", target_os = "ios")))"#)
+    .or_else(|| {
+      metadata
+        .mobile_only
+        .then_some(r#"cfg(any(target_os = "android", target_os = "ios"))"#)
+    });
+
   cargo::install_one(cargo::CargoInstallOptions {
     name: &crate_name,
     version,
@@ -102,9 +120,7 @@ pub fn command(options: Options) -> Result<()> {
     rev: options.rev.as_deref(),
     tag: options.tag.as_deref(),
     cwd: Some(&tauri_dir),
-    target: metadata
-      .desktop_only
-      .then_some(r#"cfg(not(any(target_os = "android", target_os = "ios")))"#),
+    target: target_str,
   })?;
 
   if !metadata.rust_only {
@@ -132,16 +148,18 @@ pub fn command(options: Options) -> Result<()> {
       };
       manager.install(&[npm_spec])?;
     }
-  }
 
-  let _ = acl::permission::add::command(acl::permission::add::Options {
-    identifier: format!("{plugin}:default"),
-    capability: None,
-  });
+    let _ = acl::permission::add::command(acl::permission::add::Options {
+      identifier: format!("{plugin}:default"),
+      capability: None,
+    });
+  }
 
   // add plugin init code to main.rs or lib.rs
   let plugin_init_fn = if plugin == "stronghold" {
     "Builder::new(|pass| todo!()).build()"
+  } else if plugin == "localhost" {
+    "Builder::new(todo!()).build()"
   } else if metadata.builder {
     "Builder::new().build()"
   } else {

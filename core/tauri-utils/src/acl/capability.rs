@@ -182,9 +182,10 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
       let description = str_lit(&self.description);
-      let remote = &self.remote;
+      let remote = opt_lit(self.remote.as_ref());
       let local = self.local;
       let windows = vec_lit(&self.windows, str_lit);
+      let webviews = vec_lit(&self.webviews, str_lit);
       let permissions = vec_lit(&self.permissions, identity);
       let platforms = opt_vec_lit(self.platforms.as_ref(), identity);
 
@@ -196,6 +197,7 @@ mod build {
         remote,
         local,
         windows,
+        webviews,
         permissions,
         platforms
       );

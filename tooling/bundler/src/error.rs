@@ -14,7 +14,7 @@ pub enum Error {
   #[error("{0}")]
   Resource(#[from] tauri_utils::Error),
   /// Bundler error.
-  #[error("{0}")]
+  #[error("{0:#}")]
   BundlerError(#[from] anyhow::Error),
   /// I/O error.
   #[error("`{0}`")]
@@ -94,6 +94,9 @@ pub enum Error {
   /// Failed to get registry value.
   #[error("failed to get {0} value on registry")]
   GetRegistryValue(String),
+  /// Failed to enumerate registry keys.
+  #[error("failed to enumerate registry keys")]
+  FailedToEnumerateRegKeys,
   /// Unsupported OS bitness.
   #[error("unsupported OS bitness")]
   UnsupportedBitness,

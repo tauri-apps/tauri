@@ -42,4 +42,4 @@ jobs:
 #        run: cargo vet --locked
 
       - name: Provide audit suggestions
-        run: cargo vet --locked suggestions
+        run: cargo vet suggest

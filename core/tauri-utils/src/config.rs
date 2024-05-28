@@ -80,6 +80,8 @@ pub enum BundleType {
   Deb,
   /// The AppImage bundle (.appimage).
   AppImage,
+  /// The Linux Pacman bundle (PKGBUILD)
+  Pacman,
   /// The Microsoft Installer bundle (.msi).
   Msi,
   /// The NSIS bundle (.exe).
@@ -100,6 +102,7 @@ impl Display for BundleType {
       match self {
         Self::Deb => "deb",
         Self::AppImage => "appimage",
+        Self::Pacman => "pacman",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
         Self::App => "app",
@@ -128,6 +131,7 @@ impl<'de> Deserialize<'de> for BundleType {
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
       "appimage" => Ok(Self::AppImage),
+      "pacman" => Ok(Self::Pacman),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
@@ -282,6 +286,35 @@ pub struct DebConfig {
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
   /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
   pub changelog: Option<PathBuf>,
+}
+
+/// Configuration for Pacman bundles.
+#[skip_serializing_none]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PacmanConfig {
+    /// List of softwares that must be installed for the app to build and run.
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+    pub depends: Option<Vec<String>>,
+    /// Additional packages that are provided by this app.
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#provides>
+    pub provides: Option<Vec<String>>,
+    /// Packages that conflict or cause problems with the app.
+    /// All these packages and packages providing this item will need to be removed
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>
+    pub conflicts: Option<Vec<String>>,
+    /// Only use if this app replaces some obsolete packages.
+    /// For example, if you rename any package.
+    ///
+    /// See : <https://wiki.archlinux.org/title/PKGBUILD#replaces>
+    pub replaces: Option<Vec<String>>,
+    /// Source of the package to be stored at PKGBUILD.
+    /// PKGBUILD is a bash script, so version can be referred as ${pkgver}
+    pub source: Option<Vec<String>>,
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -681,7 +714,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "appimage", "pacman", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -719,6 +752,9 @@ pub struct BundleConfig {
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the Pacman bundle.
+  #[serde(default)]
+  pub pacman: PacmanConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -3546,6 +3582,7 @@ mod build {
       let long_description = quote!(None);
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let pacman = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
@@ -3565,6 +3602,7 @@ mod build {
         long_description,
         appimage,
         deb,
+        pacman,
         macos,
         external_bin,
         windows
@@ -4007,6 +4045,7 @@ mod test {
         long_description: None,
         appimage: Default::default(),
         deb: Default::default(),
+        pacman: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),

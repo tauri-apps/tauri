@@ -144,6 +144,7 @@
           "macOS": {
             "minimumSystemVersion": "10.13"
           },
+          "pacman": {},
           "targets": "all",
           "windows": {
             "allowDowngrades": true,
@@ -283,6 +284,7 @@
             "macOS": {
               "minimumSystemVersion": "10.13"
             },
+            "pacman": {},
             "targets": "all",
             "windows": {
               "allowDowngrades": true,
@@ -1046,7 +1048,7 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"appimage\", \"pacman\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
@@ -1131,6 +1133,15 @@
           "allOf": [
             {
               "$ref": "#/definitions/DebConfig"
+            }
+          ]
+        },
+        "pacman": {
+          "description": "Configuration for the Pacman bundle.",
+          "default": {},
+          "allOf": [
+            {
+              "$ref": "#/definitions/PacmanConfig"
             }
           ]
         },
@@ -1221,6 +1232,13 @@
           "type": "string",
           "enum": [
             "appimage"
+          ]
+        },
+        {
+          "description": "The Linux Pacman bundle (PKGBUILD)",
+          "type": "string",
+          "enum": [
+            "pacman"
           ]
         },
         {
@@ -1340,6 +1358,63 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PacmanConfig": {
+      "description": "Configuration for Pacman bundles.",
+      "type": "object",
+      "properties": {
+        "depends": {
+          "description": "List of softwares that must be installed for the app to build and run.\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#provides>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "Additional packages that are provided by this app.\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#provides>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "Packages that conflict or cause problems with the app. All these packages and packages providing this item will need to be removed\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#conflicts>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "Only use if this app replaces some obsolete packages. For example, if you rename any package.\n\nSee : <https://wiki.archlinux.org/title/PKGBUILD#replaces>",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "source": {
+          "description": "Source of the package to be stored at PKGBUILD. PKGBUILD is a bash script, so version can be referred as ${pkgver}",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

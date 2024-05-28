@@ -815,6 +815,31 @@ mod test {
 
     let migrated = migrate(&original);
     assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
+    assert_eq!(migrated["bundle"]["targets"].as_array(), Some(&vec!["nsis".into()]));
+
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": "all"
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
+    assert_eq!(migrated["bundle"]["targets"], "all");
+
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": "updater"
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["updater"], "v1Compatible");
+    assert_eq!(migrated["bundle"].get("targets"), None);
   }
 
   #[test]

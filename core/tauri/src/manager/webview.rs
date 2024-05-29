@@ -253,16 +253,18 @@ impl<R: Runtime> WebviewManager<R> {
       && window_url.scheme() != "https"
     {
       format!("http://{}.localhost", window_url.scheme())
-    } else {
+    } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",
         window_url.scheme(),
-        window_url.host().unwrap(),
+        host,
         window_url
           .port()
           .map(|p| format!(":{p}"))
           .unwrap_or_default()
       )
+    } else {
+      "null".into()
     };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {

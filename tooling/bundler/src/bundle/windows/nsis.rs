@@ -22,7 +22,7 @@ use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{create_dir_all, remove_dir_all, rename, write},
+  fs,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -67,7 +67,6 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
   if !nsis_toolset_path.exists() {
-    create_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else if NSIS_REQUIRED_FILES
     .iter()
@@ -88,7 +87,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
       log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
       for (path, url, hash, hash_algorithim) in mismatched {
         let data = download_and_verify(url, hash, *hash_algorithim)?;
-        write(nsis_toolset_path.join(path), data)?;
+        fs::write(nsis_toolset_path.join(path), data)?;
       }
     }
   }
@@ -105,7 +104,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::bundle::windows::util::extract_zip(&data, _tauri_tools_path)?;
-    rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
@@ -117,8 +116,8 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   )?;
 
   let target_folder = nsis_plugins.join("x86-unicode");
-  create_dir_all(&target_folder)?;
-  write(target_folder.join("nsis_tauri_utils.dll"), data)?;
+  fs::create_dir_all(&target_folder)?;
+  fs::write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
   Ok(())
 }
@@ -164,9 +163,9 @@ fn build_nsis_app_installer(
 
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
-    remove_dir_all(&output_path)?;
+    fs::remove_dir_all(&output_path)?;
   }
-  create_dir_all(&output_path)?;
+  fs::create_dir_all(&output_path)?;
 
   let mut data = BTreeMap::new();
 
@@ -475,7 +474,7 @@ fn build_nsis_app_installer(
 
   let package_base_name = format!(
     "{}_{}_{}-setup",
-    main_binary.name().replace(".exe", ""),
+    settings.product_name(),
     settings.version_string(),
     arch,
   );
@@ -490,7 +489,7 @@ fn build_nsis_app_installer(
     },
     package_base_name
   ));
-  create_dir_all(nsis_installer_path.parent().unwrap())?;
+  fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   log::info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
 
@@ -513,7 +512,7 @@ fn build_nsis_app_installer(
     .piped()
     .context("error running makensis.exe")?;
 
-  rename(nsis_output_path, &nsis_installer_path)?;
+  fs::rename(nsis_output_path, &nsis_installer_path)?;
 
   if settings.can_sign() {
     try_sign(&nsis_installer_path, settings)?;

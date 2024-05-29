@@ -40,7 +40,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let output_path = settings.project_out_directory().join("bundle/dmg");
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.main_binary_name(),
+    settings.product_name(),
     settings.version_string(),
     match settings.binary_arch() {
       "x86_64" => "x64",
@@ -50,7 +50,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let dmg_name = format!("{}.dmg", &package_base_name);
   let dmg_path = output_path.join(&dmg_name);
 
-  let product_name = settings.main_binary_name();
+  let product_name = settings.product_name();
   let bundle_file_name = format!("{}.app", product_name);
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
 

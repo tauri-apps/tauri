@@ -610,6 +610,15 @@ impl BundleBinary {
     }
   }
 
+  /// Creates a new bundle binary with path.
+  pub fn with_path(name: String, main: bool, src_path: Option<String>) -> Self {
+    Self {
+      name,
+      src_path,
+      main,
+    }
+  }
+
   /// Sets the src path of the binary.
   #[must_use]
   pub fn set_src_path(mut self, src_path: Option<String>) -> Self {

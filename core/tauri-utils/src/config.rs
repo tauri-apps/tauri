@@ -10,8 +10,6 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
-#[cfg(target_os = "linux")]
-use heck::ToKebabCase;
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use semver::Version;
@@ -2123,21 +2121,6 @@ pub struct Config {
   /// The plugins config.
   #[serde(default)]
   pub plugins: PluginConfig,
-}
-
-impl Config {
-  /// The binary name. Returns the product name as kebab-case on Linux,
-  /// and returns it as is on all other platforms.
-  pub fn binary_name(&self) -> Option<String> {
-    #[cfg(target_os = "linux")]
-    {
-      self.product_name.as_ref().map(|n| n.to_kebab_case())
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-      self.product_name.clone()
-    }
-  }
 }
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.

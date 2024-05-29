@@ -76,7 +76,8 @@ pub fn restart(env: &Env) {
 
   if let Ok(path) = current_binary(env) {
     Command::new(path)
-      .args(&env.args_os)
+      // first arg is the binary name, must skip it
+      .args(env.args_os.iter().skip(1).collect::<Vec<_>>())
       .spawn()
       .expect("application failed to start");
   }

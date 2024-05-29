@@ -1,62 +1,63 @@
-workspace = { }
+workspace = {}
 
 [package]
 name = "tauri-bundler"
-version = "2.0.1-beta.14"
+version = "2.0.1-beta.15"
 authors = [
   "George Burton <burtonageo@gmail.com>",
-  "Tauri Programme within The Commons Conservancy"
+  "Tauri Programme within The Commons Conservancy",
 ]
-categories = [ "command-line-utilities", "development-tools::cargo-plugins" ]
+categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 license = "Apache-2.0 OR MIT"
-keywords = [ "bundle", "cargo", "tauri" ]
+keywords = ["bundle", "cargo", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
 rust-version = "1.70"
-exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
+exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-beta.16", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-beta.17", path = "../../core/tauri-utils", features = [
+  "resources",
+] }
 image = "0.24.9"
 flate2 = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_json = "1.0"
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1.0", features = ["derive"] }
 strsim = "0.11.0"
 tar = "0.4.40"
 walkdir = "2"
 handlebars = "5.1"
 tempfile = "3.10.1"
-log = { version = "0.4.21", features = [ "kv" ] }
+log = { version = "0.4.21", features = ["kv"] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = { version = "2.9.6", default-features = false, features = [ "socks-proxy" ] }
+ureq = { version = "2.9.6", default-features = false, features = [
+  "socks-proxy",
+] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = { version = "0.6", default-features = false, features = [ "deflate" ] }
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
-uuid = { version = "1", features = [ "v4", "v5" ] }
+uuid = { version = "1", features = ["v4", "v5"] }
 bitness = "0.4"
 windows-registry = "0.1.1"
 glob = "0.3"
 
-  [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
-  version = "0.52"
-  features = [
-  "Win32_System_SystemInformation",
-  "Win32_System_Diagnostics_Debug"
-]
+[target."cfg(target_os = \"windows\")".dependencies.windows-sys]
+version = "0.52"
+features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 
 [target."cfg(target_os = \"macos\")".dependencies]
 icns = { package = "tauri-icns", version = "0.1" }
-time = { version = "0.3", features = [ "formatting" ] }
+time = { version = "0.3", features = ["formatting"] }
 plist = "1"
 
 [target."cfg(any(target_os = \"macos\", target_os = \"windows\"))".dependencies]
@@ -73,7 +74,7 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = [ "rustls" ]
-native-tls = [ "ureq/native-tls" ]
-native-tls-vendored = [ "native-tls", "native-tls/vendored" ]
-rustls = [ "ureq/tls" ]
+default = ["rustls"]
+native-tls = ["ureq/native-tls"]
+native-tls-vendored = ["native-tls", "native-tls/vendored"]
+rustls = ["ureq/tls"]

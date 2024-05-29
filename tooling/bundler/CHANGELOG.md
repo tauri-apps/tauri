@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.1-beta.16]
+
+### Bug Fixes
+
+- [`38df6ea1c`](https://www.github.com/tauri-apps/tauri/commit/38df6ea1c184307d294ee467c4b1c6a488b6e289)([#9909](https://www.github.com/tauri-apps/tauri/pull/9909)) Fix regression in NSIS where it created shortcuts that point to non-existent files.
+
 ## \[2.0.1-beta.15]
 
 ### New Features

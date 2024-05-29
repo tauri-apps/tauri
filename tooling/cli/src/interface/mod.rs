@@ -31,11 +31,7 @@ pub trait AppSettings {
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf>;
-  fn get_binaries(
-    &self,
-    config: &Config,
-    target: &str,
-  ) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
+  fn get_binaries(&self, target: &str) -> crate::Result<Vec<tauri_bundler::BundleBinary>>;
   fn app_name(&self) -> Option<String>;
   fn lib_name(&self) -> Option<String>;
 
@@ -61,7 +57,7 @@ pub trait AppSettings {
     SettingsBuilder::new()
       .package_settings(self.get_package_settings())
       .bundle_settings(self.get_bundle_settings(config, &enabled_features)?)
-      .binaries(self.get_binaries(config, &target)?)
+      .binaries(self.get_binaries(&target)?)
       .project_out_directory(out_dir)
       .target(target)
       .package_types(package_types)

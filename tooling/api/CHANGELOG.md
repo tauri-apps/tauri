@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.13]
+
+### Breaking Changes
+
+- [`c4410daa8`](https://www.github.com/tauri-apps/tauri/commit/c4410daa85616340e911c8243fdaa69e6906fd49)([#9777](https://www.github.com/tauri-apps/tauri/pull/9777)) This release contains breaking changes to the tray event structure because of newly added events:
+
+  - Changed `TrayIconEvent` to be an enum instead of a struct.
+  - Added `MouseButtonState` and `MouseButton` enums.
+  - Removed `ClickType` enum and replaced it with `MouseButton` enum.
+  - Added `MouseButtonState` enum.
+
 ## \[2.0.0-beta.12]
 
 ### New Features

@@ -80,7 +80,7 @@ pub fn list_icon_files(
 
 /// Generate the icon files and store them under the `data_dir`.
 pub fn copy_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<Vec<Icon>> {
-  let icons = self::list_icon_files(settings, data_dir)?;
+  let icons = list_icon_files(settings, data_dir)?;
   for (icon, src) in &icons {
     common::copy_file(src, &icon.path)?;
   }

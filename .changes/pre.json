@@ -193,6 +193,7 @@
     ".changes/reparent.md",
     ".changes/rerun-if-permission-created.md",
     ".changes/resources_table_access.md",
+    ".changes/revert-app-region-drag.md",
     ".changes/revert-fix-visibility-change.md",
     ".changes/rpm-compression-level.md",
     ".changes/runner-config.md",

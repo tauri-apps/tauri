@@ -29,7 +29,7 @@ use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  RpmSettings, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
@@ -629,6 +629,8 @@ pub struct CargoPackageSettings {
   pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
+  /// the package's license.
+  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -682,12 +684,16 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
+    let arch64bits =
+      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+
     tauri_config_to_bundle_settings(
       &self.manifest,
       features,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
       config.tauri.updater.clone(),
+      arch64bits,
     )
   }
 
@@ -904,6 +910,7 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
+      license: cargo_package_settings.license.clone(),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -1024,6 +1031,7 @@ fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
   system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
   updater_config: crate::helpers::config::UpdaterConfig,
+  arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1044,22 +1052,38 @@ fn tauri_config_to_bundle_settings(
     .resources
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
-  let mut depends = config.deb.depends.unwrap_or_default();
+  let mut depends_deb = config.deb.depends.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends_rpm = config.rpm.depends.unwrap_or_default();
 
   #[cfg(target_os = "linux")]
   {
+    let mut libs: Vec<String> = Vec::new();
+
     if let Some(system_tray_config) = &system_tray_config {
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
-        depends.push("libayatana-appindicator3-1".into());
+        depends_deb.push("libayatana-appindicator3-1".into());
       } else {
-        depends.push("libappindicator3-1".into());
+        depends_deb.push("libappindicator3-1".into());
+        libs.push("libappindicator3.so.1".into());
       }
     }
 
     // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.0-37".to_string());
-    depends.push("libgtk-3-0".to_string());
+    depends_deb.push("libwebkit2gtk-4.0-37".to_string());
+    depends_deb.push("libgtk-3-0".to_string());
+
+    libs.push("libwebkit2gtk-4.0.so.37".into());
+    libs.push("libgtk-3.so.0".into());
+
+    for lib in libs {
+      let mut requires = lib;
+      if arch64bits {
+        requires.push_str("()(64bit)");
+      }
+      depends_rpm.push(requires);
+    }
   }
 
   #[cfg(windows)]
@@ -1116,16 +1140,28 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: if depends.is_empty() {
+      depends: if depends_deb.is_empty() {
         None
       } else {
-        Some(depends)
+        Some(depends_deb)
       },
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
       section: config.deb.section,
       priority: config.deb.priority,
       changelog: config.deb.changelog,
+    },
+    rpm: RpmSettings {
+      license: config.rpm.license,
+      depends: if depends_rpm.is_empty() {
+        None
+      } else {
+        Some(depends_rpm)
+      },
+      release: config.rpm.release,
+      epoch: config.rpm.epoch,
+      files: config.rpm.files,
+      desktop_template: config.rpm.desktop_template,
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,

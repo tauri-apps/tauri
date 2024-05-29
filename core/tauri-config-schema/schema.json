@@ -1074,7 +1074,7 @@
       ]
     },
     "Capability": {
-      "description": "a grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
+      "description": "A grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
       "type": "object",
       "required": [
         "identifier",

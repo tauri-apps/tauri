@@ -4,7 +4,6 @@
 
 use std::collections::BTreeMap;
 use std::convert::identity;
-use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 

@@ -85,7 +85,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
-      .get(Target::DEFAULT_KEY)
+      .get(
+        options
+          .targets
+          .first()
+          .map(|t| t.as_str())
+          .unwrap_or(Target::DEFAULT_KEY),
+      )
       .unwrap()
       .triple
       .into(),

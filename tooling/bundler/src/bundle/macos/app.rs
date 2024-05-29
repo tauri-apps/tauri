@@ -293,7 +293,7 @@ fn create_info_plist(
               ),
             );
             dict.insert(
-              "CFBundleTypeName".into(),
+              "CFBundleURLName".into(),
               protocol
                 .name
                 .clone()

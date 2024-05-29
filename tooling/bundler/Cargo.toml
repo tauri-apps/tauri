@@ -43,7 +43,7 @@ dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
-winreg = "0.51"
+windows-registry = "0.1.1"
 glob = "0.3"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows-sys]

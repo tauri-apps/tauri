@@ -155,6 +155,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "nsis": null,
+            "signCommand": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -299,6 +300,7 @@
               "certificateThumbprint": null,
               "digestAlgorithm": null,
               "nsis": null,
+              "signCommand": null,
               "timestampUrl": null,
               "tsp": false,
               "webviewFixedRuntimePath": null,
@@ -1185,6 +1187,7 @@
             "certificateThumbprint": null,
             "digestAlgorithm": null,
             "nsis": null,
+            "signCommand": null,
             "timestampUrl": null,
             "tsp": false,
             "webviewFixedRuntimePath": null,
@@ -1559,6 +1562,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "signCommand": {
+          "description": "Specify a custom command to sign the binaries. This command needs to have a `%1` in it which is just a placeholder for the binary path, which we will detect and replace before calling the command.\n\nExample: ```text sign-cli --arg1 --arg2 %1 ```\n\nBy Default we use `signtool.exe` which can be found only on Windows so if you are on another platform and want to cross-compile and sign you will need to use another tool like `osslsigncode`.",
+          "type": [
+            "string",
+            "null"
           ]
         }
       },

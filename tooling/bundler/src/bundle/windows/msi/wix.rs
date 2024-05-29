@@ -791,7 +791,9 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, settings)?;
+    if settings.can_sign() {
+      try_sign(&msi_path, settings)?;
+    }
     output_paths.push(msi_path);
   }
 

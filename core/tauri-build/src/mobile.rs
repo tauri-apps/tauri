@@ -8,6 +8,8 @@ use anyhow::{Context, Result};
 use semver::Version;
 use tauri_utils::config::Config;
 
+use crate::is_dev;
+
 pub fn generate_gradle_files(project_dir: PathBuf, config: &Config) -> Result<()> {
   let gradle_settings_path = project_dir.join("tauri.settings.gradle");
   let app_build_gradle_path = project_dir.join("app").join("tauri.build.gradle.kts");
@@ -57,7 +59,23 @@ dependencies {"
     if let Some(version_code) = config.bundle.android.version_code.as_ref() {
       app_tauri_properties.push(format!("tauri.android.versionCode={}", version_code));
     } else if let Ok(version) = Version::parse(version) {
-      let version_code = version.major * 1000000 + version.minor * 1000 + version.patch;
+      let mut version_code = version.major * 1000000 + version.minor * 1000 + version.patch;
+
+      if is_dev() {
+        version_code = version_code.clamp(1, 2100000000);
+      }
+
+      if version_code == 0 {
+        return Err(anyhow::anyhow!(
+              "You must change the `version` in `tauri.conf.json`. The default value `0.0.0` is not allowed for Android package and must be at least `0.0.1`."
+            ));
+      } else if version_code > 2100000000 {
+        return Err(anyhow::anyhow!(
+          "Invalid version code {}. Version code must be between 1 and 2100000000. You must change the `version` in `tauri.conf.json`.",
+          version_code
+        ));
+      }
+
       app_tauri_properties.push(format!("tauri.android.versionCode={}", version_code));
     }
   }

@@ -292,7 +292,7 @@ fn resource_dir_from<P: AsRef<Path>>(
     res = if curr_dir.ends_with("/data/usr/bin") {
       // running from the deb bundle dir
       exe_dir
-        .join(format!("../lib/{}", package_info.package_name()))
+        .join(format!("../lib/{}", package_info.crate_name))
         .canonicalize()
         .map_err(Into::into)
     } else if let Some(appdir) = &env.appdir {
@@ -300,13 +300,13 @@ fn resource_dir_from<P: AsRef<Path>>(
       Ok(PathBuf::from(format!(
         "{}/usr/lib/{}",
         appdir.display(),
-        package_info.package_name()
+        package_info.crate_name
       )))
     } else {
       // running bundle
       Ok(PathBuf::from(format!(
         "/usr/lib/{}",
-        package_info.package_name()
+        package_info.crate_name
       )))
     };
   }
@@ -357,7 +357,7 @@ mod tests {
       version: "1.0.0".parse().unwrap(),
       authors: "",
       description: "",
-      crate_name: "",
+      crate_name: "my-app",
     };
     let env = Env::default();
 

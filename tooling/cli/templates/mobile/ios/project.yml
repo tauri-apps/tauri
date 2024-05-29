@@ -42,6 +42,7 @@ targets:
       - {{prefix-path this}}{{/each}}
       {{~#each ios-additional-targets}}
       - path: {{prefix-path this}}{{/each}}
+      - path: LaunchScreen.storyboard
     info:
       path: {{app.name}}_iOS/Info.plist
       properties:

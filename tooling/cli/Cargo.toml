@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.12", default-features = false }
+cargo-mobile2 = { version = "0.12.1", default-features = false }
 jsonrpsee = { version = "0.22", features = [ "server" ] }
 jsonrpsee-core = "0.22"
 jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
@@ -116,6 +116,10 @@ native-tls = [
 ]
 native-tls-vendored = [ "native-tls", "tauri-bundler/native-tls-vendored" ]
 rustls = [ "tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls" ]
+
+# optimize flate2 on debug
+[profile.dev.package.miniz_oxide]
+opt-level = 3
 
 [profile.release-size-optimized]
 inherits = "release"

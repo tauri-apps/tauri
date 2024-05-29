@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.0.1-beta.15]
+
+### New Features
+
+- [`5462e5cad`](https://www.github.com/tauri-apps/tauri/commit/5462e5cadc73c1b9083d852061d7c7f982cfbe53)([#9731](https://www.github.com/tauri-apps/tauri/pull/9731)) Add support for NSIS installer hooks providing a path to a `.nsh` file in `bundle > windows > nsis > installer_hooks` key in `tauri.conf.json`.
+- [`d6d3efbd1`](https://www.github.com/tauri-apps/tauri/commit/d6d3efbd125489cb46642b6d013cdc1eb7fc1a66)([#9865](https://www.github.com/tauri-apps/tauri/pull/9865)) On Windows, add option to specify a custom signing command to be used. This opens an endless possibilities, for example use `osslsigncode` on non-Windows or use hardware tokens and HSM or even using Azure Trusted Signing.
+
+### Enhancements
+
+- [`418d72d72`](https://www.github.com/tauri-apps/tauri/commit/418d72d72ded0e8238ae433ac60e5c6df19d947c)([#9559](https://www.github.com/tauri-apps/tauri/pull/9559)) Added `/UPDATE` flag for NSIS installer which will make the installer avoid deleting app data and re-creating shortcuts.
+
+### Bug Fixes
+
+- [`4754786aa`](https://www.github.com/tauri-apps/tauri/commit/4754786aa278a9e61f3973ce736f248b075e6bdc)([#9885](https://www.github.com/tauri-apps/tauri/pull/9885)) Fixed an issue causing the deep link feature to create invalid `Info.plist` values on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+
+### Breaking Changes
+
+- [`fc1543c65`](https://www.github.com/tauri-apps/tauri/commit/fc1543c65e736622bed93543dcc6504c43e200bb)([#9864](https://www.github.com/tauri-apps/tauri/pull/9864)) Removed `skip_webview_install` (`skipWebviewInstall`) option from config, which has been deprecated for a while now and planned to be removed in v2. Use `webview_install_mode` (`webviewInstallMode`) instead.
+
 ## \[2.0.1-beta.14]
 
 ### Enhancements

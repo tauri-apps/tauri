@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-beta.18]
+
+### Enhancements
+
+- [`276c4b143`](https://www.github.com/tauri-apps/tauri/commit/276c4b14385e17cff15a2e5b57fd2a7cddef9f08)([#9832](https://www.github.com/tauri-apps/tauri/pull/9832)) Added `WindowBuilder::get_theme`.
+
+### What's Changed
+
+- [`9ac930380`](https://www.github.com/tauri-apps/tauri/commit/9ac930380a5df3fe700e68e75df8684d261ca292)([#9850](https://www.github.com/tauri-apps/tauri/pull/9850)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-runtime@2.0.0-beta.18`
+
 ## \[2.0.0-beta.17]
 
 ### Security fixes

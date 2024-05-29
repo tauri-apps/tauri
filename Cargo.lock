@@ -3584,6 +3584,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "tauri-acl-schema"
+version = "0.0.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "tauri-utils",
+ "url",
+]
+
+[[package]]
 name = "tauri-build"
 version = "2.0.0-beta.17"
 dependencies = [

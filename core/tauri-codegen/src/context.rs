@@ -331,7 +331,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
 
     let plist_file = out_dir.join("Info.plist");
 
-    let mut plist_contents = BufWriter::new(Vec::new());
+    let mut plist_contents = std::io::BufWriter::new(Vec::new());
     info_plist
       .to_writer_xml(&mut plist_contents)
       .expect("failed to serialize plist");

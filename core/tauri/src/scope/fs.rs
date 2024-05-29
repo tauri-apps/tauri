@@ -391,4 +391,27 @@ mod tests {
       assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
     }
   }
+
+  #[cfg(unix)]
+  #[test]
+  fn check_temp_dir() {
+    use std::{
+      env::temp_dir,
+      fs::{remove_file, write},
+    };
+
+    let scope = new_scope();
+    scope.allow_directory(temp_dir().canonicalize().unwrap(), true).unwrap();
+
+    let test_temp_file = temp_dir().canonicalize().unwrap().join("tauri_test_file");
+    if test_temp_file.exists() {
+      remove_file(test_temp_file.clone()).unwrap();
+    }
+
+    assert!(scope.is_allowed(test_temp_file.clone()));
+
+    write(test_temp_file.clone(), ".").unwrap();
+
+    assert!(scope.is_allowed(test_temp_file.clone()));
+  }
 }

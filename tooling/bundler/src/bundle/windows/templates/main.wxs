@@ -4,6 +4,9 @@
 <?elseif $(sys.BUILDARCH)="x64"?>
     <?define Win64 = "yes" ?>
     <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?elseif $(sys.BUILDARCH)="arm64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
 <?else?>
     <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
 <?endif?>

@@ -51,6 +51,10 @@ ${StrLoc}
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
 !define ESTIMATEDSIZE "{{estimated_size}}"
 
+Var PassiveMode
+Var UpdateMode
+Var NoShortcutMode
+
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
 OutFile "${OUTFILE}"
@@ -194,21 +198,21 @@ Function PageReinstall
   nsis_tauri_utils::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
-  ${If} $R0 == 0
+  ${If} $R0 = 0
     StrCpy $R1 "$(alreadyInstalledLong)"
     StrCpy $R2 "$(addOrReinstall)"
     StrCpy $R3 "$(uninstallApp)"
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(chooseMaintenanceOption)"
     StrCpy $R5 "2"
   ; Upgrading
-  ${ElseIf} $R0 == 1
+  ${ElseIf} $R0 = 1
     StrCpy $R1 "$(olderOrUnknownVersionInstalled)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     StrCpy $R3 "$(dontUninstall)"
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
     StrCpy $R5 "1"
   ; Downgrading
-  ${ElseIf} $R0 == -1
+  ${ElseIf} $R0 = -1
     StrCpy $R1 "$(newerVersionInstalled)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     !if "${ALLOWDOWNGRADES}" == "true"
@@ -232,7 +236,7 @@ Function PageReinstall
 
   nsDialogs::Create 1018
   Pop $R4
-  ${IfThen} $(^RTL) == 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
+  ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
   ${NSD_CreateLabel} 0 0 100% 24u $R1
   Pop $R1
@@ -245,14 +249,14 @@ Function PageReinstall
   Pop $R3
   ; Disable this radio button if downgrading and downgrades are disabled
   !if "${ALLOWDOWNGRADES}" == "false"
-    ${IfThen} $R0 == -1 ${|} EnableWindow $R3 0 ${|}
+    ${IfThen} $R0 = -1 ${|} EnableWindow $R3 0 ${|}
   !endif
   ${NSD_OnClick} $R3 PageReinstallUpdateSelection
 
   ; Check the first radio button if this the first time
   ; we enter this page or if the second button wasn't
   ; selected the last time we were on this page
-  ${If} $ReinstallPageCheck != 2
+  ${If} $ReinstallPageCheck <> 2
     SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
   ${Else}
     SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
@@ -291,7 +295,11 @@ Function PageLeaveReinstall
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ExecWait '$R1 /P _?=$4' $0
+      ${If} $UpdateMode = 1
+        ExecWait '$R1 /UPDATE /P _?=$4' $0
+      ${Else}
+        ExecWait '$R1 /P _?=$4' $0
+      ${EndIf}
     ${EndIf}
 
     BringToFront
@@ -339,7 +347,7 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
-!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassiveButUpdateShortcutIfUpdate
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller Pages
@@ -350,7 +358,7 @@ Var DeleteAppDataCheckboxState
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
 Function un.ConfirmShow ; Add add a `Delete app data` check box
     FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
-    ${If} $(^RTL) == 1
+    ${If} $(^RTL) = 1
       System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE}|${WS_EX_LAYOUTRTL},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 50,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
     ${Else}
       System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 0,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
@@ -377,12 +385,14 @@ FunctionEnd
   !include "{{this}}"
 {{/each}}
 
-Var PassiveMode
-Var UpdateMode
 Function .onInit
   ${GetOptions} $CMDLINE "/P" $PassiveMode
   IfErrors +2 0
     StrCpy $PassiveMode 1
+
+  ${GetOptions} $CMDLINE "/NS" $NoShortcutMode
+  IfErrors +2 0
+    StrCpy $NoShortcutMode 1
 
   ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
   IfErrors +2 0
@@ -427,9 +437,9 @@ Section EarlyChecks
   !if "${ALLOWDOWNGRADES}" == "false"
   IfSilent 0 silent_downgrades_done
     ; If downgrading
-    ${If} $R0 == -1
+    ${If} $R0 = -1
       System::Call 'kernel32::AttachConsole(i -1)i.r0'
-      ${If} $0 != 0
+      ${If} $0 <> 0
         System::Call 'kernel32::GetStdHandle(i -11)i.r0'
         System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
         FileWrite $0 "$(silentDowngrades)"
@@ -462,7 +472,7 @@ Section WebView2
       DetailPrint "$(webview2Downloading)"
       NSISdl::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
       Pop $0
-      ${If} $0 == 0
+      ${If} $0 = 0
         DetailPrint "$(webview2DownloadSuccess)"
       ${Else}
         DetailPrint "$(webview2DownloadError)"
@@ -494,7 +504,7 @@ Section WebView2
       DetailPrint "$(installingWebview2)"
       ; $6 holds the path to the webview2 installer
       ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
-      ${If} $1 == 0
+      ${If} $1 = 0
         DetailPrint "$(webview2InstallSuccess)"
       ${Else}
         DetailPrint "$(webview2InstallError)"
@@ -567,40 +577,32 @@ Section Install
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
-  ; Create start menu shortcut (GUI)
+  ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
     Call CreateStartMenuShortcut
   !insertmacro MUI_STARTMENU_WRITE_END
 
-  ; Create shortcuts for silent and passive installers, which
-  ; can be disabled by passing `/NS` or `/UPDATE` flag.
-  ;
-  ; GUI installer has buttons for users to control creating them.
-  IfSilent check_ns_flag 0
-  ${IfThen} $PassiveMode == 1 ${|} Goto check_ns_flag ${|}
-  Goto shortcuts_done
-  check_ns_flag:
-    ${GetOptions} $CMDLINE "/NS" $R0
-    IfErrors 0 shortcuts_done
-      ${If} $UpdateMode <> 1
-        Call CreateDesktopShortcut
-        Call CreateStartMenuShortcut
-      ${EndIf}
-  shortcuts_done:
+  ; Create desktop shortcut for silent and passive installers
+  ; because finish page will be skipped
+  IfSilent create_shortcut 0
+  StrCmp $PassiveMode "1" create_shortcut shortcut_done
+  create_shortcut:
+    Call CreateDesktopShortcut
+  shortcut_done:
 
   !ifdef NSIS_HOOK_POSTINSTALL
     !insertmacro "${NSIS_HOOK_POSTINSTALL}"
   !endif
 
   ; Auto close this page for passive mode
-  ${IfThen} $PassiveMode == 1 ${|} SetAutoClose true ${|}
+  ${IfThen} $PassiveMode = 1 ${|} SetAutoClose true ${|}
 SectionEnd
 
 Function .onInstSuccess
   ; Check for `/R` flag only in silent and passive installers because
   ; GUI installer has a toggle for the user to (re)start the app
   IfSilent check_r_flag 0
-  ${IfThen} $PassiveMode == 1 ${|} Goto check_r_flag ${|}
+  ${IfThen} $PassiveMode = 1 ${|} Goto check_r_flag ${|}
   Goto run_done
   check_r_flag:
     ${GetOptions} $CMDLINE "/R" $R0
@@ -618,12 +620,13 @@ Function un.onInit
   !endif
 
   !insertmacro MUI_UNGETLANGUAGE
-FunctionEnd
 
-Section Uninstall
   ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
   IfErrors +2 0
     StrCpy $UpdateMode 1
+FunctionEnd
+
+Section Uninstall
 
   !insertmacro CheckIfAppIsRunning
 
@@ -721,15 +724,45 @@ Function RestorePreviousInstallLocation
 FunctionEnd
 
 Function SkipIfPassive
-  ${IfThen} $PassiveMode == 1  ${|} Abort ${|}
+  ${IfThen} $PassiveMode = 1  ${|} Abort ${|}
+FunctionEnd
+
+Function SkipIfPassiveButUpdateShortcutIfUpdate
+  ${If} $PassiveMode = 1
+    Call CreateDesktopShortcut
+    Abort
+  ${EndIf}
 FunctionEnd
 
 Function CreateDesktopShortcut
+  ; Skip creating shortcut if in update mode
+  ; and shortcuts doesn't exist, which means user deleted it
+  ; so we respect that.
+  ${If} $UpdateMode = 1
+    IfFileExists "$DESKTOP\${PRODUCTNAME}.lnk" +2 0
+      Return
+  ${EndIf}
+
+  ${If} $NoShortcutMode = 1
+    Return
+  ${EndIf}
+
   CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
 FunctionEnd
 
 Function CreateStartMenuShortcut
+  ; Skip creating shortcut if in update mode.
+  ; See `CreateDesktopShortcut` above.
+  ${If} $UpdateMode = 1
+    IfFileExists "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" +2 0
+      Return
+  ${EndIf}
+
+  ${If} $NoShortcutMode = 1
+    Return
+  ${EndIf}
+
   CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
   CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"

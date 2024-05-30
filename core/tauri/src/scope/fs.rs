@@ -401,7 +401,9 @@ mod tests {
     };
 
     let scope = new_scope();
-    scope.allow_directory(temp_dir().canonicalize().unwrap(), true).unwrap();
+    scope
+      .allow_directory(temp_dir().canonicalize().unwrap(), true)
+      .unwrap();
 
     let test_temp_file = temp_dir().canonicalize().unwrap().join("tauri_test_file");
     if test_temp_file.exists() {

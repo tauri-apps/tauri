@@ -1075,7 +1075,7 @@
       ]
     },
     "Capability": {
-      "description": "a grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
+      "description": "A grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
       "type": "object",
       "required": [
         "identifier",
@@ -2332,7 +2332,7 @@
           ]
         },
         "installerHooks": {
-          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the main installer.nsi script.\n\nSupported hooks are: - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts. - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts. - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts. - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n### Example\n\n```nsh !define NSIS_HOOK_PREINSTALL \"NSIS_HOOK_PREINSTALL_\" !macro NSIS_HOOK_PREINSTALL_ MessageBox MB_OK \"PreInstall\" !macroend\n\n!define NSIS_HOOK_POSTINSTALL \"NSIS_HOOK_POSTINSTALL_\" !macro NSIS_HOOK_POSTINSTALL_ MessageBox MB_OK \"PostInstall\" !macroend\n\n!define NSIS_HOOK_PREUNINSTALL \"NSIS_HOOK_PREUNINSTALL_\" !macro NSIS_HOOK_PREUNINSTALL_ MessageBox MB_OK \"PreUnInstall\" !macroend\n\n!define NSIS_HOOK_POSTUNINSTALL \"NSIS_HOOK_POSTUNINSTALL_\" !macro NSIS_HOOK_POSTUNINSTALL_ MessageBox MB_OK \"PostUninstall\" !macroend ```",
+          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the main installer.nsi script.\n\nSupported hooks are: - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts. - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts. - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts. - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n### Example\n\n```nsh !define NSIS_HOOK_PREINSTALL \"NSIS_HOOK_PREINSTALL_\" !macro NSIS_HOOK_PREINSTALL_ MessageBox MB_OK \"PreInstall\" !macroend\n\n!define NSIS_HOOK_POSTINSTALL \"NSIS_HOOK_POSTINSTALL_\" !macro NSIS_HOOK_POSTINSTALL_ MessageBox MB_OK \"PostInstall\" !macroend\n\n!define NSIS_HOOK_PREUNINSTALL \"NSIS_HOOK_PREUNINSTALL_\" !macro NSIS_HOOK_PREUNINSTALL_ MessageBox MB_OK \"PreUnInstall\" !macroend\n\n!define NSIS_HOOK_POSTUNINSTALL \"NSIS_HOOK_POSTUNINSTALL_\" !macro NSIS_HOOK_POSTUNINSTALL_ MessageBox MB_OK \"PostUninstall\" !macroend\n\n```",
           "type": [
             "string",
             "null"

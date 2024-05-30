@@ -26,9 +26,8 @@ const WIX_REQUIRED_FILES: &[&str] = &[
 /// Runs all of the commands to build the MSI installer.
 /// Returns a vector of PathBuf that shows where the MSI was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let mut wix_path = dirs_next::cache_dir().unwrap();
-  wix_path.push("tauri/WixTools314");
-
+  let tauri_tools_path = std::env::current_dir().unwrap().join("target/tools");
+  let wix_path = tauri_tools_path.join("Wix");
   if !wix_path.exists() {
     wix::get_and_extract_wix(&wix_path)?;
   } else if WIX_REQUIRED_FILES

@@ -577,6 +577,10 @@ Section Install
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
+  ; We used to use product name as MAINBINARYNAME
+  ; migrate old shortcuts to target the new MAINBINARYNAME name
+  Call MigrateProductNameExeShortcuts
+
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
     Call CreateStartMenuShortcut
@@ -589,10 +593,6 @@ Section Install
   create_shortcut:
     Call CreateDesktopShortcut
   shortcut_done:
-
-  ; We used to use product name as MAINBINARYNAME
-  ; migrate old shortcuts to target the new MAINBINARYNAME name
-  Call MigrateProductNameExeShortcuts
 
   !ifdef NSIS_HOOK_POSTINSTALL
     !insertmacro "${NSIS_HOOK_POSTINSTALL}"

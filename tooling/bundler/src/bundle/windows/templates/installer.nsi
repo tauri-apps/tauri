@@ -347,7 +347,7 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
-!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassiveButUpdateShortcutIfUpdate
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller Pages
@@ -590,6 +590,8 @@ Section Install
     Call CreateDesktopShortcut
   shortcut_done:
 
+  Call MigrateProductNameExeShortcuts
+
   !ifdef NSIS_HOOK_POSTINSTALL
     !insertmacro "${NSIS_HOOK_POSTINSTALL}"
   !endif
@@ -727,22 +729,25 @@ Function SkipIfPassive
   ${IfThen} $PassiveMode = 1  ${|} Abort ${|}
 FunctionEnd
 
-Function SkipIfPassiveButUpdateShortcutIfUpdate
-  ${If} $PassiveMode = 1
-    Call CreateDesktopShortcut
-    Abort
+Function CreateStartMenuShortcut
+  ; Skip creating shortcut if in update mode or no shortcut mode
+  ${If} $UpdateMode = 1
+    Return
   ${EndIf}
+  ${If} $NoShortcutMode = 1
+    Return
+  ${EndIf}
+
+  CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
+  CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
 FunctionEnd
 
 Function CreateDesktopShortcut
-  ; Skip creating shortcut if in update mode
-  ; and shortcuts doesn't exist, which means user deleted it
-  ; so we respect that.
+  ; Skip creating shortcut if in update mode or no shortcut mode
   ${If} $UpdateMode = 1
-    IfFileExists "$DESKTOP\${PRODUCTNAME}.lnk" +2 0
-      Return
+    Return
   ${EndIf}
-
   ${If} $NoShortcutMode = 1
     Return
   ${EndIf}
@@ -751,19 +756,11 @@ Function CreateDesktopShortcut
   !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
 FunctionEnd
 
-Function CreateStartMenuShortcut
-  ; Skip creating shortcut if in update mode.
-  ; See `CreateDesktopShortcut` above.
-  ${If} $UpdateMode = 1
-    IfFileExists "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" +2 0
-      Return
+Function MigrateProductNameExeShortcuts
+  ${If} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+    SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   ${EndIf}
-
-  ${If} $NoShortcutMode = 1
-    Return
+  ${If} ${FileExists} "$DESKTOP\${PRODUCTNAME}.lnk"
+    SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   ${EndIf}
-
-  CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
-  CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
 FunctionEnd

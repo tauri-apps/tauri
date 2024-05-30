@@ -116,3 +116,18 @@
       ${IUnknown::Release} $0 ""
   ${EndIf}
 !macroend
+
+; Set target path for a .lnk shortcut
+!macro SetShortcutTarget shortcut target
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}",.r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READWRITE})'
+      ${IShellLink::SetPath} $0 '(w "${target}")'
+      ${IPersistFile::Save} $1 '("${shortcut}",1)'
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend

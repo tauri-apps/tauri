@@ -578,7 +578,7 @@ Section Install
   WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
   ; We used to use product name as MAINBINARYNAME
-  ; migrate old shortcuts to target the new MAINBINARYNAME name
+  ; migrate old shortcuts to target the new MAINBINARYNAME
   Call MigrateProductNameExeShortcuts
 
   ; Create start menu shortcut

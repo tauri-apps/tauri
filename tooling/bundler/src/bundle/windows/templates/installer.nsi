@@ -590,6 +590,8 @@ Section Install
     Call CreateDesktopShortcut
   shortcut_done:
 
+  ; We used to use product name as MAINBINARYNAME
+  ; migrate old shortcuts to target the new MAINBINARYNAME name
   Call MigrateProductNameExeShortcuts
 
   !ifdef NSIS_HOOK_POSTINSTALL

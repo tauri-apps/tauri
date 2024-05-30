@@ -282,7 +282,8 @@ use tauri::{
 
 tauri::Builder::default()
   .setup(|app| {
-    let webview_window = WebviewWindowBuilder::new("core", WebviewUrl::App("index.html".into()))
+    let handle = app.handle();
+    let webview_window = WebviewWindowBuilder::new(handle, "core", WebviewUrl::App("index.html".into()))
       .on_download(|webview, event| {
         match event {
           DownloadEvent::Requested { url, destination } => {
@@ -296,7 +297,8 @@ tauri::Builder::default()
         }
         // let the download start
         true
-      }).build()?;
+      })
+      .build()?;
 
     Ok(())
   });

@@ -744,6 +744,7 @@ pub struct NsisConfig {
   /// ### Example
   ///
   /// ```nsh
+  ///
   /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
   /// !macro NSIS_HOOK_PREINSTALL_
   ///   MessageBox MB_OK "PreInstall"
@@ -899,7 +900,9 @@ pub struct WindowsConfig {
   ///
   /// Example:
   /// ```text
+  ///
   /// sign-cli --arg1 --arg2 %1
+  ///
   /// ```
   ///
   /// By Default we use `signtool.exe` which can be found only on Windows so
@@ -2049,6 +2052,7 @@ where
 /// - [`plugins`](#pluginconfig): The plugins configuration
 ///
 /// ```json title="Example tauri.config.json file"
+///
 /// {
 ///   "productName": "tauri-app",
 ///   "version": "0.1.0"
@@ -2075,6 +2079,7 @@ where
 ///   "bundle": {},
 ///   "plugins": {}
 /// }
+///
 /// ```
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]

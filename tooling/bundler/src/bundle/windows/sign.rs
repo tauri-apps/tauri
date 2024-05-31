@@ -7,7 +7,6 @@
 use crate::bundle::windows::util;
 use crate::{bundle::common::CommandExt, Settings};
 use anyhow::Context;
-use log::{debug, info};
 #[cfg(windows)]
 use std::path::PathBuf;
 #[cfg(windows)]
@@ -212,13 +211,13 @@ pub fn sign_default<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
   log::info!(action = "Signing"; "{} with identity \"{}\"", tauri_utils::display_path(path), params.certificate_thumbprint);
 
   let mut cmd = sign_command_default(path, params)?;
-  debug!("Running signtool {:?}", signtool);
+  log::debug!("Running signtool {:?}", signtool);
 
   // Execute SignTool command
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  info!("{:?}", stdout);
+  log::info!("{:?}", stdout);
 
   Ok(())
 }
@@ -237,7 +236,7 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 
 pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
   if settings.can_sign() {
-    info!(action = "Signing"; "{}", tauri_utils::display_path(file_path));
+    log::info!(action = "Signing"; "{}", tauri_utils::display_path(file_path));
     sign(file_path, &settings.sign_params())?;
   }
   Ok(())

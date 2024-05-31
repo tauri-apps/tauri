@@ -66,8 +66,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
   let tauri_tools_path = dirs_next::cache_dir().unwrap().join("tauri");
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
-  if !nsis_toolset_path.exists()
-  {
+  if !nsis_toolset_path.exists() {
     create_dir_all(&nsis_toolset_path)?;
     get_and_extract_nsis(&nsis_toolset_path, &tauri_tools_path)?;
   } else if NSIS_REQUIRED_FILES

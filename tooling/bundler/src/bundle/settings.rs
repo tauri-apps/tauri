@@ -412,7 +412,7 @@ pub struct NsisSettings {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
-  pub compression: Option<NsisCompression>,
+  pub compression: NsisCompression,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///

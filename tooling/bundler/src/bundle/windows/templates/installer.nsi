@@ -1,11 +1,7 @@
 Unicode true
 ManifestDPIAware true
 ; Set the compression algorithm. Default is LZMA.
-!if "{{compression}}" == ""
-  SetCompressor /SOLID lzma
-!else
-  SetCompressor /SOLID "{{compression}}"
-!endif
+SetCompressor /SOLID "{{compression}}"
 
 !include MUI2.nsh
 !include FileFunc.nsh

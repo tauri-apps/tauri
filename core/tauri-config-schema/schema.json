@@ -150,6 +150,7 @@
             "release": "1"
           },
           "targets": "all",
+          "useLocalToolPath": false,
           "windows": {
             "allowDowngrades": true,
             "certificateThumbprint": null,
@@ -157,7 +158,6 @@
             "nsis": null,
             "timestampUrl": null,
             "tsp": false,
-            "useLocalToolPath": false,
             "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
               "silent": true,
@@ -295,6 +295,7 @@
               "release": "1"
             },
             "targets": "all",
+            "useLocalToolPath": false,
             "windows": {
               "allowDowngrades": true,
               "certificateThumbprint": null,
@@ -302,7 +303,6 @@
               "nsis": null,
               "timestampUrl": null,
               "tsp": false,
-              "useLocalToolPath": false,
               "webviewFixedRuntimePath": null,
               "webviewInstallMode": {
                 "silent": true,
@@ -1124,6 +1124,11 @@
             "null"
           ]
         },
+        "useLocalToolPath": {
+          "description": "Whether to use the project's local workspace or the current user's Tauri app data cache, for managing build tools (e.g., Wix) when building this application.\n\nIf true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\\.tauri-tools`. If false, these tools are cached in the current user's platform-specific app data directory.\n\nAn example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads), because the Window system's app data directory is restricted.",
+          "default": false,
+          "type": "boolean"
+        },
         "appimage": {
           "description": "Configuration for the AppImage bundle.",
           "default": {
@@ -1189,7 +1194,6 @@
             "nsis": null,
             "timestampUrl": null,
             "tsp": false,
-            "useLocalToolPath": false,
             "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
               "silent": true,
@@ -1563,11 +1567,6 @@
               "type": "null"
             }
           ]
-        },
-        "useLocalToolPath": {
-          "description": "Whether to use the project's local workspace or the current user's Tauri app data cache, for managing the Windows build tools (e.g., Wix) when building this project for Windows.\n\nIf true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\\\\tools` when building for Windows. If false, these tools are cached in the current user's platform-specific app data directory.\n\nAn example where it might be appropriate to set this to `true` is when building this application as a System user (e.g., AWS EC2 workloads), only because their app data directory is restricted.",
-          "default": false,
-          "type": "boolean"
         }
       },
       "additionalProperties": false

@@ -674,13 +674,6 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
-  /// Whether to use the project's local workspace or the current user's Tauri app data cache, for managing the Windows build tools (e.g., Wix) when building this project for Windows.
-  ///
-  /// If true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\\tools` when building for Windows. If false, these tools are cached in the current user's platform-specific app data directory.
-  ///
-  /// An example where it might be appropriate to set this to `true` is when building this application as a System user (e.g., AWS EC2 workloads), only because their app data directory is restricted.
-  #[serde(default, alias = "use-local-tool-path")]
-  pub use_local_tool_path: bool,
 }
 
 impl Default for WindowsConfig {
@@ -695,7 +688,6 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
-      use_local_tool_path: false,
     }
   }
 }
@@ -768,6 +760,13 @@ pub struct BundleConfig {
   /// A longer, multi-line description of the application.
   #[serde(alias = "long-description")]
   pub long_description: Option<String>,
+  /// Whether to use the project's local workspace or the current user's Tauri app data cache, for managing build tools (e.g., Wix) when building this application.
+  ///
+  /// If true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\.tauri-tools`. If false, these tools are cached in the current user's platform-specific app data directory.
+  ///
+  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads), because the Window system's app data directory is restricted.
+  #[serde(default, alias = "use-local-tool-path")]
+  pub use_local_tool_path: bool,
   /// Configuration for the AppImage bundle.
   #[serde(default)]
   pub appimage: AppImageConfig,
@@ -3602,6 +3601,7 @@ mod build {
       let category = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
+      let use_local_tool_path = self.use_local_tool_path;
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
       let rpm = quote!(Default::default());
@@ -3622,6 +3622,7 @@ mod build {
         category,
         short_description,
         long_description,
+        use_local_tool_path,
         appimage,
         deb,
         rpm,
@@ -4065,6 +4066,7 @@ mod test {
         category: None,
         short_description: None,
         long_description: None,
+        use_local_tool_path: false,
         appimage: Default::default(),
         deb: Default::default(),
         rpm: Default::default(),

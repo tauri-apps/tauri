@@ -1139,6 +1139,7 @@ fn tauri_config_to_bundle_settings(
     short_description: config.short_description,
     long_description: config.long_description,
     external_bin: config.external_bin,
+    use_local_tool_path: config.use_local_tool_path,
     deb: DebianSettings {
       depends: if depends_deb.is_empty() {
         None
@@ -1195,7 +1196,6 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
-      use_local_tool_path: config.windows.use_local_tool_path,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

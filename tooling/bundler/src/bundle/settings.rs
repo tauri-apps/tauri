@@ -385,12 +385,6 @@ pub struct WindowsSettings {
   ///
   /// /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
-  /// Whether to use the project's local workspace or the current user's Tauri app data cache, for managing the Windows build tools (e.g., Wix) when building this project for Windows.
-  ///
-  /// If true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\\tools` when building for Windows. If false, these tools are cached in the current user's platform-specific app data directory.
-  ///
-  /// An example where it might be appropriate to set this to `true` is when building this application as a System user (e.g., AWS EC2 workloads), only because their app data directory is restricted.
-  pub use_local_tool_path: bool,
 }
 
 impl Default for WindowsSettings {
@@ -406,7 +400,6 @@ impl Default for WindowsSettings {
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: true,
-      use_local_tool_path: false,
     }
   }
 }
@@ -441,6 +434,12 @@ pub struct BundleSettings {
   pub short_description: Option<String>,
   /// the app's long description.
   pub long_description: Option<String>,
+  /// Whether to use the project's local workspace or the current user's Tauri app data cache, for managing build tools (e.g., Wix) when building this application.
+  ///
+  /// If true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\.tauri-tools`. If false, these tools are cached in the current user's platform-specific app data directory.
+  ///
+  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads), because the Window system's app data directory is restricted.
+  pub use_local_tool_path: bool,
   // Bundles for other binaries:
   /// Configuration map for the apps to bundle.
   pub bin: Option<HashMap<String, BundleSettings>>,
@@ -891,6 +890,11 @@ impl Settings {
   /// Returns the app's long description.
   pub fn long_description(&self) -> Option<&str> {
     self.bundle_settings.long_description.as_deref()
+  }
+
+  /// Returns whether to use a local tool path for Tauri build tools.
+  pub fn use_local_tool_path(&self) -> bool {
+    self.bundle_settings.use_local_tool_path
   }
 
   /// Returns the debian settings.

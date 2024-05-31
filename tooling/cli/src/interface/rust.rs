@@ -1195,6 +1195,7 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
+      use_local_tool_path: config.windows.use_local_tool_path,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,

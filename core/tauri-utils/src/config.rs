@@ -674,6 +674,13 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
+  /// Whether to use the project's local workspace or the current user's Tauri app data cache, for managing the Windows build tools (e.g., Wix) when building this project for Windows.
+  ///
+  /// If true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\\tools` when building for Windows. If false, these tools are cached in the current user's platform-specific app data directory.
+  ///
+  /// An example where it might be appropriate to set this to `true` is when building this application as a System user (e.g., AWS EC2 workloads), only because their app data directory is restricted.
+  #[serde(default, alias = "use-local-tool-path")]
+  pub use_local_tool_path: bool,
 }
 
 impl Default for WindowsConfig {
@@ -688,6 +695,7 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
+      use_local_tool_path: false,
     }
   }
 }

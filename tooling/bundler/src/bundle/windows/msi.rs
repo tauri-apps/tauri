@@ -28,7 +28,7 @@ const WIX_REQUIRED_FILES: &[&str] = &[
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
   let mut wix_path = dirs_next::cache_dir().unwrap();
   wix_path.push("tauri/WixTools314");
-  if settings.use_local_tool_path() == true {
+  if settings.use_local_tool_path() {
     wix_path = settings.project_out_directory().join("../.tauri-tools/Wix")
   }
   if !wix_path.exists() {

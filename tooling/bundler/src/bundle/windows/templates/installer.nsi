@@ -624,6 +624,11 @@ Function un.onInit
 
   !insertmacro MUI_UNGETLANGUAGE
 
+  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  ${IfNot} ${Errors}
+    StrCpy $PassiveMode 1
+  ${EndIf}
+
   ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
   ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
@@ -716,8 +721,7 @@ Section Uninstall
   !endif
 
   ; Auto close if passive mode
-  ${GetOptions} $CMDLINE "/P" $R0
-  ${IfNot} ${Errors}
+  ${If} $PassiveMode = 1
     SetAutoClose true
   ${EndIf}
 SectionEnd

@@ -734,9 +734,7 @@ FunctionEnd
 Function CreateStartMenuShortcut
   ; Skip creating shortcut if in update mode or no shortcut mode
   ${If} $UpdateMode = 1
-    Return
-  ${EndIf}
-  ${If} $NoShortcutMode = 1
+  ${OrIf} $NoShortcutMode = 1
     Return
   ${EndIf}
 
@@ -748,9 +746,7 @@ FunctionEnd
 Function CreateDesktopShortcut
   ; Skip creating shortcut if in update mode or no shortcut mode
   ${If} $UpdateMode = 1
-    Return
-  ${EndIf}
-  ${If} $NoShortcutMode = 1
+  ${OrIf} $NoShortcutMode = 1
     Return
   ${EndIf}
 

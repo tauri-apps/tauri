@@ -121,6 +121,7 @@
 !define /ifndef PROCESS_CREATE_PROCESS 0x80
 !define /ifndef PROC_THREAD_ATTRIBUTE_PARENT_PROCESS 0x20000
 !define /ifndef CREATE_UNICODE_ENVIRONMENT 0x00000010
+!define /ifndef CREATE_NEW_PROCESS_GROUP 0x00000200
 !define /ifndef EXTENDED_STARTUPINFO_PRESENT 0x00080000
 !macro RunAsUser program args
   ; r0 hwnd
@@ -165,7 +166,7 @@
               System::Call 'kernel32::ZeroMemory(p r6, i 16)' ; Zero memory for PROCESS_INFORMATION
 
               ; Create the process
-              System::Call 'kernel32::CreateProcessW(w "${program}", w "${program} ${args}", p 0, p 0, i 0, i ${CREATE_NEW_CONSOLE} | ${EXTENDED_STARTUPINFO_PRESENT}, p 0, p 0, p r5, p r6) i .r9'
+              System::Call 'kernel32::CreateProcessW(w "${program}", w "${program} ${args}", p 0, p 0, i 0, i ${CREATE_UNICODE_ENVIRONMENT} | ${CREATE_NEW_PROCESS_GROUP} | ${EXTENDED_STARTUPINFO_PRESENT}, p 0, p 0, p r5, p r6) i .r9'
               ${If} $9 <> 0
                 System::Call '*$6(p .r7, p .r8, ,)'
                 System::Call 'kernel32::CloseHandle(p r7)'

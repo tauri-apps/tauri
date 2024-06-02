@@ -116,3 +116,59 @@
       ${IUnknown::Release} $0 ""
   ${EndIf}
 !macroend
+
+!macro RunAsUser program args
+  ; r0 hwnd
+  ; r1 pid
+  ; r2 process
+  ; r3 size
+  ; r4 attribute list
+
+  ; Get the Shell Window handle
+  System::Call 'user32::GetShellWindow() p .r0'
+  MessageBox MB_OK "$0"
+
+  ; Get the Process ID of the Shell Window
+  System::Call 'user32::GetWindowThreadProcessId(p r0, *i .r1)'
+  MessageBox MB_OK "$1"
+
+  ; Open the Shell Process
+  System::Call 'kernel32::OpenProcess(i ${PROCESS_CREATE_PROCESS}, i 0, i r1) p .r2'
+  MessageBox MB_OK "$2"
+
+  ; Initialize SIZE_T for attribute list
+  System::Call 'kernel32::InitializeProcThreadAttributeList(p 0, i 1, i 0, *i .r3)'
+  MessageBox MB_OK "$3"
+
+  ; Allocate memory for attribute list
+  System::Alloc $3
+  Pop $4
+
+  ; Initialize the attribute list
+  System::Call 'kernel32::InitializeProcThreadAttributeList(p r4, i 1, i 0, *i r3)'
+
+  ; Update the attribute list with the parent process
+  System::Call 'kernel32::UpdateProcThreadAttribute(p r4, i 0, i ${PROC_THREAD_ATTRIBUTE_PARENT_PROCESS}, *p r2, &i 4, p 0, p 0)'
+  MessageBox MB_OK "123"
+
+  ; Define the command to be executed
+  StrCpy $0 "C:\\Windows\\System32\\cmd.exe"
+
+  System::Call 'kernel32::LocalAlloc(i 0, i 104) p .r5' ; Allocate 104 bytes for STARTUPINFOEX (68 bytes for STARTUPINFO + 36 bytes for PPROC_THREAD_ATTRIBUTE_LIST)
+  System::Call 'kernel32::ZeroMemory(p r5, i 104)' ; Zero memory for STARTUPINFOEX
+  System::Call '*$5(i 104, p r4)' ; Set cb to 104 (size of STARTUPINFOEX) and set lpAttributeList to r4
+
+  ; Allocate memory for PROCESS_INFORMATION structure
+  System::Call 'kernel32::LocalAlloc(i 0, i 16) p .r6' ; Allocate 16 bytes for PROCESS_INFORMATION
+  System::Call 'kernel32::ZeroMemory(p r6, i 16)' ; Zero memory for PROCESS_INFORMATION
+
+  ; Create the process
+  System::Call 'kernel32::CreateProcessW(w "${program}", w "${program} ${args}", p 0, p 0, i 0, i ${CREATE_NEW_CONSOLE} | ${EXTENDED_STARTUPINFO_PRESENT}, p 0, p 0, p r5, p r6) i .r7'
+
+  ; ; Clean up
+  ; System::Call 'kernel32::DeleteProcThreadAttributeList(p r4)'
+  ; System::Call 'kernel32::LocalFree(p r4)'
+  ; System::Call 'kernel32::LocalFree(p r5)'
+  ; System::Call 'kernel32::LocalFree(p r6)'
+  ; System::Call 'kernel32::CloseHandle(i r2)'
+!macroend

@@ -117,6 +117,7 @@
   ${EndIf}
 !macroend
 
+!define /ifndef ERROR_INSUFFICIENT_BUFFER 0x7A
 !define /ifndef PROCESS_CREATE_PROCESS 0x80
 !define /ifndef PROC_THREAD_ATTRIBUTE_PARENT_PROCESS 0x20000
 !define /ifndef CREATE_NEW_CONSOLE 0x00000010

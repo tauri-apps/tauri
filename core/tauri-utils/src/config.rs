@@ -271,6 +271,12 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
@@ -299,6 +305,14 @@ pub struct RpmConfig {
   pub license: Option<String>,
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   #[serde(default = "default_release")]
   pub release: String,
@@ -319,6 +333,9 @@ impl Default for RpmConfig {
     Self {
       license: None,
       depends: None,
+      provides: None,
+      conflicts: None,
+      obsoletes: None,
       release: default_release(),
       epoch: 0,
       files: Default::default(),

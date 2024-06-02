@@ -180,6 +180,18 @@ fn generate_control_file(
   if !dependencies.is_empty() {
     writeln!(file, "Depends: {}", dependencies.join(", "))?;
   }
+  let provides = settings.deb().provides.as_ref().cloned().unwrap_or_default();
+  if !provides.is_empty() {
+    writeln!(file, "Provides: {}", provides.join(", "))?;
+  }
+  let conflicts = settings.deb().conflicts.as_ref().cloned().unwrap_or_default();
+  if !conflicts.is_empty() {
+    writeln!(file, "Conflicts: {}", conflicts.join(", "))?;
+  }
+  let replaces = settings.deb().replaces.as_ref().cloned().unwrap_or_default();
+  if !replaces.is_empty() {
+    writeln!(file, "Replaces: {}", replaces.join(", "))?;
+  }
   let mut short_description = settings.short_description().trim();
   if short_description.is_empty() {
     short_description = "(none)";

@@ -120,9 +120,10 @@
 !define /ifndef ERROR_INSUFFICIENT_BUFFER 0x7A
 !define /ifndef PROCESS_CREATE_PROCESS 0x80
 !define /ifndef PROC_THREAD_ATTRIBUTE_PARENT_PROCESS 0x20000
-!define /ifndef CREATE_UNICODE_ENVIRONMENT 0x00000010
-!define /ifndef CREATE_NEW_PROCESS_GROUP 0x00000200
-!define /ifndef EXTENDED_STARTUPINFO_PRESENT 0x00080000
+; !define /ifndef CREATE_UNICODE_ENVIRONMENT 0x00000010
+; !define /ifndef CREATE_NEW_PROCESS_GROUP 0x00000200
+; !define /ifndef EXTENDED_STARTUPINFO_PRESENT 0x00080000
+!define RUN_AS_USER_ATTRIBUTE_LIST_FLAGS 0x00080210 ; CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_PROCESS_GROUP | EXTENDED_STARTUPINFO_PRESENT
 !macro RunAsUser program args
   ; r0 hwnd
   ; r1 pid
@@ -157,27 +158,46 @@
             ; Update the attribute list with the parent process
             System::Call 'kernel32::UpdateProcThreadAttribute(p r4, i 0, i ${PROC_THREAD_ATTRIBUTE_PARENT_PROCESS}, *p r2, &i 4, p 0, p 0) i .r9'
             ${If} $9 <> 0
-              System::Call 'kernel32::LocalAlloc(i 0, i 104) p .r5' ; Allocate 104 bytes for STARTUPINFOEX (68 bytes for STARTUPINFO + 36 bytes for PPROC_THREAD_ATTRIBUTE_LIST)
-              System::Call 'kernel32::ZeroMemory(p r5, i 104)' ; Zero memory for STARTUPINFOEX
-              System::Call '*$5(i 104, p r4)' ; Set cb to 104 (size of STARTUPINFOEX) and set lpAttributeList to r4
+              ; NSIS installer is always 32 bit, so a pointer is 4 bytes
+              ; STARTUPINFOEXW (72 bytes total):
+              ;   STARTUPINFOW (68 bytes total):
+              ;     DWORD   cb              4 ->  4
+              ;     LPWSTR  lpReserved      4 ->  8
+              ;     LPWSTR  lpDesktop       4 -> 12
+              ;     LPWSTR  lpTitle         4 -> 16
+              ;     DWORD   dwX             4 -> 20
+              ;     DWORD   dwY             4 -> 24
+              ;     DWORD   dwXSize         4 -> 28
+              ;     DWORD   dwYSize         4 -> 32
+              ;     DWORD   dwXCountChars   4 -> 36
+              ;     DWORD   dwYCountChars   4 -> 40
+              ;     DWORD   dwFillAttribute 4 -> 44
+              ;     DWORD   dwFlags         4 -> 48
+              ;     WORD    wShowWindow     2 -> 50
+              ;     WORD    cbReserved2     2 -> 52
+              ;     LPBYTE  lpReserved2     4 -> 56
+              ;     HANDLE  hStdInput       4 -> 60
+              ;     HANDLE  hStdOutput      4 -> 64
+              ;     HANDLE  hStdError       4 -> 68
+              ;   LPPROC_THREAD_ATTRIBUTE_LIST (4 bytes)
+              System::Call "*(i 72, p, p, p, i, i, i, i, i, i, i, i, &i2, &i2, p, p, p, p, p r4) p .r5"
 
-              ; Allocate memory for PROCESS_INFORMATION structure
-              System::Call 'kernel32::LocalAlloc(i 0, i 16) p .r6' ; Allocate 16 bytes for PROCESS_INFORMATION
-              System::Call 'kernel32::ZeroMemory(p r6, i 16)' ; Zero memory for PROCESS_INFORMATION
+              ; PROCESS_INFORMATION
+              System::Call "*(p, p, i, i) i .r6"
 
               ; Create the process
-              System::Call 'kernel32::CreateProcessW(w "${program}", w "${program} ${args}", p 0, p 0, i 0, i ${CREATE_UNICODE_ENVIRONMENT} | ${CREATE_NEW_PROCESS_GROUP} | ${EXTENDED_STARTUPINFO_PRESENT}, p 0, p 0, p r5, p r6) i .r9'
+              System::Call 'kernel32::CreateProcessW(w "${program}", w "${program} ${args}", p 0, p 0, i 0, i ${RUN_AS_USER_ATTRIBUTE_LIST_FLAGS}, p 0, p 0, p r5, p r6) i .r9'
               ${If} $9 <> 0
                 System::Call '*$6(p .r7, p .r8, ,)'
                 System::Call 'kernel32::CloseHandle(p r7)'
                 System::Call 'kernel32::CloseHandle(p r8)'
               ${EndIf}
-              System::Call 'kernel32::LocalFree(p r5)'
-              System::Call 'kernel32::LocalFree(p r6)'
+              System::Free $5
+              System::Free $6
             ${EndIf}
+            System::Call 'kernel32::DeleteProcThreadAttributeList(p r3)'
           ${EndIf}
-          ; System::Free $3
-          System::Call 'kernel32::DeleteProcThreadAttributeList(p r3)'
+          System::Free $3
         ${EndIf}
         System::Call 'kernel32::CloseHandle(p r2)'
       ${EndIf}

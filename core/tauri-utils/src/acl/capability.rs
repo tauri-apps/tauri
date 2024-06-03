@@ -7,13 +7,17 @@
 use std::{path::Path, str::FromStr};
 
 use crate::{acl::Identifier, platform::Target};
-use serde::{Deserialize, Serialize};
+use serde::{
+  de::{IntoDeserializer, MapAccess},
+  Deserialize, Deserializer, Serialize,
+};
+use serde_untagged::UntaggedEnumVisitor;
 
 use super::Scopes;
 
 /// An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]
 /// or an object that references a permission and extends its scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum PermissionEntry {
@@ -39,6 +43,34 @@ impl PermissionEntry {
         scope: _,
       } => identifier,
     }
+  }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+struct ExtendedPermissionStruct {
+  identifier: Identifier,
+  #[serde(default, flatten)]
+  scope: Scopes,
+}
+
+impl<'de> Deserialize<'de> for PermissionEntry {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    UntaggedEnumVisitor::new()
+      .string(|string| {
+        let de = string.into_deserializer();
+        Identifier::deserialize(de).map(Self::PermissionRef)
+      })
+      .map(|map| {
+        let ext_perm = map.deserialize::<ExtendedPermissionStruct>()?;
+        Ok(Self::ExtendedPermission {
+          identifier: ext_perm.identifier,
+          scope: ext_perm.scope,
+        })
+      })
+      .deserialize(deserializer)
   }
 }
 
@@ -99,9 +131,7 @@ pub struct CapabilityRemote {
 }
 
 /// Capability formats accepted in a capability file.
-#[derive(Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
 pub enum CapabilityFile {
   /// A single capability.
   Capability(Capability),
@@ -126,6 +156,33 @@ impl CapabilityFile {
       _ => return Err(super::Error::UnknownCapabilityFormat(ext)),
     };
     Ok(file)
+  }
+}
+
+#[derive(Deserialize, Debug)]
+struct CapabilityNamedList {
+  capabilities: Vec<Capability>,
+}
+
+impl<'de> Deserialize<'de> for CapabilityFile {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    UntaggedEnumVisitor::new()
+      .seq(|seq| seq.deserialize::<Vec<Capability>>().map(Self::List))
+      .map(|map| {
+        if let Some(len) = map.size_hint() {
+          if len == 1 {
+            let named_list = map.deserialize::<CapabilityNamedList>()?;
+            return Ok(Self::NamedList {
+              capabilities: named_list.capabilities,
+            });
+          }
+        }
+        map.deserialize::<Capability>().map(Self::Capability)
+      })
+      .deserialize(deserializer)
   }
 }
 

@@ -124,7 +124,12 @@
 ; !define /ifndef CREATE_NEW_PROCESS_GROUP 0x00000200
 ; !define /ifndef EXTENDED_STARTUPINFO_PRESENT 0x00080000
 !define RUN_AS_USER_ATTRIBUTE_LIST_FLAGS 0x00080210 ; CREATE_UNICODE_ENVIRONMENT | CREATE_NEW_PROCESS_GROUP | EXTENDED_STARTUPINFO_PRESENT
-!macro RunAsUser program args
+Function _RunAsUser
+  Pop $R0
+  Pop $R1
+  ; r10 ($R0) program
+  ; r11 ($R1) arguments
+
   ; r0 hwnd
   ; r1 pid
   ; r2 process
@@ -186,7 +191,7 @@
               System::Call "*(p, p, i, i) i .r6"
 
               ; Create the process
-              System::Call 'kernel32::CreateProcessW(w "${program}", w "${program} ${args}", p 0, p 0, i 0, i ${RUN_AS_USER_ATTRIBUTE_LIST_FLAGS}, p 0, p 0, p r5, p r6) i .r9'
+              System::Call 'kernel32::CreateProcessW(w r10, w r11, p 0, p 0, i 0, i ${RUN_AS_USER_ATTRIBUTE_LIST_FLAGS}, p 0, p 0, p r5, p r6) i .r9'
               ${If} $9 <> 0
                 System::Call '*$6(p .r7, p .r8, ,)'
                 System::Call 'kernel32::CloseHandle(p r7)'
@@ -204,4 +209,10 @@
     ${EndIf}
     System::Call 'kernel32::CloseHandle(p r0)'
   ${EndIf}
+FunctionEnd
+
+!macro RunAsUser program args
+  Push "${program} ${args}"
+  Push "${program}"
+  Call _RunAsUser
 !macroend

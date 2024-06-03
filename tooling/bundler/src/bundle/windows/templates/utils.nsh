@@ -117,6 +117,9 @@
   ${EndIf}
 !macroend
 
+; Run program as unelevated
+;
+; Ported from https://devblogs.microsoft.com/oldnewthing/20190425-00/?p=102443
 !define /ifndef ERROR_INSUFFICIENT_BUFFER 0x7A
 !define /ifndef PROCESS_CREATE_PROCESS 0x80
 !define /ifndef PROC_THREAD_ATTRIBUTE_PARENT_PROCESS 0x20000
@@ -211,6 +214,9 @@ Function _RunAsUser
   ${EndIf}
 FunctionEnd
 
+; Run program as unelevated
+;
+; Ported from https://devblogs.microsoft.com/oldnewthing/20190425-00/?p=102443
 !macro RunAsUser program args
   Push "${program} ${args}"
   Push "${program}"

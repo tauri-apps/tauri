@@ -434,12 +434,6 @@ pub struct BundleSettings {
   pub short_description: Option<String>,
   /// the app's long description.
   pub long_description: Option<String>,
-  /// Whether to use the project's local workspace or the current user's Tauri app data cache, for managing build tools (e.g., Wix) when building this application.
-  ///
-  /// If true, installs and uses bundling tools (e.g., Wix) in the project's local workspace, under `target\.tauri-tools`. If false, these tools are cached in the current user's platform-specific app data directory.
-  ///
-  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads), because the Window system's app data directory is restricted.
-  pub use_local_tool_path: bool,
   // Bundles for other binaries:
   /// Configuration map for the apps to bundle.
   pub bin: Option<HashMap<String, BundleSettings>>,
@@ -534,6 +528,9 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the directory to place tools used by the bundler,
+  /// if `None`, tools are placed in the current user's platform-specific cache directory.
+  local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -552,6 +549,7 @@ pub struct SettingsBuilder {
   bundle_settings: BundleSettings,
   binaries: Vec<BundleBinary>,
   target: Option<String>,
+  local_tools_directory: Option<PathBuf>,
 }
 
 impl SettingsBuilder {
@@ -565,6 +563,16 @@ impl SettingsBuilder {
   pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
     self
       .project_out_directory
+      .replace(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Sets the directory to place tools used by the bundler
+  /// when [`BundleSettings::use_local_tools_dir`] is true.
+  #[must_use]
+  pub fn local_tools_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self
+      .local_tools_directory
       .replace(path.as_ref().to_path_buf());
     self
   }
@@ -625,11 +633,16 @@ impl SettingsBuilder {
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
-      package: self.package_settings.expect("package settings is required"),
+      package: self.package_settings.ok_or(crate::Error::GenericError(
+        "package settings is required".into(),
+      ))?,
       package_types: self.package_types,
       project_out_directory: self
         .project_out_directory
-        .expect("out directory is required"),
+        .ok_or(crate::Error::GenericError(
+          "out directory is required".into(),
+        ))?,
+      local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
         external_bin: self
@@ -892,9 +905,9 @@ impl Settings {
     self.bundle_settings.long_description.as_deref()
   }
 
-  /// Returns whether to use a local tool path for Tauri build tools.
-  pub fn use_local_tool_path(&self) -> bool {
-    self.bundle_settings.use_local_tool_path
+  /// Returns the directory for local tools path.
+  pub fn local_tools_directory(&self) -> Option<&Path> {
+    self.local_tools_directory.as_deref()
   }
 
   /// Returns the debian settings.

@@ -962,12 +962,12 @@ impl RustAppSettings {
 }
 
 #[derive(Deserialize)]
-struct CargoMetadata {
-  target_directory: PathBuf,
-  workspace_root: PathBuf,
+pub struct CargoMetadata {
+  pub target_directory: PathBuf,
+  pub workspace_root: PathBuf,
 }
 
-fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
+pub fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   let output = Command::new("cargo")
     .args(["metadata", "--no-deps", "--format-version", "1"])
     .current_dir(tauri_dir())

@@ -543,6 +543,9 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the directory to place tools used by the bundler,
+  /// if `None`, tools are placed in the current user's platform-specific cache directory.
+  local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -561,6 +564,7 @@ pub struct SettingsBuilder {
   bundle_settings: BundleSettings,
   binaries: Vec<BundleBinary>,
   target: Option<String>,
+  local_tools_directory: Option<PathBuf>,
 }
 
 impl SettingsBuilder {
@@ -574,6 +578,16 @@ impl SettingsBuilder {
   pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
     self
       .project_out_directory
+      .replace(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Sets the directory to place tools used by the bundler
+  /// when [`BundleSettings::use_local_tools_dir`] is true.
+  #[must_use]
+  pub fn local_tools_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self
+      .local_tools_directory
       .replace(path.as_ref().to_path_buf());
     self
   }
@@ -634,11 +648,16 @@ impl SettingsBuilder {
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
-      package: self.package_settings.expect("package settings is required"),
+      package: self.package_settings.ok_or(crate::Error::GenericError(
+        "package settings is required".into(),
+      ))?,
       package_types: self.package_types,
       project_out_directory: self
         .project_out_directory
-        .expect("out directory is required"),
+        .ok_or(crate::Error::GenericError(
+          "out directory is required".into(),
+        ))?,
+      local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
         external_bin: self
@@ -899,6 +918,11 @@ impl Settings {
   /// Returns the app's long description.
   pub fn long_description(&self) -> Option<&str> {
     self.bundle_settings.long_description.as_deref()
+  }
+
+  /// Returns the directory for local tools path.
+  pub fn local_tools_directory(&self) -> Option<&Path> {
+    self.local_tools_directory.as_deref()
   }
 
   /// Returns the debian settings.

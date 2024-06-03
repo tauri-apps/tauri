@@ -3527,7 +3527,7 @@ checksum = "e1fc403891a21bcfb7c37834ba66a547a8f402146eba7265b5a6d88059c9ff2f"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-beta.21"
+version = "2.0.0-beta.22"
 dependencies = [
  "anyhow",
  "bytes",
@@ -3581,6 +3581,17 @@ dependencies = [
  "webview2-com",
  "window-vibrancy",
  "windows 0.56.0",
+]
+
+[[package]]
+name = "tauri-acl-schema"
+version = "0.0.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "tauri-utils",
+ "url",
 ]
 
 [[package]]

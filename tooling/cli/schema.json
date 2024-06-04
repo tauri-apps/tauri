@@ -1345,6 +1345,36 @@
             "type": "string"
           }
         },
+        "provides": {
+          "description": "The list of dependencies the package provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of package conflicts.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "replaces": {
+          "description": "The list of package replaces.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "files": {
           "description": "The files to include on the package.",
           "default": {},
@@ -1397,6 +1427,36 @@
         },
         "depends": {
           "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "provides": {
+          "description": "The list of RPM dependencies your application provides.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "conflicts": {
+          "description": "The list of RPM dependencies your application conflicts with. They must not be present in order for the package to be installed.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "obsoletes": {
+          "description": "The list of RPM dependencies your application supersedes - if this package is installed, packages listed as “obsoletes” will be automatically removed (if they are present).",
           "type": [
             "array",
             "null"

@@ -42,7 +42,7 @@ impl Cmd {
   }
 
   fn tempdir<R: Runtime>(_context: InvokeContext<R>) -> super::Result<PathBuf> {
-    Ok(std::env::temp_dir())
+    Ok(std::env::temp_dir().canonicalize()?)
   }
 
   fn locale<R: Runtime>(_context: InvokeContext<R>) -> super::Result<Option<String>> {

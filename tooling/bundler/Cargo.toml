@@ -30,7 +30,7 @@ walkdir = "2"
 handlebars = "5.1"
 tempfile = "3.10.1"
 log = { version = "0.4.21", features = [ "kv" ] }
-dirs-next = "2.0"
+dirs = "5"
 os_pipe = "1"
 ureq = { version = "2.9.6", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }

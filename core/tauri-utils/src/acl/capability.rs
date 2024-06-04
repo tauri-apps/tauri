@@ -42,7 +42,7 @@ impl PermissionEntry {
   }
 }
 
-/// a grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.
+/// A grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.
 ///
 /// If a window is not matching any capability then it has no access to the IPC layer at all.
 ///

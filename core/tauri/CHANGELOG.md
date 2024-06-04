@@ -1,5 +1,14 @@
 # Changelog
 
+## \[2.0.0-beta.22]
+
+### Bug Fixes
+
+- [`dfd05441c`](https://www.github.com/tauri-apps/tauri/commit/dfd05441c761b1737e29794ab1f02e41e5d7cc12)([#9860](https://www.github.com/tauri-apps/tauri/pull/9860)) Revert adding `app-region: drag` to HTML elements with `data-tauri-drag-region` on Windows as it has a few issues:
+
+  - Doesn't allow right click, as it will always show the system context menu on right click.
+  - `data-tauri-drag-region` works only if the click was on an element that has it, this allows buttons in the custom titlebar to work, however `app-region: drag` will treat the whole area as a titlebar won't even allow clicks on buttons.
+
 ## \[2.0.0-beta.21]
 
 ### New Features

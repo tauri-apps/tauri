@@ -763,6 +763,7 @@ pub struct NsisConfig {
   /// !macro NSIS_HOOK_POSTUNINSTALL_
   ///   MessageBox MB_OK "PostUninstall"
   /// !macroend
+  ///
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,

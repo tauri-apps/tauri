@@ -50,6 +50,7 @@
 //!         callback: tauri::api::ipc::CallbackFn(0),
 //!         error: tauri::api::ipc::CallbackFn(1),
 //!         inner: serde_json::Value::Null,
+//!         invoke_key: Some(tauri::test::INVOKE_KEY.into()),
 //!       },
 //!       Ok(())
 //!     );
@@ -84,6 +85,9 @@ use tauri_utils::{
   assets::{AssetKey, Assets, CspHash},
   config::{CliConfig, Config, PatternKind, TauriConfig},
 };
+
+/// The invoke key used for tests.
+pub const INVOKE_KEY: &str = "__invoke-key__";
 
 /// A key for an [`Ipc`] call.
 #[derive(Eq, PartialEq)]
@@ -197,6 +201,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 pub fn mock_builder() -> Builder<MockRuntime> {
   let mut builder = Builder::<MockRuntime>::new().manage(Ipc(Default::default()));
 
+  builder.invoke_key = INVOKE_KEY.to_string();
+
   builder.invoke_responder = Arc::new(|window, response, callback, error| {
     let window_ = window.clone();
     let ipc = window_.state::<Ipc>();
@@ -250,6 +256,7 @@ pub fn mock_app() -> App<MockRuntime> {
 ///       callback: tauri::api::ipc::CallbackFn(0),
 ///       error: tauri::api::ipc::CallbackFn(1),
 ///       inner: serde_json::Value::Null,
+///       invoke_key: Some(tauri::test::INVOKE_KEY.into()),
 ///     },
 ///     // the expected response is a success with the "pong" payload
 ///     // we could also use Err("error message") here to ensure the command failed
@@ -303,6 +310,7 @@ pub fn assert_ipc_response<T: Serialize + Debug>(
 ///     callback: tauri::api::ipc::CallbackFn(0),
 ///     error: tauri::api::ipc::CallbackFn(1),
 ///     inner: serde_json::Value::Null,
+///     invoke_key: Some(tauri::test::INVOKE_KEY.into()),
 ///   });
 /// assert_eq!(res, Ok("pong".into()))
 /// ```

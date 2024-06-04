@@ -1,9 +1,9 @@
 ---
-"tauri": patch:breaking
-"tauri-build": patch:breaking
-"tauri-bundler": patch:breaking
-"tauri-cli": patch:breaking
-"@tauri-apps/cli": patch:breaking
+"tauri": patch:deps
+"tauri-build": patch:deps
+"tauri-bundler": patch:deps
+"tauri-cli": patch:deps
+"@tauri-apps/cli": patch:deps
 ---
 
 Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is

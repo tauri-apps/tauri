@@ -38,7 +38,7 @@ json-patch = "1.2"
 walkdir = "2"
 tauri-winres = "0.1"
 semver = "1"
-dirs-next = "2"
+dirs = "5"
 glob = "0.3"
 toml = "0.8"
 schemars = { version = "0.8.18", features = [ "preserve_order" ] }

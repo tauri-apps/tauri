@@ -63,7 +63,7 @@ dirs-next = "2.0"
 percent-encoding = "2.3"
 reqwest = { version = "0.12", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
-raw-window-handle = "0.6"
+raw-window-handle = { version = "0.6", features = [ "std" ]}
 glob = "0.3"
 urlpattern = "0.2"
 mime = "0.3"

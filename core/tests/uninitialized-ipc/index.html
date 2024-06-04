@@ -1,0 +1,17 @@
+<script>
+  const exit = (code) => window.__TAURI_INVOKE__('exit', { code })
+  window.addEventListener('message', ({ data }) => {
+    console.log(data)
+    switch (data) {
+      case 'undefined':
+        exit(0)
+        break
+      case 'function':
+        exit(1)
+        break
+      default:
+        exit(2)
+    }
+  })
+</script>
+<iframe src="uninitialized://localhost/"></iframe>

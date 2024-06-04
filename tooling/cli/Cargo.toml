@@ -106,6 +106,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
+tauri-macos-sign = { version = "0.0.0", path = "../macos-sign" }
 
 [features]
 default = [ "rustls" ]

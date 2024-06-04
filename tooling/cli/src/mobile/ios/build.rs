@@ -17,7 +17,7 @@ use crate::{
   mobile::{write_options, CliOptions},
   ConfigValue, Result,
 };
-use clap::{ArgAction, Parser};
+use clap::{ArgAction, Parser, ValueEnum};
 
 use anyhow::Context;
 use cargo_mobile2::{
@@ -63,6 +63,42 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Export method.
+  #[clap(long, value_enum)]
+  pub method: Option<ExportMethod>,
+}
+
+#[derive(Debug, Clone, Copy, ValueEnum)]
+pub enum ExportMethod {
+  AppStoreConnect,
+  ReleaseTesting,
+  Debugging,
+  Simulator,
+}
+
+impl std::fmt::Display for ExportMethod {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::AppStoreConnect => write!(f, "app-store-connect"),
+      Self::ReleaseTesting => write!(f, "release-testing"),
+      Self::Debugging => write!(f, "debugging"),
+      Self::Simulator => write!(f, "simulator"),
+    }
+  }
+}
+
+impl std::str::FromStr for ExportMethod {
+  type Err = &'static str;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    match s {
+      "app-store-connect" => Ok(Self::AppStoreConnect),
+      "release-testing" => Ok(Self::ReleaseTesting),
+      "debugging" => Ok(Self::Debugging),
+      "simulator" => Ok(Self::Simulator),
+      _ => Err("unknown ios target"),
+    }
+  }
 }
 
 impl From<Options> for BuildOptions {
@@ -129,15 +165,28 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .join(config.scheme())
     .join("Info.plist");
   merge_plist(
-    &[
-      tauri_path.join("Info.plist"),
-      tauri_path.join("Info.ios.plist"),
+    vec![
+      tauri_path.join("Info.plist").into(),
+      tauri_path.join("Info.ios.plist").into(),
     ],
     &info_plist_path,
   )?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;
+
+  let init_config = super::init_config()?;
+  if let Some(export_options_plist) = create_export_options(&app, &init_config, options.method) {
+    let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+
+    merge_plist(
+      vec![
+        export_options_plist_path.clone().into(),
+        export_options_plist.into(),
+      ],
+      &export_options_plist_path,
+    )?;
+  }
 
   let open = options.open;
   let _handle = run_build(
@@ -155,6 +204,37 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   }
 
   Ok(())
+}
+
+fn create_export_options(
+  app: &cargo_mobile2::config::app::App,
+  config: &super::super::init::IosInitConfig,
+  method: Option<ExportMethod>,
+) -> Option<plist::Value> {
+  let mut plist = plist::Dictionary::new();
+
+  if let Some(method) = method {
+    plist.insert("method".to_string(), method.to_string().into());
+  }
+
+  if config.code_sign_identity.is_some() || config.provisioning_profile_uuid.is_some() {
+    plist.insert("signingStyle".to_string(), "manual".into());
+  }
+
+  if let Some(identity) = &config.code_sign_identity {
+    plist.insert("signingCertificate".to_string(), identity.clone().into());
+  }
+
+  if let Some(profile_uuid) = &config.provisioning_profile_uuid {
+    let mut provisioning_profiles = plist::Dictionary::new();
+    provisioning_profiles.insert(app.reverse_identifier(), profile_uuid.clone().into());
+    plist.insert(
+      "provisioningProfiles".to_string(),
+      provisioning_profiles.into(),
+    );
+  }
+
+  (!plist.is_empty()).then(|| plist.into())
 }
 
 fn run_build(

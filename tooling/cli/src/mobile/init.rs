@@ -24,6 +24,7 @@ use cargo_mobile2::{
 use handlebars::{
   Context, Handlebars, Helper, HelperResult, Output, RenderContext, RenderError, RenderErrorReason,
 };
+use serde::Serialize;
 
 use std::{env::var_os, path::PathBuf};
 
@@ -35,8 +36,20 @@ pub fn command(
 ) -> Result<()> {
   let wrapper = TextWrapper::default();
 
-  exec(target, &wrapper, ci, reinstall_deps, skip_targets_install)
-    .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  let tauri_init_config = TauriInitConfig {
+    #[cfg(target_os = "macos")]
+    ios: super::ios::init_config()?,
+  };
+
+  exec(
+    target,
+    &wrapper,
+    &tauri_init_config,
+    ci,
+    reinstall_deps,
+    skip_targets_install,
+  )
+  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
@@ -77,9 +90,32 @@ pub fn configure_cargo(
   dot_cargo.write(app).map_err(Into::into)
 }
 
+#[cfg(target_os = "macos")]
+#[derive(Serialize)]
+pub enum CodeSignStyle {
+  Manual,
+  Automatic,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct IosInitConfig {
+  pub code_sign_style: CodeSignStyle,
+  pub code_sign_identity: Option<String>,
+  pub provisioning_profile_uuid: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct TauriInitConfig {
+  #[cfg(target_os = "macos")]
+  ios: IosInitConfig,
+}
+
 pub fn exec(
   target: Target,
   wrapper: &TextWrapper,
+  tauri_init_config: &TauriInitConfig,
   #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
@@ -92,6 +128,8 @@ pub fn exec(
   let app = get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?);
 
   let (handlebars, mut map) = handlebars(&app);
+
+  map.insert("tauri", tauri_init_config);
 
   let mut args = std::env::args_os();
 

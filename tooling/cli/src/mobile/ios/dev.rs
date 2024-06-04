@@ -148,9 +148,9 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .join(config.scheme())
     .join("Info.plist");
   merge_plist(
-    &[
-      tauri_path.join("Info.plist"),
-      tauri_path.join("Info.ios.plist"),
+    vec![
+      tauri_path.join("Info.plist").into(),
+      tauri_path.join("Info.ios.plist").into(),
     ],
     &info_plist_path,
   )?;

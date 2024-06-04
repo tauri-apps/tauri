@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -6,6 +7,15 @@ plugins {
     id("rust")
     {{~#each android-app-plugins}}
     id("{{this}}"){{/each}}
+}
+
+val keystoreProperties = Properties()
+try {
+  // release builds require the file to be set up
+  keystoreProperties.load(FileInputStream(rootProject.file("keystore.properties")))
+} catch (e: Exception) {
+  // load a dummy file for debug purposes (signing config won't be used)
+  keystoreProperties.load(FileInputStream(rootProject.file("keystore.properties.dummy")))
 }
 
 val tauriProperties = Properties().apply {
@@ -26,6 +36,14 @@ android {
         versionCode = tauriProperties.getProperty("tauri.android.versionCode", "1").toInt()
         versionName = tauriProperties.getProperty("tauri.android.versionName", "1.0")
     }
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String
+            keyPassword = keystoreProperties["password"] as String
+            storeFile = file(keystoreProperties["storeFile"] as String)
+            storePassword = keystoreProperties["password"] as String
+        }
+    }
     buildTypes {
         getByName("debug") {
             manifestPlaceholders["usesCleartextTraffic"] = "true"
@@ -45,6 +63,7 @@ android {
                     .plus(getDefaultProguardFile("proguard-android-optimize.txt"))
                     .toList().toTypedArray()
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     kotlinOptions {

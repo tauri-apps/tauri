@@ -2856,6 +2856,16 @@
             "string",
             "null"
           ]
+        },
+        "frameworks": {
+          "description": "A list of strings indicating any iOS frameworks that need to be bundled with the application.\n\nIf a name is used, \".framework\" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
         }
       },
       "additionalProperties": false

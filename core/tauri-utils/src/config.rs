@@ -1826,6 +1826,10 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// A list of strings indicating any iOS frameworks that need to be bundled with the application.
+  ///
+  /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
+  pub frameworks: Option<Vec<String>>,
 }
 
 /// General configuration for the iOS target.

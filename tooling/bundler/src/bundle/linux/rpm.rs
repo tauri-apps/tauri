@@ -18,7 +18,7 @@ use super::freedesktop;
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  let name = settings.main_binary_name();
+  let product_name = settings.product_name();
   let version = settings.version_string();
   let release = settings.rpm().release.as_str();
   let epoch = settings.rpm().epoch;
@@ -30,7 +30,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let summary = settings.short_description().trim();
 
-  let package_base_name = format!("{name}-{version}-{release}.{arch}");
+  let package_base_name = format!("{product_name}-{version}-{release}.{arch}");
   let package_name = format!("{package_base_name}.rpm");
 
   let base_dir = settings.project_out_directory().join("bundle/rpm");
@@ -45,11 +45,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
   let license = settings.license().unwrap_or_default();
-  let mut builder = rpm::PackageBuilder::new(name, version, &license, arch, summary)
-    .epoch(epoch)
-    .release(release)
-    // This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
-    .compression(rpm::CompressionWithLevel::Gzip(6));
+  let mut builder = rpm::PackageBuilder::new(
+    settings.main_binary_name(),
+    version,
+    &license,
+    arch,
+    summary,
+  )
+  .epoch(epoch)
+  .release(release)
+  // This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
+  .compression(rpm::CompressionWithLevel::Gzip(6));
 
   if let Some(description) = settings.long_description() {
     builder = builder.description(description.trim())

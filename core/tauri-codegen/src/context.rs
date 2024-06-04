@@ -524,9 +524,9 @@ fn image_icon(
 ) -> EmbeddedAssetsResult<TokenStream> {
   let extension = path.extension().unwrap_or_default();
   if extension == "ico" {
-    ico_icon(&root, &out_dir, path)
+    ico_icon(root, out_dir, path)
   } else if extension == "png" {
-    png_icon(&root, &out_dir, path)
+    png_icon(root, out_dir, path)
   } else {
     Err(EmbeddedAssetsError::InvalidImageExtension {
       extension: extension.into(),

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.6.8]
+
+### Bug Fixes
+
+- [`1f06c2d00`](https://www.github.com/tauri-apps/tauri/commit/1f06c2d00eb02b17a8ce450d6f21ef4510b59d91) ([#9960](https://www.github.com/tauri-apps/tauri/pull/9960)) Added `test::INVOKE_KEY` to be used in `tauri::InvokePayload` when testing using `test::assert_ipc_response` and `test::get_ipc_response`.
+
 ## \[1.6.7]
 
 ### Bug Fixes

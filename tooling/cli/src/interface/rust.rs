@@ -1145,9 +1145,9 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_deb)
       },
-      provides: config.linux.deb.provides,
-      conflicts: config.linux.deb.conflicts,
-      replaces: config.linux.deb.replaces,
+      provides: config.deb.provides,
+      conflicts: config.deb.conflicts,
+      replaces: config.deb.replaces,
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
       section: config.deb.section,
@@ -1161,9 +1161,9 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_rpm)
       },
-      provides: config.linux.rpm.provides,
-      conflicts: config.linux.rpm.conflicts,
-      obsoletes: config.linux.rpm.obsoletes,
+      provides: config.rpm.provides,
+      conflicts: config.rpm.conflicts,
+      obsoletes: config.rpm.obsoletes,
       release: config.rpm.release,
       epoch: config.rpm.epoch,
       files: config.rpm.files,

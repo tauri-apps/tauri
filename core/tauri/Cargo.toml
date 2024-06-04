@@ -59,7 +59,7 @@ getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
 http = "1.1"
-dirs-next = "2.0"
+dirs = "5"
 percent-encoding = "2.3"
 reqwest = { version = "0.12", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }

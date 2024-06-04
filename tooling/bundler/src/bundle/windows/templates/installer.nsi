@@ -346,6 +346,7 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateOrUpdateDesktopShortcut
 ; Show run app after installation.
+!define MUI_FINISHPAGE_RUN
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH

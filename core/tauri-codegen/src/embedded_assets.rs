@@ -48,6 +48,9 @@ pub enum EmbeddedAssetsError {
   #[error("invalid prefix {prefix} used while including path {path}")]
   PrefixInvalid { prefix: PathBuf, path: PathBuf },
 
+  #[error("invalid extension {extension} used for image {path}")]
+  InvalidImageExtension { extension: PathBuf, path: PathBuf },
+
   #[error("failed to walk directory {path} because {error}")]
   Walkdir {
     path: PathBuf,
@@ -60,6 +63,8 @@ pub enum EmbeddedAssetsError {
   #[error("version error: {0}")]
   Version(#[from] semver::Error),
 }
+
+pub type EmbeddedAssetsResult<T> = Result<T, EmbeddedAssetsError>;
 
 /// Represent a directory of assets that are compressed and embedded.
 ///

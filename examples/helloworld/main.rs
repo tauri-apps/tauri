@@ -5,6 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
+  tauri::icon_image!("../../examples/.icons/32x32.png");
   tauri::Builder::default()
     .run(tauri::generate_context!(
       "../../examples/helloworld/tauri.conf.json"

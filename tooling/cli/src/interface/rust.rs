@@ -1277,6 +1277,7 @@ fn tauri_config_to_bundle_settings(
   Ok(BundleSettings {
     identifier: Some(identifier),
     publisher: config.publisher,
+    homepage: config.homepage,
     icon: Some(config.icon),
     resources,
     resources_map,

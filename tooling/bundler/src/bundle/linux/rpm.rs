@@ -52,7 +52,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .compression(rpm::CompressionWithLevel::Gzip(6));
 
   if let Some(description) = settings.long_description() {
-    builder = builder.description(description.trim())
+    builder = builder.description(description);
+  }
+
+  if let Some(homepage) = settings.homepage_url() {
+    builder = builder.url(homepage);
   }
 
   // Add requirements

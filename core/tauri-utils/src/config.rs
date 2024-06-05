@@ -1054,6 +1054,11 @@ pub struct BundleConfig {
   /// The application's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
+  /// A url to the home page of your application. If unset, will
+  /// fallback to `homepage` defined in `Cargo.toml`.
+  ///
+  /// Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`.
+  pub homepage: Option<String>,
   /// The app's icons
   #[serde(default)]
   pub icon: Vec<String>,
@@ -2416,6 +2421,7 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let publisher = quote!(None);
+      let homepage = quote!(None);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
@@ -2439,6 +2445,7 @@ mod build {
         ::tauri::utils::config::BundleConfig,
         active,
         publisher,
+        homepage,
         icon,
         targets,
         resources,
@@ -2756,6 +2763,7 @@ mod test {
       active: false,
       targets: Default::default(),
       publisher: None,
+      homepage: None,
       icon: Vec::new(),
       resources: None,
       copyright: None,

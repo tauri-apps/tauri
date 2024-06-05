@@ -28,6 +28,7 @@ ${StrLoc}
 !define VERSION "{{version}}"
 !define VERSIONWITHBUILD "{{version_with_build}}"
 !define SHORTDESCRIPTION "{{short_description}}"
+!define HOMEPAGE "{{homepage}}"
 !define INSTALLMODE "{{install_mode}}"
 !define LICENSE "{{license}}"
 !define INSTALLERICON "{{installer_icon}}"
@@ -579,6 +580,11 @@ Section Install
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
+  !if "${HOMEPAGE}" != ""
+    WriteRegStr SHCTX "${UNINSTKEY}" "URLInfoAbout" "${HOMEPAGE}"
+    WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"
+    WriteRegStr SHCTX "${UNINSTKEY}" "HelpLink" "${HOMEPAGE}"
+  !endif
 
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application

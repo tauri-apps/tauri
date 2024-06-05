@@ -1532,6 +1532,13 @@
             "null"
           ]
         },
+        "homepage": {
+          "description": "A url to the home page of your application. If unset, will fallback to `homepage` defined in `Cargo.toml`.\n\nSupported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "icon": {
           "description": "The app's icons",
           "default": [],

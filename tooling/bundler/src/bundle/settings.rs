@@ -1009,7 +1009,7 @@ impl Settings {
       .bundle_settings
       .homepage
       .as_deref()
-      .or_else(|| self.package.homepage.as_deref())
+      .or(self.package.homepage.as_deref())
   }
 
   /// Returns the app's category.

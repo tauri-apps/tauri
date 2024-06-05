@@ -140,22 +140,23 @@ pub fn get_config(
     ios_version: Some(TARGET_IOS_VERSION.into()),
     ..Default::default()
   };
-  let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
+  let apple_config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
 
   let metadata = AppleMetadata {
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
       features: ios_options.features,
+      frameworks: config.bundle.ios.frameworks.clone(),
       ..Default::default()
     },
     macos: Default::default(),
   };
 
-  set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
-  set_var("TAURI_IOS_APP_NAME", config.app().name());
+  set_var("TAURI_IOS_PROJECT_PATH", apple_config.project_dir());
+  set_var("TAURI_IOS_APP_NAME", apple_config.app().name());
 
-  (config, metadata)
+  (apple_config, metadata)
 }
 
 fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {

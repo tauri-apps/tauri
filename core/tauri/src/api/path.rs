@@ -293,7 +293,7 @@ pub fn resolve_path<P: AsRef<Path>>(
       BaseDirectory::App => app_config_dir(config),
       #[allow(deprecated)]
       BaseDirectory::Log => app_log_dir(config),
-      BaseDirectory::Temp => Some(temp_dir()),
+      BaseDirectory::Temp => temp_dir().canonicalize().ok(),
       BaseDirectory::AppConfig => app_config_dir(config),
       BaseDirectory::AppData => app_data_dir(config),
       BaseDirectory::AppLocalData => app_local_data_dir(config),

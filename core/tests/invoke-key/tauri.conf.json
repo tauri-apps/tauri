@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../core/tauri-config-schema/schema.json",
+  "build": {
+    "distDir": "index.html",
+    "devPath": "index.html"
+  },
+  "tauri": {
+    "windows": [{}]
+  }
+}

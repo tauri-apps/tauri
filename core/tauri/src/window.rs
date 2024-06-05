@@ -1569,11 +1569,13 @@ impl<R: Runtime> Window<R> {
         return Err(Error::InvokeKey);
       }
       None => {
+        let error = "received ipc message without a __TAURI_INVOKE_KEY__";
+
         #[cfg(feature = "tracing")]
-        tracing::error!("received ipc message without a __TAURI_INVOKE_KEY__");
+        tracing::error!(error);
 
         #[cfg(not(feature = "tracing"))]
-        eprintln!("received ipc message without a __TAURI_INVOKE_KEY__");
+        eprintln!(error);
 
         return Err(Error::InvokeKey);
       }

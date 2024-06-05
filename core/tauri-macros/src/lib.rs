@@ -162,14 +162,14 @@ pub fn do_menu_item(input: TokenStream) -> TokenStream {
 /// ### Examples
 ///
 /// ```ignore
-/// TrayIconBuilder::new().icon(icon_image!("./icons/32x32.png")).build().unwrap();
+/// TrayIconBuilder::new().icon(include_image!("./icons/32x32.png")).build().unwrap();
 /// ```
 ///
 /// Note: this stores the image in raw pixels to the final binary,
 /// so keep the icon size (width and height) small
 /// or else it's going to bloat your final executable
 #[proc_macro]
-pub fn icon_image(tokens: TokenStream) -> TokenStream {
+pub fn include_image(tokens: TokenStream) -> TokenStream {
   let path = PathBuf::from(parse2::<LitStr>(tokens.into()).unwrap().value());
   let resolved_path = if path.is_relative() {
     if let Ok(base_dir) = std::env::var("CARGO_MANIFEST_DIR").map(PathBuf::from) {

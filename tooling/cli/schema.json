@@ -104,6 +104,7 @@
             }
           },
           "files": {},
+          "hardenedRuntime": true,
           "minimumSystemVersion": "10.13"
         },
         "targets": "all",
@@ -1532,6 +1533,13 @@
             "null"
           ]
         },
+        "homepage": {
+          "description": "A url to the home page of your application. If unset, will fallback to `homepage` defined in `Cargo.toml`.\n\nSupported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "icon": {
           "description": "The app's icons",
           "default": [],
@@ -1676,6 +1684,7 @@
               }
             },
             "files": {},
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -2680,6 +2689,11 @@
             "string",
             "null"
           ]
+        },
+        "hardenedRuntime": {
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n[hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "default": true,
+          "type": "boolean"
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",

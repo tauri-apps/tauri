@@ -187,6 +187,10 @@ fn build_nsis_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
   data.insert(
+    "homepage",
+    to_json(settings.homepage_url().unwrap_or_default()),
+  );
+  data.insert(
     "long_description",
     to_json(settings.long_description().unwrap_or_default()),
   );

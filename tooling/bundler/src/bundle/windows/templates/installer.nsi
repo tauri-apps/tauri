@@ -2,7 +2,7 @@ Unicode true
 ManifestDPIAware true
 
 !if "{{compression}}" == "none"
-  SetCompress false
+  SetCompress off
 !else
   ; Set the compression algorithm. Default is LZMA.
   SetCompressor /SOLID "{{compression}}"

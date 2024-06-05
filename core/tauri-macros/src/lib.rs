@@ -173,7 +173,7 @@ pub fn icon_image(tokens: TokenStream) -> TokenStream {
   let path = PathBuf::from(parse2::<LitStr>(tokens.into()).unwrap().value());
   let resolved_path = if path.is_relative() {
     if let Ok(base_dir) = std::env::var("CARGO_MANIFEST_DIR").map(PathBuf::from) {
-      base_dir.as_path().join(path)
+      base_dir.join(path)
     } else {
       return quote!(compile_error!("Can't resolve relative path")).into();
     }

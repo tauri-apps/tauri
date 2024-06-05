@@ -204,7 +204,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     quote!(#assets)
   };
 
-  let out_dir = make_output_directory()?;
+  let out_dir = ensure_our_dir()?;
 
   let default_window_icon = {
     if target == Target::Windows {
@@ -493,7 +493,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
 }
 
 pub fn icon_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
-  let out_dir = make_output_directory()?;
+  let out_dir = ensure_our_dir()?;
   let mut segments = Punctuated::new();
   segments.push(PathSegment {
     ident: Ident::new("tauri", Span::call_site()),
@@ -506,7 +506,7 @@ pub fn icon_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
   image_icon(&root.to_token_stream(), &out_dir, path)
 }
 
-fn make_output_directory() -> EmbeddedAssetsResult<PathBuf> {
+fn ensure_our_dir() -> EmbeddedAssetsResult<PathBuf> {
   let out_dir = std::env::var("OUT_DIR")
     .map_err(|_| EmbeddedAssetsError::OutDir)
     .map(PathBuf::from)

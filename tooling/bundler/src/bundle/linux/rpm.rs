@@ -43,20 +43,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_path = base_dir.join(&package_name);
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
-  
+
   let license = settings.license().unwrap_or_default();
   let name = heck::AsKebabCase(settings.product_name()).to_string();
-  let mut builder = rpm::PackageBuilder::new(
-    &name,
-    version,
-    &license,
-    arch,
-    summary,
-  )
-  .epoch(epoch)
-  .release(release)
-  // This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
-  .compression(rpm::CompressionWithLevel::Gzip(6));
+  let mut builder = rpm::PackageBuilder::new(&name, version, &license, arch, summary)
+    .epoch(epoch)
+    .release(release)
+    // This matches .deb compression. On a 240MB source binary the bundle will be 100KB larger than rpm's default while reducing build times by ~25%.
+    .compression(rpm::CompressionWithLevel::Gzip(6));
 
   if let Some(description) = settings.long_description() {
     builder = builder.description(description.trim())

@@ -5,7 +5,7 @@
 use crate::{
   command,
   plugin::{Builder, TauriPlugin},
-  AppHandle, Manager, ResourceId, Runtime,
+  AppHandle, Manager, ResourceId, Runtime, Webview,
 };
 
 #[command(root = "crate")]
@@ -39,21 +39,15 @@ pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   Ok(())
 }
 
-struct DefaultWindowIconRid(ResourceId);
-
 #[command(root = "crate")]
-pub fn default_window_icon<R: Runtime>(app: AppHandle<R>) -> Option<ResourceId> {
-  app
-    .try_state::<DefaultWindowIconRid>()
-    .map(|rid| rid.0)
-    .or_else(|| {
-      app.default_window_icon().cloned().map(|icon| {
-        let mut resources_table = app.resources_table();
-        let rid = resources_table.add(icon.to_owned());
-        app.manage(DefaultWindowIconRid(rid));
-        rid
-      })
-    })
+pub fn default_window_icon<R: Runtime>(
+  webview: Webview<R>,
+  app: AppHandle<R>,
+) -> Option<ResourceId> {
+  app.default_window_icon().cloned().map(|icon| {
+    let mut resources_table = webview.resources_table();
+    resources_table.add(icon.to_owned())
+  })
 }
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {

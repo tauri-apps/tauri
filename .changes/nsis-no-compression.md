@@ -1,8 +1,6 @@
 ---
-"tauri-utils": patch::breaking
-"tauri-bundler": patch::breaking
-"tauri-cli": patch::breaking
-"@tauri-apps/cli": patch::breaking
+"tauri-utils": patch::feat
+"tauri-bundler": patch::feat
 ---
 
-Add an option to disable NSIS compression
+Add an option to disable NSIS compression `bundle > nsis > compression: "none"`

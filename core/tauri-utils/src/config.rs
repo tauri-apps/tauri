@@ -568,7 +568,7 @@ pub struct MacConfig {
   /// Whether the codesign should enable [hardened runtime] (for executables) or not.
   ///
   /// [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>
-  #[serde(alias = "hardened-runtime", default = "hardened_runtime")]
+  #[serde(alias = "hardened-runtime", default = "default_true")]
   pub hardened_runtime: bool,
   /// Provider short name for notarization.
   #[serde(alias = "provider-short-name")]
@@ -580,10 +580,6 @@ pub struct MacConfig {
   pub dmg: DmgConfig,
 }
 
-fn hardened_runtime() -> bool {
-  true
-}
-
 impl Default for MacConfig {
   fn default() -> Self {
     Self {
@@ -592,7 +588,7 @@ impl Default for MacConfig {
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
-      hardened_runtime: hardened_runtime(),
+      hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
       dmg: Default::default(),

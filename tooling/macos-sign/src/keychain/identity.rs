@@ -85,6 +85,10 @@ pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
       "iOS Distribution:",
       "Apple Distribution:",
       "Developer ID Application:",
+      "Mac App Distribution:",
+      "Apple Development:",
+      "iOS App Development:",
+      "Mac Development:",
     ] {
       let pem_list_out =
         get_pem_list(keychain_path, cert_prefix).context("Failed to call `security` command")?;

@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.1-beta.14"
+version = "2.0.1-beta.16"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-beta.16", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-beta.17", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.9"
 flate2 = "1.0"
 anyhow = "1.0"
@@ -30,7 +30,7 @@ walkdir = "2"
 handlebars = "5.1"
 tempfile = "3.10.1"
 log = { version = "0.4.21", features = [ "kv" ] }
-dirs-next = "2.0"
+dirs = "5"
 os_pipe = "1"
 ureq = { version = "2.9.6", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }

@@ -10,6 +10,7 @@ members = [
   "core/tauri-build",
   "core/tauri-codegen",
   "core/tauri-config-schema",
+  "core/tauri-acl-schema",
   "core/tauri-plugin",
 
   # integration tests

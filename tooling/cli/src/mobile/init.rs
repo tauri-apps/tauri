@@ -14,6 +14,7 @@ use cargo_mobile2::{
   },
   config::app::App,
   dot_cargo,
+  reserved_names::KOTLIN_ONLY_KEYWORDS,
   target::TargetTrait as _,
   util::{
     self,
@@ -215,6 +216,7 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
     "reverse-domain-snake-case",
     Box::new(reverse_domain_snake_case),
   );
+  h.register_helper("escape-kotlin-keyword", Box::new(escape_kotlin_keyword));
   // don't mix these up or very bad things will happen to all of us
   h.register_helper("prefix-path", Box::new(prefix_path));
   h.register_helper("unprefix-path", Box::new(unprefix_path));
@@ -358,6 +360,28 @@ fn reverse_domain_snake_case(
   out
     .write(&util::reverse_domain(get_str(helper)).to_snek_case())
     .map_err(Into::into)
+}
+
+fn escape_kotlin_keyword(
+  helper: &Helper,
+  _: &Handlebars,
+  _: &Context,
+  _: &mut RenderContext,
+  out: &mut dyn Output,
+) -> HelperResult {
+  let escaped_result = get_str(helper)
+    .split('.')
+    .map(|s| {
+      if KOTLIN_ONLY_KEYWORDS.contains(&s) {
+        format!("`{}`", s)
+      } else {
+        s.to_string()
+      }
+    })
+    .collect::<Vec<_>>()
+    .join(".");
+
+  out.write(&escaped_result).map_err(Into::into)
 }
 
 fn app_root(ctx: &Context) -> Result<&str, RenderError> {

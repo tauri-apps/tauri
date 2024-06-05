@@ -42,25 +42,25 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     remove_dir_all(&output_path)?;
   }
   std::fs::create_dir_all(output_path.clone())?;
-  let app_dir_path = output_path.join(format!("{}.AppDir", settings.main_binary_name()));
+  let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
   let appimage_filename = format!(
     "{}_{}_{}.AppImage",
-    settings.main_binary_name(),
+    settings.product_name(),
     settings.version_string(),
     arch
   );
   let appimage_path = output_path.join(&appimage_filename);
   path_utils::create(app_dir_path, true)?;
 
-  let upcase_app_name = settings.main_binary_name().to_uppercase();
+  let upcase_app_name = settings.product_name().to_uppercase();
 
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
   sh_map.insert("arch", settings.target().split('-').next().unwrap());
-  sh_map.insert("app_name", settings.main_binary_name());
+  sh_map.insert("app_name", settings.product_name());
   sh_map.insert("app_name_uppercase", &upcase_app_name);
   sh_map.insert("appimage_filename", &appimage_filename);
-  let tauri_tools_path = dirs_next::cache_dir().map_or_else(
+  let tauri_tools_path = dirs::cache_dir().map_or_else(
     || output_path.to_path_buf(),
     |mut p| {
       p.push("tauri");

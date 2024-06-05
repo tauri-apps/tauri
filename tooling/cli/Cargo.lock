@@ -483,9 +483,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.12.0"
+version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79fadc84c218c513afcace5b0115bf615fb1c64dac782c1978f1620491339d7d"
+checksum = "c7ac384d832f346303c9f80328bb11e04000b66743b543578ed8926a6fbc264f"
 dependencies = [
  "colored",
  "core-foundation",
@@ -1102,24 +1102,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs-next"
-version = "2.0.0"
+name = "dirs"
+version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b98cf8ebf19c3d1b223e151f99a4f9f0690dca41414773390fc824184ac833e1"
+checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
 dependencies = [
- "cfg-if",
- "dirs-sys-next",
+ "dirs-sys",
 ]
 
 [[package]]
-name = "dirs-sys-next"
-version = "0.1.2"
+name = "dirs-sys"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ebda144c4fe02d1f7ea1a7d9641b6fc6b580adcfa024ae48797ecdeb6825b4d"
+checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
 dependencies = [
  "libc",
+ "option-ext",
  "redox_users",
- "winapi",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -3128,6 +3128,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "option-ext"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
 name = "ordered-float"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4839,12 +4845,12 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-beta.14"
+version = "2.0.1-beta.16"
 dependencies = [
  "anyhow",
  "ar",
  "bitness",
- "dirs-next",
+ "dirs",
  "dunce",
  "flate2",
  "glob",
@@ -4867,7 +4873,7 @@ dependencies = [
  "strsim 0.11.0",
  "tar",
  "tauri-icns",
- "tauri-utils 2.0.0-beta.16",
+ "tauri-utils 2.0.0-beta.17",
  "tempfile",
  "thiserror",
  "time",
@@ -4881,7 +4887,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-beta.18"
+version = "2.0.0-beta.20"
 dependencies = [
  "anyhow",
  "axum",
@@ -4932,7 +4938,7 @@ dependencies = [
  "tauri-bundler",
  "tauri-icns",
  "tauri-utils 1.5.4",
- "tauri-utils 2.0.0-beta.16",
+ "tauri-utils 2.0.0-beta.17",
  "tokio",
  "toml 0.8.10",
  "toml_edit 0.22.6",
@@ -4995,14 +5001,13 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-beta.16"
+version = "2.0.0-beta.17"
 dependencies = [
  "aes-gcm",
  "ctor",
  "dunce",
  "getrandom 0.2.12",
  "glob",
- "heck 0.5.0",
  "html5ever",
  "infer 0.15.0",
  "json-patch",

@@ -93,10 +93,18 @@ fn copy_binaries(
 
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+  let path = path.canonicalize()?;
   for resource in resources.iter() {
     let resource = resource?;
+
     println!("cargo:rerun-if-changed={}", resource.path().display());
-    copy_file(resource.path(), path.join(resource.target()))?;
+
+    // avoid copying the resource if target is the same as source
+    let src = resource.path().canonicalize()?;
+    let target = path.join(resource.target());
+    if src != target {
+      copy_file(src, target)?;
+    }
   }
   Ok(())
 }
@@ -190,7 +198,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         framework
       ));
     }
-    if let Some(home_dir) = dirs_next::home_dir() {
+    if let Some(home_dir) = dirs::home_dir() {
       if copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)? {
         continue;
       }
@@ -530,6 +538,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   tauri_utils::plugin::load_global_api_scripts(&out_dir);
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
+  // when running codegen in this build script, we need to access the env var directly
+  std::env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir

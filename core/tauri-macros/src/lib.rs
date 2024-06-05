@@ -170,7 +170,10 @@ pub fn do_menu_item(input: TokenStream) -> TokenStream {
 /// or else it's going to bloat your final executable
 #[proc_macro]
 pub fn include_image(tokens: TokenStream) -> TokenStream {
-  let path = PathBuf::from(parse2::<LitStr>(tokens.into()).unwrap().value());
+  let Ok(path) = parse2::<LitStr>(tokens.into()) else {
+    return quote!(compile_error!("Macro body is not a string")).into();
+  };
+  let path = PathBuf::from(path.value());
   let resolved_path = if path.is_relative() {
     if let Ok(base_dir) = std::env::var("CARGO_MANIFEST_DIR").map(PathBuf::from) {
       base_dir.join(path)

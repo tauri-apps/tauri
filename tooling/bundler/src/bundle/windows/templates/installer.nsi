@@ -344,10 +344,10 @@ Var AppStartMenuFolder
 ; Use show readme button in the finish page as a button create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
-!define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
+!define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateOrUpdateDesktopShortcut
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
-!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassiveButUpdateShortcutIfUpdate
+!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
 
 ; Uninstaller Pages
@@ -387,16 +387,19 @@ FunctionEnd
 
 Function .onInit
   ${GetOptions} $CMDLINE "/P" $PassiveMode
-  IfErrors +2 0
+  ${IfNot} ${Errors}
     StrCpy $PassiveMode 1
+  ${EndIf}
 
   ${GetOptions} $CMDLINE "/NS" $NoShortcutMode
-  IfErrors +2 0
+  ${IfNot} ${Errors}
     StrCpy $NoShortcutMode 1
+  ${EndIf}
 
   ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
-  IfErrors +2 0
+  ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
+  ${EndIf}
 
   !if "${DISPLAYLANGUAGESELECTOR}" == "true"
     !insertmacro MUI_LANGDLL_DISPLAY
@@ -435,7 +438,7 @@ FunctionEnd
 Section EarlyChecks
   ; Abort silent installer if downgrades is disabled
   !if "${ALLOWDOWNGRADES}" == "false"
-  IfSilent 0 silent_downgrades_done
+  ${If} ${Silent}
     ; If downgrading
     ${If} $R0 = -1
       System::Call 'kernel32::AttachConsole(i -1)i.r0'
@@ -446,7 +449,7 @@ Section EarlyChecks
       ${EndIf}
       Abort
     ${EndIf}
-  silent_downgrades_done:
+  ${EndIf}
   !endif
 
 SectionEnd
@@ -579,37 +582,37 @@ Section Install
 
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
-    Call CreateStartMenuShortcut
+    Call CreateOrUpdateStartMenuShortcut
   !insertmacro MUI_STARTMENU_WRITE_END
 
   ; Create desktop shortcut for silent and passive installers
   ; because finish page will be skipped
-  IfSilent create_shortcut 0
-  StrCmp $PassiveMode "1" create_shortcut shortcut_done
-  create_shortcut:
-    Call CreateDesktopShortcut
-  shortcut_done:
+  ${If} $PassiveMode = 1
+  ${OrIf} ${Silent}
+    Call CreateOrUpdateDesktopShortcut
+  ${EndIf}
 
   !ifdef NSIS_HOOK_POSTINSTALL
     !insertmacro "${NSIS_HOOK_POSTINSTALL}"
   !endif
 
   ; Auto close this page for passive mode
-  ${IfThen} $PassiveMode = 1 ${|} SetAutoClose true ${|}
+  ${If} $PassiveMode = 1
+    SetAutoClose true
+  ${EndIf}
 SectionEnd
 
 Function .onInstSuccess
   ; Check for `/R` flag only in silent and passive installers because
   ; GUI installer has a toggle for the user to (re)start the app
-  IfSilent check_r_flag 0
-  ${IfThen} $PassiveMode = 1 ${|} Goto check_r_flag ${|}
-  Goto run_done
-  check_r_flag:
+  ${If} $PassiveMode = 1
+  ${OrIf} ${Silent}
     ${GetOptions} $CMDLINE "/R" $R0
-    IfErrors run_done 0
+    ${IfNot} ${Errors}
       ${GetOptions} $CMDLINE "/ARGS" $R0
       Exec '"$INSTDIR\${MAINBINARYNAME}.exe" $R0'
-  run_done:
+    ${EndIf}
+  ${EndIf}
 FunctionEnd
 
 Function un.onInit
@@ -621,9 +624,15 @@ Function un.onInit
 
   !insertmacro MUI_UNGETLANGUAGE
 
+  ${GetOptions} $CMDLINE "/P" $PassiveMode
+  ${IfNot} ${Errors}
+    StrCpy $PassiveMode 1
+  ${EndIf}
+
   ${GetOptions} $CMDLINE "/UPDATE" $UpdateMode
-  IfErrors +2 0
+  ${IfNot} ${Errors}
     StrCpy $UpdateMode 1
+  ${EndIf}
 FunctionEnd
 
 Section Uninstall
@@ -712,9 +721,9 @@ Section Uninstall
   !endif
 
   ; Auto close if passive mode
-  ${GetOptions} $CMDLINE "/P" $R0
-  IfErrors +2 0
+  ${If} $PassiveMode = 1
     SetAutoClose true
+  ${EndIf}
 SectionEnd
 
 Function RestorePreviousInstallLocation
@@ -727,43 +736,39 @@ Function SkipIfPassive
   ${IfThen} $PassiveMode = 1  ${|} Abort ${|}
 FunctionEnd
 
-Function SkipIfPassiveButUpdateShortcutIfUpdate
-  ${If} $PassiveMode = 1
-    Call CreateDesktopShortcut
-    Abort
-  ${EndIf}
-FunctionEnd
-
-Function CreateDesktopShortcut
-  ; Skip creating shortcut if in update mode
-  ; and shortcuts doesn't exist, which means user deleted it
-  ; so we respect that.
-  ${If} $UpdateMode = 1
-    IfFileExists "$DESKTOP\${PRODUCTNAME}.lnk" +2 0
-      Return
-  ${EndIf}
-
-  ${If} $NoShortcutMode = 1
+Function CreateOrUpdateStartMenuShortcut
+  ; We used to use product name as MAINBINARYNAME
+  ; migrate old shortcuts to target the new MAINBINARYNAME
+  ${If} ${FileExists} "$DESKTOP\${PRODUCTNAME}.lnk"
+    !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     Return
   ${EndIf}
 
-  CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
-FunctionEnd
-
-Function CreateStartMenuShortcut
-  ; Skip creating shortcut if in update mode.
-  ; See `CreateDesktopShortcut` above.
+  ; Skip creating shortcut if in update mode or no shortcut mode
   ${If} $UpdateMode = 1
-    IfFileExists "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" +2 0
-      Return
-  ${EndIf}
-
-  ${If} $NoShortcutMode = 1
+  ${OrIf} $NoShortcutMode = 1
     Return
   ${EndIf}
 
   CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
   CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
   !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+FunctionEnd
+
+Function CreateOrUpdateDesktopShortcut
+  ; We used to use product name as MAINBINARYNAME
+  ; migrate old shortcuts to target the new MAINBINARYNAME
+  ${If} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+    !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Return
+  ${EndIf}
+
+  ; Skip creating shortcut if in update mode or no shortcut mode
+  ${If} $UpdateMode = 1
+  ${OrIf} $NoShortcutMode = 1
+    Return
+  ${EndIf}
+
+  CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro SetLnkAppUserModelId "$DESKTOP\${PRODUCTNAME}.lnk"
 FunctionEnd

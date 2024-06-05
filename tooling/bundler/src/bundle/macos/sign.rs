@@ -426,7 +426,7 @@ pub fn notarize_auth() -> Result<NotarizeAuth, NotarizeAuthError> {
           let mut key_path = None;
 
           let mut search_paths = vec!["./private_keys".into()];
-          if let Some(home_dir) = dirs_next::home_dir() {
+          if let Some(home_dir) = dirs::home_dir() {
             search_paths.push(home_dir.join("private_keys"));
             search_paths.push(home_dir.join(".private_keys"));
             search_paths.push(home_dir.join(".appstoreconnect").join("private_keys"));

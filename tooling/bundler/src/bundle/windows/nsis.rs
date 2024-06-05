@@ -246,16 +246,6 @@ fn build_nsis_app_installer(
     }
 
     data.insert(
-      "compression",
-      to_json(match &nsis.compression {
-        NsisCompression::Zlib => "zlib",
-        NsisCompression::Bzip2 => "bzip2",
-        NsisCompression::Lzma => "lzma",
-        NsisCompression::None => "none",
-      }),
-    );
-
-    data.insert(
       "display_language_selector",
       to_json(nsis.display_language_selector && languages.len() > 1),
     );
@@ -265,6 +255,23 @@ fn build_nsis_app_installer(
       data.insert("installer_hooks", to_json(installer_hooks));
     }
   }
+
+  let compression = settings
+    .windows()
+    .nsis
+    .as_ref()
+    .map(|n| n.compression)
+    .unwrap_or_default();
+  data.insert(
+    "compression",
+    to_json(match compression {
+      NsisCompression::Zlib => "zlib",
+      NsisCompression::Bzip2 => "bzip2",
+      NsisCompression::Lzma => "lzma",
+      NsisCompression::None => "none",
+    }),
+  );
+
   data.insert(
     "install_mode",
     to_json(match install_mode {

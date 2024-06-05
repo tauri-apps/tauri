@@ -101,7 +101,7 @@ targets:
       - sdk: QuartzCore.framework
       - sdk: Security.framework
       - sdk: UIKit.framework
-      {{~#each ios-frameworks}}
+      {{#each ios-frameworks}}
       - sdk: {{this}}.framework{{/each}}
       - sdk: WebKit.framework
     preBuildScripts:

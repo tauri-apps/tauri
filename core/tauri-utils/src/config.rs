@@ -691,6 +691,44 @@ pub enum NsisCompression {
   Bzip2,
   /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
   Lzma,
+  /// Disable compression
+  None,
+}
+
+impl Default for NsisCompression {
+  fn default() -> Self {
+    Self::Lzma
+  }
+}
+
+/// Install Modes for the NSIS installer.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NSISInstallerMode {
+  /// Default mode for the installer.
+  ///
+  /// Install the app by default in a directory that doesn't require Administrator access.
+  ///
+  /// Installer metadata will be saved under the `HKCU` registry path.
+  CurrentUser,
+  /// Install the app by default in the `Program Files` folder directory requires Administrator
+  /// access for the installation.
+  ///
+  /// Installer metadata will be saved under the `HKLM` registry path.
+  PerMachine,
+  /// Combines both modes and allows the user to choose at install time
+  /// whether to install for the current user or per machine. Note that this mode
+  /// will require Administrator access even if the user wants to install it for the current user only.
+  ///
+  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
+  Both,
+}
+
+impl Default for NSISInstallerMode {
+  fn default() -> Self {
+    Self::CurrentUser
+  }
 }
 
 /// Configuration for the Installer bundle using NSIS.
@@ -736,7 +774,8 @@ pub struct NsisConfig {
   /// Set the compression algorithm used to compress files in the installer.
   ///
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
-  pub compression: Option<NsisCompression>,
+  #[serde(default)]
+  pub compression: NsisCompression,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///
@@ -773,36 +812,6 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
-}
-
-/// Install Modes for the NSIS installer.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum NSISInstallerMode {
-  /// Default mode for the installer.
-  ///
-  /// Install the app by default in a directory that doesn't require Administrator access.
-  ///
-  /// Installer metadata will be saved under the `HKCU` registry path.
-  CurrentUser,
-  /// Install the app by default in the `Program Files` folder directory requires Administrator
-  /// access for the installation.
-  ///
-  /// Installer metadata will be saved under the `HKLM` registry path.
-  PerMachine,
-  /// Combines both modes and allows the user to choose at install time
-  /// whether to install for the current user or per machine. Note that this mode
-  /// will require Administrator access even if the user wants to install it for the current user only.
-  ///
-  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
-  Both,
-}
-
-impl Default for NSISInstallerMode {
-  fn default() -> Self {
-    Self::CurrentUser
-  }
 }
 
 /// Install modes for the Webview2 runtime.

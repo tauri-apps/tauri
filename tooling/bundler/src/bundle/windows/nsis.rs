@@ -247,10 +247,11 @@ fn build_nsis_app_installer(
 
     data.insert(
       "compression",
-      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
+      to_json(match &nsis.compression {
         NsisCompression::Zlib => "zlib",
         NsisCompression::Bzip2 => "bzip2",
         NsisCompression::Lzma => "lzma",
+        NsisCompression::None => "none",
       }),
     );
 

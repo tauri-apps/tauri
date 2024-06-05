@@ -2299,12 +2299,10 @@
         },
         "compression": {
           "description": "Set the compression algorithm used to compress files in the installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
-          "anyOf": [
+          "default": "lzma",
+          "allOf": [
             {
               "$ref": "#/definitions/NsisCompression"
-            },
-            {
-              "type": "null"
             }
           ]
         },
@@ -2366,6 +2364,13 @@
           "type": "string",
           "enum": [
             "lzma"
+          ]
+        },
+        {
+          "description": "Disable compression",
+          "type": "string",
+          "enum": [
+            "none"
           ]
         }
       ]

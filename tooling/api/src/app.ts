@@ -96,7 +96,7 @@ async function hide(): Promise<void> {
  * @since 2.0.0
  */
 async function defaultWindowIcon(): Promise<Image | null> {
-  return invoke<number>('plugin:app|get_default_window_icon').then((rid) =>
+  return invoke<number>('plugin:app|default_window_icon').then((rid) =>
     rid ? new Image(rid) : null
   )
 }

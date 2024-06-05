@@ -685,6 +685,8 @@ pub enum NsisCompression {
   Bzip2,
   /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
   Lzma,
+  /// Disable compression
+  None,
 }
 
 impl Default for NsisCompression {

@@ -247,6 +247,7 @@ fn build_nsis_app_installer(
         NsisCompression::Zlib => "zlib",
         NsisCompression::Bzip2 => "bzip2",
         NsisCompression::Lzma => "lzma",
+        NsisCompression::None => "none",
       }),
     );
 

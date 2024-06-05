@@ -2356,6 +2356,13 @@
           "enum": [
             "lzma"
           ]
+        },
+        {
+          "description": "Disable compression",
+          "type": "string",
+          "enum": [
+            "none"
+          ]
         }
       ]
     },

@@ -174,7 +174,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut env = env()?;
   configure_cargo(&app, None)?;
 
-  let init_config = super::init_config()?;
+  let (keychain, provisioning_profile) = super::signing_from_env()?;
+  let init_config = super::init_config(keychain, provisioning_profile)?;
   if let Some(export_options_plist) =
     create_export_options(&app, &init_config, options.export_method)
   {

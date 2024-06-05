@@ -38,7 +38,10 @@ pub fn command(
 
   let tauri_init_config = TauriInitConfig {
     #[cfg(target_os = "macos")]
-    ios: super::ios::init_config()?,
+    ios: {
+      let (keychain, provisioning_profile) = super::ios::signing_from_env()?;
+      super::ios::init_config(keychain, provisioning_profile)?
+    },
   };
 
   exec(

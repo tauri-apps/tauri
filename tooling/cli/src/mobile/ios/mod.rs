@@ -322,7 +322,10 @@ fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
   Ok(())
 }
 
-pub fn init_config() -> Result<super::init::IosInitConfig> {
+pub fn signing_from_env() -> Result<(
+  Option<tauri_macos_sign::Keychain>,
+  Option<tauri_macos_sign::ProvisioningProfile>,
+)> {
   let keychain = if let (Some(certificate), Some(certificate_password)) = (
     var_os("IOS_CERTIFICATE"),
     var_os("IOS_CERTIFICATE_PASSWORD"),
@@ -337,6 +340,13 @@ pub fn init_config() -> Result<super::init::IosInitConfig> {
     None
   };
 
+  Ok((keychain, provisioning_profile))
+}
+
+pub fn init_config(
+  keychain: Option<tauri_macos_sign::Keychain>,
+  provisioning_profile: Option<tauri_macos_sign::ProvisioningProfile>,
+) -> Result<super::init::IosInitConfig> {
   Ok(super::init::IosInitConfig {
     code_sign_style: if keychain.is_some() && provisioning_profile.is_some() {
       super::init::CodeSignStyle::Manual

@@ -63,9 +63,11 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
-  /// Export method.
+  /// Describes how Xcode should export the archive.
+  ///
+  /// Use this to create a package ready for the App Store (app-store-connect option) or TestFlight (release-testing option).
   #[clap(long, value_enum)]
-  pub method: Option<ExportMethod>,
+  pub export_method: Option<ExportMethod>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -73,7 +75,6 @@ pub enum ExportMethod {
   AppStoreConnect,
   ReleaseTesting,
   Debugging,
-  Simulator,
 }
 
 impl std::fmt::Display for ExportMethod {
@@ -82,7 +83,6 @@ impl std::fmt::Display for ExportMethod {
       Self::AppStoreConnect => write!(f, "app-store-connect"),
       Self::ReleaseTesting => write!(f, "release-testing"),
       Self::Debugging => write!(f, "debugging"),
-      Self::Simulator => write!(f, "simulator"),
     }
   }
 }
@@ -95,7 +95,6 @@ impl std::str::FromStr for ExportMethod {
       "app-store-connect" => Ok(Self::AppStoreConnect),
       "release-testing" => Ok(Self::ReleaseTesting),
       "debugging" => Ok(Self::Debugging),
-      "simulator" => Ok(Self::Simulator),
       _ => Err("unknown ios target"),
     }
   }
@@ -176,7 +175,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   configure_cargo(&app, None)?;
 
   let init_config = super::init_config()?;
-  if let Some(export_options_plist) = create_export_options(&app, &init_config, options.method) {
+  if let Some(export_options_plist) =
+    create_export_options(&app, &init_config, options.export_method)
+  {
     let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
 
     merge_plist(
@@ -209,11 +210,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 fn create_export_options(
   app: &cargo_mobile2::config::app::App,
   config: &super::super::init::IosInitConfig,
-  method: Option<ExportMethod>,
+  export_method: Option<ExportMethod>,
 ) -> Option<plist::Value> {
   let mut plist = plist::Dictionary::new();
 
-  if let Some(method) = method {
+  if let Some(method) = export_method {
     plist.insert("method".to_string(), method.to_string().into());
   }
 

@@ -444,3 +444,14 @@ impl ToTokens for EmbeddedAssets {
     }});
   }
 }
+
+pub(crate) fn ensure_out_dir() -> EmbeddedAssetsResult<PathBuf> {
+  let out_dir = std::env::var("OUT_DIR")
+    .map_err(|_| EmbeddedAssetsError::OutDir)
+    .map(PathBuf::from)
+    .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))?;
+
+  // make sure that our output directory is created
+  std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
+  Ok(out_dir)
+}

@@ -12,7 +12,8 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
-pub use self::context::{context_codegen, icon_image_codegen, ContextData};
+pub use self::context::{context_codegen, ContextData};
+pub use self::image::icon_image_codegen;
 use std::{
   borrow::Cow,
   path::{Path, PathBuf},
@@ -22,6 +23,7 @@ use tauri_utils::platform::Target;
 
 mod context;
 pub mod embedded_assets;
+mod image;
 #[doc(hidden)]
 pub mod vendor;
 

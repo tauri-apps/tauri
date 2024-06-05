@@ -8,12 +8,11 @@ use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
 use base64::Engine;
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use proc_macro2::TokenStream;
+use quote::quote;
 use sha2::{Digest, Sha256};
 
-use syn::punctuated::Punctuated;
-use syn::{Expr, Ident, PathArguments, PathSegment, Token};
+use syn::Expr;
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::resolved::Resolved;
@@ -27,8 +26,10 @@ use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{
-  AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError, EmbeddedAssetsResult,
+  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError,
+  EmbeddedAssetsResult,
 };
+use crate::image::{ico_icon, image_icon, png_icon, raw_icon};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -490,134 +491,6 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     #with_tray_icon_code
     context
   }))
-}
-
-pub fn icon_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
-  let out_dir = ensure_out_dir()?;
-  let mut segments = Punctuated::new();
-  segments.push(PathSegment {
-    ident: Ident::new("tauri", Span::call_site()),
-    arguments: PathArguments::None,
-  });
-  let root = syn::Path {
-    leading_colon: Some(Token![::](Span::call_site())),
-    segments,
-  };
-  image_icon(&root.to_token_stream(), &out_dir, path)
-}
-
-fn ensure_out_dir() -> EmbeddedAssetsResult<PathBuf> {
-  let out_dir = std::env::var("OUT_DIR")
-    .map_err(|_| EmbeddedAssetsError::OutDir)
-    .map(PathBuf::from)
-    .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))?;
-
-  // make sure that our output directory is created
-  std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
-  Ok(out_dir)
-}
-
-fn image_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let extension = path.extension().unwrap_or_default();
-  if extension == "ico" {
-    ico_icon(root, out_dir, path)
-  } else if extension == "png" {
-    png_icon(root, out_dir, path)
-  } else {
-    Err(EmbeddedAssetsError::InvalidImageExtension {
-      extension: extension.into(),
-      path: path.to_path_buf(),
-    })
-  }
-}
-
-fn raw_icon(out_dir: &Path, path: &Path) -> EmbeddedAssetsResult<TokenStream> {
-  let bytes =
-    std::fs::read(path).unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let out_path = out_dir.join(path.file_name().unwrap());
-  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
-  let icon = quote!(::std::option::Option::Some(
-    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
-  ));
-  Ok(icon)
-}
-
-fn ico_icon(root: &TokenStream, out_dir: &Path, path: &Path) -> EmbeddedAssetsResult<TokenStream> {
-  let file = std::fs::File::open(path)
-    .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
-  let icon_dir = ico::IconDir::read(file)
-    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
-  let entry = &icon_dir.entries()[0];
-  let rgba = entry
-    .decode()
-    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
-    .rgba_data()
-    .to_vec();
-  let width = entry.width();
-  let height = entry.height();
-
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
-  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn png_icon(root: &TokenStream, out_dir: &Path, path: &Path) -> EmbeddedAssetsResult<TokenStream> {
-  let file = std::fs::File::open(path)
-    .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
-  let decoder = png::Decoder::new(file);
-  let mut reader = decoder
-    .read_info()
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let (color_type, _) = reader.output_color_type();
-
-  if color_type != png::ColorType::Rgba {
-    panic!("icon {} is not RGBA", path.display());
-  }
-
-  let mut buffer: Vec<u8> = Vec::new();
-  while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row.data());
-  }
-  let width = reader.info().width;
-  let height = reader.info().height;
-
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
-  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
-  if let Ok(curr) = std::fs::read(out_path) {
-    if curr == data {
-      return Ok(());
-    }
-  }
-  std::fs::write(out_path, data)
 }
 
 fn find_icon(

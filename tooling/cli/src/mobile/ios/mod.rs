@@ -354,6 +354,7 @@ pub fn init_config(
       super::init::CodeSignStyle::Automatic
     },
     code_sign_identity: keychain.map(|k| k.signing_identity()),
+    team_id: keychain.and_then(|k| k.team_id().map(ToString::to_string)),
     provisioning_profile_uuid: provisioning_profile.and_then(|p| p.uuid().ok()),
   })
 }

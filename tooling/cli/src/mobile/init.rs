@@ -106,6 +106,7 @@ pub enum CodeSignStyle {
 pub struct IosInitConfig {
   pub code_sign_style: CodeSignStyle,
   pub code_sign_identity: Option<String>,
+  pub team_id: Option<String>,
   pub provisioning_profile_uuid: Option<String>,
 }
 

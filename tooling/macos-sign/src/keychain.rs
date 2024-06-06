@@ -168,6 +168,13 @@ impl Keychain {
     }
   }
 
+  pub fn team_id(&self) -> Option<&str> {
+    match &self.signing_identity {
+      SigningIdentity::Team(t) => Some(&t.id),
+      SigningIdentity::Identifier(_) => None,
+    }
+  }
+
   pub fn sign(
     &self,
     path: &Path,

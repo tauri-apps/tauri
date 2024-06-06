@@ -227,6 +227,10 @@ fn create_export_options(
     plist.insert("signingCertificate".to_string(), identity.clone().into());
   }
 
+  if let Some(id) = &config.team_id {
+    plist.insert("teamID".to_string(), id.clone().into());
+  }
+
   if let Some(profile_uuid) = &config.provisioning_profile_uuid {
     let mut provisioning_profiles = plist::Dictionary::new();
     provisioning_profiles.insert(app.reverse_identifier(), profile_uuid.clone().into());

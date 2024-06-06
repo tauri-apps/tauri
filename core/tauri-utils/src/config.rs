@@ -274,7 +274,7 @@ impl<'de> Deserialize<'de> for BundleTarget {
       BundleTargetInner::All(t) => Err(DeError::custom(format!(
         "invalid bundle type {t}, expected one of `all`, {}",
         BundleType::all()
-          .into_iter()
+          .iter()
           .map(|b| format!("`{b}`"))
           .collect::<Vec<_>>()
           .join(", ")

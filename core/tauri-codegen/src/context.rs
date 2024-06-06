@@ -26,8 +26,7 @@ use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
 
 use crate::embedded_assets::{
-  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError,
-  EmbeddedAssetsResult,
+  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
 };
 use crate::image::{ico_icon, image_icon, png_icon, raw_icon};
 
@@ -283,12 +282,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      let result = image_icon(&root, &out_dir, &tray_icon_icon_path)
-        .map(|i| quote!(context.set_tray_icon(Some(#i));));
-      if let Err(EmbeddedAssetsError::InvalidImageExtension { .. }) = &result {
-        quote!(compile_error!("The tray icon extension must be either `.ico` or `.png`, but {extension} is given in {path}"))
-      } else {
-        result?
+      match image_icon(&root, &out_dir, &tray_icon_icon_path) {
+        Ok(i) => quote!(context.set_tray_icon(Some(#i));),
+        Err(e) => return Err(e),
       }
     } else {
       quote!()

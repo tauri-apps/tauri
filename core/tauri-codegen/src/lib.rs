@@ -13,7 +13,7 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
-pub use self::image::icon_image_codegen;
+pub use self::image::include_image_codegen;
 use std::{
   borrow::Cow,
   path::{Path, PathBuf},

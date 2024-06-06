@@ -163,7 +163,7 @@ pub fn do_menu_item(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// const APP_ICON: Image<'_> = include_image!("./icons/32x32.png");
-/// 
+///
 /// // then use it with tray
 /// TrayIconBuilder::new().icon(APP_ICON).build().unwrap();
 ///
@@ -184,7 +184,7 @@ pub fn do_menu_item(input: TokenStream) -> TokenStream {
 pub fn include_image(tokens: TokenStream) -> TokenStream {
   let path = match parse2::<LitStr>(tokens.into()) {
     Ok(path) => path,
-    Err(err) => return err.into_compile_error().into();
+    Err(err) => return err.into_compile_error().into(),
   };
   let path = PathBuf::from(path.value());
   let resolved_path = if path.is_relative() {
@@ -196,7 +196,7 @@ pub fn include_image(tokens: TokenStream) -> TokenStream {
   } else {
     path
   };
-  match tauri_codegen::icon_image_codegen(&resolved_path).map_err(|error| error.to_string()) {
+  match tauri_codegen::include_image_codegen(&resolved_path).map_err(|error| error.to_string()) {
     Ok(output) => output,
     Err(error) => quote!(compile_error!(#error)),
   }

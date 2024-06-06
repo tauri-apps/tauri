@@ -87,9 +87,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
+          token: ${{ secrets.GITHUB_TOKEN }}
           createRelease: true
+          recognizeContributors: true
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'

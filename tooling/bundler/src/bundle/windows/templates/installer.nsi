@@ -335,9 +335,11 @@ FunctionEnd
 Var AppStartMenuFolder
 !if "${STARTMENUFOLDER}" != ""
   !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
-  !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
   !define MUI_STARTMENUPAGE_DEFAULTFOLDER "${STARTMENUFOLDER}"
+!else
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE Skip
 !endif
+!insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
 ; 7. Installation page
 !insertmacro MUI_PAGE_INSTFILES
@@ -747,6 +749,10 @@ Function RestorePreviousInstallLocation
   ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
   StrCmp $4 "" +2 0
     StrCpy $INSTDIR $4
+FunctionEnd
+
+Function Skip
+  Abort
 FunctionEnd
 
 Function SkipIfPassive

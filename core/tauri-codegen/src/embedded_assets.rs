@@ -48,7 +48,7 @@ pub enum EmbeddedAssetsError {
   #[error("invalid prefix {prefix} used while including path {path}")]
   PrefixInvalid { prefix: PathBuf, path: PathBuf },
 
-  #[error("invalid extension {extension} used for image {path}")]
+  #[error("invalid extension {extension} used for image {path}, must be `ico` or `png`")]
   InvalidImageExtension { extension: PathBuf, path: PathBuf },
 
   #[error("failed to walk directory {path} because {error}")]

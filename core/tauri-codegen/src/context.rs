@@ -282,10 +282,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      match image_icon(&root, &out_dir, &tray_icon_icon_path) {
-        Ok(i) => quote!(context.set_tray_icon(Some(#i));),
-        Err(e) => return Err(e),
-      }
+      image_icon(&root, &out_dir, &tray_icon_icon_path)
+        .map(|i| quote!(context.set_tray_icon(Some(#i));))?
     } else {
       quote!()
     }

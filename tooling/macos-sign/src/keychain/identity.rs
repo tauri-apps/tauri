@@ -23,6 +23,7 @@ fn get_pem_list(keychain_path: &Path, name_substr: &str) -> std::io::Result<std:
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Team {
   pub name: String,
+  pub certificate_name: String,
   pub id: String,
   pub cert_prefix: &'static str,
 }
@@ -68,13 +69,14 @@ impl Team {
 
     Ok(Self {
       name,
+      certificate_name: common_name,
       id,
       cert_prefix,
     })
   }
 
   pub fn certificate_name(&self) -> String {
-    format!("{} {} ({})", self.cert_prefix, self.name, self.id)
+    self.certificate_name.clone()
   }
 }
 

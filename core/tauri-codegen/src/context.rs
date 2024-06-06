@@ -25,7 +25,10 @@ use tauri_utils::platform::Target;
 use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
 
-use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
+use crate::embedded_assets::{
+  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+};
+use crate::image::{ico_icon, image_icon, png_icon, raw_icon};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -65,7 +68,7 @@ fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut Csp
 
 fn map_core_assets(
   options: &AssetOptions,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
   let csp = options.csp;
   let dangerous_disable_asset_csp_modification =
     options.dangerous_disable_asset_csp_modification.clone();
@@ -92,7 +95,7 @@ fn map_core_assets(
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
   // create the csp for the isolation iframe styling now, to make the runtime less complex
   let mut hasher = Sha256::new();
   hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
@@ -129,7 +132,7 @@ fn map_isolation(
 }
 
 /// Build a `tauri::Context` for including in application code.
-pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
+pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let ContextData {
     dev,
     config,
@@ -201,17 +204,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(#assets)
   };
 
-  let out_dir = {
-    let out_dir = std::env::var("OUT_DIR")
-      .map_err(|_| EmbeddedAssetsError::OutDir)
-      .map(PathBuf::from)
-      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))?;
-
-    // make sure that our output directory is created
-    std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
-
-    out_dir
-  };
+  let out_dir = ensure_out_dir()?;
 
   let default_window_icon = {
     if target == Target::Windows {
@@ -223,7 +216,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        ico_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       } else {
         let icon_path = find_icon(
           &config,
@@ -231,7 +224,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        png_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
       }
     } else {
       // handle default window icons for Unix targets
@@ -241,7 +234,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+      png_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
     }
   };
 
@@ -260,7 +253,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.png",
       );
     }
-    raw_icon(&out_dir, icon_path)?
+    raw_icon(&out_dir, &icon_path)?
   } else {
     quote!(::std::option::Option::None)
   };
@@ -289,18 +282,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      let ext = tray_icon_icon_path.extension();
-      if ext.map_or(false, |e| e == "ico") {
-        ico_icon(&root, &out_dir, tray_icon_icon_path)
-          .map(|i| quote!(context.set_tray_icon(Some(#i));))?
-      } else if ext.map_or(false, |e| e == "png") {
-        png_icon(&root, &out_dir, tray_icon_icon_path)
-          .map(|i| quote!(context.set_tray_icon(Some(#i));))?
-      } else {
-        quote!(compile_error!(
-          "The tray icon extension must be either `.ico` or `.png`."
-        ))
-      }
+      image_icon(&root, &out_dir, &tray_icon_icon_path)
+        .map(|i| quote!(context.set_tray_icon(Some(#i));))?
     } else {
       quote!()
     }
@@ -504,122 +487,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   }))
 }
 
-fn ico_icon<P: AsRef<Path>>(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: P,
-) -> Result<TokenStream, EmbeddedAssetsError> {
-  let path = path.as_ref();
-  let bytes = std::fs::read(path)
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
-    .to_vec();
-  let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
-  let entry = &icon_dir.entries()[0];
-  let rgba = entry
-    .decode()
-    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
-    .rgba_data()
-    .to_vec();
-  let width = entry.width();
-  let height = entry.height();
-
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
-  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
-  let path = path.as_ref();
-  let bytes = std::fs::read(path)
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
-    .to_vec();
-
-  let out_path = out_dir.join(path.file_name().unwrap());
-  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
-  let icon = quote!(::std::option::Option::Some(
-    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
-  ));
-  Ok(icon)
-}
-
-fn png_icon<P: AsRef<Path>>(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: P,
-) -> Result<TokenStream, EmbeddedAssetsError> {
-  let path = path.as_ref();
-  let bytes = std::fs::read(path)
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
-    .to_vec();
-  let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-  let mut reader = decoder
-    .read_info()
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let (color_type, _) = reader.output_color_type();
-
-  if color_type != png::ColorType::Rgba {
-    panic!("icon {} is not RGBA", path.display());
-  }
-
-  let mut buffer: Vec<u8> = Vec::new();
-  while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row.data());
-  }
-  let width = reader.info().width;
-  let height = reader.info().height;
-
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
-  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
-  use std::fs::File;
-  use std::io::Write;
-
-  if let Ok(curr) = std::fs::read(out_path) {
-    if curr == data {
-      return Ok(());
-    }
-  }
-
-  let mut out_file = File::create(out_path)?;
-  out_file.write_all(data)
-}
-
-fn find_icon<F: Fn(&&String) -> bool>(
+fn find_icon(
   config: &Config,
   config_parent: &Path,
-  predicate: F,
+  predicate: impl Fn(&&String) -> bool,
   default: &str,
 ) -> PathBuf {
   let icon_path = config
     .bundle
     .icon
     .iter()
-    .find(|i| predicate(i))
-    .cloned()
-    .unwrap_or_else(|| default.to_string());
+    .find(predicate)
+    .map(AsRef::as_ref)
+    .unwrap_or(default);
   config_parent.join(icon_path)
 }

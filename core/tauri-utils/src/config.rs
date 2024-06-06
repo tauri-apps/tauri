@@ -1798,6 +1798,10 @@ pub struct TrayIconConfig {
   /// Set an id for this tray icon so you can reference it later, defaults to `main`.
   pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
+  ///
+  /// Note: this stores the image in raw pixels to the final binary,
+  /// so keep the icon size (width and height) small
+  /// or else it's going to bloat your final executable
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.

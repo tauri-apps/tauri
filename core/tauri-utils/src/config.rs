@@ -776,6 +776,9 @@ pub struct NsisConfig {
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
   #[serde(default)]
   pub compression: NsisCompression,
+  /// Create a start menu folder for grouping shortcuts together
+  #[serde(default, alias = "start-menu-folder")]
+  pub start_menu_folder: Option<String>,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///

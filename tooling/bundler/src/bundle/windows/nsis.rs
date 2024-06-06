@@ -229,15 +229,22 @@ fn build_nsis_app_installer(
       languages.clear();
       languages.extend_from_slice(langs);
     }
+
+    if let Some(start_menu_folder) = &nsis.start_menu_folder {
+      data.insert("start_menu_folder", to_json(start_menu_folder));
+    }
+
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
         to_json(dunce::canonicalize(installer_icon)?),
       );
     }
+
     if let Some(header_image) = &nsis.header_image {
       data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
     }
+
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
@@ -309,7 +316,7 @@ fn build_nsis_app_installer(
   let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
-    to_json(main_binary.name().replace(".exe", "")),
+    to_json(main_binary.name().strip_suffix(".exe")),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));
 

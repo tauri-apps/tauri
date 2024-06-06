@@ -1,4 +1,5 @@
 ---
+"tauri-utils": "patch:feat"
 "tauri-bundler": "patch:breaking"
 ---
 

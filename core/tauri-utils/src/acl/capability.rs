@@ -18,8 +18,8 @@ use super::Scopes;
 /// An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]
 /// or an object that references a permission and extends its scope.
 #[derive(Debug, Clone, PartialEq, Serialize)]
-#[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
 pub enum PermissionEntry {
   /// Reference a permission or permission set by identifier.
   PermissionRef(Identifier),
@@ -46,18 +46,18 @@ impl PermissionEntry {
   }
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-struct ExtendedPermissionStruct {
-  identifier: Identifier,
-  #[serde(default, flatten)]
-  scope: Scopes,
-}
-
 impl<'de> Deserialize<'de> for PermissionEntry {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
     D: Deserializer<'de>,
   {
+    #[derive(Deserialize)]
+    struct ExtendedPermissionStruct {
+      identifier: Identifier,
+      #[serde(default, flatten)]
+      scope: Scopes,
+    }
+
     UntaggedEnumVisitor::new()
       .string(|string| {
         let de = string.into_deserializer();
@@ -132,6 +132,7 @@ pub struct CapabilityRemote {
 
 /// Capability formats accepted in a capability file.
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[cfg_attr(feature = "schema", serde(untagged))]
 pub enum CapabilityFile {
   /// A single capability.
   Capability(Capability),
@@ -159,11 +160,6 @@ impl CapabilityFile {
   }
 }
 
-#[derive(Deserialize, Debug)]
-struct CapabilityNamedList {
-  capabilities: Vec<Capability>,
-}
-
 impl<'de> Deserialize<'de> for CapabilityFile {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where
@@ -172,14 +168,20 @@ impl<'de> Deserialize<'de> for CapabilityFile {
     UntaggedEnumVisitor::new()
       .seq(|seq| seq.deserialize::<Vec<Capability>>().map(Self::List))
       .map(|map| {
+        #[derive(Deserialize)]
+        struct CapabilityNamedList {
+          capabilities: Vec<Capability>,
+        }
+
         if let Some(len) = map.size_hint() {
           if len == 1 {
-            let named_list = map.deserialize::<CapabilityNamedList>()?;
+            let named = map.deserialize::<CapabilityNamedList>()?;
             return Ok(Self::NamedList {
-              capabilities: named_list.capabilities,
+              capabilities: named.capabilities,
             });
           }
         }
+
         map.deserialize::<Capability>().map(Self::Capability)
       })
       .deserialize(deserializer)

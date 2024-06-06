@@ -565,6 +565,11 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
+  /// Whether the codesign should enable [hardened runtime] (for executables) or not.
+  ///
+  /// [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>
+  #[serde(alias = "hardened-runtime", default = "default_true")]
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   #[serde(alias = "provider-short-name")]
   pub provider_short_name: Option<String>,
@@ -583,6 +588,7 @@ impl Default for MacConfig {
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
+      hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
       dmg: Default::default(),
@@ -685,6 +691,44 @@ pub enum NsisCompression {
   Bzip2,
   /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
   Lzma,
+  /// Disable compression
+  None,
+}
+
+impl Default for NsisCompression {
+  fn default() -> Self {
+    Self::Lzma
+  }
+}
+
+/// Install Modes for the NSIS installer.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NSISInstallerMode {
+  /// Default mode for the installer.
+  ///
+  /// Install the app by default in a directory that doesn't require Administrator access.
+  ///
+  /// Installer metadata will be saved under the `HKCU` registry path.
+  CurrentUser,
+  /// Install the app by default in the `Program Files` folder directory requires Administrator
+  /// access for the installation.
+  ///
+  /// Installer metadata will be saved under the `HKLM` registry path.
+  PerMachine,
+  /// Combines both modes and allows the user to choose at install time
+  /// whether to install for the current user or per machine. Note that this mode
+  /// will require Administrator access even if the user wants to install it for the current user only.
+  ///
+  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
+  Both,
+}
+
+impl Default for NSISInstallerMode {
+  fn default() -> Self {
+    Self::CurrentUser
+  }
 }
 
 /// Configuration for the Installer bundle using NSIS.
@@ -730,7 +774,8 @@ pub struct NsisConfig {
   /// Set the compression algorithm used to compress files in the installer.
   ///
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
-  pub compression: Option<NsisCompression>,
+  #[serde(default)]
+  pub compression: NsisCompression,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///
@@ -767,36 +812,6 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
-}
-
-/// Install Modes for the NSIS installer.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum NSISInstallerMode {
-  /// Default mode for the installer.
-  ///
-  /// Install the app by default in a directory that doesn't require Administrator access.
-  ///
-  /// Installer metadata will be saved under the `HKCU` registry path.
-  CurrentUser,
-  /// Install the app by default in the `Program Files` folder directory requires Administrator
-  /// access for the installation.
-  ///
-  /// Installer metadata will be saved under the `HKLM` registry path.
-  PerMachine,
-  /// Combines both modes and allows the user to choose at install time
-  /// whether to install for the current user or per machine. Note that this mode
-  /// will require Administrator access even if the user wants to install it for the current user only.
-  ///
-  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
-  Both,
-}
-
-impl Default for NSISInstallerMode {
-  fn default() -> Self {
-    Self::CurrentUser
-  }
 }
 
 /// Install modes for the Webview2 runtime.
@@ -1054,6 +1069,11 @@ pub struct BundleConfig {
   /// The application's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
+  /// A url to the home page of your application. If unset, will
+  /// fallback to `homepage` defined in `Cargo.toml`.
+  ///
+  /// Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`.
+  pub homepage: Option<String>,
   /// The app's icons
   #[serde(default)]
   pub icon: Vec<String>,
@@ -2420,6 +2440,7 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let publisher = quote!(None);
+      let homepage = quote!(None);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
@@ -2443,6 +2464,7 @@ mod build {
         ::tauri::utils::config::BundleConfig,
         active,
         publisher,
+        homepage,
         icon,
         targets,
         resources,
@@ -2760,6 +2782,7 @@ mod test {
       active: false,
       targets: Default::default(),
       publisher: None,
+      homepage: None,
       icon: Vec::new(),
       resources: None,
       copyright: None,

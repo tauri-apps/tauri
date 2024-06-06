@@ -1,9 +1,10 @@
 Unicode true
 ManifestDPIAware true
-; Set the compression algorithm. Default is LZMA.
-!if "{{compression}}" == ""
-  SetCompressor /SOLID lzma
+
+!if "{{compression}}" == "none"
+  SetCompress off
 !else
+  ; Set the compression algorithm. Default is LZMA.
   SetCompressor /SOLID "{{compression}}"
 !endif
 
@@ -28,6 +29,7 @@ ${StrLoc}
 !define VERSION "{{version}}"
 !define VERSIONWITHBUILD "{{version_with_build}}"
 !define SHORTDESCRIPTION "{{short_description}}"
+!define HOMEPAGE "{{homepage}}"
 !define INSTALLMODE "{{install_mode}}"
 !define LICENSE "{{license}}"
 !define INSTALLERICON "{{installer_icon}}"
@@ -346,9 +348,14 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateOrUpdateDesktopShortcut
 ; Show run app after installation.
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
+
+Function RunMainBinary
+  nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" ""
+FunctionEnd
 
 ; Uninstaller Pages
 ; 1. Confirm uninstall page
@@ -579,6 +586,11 @@ Section Install
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
+  !if "${HOMEPAGE}" != ""
+    WriteRegStr SHCTX "${UNINSTKEY}" "URLInfoAbout" "${HOMEPAGE}"
+    WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"
+    WriteRegStr SHCTX "${UNINSTKEY}" "HelpLink" "${HOMEPAGE}"
+  !endif
 
   ; Create start menu shortcut
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -610,7 +622,7 @@ Function .onInstSuccess
     ${GetOptions} $CMDLINE "/R" $R0
     ${IfNot} ${Errors}
       ${GetOptions} $CMDLINE "/ARGS" $R0
-      Exec '"$INSTDIR\${MAINBINARYNAME}.exe" $R0'
+      nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" "$R0"
     ${EndIf}
   ${EndIf}
 FunctionEnd

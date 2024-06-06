@@ -40,7 +40,7 @@ pub fn command(
     #[cfg(target_os = "macos")]
     ios: {
       let (keychain, provisioning_profile) = super::ios::signing_from_env()?;
-      super::ios::init_config(keychain, provisioning_profile)?
+      super::ios::init_config(keychain.as_ref(), provisioning_profile.as_ref())?
     },
   };
 

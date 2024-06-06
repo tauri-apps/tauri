@@ -344,8 +344,8 @@ pub fn signing_from_env() -> Result<(
 }
 
 pub fn init_config(
-  keychain: Option<tauri_macos_sign::Keychain>,
-  provisioning_profile: Option<tauri_macos_sign::ProvisioningProfile>,
+  keychain: Option<&tauri_macos_sign::Keychain>,
+  provisioning_profile: Option<&tauri_macos_sign::ProvisioningProfile>,
 ) -> Result<super::init::IosInitConfig> {
   Ok(super::init::IosInitConfig {
     code_sign_style: if keychain.is_some() && provisioning_profile.is_some() {

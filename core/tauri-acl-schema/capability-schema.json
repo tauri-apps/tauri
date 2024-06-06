@@ -52,7 +52,8 @@
       "type": "array",
       "items": {
         "$ref": "#/definitions/PermissionEntry"
-      }
+      },
+      "uniqueItems": true
     },
     "platforms": {
       "description": "Target platforms this capability applies. By default all platforms are affected by this capability.",

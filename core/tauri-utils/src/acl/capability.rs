@@ -74,10 +74,26 @@ pub struct Capability {
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub webviews: Vec<String>,
   /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
+  #[cfg_attr(feature = "schema", schemars(schema_with = "unique_permission"))]
   pub permissions: Vec<PermissionEntry>,
   /// Target platforms this capability applies. By default all platforms are affected by this capability.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+}
+
+#[cfg(feature = "schema")]
+fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  use schemars::schema;
+  schema::SchemaObject {
+    instance_type: Some(schema::InstanceType::Array.into()),
+    array: Some(Box::new(schema::ArrayValidation {
+      unique_items: Some(true),
+      items: Some(gen.subschema_for::<PermissionEntry>().into()),
+      ..Default::default()
+    })),
+    ..Default::default()
+  }
+  .into()
 }
 
 fn default_capability_local() -> bool {

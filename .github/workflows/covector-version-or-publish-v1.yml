@@ -77,6 +77,7 @@ jobs:
           cargo update -p serde_with:3.8.1 --precise 3.0.0
           cargo update -p tokio --precise 1.29.0
           cargo update -p flate2 --precise 1.0.26
+          cargo update -p hyper --precise 0.14.28
           cargo update -p h2 --precise 0.3.20
           cargo update -p reqwest --precise 0.11.18
           cargo update -p bstr --precise 1.6.2
@@ -106,7 +107,6 @@ jobs:
           cargo update -p tokio-test --precise 0.4.3
           cargo update -p tokio-stream --precise 0.1.14
           cargo update -p tokio-util --precise 0.7.10
-          cargo update -p hyper --precise 0.14.28
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

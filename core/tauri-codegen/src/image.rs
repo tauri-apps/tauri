@@ -8,8 +8,9 @@ use quote::{quote, ToTokens};
 use std::path::Path;
 use syn::{punctuated::Punctuated, Ident, PathArguments, PathSegment, Token};
 
-pub fn icon_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
+pub fn include_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
   let out_dir = ensure_out_dir()?;
+
   let mut segments = Punctuated::new();
   segments.push(PathSegment {
     ident: Ident::new("tauri", Span::call_site()),
@@ -19,6 +20,7 @@ pub fn icon_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
     leading_colon: Some(Token![::](Span::call_site())),
     segments,
   };
+
   image_icon(&root.to_token_stream(), &out_dir, path)
 }
 

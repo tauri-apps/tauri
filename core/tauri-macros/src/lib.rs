@@ -162,7 +162,19 @@ pub fn do_menu_item(input: TokenStream) -> TokenStream {
 /// ### Examples
 ///
 /// ```ignore
-/// TrayIconBuilder::new().icon(include_image!("./icons/32x32.png")).build().unwrap();
+/// const APP_ICON: Image<'_> = include_image!("./icons/32x32.png");
+/// 
+/// // then use it with tray
+/// TrayIconBuilder::new().icon(APP_ICON).build().unwrap();
+///
+/// // or with window
+/// WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+///     .icon(APP_ICON)
+///     .unwrap()
+///     .build()
+///     .unwrap();
+///
+/// // or with any other functions that takes `Image` struct
 /// ```
 ///
 /// Note: this stores the image in raw pixels to the final binary,
@@ -170,15 +182,16 @@ pub fn do_menu_item(input: TokenStream) -> TokenStream {
 /// or else it's going to bloat your final executable
 #[proc_macro]
 pub fn include_image(tokens: TokenStream) -> TokenStream {
-  let Ok(path) = parse2::<LitStr>(tokens.into()) else {
-    return quote!(compile_error!("Macro body is not a string")).into();
+  let path = match parse2::<LitStr>(tokens.into()) {
+    Ok(path) => path,
+    Err(err) => return err.into_compile_error().into();
   };
   let path = PathBuf::from(path.value());
   let resolved_path = if path.is_relative() {
     if let Ok(base_dir) = std::env::var("CARGO_MANIFEST_DIR").map(PathBuf::from) {
       base_dir.join(path)
     } else {
-      return quote!(compile_error!("Can't resolve relative path")).into();
+      return quote!(compile_error!("$CARGO_MANIFEST_DIR is not defined")).into();
     }
   } else {
     path

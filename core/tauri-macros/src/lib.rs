@@ -196,6 +196,13 @@ pub fn include_image(tokens: TokenStream) -> TokenStream {
   } else {
     path
   };
+  if !resolved_path.exists() {
+    let error_string = format!(
+      "Provided Image path \"{}\" doesn't exists",
+      resolved_path.display()
+    );
+    return quote!(compile_error!(#error_string)).into();
+  }
   match tauri_codegen::include_image_codegen(&resolved_path).map_err(|error| error.to_string()) {
     Ok(output) => output,
     Err(error) => quote!(compile_error!(#error)),

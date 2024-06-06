@@ -49,7 +49,7 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
         let new_contents =
           tauri_api_import_regex.replace_all(&js_contents, |cap: &regex::bytes::Captures<'_>| {
             let module = cap.get(1).unwrap().as_bytes();
-            let module = String::from_utf8_lossy(module).to_string();
+            let mut module = String::from_utf8_lossy(module).to_string();
             let original = cap.get(0).unwrap().as_bytes();
             let original = String::from_utf8_lossy(original).to_string();
 
@@ -58,17 +58,16 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
             {
               renamed_to.to_string()
             } else if PLUGINIFIED_MODULES.contains(&module.as_str()) {
-              let plugin = format!("@tauri-apps/plugin-{module}");
-              new_npm_packages.push(plugin.clone());
-              new_cargo_packages.push(format!(
-                "tauri-plugin-{}",
-                if module == "clipboard" {
-                  "clipboard-manager"
-                } else {
-                  &module
-                }
-              ));
-              plugin
+              match module.as_str() {
+                "clipboard" => module = String::from("clipboard-manager"),
+                "globalShortcut" => module = String::from("global-shortcut"),
+                _ => {}
+              }
+              let js_plugin = format!("@tauri-apps/plugin-{module}");
+              let cargo_crate = format!("tauri-plugin-{module}");
+              new_npm_packages.push(js_plugin.clone());
+              new_cargo_packages.push(cargo_crate);
+              js_plugin
             } else {
               return original;
             };

@@ -44,6 +44,8 @@ use tauri_macros::default_runtime;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
+use super::DownloadEvent;
+
 /// A builder for [`WebviewWindow`], a window that hosts a single webview.
 pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
   window_builder: WindowBuilder<'a, R, M>,
@@ -260,6 +262,54 @@ tauri::Builder::default()
   )]
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
+    self
+  }
+
+  /// Set a download event handler to be notified when a download is requested or finished.
+  ///
+  /// Returning `false` prevents the download from happening on a [`DownloadEvent::Requested`] event.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  webview::{DownloadEvent, WebviewWindowBuilder},
+};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle();
+    let webview_window = WebviewWindowBuilder::new(handle, "core", WebviewUrl::App("index.html".into()))
+      .on_download(|webview, event| {
+        match event {
+          DownloadEvent::Requested { url, destination } => {
+            println!("downloading {}", url);
+            *destination = "/home/tauri/target/path".into();
+          }
+          DownloadEvent::Finished { url, path, success } => {
+            println!("downloaded {} to {:?}, success: {}", url, path, success);
+          }
+          _ => (),
+        }
+        // let the download start
+        true
+      })
+      .build()?;
+
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn on_download<F: Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder.download_handler.replace(Arc::new(f));
     self
   }
 

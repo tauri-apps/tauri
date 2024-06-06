@@ -139,6 +139,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("tauri_version", true),
       ("app_show", false),
       ("app_hide", false),
+      ("default_window_icon", false),
     ],
   ),
   (

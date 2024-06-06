@@ -104,6 +104,7 @@
             }
           },
           "files": {},
+          "hardenedRuntime": true,
           "minimumSystemVersion": "10.13"
         },
         "targets": "all",
@@ -1317,7 +1318,7 @@
           ]
         },
         "iconPath": {
-          "description": "Path to the default icon to use for the tray icon.",
+          "description": "Path to the default icon to use for the tray icon.\n\nNote: this stores the image in raw pixels to the final binary, so keep the icon size (width and height) small or else it's going to bloat your final executable",
           "type": "string"
         },
         "iconAsTemplate": {
@@ -1532,6 +1533,13 @@
             "null"
           ]
         },
+        "homepage": {
+          "description": "A url to the home page of your application. If unset, will fallback to `homepage` defined in `Cargo.toml`.\n\nSupported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "icon": {
           "description": "The app's icons",
           "default": [],
@@ -1676,6 +1684,7 @@
               }
             },
             "files": {},
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -2290,12 +2299,10 @@
         },
         "compression": {
           "description": "Set the compression algorithm used to compress files in the installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
-          "anyOf": [
+          "default": "lzma",
+          "allOf": [
             {
               "$ref": "#/definitions/NsisCompression"
-            },
-            {
-              "type": "null"
             }
           ]
         },
@@ -2357,6 +2364,13 @@
           "type": "string",
           "enum": [
             "lzma"
+          ]
+        },
+        {
+          "description": "Disable compression",
+          "type": "string",
+          "enum": [
+            "none"
           ]
         }
       ]
@@ -2680,6 +2694,11 @@
             "string",
             "null"
           ]
+        },
+        "hardenedRuntime": {
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n[hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "default": true,
+          "type": "boolean"
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",

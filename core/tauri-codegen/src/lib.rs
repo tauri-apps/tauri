@@ -13,6 +13,7 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
+pub use self::image::include_image_codegen;
 use std::{
   borrow::Cow,
   path::{Path, PathBuf},
@@ -22,6 +23,7 @@ use tauri_utils::platform::Target;
 
 mod context;
 pub mod embedded_assets;
+mod image;
 #[doc(hidden)]
 pub mod vendor;
 

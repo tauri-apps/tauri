@@ -316,7 +316,7 @@ fn build_nsis_app_installer(
   let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
-    to_json(main_binary.name().strip_suffix(".exe")),
+    to_json(main_binary_path.file_stem()),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));
 

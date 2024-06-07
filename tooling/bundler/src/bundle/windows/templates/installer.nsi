@@ -765,6 +765,9 @@ Function CreateOrUpdateStartMenuShortcut
   ${If} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     Return
+  ${ElseIf} ${FileExists} "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+    !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Return
   ${EndIf}
 
   ; Skip creating shortcut if in update mode or no shortcut mode

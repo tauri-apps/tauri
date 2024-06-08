@@ -1064,6 +1064,7 @@ fn tauri_config_to_bundle_settings(
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends_deb.push("libayatana-appindicator3-1".into());
+        libs.push("libayatana-appindicator3.so.1".into());
       } else {
         depends_deb.push("libappindicator3-1".into());
         libs.push("libappindicator3.so.1".into());

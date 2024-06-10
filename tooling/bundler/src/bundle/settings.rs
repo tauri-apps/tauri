@@ -317,6 +317,10 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Preserve the hardened runtime version flag, see <https://developer.apple.com/documentation/security/hardened_runtime>
+  ///
+  /// Settings this to `false` is useful when using an ad-hoc signature, making it less strict.
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
@@ -412,7 +416,7 @@ pub struct NsisSettings {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
-  pub compression: Option<NsisCompression>,
+  pub compression: NsisCompression,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///
@@ -523,6 +527,11 @@ pub struct BundleSettings {
   /// The app's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
+  /// A url to the home page of your application. If None, will
+  /// fallback to [PackageSettings::homepage].
+  ///
+  /// Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`
+  pub homepage: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
   /// the app's resources to bundle.
@@ -893,7 +902,7 @@ impl Settings {
     self.bundle_settings.identifier.as_deref().unwrap_or("")
   }
 
-  /// Returns the bundle's identifier
+  /// Returns the bundle's publisher
   pub fn publisher(&self) -> Option<&str> {
     self.bundle_settings.publisher.as_deref()
   }
@@ -999,8 +1008,12 @@ impl Settings {
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
-  pub fn homepage_url(&self) -> &str {
-    self.package.homepage.as_deref().unwrap_or("")
+  pub fn homepage_url(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .homepage
+      .as_deref()
+      .or(self.package.homepage.as_deref())
   }
 
   /// Returns the app's category.

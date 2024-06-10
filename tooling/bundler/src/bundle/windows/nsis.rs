@@ -34,8 +34,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.3.0/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "01E48D6429B48B640230C6CE8F257C84758943AA";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.0/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "E0FC0951DEB0E5E741DF10328F95C7D6678AD3AA";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -187,6 +187,10 @@ fn build_nsis_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
   data.insert(
+    "homepage",
+    to_json(settings.homepage_url().unwrap_or_default()),
+  );
+  data.insert(
     "long_description",
     to_json(settings.long_description().unwrap_or_default()),
   );
@@ -242,15 +246,6 @@ fn build_nsis_app_installer(
     }
 
     data.insert(
-      "compression",
-      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
-        NsisCompression::Zlib => "zlib",
-        NsisCompression::Bzip2 => "bzip2",
-        NsisCompression::Lzma => "lzma",
-      }),
-    );
-
-    data.insert(
       "display_language_selector",
       to_json(nsis.display_language_selector && languages.len() > 1),
     );
@@ -260,6 +255,23 @@ fn build_nsis_app_installer(
       data.insert("installer_hooks", to_json(installer_hooks));
     }
   }
+
+  let compression = settings
+    .windows()
+    .nsis
+    .as_ref()
+    .map(|n| n.compression)
+    .unwrap_or_default();
+  data.insert(
+    "compression",
+    to_json(match compression {
+      NsisCompression::Zlib => "zlib",
+      NsisCompression::Bzip2 => "bzip2",
+      NsisCompression::Lzma => "lzma",
+      NsisCompression::None => "none",
+    }),
+  );
+
   data.insert(
     "install_mode",
     to_json(match install_mode {

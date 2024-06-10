@@ -518,6 +518,7 @@ pub fn build_wix_app_installer(
     "long_description",
     to_json(settings.long_description().unwrap_or_default()),
   );
+  data.insert("homepage", to_json(settings.homepage_url()));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()

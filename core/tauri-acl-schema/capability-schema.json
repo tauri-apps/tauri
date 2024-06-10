@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Capability",
-  "description": "A grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.\n\nIf a window is not matching any capability then it has no access to the IPC layer at all.\n\nThis can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows. Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.",
+  "description": "A grouping and boundary mechanism developers can use to isolate access to the IPC layer.\n\n It controls application windows fine grained access to the Tauri core, application, or plugin commands.\n If a window is not matching any capability then it has no access to the IPC layer at all.\n\n This can be done to create groups of windows, based on their required system access, which can reduce\n impact of frontend vulnerabilities in less privileged windows.\n Windows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`.\n A Window can have none, one, or multiple associated capabilities.\n\n ## Example\n\n ```json\n {\n   \"identifier\": \"main-user-files-write\",\n   \"description\": \"This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programatic access to files selected by the user.\",\n   \"windows\": [\n     \"main\"\n   ],\n  \"permissions\": [\n   \"path:default\",\n   \"dialog:open\",\n   {\n     \"identifier\": \"fs:allow-write-text-file\",\n     \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n   },\n  \"platforms\": [\"macOS\",\"windows\"]\n }\n ```",
   "type": "object",
   "required": [
     "identifier",
@@ -9,16 +9,16 @@
   ],
   "properties": {
     "identifier": {
-      "description": "Identifier of the capability.",
+      "description": "Identifier of the capability.\n\n ## Example\n \n `main-user-files-write`",
       "type": "string"
     },
     "description": {
-      "description": "Description of the capability.",
+      "description": "Description of what the capability is intended to allow on associated windows.\n \n It should contain a description of what the grouped permissions should allow.\n\n ## Example\n\n This capability allows the `main` window access to `filesystem` write related\n commands and `dialog` commands to enable programatic access to files selected by the user.",
       "default": "",
       "type": "string"
     },
     "remote": {
-      "description": "Configure remote URLs that can use the capability permissions.",
+      "description": "Configure remote URLs that can use the capability permissions.\n\n This setting is optional and defaults to not being set, as our\n default use case is that the content is served from our local application.\n\n :::caution\n Make sure you understand the security implications of providing remote\n sources with local system access.\n :::\n \n ## Example\n\n ```json\n {\n   \"urls\": [\"https://*.mydomain.dev\"] \n }\n ```",
       "anyOf": [
         {
           "$ref": "#/definitions/CapabilityRemote"
@@ -34,28 +34,28 @@
       "type": "boolean"
     },
     "windows": {
-      "description": "List of windows that uses this capability. Can be a glob pattern.\n\nOn multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.",
+      "description": "List of windows that are affected by this capability. Can be a glob pattern.\n\n On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.\n\n ## Example\n\n `[\"main\"]`",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "webviews": {
-      "description": "List of webviews that uses this capability. Can be a glob pattern.\n\nThis is only required when using on multiwebview contexts, by default all child webviews of a window that matches [`Self::windows`] are linked.",
+      "description": "List of webviews that are affected by this capability. Can be a glob pattern.\n\n This is only required when using on multiwebview contexts, by default\n all child webviews of a window that matches [`Self::windows`] are linked.\n\n ## Example\n\n `[\"sub-webview-one\", \"sub-webview-two\"]`",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "permissions": {
-      "description": "List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.",
+      "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n \n ## Example\n\n ```json\n [\n  \"path:default\",\n  \"event:default\",\n  \"window:default\",\n  \"app:default\",\n  \"image:default\",\n  \"resources:default\",\n  \"menu:default\",\n  \"tray:default\",\n  \"shell:allow-open\",\n  \"dialog:open\",\n  {\n    \"identifier\": \"fs:allow-write-text-file\",\n    \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n  }\n ```",
       "type": "array",
       "items": {
         "$ref": "#/definitions/PermissionEntry"
       }
     },
     "platforms": {
-      "description": "Target platforms this capability applies. By default all platforms are affected by this capability.",
+      "description": "Limit which target platforms this capability applies to.\n \n By default all platforms are targeted.\n\n ## Example\n\n `[\"macOS\",\"windows\"]`",
       "type": [
         "array",
         "null"
@@ -74,7 +74,7 @@
       ],
       "properties": {
         "urls": {
-          "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).\n\n# Examples\n\n- \"https://*.mydomain.dev\": allows subdomains of mydomain.dev - \"https://mydomain.dev/api/*\": allows any subpath of mydomain.dev/api",
+          "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).\n\n ## Examples\n\n - \"https://*.mydomain.dev\": allows subdomains of mydomain.dev\n - \"https://mydomain.dev/api/*\": allows any subpath of mydomain.dev/api",
           "type": "array",
           "items": {
             "type": "string"
@@ -83,7 +83,7 @@
       }
     },
     "PermissionEntry": {
-      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`] or an object that references a permission and extends its scope.",
+      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]\n or an object that references a permission and extends its scope.",
       "anyOf": [
         {
           "description": "Reference a permission or permission set by identifier.",
@@ -119,7 +119,7 @@
               }
             },
             "deny": {
-              "description": "Data that defines what is denied by the scope.",
+              "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
               "type": [
                 "array",
                 "null"

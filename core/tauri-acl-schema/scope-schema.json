@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Scopes",
-  "description": "A restriction of the command/endpoint functionality.\n\nIt can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.\n\nThe scope is passed to the command and handled/enforced by the command itself.",
+  "description": "An argument for fine grained behavior control of Tauri commands.\n\n It can be of any serde serializable type and is used to allow or prevent certain actions inside a Tauri command.\n The configured scope is passed to the command and will be enforced by the command implementation.\n \n ## Example\n \n ```json\n {\n   \"allow\": [{ \"path\": \"$HOME/**\" }],\n   \"deny\": [{ \"path\": \"$HOME/secret.txt\" }]\n }\n ```",
   "type": "object",
   "properties": {
     "allow": {
@@ -15,7 +15,7 @@
       }
     },
     "deny": {
-      "description": "Data that defines what is denied by the scope.",
+      "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
       "type": [
         "array",
         "null"

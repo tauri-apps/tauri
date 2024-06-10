@@ -1318,7 +1318,7 @@
           ]
         },
         "iconPath": {
-          "description": "Path to the default icon to use for the tray icon.",
+          "description": "Path to the default icon to use for the tray icon.\n\n Note: this stores the image in raw pixels to the final binary,\n so keep the icon size (width and height) small\n or else it's going to bloat your final executable",
           "type": "string"
         },
         "iconAsTemplate": {
@@ -1527,14 +1527,14 @@
           ]
         },
         "publisher": {
-          "description": "The application's publisher. Defaults to the second element in the identifier string. Currently maps to the Manufacturer property of the Windows Installer.",
+          "description": "The application's publisher. Defaults to the second element in the identifier string.\n Currently maps to the Manufacturer property of the Windows Installer.",
           "type": [
             "string",
             "null"
           ]
         },
         "homepage": {
-          "description": "A url to the home page of your application. If unset, will fallback to `homepage` defined in `Cargo.toml`.\n\nSupported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
+          "description": "A url to the home page of your application. If unset, will\n fallback to `homepage` defined in `Cargo.toml`.\n\n Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
           "type": [
             "string",
             "null"
@@ -2299,7 +2299,8 @@
         },
         "compression": {
           "description": "Set the compression algorithm used to compress files in the installer.\n\n See <https://nsis.sourceforge.io/Reference/SetCompressor>",
-          "anyOf": [
+          "default": "lzma",
+          "allOf": [
             {
               "$ref": "#/definitions/NsisCompression"
             }
@@ -2693,6 +2694,11 @@
             "string",
             "null"
           ]
+        },
+        "hardenedRuntime": {
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "default": true,
+          "type": "boolean"
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",

@@ -1318,7 +1318,7 @@
           ]
         },
         "iconPath": {
-          "description": "Path to the default icon to use for the tray icon.\n\nNote: this stores the image in raw pixels to the final binary, so keep the icon size (width and height) small or else it's going to bloat your final executable",
+          "description": "Path to the default icon to use for the tray icon.\n\n Note: this stores the image in raw pixels to the final binary,\n so keep the icon size (width and height) small\n or else it's going to bloat your final executable",
           "type": "string"
         },
         "iconAsTemplate": {
@@ -1527,14 +1527,14 @@
           ]
         },
         "publisher": {
-          "description": "The application's publisher. Defaults to the second element in the identifier string. Currently maps to the Manufacturer property of the Windows Installer.",
+          "description": "The application's publisher. Defaults to the second element in the identifier string.\n Currently maps to the Manufacturer property of the Windows Installer.",
           "type": [
             "string",
             "null"
           ]
         },
         "homepage": {
-          "description": "A url to the home page of your application. If unset, will fallback to `homepage` defined in `Cargo.toml`.\n\nSupported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
+          "description": "A url to the home page of your application. If unset, will\n fallback to `homepage` defined in `Cargo.toml`.\n\n Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`.",
           "type": [
             "string",
             "null"
@@ -2178,14 +2178,14 @@
           "type": "boolean"
         },
         "bannerPath": {
-          "description": "Path to a bitmap file to use as the installation user interface banner. This bitmap will appear at the top of all but the first page of the installer.\n\nThe required dimensions are 493px × 58px.",
+          "description": "Path to a bitmap file to use as the installation user interface banner.\n This bitmap will appear at the top of all but the first page of the installer.\n\n The required dimensions are 493px × 58px.",
           "type": [
             "string",
             "null"
           ]
         },
         "dialogImagePath": {
-          "description": "Path to a bitmap file to use on the installation user interface dialogs. It is used on the welcome and completion dialogs. The required dimensions are 493px × 312px.",
+          "description": "Path to a bitmap file to use on the installation user interface dialogs.\n It is used on the welcome and completion dialogs.\n The required dimensions are 493px × 312px.",
           "type": [
             "string",
             "null"
@@ -2218,7 +2218,7 @@
       ]
     },
     "WixLanguageConfig": {
-      "description": "Configuration for a target language for the WiX build.\n\nSee more: <https://tauri.app/v1/api/config#wixlanguageconfig>",
+      "description": "Configuration for a target language for the WiX build.\n\n See more: <https://tauri.app/v1/api/config#wixlanguageconfig>",
       "type": "object",
       "properties": {
         "localePath": {
@@ -2243,14 +2243,14 @@
           ]
         },
         "headerImage": {
-          "description": "The path to a bitmap file to display on the header of installers pages.\n\nThe recommended dimensions are 150px x 57px.",
+          "description": "The path to a bitmap file to display on the header of installers pages.\n\n The recommended dimensions are 150px x 57px.",
           "type": [
             "string",
             "null"
           ]
         },
         "sidebarImage": {
-          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\nThe recommended dimensions are 164px x 314px.",
+          "description": "The path to a bitmap file for the Welcome page and the Finish page.\n\n The recommended dimensions are 164px x 314px.",
           "type": [
             "string",
             "null"
@@ -2298,8 +2298,9 @@
           "type": "boolean"
         },
         "compression": {
-          "description": "Set the compression algorithm used to compress files in the installer.\n\nSee <https://nsis.sourceforge.io/Reference/SetCompressor>",
-          "anyOf": [
+          "description": "Set the compression algorithm used to compress files in the installer.\n\n See <https://nsis.sourceforge.io/Reference/SetCompressor>",
+          "default": "lzma",
+          "allOf": [
             {
               "$ref": "#/definitions/NsisCompression"
             }
@@ -2695,7 +2696,7 @@
           ]
         },
         "hardenedRuntime": {
-          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n[hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
           "default": true,
           "type": "boolean"
         },

@@ -245,7 +245,7 @@ pub fn command(mut options: Options) -> Result<()> {
 
   let default_permissions = r#"[default]
 description = "Default permissions for the plugin"
-permissions = ["ping"]
+permissions = ["allow-ping"]
 "#;
   std::fs::write(permissions_dir.join("default.toml"), default_permissions)
     .with_context(|| "failed to write `permissions/default.toml`")?;

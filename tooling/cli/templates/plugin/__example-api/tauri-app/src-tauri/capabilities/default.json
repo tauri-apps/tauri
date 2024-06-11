@@ -13,6 +13,6 @@
     "image:default",
     "menu:default",
     "tray:default",
-    "{{ plugin_name }}:allow-ping"
+    "{{ plugin_name }}:default"
   ]
 }

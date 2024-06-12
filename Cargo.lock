@@ -1765,7 +1765,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
 dependencies = [
  "cfg-if",
- "windows-targets 0.52.5",
+ "windows-targets 0.48.5",
 ]
 
 [[package]]
@@ -3584,7 +3584,7 @@ dependencies = [
  "urlpattern",
  "uuid",
  "webkit2gtk",
- "webview2-com 0.31.0",
+ "webview2-com",
  "window-vibrancy",
  "windows 0.57.0",
 ]
@@ -3721,7 +3721,7 @@ dependencies = [
  "tracing",
  "url",
  "webkit2gtk",
- "webview2-com 0.31.0",
+ "webview2-com",
  "windows 0.57.0",
  "wry",
 ]
@@ -4507,26 +4507,12 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c914dd492a52f0377bef56fd1b6e74a79090f9ee631d625d5b505a00e4538b6"
-dependencies = [
- "webview2-com-macros",
- "webview2-com-sys 0.30.0",
- "windows 0.56.0",
- "windows-core 0.56.0",
- "windows-implement 0.56.0",
- "windows-interface 0.56.0",
-]
-
-[[package]]
-name = "webview2-com"
 version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6516cfa64c6b3212686080eeec378e662c2af54bb2a5b2a22749673f5cb2226f"
 dependencies = [
  "webview2-com-macros",
- "webview2-com-sys 0.31.0",
+ "webview2-com-sys",
  "windows 0.57.0",
  "windows-core 0.57.0",
  "windows-implement 0.57.0",
@@ -4542,17 +4528,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.57",
-]
-
-[[package]]
-name = "webview2-com-sys"
-version = "0.30.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a46bcf03482ec28eeb764ca788f67998cde4213adfbbfa90462622058530f5e"
-dependencies = [
- "thiserror",
- "windows 0.56.0",
- "windows-core 0.56.0",
 ]
 
 [[package]]
@@ -4970,9 +4945,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.40.0"
+version = "0.41.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cd42682bad8d1efd0e0d0593770c602c13b8922bb1ca705cb845967de81bbc4"
+checksum = "68b00c945786b02d7805d09a969fa36d0eee4e0bd4fb3ec2a79d2bf45a1b44cd"
 dependencies = [
  "base64 0.22.0",
  "block",
@@ -5004,9 +4979,9 @@ dependencies = [
  "tracing",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2-com 0.30.0",
- "windows 0.56.0",
- "windows-core 0.56.0",
+ "webview2-com",
+ "windows 0.57.0",
+ "windows-core 0.57.0",
  "windows-version",
  "x11-dl",
 ]

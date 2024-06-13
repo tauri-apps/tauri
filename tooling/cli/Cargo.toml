@@ -89,7 +89,7 @@ serde-value = "0.7.0"
 itertools = "0.12"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.40.0"
+resvg = "0.42.0"
 dunce = "1"
 glob = "0.3"
 

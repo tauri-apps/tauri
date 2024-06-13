@@ -130,9 +130,9 @@ pub struct Commands {
 ///
 /// It can be of any serde serializable type and is used to allow or prevent certain actions inside a Tauri command.
 /// The configured scope is passed to the command and will be enforced by the command implementation.
-/// 
+///
 /// ## Example
-/// 
+///
 /// ```json
 /// {
 ///   "allow": [{ "path": "$HOME/**" }],

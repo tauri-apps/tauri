@@ -77,12 +77,12 @@ pub struct Capability {
   /// Identifier of the capability.
   ///
   /// ## Example
-  /// 
+  ///
   /// `main-user-files-write`
   ///
   pub identifier: String,
   /// Description of what the capability is intended to allow on associated windows.
-  /// 
+  ///
   /// It should contain a description of what the grouped permissions should allow.
   ///
   /// ## Example
@@ -100,12 +100,12 @@ pub struct Capability {
   /// Make sure you understand the security implications of providing remote
   /// sources with local system access.
   /// :::
-  /// 
+  ///
   /// ## Example
   ///
   /// ```json
   /// {
-  ///   "urls": ["https://*.mydomain.dev"] 
+  ///   "urls": ["https://*.mydomain.dev"]
   /// }
   /// ```
   #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -137,7 +137,7 @@ pub struct Capability {
   /// Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
   /// For commands directly implemented in the application itself only `${permission-name}`
   /// is required.
-  /// 
+  ///
   /// ## Example
   ///
   /// ```json
@@ -159,7 +159,7 @@ pub struct Capability {
   /// ```
   pub permissions: Vec<PermissionEntry>,
   /// Limit which target platforms this capability applies to.
-  /// 
+  ///
   /// By default all platforms are targeted.
   ///
   /// ## Example

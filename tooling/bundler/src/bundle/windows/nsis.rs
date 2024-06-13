@@ -21,7 +21,7 @@ use handlebars::{to_json, Handlebars};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
-  collections::{BTreeMap, HashMap},
+  collections::BTreeMap,
   fs,
   path::{Path, PathBuf},
   process::Command,
@@ -216,42 +216,38 @@ fn build_nsis_app_installer(
   if let Some(license_file) = settings.license_file() {
     let license_file = dunce::canonicalize(license_file)?;
     let license_file_with_bom = output_path.join("license_file");
-    write_utf8_with_bom(&license_file_with_bom, std::fs::read(license_file)?)?;
+    let content = std::fs::read(license_file)?;
+    write_utf8_with_bom(&license_file_with_bom, content)?;
     data.insert("license", to_json(license_file_with_bom));
   }
 
-  let mut install_mode = NSISInstallerMode::CurrentUser;
-  let mut languages = vec!["English".into()];
-  let mut custom_template_path = None;
-  let mut custom_language_files = None;
-  if let Some(nsis) = &settings.windows().nsis {
-    custom_template_path.clone_from(&nsis.template);
-    custom_language_files.clone_from(&nsis.custom_language_files);
-    install_mode = nsis.install_mode;
-    if let Some(langs) = &nsis.languages {
-      languages.clear();
-      languages.extend_from_slice(langs);
-    }
+  let nsis = settings.windows().nsis.as_ref();
+
+  let custom_template_path = nsis.as_ref().and_then(|n| n.template.clone());
+
+  let install_mode = nsis
+    .as_ref()
+    .map(|n| n.install_mode)
+    .unwrap_or(NSISInstallerMode::CurrentUser);
+
+  if let Some(nsis) = nsis {
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
         to_json(dunce::canonicalize(installer_icon)?),
       );
     }
+
     if let Some(header_image) = &nsis.header_image {
       data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
     }
+
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
         to_json(dunce::canonicalize(sidebar_image)?),
       );
     }
-
-    data.insert(
-      "display_language_selector",
-      to_json(nsis.display_language_selector && languages.len() > 1),
-    );
 
     if let Some(installer_hooks) = &nsis.installer_hooks {
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
@@ -284,25 +280,47 @@ fn build_nsis_app_installer(
     }),
   );
 
-  let mut languages_data = Vec::new();
-  for lang in &languages {
-    if let Some(data) = get_lang_data(lang, custom_language_files.as_ref())? {
-      languages_data.push(data);
-    } else {
-      log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
-    }
-  }
-
+  let languages = nsis
+    .and_then(|nsis| nsis.languages.clone())
+    .unwrap_or_else(|| vec!["English".into()]);
   data.insert("languages", to_json(languages.clone()));
+
   data.insert(
-    "language_files",
+    "display_language_selector",
     to_json(
-      languages_data
-        .iter()
-        .map(|d| d.0.clone())
-        .collect::<Vec<_>>(),
+      nsis
+        .map(|nsis| nsis.display_language_selector && languages.len() > 1)
+        .unwrap_or(false),
     ),
   );
+
+  let custom_language_files = nsis.and_then(|nsis| nsis.custom_language_files.clone());
+
+  let mut language_files_paths = Vec::new();
+  for lang in &languages {
+    // if user provided a custom lang file, we rewrite it with BOM
+    if let Some(path) = custom_language_files.as_ref().and_then(|h| h.get(lang)) {
+      let path = dunce::canonicalize(path)?;
+      let path_with_bom = path
+        .file_name()
+        .map(|f| output_path.join(f))
+        .unwrap_or_else(|| output_path.join(format!("{lang}_custom.nsh")));
+      let content = std::fs::read(path)?;
+      write_utf8_with_bom(&path_with_bom, content)?;
+      language_files_paths.push(path_with_bom);
+    } else {
+      // if user has not provided a custom lang file,
+      // we check our translated languages
+      if let Some((file_name, content)) = get_lang_data(lang) {
+        let path = output_path.join(file_name);
+        write_utf8_with_bom(&path, content)?;
+        language_files_paths.push(path);
+      } else {
+        log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
+      }
+    }
+  }
+  data.insert("language_files", to_json(language_files_paths));
 
   let main_binary = settings
     .binaries()
@@ -480,12 +498,6 @@ fn build_nsis_app_installer(
     &installer_nsi_path,
     handlebars.render("installer.nsi", &data)?,
   )?;
-
-  for (lang, data) in languages_data.iter() {
-    if let Some(content) = data {
-      write_utf8_with_bom(output_path.join(lang).with_extension("nsh"), content)?;
-    }
-  }
 
   let package_base_name = format!(
     "{}_{}_{}-setup",
@@ -666,41 +678,29 @@ fn generate_estimated_size(
   Ok(format!("{size:#08x}"))
 }
 
-fn get_lang_data(
-  lang: &str,
-  custom_lang_files: Option<&HashMap<String, PathBuf>>,
-) -> crate::Result<Option<(PathBuf, Option<&'static [u8]>)>> {
-  if let Some(path) = custom_lang_files.and_then(|h| h.get(lang)) {
-    return Ok(Some((dunce::canonicalize(path)?, None)));
-  }
-
-  let lang_path = PathBuf::from(format!("{lang}.nsh"));
-  let lang_content: Option<&[u8]> = match lang.to_lowercase().as_str() {
-    "arabic" => Some(include_bytes!("./templates/nsis-languages/Arabic.nsh")),
-    "bulgarian" => Some(include_bytes!("./templates/nsis-languages/Bulgarian.nsh")),
-    "dutch" => Some(include_bytes!("./templates/nsis-languages/Dutch.nsh")),
-    "english" => Some(include_bytes!("./templates/nsis-languages/English.nsh")),
-    "german" => Some(include_bytes!("./templates/nsis-languages/German.nsh")),
-    "japanese" => Some(include_bytes!("./templates/nsis-languages/Japanese.nsh")),
-    "korean" => Some(include_bytes!("./templates/nsis-languages/Korean.nsh")),
-    "portuguesebr" => Some(include_bytes!(
-      "./templates/nsis-languages/PortugueseBR.nsh"
-    )),
-    "russian" => Some(include_bytes!("./templates/nsis-languages/Russian.nsh")),
-    "tradchinese" => Some(include_bytes!("./templates/nsis-languages/TradChinese.nsh")),
-    "simpchinese" => Some(include_bytes!("./templates/nsis-languages/SimpChinese.nsh")),
-    "french" => Some(include_bytes!("./templates/nsis-languages/French.nsh")),
-    "spanish" => Some(include_bytes!("./templates/nsis-languages/Spanish.nsh")),
-    "spanishinternational" => Some(include_bytes!(
-      "./templates/nsis-languages/SpanishInternational.nsh"
-    )),
-    "persian" => Some(include_bytes!("./templates/nsis-languages/Persian.nsh")),
-    "turkish" => Some(include_bytes!("./templates/nsis-languages/Turkish.nsh")),
-    "swedish" => Some(include_bytes!("./templates/nsis-languages/Swedish.nsh")),
-    _ => return Ok(None),
+fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
+  let path = format!("{lang}.nsh");
+  let content: &[u8] = match lang.to_lowercase().as_str() {
+    "arabic" => include_bytes!("./templates/nsis-languages/Arabic.nsh"),
+    "bulgarian" => include_bytes!("./templates/nsis-languages/Bulgarian.nsh"),
+    "dutch" => include_bytes!("./templates/nsis-languages/Dutch.nsh"),
+    "english" => include_bytes!("./templates/nsis-languages/English.nsh"),
+    "german" => include_bytes!("./templates/nsis-languages/German.nsh"),
+    "japanese" => include_bytes!("./templates/nsis-languages/Japanese.nsh"),
+    "korean" => include_bytes!("./templates/nsis-languages/Korean.nsh"),
+    "portuguesebr" => include_bytes!("./templates/nsis-languages/PortugueseBR.nsh"),
+    "russian" => include_bytes!("./templates/nsis-languages/Russian.nsh"),
+    "tradchinese" => include_bytes!("./templates/nsis-languages/TradChinese.nsh"),
+    "simpchinese" => include_bytes!("./templates/nsis-languages/SimpChinese.nsh"),
+    "french" => include_bytes!("./templates/nsis-languages/French.nsh"),
+    "spanish" => include_bytes!("./templates/nsis-languages/Spanish.nsh"),
+    "spanishinternational" => include_bytes!("./templates/nsis-languages/SpanishInternational.nsh"),
+    "persian" => include_bytes!("./templates/nsis-languages/Persian.nsh"),
+    "turkish" => include_bytes!("./templates/nsis-languages/Turkish.nsh"),
+    "swedish" => include_bytes!("./templates/nsis-languages/Swedish.nsh"),
+    _ => return None,
   };
-
-  Ok(Some((lang_path, lang_content)))
+  Some((path, content))
 }
 
 fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> crate::Result<()> {

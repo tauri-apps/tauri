@@ -23,8 +23,6 @@ export default [
         tsconfigRootDir: import.meta.dirname
       }
     },
-
-    // add your custom rules here
     rules: {
       'no-console': 'error',
       'no-debugger': 'error',

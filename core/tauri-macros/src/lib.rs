@@ -11,9 +11,12 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
 )]
 
+use std::path::PathBuf;
+
 use crate::context::ContextItems;
 use proc_macro::TokenStream;
-use syn::parse_macro_input;
+use quote::quote;
+use syn::{parse2, parse_macro_input, LitStr};
 
 mod command;
 mod menu;
@@ -150,4 +153,59 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 pub fn do_menu_item(input: TokenStream) -> TokenStream {
   let tokens = parse_macro_input!(input as menu::DoMenuItemInput);
   menu::do_menu_item(tokens).into()
+}
+
+/// Convert a .png or .ico icon to an Image
+/// for things like `tauri::tray::TrayIconBuilder` to consume,
+/// relative paths are resolved from `CARGO_MANIFEST_DIR`, not current file
+///
+/// ### Examples
+///
+/// ```ignore
+/// const APP_ICON: Image<'_> = include_image!("./icons/32x32.png");
+///
+/// // then use it with tray
+/// TrayIconBuilder::new().icon(APP_ICON).build().unwrap();
+///
+/// // or with window
+/// WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+///     .icon(APP_ICON)
+///     .unwrap()
+///     .build()
+///     .unwrap();
+///
+/// // or with any other functions that takes `Image` struct
+/// ```
+///
+/// Note: this stores the image in raw pixels to the final binary,
+/// so keep the icon size (width and height) small
+/// or else it's going to bloat your final executable
+#[proc_macro]
+pub fn include_image(tokens: TokenStream) -> TokenStream {
+  let path = match parse2::<LitStr>(tokens.into()) {
+    Ok(path) => path,
+    Err(err) => return err.into_compile_error().into(),
+  };
+  let path = PathBuf::from(path.value());
+  let resolved_path = if path.is_relative() {
+    if let Ok(base_dir) = std::env::var("CARGO_MANIFEST_DIR").map(PathBuf::from) {
+      base_dir.join(path)
+    } else {
+      return quote!(compile_error!("$CARGO_MANIFEST_DIR is not defined")).into();
+    }
+  } else {
+    path
+  };
+  if !resolved_path.exists() {
+    let error_string = format!(
+      "Provided Image path \"{}\" doesn't exists",
+      resolved_path.display()
+    );
+    return quote!(compile_error!(#error_string)).into();
+  }
+  match tauri_codegen::include_image_codegen(&resolved_path).map_err(|error| error.to_string()) {
+    Ok(output) => output,
+    Err(error) => quote!(compile_error!(#error)),
+  }
+  .into()
 }

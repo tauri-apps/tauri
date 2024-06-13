@@ -10,6 +10,7 @@ use std::{
   io::{BufWriter, Write},
   path::{Path, PathBuf},
   str::FromStr,
+  sync::Arc,
 };
 
 use anyhow::Context;
@@ -117,16 +118,20 @@ pub fn command(options: Options) -> Result<()> {
   let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
       let rtree = {
+        let mut fontdb = usvg::fontdb::Database::new();
+        fontdb.load_system_fonts();
+
         let opt = usvg::Options {
           // Get file's absolute directory.
           resources_dir: std::fs::canonicalize(&input)
             .ok()
             .and_then(|p| p.parent().map(|p| p.to_path_buf())),
+          fontdb: Arc::new(fontdb),
           ..Default::default()
         };
 
         let svg_data = std::fs::read(&input).unwrap();
-        usvg::Tree::from_data(&svg_data, &opt, &Default::default()).unwrap()
+        usvg::Tree::from_data(&svg_data, &opt).unwrap()
       };
 
       Source::Svg(rtree)

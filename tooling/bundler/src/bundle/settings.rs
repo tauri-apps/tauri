@@ -417,7 +417,14 @@ pub struct NsisSettings {
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
   pub compression: NsisCompression,
-  /// Create a start menu folder for grouping shortcuts together
+  /// Set the folder name for the start menu shortcut.
+  ///
+  /// Use this option if you have multiple apps and wish to group their shortcuts under one folder
+  /// or if you generally prefer to set your shortcut inside a folder.
+  ///
+  /// Examples:
+  /// - `AwesomePublisher`, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\AwesomePublisher\<your-app>.lnk`
+  /// - If unset, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\<your-app>.lnk`
   pub start_menu_folder: Option<String>,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.

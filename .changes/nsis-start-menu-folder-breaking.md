@@ -2,4 +2,4 @@
 "tauri-bundler": "patch:breaking"
 ---
 
-Changed start menu folder default to no additional folder instead of an extra folder with the same name as the shortcut
+Changed NSIS start menu shortcut to be placed directly inside `%AppData%\Microsoft\Windows\Start Menu\Programs` without an additional folder. You can get the old behavior by setting `bundle > nsis > startMenuFolder` to the same value as your `productName`

@@ -705,11 +705,19 @@ Section Uninstall
 
     ; Remove start menu shortcut
     !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
-    !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    RMDir "$SMPROGRAMS\$AppStartMenuFolder"
-    !insertmacro UnpinShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk"
-    Delete "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+    !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+      Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+      RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+    ${EndIf}
+    !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+      Delete "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+    ${EndIf}
 
     ; Remove desktop shortcuts
     !insertmacro UnpinShortcut "$DESKTOP\${PRODUCTNAME}.lnk"
@@ -763,15 +771,18 @@ FunctionEnd
 Function CreateOrUpdateStartMenuShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
-  StrCpy $0 0
-  ${If} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-    StrCpy $0 1
-  ${If} ${FileExists} "$SMPROGRAMS\${PRODUCTNAME}.lnk"
-    !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-    StrCpy $0 1
-  ${EndIf}
+  StrCpy $R0 0
+  !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  Pop $0
   ${If} $0 = 1
+    !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  ${EndIf}
+  !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  Pop $0
+  ${If} $0 = 1
+    !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  ${EndIf}
+  ${If} $R0 = 1
     Return
   ${EndIf}
 
@@ -794,7 +805,9 @@ FunctionEnd
 Function CreateOrUpdateDesktopShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
-  ${If} ${FileExists} "$DESKTOP\${PRODUCTNAME}.lnk"
+  !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  Pop $0
+  ${If} $0 = 1
     !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     Return
   ${EndIf}

@@ -39,7 +39,7 @@
     "build": "rollup -c --configPlugin typescript",
     "npm-pack": "yarn build && cd ./dist && npm pack",
     "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
-    "ts:check": "tsc",
+    "ts:check": "tsc --noEmit",
     "lint": "eslint src/**.ts",
     "lint:fix": "eslint src/**.ts --fix",
     "format": "prettier --write . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore",

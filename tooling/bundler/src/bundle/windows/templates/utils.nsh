@@ -132,16 +132,19 @@
   ${EndIf}
 !macroend
 
-
 !define /ifndef MAX_PATH 260
 !define /ifndef SLGP_RAWPATH 0x4
 
 ; Test if a .lnk shortcut's target is target,
 ; use Pop to get the result, 1 is yes, 0 is no,
 ; note that this macro modifies $0, $1, $2, $3
-; Exmaple:
+;
+; Exmaple usage:
 ;   !insertmacro "IsShortCutTarget" "C:\Users\Public\Desktop\App.lnk" "C:\Program Files\App\App.exe"
 ;   Pop $0
+;   ${If} $0 = 1
+;     MessageBox MB_OK "shortcut matches"
+;   ${EndIf}
 !macro IsShortcutTarget shortcut target
   ; $0: IShellLink
   ; $1: IPersistFile

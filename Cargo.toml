@@ -44,3 +44,8 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+
+# Temporary patch to schemars to preserve newlines in docstrings for our reference docs schemas
+# See https://github.com/GREsau/schemars/issues/120 for reference
+[patch.crates-io]
+schemars_derive = { git = 'https://github.com/chippers/schemars.git', branch = 'feat/preserve-description-newlines' }

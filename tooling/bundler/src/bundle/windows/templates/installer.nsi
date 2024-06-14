@@ -763,11 +763,15 @@ FunctionEnd
 Function CreateOrUpdateStartMenuShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
+  StrCpy $0 0
   ${If} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-    Return
-  ${ElseIf} ${FileExists} "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+    StrCpy $0 1
+  ${If} ${FileExists} "$SMPROGRAMS\${PRODUCTNAME}.lnk"
     !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    StrCpy $0 1
+  ${EndIf}
+  ${If} $0 = 1
     Return
   ${EndIf}
 

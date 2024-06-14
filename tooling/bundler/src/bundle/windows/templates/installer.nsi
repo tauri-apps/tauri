@@ -720,8 +720,12 @@ Section Uninstall
     ${EndIf}
 
     ; Remove desktop shortcuts
-    !insertmacro UnpinShortcut "$DESKTOP\${PRODUCTNAME}.lnk"
-    Delete "$DESKTOP\${PRODUCTNAME}.lnk"
+    !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$DESKTOP\${PRODUCTNAME}.lnk"
+      Delete "$DESKTOP\${PRODUCTNAME}.lnk"
+    ${EndIf}
   ${EndIf}
 
   ; Remove registry information for add/remove programs

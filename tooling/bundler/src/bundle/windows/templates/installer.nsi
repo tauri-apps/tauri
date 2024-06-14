@@ -708,6 +708,7 @@ Section Uninstall
     !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
     RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+    !insertmacro UnpinShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk"
     Delete "$SMPROGRAMS\${PRODUCTNAME}.lnk"
 
     ; Remove desktop shortcuts

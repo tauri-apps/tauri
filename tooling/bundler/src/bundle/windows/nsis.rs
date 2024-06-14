@@ -253,6 +253,10 @@ fn build_nsis_app_installer(
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));
     }
+
+    if let Some(start_menu_folder) = &nsis.start_menu_folder {
+      data.insert("start_menu_folder", to_json(start_menu_folder));
+    }
   }
 
   let compression = settings

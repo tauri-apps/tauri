@@ -2307,7 +2307,7 @@
           ]
         },
         "startMenuFolder": {
-          "description": "Set the folder name for the start menu shortcut.\n\nUse this option if you have multiple apps and wish to group their shortcuts under one folder or if you generally prefer to set your shortcut inside a folder.\n\nExamples: - `AwesomePublisher`, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\AwesomePublisher\\<your-app>.lnk` - If unset, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\<your-app>.lnk`",
+          "description": "Set the folder name for the start menu shortcut.\n\n Use this option if you have multiple apps and wish to group their shortcuts under one folder\n or if you generally prefer to set your shortcut inside a folder.\n\n Examples:\n - `AwesomePublisher`, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\AwesomePublisher\\<your-app>.lnk`\n - If unset, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\<your-app>.lnk`",
           "type": [
             "string",
             "null"

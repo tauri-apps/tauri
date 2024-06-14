@@ -784,7 +784,7 @@ pub struct NsisConfig {
   /// Examples:
   /// - `AwesomePublisher`, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\AwesomePublisher\<your-app>.lnk`
   /// - If unset, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\<your-app>.lnk`
-  #[serde(default, alias = "start-menu-folder")]
+  #[serde(alias = "start-menu-folder")]
   pub start_menu_folder: Option<String>,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.

@@ -143,7 +143,7 @@
 ;   !insertmacro "IsShortCutTarget" "C:\Users\Public\Desktop\App.lnk" "C:\Program Files\App\App.exe"
 ;   Pop $0
 ;   ${If} $0 = 1
-;     MessageBox MB_OK "shortcut matches"
+;     MessageBox MB_OK "shortcut target matches"
 ;   ${EndIf}
 !macro IsShortcutTarget shortcut target
   ; $0: IShellLink

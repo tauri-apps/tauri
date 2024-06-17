@@ -29,7 +29,7 @@ use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
   AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
-  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings
+  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 

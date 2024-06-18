@@ -7,7 +7,7 @@
  */
 
 ;
-(function () {
+(function() {
   /**
    * @type {string}
    */

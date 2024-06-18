@@ -1213,6 +1213,7 @@ fn tauri_config_to_bundle_settings(
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());
+          libs.push("libayatana-appindicator3.so.1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
           depends_deb.push("libappindicator3-1".into());

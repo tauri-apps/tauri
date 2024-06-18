@@ -645,21 +645,20 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
 }
 
 fn generate_estimated_size(
-  main: &Path,
+  main: &PathBuf,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
 ) -> crate::Result<String> {
-  use std::fs::metadata;
-
-  let mut size = metadata(main)?.len();
-
-  for k in binaries.keys().chain(resources.keys()) {
-    size += metadata(k)?.len();
+  let mut size = 0;
+  for k in std::iter::once(main)
+    .chain(binaries.keys())
+    .chain(resources.keys())
+  {
+    size += std::fs::metadata(k)
+      .with_context(|| format!("when getting size of {}", main.display()))?
+      .len();
   }
-
-  size /= 1000;
-
-  Ok(format!("{size:#08x}"))
+  Ok(format!("{:#08x}", size / 1024))
 }
 
 fn get_lang_data(

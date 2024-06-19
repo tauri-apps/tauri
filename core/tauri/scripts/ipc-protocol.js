@@ -8,7 +8,6 @@
    *
    * This is declared outside the `window.__TAURI_INVOKE__` definition to prevent
    * the key from being leaked by `window.__TAURI_INVOKE__.toString()`.
-   * @var {string} __TEMPLATE_invoke_key__
    */
   const __TAURI_INVOKE_KEY__ = __TEMPLATE_invoke_key__
 

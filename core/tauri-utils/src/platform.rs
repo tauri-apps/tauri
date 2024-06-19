@@ -351,6 +351,13 @@ mod tests {
   use crate::{Env, PackageInfo};
 
   #[test]
+  fn test_current_exe() {
+    let current = super::current_exe().unwrap();
+    let current_expected = std::env::current_exe().unwrap();
+    assert_eq!(current, current_expected);
+  }
+
+  #[test]
   fn resolve_resource_dir() {
     let package_info = PackageInfo {
       name: "MyApp".into(),

@@ -34,7 +34,7 @@ impl StartingBinary {
     }
 
     // we canonicalize the path to resolve any symlinks to the real exe path
-    Self(dangerous_path.canonicalize())
+    Self(dunce::canonicalize(dangerous_path))
   }
 
   /// A clone of the [`PathBuf`] found to be the starting path.

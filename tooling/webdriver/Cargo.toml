@@ -27,3 +27,6 @@ which = "4"
 [target."cfg(unix)".dependencies]
 signal-hook = "0.3"
 signal-hook-tokio = { version = "0.3", features = [ "futures-v0_3" ] }
+
+[target."cfg(windows)".dependencies]
+win32job = "=2.0.0"

@@ -20,6 +20,15 @@ mod webdriver;
 fn main() {
   let args = pico_args::Arguments::from_env().into();
 
+  #[cfg(windows)]
+  let _ = {
+    use win32job::Job;
+    let job = Job::create().unwrap();
+    let mut info = job.query_extended_limit_info().unwrap();
+    job.set_extended_limit_info(&mut info).unwrap();
+    job.assign_current_process().unwrap();
+  };
+
   // start the native webdriver on the port specified in args
   let mut driver = webdriver::native(&args);
   let driver = driver

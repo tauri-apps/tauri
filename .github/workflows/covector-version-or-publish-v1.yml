@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - 1.x
+      - v1/msrv-check
 
 jobs:
   msrv-list:
@@ -107,7 +108,10 @@ jobs:
           cargo update -p tokio-test --precise 0.4.3
           cargo update -p tokio-stream --precise 0.1.14
           cargo update -p tokio-util --precise 0.7.10
-          cargo update -p os_pipe --precise 0.1.15
+          cargo update -p os_pipe --precise 1.1.5
+          cargo update -p syn:2.0.68 --precise 2.0.67
+          cargo update -p derive_more --precise 0.99.17
+          cargo update -p native-tls --precise 0.2.11
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test
@@ -115,6 +119,7 @@ jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
     needs: msrv-list
+    if: github.ref == 'refs/heads/1.x'
 
     strategy:
       fail-fast: false

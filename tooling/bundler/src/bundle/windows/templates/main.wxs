@@ -29,6 +29,9 @@
         <!-- reinstall all files; rewrite all registry entries; reinstall all shortcuts -->
         <Property Id="REINSTALLMODE" Value="amus" />
 
+        <!-- Check if this is an update from tauri-plugin-update to autostart the app after install -->
+        <Property Id="AUTOLAUNCHAPP" Value="no" Secure="yes" />
+
         {{#if allow_downgrades}}
             <MajorUpgrade Schedule="afterInstallInitialize" AllowDowngrades="yes" />
         {{else}}
@@ -333,6 +336,10 @@
             </Custom>
         </InstallExecuteSequence>
         {{/if}}
+
+        <InstallExecuteSequence>
+          <Custom Action="LaunchApplication" After="InstallFinalize"><![CDATA[NOT(AUTOLAUNCHAPP="True")]]> AND NOT Installed</Custom>
+        </InstallExecuteSequence>
 
         <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLDIR]" After="CostFinalize"/>
     </Product>

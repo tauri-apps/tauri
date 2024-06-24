@@ -111,6 +111,7 @@ jobs:
           cargo update -p os_pipe --precise 1.1.5
           cargo update -p syn:2.0.68 --precise 2.0.67
           cargo update -p derive_more --precise 0.99.17
+          cargo update -p native-tls --precise 0.2.11
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

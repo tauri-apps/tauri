@@ -42,40 +42,129 @@ impl PermissionEntry {
   }
 }
 
-/// A grouping and boundary mechanism developers can use to separate windows or plugins functionality from each other at runtime.
+/// A grouping and boundary mechanism developers can use to isolate access to the IPC layer.
 ///
+/// It controls application windows fine grained access to the Tauri core, application, or plugin commands.
 /// If a window is not matching any capability then it has no access to the IPC layer at all.
 ///
-/// This can be done to create trust groups and reduce impact of vulnerabilities in certain plugins or windows.
-/// Windows can be added to a capability by exact name or glob patterns like *, admin-* or main-window.
+/// This can be done to create groups of windows, based on their required system access, which can reduce
+/// impact of frontend vulnerabilities in less privileged windows.
+/// Windows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`.
+/// A Window can have none, one, or multiple associated capabilities.
+///
+/// ## Example
+///
+/// ```json
+/// {
+///   "identifier": "main-user-files-write",
+///   "description": "This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programatic access to files selected by the user.",
+///   "windows": [
+///     "main"
+///   ],
+///  "permissions": [
+///   "path:default",
+///   "dialog:open",
+///   {
+///     "identifier": "fs:allow-write-text-file",
+///     "allow": [{ "path": "$HOME/test.txt" }]
+///   },
+///  "platforms": ["macOS","windows"]
+/// }
+/// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Capability {
   /// Identifier of the capability.
+  ///
+  /// ## Example
+  ///
+  /// `main-user-files-write`
+  ///
   pub identifier: String,
-  /// Description of the capability.
+  /// Description of what the capability is intended to allow on associated windows.
+  ///
+  /// It should contain a description of what the grouped permissions should allow.
+  ///
+  /// ## Example
+  ///
+  /// This capability allows the `main` window access to `filesystem` write related
+  /// commands and `dialog` commands to enable programatic access to files selected by the user.
   #[serde(default)]
   pub description: String,
   /// Configure remote URLs that can use the capability permissions.
+  ///
+  /// This setting is optional and defaults to not being set, as our
+  /// default use case is that the content is served from our local application.
+  ///
+  /// :::caution
+  /// Make sure you understand the security implications of providing remote
+  /// sources with local system access.
+  /// :::
+  ///
+  /// ## Example
+  ///
+  /// ```json
+  /// {
+  ///   "urls": ["https://*.mydomain.dev"]
+  /// }
+  /// ```
   #[serde(default, skip_serializing_if = "Option::is_none")]
   pub remote: Option<CapabilityRemote>,
   /// Whether this capability is enabled for local app URLs or not. Defaults to `true`.
   #[serde(default = "default_capability_local")]
   pub local: bool,
-  /// List of windows that uses this capability. Can be a glob pattern.
+  /// List of windows that are affected by this capability. Can be a glob pattern.
   ///
   /// On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.
+  ///
+  /// ## Example
+  ///
+  /// `["main"]`
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub windows: Vec<String>,
-  /// List of webviews that uses this capability. Can be a glob pattern.
+  /// List of webviews that are affected by this capability. Can be a glob pattern.
   ///
   /// This is only required when using on multiwebview contexts, by default
   /// all child webviews of a window that matches [`Self::windows`] are linked.
+  ///
+  /// ## Example
+  ///
+  /// `["sub-webview-one", "sub-webview-two"]`
   #[serde(default, skip_serializing_if = "Vec::is_empty")]
   pub webviews: Vec<String>,
-  /// List of permissions attached to this capability. Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
+  /// List of permissions attached to this capability.
+  ///
+  /// Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.
+  /// For commands directly implemented in the application itself only `${permission-name}`
+  /// is required.
+  ///
+  /// ## Example
+  ///
+  /// ```json
+  /// [
+  ///  "path:default",
+  ///  "event:default",
+  ///  "window:default",
+  ///  "app:default",
+  ///  "image:default",
+  ///  "resources:default",
+  ///  "menu:default",
+  ///  "tray:default",
+  ///  "shell:allow-open",
+  ///  "dialog:open",
+  ///  {
+  ///    "identifier": "fs:allow-write-text-file",
+  ///    "allow": [{ "path": "$HOME/test.txt" }]
+  ///  }
+  /// ```
   pub permissions: Vec<PermissionEntry>,
-  /// Target platforms this capability applies. By default all platforms are affected by this capability.
+  /// Limit which target platforms this capability applies to.
+  ///
+  /// By default all platforms are targeted.
+  ///
+  /// ## Example
+  ///
+  /// `["macOS","windows"]`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
 }
@@ -91,7 +180,7 @@ fn default_capability_local() -> bool {
 pub struct CapabilityRemote {
   /// Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).
   ///
-  /// # Examples
+  /// ## Examples
   ///
   /// - "https://*.mydomain.dev": allows subdomains of mydomain.dev
   /// - "https://mydomain.dev/api/*": allows any subpath of mydomain.dev/api

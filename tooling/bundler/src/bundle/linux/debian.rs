@@ -175,9 +175,10 @@ fn generate_control_file(
     writeln!(file, "Priority: optional")?;
   }
 
-  if !settings.homepage_url().is_empty() {
-    writeln!(file, "Homepage: {}", settings.homepage_url())?;
+  if let Some(homepage) = settings.homepage_url() {
+    writeln!(file, "Homepage: {}", homepage)?;
   }
+
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
   if !dependencies.is_empty() {
     writeln!(file, "Depends: {}", dependencies.join(", "))?;

@@ -43,6 +43,7 @@ impl Settings {
   }
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub struct SignParams {
   pub product_name: String,
   pub digest_algorithm: String,
@@ -157,7 +158,7 @@ pub fn sign_command_default<P: AsRef<Path>>(
 ) -> crate::Result<Command> {
   let signtool = signtool().ok_or(crate::Error::SignToolNotFound)?;
 
-  let mut cmd = Command::new(&signtool);
+  let mut cmd = Command::new(signtool);
   cmd.arg("sign");
   cmd.args(["/fd", &params.digest_algorithm]);
   cmd.args(["/sha1", &params.certificate_thumbprint]);

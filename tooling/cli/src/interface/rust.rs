@@ -1213,6 +1213,7 @@ fn tauri_config_to_bundle_settings(
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());
+          libs.push("libayatana-appindicator3.so.1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
           depends_deb.push("libappindicator3-1".into());
@@ -1277,6 +1278,7 @@ fn tauri_config_to_bundle_settings(
   Ok(BundleSettings {
     identifier: Some(identifier),
     publisher: config.publisher,
+    homepage: config.homepage,
     icon: Some(config.icon),
     resources,
     resources_map,
@@ -1361,6 +1363,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {

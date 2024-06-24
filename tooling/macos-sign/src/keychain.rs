@@ -179,7 +179,7 @@ impl Keychain {
     &self,
     path: &Path,
     entitlements_path: Option<&Path>,
-    is_an_executable: bool,
+    hardened_runtime: bool,
   ) -> Result<()> {
     let identity = match &self.signing_identity {
       SigningIdentity::Team(t) => t.certificate_name(),
@@ -191,7 +191,7 @@ impl Keychain {
 
     let mut args = vec!["--force", "-s", &identity];
 
-    if is_an_executable {
+    if hardened_runtime {
       args.push("--options");
       args.push("runtime");
     }

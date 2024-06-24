@@ -40,7 +40,7 @@ pub fn sign(
     keychain.sign(
       &target.path,
       settings.macos().entitlements.as_ref().map(Path::new),
-      target.is_an_executable,
+      target.is_an_executable && settings.macos().hardened_runtime,
     )?;
   }
 

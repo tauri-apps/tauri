@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(windows)]
 #![allow(non_snake_case)]
 #![allow(non_camel_case_types)]
 #![allow(clippy::upper_case_acronyms)]

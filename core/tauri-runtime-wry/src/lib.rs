@@ -1023,6 +1023,13 @@ impl WindowBuilder for WindowBuilderWrapper {
   fn has_icon(&self) -> bool {
     self.inner.window.window_icon.is_some()
   }
+
+  fn get_theme(&self) -> Option<Theme> {
+    self.inner.window.preferred_theme.map(|theme| match theme {
+      TaoTheme::Dark => Theme::Dark,
+      _ => Theme::Light,
+    })
+  }
 }
 
 #[cfg(any(
@@ -1092,6 +1099,7 @@ pub enum WindowMessage {
   Title(Sender<String>),
   CurrentMonitor(Sender<Option<MonitorHandle>>),
   PrimaryMonitor(Sender<Option<MonitorHandle>>),
+  MonitorFromPoint(Sender<Option<MonitorHandle>>, (f64, f64)),
   AvailableMonitors(Sender<Vec<MonitorHandle>>),
   #[cfg(any(
     target_os = "linux",
@@ -1578,6 +1586,21 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     Ok(window_getter!(self, WindowMessage::PrimaryMonitor)?.map(|m| MonitorHandleWrapper(m).into()))
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
+    let (tx, rx) = channel();
+
+    let _ = send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::MonitorFromPoint(tx, (x, y))),
+    );
+
+    Ok(
+      rx.recv()
+        .map_err(|_| crate::Error::FailedToReceiveMessage)?
+        .map(|m| MonitorHandleWrapper(m).into()),
+    )
+  }
+
   fn available_monitors(&self) -> Result<Vec<Monitor>> {
     Ok(
       window_getter!(self, WindowMessage::AvailableMonitors)?
@@ -1965,8 +1988,6 @@ pub struct WindowWrapper {
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
   #[cfg(windows)]
-  is_window_fullscreen: bool,
-  #[cfg(windows)]
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -2146,6 +2167,15 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .main_thread
       .window_target
       .primary_monitor()
+      .map(|m| MonitorHandleWrapper(m).into())
+  }
+
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .monitor_from_point(x, y)
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
@@ -2419,6 +2449,15 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .map(|m| MonitorHandleWrapper(m).into())
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    self
+      .context
+      .main_thread
+      .window_target
+      .monitor_from_point(x, y)
+      .map(|m| MonitorHandleWrapper(m).into())
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     self
       .context
@@ -2655,6 +2694,9 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Title(tx) => tx.send(window.title()).unwrap(),
           WindowMessage::CurrentMonitor(tx) => tx.send(window.current_monitor()).unwrap(),
           WindowMessage::PrimaryMonitor(tx) => tx.send(window.primary_monitor()).unwrap(),
+          WindowMessage::MonitorFromPoint(tx, (x, y)) => {
+            tx.send(window.monitor_from_point(x, y)).unwrap()
+          }
           WindowMessage::AvailableMonitors(tx) => {
             tx.send(window.available_monitors().collect()).unwrap()
           }
@@ -2741,7 +2783,15 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Destroy => {
             panic!("cannot handle `WindowMessage::Destroy` on the main thread")
           }
-          WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+          WindowMessage::SetDecorations(decorations) => {
+            window.set_decorations(decorations);
+            #[cfg(windows)]
+            if decorations {
+              undecorated_resizing::detach_resize_handler(window.hwnd());
+            } else {
+              undecorated_resizing::attach_resize_handler(window.hwnd());
+            }
+          }
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
             window.set_undecorated_shadow(_enable);
@@ -2773,10 +2823,6 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
             } else {
               window.set_fullscreen(None)
-            }
-            #[cfg(windows)]
-            if let Some(w) = windows.0.borrow_mut().get_mut(&id) {
-              w.is_window_fullscreen = fullscreen;
             }
           }
           WindowMessage::SetFocus => {
@@ -3166,8 +3212,6 @@ fn handle_user_message<T: UserEvent>(
       let (label, builder) = handler();
 
       #[cfg(windows)]
-      let is_window_fullscreen = builder.window.fullscreen.is_some();
-      #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
 
       if let Ok(window) = builder.build(event_loop) {
@@ -3199,8 +3243,6 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(window.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
-            #[cfg(windows)]
-            is_window_fullscreen,
             #[cfg(windows)]
             is_window_transparent,
             #[cfg(windows)]
@@ -3369,7 +3411,7 @@ fn handle_event_loop<T: UserEvent>(
             }
           }
           TaoWindowEvent::CloseRequested => {
-            on_close_requested(callback, window_id, windows.clone());
+            on_close_requested(callback, window_id, windows);
           }
           TaoWindowEvent::Destroyed => {
             let removed = windows.0.borrow_mut().remove(&window_id).is_some();
@@ -3430,10 +3472,10 @@ fn handle_event_loop<T: UserEvent>(
         }
       }
       Message::Window(id, WindowMessage::Close) => {
-        on_close_requested(callback, id, windows.clone());
+        on_close_requested(callback, id, windows);
       }
       Message::Window(id, WindowMessage::Destroy) => {
-        on_window_close(id, windows.clone());
+        on_window_close(id, windows);
       }
       Message::UserEvent(t) => callback(RunEvent::UserEvent(t)),
       message => {
@@ -3545,8 +3587,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(windows)]
   let is_window_transparent = window_builder.inner.window.transparent;
-  #[cfg(windows)]
-  let is_window_fullscreen = window_builder.inner.window.fullscreen.is_some();
 
   #[cfg(target_os = "macos")]
   {
@@ -3695,8 +3735,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     webviews,
     window_event_listeners,
     #[cfg(windows)]
-    is_window_fullscreen,
-    #[cfg(windows)]
     is_window_transparent,
     #[cfg(windows)]
     surface,
@@ -3785,11 +3823,6 @@ fn create_webview<T: UserEvent>(
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
-
-  #[cfg(windows)]
-  if kind == WebviewKind::WindowContent {
-    webview_builder = webview_builder.with_initialization_script(undecorated_resizing::SCRIPT);
-  }
 
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
@@ -4022,15 +4055,19 @@ fn create_webview<T: UserEvent>(
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
   if kind == WebviewKind::WindowContent {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     undecorated_resizing::attach_resize_handler(&webview);
+    #[cfg(windows)]
+    if window.is_resizable() && !window.is_decorated() {
+      undecorated_resizing::attach_resize_handler(window.hwnd());
+    }
   }
 
   #[cfg(windows)]
@@ -4095,13 +4132,6 @@ fn create_ipc_handler<T: UserEvent>(
   ipc_handler: Option<WebviewIpcHandler<T, Wry<T>>>,
 ) -> Box<IpcHandler> {
   Box::new(move |request| {
-    #[cfg(windows)]
-    if _kind == WebviewKind::WindowContent
-      && undecorated_resizing::handle_request(context.clone(), *window_id.lock().unwrap(), &request)
-    {
-      return;
-    }
-
     if let Some(handler) = &ipc_handler {
       handler(
         DetachedWebview {

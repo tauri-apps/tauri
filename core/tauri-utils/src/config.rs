@@ -10,8 +10,6 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
-#[cfg(target_os = "linux")]
-use heck::ToKebabCase;
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use semver::Version;
@@ -567,6 +565,11 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
+  /// Whether the codesign should enable [hardened runtime] (for executables) or not.
+  ///
+  /// [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>
+  #[serde(alias = "hardened-runtime", default = "default_true")]
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   #[serde(alias = "provider-short-name")]
   pub provider_short_name: Option<String>,
@@ -585,6 +588,7 @@ impl Default for MacConfig {
       minimum_system_version: minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
+      hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
       dmg: Default::default(),
@@ -657,11 +661,6 @@ pub struct WixConfig {
   /// The Merge element ids you want to reference from the fragments.
   #[serde(default, alias = "merge-refs")]
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install.
-  ///
-  /// Will be removed in v2, prefer the [`WindowsConfig::webview_install_mode`] option.
-  #[serde(default, alias = "skip-webview-install")]
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   #[serde(default, alias = "enable-elevated-update-task")]
   pub enable_elevated_update_task: bool,
@@ -692,6 +691,44 @@ pub enum NsisCompression {
   Bzip2,
   /// LZMA (default) is a new compression method that gives very good compression ratios. The decompression speed is high (10-20 MB/s on a 2 GHz CPU), the compression speed is lower. The memory size that will be used for decompression is the dictionary size plus a few KBs, the default is 8 MB.
   Lzma,
+  /// Disable compression
+  None,
+}
+
+impl Default for NsisCompression {
+  fn default() -> Self {
+    Self::Lzma
+  }
+}
+
+/// Install Modes for the NSIS installer.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum NSISInstallerMode {
+  /// Default mode for the installer.
+  ///
+  /// Install the app by default in a directory that doesn't require Administrator access.
+  ///
+  /// Installer metadata will be saved under the `HKCU` registry path.
+  CurrentUser,
+  /// Install the app by default in the `Program Files` folder directory requires Administrator
+  /// access for the installation.
+  ///
+  /// Installer metadata will be saved under the `HKLM` registry path.
+  PerMachine,
+  /// Combines both modes and allows the user to choose at install time
+  /// whether to install for the current user or per machine. Note that this mode
+  /// will require Administrator access even if the user wants to install it for the current user only.
+  ///
+  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
+  Both,
+}
+
+impl Default for NSISInstallerMode {
+  fn default() -> Self {
+    Self::CurrentUser
+  }
 }
 
 /// Configuration for the Installer bundle using NSIS.
@@ -737,37 +774,44 @@ pub struct NsisConfig {
   /// Set the compression algorithm used to compress files in the installer.
   ///
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
-  pub compression: Option<NsisCompression>,
-}
-
-/// Install Modes for the NSIS installer.
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum NSISInstallerMode {
-  /// Default mode for the installer.
+  #[serde(default)]
+  pub compression: NsisCompression,
+  /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
+  /// main installer.nsi script.
   ///
-  /// Install the app by default in a directory that doesn't require Administrator access.
+  /// Supported hooks are:
+  /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
+  /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
+  /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
+  /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
   ///
-  /// Installer metadata will be saved under the `HKCU` registry path.
-  CurrentUser,
-  /// Install the app by default in the `Program Files` folder directory requires Administrator
-  /// access for the installation.
   ///
-  /// Installer metadata will be saved under the `HKLM` registry path.
-  PerMachine,
-  /// Combines both modes and allows the user to choose at install time
-  /// whether to install for the current user or per machine. Note that this mode
-  /// will require Administrator access even if the user wants to install it for the current user only.
+  /// ### Example
   ///
-  /// Installer metadata will be saved under the `HKLM` or `HKCU` registry path based on the user's choice.
-  Both,
-}
-
-impl Default for NSISInstallerMode {
-  fn default() -> Self {
-    Self::CurrentUser
-  }
+  /// ```nsh
+  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
+  /// !macro NSIS_HOOK_PREINSTALL_
+  ///   MessageBox MB_OK "PreInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
+  /// !macro NSIS_HOOK_POSTINSTALL_
+  ///   MessageBox MB_OK "PostInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
+  /// !macro NSIS_HOOK_PREUNINSTALL_
+  ///   MessageBox MB_OK "PreUnInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
+  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  ///   MessageBox MB_OK "PostUninstall"
+  /// !macroend
+  ///
+  /// ```
+  #[serde(alias = "installer-hooks")]
+  pub installer_hooks: Option<PathBuf>,
 }
 
 /// Install modes for the Webview2 runtime.
@@ -864,6 +908,20 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  #[serde(alias = "sign-command")]
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsConfig {
@@ -878,6 +936,7 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
+      sign_command: None,
     }
   }
 }
@@ -1010,6 +1069,11 @@ pub struct BundleConfig {
   /// The application's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
+  /// A url to the home page of your application. If unset, will
+  /// fallback to `homepage` defined in `Cargo.toml`.
+  ///
+  /// Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`.
+  pub homepage: Option<String>,
   /// The app's icons
   #[serde(default)]
   pub icon: Vec<String>,
@@ -1734,6 +1798,10 @@ pub struct TrayIconConfig {
   /// Set an id for this tray icon so you can reference it later, defaults to `main`.
   pub id: Option<String>,
   /// Path to the default icon to use for the tray icon.
+  ///
+  /// Note: this stores the image in raw pixels to the final binary,
+  /// so keep the icon size (width and height) small
+  /// or else it's going to bloat your final executable
   #[serde(alias = "icon-path")]
   pub icon_path: PathBuf,
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
@@ -1770,12 +1838,22 @@ pub struct AndroidConfig {
   /// The Android system will prevent the user from installing the application if the system's API level is lower than the value specified.
   #[serde(alias = "min-sdk-version", default = "default_min_sdk_version")]
   pub min_sdk_version: u32,
+
+  /// The version code of the application.
+  /// It is limited to 2,100,000,000 as per Google Play Store requirements.
+  ///
+  /// By default we use your configured version and perform the following math:
+  /// versionCode = version.major * 1000000 + version.minor * 1000 + version.patch
+  #[serde(alias = "version-code")]
+  #[cfg_attr(feature = "schema", validate(range(min = 1, max = 2_100_000_000)))]
+  pub version_code: Option<u32>,
 }
 
 impl Default for AndroidConfig {
   fn default() -> Self {
     Self {
       min_sdk_version: default_min_sdk_version(),
+      version_code: None,
     }
   }
 }
@@ -2035,6 +2113,8 @@ pub struct Config {
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  ///
+  /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
   pub version: Option<String>,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -2056,21 +2136,6 @@ pub struct Config {
   /// The plugins config.
   #[serde(default)]
   pub plugins: PluginConfig,
-}
-
-impl Config {
-  /// The binary name. Returns the product name as kebab-case on Linux,
-  /// and returns it as is on all other platforms.
-  pub fn binary_name(&self) -> Option<String> {
-    #[cfg(target_os = "linux")]
-    {
-      self.product_name.as_ref().map(|n| n.to_kebab_case())
-    }
-    #[cfg(not(target_os = "linux"))]
-    {
-      self.product_name.clone()
-    }
-  }
 }
 
 /// The plugin configs holds a HashMap mapping a plugin name to its configuration object.
@@ -2375,6 +2440,7 @@ mod build {
   impl ToTokens for BundleConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let publisher = quote!(None);
+      let homepage = quote!(None);
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
@@ -2398,6 +2464,7 @@ mod build {
         ::tauri::utils::config::BundleConfig,
         active,
         publisher,
+        homepage,
         icon,
         targets,
         resources,
@@ -2715,6 +2782,7 @@ mod test {
       active: false,
       targets: Default::default(),
       publisher: None,
+      homepage: None,
       icon: Vec::new(),
       resources: None,
       copyright: None,

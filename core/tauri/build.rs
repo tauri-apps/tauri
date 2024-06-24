@@ -63,6 +63,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("title", true),
       ("current_monitor", true),
       ("primary_monitor", true),
+      ("monitor_from_point", true),
       ("available_monitors", true),
       ("cursor_position", true),
       ("theme", true),
@@ -138,6 +139,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("tauri_version", true),
       ("app_show", false),
       ("app_hide", false),
+      ("default_window_icon", false),
     ],
   ),
   (
@@ -214,6 +216,7 @@ fn has_feature(feature: &str) -> bool {
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }
@@ -311,7 +314,7 @@ fn main() {
     if target_os == "ios" {
       let lib_path =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
-      tauri_utils::build::link_swift_library("Tauri", &lib_path);
+      tauri_utils::build::link_apple_library("Tauri", &lib_path);
       println!("cargo:ios_library_path={}", lib_path.display());
     }
   }

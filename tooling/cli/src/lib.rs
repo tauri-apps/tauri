@@ -17,6 +17,7 @@ pub use anyhow::Result;
 mod acl;
 mod add;
 mod build;
+mod bundle;
 mod completions;
 mod dev;
 mod helpers;
@@ -135,6 +136,7 @@ enum Commands {
   Init(init::Options),
   Dev(dev::Options),
   Build(build::Options),
+  Bundle(bundle::Options),
   Android(mobile::android::Cli),
   #[cfg(target_os = "macos")]
   Ios(mobile::ios::Cli),
@@ -173,7 +175,19 @@ where
   A: Into<OsString> + Clone,
 {
   if let Err(e) = try_run(args, bin_name) {
-    log::error!("{:#}", e);
+    let mut message = e.to_string();
+    if e.chain().count() > 1 {
+      message.push(':');
+    }
+    e.chain().skip(1).for_each(|cause| {
+      let m = cause.to_string();
+      if !message.contains(&m) {
+        message.push('\n');
+        message.push_str("    - ");
+        message.push_str(&m);
+      }
+    });
+    log::error!("{message}");
     exit(1);
   }
 }
@@ -238,6 +252,7 @@ where
 
   match cli.command {
     Commands::Build(options) => build::command(options, cli.verbose)?,
+    Commands::Bundle(options) => bundle::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Add(options) => add::command(options)?,
     Commands::Icon(options) => icon::command(options)?,

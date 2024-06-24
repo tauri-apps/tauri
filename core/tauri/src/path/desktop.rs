@@ -18,7 +18,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Music`.
   /// - **Windows:** Resolves to `{FOLDERID_Music}`.
   pub fn audio_dir(&self) -> Result<PathBuf> {
-    dirs_next::audio_dir().ok_or(Error::UnknownPath)
+    dirs::audio_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's cache directory.
@@ -29,7 +29,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Library/Caches`.
   /// - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
   pub fn cache_dir(&self) -> Result<PathBuf> {
-    dirs_next::cache_dir().ok_or(Error::UnknownPath)
+    dirs::cache_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's config directory.
@@ -40,7 +40,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Library/Application Support`.
   /// - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
   pub fn config_dir(&self) -> Result<PathBuf> {
-    dirs_next::config_dir().ok_or(Error::UnknownPath)
+    dirs::config_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's data directory.
@@ -51,7 +51,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Library/Application Support`.
   /// - **Windows:** Resolves to `{FOLDERID_RoamingAppData}`.
   pub fn data_dir(&self) -> Result<PathBuf> {
-    dirs_next::data_dir().ok_or(Error::UnknownPath)
+    dirs::data_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's local data directory.
@@ -62,7 +62,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Library/Application Support`.
   /// - **Windows:** Resolves to `{FOLDERID_LocalAppData}`.
   pub fn local_data_dir(&self) -> Result<PathBuf> {
-    dirs_next::data_local_dir().ok_or(Error::UnknownPath)
+    dirs::data_local_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's desktop directory.
@@ -73,7 +73,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Desktop`.
   /// - **Windows:** Resolves to `{FOLDERID_Desktop}`.
   pub fn desktop_dir(&self) -> Result<PathBuf> {
-    dirs_next::desktop_dir().ok_or(Error::UnknownPath)
+    dirs::desktop_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's document directory.
@@ -84,7 +84,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Documents`.
   /// - **Windows:** Resolves to `{FOLDERID_Documents}`.
   pub fn document_dir(&self) -> Result<PathBuf> {
-    dirs_next::document_dir().ok_or(Error::UnknownPath)
+    dirs::document_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's download directory.
@@ -95,7 +95,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Downloads`.
   /// - **Windows:** Resolves to `{FOLDERID_Downloads}`.
   pub fn download_dir(&self) -> Result<PathBuf> {
-    dirs_next::download_dir().ok_or(Error::UnknownPath)
+    dirs::download_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's executable directory.
@@ -106,7 +106,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Not supported.
   /// - **Windows:** Not supported.
   pub fn executable_dir(&self) -> Result<PathBuf> {
-    dirs_next::executable_dir().ok_or(Error::UnknownPath)
+    dirs::executable_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's font directory.
@@ -117,7 +117,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Library/Fonts`.
   /// - **Windows:** Not supported.
   pub fn font_dir(&self) -> Result<PathBuf> {
-    dirs_next::font_dir().ok_or(Error::UnknownPath)
+    dirs::font_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's home directory.
@@ -128,7 +128,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME`.
   /// - **Windows:** Resolves to `{FOLDERID_Profile}`.
   pub fn home_dir(&self) -> Result<PathBuf> {
-    dirs_next::home_dir().ok_or(Error::UnknownPath)
+    dirs::home_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's picture directory.
@@ -139,7 +139,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Pictures`.
   /// - **Windows:** Resolves to `{FOLDERID_Pictures}`.
   pub fn picture_dir(&self) -> Result<PathBuf> {
-    dirs_next::picture_dir().ok_or(Error::UnknownPath)
+    dirs::picture_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's public directory.
@@ -150,7 +150,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Public`.
   /// - **Windows:** Resolves to `{FOLDERID_Public}`.
   pub fn public_dir(&self) -> Result<PathBuf> {
-    dirs_next::public_dir().ok_or(Error::UnknownPath)
+    dirs::public_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's runtime directory.
@@ -161,7 +161,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Not supported.
   /// - **Windows:** Not supported.
   pub fn runtime_dir(&self) -> Result<PathBuf> {
-    dirs_next::runtime_dir().ok_or(Error::UnknownPath)
+    dirs::runtime_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's template directory.
@@ -172,7 +172,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Not supported.
   /// - **Windows:** Resolves to `{FOLDERID_Templates}`.
   pub fn template_dir(&self) -> Result<PathBuf> {
-    dirs_next::template_dir().ok_or(Error::UnknownPath)
+    dirs::template_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the user's video dir
@@ -183,7 +183,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **macOS:** Resolves to `$HOME/Movies`.
   /// - **Windows:** Resolves to `{FOLDERID_Videos}`.
   pub fn video_dir(&self) -> Result<PathBuf> {
-    dirs_next::video_dir().ok_or(Error::UnknownPath)
+    dirs::video_dir().ok_or(Error::UnknownPath)
   }
 
   /// Returns the path to the resource directory of this app.
@@ -196,7 +196,7 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`config_dir`](self.config_dir)`/${bundle_identifier}`.
   pub fn app_config_dir(&self) -> Result<PathBuf> {
-    dirs_next::config_dir()
+    dirs::config_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
   }
@@ -205,7 +205,7 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`data_dir`](self.data_dir)`/${bundle_identifier}`.
   pub fn app_data_dir(&self) -> Result<PathBuf> {
-    dirs_next::data_dir()
+    dirs::data_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
   }
@@ -214,7 +214,7 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`local_data_dir`](self.local_data_dir)`/${bundle_identifier}`.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
-    dirs_next::data_local_dir()
+    dirs::data_local_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
   }
@@ -223,7 +223,7 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// Resolves to [`cache_dir`](self.cache_dir)`/${bundle_identifier}`.
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
-    dirs_next::cache_dir()
+    dirs::cache_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier))
   }
@@ -237,12 +237,12 @@ impl<R: Runtime> PathResolver<R> {
   /// - **Windows:** Resolves to [`data_local_dir`](self.data_local_dir)`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
-    let path = dirs_next::home_dir()
+    let path = dirs::home_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join("Library/Logs").join(&self.0.config().identifier));
 
     #[cfg(not(target_os = "macos"))]
-    let path = dirs_next::data_local_dir()
+    let path = dirs::data_local_dir()
       .ok_or(Error::UnknownPath)
       .map(|dir| dir.join(&self.0.config().identifier).join("logs"));
 

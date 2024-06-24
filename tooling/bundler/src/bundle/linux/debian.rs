@@ -27,7 +27,6 @@ use super::{super::common, freedesktop};
 use crate::Settings;
 use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
-use heck::AsKebabCase;
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
@@ -51,7 +50,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_base_name = format!(
     "{}_{}_{}",
-    settings.main_binary_name(),
+    settings.product_name(),
     settings.version_string(),
     arch
   );
@@ -158,7 +157,8 @@ fn generate_control_file(
   // https://www.debian.org/doc/debian-policy/ch-controlfields.html
   let dest_path = control_dir.join("control");
   let mut file = common::create_file(&dest_path)?;
-  writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
+  let package = heck::AsKebabCase(settings.product_name());
+  writeln!(file, "Package: {}", package)?;
   writeln!(file, "Version: {}", settings.version_string())?;
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
@@ -175,9 +175,10 @@ fn generate_control_file(
     writeln!(file, "Priority: optional")?;
   }
 
-  if !settings.homepage_url().is_empty() {
-    writeln!(file, "Homepage: {}", settings.homepage_url())?;
+  if let Some(homepage) = settings.homepage_url() {
+    writeln!(file, "Homepage: {}", homepage)?;
   }
+
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
   if !dependencies.is_empty() {
     writeln!(file, "Depends: {}", dependencies.join(", "))?;

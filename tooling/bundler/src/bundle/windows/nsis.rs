@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(target_os = "windows")]
 use crate::bundle::windows::sign::{sign_command, try_sign};
+
 use crate::{
   bundle::{
     common::CommandExt,
@@ -21,8 +21,8 @@ use handlebars::{to_json, Handlebars};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
 use std::{
-  collections::{BTreeMap, HashMap},
-  fs::{create_dir_all, remove_dir_all, rename, write},
+  collections::BTreeMap,
+  fs,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -34,8 +34,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.3.0/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "01E48D6429B48B640230C6CE8F257C84758943AA";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.0/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "E0FC0951DEB0E5E741DF10328F95C7D6678AD3AA";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -63,7 +63,7 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = dirs_next::cache_dir().unwrap().join("tauri");
+  let tauri_tools_path = dirs::cache_dir().unwrap().join("tauri");
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
   if !nsis_toolset_path.exists() {
@@ -87,7 +87,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
       log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
       for (path, url, hash, hash_algorithim) in mismatched {
         let data = download_and_verify(url, hash, *hash_algorithim)?;
-        write(nsis_toolset_path.join(path), data)?;
+        fs::write(nsis_toolset_path.join(path), data)?;
       }
     }
   }
@@ -104,7 +104,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
     log::info!("extracting NSIS");
     crate::bundle::windows::util::extract_zip(&data, _tauri_tools_path)?;
-    rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
+    fs::rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
@@ -114,12 +114,10 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     NSIS_TAURI_UTILS_SHA1,
     HashAlgorithm::Sha1,
   )?;
-  write(
-    nsis_plugins
-      .join("x86-unicode")
-      .join("nsis_tauri_utils.dll"),
-    data,
-  )?;
+
+  let target_folder = nsis_plugins.join("x86-unicode");
+  fs::create_dir_all(&target_folder)?;
+  fs::write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
   Ok(())
 }
@@ -163,14 +161,11 @@ fn build_nsis_app_installer(
 
   log::info!("Target: {}", arch);
 
-  #[cfg(not(target_os = "windows"))]
-  log::info!("Code signing is currently only supported on Windows hosts, skipping...");
-
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
-    remove_dir_all(&output_path)?;
+    fs::remove_dir_all(&output_path)?;
   }
-  create_dir_all(&output_path)?;
+  fs::create_dir_all(&output_path)?;
 
   let mut data = BTreeMap::new();
 
@@ -181,7 +176,7 @@ fn build_nsis_app_installer(
 
   #[cfg(not(target_os = "windows"))]
   {
-    let mut dir = dirs_next::cache_dir().unwrap();
+    let mut dir = dirs::cache_dir().unwrap();
     dir.extend(["tauri", "NSIS", "Plugins", "x86-unicode"]);
     data.insert("additional_plugins_path", to_json(dir));
   }
@@ -192,21 +187,18 @@ fn build_nsis_app_installer(
   data.insert("product_name", to_json(settings.product_name()));
   data.insert("short_description", to_json(settings.short_description()));
   data.insert(
+    "homepage",
+    to_json(settings.homepage_url().unwrap_or_default()),
+  );
+  data.insert(
     "long_description",
     to_json(settings.long_description().unwrap_or_default()),
   );
   data.insert("copyright", to_json(settings.copyright_string()));
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
   if settings.can_sign() {
-    data.insert(
-      "uninstaller_sign_cmd",
-      to_json(format!(
-        "{:?}",
-        sign_command("%1", &settings.sign_params())?.0
-      )),
-    );
+    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
   }
 
   let version = settings.version_string();
@@ -221,31 +213,35 @@ fn build_nsis_app_installer(
     to_json(settings.windows().allow_downgrades),
   );
 
-  if let Some(license) = settings.license_file() {
-    data.insert("license", to_json(dunce::canonicalize(license)?));
+  if let Some(license_file) = settings.license_file() {
+    let license_file = dunce::canonicalize(license_file)?;
+    let license_file_with_bom = output_path.join("license_file");
+    let content = std::fs::read(license_file)?;
+    write_utf8_with_bom(&license_file_with_bom, content)?;
+    data.insert("license", to_json(license_file_with_bom));
   }
 
-  let mut install_mode = NSISInstallerMode::CurrentUser;
-  let mut languages = vec!["English".into()];
-  let mut custom_template_path = None;
-  let mut custom_language_files = None;
-  if let Some(nsis) = &settings.windows().nsis {
-    custom_template_path.clone_from(&nsis.template);
-    custom_language_files.clone_from(&nsis.custom_language_files);
-    install_mode = nsis.install_mode;
-    if let Some(langs) = &nsis.languages {
-      languages.clear();
-      languages.extend_from_slice(langs);
-    }
+  let nsis = settings.windows().nsis.as_ref();
+
+  let custom_template_path = nsis.as_ref().and_then(|n| n.template.clone());
+
+  let install_mode = nsis
+    .as_ref()
+    .map(|n| n.install_mode)
+    .unwrap_or(NSISInstallerMode::CurrentUser);
+
+  if let Some(nsis) = nsis {
     if let Some(installer_icon) = &nsis.installer_icon {
       data.insert(
         "installer_icon",
         to_json(dunce::canonicalize(installer_icon)?),
       );
     }
+
     if let Some(header_image) = &nsis.header_image {
       data.insert("header_image", to_json(dunce::canonicalize(header_image)?));
     }
+
     if let Some(sidebar_image) = &nsis.sidebar_image {
       data.insert(
         "sidebar_image",
@@ -253,20 +249,28 @@ fn build_nsis_app_installer(
       );
     }
 
-    data.insert(
-      "compression",
-      to_json(match &nsis.compression.unwrap_or(NsisCompression::Lzma) {
-        NsisCompression::Zlib => "zlib",
-        NsisCompression::Bzip2 => "bzip2",
-        NsisCompression::Lzma => "lzma",
-      }),
-    );
-
-    data.insert(
-      "display_language_selector",
-      to_json(nsis.display_language_selector && languages.len() > 1),
-    );
+    if let Some(installer_hooks) = &nsis.installer_hooks {
+      let installer_hooks = dunce::canonicalize(installer_hooks)?;
+      data.insert("installer_hooks", to_json(installer_hooks));
+    }
   }
+
+  let compression = settings
+    .windows()
+    .nsis
+    .as_ref()
+    .map(|n| n.compression)
+    .unwrap_or_default();
+  data.insert(
+    "compression",
+    to_json(match compression {
+      NsisCompression::Zlib => "zlib",
+      NsisCompression::Bzip2 => "bzip2",
+      NsisCompression::Lzma => "lzma",
+      NsisCompression::None => "none",
+    }),
+  );
+
   data.insert(
     "install_mode",
     to_json(match install_mode {
@@ -276,25 +280,47 @@ fn build_nsis_app_installer(
     }),
   );
 
-  let mut languages_data = Vec::new();
-  for lang in &languages {
-    if let Some(data) = get_lang_data(lang, custom_language_files.as_ref())? {
-      languages_data.push(data);
-    } else {
-      log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
-    }
-  }
-
+  let languages = nsis
+    .and_then(|nsis| nsis.languages.clone())
+    .unwrap_or_else(|| vec!["English".into()]);
   data.insert("languages", to_json(languages.clone()));
+
   data.insert(
-    "language_files",
+    "display_language_selector",
     to_json(
-      languages_data
-        .iter()
-        .map(|d| d.0.clone())
-        .collect::<Vec<_>>(),
+      nsis
+        .map(|nsis| nsis.display_language_selector && languages.len() > 1)
+        .unwrap_or(false),
     ),
   );
+
+  let custom_language_files = nsis.and_then(|nsis| nsis.custom_language_files.clone());
+
+  let mut language_files_paths = Vec::new();
+  for lang in &languages {
+    // if user provided a custom lang file, we rewrite it with BOM
+    if let Some(path) = custom_language_files.as_ref().and_then(|h| h.get(lang)) {
+      let path = dunce::canonicalize(path)?;
+      let path_with_bom = path
+        .file_name()
+        .map(|f| output_path.join(f))
+        .unwrap_or_else(|| output_path.join(format!("{lang}_custom.nsh")));
+      let content = std::fs::read(path)?;
+      write_utf8_with_bom(&path_with_bom, content)?;
+      language_files_paths.push(path_with_bom);
+    } else {
+      // if user has not provided a custom lang file,
+      // we check our translated languages
+      if let Some((file_name, content)) = get_lang_data(lang) {
+        let path = output_path.join(file_name);
+        write_utf8_with_bom(&path, content)?;
+        language_files_paths.push(path);
+      } else {
+        log::warn!("Custom tauri messages for {lang} are not translated.\nIf it is a valid language listed on <https://github.com/kichik/nsis/tree/9465c08046f00ccb6eda985abbdbf52c275c6c4d/Contrib/Language%20files>, please open a Tauri feature request\n or you can provide a custom language file for it in `tauri.conf.json > bundle > windows > nsis > custom_language_files`");
+      }
+    }
+  }
+  data.insert("language_files", to_json(language_files_paths));
 
   let main_binary = settings
     .binaries()
@@ -391,10 +417,6 @@ fn build_nsis_app_installer(
       webview_install_mode = WebviewInstallMode::FixedRuntime {
         path: fixed_runtime_path,
       };
-    } else if let Some(wix) = &settings.windows().wix {
-      if wix.skip_webview_install {
-        webview_install_mode = WebviewInstallMode::Skip;
-      }
     }
     webview_install_mode
   };
@@ -462,26 +484,24 @@ fn build_nsis_app_installer(
       .expect("Failed to setup handlebar template");
   }
 
-  write_ut16_le_with_bom(
+  write_utf8_with_bom(
     output_path.join("FileAssociation.nsh"),
-    include_str!("./templates/FileAssociation.nsh"),
+    include_bytes!("./templates/FileAssociation.nsh"),
+  )?;
+  write_utf8_with_bom(
+    output_path.join("utils.nsh"),
+    include_bytes!("./templates/utils.nsh"),
   )?;
 
   let installer_nsi_path = output_path.join("installer.nsi");
-  write_ut16_le_with_bom(
+  write_utf8_with_bom(
     &installer_nsi_path,
-    handlebars.render("installer.nsi", &data)?.as_str(),
+    handlebars.render("installer.nsi", &data)?,
   )?;
-
-  for (lang, data) in languages_data.iter() {
-    if let Some(content) = data {
-      write_ut16_le_with_bom(output_path.join(lang).with_extension("nsh"), content)?;
-    }
-  }
 
   let package_base_name = format!(
     "{}_{}_{}-setup",
-    main_binary.name().replace(".exe", ""),
+    settings.product_name(),
     settings.version_string(),
     arch,
   );
@@ -496,7 +516,7 @@ fn build_nsis_app_installer(
     },
     package_base_name
   ));
-  create_dir_all(nsis_installer_path.parent().unwrap())?;
+  fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
   log::info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
 
@@ -506,6 +526,7 @@ fn build_nsis_app_installer(
   let mut nsis_cmd = Command::new("makensis");
 
   nsis_cmd
+    .args(["-INPUTCHARSET", "UTF8", "-OUTPUTCHARSET", "UTF8"])
     .arg(match settings.log_level() {
       log::Level::Error => "-V1",
       log::Level::Warn => "-V2",
@@ -519,11 +540,14 @@ fn build_nsis_app_installer(
     .piped()
     .context("error running makensis.exe")?;
 
-  rename(nsis_output_path, &nsis_installer_path)?;
+  fs::rename(nsis_output_path, &nsis_installer_path)?;
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
-  try_sign(&nsis_installer_path, settings)?;
+  if settings.can_sign() {
+    try_sign(&nsis_installer_path, settings)?;
+  } else {
+    #[cfg(not(target_os = "windows"))]
+    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+  }
 
   Ok(vec![nsis_installer_path])
 }
@@ -637,67 +661,54 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
 }
 
 fn generate_estimated_size(
-  main: &Path,
+  main: &PathBuf,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
 ) -> crate::Result<String> {
-  use std::fs::metadata;
-
-  let mut size = metadata(main)?.len();
-
-  for k in binaries.keys().chain(resources.keys()) {
-    size += metadata(k)?.len();
+  let mut size = 0;
+  for k in std::iter::once(main)
+    .chain(binaries.keys())
+    .chain(resources.keys())
+  {
+    size += std::fs::metadata(k)
+      .with_context(|| format!("when getting size of {}", main.display()))?
+      .len();
   }
-
-  size /= 1000;
-
-  Ok(format!("{size:#08x}"))
+  Ok(format!("{:#08x}", size / 1024))
 }
 
-fn get_lang_data(
-  lang: &str,
-  custom_lang_files: Option<&HashMap<String, PathBuf>>,
-) -> crate::Result<Option<(PathBuf, Option<&'static str>)>> {
-  if let Some(path) = custom_lang_files.and_then(|h| h.get(lang)) {
-    return Ok(Some((dunce::canonicalize(path)?, None)));
-  }
-
-  let lang_path = PathBuf::from(format!("{lang}.nsh"));
-  let lang_content = match lang.to_lowercase().as_str() {
-    "arabic" => Some(include_str!("./templates/nsis-languages/Arabic.nsh")),
-    "bulgarian" => Some(include_str!("./templates/nsis-languages/Bulgarian.nsh")),
-    "dutch" => Some(include_str!("./templates/nsis-languages/Dutch.nsh")),
-    "english" => Some(include_str!("./templates/nsis-languages/English.nsh")),
-    "german" => Some(include_str!("./templates/nsis-languages/German.nsh")),
-    "japanese" => Some(include_str!("./templates/nsis-languages/Japanese.nsh")),
-    "korean" => Some(include_str!("./templates/nsis-languages/Korean.nsh")),
-    "portuguesebr" => Some(include_str!("./templates/nsis-languages/PortugueseBR.nsh")),
-    "russian" => Some(include_str!("./templates/nsis-languages/Russian.nsh")),
-    "tradchinese" => Some(include_str!("./templates/nsis-languages/TradChinese.nsh")),
-    "simpchinese" => Some(include_str!("./templates/nsis-languages/SimpChinese.nsh")),
-    "french" => Some(include_str!("./templates/nsis-languages/French.nsh")),
-    "spanish" => Some(include_str!("./templates/nsis-languages/Spanish.nsh")),
-    "spanishinternational" => Some(include_str!(
-      "./templates/nsis-languages/SpanishInternational.nsh"
-    )),
-    "persian" => Some(include_str!("./templates/nsis-languages/Persian.nsh")),
-    "turkish" => Some(include_str!("./templates/nsis-languages/Turkish.nsh")),
-    "swedish" => Some(include_str!("./templates/nsis-languages/Swedish.nsh")),
-    _ => return Ok(None),
+fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
+  let path = format!("{lang}.nsh");
+  let content: &[u8] = match lang.to_lowercase().as_str() {
+    "arabic" => include_bytes!("./templates/nsis-languages/Arabic.nsh"),
+    "bulgarian" => include_bytes!("./templates/nsis-languages/Bulgarian.nsh"),
+    "dutch" => include_bytes!("./templates/nsis-languages/Dutch.nsh"),
+    "english" => include_bytes!("./templates/nsis-languages/English.nsh"),
+    "german" => include_bytes!("./templates/nsis-languages/German.nsh"),
+    "japanese" => include_bytes!("./templates/nsis-languages/Japanese.nsh"),
+    "korean" => include_bytes!("./templates/nsis-languages/Korean.nsh"),
+    "portuguesebr" => include_bytes!("./templates/nsis-languages/PortugueseBR.nsh"),
+    "russian" => include_bytes!("./templates/nsis-languages/Russian.nsh"),
+    "tradchinese" => include_bytes!("./templates/nsis-languages/TradChinese.nsh"),
+    "simpchinese" => include_bytes!("./templates/nsis-languages/SimpChinese.nsh"),
+    "french" => include_bytes!("./templates/nsis-languages/French.nsh"),
+    "spanish" => include_bytes!("./templates/nsis-languages/Spanish.nsh"),
+    "spanishinternational" => include_bytes!("./templates/nsis-languages/SpanishInternational.nsh"),
+    "persian" => include_bytes!("./templates/nsis-languages/Persian.nsh"),
+    "turkish" => include_bytes!("./templates/nsis-languages/Turkish.nsh"),
+    "swedish" => include_bytes!("./templates/nsis-languages/Swedish.nsh"),
+    _ => return None,
   };
-
-  Ok(Some((lang_path, lang_content)))
+  Some((path, content))
 }
 
-fn write_ut16_le_with_bom<P: AsRef<Path>>(path: P, content: &str) -> crate::Result<()> {
+fn write_utf8_with_bom<P: AsRef<Path>, C: AsRef<[u8]>>(path: P, content: C) -> crate::Result<()> {
   use std::fs::File;
   use std::io::{BufWriter, Write};
 
   let file = File::create(path)?;
   let mut output = BufWriter::new(file);
-  output.write_all(&[0xFF, 0xFE])?; // the BOM part
-  for utf16 in content.encode_utf16() {
-    output.write_all(&utf16.to_le_bytes())?;
-  }
+  output.write_all(&[0xEF, 0xBB, 0xBF])?; // UTF-8 BOM
+  output.write_all(content.as_ref())?;
   Ok(())
 }

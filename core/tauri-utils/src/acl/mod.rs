@@ -126,18 +126,26 @@ pub struct Commands {
   pub deny: Vec<String>,
 }
 
-/// A restriction of the command/endpoint functionality.
+/// An argument for fine grained behavior control of Tauri commands.
 ///
-/// It can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.
+/// It can be of any serde serializable type and is used to allow or prevent certain actions inside a Tauri command.
+/// The configured scope is passed to the command and will be enforced by the command implementation.
 ///
-/// The scope is passed to the command and handled/enforced by the command itself.
+/// ## Example
+///
+/// ```json
+/// {
+///   "allow": [{ "path": "$HOME/**" }],
+///   "deny": [{ "path": "$HOME/secret.txt" }]
+/// }
+/// ```
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Scopes {
   /// Data that defines what is allowed by the scope.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub allow: Option<Vec<Value>>,
-  /// Data that defines what is denied by the scope.
+  /// Data that defines what is denied by the scope. This should be prioritized by validation logic.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub deny: Option<Vec<Value>>,
 }

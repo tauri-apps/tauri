@@ -317,6 +317,10 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Preserve the hardened runtime version flag, see <https://developer.apple.com/documentation/security/hardened_runtime>
+  ///
+  /// Settings this to `false` is useful when using an ad-hoc signature, making it less strict.
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
@@ -362,8 +366,6 @@ pub struct WixSettings {
   pub feature_refs: Vec<String>,
   /// The Merge element ids you want to reference from the fragments.
   pub merge_refs: Vec<String>,
-  /// Disables the Webview2 runtime installation after app install. Will be removed in v2, use [`WindowsSettings::webview_install_mode`] instead.
-  pub skip_webview_install: bool,
   /// Create an elevated update task within Windows Task Scheduler.
   pub enable_elevated_update_task: bool,
   /// Path to a bitmap file to use as the installation user interface banner.
@@ -414,7 +416,41 @@ pub struct NsisSettings {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
-  pub compression: Option<NsisCompression>,
+  pub compression: NsisCompression,
+  /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
+  /// main installer.nsi script.
+  ///
+  /// Supported hooks are:
+  /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
+  /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
+  /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
+  /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  ///
+  ///
+  /// ### Example
+  ///
+  /// ```nsh
+  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
+  /// !macro NSIS_HOOK_PREINSTALL_
+  ///   MessageBox MB_OK "PreInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
+  /// !macro NSIS_HOOK_POSTINSTALL_
+  ///   MessageBox MB_OK "PostInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
+  /// !macro NSIS_HOOK_PREUNINSTALL_
+  ///   MessageBox MB_OK "PreUnInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
+  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  ///   MessageBox MB_OK "PostUninstall"
+  /// !macroend
+  /// ```
+  pub installer_hooks: Option<PathBuf>,
 }
 
 /// The Windows bundle settings.
@@ -449,6 +485,20 @@ pub struct WindowsSettings {
   ///
   /// /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
+
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsSettings {
@@ -464,6 +514,7 @@ impl Default for WindowsSettings {
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: true,
+      sign_command: None,
     }
   }
 }
@@ -476,6 +527,11 @@ pub struct BundleSettings {
   /// The app's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
+  /// A url to the home page of your application. If None, will
+  /// fallback to [PackageSettings::homepage].
+  ///
+  /// Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`
+  pub homepage: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
   /// the app's resources to bundle.
@@ -555,6 +611,15 @@ impl BundleBinary {
     Self {
       name,
       src_path: None,
+      main,
+    }
+  }
+
+  /// Creates a new bundle binary with path.
+  pub fn with_path(name: String, main: bool, src_path: Option<String>) -> Self {
+    Self {
+      name,
+      src_path,
       main,
     }
   }
@@ -837,7 +902,7 @@ impl Settings {
     self.bundle_settings.identifier.as_deref().unwrap_or("")
   }
 
-  /// Returns the bundle's identifier
+  /// Returns the bundle's publisher
   pub fn publisher(&self) -> Option<&str> {
     self.bundle_settings.publisher.as_deref()
   }
@@ -943,8 +1008,12 @@ impl Settings {
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
-  pub fn homepage_url(&self) -> &str {
-    self.package.homepage.as_deref().unwrap_or("")
+  pub fn homepage_url(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .homepage
+      .as_deref()
+      .or(self.package.homepage.as_deref())
   }
 
   /// Returns the app's category.

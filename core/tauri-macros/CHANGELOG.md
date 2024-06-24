@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.0-beta.17]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-codegen@2.0.0-beta.17`
+
+### Breaking Changes
+
+- [`1df5cdeb0`](https://www.github.com/tauri-apps/tauri/commit/1df5cdeb06f5464e0eec4055e21b7b7bc8739eed)([#9858](https://www.github.com/tauri-apps/tauri/pull/9858)) Use `tauri.conf.json > identifier` to set the `PackageName` in Android and `BundleId` in iOS.
+
+## \[2.0.0-beta.16]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-codegen@2.0.0-beta.16`
+
 ## \[2.0.0-beta.15]
 
 ### Dependencies

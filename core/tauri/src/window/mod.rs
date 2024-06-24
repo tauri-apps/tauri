@@ -240,7 +240,7 @@ async fn reopen_window(app: tauri::AppHandle) {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(manager: &'a M, config: &WindowConfig) -> crate::Result<Self> {
-    #[cfg_attr(not(unstable), allow(unused_mut))]
+    #[cfg_attr(not(windows), allow(unused_mut))]
     let mut builder = Self {
       manager,
       label: config.label.clone(),
@@ -390,7 +390,7 @@ tauri::Builder::default()
     #[cfg(desktop)]
     let handler = app_manager
       .menu
-      .prepare_window_menu_creation_handler(window_menu.as_ref());
+      .prepare_window_menu_creation_handler(window_menu.as_ref(), self.window_builder.get_theme());
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
     let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;
@@ -968,7 +968,7 @@ impl<R: Runtime> ManagerBase<R> for Window<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for Window<R> {
   /// Grabs the [`Window`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.webview().window().clone())
+    Ok(command.message.webview().window())
   }
 }
 
@@ -1160,7 +1160,12 @@ tauri::Builder::default()
     self.run_on_main_thread(move || {
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        let _ = menu_.inner().init_for_hwnd(hwnd.0);
+        let theme = window
+          .theme()
+          .map(crate::menu::map_to_menu_theme)
+          .unwrap_or(muda::MenuTheme::Auto);
+
+        let _ = menu_.inner().init_for_hwnd_with_theme(hwnd.0, theme);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1433,6 +1438,16 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .current_monitor()
+      .map(|m| m.map(Into::into))
+      .map_err(Into::into)
+  }
+
+  /// Returns the monitor that contains the given point.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+    self
+      .window
+      .dispatcher
+      .monitor_from_point(x, y)
       .map(|m| m.map(Into::into))
       .map_err(Into::into)
   }
@@ -1976,16 +1991,7 @@ tauri::Builder::default()
       .set_progress_bar(crate::runtime::ProgressBarState {
         status: progress_state.status,
         progress: progress_state.progress,
-        desktop_filename: Some(format!(
-          "{}.desktop",
-          heck::AsKebabCase(
-            self
-              .config()
-              .product_name
-              .as_deref()
-              .unwrap_or_else(|| self.package_info().crate_name)
-          )
-        )),
+        desktop_filename: Some(format!("{}.desktop", self.package_info().crate_name)),
       })
       .map_err(Into::into)
   }

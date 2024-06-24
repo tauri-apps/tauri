@@ -66,7 +66,7 @@ impl<'de> Deserialize<'de> for SafePathBuf {
 /// The base directory is the optional root of a file system operation.
 /// If informed by the API call, all paths will be relative to the path of the given directory.
 ///
-/// For more information, check the [`dirs_next` documentation](https://docs.rs/dirs_next/).
+/// For more information, check the [`dirs` documentation](https://docs.rs/dirs/).
 #[derive(Serialize_repr, Deserialize_repr, Clone, Copy, Debug)]
 #[repr(u16)]
 #[non_exhaustive]

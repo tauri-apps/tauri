@@ -93,10 +93,18 @@ fn copy_binaries(
 
 /// Copies resources to a path.
 fn copy_resources(resources: ResourcePaths<'_>, path: &Path) -> Result<()> {
+  let path = path.canonicalize()?;
   for resource in resources.iter() {
     let resource = resource?;
+
     println!("cargo:rerun-if-changed={}", resource.path().display());
-    copy_file(resource.path(), path.join(resource.target()))?;
+
+    // avoid copying the resource if target is the same as source
+    let src = resource.path().canonicalize()?;
+    let target = path.join(resource.target());
+    if src != target {
+      copy_file(src, target)?;
+    }
   }
   Ok(())
 }
@@ -190,7 +198,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         framework
       ));
     }
-    if let Some(home_dir) = dirs_next::home_dir() {
+    if let Some(home_dir) = dirs::home_dir() {
       if copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)? {
         continue;
       }
@@ -211,6 +219,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn cfg_alias(alias: &str, has_feature: bool) {
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }
@@ -385,7 +394,7 @@ impl Attributes {
   }
 }
 
-pub fn dev() -> bool {
+pub fn is_dev() -> bool {
   std::env::var("DEP_TAURI_DEV")
     .expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
@@ -459,19 +468,21 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let last = s.clone().count() - 1;
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
-    if i == 0 || i != last {
+    if i == last {
+      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}", w);
+    } else {
       android_package_prefix.push_str(w);
       android_package_prefix.push('_');
     }
   }
   android_package_prefix.pop();
-  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_PREFIX={android_package_prefix}");
+  println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
   if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-    mobile::generate_gradle_files(project_dir)?;
+    mobile::generate_gradle_files(project_dir, &config)?;
   }
 
-  cfg_alias("dev", dev());
+  cfg_alias("dev", is_dev());
 
   let ws_path = get_workspace_dir()?;
   let mut manifest =
@@ -527,6 +538,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   tauri_utils::plugin::load_global_api_scripts(&out_dir);
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
+  // when running codegen in this build script, we need to access the env var directly
+  std::env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir

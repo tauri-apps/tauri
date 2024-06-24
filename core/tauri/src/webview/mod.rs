@@ -124,6 +124,8 @@ pub struct InvokeRequest {
   pub body: InvokeBody,
   /// The request headers.
   pub headers: HeaderMap,
+  /// The invoke key. Must match what was passed to the app manager.
+  pub invoke_key: String,
 }
 
 /// The platform webview handle. Accessed with [`Webview#method.with_webview`];
@@ -733,7 +735,7 @@ fn main() {
     self
   }
 
-  /// Enable or disable incognito mode for the WebView..
+  /// Enable or disable incognito mode for the WebView.
   ///
   ///  ## Platform-specific:
   ///
@@ -1131,6 +1133,24 @@ fn main() {
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
     let is_local = self.is_local_url(&request.url);
+
+    // ensure the passed key matches what our manager should have injected
+    let expected = manager.invoke_key();
+    if request.invoke_key != expected {
+      #[cfg(feature = "tracing")]
+      tracing::error!(
+        "__TAURI_INVOKE_KEY__ expected {expected} but received {}",
+        request.invoke_key
+      );
+
+      #[cfg(not(feature = "tracing"))]
+      eprintln!(
+        "__TAURI_INVOKE_KEY__ expected {expected} but received {}",
+        request.invoke_key
+      );
+
+      return;
+    }
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 

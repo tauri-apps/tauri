@@ -1,5 +1,78 @@
 # Changelog
 
+## \[2.0.0-beta.22]
+
+### Bug Fixes
+
+- [`dfd05441c`](https://www.github.com/tauri-apps/tauri/commit/dfd05441c761b1737e29794ab1f02e41e5d7cc12)([#9860](https://www.github.com/tauri-apps/tauri/pull/9860)) Revert adding `app-region: drag` to HTML elements with `data-tauri-drag-region` on Windows as it has a few issues:
+
+  - Doesn't allow right click, as it will always show the system context menu on right click.
+  - `data-tauri-drag-region` works only if the click was on an element that has it, this allows buttons in the custom titlebar to work, however `app-region: drag` will treat the whole area as a titlebar won't even allow clicks on buttons.
+
+## \[2.0.0-beta.21]
+
+### New Features
+
+- [`8a1ae2dea`](https://www.github.com/tauri-apps/tauri/commit/8a1ae2deaf3086e531ada25b1627f900e2e421fb)([#9843](https://www.github.com/tauri-apps/tauri/pull/9843)) Added an option to use a Xcode project for the iOS plugin instead of a plain SwiftPM project.
+
+### Bug Fixes
+
+- [`276c4b143`](https://www.github.com/tauri-apps/tauri/commit/276c4b14385e17cff15a2e5b57fd2a7cddef9f08)([#9832](https://www.github.com/tauri-apps/tauri/pull/9832)) On Windows, fix wrong menubar theme when window is using an explicit theme.
+- [`ccc3ea729`](https://www.github.com/tauri-apps/tauri/commit/ccc3ea729de205ef467f737f1feeb5bf02d9cd72)([#9646](https://www.github.com/tauri-apps/tauri/pull/9646)) Parse the correct platform `tauri.<platform>.conf.json` config file when building or developing for mobile.
+- [`aa55e0335`](https://www.github.com/tauri-apps/tauri/commit/aa55e033540cc77c3fb159b9230337d9dd33034e)([#9899](https://www.github.com/tauri-apps/tauri/pull/9899)) Set default window origin to `null`. Prevent window crash when loading `about:blank`.
+
+### What's Changed
+
+- [`9ac930380`](https://www.github.com/tauri-apps/tauri/commit/9ac930380a5df3fe700e68e75df8684d261ca292)([#9850](https://www.github.com/tauri-apps/tauri/pull/9850)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+- [`80aa50498`](https://www.github.com/tauri-apps/tauri/commit/80aa504987dd9cfa59aa5848c4d7960e1d58d0e6)([#9870](https://www.github.com/tauri-apps/tauri/pull/9870)) Updated Android target SDK to 34.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.17`
+- Upgraded to `tauri-macros@2.0.0-beta.17`
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-runtime@2.0.0-beta.18`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.18`
+
+### Breaking Changes
+
+- [`e8f6eb59a`](https://www.github.com/tauri-apps/tauri/commit/e8f6eb59a5eaad26ae0314ac9e4c0061e6bd25fe)([#9552](https://www.github.com/tauri-apps/tauri/pull/9552)) Include binary path in `Env.args_os`, previously it was skipped.
+- [`1df5cdeb0`](https://www.github.com/tauri-apps/tauri/commit/1df5cdeb06f5464e0eec4055e21b7b7bc8739eed)([#9858](https://www.github.com/tauri-apps/tauri/pull/9858)) Use `tauri.conf.json > identifier` to set the `PackageName` in Android and `BundleId` in iOS.
+- [`aaecb6a72`](https://www.github.com/tauri-apps/tauri/commit/aaecb6a72e5d1462967cc910c2628999997742d0)([#9890](https://www.github.com/tauri-apps/tauri/pull/9890)) Renamed `dev` function to `is_dev` and marked it as `const fn`
+- [`c4410daa8`](https://www.github.com/tauri-apps/tauri/commit/c4410daa85616340e911c8243fdaa69e6906fd49)([#9777](https://www.github.com/tauri-apps/tauri/pull/9777)) This release contains breaking changes to the tray event structure because of newly added events:
+
+  - Changed `TrayIconEvent` to be an enum instead of a struct.
+  - Added `MouseButtonState` and `MouseButton` enums.
+  - Removed `ClickType` enum and replaced it with `MouseButton` enum.
+  - Added `MouseButtonState` enum.
+
+## \[2.0.0-beta.20]
+
+### New Features
+
+- [`ae6b13dfc`](https://www.github.com/tauri-apps/tauri/commit/ae6b13dfc0590dcaedbdb619c148072f072df050)([#9789](https://www.github.com/tauri-apps/tauri/pull/9789)) Add `app-region: drag` to HTML elements with `data-tauri-drag-region` on Windows, only WebView2 123+, which should fix dragging using touch.
+- [`ec0e092ec`](https://www.github.com/tauri-apps/tauri/commit/ec0e092ecd23b547c756c7476f23a0d95be6db80)([#9770](https://www.github.com/tauri-apps/tauri/pull/9770)) Add `App/AppHandle/Window/Webview/WebviewWindow::monitor_from_point(x, y)` getter to get the monitor from a given point.
+
+### Enhancements
+
+- [`5d20530c9`](https://www.github.com/tauri-apps/tauri/commit/5d20530c91495e548ecc9cb4369da09977a9a962)([#9842](https://www.github.com/tauri-apps/tauri/pull/9842)) Added `AppHandle::set_activation_policy` for macOS.
+
+### Bug Fixes
+
+- [`0b690f242`](https://www.github.com/tauri-apps/tauri/commit/0b690f242f3a9fdffc268ee66464151b3466d00b)([#9845](https://www.github.com/tauri-apps/tauri/pull/9845)) Export `tauri::UriSchemeResponder`.
+
+### Security fixes
+
+- [`d950ac123`](https://www.github.com/tauri-apps/tauri/commit/d950ac1239817d17324c035e5c4769ee71fc197d) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.17`
+- Upgraded to `tauri-runtime@2.0.0-beta.17`
+- Upgraded to `tauri-macros@2.0.0-beta.16`
+- Upgraded to `tauri-build@2.0.0-beta.16`
+
 ## \[2.0.0-beta.19]
 
 ### New Features

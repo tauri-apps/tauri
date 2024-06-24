@@ -269,7 +269,7 @@ fn run_dev(
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();
-            Err(e.into())
+            Err(e)
           }
         }
       } else {
@@ -279,12 +279,6 @@ fn run_dev(
   )
 }
 
-#[derive(Debug, thiserror::Error)]
-enum RunError {
-  #[error("{0}")]
-  RunFailed(String),
-}
-
 fn run(
   device: &Device<'_>,
   options: MobileOptions,
@@ -292,7 +286,7 @@ fn run(
   env: &Env,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
-) -> Result<DevChild, RunError> {
+) -> crate::Result<DevChild> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -317,5 +311,5 @@ fn run(
       ".MainActivity".into(),
     )
     .map(DevChild::new)
-    .map_err(|e| RunError::RunFailed(e.to_string()))
+    .map_err(Into::into)
 }

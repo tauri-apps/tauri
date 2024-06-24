@@ -1,5 +1,36 @@
 # Changelog
 
+## \[2.0.0-beta.17]
+
+### Enhancements
+
+- [`adac2185a`](https://www.github.com/tauri-apps/tauri/commit/adac2185a3e2e65a89a3c392363c50ddde4acff2)([#9898](https://www.github.com/tauri-apps/tauri/pull/9898)) Check for Android version code before building the package in release mode.
+
+### Bug Fixes
+
+- [`19b696b61`](https://www.github.com/tauri-apps/tauri/commit/19b696b61c95ced0f07dd7471565ad329a0badcf)([#9710](https://www.github.com/tauri-apps/tauri/pull/9710)) Avoid copying resources if the target path is the same as source.
+
+### What's Changed
+
+- [`9ac930380`](https://www.github.com/tauri-apps/tauri/commit/9ac930380a5df3fe700e68e75df8684d261ca292)([#9850](https://www.github.com/tauri-apps/tauri/pull/9850)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-codegen@2.0.0-beta.17`
+
+### Breaking Changes
+
+- [`1df5cdeb0`](https://www.github.com/tauri-apps/tauri/commit/1df5cdeb06f5464e0eec4055e21b7b7bc8739eed)([#9858](https://www.github.com/tauri-apps/tauri/pull/9858)) Use `tauri.conf.json > identifier` to set the `PackageName` in Android and `BundleId` in iOS.
+- [`aaecb6a72`](https://www.github.com/tauri-apps/tauri/commit/aaecb6a72e5d1462967cc910c2628999997742d0)([#9890](https://www.github.com/tauri-apps/tauri/pull/9890)) Renamed `dev` function to `is_dev`
+
+## \[2.0.0-beta.16]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-codegen@2.0.0-beta.16`
+
 ## \[2.0.0-beta.15]
 
 ### Dependencies

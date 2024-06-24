@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-beta.17]
+
+### What's Changed
+
+- [`ccc3ea729`](https://www.github.com/tauri-apps/tauri/commit/ccc3ea729de205ef467f737f1feeb5bf02d9cd72)([#9646](https://www.github.com/tauri-apps/tauri/pull/9646)) Use `TAURI_ENV_TARGET_TRIPLE` (which is set by `tauri-build`) to determine the target when reading the config file.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+
+## \[2.0.0-beta.16]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+
 ## \[2.0.0-beta.15]
 
 ### Dependencies

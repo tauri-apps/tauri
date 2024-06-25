@@ -270,7 +270,7 @@ pub fn generate_docs(
     }
 
     if let Some(default) = &permission.default {
-      default_permission.push_str(&default.description.as_deref().unwrap_or_default());
+      default_permission.push_str(default.description.as_deref().unwrap_or_default());
       default_permission.push('\n');
       default_permission.push('\n');
       for permission in &default.permissions {

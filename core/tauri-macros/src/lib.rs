@@ -42,7 +42,7 @@ pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenSt
   mobile::entry_point(attributes, item)
 }
 
-/// Accepts a list of commands functions. Creates a handler that allows commands to be called from JS with invoke().
+/// Accepts a list of command functions. Creates a handler that allows commands to be called from JS with invoke().
 ///
 /// # Examples
 /// ```rust,ignore

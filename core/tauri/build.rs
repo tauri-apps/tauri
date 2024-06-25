@@ -381,7 +381,7 @@ permissions = [{default_permissions}]
     tauri_utils::acl::build::generate_docs(
       &permissions,
       &docs_out_dir,
-      &plugin.strip_prefix("tauri-plugin-").unwrap_or(&plugin),
+      plugin.strip_prefix("tauri-plugin-").unwrap_or(plugin),
     )
     .expect("failed to generate plugin documentation page");
   }

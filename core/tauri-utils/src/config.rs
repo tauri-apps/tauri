@@ -18,6 +18,7 @@ use serde::{
   Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
+use serde_untagged::UntaggedEnumVisitor;
 use serde_with::skip_serializing_none;
 use url::Url;
 
@@ -270,7 +271,14 @@ impl<'de> Deserialize<'de> for BundleTarget {
 
     match BundleTargetInner::deserialize(deserializer)? {
       BundleTargetInner::All(s) if s.to_lowercase() == "all" => Ok(Self::All),
-      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {t}"))),
+      BundleTargetInner::All(t) => Err(DeError::custom(format!(
+        "invalid bundle type {t}, expected one of `all`, {}",
+        BundleType::all()
+          .iter()
+          .map(|b| format!("`{b}`"))
+          .collect::<Vec<_>>()
+          .join(", ")
+      ))),
       BundleTargetInner::List(l) => Ok(Self::List(l)),
       BundleTargetInner::One(t) => Ok(Self::One(t)),
     }
@@ -1708,14 +1716,26 @@ pub struct SecurityConfig {
 }
 
 /// A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", untagged)]
+#[serde(untagged)]
 pub enum CapabilityEntry {
   /// An inlined capability.
   Inlined(Capability),
   /// Reference to a capability identifier.
   Reference(String),
+}
+
+impl<'de> Deserialize<'de> for CapabilityEntry {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    UntaggedEnumVisitor::new()
+      .string(|string| Ok(Self::Reference(string.to_owned())))
+      .map(|map| map.deserialize::<Capability>().map(Self::Inlined))
+      .deserialize(deserializer)
+  }
 }
 
 /// The application pattern.

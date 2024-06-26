@@ -124,7 +124,7 @@ jobs:
         if: matrix.platform == 'windows-latest'
         working-directory: ./examples/api/src-tauri/gen/android
         run: |
-          [System.Convert]::FromBase64String("${{ secrets.ANDROID_KEY_BASE64 }}") | Set-Content $env:RUNNER_TEMP\keystore.jks -Encoding Byte
+          [System.Convert]::FromBase64String("${{ secrets.ANDROID_KEY_BASE64 }}") | Set-Content $env:RUNNER_TEMP\keystore.jks -AsByteStream
           echo "storeFile=$env:RUNNER_TEMP\keystore.jks" >> keystore.properties
 
       - name: build APK

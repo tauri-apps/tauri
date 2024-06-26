@@ -221,7 +221,7 @@ pub struct CapabilityRemote {
 
 /// Capability formats accepted in a capability file.
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[cfg_attr(feature = "schema", serde(untagged))]
+#[cfg_attr(feature = "schema", schemars(untagged))]
 #[cfg_attr(test, derive(Debug, PartialEq))]
 pub enum CapabilityFile {
   /// A single capability.

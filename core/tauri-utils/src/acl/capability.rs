@@ -157,6 +157,7 @@ pub struct Capability {
   ///    "allow": [{ "path": "$HOME/test.txt" }]
   ///  }
   /// ```
+  #[cfg_attr(feature = "schema", schemars(schema_with = "unique_permission"))]
   pub permissions: Vec<PermissionEntry>,
   /// Limit which target platforms this capability applies to.
   ///
@@ -167,6 +168,21 @@ pub struct Capability {
   /// `["macOS","windows"]`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+}
+
+#[cfg(feature = "schema")]
+fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  use schemars::schema;
+  schema::SchemaObject {
+    instance_type: Some(schema::InstanceType::Array.into()),
+    array: Some(Box::new(schema::ArrayValidation {
+      unique_items: Some(true),
+      items: Some(gen.subschema_for::<PermissionEntry>().into()),
+      ..Default::default()
+    })),
+    ..Default::default()
+  }
+  .into()
 }
 
 fn default_capability_local() -> bool {

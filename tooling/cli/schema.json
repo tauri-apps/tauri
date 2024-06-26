@@ -1126,7 +1126,8 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/PermissionEntry"
-          }
+          },
+          "uniqueItems": true
         },
         "platforms": {
           "description": "Limit which target platforms this capability applies to.\n\n By default all platforms are targeted.\n\n ## Example\n\n `[\"macOS\",\"windows\"]`",

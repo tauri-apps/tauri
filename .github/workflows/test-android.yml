@@ -107,13 +107,25 @@ jobs:
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-      - name: setup Android signing
+      - name: setup Android signing secrets
         working-directory: ./examples/api/src-tauri/gen/android
         run: |
           echo "keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}" > keystore.properties
           echo "password=${{ secrets.ANDROID_KEY_PASSWORD }}" >> keystore.properties
+
+      - name: setup Android signing key (Unix)
+        if: matrix.platform != 'windows-latest'
+        working-directory: ./examples/api/src-tauri/gen/android
+        run: |
           base64 -d <<< "${{ secrets.ANDROID_KEY_BASE64 }}" > $RUNNER_TEMP/keystore.jks
           echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+
+      - name: setup Android signing key (Windows)
+        if: matrix.platform == 'windows-latest'
+        working-directory: ./examples/api/src-tauri/gen/android
+        run: |
+          [System.Convert]::FromBase64String("${{ secrets.ANDROID_KEY_BASE64 }}") | Set-Content $env:RUNNER_TEMP\keystore.jks -Encoding Byte
+          echo "storeFile=$env:RUNNER_TEMP\keystore.jks" >> keystore.properties
 
       - name: build APK
         working-directory: ./examples/api

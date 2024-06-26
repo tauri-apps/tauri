@@ -239,8 +239,16 @@ pub fn command(mut options: Options) -> Result<()> {
     .with_context(|| "failed to render plugin Android template")?;
   }
 
-  std::fs::create_dir(template_target_path.join("permissions"))
+  let permissions_dir = template_target_path.join("permissions");
+  std::fs::create_dir(&permissions_dir)
     .with_context(|| "failed to create `permissions` directory")?;
+
+  let default_permissions = r#"[default]
+description = "Default permissions for the plugin"
+permissions = ["allow-ping"]
+"#;
+  std::fs::write(permissions_dir.join("default.toml"), default_permissions)
+    .with_context(|| "failed to write `permissions/default.toml`")?;
 
   Ok(())
 }

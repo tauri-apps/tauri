@@ -231,7 +231,7 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
         for (const id of ids) {{
           const listener = listeners[id]
-          if (listener) {{
+          if (listener && listener.handler) {{
             eventData.id = id
             listener.handler(eventData)
           }}

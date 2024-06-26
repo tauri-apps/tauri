@@ -339,6 +339,14 @@ pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
 
 #[derive(Default)]
 pub struct RuntimeInitArgs {
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub app_id: Option<String>,
   #[cfg(windows)]
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
 }

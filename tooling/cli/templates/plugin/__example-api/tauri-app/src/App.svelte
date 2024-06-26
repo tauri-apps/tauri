@@ -1,15 +1,15 @@
 <script>
   import Greet from './lib/Greet.svelte'
-  import { execute } from 'tauri-plugin-{{ plugin_name }}-api'
+  import { ping } from 'tauri-plugin-{{ plugin_name }}-api'
 
 	let response = ''
 
 	function updateResponse(returnValue) {
-		response += `[${new Date().toLocaleTimeString()}]` + (typeof returnValue === 'string' ? returnValue : JSON.stringify(returnValue)) + '<br>'
+		response += `[${new Date().toLocaleTimeString()}] ` + (typeof returnValue === 'string' ? returnValue : JSON.stringify(returnValue)) + '<br>'
 	}
 
-	function _execute() {
-		execute().then(updateResponse).catch(updateResponse)
+	function _ping() {
+		ping("Pong!").then(updateResponse).catch(updateResponse)
 	}
 </script>
 
@@ -37,7 +37,7 @@
   </div>
 
   <div>
-    <button on:click="{_execute}">Execute</button>
+    <button on:click="{_ping}">Ping</button>
     <div>{@html response}</div>
   </div>
 

@@ -172,6 +172,8 @@ pub struct Permission {
   pub identifier: String,
 
   /// Human-readable description of what the permission does.
+  /// Tauri internal convention is to use <h4> headings in markdown content
+  /// for Tauri documentation generation purposes.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
 

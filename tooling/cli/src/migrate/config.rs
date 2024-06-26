@@ -23,7 +23,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     let migrated = migrate_config(&mut config)?;
     fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
 
-    let mut permissions: Vec<PermissionEntry> = vec![
+    let mut permissions: HashSet<PermissionEntry> = vec![
       "path:default",
       "event:default",
       "window:default",

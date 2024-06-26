@@ -8,7 +8,7 @@ use std::{path::Path, str::FromStr};
 
 use crate::{acl::Identifier, platform::Target};
 use serde::{
-  de::{IntoDeserializer, MapAccess},
+  de::{Error, IntoDeserializer},
   Deserialize, Deserializer, Serialize,
 };
 use serde_untagged::UntaggedEnumVisitor;
@@ -133,6 +133,7 @@ pub struct CapabilityRemote {
 /// Capability formats accepted in a capability file.
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[cfg_attr(feature = "schema", serde(untagged))]
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub enum CapabilityFile {
   /// A single capability.
   Capability(Capability),
@@ -173,16 +174,18 @@ impl<'de> Deserialize<'de> for CapabilityFile {
           capabilities: Vec<Capability>,
         }
 
-        if let Some(len) = map.size_hint() {
-          if len == 1 {
-            let named = map.deserialize::<CapabilityNamedList>()?;
-            return Ok(Self::NamedList {
+        let value: serde_json::Map<String, serde_json::Value> = map.deserialize()?;
+        if value.contains_key("capabilities") {
+          serde_json::from_value::<CapabilityNamedList>(value.into())
+            .map(|named| Self::NamedList {
               capabilities: named.capabilities,
-            });
-          }
+            })
+            .map_err(|e| serde_untagged::de::Error::custom(e.to_string()))
+        } else {
+          serde_json::from_value::<Capability>(value.into())
+            .map(Self::Capability)
+            .map_err(|e| serde_untagged::de::Error::custom(e.to_string()))
         }
-
-        map.deserialize::<Capability>().map(Self::Capability)
       })
       .deserialize(deserializer)
   }
@@ -261,5 +264,73 @@ mod build {
         platforms
       );
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::acl::{Identifier, Scopes};
+
+  use super::{Capability, CapabilityFile, PermissionEntry};
+
+  #[test]
+  fn permission_entry_de() {
+    let identifier = Identifier::try_from("plugin:perm".to_string()).unwrap();
+    let identifier_json = serde_json::to_string(&identifier).unwrap();
+    assert_eq!(
+      serde_json::from_str::<PermissionEntry>(&identifier_json).unwrap(),
+      PermissionEntry::PermissionRef(identifier.clone())
+    );
+
+    assert_eq!(
+      serde_json::from_value::<PermissionEntry>(serde_json::json!({
+        "identifier": identifier,
+        "allow": [],
+        "deny": null
+      }))
+      .unwrap(),
+      PermissionEntry::ExtendedPermission {
+        identifier,
+        scope: Scopes {
+          allow: Some(vec![]),
+          deny: None
+        }
+      }
+    );
+  }
+
+  #[test]
+  fn capability_file_de() {
+    let capability = Capability {
+      identifier: "test".into(),
+      description: "".into(),
+      remote: None,
+      local: true,
+      windows: vec![],
+      webviews: vec![],
+      permissions: vec![],
+      platforms: None,
+    };
+    let capability_json = serde_json::to_string(&capability).unwrap();
+
+    assert_eq!(
+      serde_json::from_str::<CapabilityFile>(&capability_json).unwrap(),
+      CapabilityFile::Capability(capability.clone())
+    );
+
+    assert_eq!(
+      serde_json::from_str::<CapabilityFile>(&format!("[{capability_json}]")).unwrap(),
+      CapabilityFile::List(vec![capability.clone()])
+    );
+
+    assert_eq!(
+      serde_json::from_str::<CapabilityFile>(&format!(
+        "{{ \"capabilities\": [{capability_json}] }}"
+      ))
+      .unwrap(),
+      CapabilityFile::NamedList {
+        capabilities: vec![capability.clone()]
+      }
+    );
   }
 }

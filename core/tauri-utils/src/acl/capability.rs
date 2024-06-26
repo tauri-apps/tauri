@@ -4,7 +4,7 @@
 
 //! End-user abstraction for selecting permissions a window has access to.
 
-use std::{collections::HashSet, hash::Hash, path::Path, str::FromStr};
+use std::{path::Path, str::FromStr};
 
 use crate::{acl::Identifier, platform::Target};
 use serde::{Deserialize, Serialize};
@@ -13,7 +13,7 @@ use super::Scopes;
 
 /// An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]
 /// or an object that references a permission and extends its scope.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub enum PermissionEntry {
@@ -27,20 +27,6 @@ pub enum PermissionEntry {
     #[serde(default, flatten)]
     scope: Scopes,
   },
-}
-
-impl PartialEq for PermissionEntry {
-  fn eq(&self, other: &Self) -> bool {
-    self.identifier() == other.identifier()
-  }
-}
-
-impl Eq for PermissionEntry {}
-
-impl Hash for PermissionEntry {
-  fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-    self.identifier().hash(state);
-  }
 }
 
 impl PermissionEntry {
@@ -171,7 +157,8 @@ pub struct Capability {
   ///    "allow": [{ "path": "$HOME/test.txt" }]
   ///  }
   /// ```
-  pub permissions: HashSet<PermissionEntry>,
+  #[cfg_attr(feature = "schema", schemars(schema_with = "unique_permission"))]
+  pub permissions: Vec<PermissionEntry>,
   /// Limit which target platforms this capability applies to.
   ///
   /// By default all platforms are targeted.
@@ -181,6 +168,21 @@ pub struct Capability {
   /// `["macOS","windows"]`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+}
+
+#[cfg(feature = "schema")]
+fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  use schemars::schema;
+  schema::SchemaObject {
+    instance_type: Some(schema::InstanceType::Array.into()),
+    array: Some(Box::new(schema::ArrayValidation {
+      unique_items: Some(true),
+      items: Some(gen.subschema_for::<PermissionEntry>().into()),
+      ..Default::default()
+    })),
+    ..Default::default()
+  }
+  .into()
 }
 
 fn default_capability_local() -> bool {

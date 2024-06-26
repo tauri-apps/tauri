@@ -17,7 +17,7 @@ const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
 
 /// Plugin identifier.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
   inner: String,
   separator: Option<NonZeroU8>,

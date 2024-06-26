@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
@@ -93,7 +93,7 @@ impl CapabilityBuilder {
       local: true,
       windows: Vec::new(),
       webviews: Vec::new(),
-      permissions: HashSet::new(),
+      permissions: Vec::new(),
       platforms: None,
     })
   }
@@ -145,7 +145,7 @@ impl CapabilityBuilder {
   /// Add a new permission to this capability.
   pub fn permission(mut self, permission: impl Into<String>) -> Self {
     let permission = permission.into();
-    self.0.permissions.insert(PermissionEntry::PermissionRef(
+    self.0.permissions.push(PermissionEntry::PermissionRef(
       permission
         .clone()
         .try_into()
@@ -191,7 +191,7 @@ impl CapabilityBuilder {
     self
       .0
       .permissions
-      .insert(PermissionEntry::ExtendedPermission { identifier, scope });
+      .push(PermissionEntry::ExtendedPermission { identifier, scope });
     self
   }
 

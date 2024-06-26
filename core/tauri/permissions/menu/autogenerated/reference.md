@@ -1,47 +1,586 @@
-| Permission | Description |
-|------|-----|
-|`allow-append`|Enables the append command without any pre-configured scope.|
-|`deny-append`|Denies the append command without any pre-configured scope.|
-|`allow-create-default`|Enables the create_default command without any pre-configured scope.|
-|`deny-create-default`|Denies the create_default command without any pre-configured scope.|
-|`allow-get`|Enables the get command without any pre-configured scope.|
-|`deny-get`|Denies the get command without any pre-configured scope.|
-|`allow-insert`|Enables the insert command without any pre-configured scope.|
-|`deny-insert`|Denies the insert command without any pre-configured scope.|
-|`allow-is-checked`|Enables the is_checked command without any pre-configured scope.|
-|`deny-is-checked`|Denies the is_checked command without any pre-configured scope.|
-|`allow-is-enabled`|Enables the is_enabled command without any pre-configured scope.|
-|`deny-is-enabled`|Denies the is_enabled command without any pre-configured scope.|
-|`allow-items`|Enables the items command without any pre-configured scope.|
-|`deny-items`|Denies the items command without any pre-configured scope.|
-|`allow-new`|Enables the new command without any pre-configured scope.|
-|`deny-new`|Denies the new command without any pre-configured scope.|
-|`allow-popup`|Enables the popup command without any pre-configured scope.|
-|`deny-popup`|Denies the popup command without any pre-configured scope.|
-|`allow-prepend`|Enables the prepend command without any pre-configured scope.|
-|`deny-prepend`|Denies the prepend command without any pre-configured scope.|
-|`allow-remove`|Enables the remove command without any pre-configured scope.|
-|`deny-remove`|Denies the remove command without any pre-configured scope.|
-|`allow-remove-at`|Enables the remove_at command without any pre-configured scope.|
-|`deny-remove-at`|Denies the remove_at command without any pre-configured scope.|
-|`allow-set-accelerator`|Enables the set_accelerator command without any pre-configured scope.|
-|`deny-set-accelerator`|Denies the set_accelerator command without any pre-configured scope.|
-|`allow-set-as-app-menu`|Enables the set_as_app_menu command without any pre-configured scope.|
-|`deny-set-as-app-menu`|Denies the set_as_app_menu command without any pre-configured scope.|
-|`allow-set-as-help-menu-for-nsapp`|Enables the set_as_help_menu_for_nsapp command without any pre-configured scope.|
-|`deny-set-as-help-menu-for-nsapp`|Denies the set_as_help_menu_for_nsapp command without any pre-configured scope.|
-|`allow-set-as-window-menu`|Enables the set_as_window_menu command without any pre-configured scope.|
-|`deny-set-as-window-menu`|Denies the set_as_window_menu command without any pre-configured scope.|
-|`allow-set-as-windows-menu-for-nsapp`|Enables the set_as_windows_menu_for_nsapp command without any pre-configured scope.|
-|`deny-set-as-windows-menu-for-nsapp`|Denies the set_as_windows_menu_for_nsapp command without any pre-configured scope.|
-|`allow-set-checked`|Enables the set_checked command without any pre-configured scope.|
-|`deny-set-checked`|Denies the set_checked command without any pre-configured scope.|
-|`allow-set-enabled`|Enables the set_enabled command without any pre-configured scope.|
-|`deny-set-enabled`|Denies the set_enabled command without any pre-configured scope.|
-|`allow-set-icon`|Enables the set_icon command without any pre-configured scope.|
-|`deny-set-icon`|Denies the set_icon command without any pre-configured scope.|
-|`allow-set-text`|Enables the set_text command without any pre-configured scope.|
-|`deny-set-text`|Denies the set_text command without any pre-configured scope.|
-|`allow-text`|Enables the text command without any pre-configured scope.|
-|`deny-text`|Denies the text command without any pre-configured scope.|
-|`default`|Default permissions for the plugin.|
+## Default Permission
+
+Default permissions for the plugin.
+
+
+### Permission Table 
+
+<table>
+<tr>
+<th>Identifier</th>
+<th>Description</th>
+</tr>
+
+
+<tr>
+<td>
+
+`menu:allow-append`
+
+</td>
+<td>
+
+Enables the append command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-append`
+
+</td>
+<td>
+
+Denies the append command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-create-default`
+
+</td>
+<td>
+
+Enables the create_default command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-create-default`
+
+</td>
+<td>
+
+Denies the create_default command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-get`
+
+</td>
+<td>
+
+Enables the get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-get`
+
+</td>
+<td>
+
+Denies the get command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-insert`
+
+</td>
+<td>
+
+Enables the insert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-insert`
+
+</td>
+<td>
+
+Denies the insert command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-is-checked`
+
+</td>
+<td>
+
+Enables the is_checked command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-is-checked`
+
+</td>
+<td>
+
+Denies the is_checked command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-is-enabled`
+
+</td>
+<td>
+
+Enables the is_enabled command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-is-enabled`
+
+</td>
+<td>
+
+Denies the is_enabled command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-items`
+
+</td>
+<td>
+
+Enables the items command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-items`
+
+</td>
+<td>
+
+Denies the items command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-new`
+
+</td>
+<td>
+
+Enables the new command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-new`
+
+</td>
+<td>
+
+Denies the new command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-popup`
+
+</td>
+<td>
+
+Enables the popup command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-popup`
+
+</td>
+<td>
+
+Denies the popup command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-prepend`
+
+</td>
+<td>
+
+Enables the prepend command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-prepend`
+
+</td>
+<td>
+
+Denies the prepend command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-remove`
+
+</td>
+<td>
+
+Enables the remove command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-remove`
+
+</td>
+<td>
+
+Denies the remove command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-remove-at`
+
+</td>
+<td>
+
+Enables the remove_at command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-remove-at`
+
+</td>
+<td>
+
+Denies the remove_at command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-accelerator`
+
+</td>
+<td>
+
+Enables the set_accelerator command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-accelerator`
+
+</td>
+<td>
+
+Denies the set_accelerator command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-as-app-menu`
+
+</td>
+<td>
+
+Enables the set_as_app_menu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-as-app-menu`
+
+</td>
+<td>
+
+Denies the set_as_app_menu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-as-help-menu-for-nsapp`
+
+</td>
+<td>
+
+Enables the set_as_help_menu_for_nsapp command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-as-help-menu-for-nsapp`
+
+</td>
+<td>
+
+Denies the set_as_help_menu_for_nsapp command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-as-window-menu`
+
+</td>
+<td>
+
+Enables the set_as_window_menu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-as-window-menu`
+
+</td>
+<td>
+
+Denies the set_as_window_menu command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-as-windows-menu-for-nsapp`
+
+</td>
+<td>
+
+Enables the set_as_windows_menu_for_nsapp command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-as-windows-menu-for-nsapp`
+
+</td>
+<td>
+
+Denies the set_as_windows_menu_for_nsapp command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-checked`
+
+</td>
+<td>
+
+Enables the set_checked command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-checked`
+
+</td>
+<td>
+
+Denies the set_checked command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-enabled`
+
+</td>
+<td>
+
+Enables the set_enabled command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-enabled`
+
+</td>
+<td>
+
+Denies the set_enabled command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-icon`
+
+</td>
+<td>
+
+Enables the set_icon command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-icon`
+
+</td>
+<td>
+
+Denies the set_icon command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-set-text`
+
+</td>
+<td>
+
+Enables the set_text command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-set-text`
+
+</td>
+<td>
+
+Denies the set_text command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:allow-text`
+
+</td>
+<td>
+
+Enables the text command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`menu:deny-text`
+
+</td>
+<td>
+
+Denies the text command without any pre-configured scope.
+
+</td>
+</tr>
+</table>

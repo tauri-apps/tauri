@@ -1,5 +1,14 @@
 # Changelog
 
+## \[1.6.0]
+
+### New Features
+
+- [`253595a22`](https://www.github.com/tauri-apps/tauri/commit/253595a22d8659a1cb199bfc423e988ea82191e6) ([#9809](https://www.github.com/tauri-apps/tauri/pull/9809)) Add RPM packaging
+- [`78fc84137`](https://www.github.com/tauri-apps/tauri/commit/78fc841370a76adf7af413bf1c9490b046b50de4) ([#9942](https://www.github.com/tauri-apps/tauri/pull/9942)) Added support for `provides`, `conflicts` and `replaces` (`obsoletes` for RPM) options for `bundler > deb` and `bundler > rpm` configs.
+- [`590966276`](https://www.github.com/tauri-apps/tauri/commit/5909662766c2fe9947a9eadf33725170c2f6fa99) ([#9902](https://www.github.com/tauri-apps/tauri/pull/9902)) Add `sign_command` in `WindowsConfig`
+- [`a301be52d`](https://www.github.com/tauri-apps/tauri/commit/a301be52d276f1e99316d23b4f0a8e458e29bc35) ([#9914](https://www.github.com/tauri-apps/tauri/pull/9914)) Add `use_local_tools_dir` option.
+
 ## \[1.5.4]
 
 ### Bug Fixes

@@ -1023,13 +1023,13 @@ pub fn get_profile(options: &Options) -> &str {
     .args
     .iter()
     .position(|a| a.starts_with("--profile"))
-    .map(|i| {
+    .and_then(|i| {
       options.args[i]
         .split_once('=')
-        .map(|(_, p)| p)
-        .unwrap_or_else(|| &options.args[i + 1])
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| options.args.get(i + 1).map(|s| s.as_str()))
     })
-    .unwrap_or_else(|| if options.debug { "dev" } else { "release" })
+    .unwrap_or(if options.debug { "dev" } else { "release" })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1307,6 +1307,12 @@ mod tests {
         "--features".into(),
         "feat1".into(),
       ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
       ..Default::default()
     };
     assert_eq!(get_profile(&options), "release");

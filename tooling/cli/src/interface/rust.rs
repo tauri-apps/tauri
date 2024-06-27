@@ -46,7 +46,7 @@ mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Options {
   pub runner: Option<String>,
   pub debug: bool,
@@ -1022,9 +1022,14 @@ pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
-    .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].as_str())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+    .position(|a| a.starts_with("--profile"))
+    .and_then(|i| {
+      options.args[i]
+        .split_once('=')
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| options.args.get(i + 1).map(|s| s.as_str()))
+    })
+    .unwrap_or(if options.debug { "dev" } else { "release" })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1246,4 +1251,70 @@ fn tauri_config_to_bundle_settings(
     }),
     ..Default::default()
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn parse_profile_from_opts() {
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "testing");
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile=customprofile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "customprofile");
+
+    let options = Options {
+      debug: true,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "dev");
+
+    let options = Options {
+      debug: false,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+  }
 }

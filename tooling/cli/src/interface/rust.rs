@@ -1133,7 +1133,7 @@ pub fn get_profile(options: &Options) -> &str {
     .position(|a| a.starts_with("--profile"))
     .map(|i| {
       options.args[i]
-        .split_once("=")
+        .split_once('=')
         .map(|(_, p)| p)
         .unwrap_or_else(|| &options.args[i + 1])
     })

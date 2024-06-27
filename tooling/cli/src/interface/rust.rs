@@ -1520,5 +1520,11 @@ mod tests {
       ..Default::default()
     };
     assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
   }
 }

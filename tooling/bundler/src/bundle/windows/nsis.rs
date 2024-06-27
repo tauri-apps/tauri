@@ -673,17 +673,17 @@ fn generate_estimated_size(
   main: &PathBuf,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
-) -> crate::Result<String> {
+) -> crate::Result<u64> {
   let mut size = 0;
   for k in std::iter::once(main)
     .chain(binaries.keys())
     .chain(resources.keys())
   {
     size += std::fs::metadata(k)
-      .with_context(|| format!("when getting size of {}", main.display()))?
+      .with_context(|| format!("when getting size of {}", k.display()))?
       .len();
   }
-  Ok(format!("{:#08x}", size / 1024))
+  Ok(size / 1024)
 }
 
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {

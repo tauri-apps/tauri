@@ -614,7 +614,12 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
+
+  ${GetSize} "$INSTDIR" "/M=uninstall.exe /S=0K /G=0" $0 $1 $2
+  IntOp $0 $0 + ${ESTIMATEDSIZE}
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$0"
+
   !if "${HOMEPAGE}" != ""
     WriteRegStr SHCTX "${UNINSTKEY}" "URLInfoAbout" "${HOMEPAGE}"
     WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"

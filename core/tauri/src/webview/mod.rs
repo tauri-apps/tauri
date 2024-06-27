@@ -1268,7 +1268,7 @@ fn main() {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
                   let _ = crate::ipc::JavaScriptChannelId::from_str(s)
-                    .map(|id| id.channel_on(webview.clone()));
+                    .map(|id| id.channel_on::<R, ()>(webview.clone()));
                 }
               }
             }

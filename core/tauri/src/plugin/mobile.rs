@@ -30,7 +30,7 @@ type PendingPluginCallHandler = Box<dyn FnOnce(PluginResponse) + Send + 'static>
 static PENDING_PLUGIN_CALLS_ID: AtomicI32 = AtomicI32::new(0);
 static PENDING_PLUGIN_CALLS: OnceLock<Mutex<HashMap<i32, PendingPluginCallHandler>>> =
   OnceLock::new();
-static CHANNELS: OnceLock<Mutex<HashMap<u32, Channel>>> = OnceLock::new();
+static CHANNELS: OnceLock<Mutex<HashMap<u32, Channel<serde_json::Value>>>> = OnceLock::new();
 
 /// Possible errors when invoking a plugin.
 #[derive(Debug, thiserror::Error)]
@@ -53,7 +53,7 @@ pub enum PluginInvokeError {
   CannotSerializePayload(serde_json::Error),
 }
 
-pub(crate) fn register_channel(channel: Channel) {
+pub(crate) fn register_channel(channel: Channel<serde_json::Value>) {
   CHANNELS
     .get_or_init(Default::default)
     .lock()

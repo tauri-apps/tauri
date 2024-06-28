@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.0-beta.21]
+
+### New Features
+
+- [`656a64974`](https://www.github.com/tauri-apps/tauri/commit/656a64974468bc207bf39537e02ae179bdee9b83) ([#9318](https://www.github.com/tauri-apps/tauri/pull/9318)) Added a configuration option to disable hardened runtime on macOS codesign.
+
+### Enhancements
+
+- [`f44a2ec47`](https://www.github.com/tauri-apps/tauri/commit/f44a2ec47c13243d472fa08a9df8b20d8490d79f) ([#10030](https://www.github.com/tauri-apps/tauri/pull/10030)) Enhance the plugin template to include `permissions/default.toml` and default capabilities file for the example application.
+
+### Bug Fixes
+
+- [`019a74e97`](https://www.github.com/tauri-apps/tauri/commit/019a74e970958d29cf69a6f24669d603399dcbb3) ([#9931](https://www.github.com/tauri-apps/tauri/pull/9931)) Fix wrong migration of `clipboard` and `globalShortcut` modules
+- [`27838365a`](https://www.github.com/tauri-apps/tauri/commit/27838365a6841b0d3fa645ba2528221d23d4aeb2) ([#10135](https://www.github.com/tauri-apps/tauri/pull/10135)) Fix parsing of cargo profile when using `--profile=<profile>` syntax.
+- [`79542f4d4`](https://www.github.com/tauri-apps/tauri/commit/79542f4d4542bd97451da7605de16e8464d6a06c) ([#10039](https://www.github.com/tauri-apps/tauri/pull/10039)) Fixed an issue that prevented `tauri icon` from rendering `<text>` nodes in SVG files.
+- [`40c0f44e1`](https://www.github.com/tauri-apps/tauri/commit/40c0f44e1c74c18ed0d6c645724d650637725456) ([#9971](https://www.github.com/tauri-apps/tauri/pull/9971)) Changed the deployment target of plugin iOS Xcode project to 13.0 so it works on older iOS releases.
+- [`f56cdc9e3`](https://www.github.com/tauri-apps/tauri/commit/f56cdc9e391c4d55e4d7e935203d0f891864f22d) ([#10016](https://www.github.com/tauri-apps/tauri/pull/10016)) Add missing dependency `libayatana-appindicator3.so.1` for rpm package.
+- [`1601da5b5`](https://www.github.com/tauri-apps/tauri/commit/1601da5b525de05cb813002d611f22ea4217a4fb) ([#10114](https://www.github.com/tauri-apps/tauri/pull/10114)) Removed alpha channel from default icons in iOS template to comply with Apple's human interface guideline
+  (https://developer.apple.com/design/human-interface-guidelines/app-icons), because
+  transparent icons with alpha channel are not allowed, and will be rejected
+  upon upload to Apple appstore.
+
+### What's Changed
+
+- [`3cca5c2be`](https://www.github.com/tauri-apps/tauri/commit/3cca5c2be88bbd52139e7dda371e88510d28bc8e) ([#9924](https://www.github.com/tauri-apps/tauri/pull/9924)) Migrate to new Android buildFeatures.buildConfig format.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.17`
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+
 ## \[2.0.0-beta.20]
 
 ### Dependencies

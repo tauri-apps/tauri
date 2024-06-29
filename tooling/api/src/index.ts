@@ -14,27 +14,29 @@
  */
 
 import * as app from './app'
-import * as event from './event'
 import * as core from './core'
-import * as window from './window'
+import * as dpi from './dpi'
+import * as event from './event'
+import * as image from './image'
+import * as menu from './menu'
+import * as mocks from './mocks'
+import * as path from './path'
+import * as tray from './tray'
 import * as webview from './webview'
 import * as webviewWindow from './webviewWindow'
-import * as path from './path'
-import * as dpi from './dpi'
-import * as tray from './tray'
-import * as menu from './menu'
-import * as image from './image'
+import * as window from './window'
 
 export {
   app,
+  core,
   dpi,
   event,
+  image,
+  menu,
+  mocks,
   path,
-  core,
-  window,
+  tray,
   webview,
   webviewWindow,
-  tray,
-  menu,
-  image
+  window
 }

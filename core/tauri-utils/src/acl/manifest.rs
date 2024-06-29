@@ -19,6 +19,8 @@ pub struct DefaultPermission {
   pub version: Option<NonZeroU64>,
 
   /// Human-readable description of what the permission does.
+  /// Tauri convention is to use <h4> headings in markdown content
+  /// for Tauri documentation generation purposes.
   pub description: Option<String>,
 
   /// All permissions this set contains.

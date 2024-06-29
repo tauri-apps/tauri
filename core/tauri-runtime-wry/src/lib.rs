@@ -1988,8 +1988,6 @@ pub struct WindowWrapper {
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
   #[cfg(windows)]
-  is_window_fullscreen: bool,
-  #[cfg(windows)]
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
@@ -2246,6 +2244,18 @@ impl<T: UserEvent> Wry<T> {
     if let Some(hook) = args.msg_hook {
       use tao::platform::windows::EventLoopBuilderExtWindows;
       event_loop_builder.with_msg_hook(hook);
+    }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    if let Some(app_id) = args.app_id {
+      use tao::platform::unix::EventLoopBuilderExtUnix;
+      event_loop_builder.with_app_id(app_id);
     }
     Self::init(event_loop_builder.build())
   }
@@ -2773,7 +2783,15 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Destroy => {
             panic!("cannot handle `WindowMessage::Destroy` on the main thread")
           }
-          WindowMessage::SetDecorations(decorations) => window.set_decorations(decorations),
+          WindowMessage::SetDecorations(decorations) => {
+            window.set_decorations(decorations);
+            #[cfg(windows)]
+            if decorations {
+              undecorated_resizing::detach_resize_handler(window.hwnd());
+            } else {
+              undecorated_resizing::attach_resize_handler(window.hwnd());
+            }
+          }
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
             window.set_undecorated_shadow(_enable);
@@ -2805,10 +2823,6 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(Some(Fullscreen::Borderless(None)))
             } else {
               window.set_fullscreen(None)
-            }
-            #[cfg(windows)]
-            if let Some(w) = windows.0.borrow_mut().get_mut(&id) {
-              w.is_window_fullscreen = fullscreen;
             }
           }
           WindowMessage::SetFocus => {
@@ -3198,8 +3212,6 @@ fn handle_user_message<T: UserEvent>(
       let (label, builder) = handler();
 
       #[cfg(windows)]
-      let is_window_fullscreen = builder.window.fullscreen.is_some();
-      #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
 
       if let Ok(window) = builder.build(event_loop) {
@@ -3231,8 +3243,6 @@ fn handle_user_message<T: UserEvent>(
             inner: Some(window.clone()),
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
-            #[cfg(windows)]
-            is_window_fullscreen,
             #[cfg(windows)]
             is_window_transparent,
             #[cfg(windows)]
@@ -3577,8 +3587,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   #[cfg(windows)]
   let is_window_transparent = window_builder.inner.window.transparent;
-  #[cfg(windows)]
-  let is_window_fullscreen = window_builder.inner.window.fullscreen.is_some();
 
   #[cfg(target_os = "macos")]
   {
@@ -3727,8 +3735,6 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     webviews,
     window_event_listeners,
     #[cfg(windows)]
-    is_window_fullscreen,
-    #[cfg(windows)]
     is_window_transparent,
     #[cfg(windows)]
     surface,
@@ -3817,11 +3823,6 @@ fn create_webview<T: UserEvent>(
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
-
-  #[cfg(windows)]
-  if kind == WebviewKind::WindowContent {
-    webview_builder = webview_builder.with_initialization_script(undecorated_resizing::SCRIPT);
-  }
 
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
@@ -4054,15 +4055,19 @@ fn create_webview<T: UserEvent>(
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
-  ))]
   if kind == WebviewKind::WindowContent {
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     undecorated_resizing::attach_resize_handler(&webview);
+    #[cfg(windows)]
+    if window.is_resizable() && !window.is_decorated() {
+      undecorated_resizing::attach_resize_handler(window.hwnd());
+    }
   }
 
   #[cfg(windows)]
@@ -4127,13 +4132,6 @@ fn create_ipc_handler<T: UserEvent>(
   ipc_handler: Option<WebviewIpcHandler<T, Wry<T>>>,
 ) -> Box<IpcHandler> {
   Box::new(move |request| {
-    #[cfg(windows)]
-    if _kind == WebviewKind::WindowContent
-      && undecorated_resizing::handle_request(context.clone(), *window_id.lock().unwrap(), &request)
-    {
-      return;
-    }
-
     if let Some(handler) = &ipc_handler {
       handler(
         DetachedWebview {

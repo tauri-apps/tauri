@@ -10,7 +10,10 @@ use std::sync::{Arc, Mutex};
 
 use futures_util::Future;
 use http::HeaderMap;
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{
+  de::{DeserializeOwned, IntoDeserializer},
+  Deserialize, Serialize,
+};
 use serde_json::Value as JsonValue;
 pub use serialize_to_javascript::Options as SerializeOptions;
 use tauri_macros::default_runtime;
@@ -89,7 +92,7 @@ impl InvokeBody {
   pub fn deserialize<T: DeserializeOwned>(self) -> serde_json::Result<T> {
     match self {
       InvokeBody::Json(v) => serde_json::from_value(v),
-      InvokeBody::Raw(v) => serde_json::from_slice(&v),
+      InvokeBody::Raw(v) => T::deserialize(v.into_deserializer()),
     }
   }
 }
@@ -518,3 +521,28 @@ impl<R: Runtime> InvokeMessage<R> {
 /// The `Callback` type is the return value of the `transformCallback` JavaScript function.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct CallbackFn(pub u32);
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn deserialize_invoke_body() {
+    let json = InvokeBody::Json(serde_json::Value::Array(vec![
+      serde_json::Value::Number(1.into()),
+      serde_json::Value::Number(123.into()),
+      serde_json::Value::Number(1231.into()),
+    ]));
+    assert_eq!(json.deserialize::<Vec<u16>>().unwrap(), vec![1, 123, 1231]);
+
+    let json = InvokeBody::Json(serde_json::Value::String("string value".into()));
+    assert_eq!(json.deserialize::<String>().unwrap(), "string value");
+
+    let json = InvokeBody::Json(serde_json::Value::String("string value".into()));
+    assert!(json.deserialize::<Vec<u16>>().is_err());
+
+    let values = vec![1, 2, 3, 4, 5, 6, 1];
+    let raw = InvokeBody::Raw(values.clone());
+    assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
+  }
+}

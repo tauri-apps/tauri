@@ -116,3 +116,57 @@
       ${IUnknown::Release} $0 ""
   ${EndIf}
 !macroend
+
+; Set target path for a .lnk shortcut
+!macro SetShortcutTarget shortcut target
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}",.r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READWRITE})'
+      ${IShellLink::SetPath} $0 '(w "${target}")'
+      ${IPersistFile::Save} $1 '("${shortcut}",1)'
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend
+
+!define /ifndef MAX_PATH 260
+!define /ifndef SLGP_RAWPATH 0x4
+
+; Test if a .lnk shortcut's target is target,
+; use Pop to get the result, 1 is yes, 0 is no,
+; note that this macro modifies $0, $1, $2, $3
+;
+; Exmaple usage:
+;   !insertmacro "IsShortCutTarget" "C:\Users\Public\Desktop\App.lnk" "C:\Program Files\App\App.exe"
+;   Pop $0
+;   ${If} $0 = 1
+;     MessageBox MB_OK "shortcut target matches"
+;   ${EndIf}
+!macro IsShortcutTarget shortcut target
+  ; $0: IShellLink
+  ; $1: IPersistFile
+  ; $2: Target path
+  ; $3: Return value
+
+  StrCpy $3 0
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}", .r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READ})'
+      System::Alloc MAX_PATH
+      Pop $2
+      ${IShellLink::GetPath} $0 '(.r2, ${MAX_PATH}, 0, ${SLGP_RAWPATH})'
+      ${If} $2 == "${target}"
+        StrCpy $3 1
+      ${EndIf}
+      System::Free $2
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+  Push $3
+!macroend

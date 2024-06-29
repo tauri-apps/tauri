@@ -1140,9 +1140,14 @@ pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
-    .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].as_str())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+    .position(|a| a.starts_with("--profile"))
+    .and_then(|i| {
+      options.args[i]
+        .split_once('=')
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| options.args.get(i + 1).map(|s| s.as_str()))
+    })
+    .unwrap_or(if options.debug { "dev" } else { "release" })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1223,6 +1228,7 @@ fn tauri_config_to_bundle_settings(
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());
+          libs.push("libayatana-appindicator3.so.1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
           depends_deb.push("libappindicator3-1".into());
@@ -1287,6 +1293,7 @@ fn tauri_config_to_bundle_settings(
   Ok(BundleSettings {
     identifier: Some(identifier),
     publisher: config.publisher,
+    homepage: config.homepage,
     icon: Some(config.icon),
     resources,
     resources_map,
@@ -1371,6 +1378,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {
@@ -1462,5 +1470,71 @@ mod pkgconfig_utils {
     } else {
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn parse_profile_from_opts() {
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "testing");
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile=customprofile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "customprofile");
+
+    let options = Options {
+      debug: true,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "dev");
+
+    let options = Options {
+      debug: false,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
   }
 }

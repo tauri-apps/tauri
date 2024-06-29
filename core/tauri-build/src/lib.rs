@@ -198,7 +198,7 @@ fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
         framework
       ));
     }
-    if let Some(home_dir) = dirs_next::home_dir() {
+    if let Some(home_dir) = dirs::home_dir() {
       if copy_framework_from(&home_dir.join("Library/Frameworks/"), framework, dest_dir)? {
         continue;
       }

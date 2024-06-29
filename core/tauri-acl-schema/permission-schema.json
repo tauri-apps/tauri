@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Permission",
-  "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
+  "description": "Descriptions of explicit privileges of commands.\n\n It can enable commands to be accessible in the frontend of the application.\n\n If the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
   "type": "object",
   "required": [
     "identifier"
@@ -21,7 +21,7 @@
       "type": "string"
     },
     "description": {
-      "description": "Human-readable description of what the permission does.",
+      "description": "Human-readable description of what the permission does.\n Tauri internal convention is to use <h4> headings in markdown content\n for Tauri documentation generation purposes.",
       "type": [
         "string",
         "null"
@@ -60,7 +60,7 @@
   },
   "definitions": {
     "Commands": {
-      "description": "Allowed and denied commands inside a permission.\n\nIf two commands clash inside of `allow` and `deny`, it should be denied by default.",
+      "description": "Allowed and denied commands inside a permission.\n\n If two commands clash inside of `allow` and `deny`, it should be denied by default.",
       "type": "object",
       "properties": {
         "allow": {
@@ -82,7 +82,7 @@
       }
     },
     "Scopes": {
-      "description": "A restriction of the command/endpoint functionality.\n\nIt can be of any serde serializable type and is used for allowing or preventing certain actions inside a Tauri command.\n\nThe scope is passed to the command and handled/enforced by the command itself.",
+      "description": "An argument for fine grained behavior control of Tauri commands.\n\n It can be of any serde serializable type and is used to allow or prevent certain actions inside a Tauri command.\n The configured scope is passed to the command and will be enforced by the command implementation.\n\n ## Example\n\n ```json\n {\n   \"allow\": [{ \"path\": \"$HOME/**\" }],\n   \"deny\": [{ \"path\": \"$HOME/secret.txt\" }]\n }\n ```",
       "type": "object",
       "properties": {
         "allow": {
@@ -96,7 +96,7 @@
           }
         },
         "deny": {
-          "description": "Data that defines what is denied by the scope.",
+          "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
           "type": [
             "array",
             "null"

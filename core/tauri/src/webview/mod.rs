@@ -111,6 +111,7 @@ impl<'a> PageLoadPayload<'a> {
 
 /// The IPC invoke request.
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,

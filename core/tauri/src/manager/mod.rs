@@ -156,6 +156,7 @@ fn replace_csp_nonce(
 }
 
 /// A resolved asset.
+#[non_exhaustive]
 pub struct Asset {
   /// The asset bytes.
   pub bytes: Vec<u8>,
@@ -163,6 +164,23 @@ pub struct Asset {
   pub mime_type: String,
   /// The `Content-Security-Policy` header value.
   pub csp_header: Option<String>,
+}
+
+impl Asset {
+  /// The asset bytes.
+  pub fn bytes(&self) -> &[u8] {
+    &self.bytes
+  }
+
+  /// The asset's mime type.
+  pub fn mime_type(&self) -> &str {
+    &self.mime_type
+  }
+
+  /// The `Content-Security-Policy` header value.
+  pub fn csp_header(&self) -> Option<&str> {
+    self.csp_header.as_deref()
+  }
 }
 
 #[default_runtime(crate::Wry, wry)]

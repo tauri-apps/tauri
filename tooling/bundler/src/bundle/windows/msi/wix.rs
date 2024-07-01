@@ -21,7 +21,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
   collections::{BTreeMap, HashMap, HashSet},
-  fs::{create_dir_all, read_to_string, remove_dir_all, rename, write, File},
+  fs::{self, File},
   io::Write,
   path::{Path, PathBuf},
   process::Command,
@@ -155,7 +155,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
   let base_dir = settings.project_out_directory();
 
   let resource_dir = base_dir.join("resources");
-  create_dir_all(&resource_dir)?;
+  fs::create_dir_all(&resource_dir)?;
   let icon_target_path = resource_dir.join(filename);
 
   let icon_path = std::env::current_dir()?.join(path);
@@ -192,7 +192,7 @@ fn app_installer_output_path(
 
   let package_base_name = format!(
     "{}_{}_{}_{}",
-    settings.main_binary_name().replace(".exe", ""),
+    settings.product_name(),
     version,
     arch,
     language,
@@ -411,9 +411,9 @@ pub fn build_wix_app_installer(
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
   if output_path.exists() {
-    remove_dir_all(&output_path)?;
+    fs::remove_dir_all(&output_path)?;
   }
-  create_dir_all(&output_path)?;
+  fs::create_dir_all(&output_path)?;
 
   let mut data = BTreeMap::new();
 
@@ -484,7 +484,7 @@ pub fn build_wix_app_installer(
     if license.ends_with(".rtf") {
       data.insert("license", to_json(license));
     } else {
-      let license_contents = read_to_string(license)?;
+      let license_contents = fs::read_to_string(license)?;
       let license_rtf = format!(
         r#"{{\rtf1\ansi\ansicpg1252\deff0\nouicompat\deflang1033{{\fonttbl{{\f0\fnil\fcharset0 Calibri;}}}}
 {{\*\generator Riched20 10.0.18362}}\viewkind4\uc1
@@ -518,6 +518,7 @@ pub fn build_wix_app_installer(
     "long_description",
     to_json(settings.long_description().unwrap_or_default()),
   );
+  data.insert("homepage", to_json(settings.homepage_url()));
   let bundle_id = settings.bundle_identifier();
   let manufacturer = settings
     .publisher()
@@ -586,9 +587,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
-    fragment_paths = wix.fragment_paths.clone();
+    fragment_paths.clone_from(&wix.fragment_paths);
     enable_elevated_update_task = wix.enable_elevated_update_task;
-    custom_template_path = wix.template.clone();
+    custom_template_path.clone_from(&wix.template);
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path
@@ -629,7 +630,7 @@ pub fn build_wix_app_installer(
 
   if let Some(path) = custom_template_path {
     handlebars
-      .register_template_string("main.wxs", read_to_string(path)?)
+      .register_template_string("main.wxs", fs::read_to_string(path)?)
       .map_err(|e| e.to_string())
       .expect("Failed to setup custom handlebar template");
   } else {
@@ -645,7 +646,7 @@ pub fn build_wix_app_installer(
       to_json(
         settings
           .updater()
-          .and_then(|updater| updater.msiexec_args)
+          .map(|updater| updater.msiexec_args)
           .map(|args| args.join(" "))
           .unwrap_or_else(|| "/passive".to_string()),
       ),
@@ -660,7 +661,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task handlebars");
     let temp_xml_path = output_path.join("update.xml");
     let update_content = skip_uac_task.render("update.xml", &data)?;
-    write(temp_xml_path, update_content)?;
+    fs::write(temp_xml_path, update_content)?;
 
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
@@ -672,7 +673,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Installer handlebars");
     let temp_ps1_path = output_path.join("install-task.ps1");
     let install_script_content = skip_uac_task_installer.render("install-task.ps1", &data)?;
-    write(temp_ps1_path, install_script_content)?;
+    fs::write(temp_ps1_path, install_script_content)?;
 
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
@@ -684,13 +685,13 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup Update Task Uninstaller handlebars");
     let temp_ps1_path = output_path.join("uninstall-task.ps1");
     let install_script_content = skip_uac_task_uninstaller.render("uninstall-task.ps1", &data)?;
-    write(temp_ps1_path, install_script_content)?;
+    fs::write(temp_ps1_path, install_script_content)?;
 
     data.insert("enable_elevated_update_task", to_json(true));
   }
 
   let main_wxs_path = output_path.join("main.wxs");
-  write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
+  fs::write(main_wxs_path, handlebars.render("main.wxs", &data)?)?;
 
   let mut candle_inputs = vec![("main.wxs".into(), Vec::new())];
 
@@ -698,7 +699,7 @@ pub fn build_wix_app_installer(
   let extension_regex = Regex::new("\"http://schemas.microsoft.com/wix/(\\w+)\"")?;
   for fragment_path in fragment_paths {
     let fragment_path = current_dir.join(fragment_path);
-    let fragment = read_to_string(&fragment_path)?;
+    let fragment = fs::read_to_string(&fragment_path)?;
     let mut extensions = Vec::new();
     for cap in extension_regex.captures_iter(&fragment) {
       extensions.push(wix_toolset_path.join(format!("Wix{}.dll", &cap[1])));
@@ -734,7 +735,7 @@ pub fn build_wix_app_installer(
     });
 
     let locale_contents = match language_config.locale_path {
-      Some(p) => read_to_string(p)?,
+      Some(p) => fs::read_to_string(p)?,
       None => format!(
         r#"<WixLocalization Culture="{}" xmlns="http://schemas.microsoft.com/wix/2006/localization"></WixLocalization>"#,
         language.to_lowercase(),
@@ -786,7 +787,7 @@ pub fn build_wix_app_installer(
     let msi_output_path = output_path.join("output.msi");
     let msi_path =
       app_installer_output_path(settings, &language, settings.version_string(), updater)?;
-    create_dir_all(msi_path.parent().unwrap())?;
+    fs::create_dir_all(msi_path.parent().unwrap())?;
 
     log::info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
@@ -797,7 +798,7 @@ pub fn build_wix_app_installer(
       &(fragment_extensions.clone().into_iter().collect()),
       &msi_output_path,
     )?;
-    rename(&msi_output_path, &msi_path)?;
+    fs::rename(&msi_output_path, &msi_path)?;
 
     if settings.can_sign() {
       try_sign(&msi_path, settings)?;

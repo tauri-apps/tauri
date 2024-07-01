@@ -13,6 +13,7 @@ use clap::{Parser, ValueEnum};
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
+use std::ffi::{OsStr, OsString};
 use std::{
   collections::BTreeMap,
   env::current_dir,
@@ -211,12 +212,16 @@ pub fn command(mut options: Options) -> Result<()> {
             "ios-xcode" if !matches!(ios_framework, IosFrameworkKind::Xcode) => return Ok(None),
             "ios-spm" | "ios-xcode" => {
               let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
+              let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);
+              let new_folder_name = OsString::from(&new_folder_name);
 
-              path = Path::new("ios")
-                .join(Component::Normal(&std::ffi::OsString::from(
-                  &folder_name.replace("{{ plugin_name }}", &plugin_name),
-                )))
-                .join(components.collect::<PathBuf>());
+              path = [
+                Component::Normal(OsStr::new("ios")),
+                Component::Normal(&new_folder_name),
+              ]
+              .into_iter()
+              .chain(components)
+              .collect::<PathBuf>();
             }
             "guest-js" | "rollup.config.js" | "tsconfig.json" | "package.json"
               if options.no_api =>
@@ -236,11 +241,19 @@ pub fn command(mut options: Options) -> Result<()> {
         File::create(path).map(Some)
       },
     )
-    .with_context(|| "failed to render plugin Android template")?;
+    .with_context(|| "failed to render plugin template")?;
   }
 
-  std::fs::create_dir(template_target_path.join("permissions"))
+  let permissions_dir = template_target_path.join("permissions");
+  std::fs::create_dir(&permissions_dir)
     .with_context(|| "failed to create `permissions` directory")?;
+
+  let default_permissions = r#"[default]
+description = "Default permissions for the plugin"
+permissions = ["allow-ping"]
+"#;
+  std::fs::write(permissions_dir.join("default.toml"), default_permissions)
+    .with_context(|| "failed to write `permissions/default.toml`")?;
 
   Ok(())
 }

@@ -34,7 +34,6 @@ function getCurrent(): WebviewWindow {
 function getAll(): WebviewWindow[] {
   return window.__TAURI_INTERNALS__.metadata.webviews.map(
     (w) =>
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       new WebviewWindow(w.label, {
         // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
         skip: true
@@ -157,7 +156,7 @@ class WebviewWindow {
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
       return Promise.resolve(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
+        // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
       })

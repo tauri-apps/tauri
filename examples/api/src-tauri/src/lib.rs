@@ -70,7 +70,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
-          .content_protected(true)
           .menu(tauri::menu::Menu::default(app.handle())?);
       }
 

@@ -50,7 +50,6 @@ impl From<BundleType> for PackageType {
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
       BundleType::Dmg => Self::Dmg,
-      BundleType::Updater => Self::Updater,
     }
   }
 }
@@ -156,10 +155,12 @@ pub struct PackageSettings {
 /// The updater settings.
 #[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
+  /// Should generate v1 compatible zipped updater
+  pub v1_compatible: bool,
   /// Signature public key.
   pub pubkey: String,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
-  pub msiexec_args: Option<&'static [&'static str]>,
+  pub msiexec_args: &'static [&'static str],
 }
 
 /// The Linux debian bundle settings.
@@ -317,6 +318,10 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Preserve the hardened runtime version flag, see <https://developer.apple.com/documentation/security/hardened_runtime>
+  ///
+  /// Settings this to `false` is useful when using an ad-hoc signature, making it less strict.
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
@@ -412,7 +417,50 @@ pub struct NsisSettings {
   /// By default the OS language is selected, with a fallback to the first language in the `languages` array.
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
-  pub compression: Option<NsisCompression>,
+  pub compression: NsisCompression,
+  /// Set the folder name for the start menu shortcut.
+  ///
+  /// Use this option if you have multiple apps and wish to group their shortcuts under one folder
+  /// or if you generally prefer to set your shortcut inside a folder.
+  ///
+  /// Examples:
+  /// - `AwesomePublisher`, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\AwesomePublisher\<your-app>.lnk`
+  /// - If unset, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\<your-app>.lnk`
+  pub start_menu_folder: Option<String>,
+  /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
+  /// main installer.nsi script.
+  ///
+  /// Supported hooks are:
+  /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
+  /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
+  /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
+  /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
+  ///
+  ///
+  /// ### Example
+  ///
+  /// ```nsh
+  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
+  /// !macro NSIS_HOOK_PREINSTALL_
+  ///   MessageBox MB_OK "PreInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
+  /// !macro NSIS_HOOK_POSTINSTALL_
+  ///   MessageBox MB_OK "PostInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
+  /// !macro NSIS_HOOK_PREUNINSTALL_
+  ///   MessageBox MB_OK "PreUnInstall"
+  /// !macroend
+  ///
+  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
+  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  ///   MessageBox MB_OK "PostUninstall"
+  /// !macroend
+  /// ```
+  pub installer_hooks: Option<PathBuf>,
 }
 
 /// The Windows bundle settings.
@@ -489,6 +537,11 @@ pub struct BundleSettings {
   /// The app's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
+  /// A url to the home page of your application. If None, will
+  /// fallback to [PackageSettings::homepage].
+  ///
+  /// Supported bundle targets: `deb`, `rpm`, `nsis` and `msi`
+  pub homepage: Option<String>,
   /// the app's icon list.
   pub icon: Option<Vec<String>>,
   /// the app's resources to bundle.
@@ -568,6 +621,15 @@ impl BundleBinary {
     Self {
       name,
       src_path: None,
+      main,
+    }
+  }
+
+  /// Creates a new bundle binary with path.
+  pub fn with_path(name: String, main: bool, src_path: Option<String>) -> Self {
+    Self {
+      name,
+      src_path,
       main,
     }
   }
@@ -779,9 +841,7 @@ impl Settings {
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    let mut path = self.project_out_directory.clone();
-    path.push(binary.name());
-    path
+    self.project_out_directory.join(binary.name())
   }
 
   /// Returns the list of binaries to bundle.
@@ -806,7 +866,7 @@ impl Settings {
       .unwrap_or(std::env::consts::OS)
       .replace("darwin", "macos");
 
-    let mut platform_types = match target_os.as_str() {
+    let platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
@@ -817,10 +877,6 @@ impl Settings {
         )))
       }
     };
-
-    if self.is_update_enabled() {
-      platform_types.push(PackageType::Updater);
-    }
 
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
@@ -850,7 +906,7 @@ impl Settings {
     self.bundle_settings.identifier.as_deref().unwrap_or("")
   }
 
-  /// Returns the bundle's identifier
+  /// Returns the bundle's publisher
   pub fn publisher(&self) -> Option<&str> {
     self.bundle_settings.publisher.as_deref()
   }
@@ -956,8 +1012,12 @@ impl Settings {
   }
 
   /// Returns the package's homepage URL, defaulting to "" if not defined.
-  pub fn homepage_url(&self) -> &str {
-    self.package.homepage.as_deref().unwrap_or("")
+  pub fn homepage_url(&self) -> Option<&str> {
+    self
+      .bundle_settings
+      .homepage
+      .as_deref()
+      .or(self.package.homepage.as_deref())
   }
 
   /// Returns the app's category.
@@ -1023,15 +1083,5 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
-  }
-
-  /// Is update enabled
-  pub fn is_update_enabled(&self) -> bool {
-    self
-      .bundle_settings
-      .updater
-      .as_ref()
-      .map(|u| !u.pubkey.is_empty())
-      .unwrap_or_default()
   }
 }

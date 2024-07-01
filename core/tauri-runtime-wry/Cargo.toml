@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.0.0-beta.17"
+version = "2.0.0-beta.18"
 description = "Wry bindings to the Tauri runtime"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -13,10 +13,10 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.40", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
-tao = { version = "0.28", default-features = false, features = [ "rwh_06" ] }
-tauri-runtime = { version = "2.0.0-beta.17", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-beta.16", path = "../tauri-utils" }
+wry = { version = "0.41", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
+tao = { version = "0.28.1", default-features = false, features = [ "rwh_06" ] }
+tauri-runtime = { version = "2.0.0-beta.18", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-beta.17", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1.1"
 url = "2"
@@ -24,11 +24,11 @@ tracing = { version = "0.1", optional = true }
 log = "0.4"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.30"
+webview2-com = "0.31"
 softbuffer = { version = "0.4", default-features = false }
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.56"
+  version = "0.57"
   features = [ "Win32_Foundation", "Win32_Graphics_Dwm" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

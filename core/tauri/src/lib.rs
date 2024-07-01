@@ -75,6 +75,7 @@ pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
 pub use swift_rs;
+pub use tauri_macros::include_image;
 #[cfg(mobile)]
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
@@ -335,7 +336,7 @@ macro_rules! tauri_build_context {
 pub use pattern::Pattern;
 
 /// Whether we are running in development mode or not.
-pub fn dev() -> bool {
+pub const fn is_dev() -> bool {
   !cfg!(feature = "custom-protocol")
 }
 

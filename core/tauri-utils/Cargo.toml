@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-beta.16"
+version = "2.0.0-beta.17"
 description = "Utilities for Tauri"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -42,9 +42,7 @@ infer = "0.15"
 dunce = "1"
 log = "0.4.21"
 cargo_metadata = { version = "0.18", optional = true }
-
-[target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.5"
+serde-untagged = "0.1"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1.0.6", optional = true, features = [ "build" ] }

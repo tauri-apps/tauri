@@ -815,7 +815,9 @@ impl AppSettings for RustAppSettings {
           .plugins
           .0
           .get("updater")
-          .context("plugins > updater doesn't exist")?
+          .ok_or_else(|| {
+            anyhow::anyhow!("failed to get updater configuration: plugins > updater doesn't exist")
+          })?
           .clone(),
       )?;
       Some(UpdaterSettings {

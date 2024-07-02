@@ -1,16 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.18]
-
-### New Features
-
-- [`5b769948a`](https://www.github.com/tauri-apps/tauri/commit/5b769948a81cac333f64c870a470ba6525bd5cd3) ([#9959](https://www.github.com/tauri-apps/tauri/pull/9959)) Add `include_image` macro to help embedding instances of `Image` struct at compile-time in rust to be used with window, menu or tray icons.
-
-### Dependencies
-
-- Upgraded to `tauri-utils@2.0.0-beta.18`
-- Upgraded to `tauri-codegen@2.0.0-beta.18`
-
 ## \[2.0.0-beta.17]
 
 ### Dependencies

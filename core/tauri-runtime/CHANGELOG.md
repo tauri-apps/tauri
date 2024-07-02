@@ -1,12 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.19]
-
-### Dependencies
-
-- Upgraded to `tauri-utils@2.0.0-beta.18`
-- [`d4c908cfb`](https://www.github.com/tauri-apps/tauri/commit/d4c908cfb8c567abdaf99b85f65f482ea81967e5) ([#10048](https://www.github.com/tauri-apps/tauri/pull/10048)) Update `windows` crate to version `0.57` and `webview2-com` crate to version `0.31`
-
 ## \[2.0.0-beta.18]
 
 ### Enhancements

@@ -1,17 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.18]
-
-### Enhancements
-
-- [`35110dba2`](https://www.github.com/tauri-apps/tauri/commit/35110dba21d7db0f155c45da58b41c9ca4d5853c) ([#10106](https://www.github.com/tauri-apps/tauri/pull/10106)) Fix delete app data button gone on higher scaling (>= 1.5)
-
-### Dependencies
-
-- Upgraded to `tauri-utils@2.0.0-beta.18`
-- Upgraded to `tauri-codegen@2.0.0-beta.18`
-- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
-
 ## \[2.0.0-beta.17]
 
 ### Enhancements

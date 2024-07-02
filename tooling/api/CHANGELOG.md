@@ -1,15 +1,5 @@
 # Changelog
 
-## \[2.0.0-beta.14]
-
-### New Features
-
-- [`148f04887`](https://www.github.com/tauri-apps/tauri/commit/148f048871caee21498b236c058b8890f2b66cc7) ([#9979](https://www.github.com/tauri-apps/tauri/pull/9979)) Add `defaultWindowIcon` to the JS `app` module to retrieve the default window icon in JS.
-
-### Bug Fixes
-
-- [`c98f385cb`](https://www.github.com/tauri-apps/tauri/commit/c98f385cb5da4d72968df24b1fc0b58212d59653) ([#10044](https://www.github.com/tauri-apps/tauri/pull/10044)) Export `mocks` module in `@tauri-apps/api` npm package.
-
 ## \[2.0.0-beta.13]
 
 ### Breaking Changes

@@ -42,8 +42,10 @@
     algorithm.name = 'AES-GCM'
     algorithm.iv = window.crypto.getRandomValues(new Uint8Array(12))
 
+    const { contentType, data: _data } = __RAW_process_ipc_message_fn__(data)
+
     const encoder = new TextEncoder()
-    const encoded = encoder.encode(__RAW_process_ipc_message_fn__(data).data)
+    const encoded = encoder.encode(_data)
 
     return window.crypto.subtle
       .encrypt(algorithm, aesGcmKey, encoded)
@@ -51,6 +53,7 @@
         const result = Object.create(null)
         result.nonce = Array.from(new Uint8Array(algorithm.iv))
         result.payload = Array.from(new Uint8Array(payload))
+        result.contentType = contentType
         return result
       })
   }
@@ -66,7 +69,9 @@
       const keys = data.payload ? Object.keys(data.payload) : []
       return (
         keys.length > 0 &&
-        keys.every((key) => key === 'nonce' || key === 'payload')
+        keys.every(
+          (key) => key === 'nonce' || key === 'payload' || key === 'contentType'
+        )
       )
     }
     return false

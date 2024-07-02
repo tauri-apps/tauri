@@ -152,7 +152,7 @@ impl<T> fmt::Display for ErrorResponse<T> {
 
 impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
   /// Registers an iOS plugin.
-  #[cfg(target_os = "ios")]
+  #[cfg(all(target_os = "ios", feature = "wry"))]
   pub fn register_ios_plugin(
     &self,
     init_fn: unsafe fn() -> *const std::ffi::c_void,

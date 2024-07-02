@@ -29,10 +29,10 @@ const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
 const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
-pub const DRAG_EVENT: &str = "tauri://drag";
-pub const DROP_EVENT: &str = "tauri://drop";
-pub const DROP_HOVER_EVENT: &str = "tauri://drop-over";
-pub const DROP_CANCELLED_EVENT: &str = "tauri://drag-cancelled";
+pub(crate) const DRAG_ENTER_EVENT: &str = "tauri://drag-enter";
+pub(crate) const DRAG_DROP_EVENT: &str = "tauri://drag-drop";
+pub(crate) const DRAG_OVER_EVENT: &str = "tauri://drag-over";
+pub(crate) const DRAG_LEAVE_EVENT: &str = "tauri://drag-leave";
 
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
@@ -194,28 +194,32 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
       },
     )?,
     WindowEvent::DragDrop(event) => match event {
-      DragDropEvent::Dragged { paths, position } => {
+      DragDropEvent::Enter { paths, position } => {
         let payload = DragDropPayload { paths, position };
 
         if window.is_webview_window() {
-          window.emit_to(EventTarget::labeled(window.label()), DRAG_EVENT, payload)?
+          window.emit_to(
+            EventTarget::labeled(window.label()),
+            DRAG_ENTER_EVENT,
+            payload,
+          )?
         } else {
-          window.emit_to_window(DRAG_EVENT, payload)?
+          window.emit_to_window(DRAG_ENTER_EVENT, payload)?
         }
       }
-      DragDropEvent::DragOver { position } => {
+      DragDropEvent::Over { position } => {
         let payload = DragOverPayload { position };
         if window.is_webview_window() {
           window.emit_to(
             EventTarget::labeled(window.label()),
-            DROP_HOVER_EVENT,
+            DRAG_OVER_EVENT,
             payload,
           )?
         } else {
-          window.emit_to_window(DROP_HOVER_EVENT, payload)?
+          window.emit_to_window(DRAG_OVER_EVENT, payload)?
         }
       }
-      DragDropEvent::Dropped { paths, position } => {
+      DragDropEvent::Drop { paths, position } => {
         let scopes = window.state::<Scopes>();
         for path in paths {
           if path.is_file() {
@@ -227,20 +231,20 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
         let payload = DragDropPayload { paths, position };
 
         if window.is_webview_window() {
-          window.emit_to(EventTarget::labeled(window.label()), DROP_EVENT, payload)?
-        } else {
-          window.emit_to_window(DROP_EVENT, payload)?
-        }
-      }
-      DragDropEvent::Cancelled => {
-        if window.is_webview_window() {
           window.emit_to(
             EventTarget::labeled(window.label()),
-            DROP_CANCELLED_EVENT,
-            (),
+            DRAG_DROP_EVENT,
+            payload,
           )?
         } else {
-          window.emit_to_window(DROP_CANCELLED_EVENT, ())?
+          window.emit_to_window(DRAG_DROP_EVENT, payload)?
+        }
+      }
+      DragDropEvent::Leave => {
+        if window.is_webview_window() {
+          window.emit_to(EventTarget::labeled(window.label()), DRAG_LEAVE_EVENT, ())?
+        } else {
+          window.emit_to_window(DRAG_LEAVE_EVENT, ())?
         }
       }
       _ => unimplemented!(),

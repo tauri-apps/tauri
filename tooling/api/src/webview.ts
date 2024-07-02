@@ -543,7 +543,7 @@ class Webview {
     handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
     const unlistenDrag = await this.listen<DragDropPayload>(
-      TauriEvent.DRAG,
+      TauriEvent.DRAG_ENTER,
       (event) => {
         handler({
           ...event,
@@ -557,7 +557,7 @@ class Webview {
     )
 
     const unlistenDrop = await this.listen<DragDropPayload>(
-      TauriEvent.DROP,
+      TauriEvent.DRAG_DROP,
       (event) => {
         handler({
           ...event,
@@ -571,7 +571,7 @@ class Webview {
     )
 
     const unlistenDragOver = await this.listen<DragDropPayload>(
-      TauriEvent.DROP_CANCELLED,
+      TauriEvent.DRAG_LEAVE,
       (event) => {
         handler({
           ...event,
@@ -584,7 +584,7 @@ class Webview {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.DROP_CANCELLED,
+      TauriEvent.DRAG_LEAVE,
       (event) => {
         handler({ ...event, payload: { type: 'cancelled' } })
       }

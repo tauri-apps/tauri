@@ -3832,21 +3832,21 @@ fn create_webview<T: UserEvent>(
         WryDragDropEvent::Enter {
           paths,
           position: (x, y),
-        } => DragDropEvent::Dragged {
+        } => DragDropEvent::Enter {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::DragOver {
+        WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::Over {
           position: PhysicalPosition::new(x as _, y as _),
         },
         WryDragDropEvent::Drop {
           paths,
           position: (x, y),
-        } => DragDropEvent::Dropped {
+        } => DragDropEvent::Drop {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryDragDropEvent::Leave => DragDropEvent::Cancelled,
+        WryDragDropEvent::Leave => DragDropEvent::Leave,
         _ => unimplemented!(),
       };
 

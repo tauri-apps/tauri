@@ -1737,7 +1737,7 @@ class Window {
     handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
     const unlistenDrag = await this.listen<DragDropPayload>(
-      TauriEvent.DRAG,
+      TauriEvent.DRAG_ENTER,
       (event) => {
         handler({
           ...event,
@@ -1751,7 +1751,7 @@ class Window {
     )
 
     const unlistenDrop = await this.listen<DragDropPayload>(
-      TauriEvent.DROP,
+      TauriEvent.DRAG_DROP,
       (event) => {
         handler({
           ...event,
@@ -1765,7 +1765,7 @@ class Window {
     )
 
     const unlistenDragOver = await this.listen<DragDropPayload>(
-      TauriEvent.DROP_OVER,
+      TauriEvent.DRAG_OVER,
       (event) => {
         handler({
           ...event,
@@ -1778,7 +1778,7 @@ class Window {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.DROP_CANCELLED,
+      TauriEvent.DRAG_LEAVE,
       (event) => {
         handler({ ...event, payload: { type: 'cancelled' } })
       }

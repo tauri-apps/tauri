@@ -525,28 +525,25 @@ mod tests {
     let invoke_key = "1234ahdsjkl123";
     let callback = 12378123;
     let error = 6243;
-    let headers = HeaderMap::from_iter(
-      vec![
-        (
-          CONTENT_TYPE,
-          HeaderValue::from_str(&mime::APPLICATION_OCTET_STREAM.to_string()).unwrap(),
-        ),
-        (
-          HeaderName::from_str(TAURI_INVOKE_KEY_HEADER_NAME).unwrap(),
-          HeaderValue::from_str(invoke_key).unwrap(),
-        ),
-        (
-          HeaderName::from_str(TAURI_CALLBACK_HEADER_NAME).unwrap(),
-          HeaderValue::from_str(&callback.to_string()).unwrap(),
-        ),
-        (
-          HeaderName::from_str(TAURI_ERROR_HEADER_NAME).unwrap(),
-          HeaderValue::from_str(&error.to_string()).unwrap(),
-        ),
-        (ORIGIN, HeaderValue::from_str("tauri://localhost").unwrap()),
-      ]
-      .into_iter(),
-    );
+    let headers = HeaderMap::from_iter(vec![
+      (
+        CONTENT_TYPE,
+        HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_INVOKE_KEY_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(invoke_key).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_CALLBACK_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&callback.to_string()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_ERROR_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&error.to_string()).unwrap(),
+      ),
+      (ORIGIN, HeaderValue::from_str("tauri://localhost").unwrap()),
+    ]);
 
     let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
     *request.headers_mut().unwrap() = headers.clone();
@@ -571,7 +568,7 @@ mod tests {
     let mut headers = headers.clone();
     headers.insert(
       CONTENT_TYPE,
-      HeaderValue::from_str(&mime::APPLICATION_JSON.to_string()).unwrap(),
+      HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),
     );
 
     let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
@@ -638,28 +635,25 @@ mod tests {
     let callback = 12378123;
     let error = 6243;
 
-    let headers = HeaderMap::from_iter(
-      vec![
-        (
-          CONTENT_TYPE,
-          HeaderValue::from_str(&mime::APPLICATION_JSON.to_string()).unwrap(),
-        ),
-        (
-          HeaderName::from_str(TAURI_INVOKE_KEY_HEADER_NAME).unwrap(),
-          HeaderValue::from_str(invoke_key).unwrap(),
-        ),
-        (
-          HeaderName::from_str(TAURI_CALLBACK_HEADER_NAME).unwrap(),
-          HeaderValue::from_str(&callback.to_string()).unwrap(),
-        ),
-        (
-          HeaderName::from_str(TAURI_ERROR_HEADER_NAME).unwrap(),
-          HeaderValue::from_str(&error.to_string()).unwrap(),
-        ),
-        (ORIGIN, HeaderValue::from_str("tauri://localhost").unwrap()),
-      ]
-      .into_iter(),
-    );
+    let headers = HeaderMap::from_iter(vec![
+      (
+        CONTENT_TYPE,
+        HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_INVOKE_KEY_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(invoke_key).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_CALLBACK_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&callback.to_string()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_ERROR_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&error.to_string()).unwrap(),
+      ),
+      (ORIGIN, HeaderValue::from_str("tauri://localhost").unwrap()),
+    ]);
 
     let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
     *request.headers_mut().unwrap() = headers.clone();

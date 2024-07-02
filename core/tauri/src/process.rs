@@ -71,7 +71,7 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 ///     Ok(())
 ///   });
 /// ```
-pub fn restart(env: &Env) {
+pub fn restart(env: &Env) -> ! {
   use std::process::{exit, Command};
 
   if let Ok(path) = current_binary(env) {

@@ -18,6 +18,7 @@ const PERMISSION_GRANTED: &str = "granted";
 const PERMISSION_DENIED: &str = "denied";
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum SoundDto {
   Default,
   Custom(String),
@@ -49,6 +50,7 @@ impl<'de> Deserialize<'de> for SoundDto {
 
 /// The options for the notification API.
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 pub struct NotificationOptions {
   /// The notification title.
   pub title: String,

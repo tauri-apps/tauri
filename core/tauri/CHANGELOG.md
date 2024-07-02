@@ -1,5 +1,24 @@
 # Changelog
 
+## \[1.7.0]
+
+### Enhancements
+
+- [`44e3335da`](https://www.github.com/tauri-apps/tauri/commit/44e3335da8c1a811a2ebe72f2036dfad2381da24) ([#9796](https://www.github.com/tauri-apps/tauri/pull/9796)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Bug Fixes
+
+- [`8ee8f0939`](https://www.github.com/tauri-apps/tauri/commit/8ee8f093900b22c584fdf00c5efdb43ef34f6771) ([#9588](https://www.github.com/tauri-apps/tauri/pull/9588)) Fix check temporary path permission on macos.
+- [`07b02c9f9`](https://www.github.com/tauri-apps/tauri/commit/07b02c9f962312f4d90c001d21d3d72ca9daa03a) ([#9972](https://www.github.com/tauri-apps/tauri/pull/9972)) Added `test::INVOKE_KEY` to be used in `tauri::InvokePayload` when testing using `test::assert_ipc_response` and `test::get_ipc_response`.
+- [`e48157da2`](https://www.github.com/tauri-apps/tauri/commit/e48157da2f0b88d8c5df13f3287705172a684525) ([#9698](https://www.github.com/tauri-apps/tauri/pull/9698)) Fix the JS `Command` API from `shell` module, losing events for `stdout`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-runtime@0.14.4`
+- Upgraded to `tauri-runtime-wry@0.14.9`
+- Upgraded to `tauri-macros@1.4.5`
+
 ## \[1.6.7]
 
 ### Bug Fixes

@@ -18,6 +18,7 @@ pub struct DirOpts {
 pub struct FileOpts {
   pub overwrite: bool,
   pub skip: bool,
+  #[allow(dead_code)]
   pub buffer_size: usize,
 }
 

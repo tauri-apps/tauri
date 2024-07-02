@@ -40,6 +40,7 @@ mod window;
 /// The context passed to the invoke handler.
 pub struct InvokeContext<R: Runtime> {
   pub window: Window<R>,
+  #[allow(dead_code)]
   pub config: Arc<Config>,
   pub package_info: PackageInfo,
 }

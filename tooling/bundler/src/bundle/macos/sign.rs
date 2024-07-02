@@ -305,23 +305,21 @@ pub fn notarize(
       log::info!(action = "Notarizing"; "{}", log_message);
       staple_app(app_bundle_path)?;
       Ok(())
-    } else {
-      if let Ok(output) = Command::new("xcrun")
-        .args(["notarytool", "log"])
-        .arg(&submit_output.id)
-        .notarytool_args(&auth)
-        .output_ok()
-      {
-        Err(
-          anyhow::anyhow!(
-            "{log_message}\nLog:\n{}",
-            String::from_utf8_lossy(&output.stdout)
-          )
-          .into(),
+    } else if let Ok(output) = Command::new("xcrun")
+      .args(["notarytool", "log"])
+      .arg(&submit_output.id)
+      .notarytool_args(&auth)
+      .output_ok()
+    {
+      Err(
+        anyhow::anyhow!(
+          "{log_message}\nLog:\n{}",
+          String::from_utf8_lossy(&output.stdout)
         )
-      } else {
-        Err(anyhow::anyhow!("{log_message}").into())
-      }
+        .into(),
+      )
+    } else {
+      Err(anyhow::anyhow!("{log_message}").into())
     }
   } else {
     Err(anyhow::anyhow!("failed to parse notarytool output as JSON: `{output_str}`").into())

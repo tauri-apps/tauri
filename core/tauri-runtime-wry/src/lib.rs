@@ -2253,6 +2253,18 @@ impl<T: UserEvent> Wry<T> {
       use tao::platform::windows::EventLoopBuilderExtWindows;
       event_loop_builder.with_msg_hook(hook);
     }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    if let Some(app_id) = args.app_id {
+      use tao::platform::unix::EventLoopBuilderExtUnix;
+      event_loop_builder.with_app_id(app_id);
+    }
     Self::init(event_loop_builder.build())
   }
 

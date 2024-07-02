@@ -7,15 +7,19 @@
 use std::{path::Path, str::FromStr};
 
 use crate::{acl::Identifier, platform::Target};
-use serde::{Deserialize, Serialize};
+use serde::{
+  de::{Error, IntoDeserializer},
+  Deserialize, Deserializer, Serialize,
+};
+use serde_untagged::UntaggedEnumVisitor;
 
 use super::Scopes;
 
 /// An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]
 /// or an object that references a permission and extends its scope.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(untagged)]
 pub enum PermissionEntry {
   /// Reference a permission or permission set by identifier.
   PermissionRef(Identifier),
@@ -39,6 +43,34 @@ impl PermissionEntry {
         scope: _,
       } => identifier,
     }
+  }
+}
+
+impl<'de> Deserialize<'de> for PermissionEntry {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    #[derive(Deserialize)]
+    struct ExtendedPermissionStruct {
+      identifier: Identifier,
+      #[serde(default, flatten)]
+      scope: Scopes,
+    }
+
+    UntaggedEnumVisitor::new()
+      .string(|string| {
+        let de = string.into_deserializer();
+        Identifier::deserialize(de).map(Self::PermissionRef)
+      })
+      .map(|map| {
+        let ext_perm = map.deserialize::<ExtendedPermissionStruct>()?;
+        Ok(Self::ExtendedPermission {
+          identifier: ext_perm.identifier,
+          scope: ext_perm.scope,
+        })
+      })
+      .deserialize(deserializer)
   }
 }
 
@@ -157,6 +189,7 @@ pub struct Capability {
   ///    "allow": [{ "path": "$HOME/test.txt" }]
   ///  }
   /// ```
+  #[cfg_attr(feature = "schema", schemars(schema_with = "unique_permission"))]
   pub permissions: Vec<PermissionEntry>,
   /// Limit which target platforms this capability applies to.
   ///
@@ -167,6 +200,21 @@ pub struct Capability {
   /// `["macOS","windows"]`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+}
+
+#[cfg(feature = "schema")]
+fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  use schemars::schema;
+  schema::SchemaObject {
+    instance_type: Some(schema::InstanceType::Array.into()),
+    array: Some(Box::new(schema::ArrayValidation {
+      unique_items: Some(true),
+      items: Some(gen.subschema_for::<PermissionEntry>().into()),
+      ..Default::default()
+    })),
+    ..Default::default()
+  }
+  .into()
 }
 
 fn default_capability_local() -> bool {
@@ -188,9 +236,9 @@ pub struct CapabilityRemote {
 }
 
 /// Capability formats accepted in a capability file.
-#[derive(Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(untagged)]
+#[cfg_attr(feature = "schema", schemars(untagged))]
+#[cfg_attr(test, derive(Debug, PartialEq))]
 pub enum CapabilityFile {
   /// A single capability.
   Capability(Capability),
@@ -215,6 +263,36 @@ impl CapabilityFile {
       _ => return Err(super::Error::UnknownCapabilityFormat(ext)),
     };
     Ok(file)
+  }
+}
+
+impl<'de> Deserialize<'de> for CapabilityFile {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    UntaggedEnumVisitor::new()
+      .seq(|seq| seq.deserialize::<Vec<Capability>>().map(Self::List))
+      .map(|map| {
+        #[derive(Deserialize)]
+        struct CapabilityNamedList {
+          capabilities: Vec<Capability>,
+        }
+
+        let value: serde_json::Map<String, serde_json::Value> = map.deserialize()?;
+        if value.contains_key("capabilities") {
+          serde_json::from_value::<CapabilityNamedList>(value.into())
+            .map(|named| Self::NamedList {
+              capabilities: named.capabilities,
+            })
+            .map_err(|e| serde_untagged::de::Error::custom(e.to_string()))
+        } else {
+          serde_json::from_value::<Capability>(value.into())
+            .map(Self::Capability)
+            .map_err(|e| serde_untagged::de::Error::custom(e.to_string()))
+        }
+      })
+      .deserialize(deserializer)
   }
 }
 
@@ -291,5 +369,73 @@ mod build {
         platforms
       );
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use crate::acl::{Identifier, Scopes};
+
+  use super::{Capability, CapabilityFile, PermissionEntry};
+
+  #[test]
+  fn permission_entry_de() {
+    let identifier = Identifier::try_from("plugin:perm".to_string()).unwrap();
+    let identifier_json = serde_json::to_string(&identifier).unwrap();
+    assert_eq!(
+      serde_json::from_str::<PermissionEntry>(&identifier_json).unwrap(),
+      PermissionEntry::PermissionRef(identifier.clone())
+    );
+
+    assert_eq!(
+      serde_json::from_value::<PermissionEntry>(serde_json::json!({
+        "identifier": identifier,
+        "allow": [],
+        "deny": null
+      }))
+      .unwrap(),
+      PermissionEntry::ExtendedPermission {
+        identifier,
+        scope: Scopes {
+          allow: Some(vec![]),
+          deny: None
+        }
+      }
+    );
+  }
+
+  #[test]
+  fn capability_file_de() {
+    let capability = Capability {
+      identifier: "test".into(),
+      description: "".into(),
+      remote: None,
+      local: true,
+      windows: vec![],
+      webviews: vec![],
+      permissions: vec![],
+      platforms: None,
+    };
+    let capability_json = serde_json::to_string(&capability).unwrap();
+
+    assert_eq!(
+      serde_json::from_str::<CapabilityFile>(&capability_json).unwrap(),
+      CapabilityFile::Capability(capability.clone())
+    );
+
+    assert_eq!(
+      serde_json::from_str::<CapabilityFile>(&format!("[{capability_json}]")).unwrap(),
+      CapabilityFile::List(vec![capability.clone()])
+    );
+
+    assert_eq!(
+      serde_json::from_str::<CapabilityFile>(&format!(
+        "{{ \"capabilities\": [{capability_json}] }}"
+      ))
+      .unwrap(),
+      CapabilityFile::NamedList {
+        capabilities: vec![capability.clone()]
+      }
+    );
   }
 }

@@ -72,6 +72,7 @@
         "android": {
           "minSdkVersion": 24
         },
+        "createUpdaterArtifacts": false,
         "iOS": {},
         "icon": [],
         "linux": {
@@ -1126,7 +1127,8 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/PermissionEntry"
-          }
+          },
+          "uniqueItems": true
         },
         "platforms": {
           "description": "Limit which target platforms this capability applies to.\n\n By default all platforms are targeted.\n\n ## Example\n\n `[\"macOS\",\"windows\"]`",
@@ -1518,11 +1520,20 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
               "$ref": "#/definitions/BundleTarget"
+            }
+          ]
+        },
+        "createUpdaterArtifacts": {
+          "description": "Produce updaters and their signatures or not",
+          "default": false,
+          "allOf": [
+            {
+              "$ref": "#/definitions/Updater"
             }
           ]
         },
@@ -1793,12 +1804,34 @@
           "enum": [
             "dmg"
           ]
+        }
+      ]
+    },
+    "Updater": {
+      "description": "Updater type",
+      "anyOf": [
+        {
+          "description": "Generates lagacy zipped v1 compatible updaters",
+          "allOf": [
+            {
+              "$ref": "#/definitions/V1Compatible"
+            }
+          ]
         },
         {
-          "description": "The Tauri updater bundle.",
+          "description": "Produce updaters and their signatures or not",
+          "type": "boolean"
+        }
+      ]
+    },
+    "V1Compatible": {
+      "description": "Generates lagacy zipped v1 compatible updaters",
+      "oneOf": [
+        {
+          "description": "Generates lagacy zipped v1 compatible updaters",
           "type": "string",
           "enum": [
-            "updater"
+            "v1Compatible"
           ]
         }
       ]
@@ -2304,6 +2337,13 @@
             {
               "$ref": "#/definitions/NsisCompression"
             }
+          ]
+        },
+        "startMenuFolder": {
+          "description": "Set the folder name for the start menu shortcut.\n\n Use this option if you have multiple apps and wish to group their shortcuts under one folder\n or if you generally prefer to set your shortcut inside a folder.\n\n Examples:\n - `AwesomePublisher`, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\AwesomePublisher\\<your-app>.lnk`\n - If unset, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\<your-app>.lnk`",
+          "type": [
+            "string",
+            "null"
           ]
         },
         "installerHooks": {

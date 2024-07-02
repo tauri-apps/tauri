@@ -24,7 +24,7 @@ use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
   MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
@@ -807,11 +807,23 @@ impl AppSettings for RustAppSettings {
     let arch64bits =
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
-    let updater_settings = if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
-      let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
+    let updater_enabled = config.bundle.create_updater_artifacts != Updater::Bool(false);
+    let v1_compatible = matches!(config.bundle.create_updater_artifacts, Updater::String(_));
+    let updater_settings = if updater_enabled {
+      let updater: UpdaterConfig = serde_json::from_value(
+        config
+          .plugins
+          .0
+          .get("updater")
+          .ok_or_else(|| {
+            anyhow::anyhow!("failed to get updater configuration: plugins > updater doesn't exist")
+          })?
+          .clone(),
+      )?;
       Some(UpdaterSettings {
+        v1_compatible,
         pubkey: updater.pubkey,
-        msiexec_args: Some(updater.windows.install_mode.msiexec_args()),
+        msiexec_args: updater.windows.install_mode.msiexec_args(),
       })
     } else {
       None
@@ -1130,9 +1142,14 @@ pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
-    .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].as_str())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+    .position(|a| a.starts_with("--profile"))
+    .and_then(|i| {
+      options.args[i]
+        .split_once('=')
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| options.args.get(i + 1).map(|s| s.as_str()))
+    })
+    .unwrap_or(if options.debug { "dev" } else { "release" })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1455,5 +1472,71 @@ mod pkgconfig_utils {
     } else {
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn parse_profile_from_opts() {
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "testing");
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile=customprofile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "customprofile");
+
+    let options = Options {
+      debug: true,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "dev");
+
+    let options = Options {
+      debug: false,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
   }
 }

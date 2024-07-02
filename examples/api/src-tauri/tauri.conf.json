@@ -90,6 +90,9 @@
             "localePath": "locales/pt-BR.wxl"
           }
         }
+      },
+      "nsis": {
+        "compression": "none"
       }
     }
   }

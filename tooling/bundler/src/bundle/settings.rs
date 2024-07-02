@@ -50,7 +50,6 @@ impl From<BundleType> for PackageType {
       BundleType::Nsis => Self::Nsis,
       BundleType::App => Self::MacOsBundle,
       BundleType::Dmg => Self::Dmg,
-      BundleType::Updater => Self::Updater,
     }
   }
 }
@@ -156,10 +155,12 @@ pub struct PackageSettings {
 /// The updater settings.
 #[derive(Debug, Default, Clone)]
 pub struct UpdaterSettings {
+  /// Should generate v1 compatible zipped updater
+  pub v1_compatible: bool,
   /// Signature public key.
   pub pubkey: String,
   /// Args to pass to `msiexec.exe` to run the updater on Windows.
-  pub msiexec_args: Option<&'static [&'static str]>,
+  pub msiexec_args: &'static [&'static str],
 }
 
 /// The Linux debian bundle settings.
@@ -417,6 +418,15 @@ pub struct NsisSettings {
   pub display_language_selector: bool,
   /// Set compression algorithm used to compress files in the installer.
   pub compression: NsisCompression,
+  /// Set the folder name for the start menu shortcut.
+  ///
+  /// Use this option if you have multiple apps and wish to group their shortcuts under one folder
+  /// or if you generally prefer to set your shortcut inside a folder.
+  ///
+  /// Examples:
+  /// - `AwesomePublisher`, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\AwesomePublisher\<your-app>.lnk`
+  /// - If unset, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\<your-app>.lnk`
+  pub start_menu_folder: Option<String>,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///
@@ -831,9 +841,7 @@ impl Settings {
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    let mut path = self.project_out_directory.clone();
-    path.push(binary.name());
-    path
+    self.project_out_directory.join(binary.name())
   }
 
   /// Returns the list of binaries to bundle.
@@ -858,7 +866,7 @@ impl Settings {
       .unwrap_or(std::env::consts::OS)
       .replace("darwin", "macos");
 
-    let mut platform_types = match target_os.as_str() {
+    let platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
       "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
@@ -869,10 +877,6 @@ impl Settings {
         )))
       }
     };
-
-    if self.is_update_enabled() {
-      platform_types.push(PackageType::Updater);
-    }
 
     if let Some(package_types) = &self.package_types {
       let mut types = vec![];
@@ -1079,15 +1083,5 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
-  }
-
-  /// Is update enabled
-  pub fn is_update_enabled(&self) -> bool {
-    self
-      .bundle_settings
-      .updater
-      .as_ref()
-      .map(|u| !u.pubkey.is_empty())
-      .unwrap_or_default()
   }
 }

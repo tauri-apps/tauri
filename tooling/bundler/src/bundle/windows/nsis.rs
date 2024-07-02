@@ -253,6 +253,10 @@ fn build_nsis_app_installer(
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));
     }
+
+    if let Some(start_menu_folder) = &nsis.start_menu_folder {
+      data.insert("start_menu_folder", to_json(start_menu_folder));
+    }
   }
 
   let compression = settings
@@ -330,7 +334,12 @@ fn build_nsis_app_installer(
   let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
-    to_json(main_binary.name().replace(".exe", "")),
+    to_json(
+      main_binary_path
+        .file_stem()
+        .and_then(|file_name| file_name.to_str())
+        .unwrap_or_else(|| main_binary.name()),
+    ),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));
 
@@ -661,21 +670,20 @@ fn generate_binaries_data(settings: &Settings) -> crate::Result<BinariesMap> {
 }
 
 fn generate_estimated_size(
-  main: &Path,
+  main: &PathBuf,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
-) -> crate::Result<String> {
-  use std::fs::metadata;
-
-  let mut size = metadata(main)?.len();
-
-  for k in binaries.keys().chain(resources.keys()) {
-    size += metadata(k)?.len();
+) -> crate::Result<u64> {
+  let mut size = 0;
+  for k in std::iter::once(main)
+    .chain(binaries.keys())
+    .chain(resources.keys())
+  {
+    size += std::fs::metadata(k)
+      .with_context(|| format!("when getting size of {}", k.display()))?
+      .len();
   }
-
-  size /= 1000;
-
-  Ok(format!("{size:#08x}"))
+  Ok(size / 1024)
 }
 
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {

@@ -18,6 +18,7 @@ use serde::{
   Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
+use serde_untagged::UntaggedEnumVisitor;
 use serde_with::skip_serializing_none;
 use url::Url;
 
@@ -115,8 +116,6 @@ pub enum BundleType {
   App,
   /// The Apple Disk Image bundle (.dmg).
   Dmg,
-  /// The Tauri updater bundle.
-  Updater,
 }
 
 impl BundleType {
@@ -130,7 +129,6 @@ impl BundleType {
       BundleType::Nsis,
       BundleType::App,
       BundleType::Dmg,
-      BundleType::Updater,
     ]
   }
 }
@@ -148,7 +146,6 @@ impl Display for BundleType {
         Self::Nsis => "nsis",
         Self::App => "app",
         Self::Dmg => "dmg",
-        Self::Updater => "updater",
       }
     )
   }
@@ -177,7 +174,6 @@ impl<'de> Deserialize<'de> for BundleType {
       "nsis" => Ok(Self::Nsis),
       "app" => Ok(Self::App),
       "dmg" => Ok(Self::Dmg),
-      "updater" => Ok(Self::Updater),
       _ => Err(DeError::custom(format!("unknown bundle target '{s}'"))),
     }
   }
@@ -270,7 +266,14 @@ impl<'de> Deserialize<'de> for BundleTarget {
 
     match BundleTargetInner::deserialize(deserializer)? {
       BundleTargetInner::All(s) if s.to_lowercase() == "all" => Ok(Self::All),
-      BundleTargetInner::All(t) => Err(DeError::custom(format!("invalid bundle type {t}"))),
+      BundleTargetInner::All(t) => Err(DeError::custom(format!(
+        "invalid bundle type {t}, expected one of `all`, {}",
+        BundleType::all()
+          .iter()
+          .map(|b| format!("`{b}`"))
+          .collect::<Vec<_>>()
+          .join(", ")
+      ))),
       BundleTargetInner::List(l) => Ok(Self::List(l)),
       BundleTargetInner::One(t) => Ok(Self::One(t)),
     }
@@ -776,6 +779,16 @@ pub struct NsisConfig {
   /// See <https://nsis.sourceforge.io/Reference/SetCompressor>
   #[serde(default)]
   pub compression: NsisCompression,
+  /// Set the folder name for the start menu shortcut.
+  ///
+  /// Use this option if you have multiple apps and wish to group their shortcuts under one folder
+  /// or if you generally prefer to set your shortcut inside a folder.
+  ///
+  /// Examples:
+  /// - `AwesomePublisher`, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\AwesomePublisher\<your-app>.lnk`
+  /// - If unset, shortcut will be placed in `%AppData%\Microsoft\Windows\Start Menu\Programs\<your-app>.lnk`
+  #[serde(alias = "start-menu-folder")]
+  pub start_menu_folder: Option<String>,
   /// A path to a `.nsh` file that contains special NSIS macros to be hooked into the
   /// main installer.nsi script.
   ///
@@ -1052,6 +1065,33 @@ impl BundleResources {
   }
 }
 
+/// Updater type
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum Updater {
+  /// Generates lagacy zipped v1 compatible updaters
+  String(V1Compatible),
+  /// Produce updaters and their signatures or not
+  // Can't use untagged on enum field here: https://github.com/GREsau/schemars/issues/222
+  Bool(bool),
+}
+
+impl Default for Updater {
+  fn default() -> Self {
+    Self::Bool(false)
+  }
+}
+
+/// Generates lagacy zipped v1 compatible updaters
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum V1Compatible {
+  /// Generates lagacy zipped v1 compatible updaters
+  V1Compatible,
+}
+
 /// Configuration for tauri-bundler.
 ///
 /// See more: <https://tauri.app/v1/api/config#bundleconfig>
@@ -1063,9 +1103,12 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
+  #[serde(default)]
+  /// Produce updaters and their signatures or not
+  pub create_updater_artifacts: Updater,
   /// The application's publisher. Defaults to the second element in the identifier string.
   /// Currently maps to the Manufacturer property of the Windows Installer.
   pub publisher: Option<String>,
@@ -1698,14 +1741,26 @@ pub struct SecurityConfig {
 }
 
 /// A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", untagged)]
+#[serde(untagged)]
 pub enum CapabilityEntry {
   /// An inlined capability.
   Inlined(Capability),
   /// Reference to a capability identifier.
   Reference(String),
+}
+
+impl<'de> Deserialize<'de> for CapabilityEntry {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    UntaggedEnumVisitor::new()
+      .string(|string| Ok(Self::Reference(string.to_owned())))
+      .map(|map| map.deserialize::<Capability>().map(Self::Inlined))
+      .deserialize(deserializer)
+  }
 }
 
 /// The application pattern.
@@ -2444,6 +2499,7 @@ mod build {
       let icon = vec_lit(&self.icon, str_lit);
       let active = self.active;
       let targets = quote!(Default::default());
+      let create_updater_artifacts = quote!(Default::default());
       let resources = quote!(None);
       let copyright = quote!(None);
       let category = quote!(None);
@@ -2467,6 +2523,7 @@ mod build {
         homepage,
         icon,
         targets,
+        create_updater_artifacts,
         resources,
         copyright,
         category,
@@ -2781,6 +2838,7 @@ mod test {
     let bundle = BundleConfig {
       active: false,
       targets: Default::default(),
+      create_updater_artifacts: Default::default(),
       publisher: None,
       homepage: None,
       icon: Vec::new(),

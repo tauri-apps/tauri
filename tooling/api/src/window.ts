@@ -34,7 +34,7 @@ import {
 } from './event'
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
-import type { DragDropEvent, DragDropPayload } from './webview'
+import type { DragDropEvent } from './webview'
 import { Image, transformImage } from './image'
 
 /**
@@ -1736,13 +1736,15 @@ class Window {
   async onDragDropEvent(
     handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenDrag = await this.listen<DragDropPayload>(
+    type DragPayload = { paths: string[]; position: PhysicalPosition }
+
+    const unlistenDrag = await this.listen<DragPayload>(
       TauriEvent.DRAG_ENTER,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dragged',
+            type: 'enter',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -1750,27 +1752,27 @@ class Window {
       }
     )
 
-    const unlistenDrop = await this.listen<DragDropPayload>(
-      TauriEvent.DRAG_DROP,
-      (event) => {
-        handler({
-          ...event,
-          payload: {
-            type: 'dropped',
-            paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
-          }
-        })
-      }
-    )
-
-    const unlistenDragOver = await this.listen<DragDropPayload>(
+    const unlistenDragOver = await this.listen<DragPayload>(
       TauriEvent.DRAG_OVER,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dragOver',
+            type: 'over',
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDrop = await this.listen<DragPayload>(
+      TauriEvent.DRAG_DROP,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'drop',
+            paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -1780,7 +1782,7 @@ class Window {
     const unlistenCancel = await this.listen<null>(
       TauriEvent.DRAG_LEAVE,
       (event) => {
-        handler({ ...event, payload: { type: 'cancelled' } })
+        handler({ ...event, payload: { type: 'leave' } })
       }
     )
 
@@ -2312,6 +2314,5 @@ export type {
   ScaleFactorChanged,
   WindowOptions,
   Color,
-  DragDropEvent,
-  DragDropPayload
+  DragDropEvent
 }

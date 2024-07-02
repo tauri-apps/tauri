@@ -32,21 +32,12 @@ import { invoke } from './core'
 import { Window, getCurrent as getCurrentWindow } from './window'
 import { WebviewWindow } from './webviewWindow'
 
-interface DragDropPayload {
-  paths: string[]
-  position: PhysicalPosition
-}
-
-interface DragOverPayload {
-  position: PhysicalPosition
-}
-
 /** The drag and drop event types. */
 type DragDropEvent =
-  | ({ type: 'dragged' } & DragDropPayload)
-  | ({ type: 'dragOver' } & DragOverPayload)
-  | ({ type: 'dropped' } & DragDropPayload)
-  | { type: 'cancelled' }
+  | { type: 'enter'; paths: string[]; position: PhysicalPosition }
+  | { type: 'over'; position: PhysicalPosition }
+  | { type: 'drop'; paths: string[]; position: PhysicalPosition }
+  | { type: 'leave' }
 
 /**
  * Get an instance of `Webview` for the current webview.
@@ -542,13 +533,15 @@ class Webview {
   async onDragDropEvent(
     handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenDrag = await this.listen<DragDropPayload>(
+    type DragPayload = { paths: string[]; position: PhysicalPosition }
+
+    const unlistenDrag = await this.listen<DragPayload>(
       TauriEvent.DRAG_ENTER,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dragged',
+            type: 'enter',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -556,27 +549,27 @@ class Webview {
       }
     )
 
-    const unlistenDrop = await this.listen<DragDropPayload>(
-      TauriEvent.DRAG_DROP,
-      (event) => {
-        handler({
-          ...event,
-          payload: {
-            type: 'dropped',
-            paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
-          }
-        })
-      }
-    )
-
-    const unlistenDragOver = await this.listen<DragDropPayload>(
+    const unlistenDragOver = await this.listen<DragPayload>(
       TauriEvent.DRAG_LEAVE,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dragOver',
+            type: 'over',
+            position: mapPhysicalPosition(event.payload.position)
+          }
+        })
+      }
+    )
+
+    const unlistenDrop = await this.listen<DragPayload>(
+      TauriEvent.DRAG_DROP,
+      (event) => {
+        handler({
+          ...event,
+          payload: {
+            type: 'drop',
+            paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -586,7 +579,7 @@ class Webview {
     const unlistenCancel = await this.listen<null>(
       TauriEvent.DRAG_LEAVE,
       (event) => {
-        handler({ ...event, payload: { type: 'cancelled' } })
+        handler({ ...event, payload: { type: 'leave' } })
       }
     )
 
@@ -679,4 +672,4 @@ interface WebviewOptions {
 
 export { Webview, getCurrent, getAll }
 
-export type { DragDropEvent, DragDropPayload, WebviewOptions }
+export type { DragDropEvent, WebviewOptions }

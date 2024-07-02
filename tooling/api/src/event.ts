@@ -58,8 +58,8 @@ enum TauriEvent {
   WINDOW_CREATED = 'tauri://window-created',
   WEBVIEW_CREATED = 'tauri://webview-created',
   DRAG_ENTER = 'tauri://drag-enter',
-  DRAG_DROP = 'tauri://drag-drop',
   DRAG_OVER = 'tauri://drag-over',
+  DRAG_DROP = 'tauri://drag-drop',
   DRAG_LEAVE = 'tauri://drag-leave'
 }
 

@@ -30,8 +30,8 @@ const WINDOW_BLUR_EVENT: &str = "tauri://blur";
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
 const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
 pub(crate) const DRAG_ENTER_EVENT: &str = "tauri://drag-enter";
-pub(crate) const DRAG_DROP_EVENT: &str = "tauri://drag-drop";
 pub(crate) const DRAG_OVER_EVENT: &str = "tauri://drag-over";
+pub(crate) const DRAG_DROP_EVENT: &str = "tauri://drag-drop";
 pub(crate) const DRAG_LEAVE_EVENT: &str = "tauri://drag-leave";
 
 pub struct WindowManager<R: Runtime> {
@@ -144,13 +144,9 @@ impl<R: Runtime> Window<R> {
 }
 
 #[derive(Serialize, Clone)]
-pub struct DragDropPayload<'a> {
-  pub paths: &'a Vec<PathBuf>,
-  pub position: &'a PhysicalPosition<f64>,
-}
-
-#[derive(Serialize, Clone)]
-pub struct DragOverPayload<'a> {
+pub(crate) struct DragDropPayload<'a> {
+  #[serde(skip_serializing_if = "Option::is_none")]
+  pub paths: Option<&'a Vec<PathBuf>>,
   pub position: &'a PhysicalPosition<f64>,
 }
 
@@ -195,7 +191,10 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
     )?,
     WindowEvent::DragDrop(event) => match event {
       DragDropEvent::Enter { paths, position } => {
-        let payload = DragDropPayload { paths, position };
+        let payload = DragDropPayload {
+          paths: Some(paths),
+          position,
+        };
 
         if window.is_webview_window() {
           window.emit_to(
@@ -208,7 +207,10 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
         }
       }
       DragDropEvent::Over { position } => {
-        let payload = DragOverPayload { position };
+        let payload = DragDropPayload {
+          position,
+          paths: None,
+        };
         if window.is_webview_window() {
           window.emit_to(
             EventTarget::labeled(window.label()),
@@ -228,7 +230,10 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
             let _ = scopes.allow_directory(path, true);
           }
         }
-        let payload = DragDropPayload { paths, position };
+        let payload = DragDropPayload {
+          paths: Some(paths),
+          position,
+        };
 
         if window.is_webview_window() {
           window.emit_to(

@@ -29,10 +29,7 @@ use crate::{
 };
 
 use super::{
-  window::{
-    DragDropPayload, DragOverPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT,
-    DRAG_OVER_EVENT,
-  },
+  window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
   AppManager,
 };
 
@@ -690,11 +687,17 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
   match event {
     WebviewEvent::DragDrop(event) => match event {
       DragDropEvent::Enter { paths, position } => {
-        let payload = DragDropPayload { paths, position };
+        let payload = DragDropPayload {
+          paths: Some(paths),
+          position,
+        };
         webview.emit_to_webview(DRAG_ENTER_EVENT, payload)?
       }
       DragDropEvent::Over { position } => {
-        let payload = DragOverPayload { position };
+        let payload = DragDropPayload {
+          position,
+          paths: None,
+        };
         webview.emit_to_webview(DRAG_OVER_EVENT, payload)?
       }
       DragDropEvent::Drop { paths, position } => {
@@ -706,7 +709,10 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
             let _ = scopes.allow_directory(path, false);
           }
         }
-        let payload = DragDropPayload { paths, position };
+        let payload = DragDropPayload {
+          paths: Some(paths),
+          position,
+        };
         webview.emit_to_webview(DRAG_DROP_EVENT, payload)?
       }
       DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, ())?,

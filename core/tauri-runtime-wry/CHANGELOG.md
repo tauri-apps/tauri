@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### Bug Fixes
+
+- [`f29b78811`](https://www.github.com/tauri-apps/tauri/commit/f29b78811080bc8313459f34545152d939c62bf6) ([#9862](https://www.github.com/tauri-apps/tauri/pull/9862)) On Windows, handle resizing undecorated windows natively which improves performance and fixes a couple of annoyances with previous JS implementation:
+
+  - No more cursor flickering when moving the cursor across an edge.
+  - Can resize from top even when `data-tauri-drag-region` element exists there.
+  - Upon starting rezing, clicks don't go through elements behind it so no longer accidental clicks.
+
+### What's Changed
+
+- [`669b9c6b5`](https://www.github.com/tauri-apps/tauri/commit/669b9c6b5af791129b77ee440dacaa98288c906b) ([#9621](https://www.github.com/tauri-apps/tauri/pull/9621)) Set the gtk application to the identifier defined in `tauri.conf.json` to ensure the app uniqueness.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- Upgraded to `tauri-runtime@2.0.0-beta.19`
+- [`d4c908cfb`](https://www.github.com/tauri-apps/tauri/commit/d4c908cfb8c567abdaf99b85f65f482ea81967e5) ([#10048](https://www.github.com/tauri-apps/tauri/pull/10048)) Update `windows` crate to version `0.57` and `webview2-com` crate to version `0.31`
+
 ## \[2.0.0-beta.18]
 
 ### Enhancements

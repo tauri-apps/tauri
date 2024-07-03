@@ -783,4 +783,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()>;
+
+  /// Sets the title bar style. Available on macOS only.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()>;
 }

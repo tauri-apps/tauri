@@ -505,7 +505,11 @@ mod tests {
 
   #[test]
   fn parse_invoke_request() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let context = generate_context!(
+      "test/fixture/src-tauri/tauri.conf.json",
+      crate,
+      test = false
+    );
     let manager: AppManager<Wry> = AppManager::with_handlers(
       context,
       PluginStore::default(),
@@ -584,7 +588,11 @@ mod tests {
   #[test]
   #[cfg(feature = "isolation")]
   fn parse_invoke_request_isolation() {
-    let context = generate_context!("test/fixture/isolation/src-tauri/tauri.conf.json", crate);
+    let context = generate_context!(
+      "test/fixture/isolation/src-tauri/tauri.conf.json",
+      crate,
+      test = false
+    );
 
     let crate::pattern::Pattern::Isolation { crypto_keys, .. } = &context.pattern else {
       unreachable!()

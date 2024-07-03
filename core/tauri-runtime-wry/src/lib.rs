@@ -1155,6 +1155,7 @@ pub enum WindowMessage {
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
   SetProgressBar(ProgressBarState),
+  SetTitleBarStyle(tauri_utils::TitleBarStyle),
   DragWindow,
   ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
@@ -1946,6 +1947,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
         self.window_id,
         WindowMessage::SetProgressBar(progress_state),
       ),
+    )
+  }
+
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetTitleBarStyle(style)),
     )
   }
 }
@@ -2871,6 +2879,23 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetProgressBar(progress_state) => {
             window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
+          }
+          WindowMessage::SetTitleBarStyle(_style) => {
+            #[cfg(target_os = "macos")]
+            match _style {
+              TitleBarStyle::Visible => {
+                window.set_titlebar_transparent(false);
+                window.set_fullsize_content_view(true);
+              }
+              TitleBarStyle::Transparent => {
+                window.set_titlebar_transparent(true);
+                window.set_fullsize_content_view(false);
+              }
+              TitleBarStyle::Overlay => {
+                window.set_titlebar_transparent(true);
+                window.set_fullsize_content_view(true);
+              }
+            };
           }
         }
       }

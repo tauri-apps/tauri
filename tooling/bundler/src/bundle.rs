@@ -161,8 +161,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         package_type: PackageType::Updater,
         bundle_paths: updater_paths,
       });
-    } else if updater.v1_compatible {
-      log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
+    } else {
+      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
     }
     if updater.v1_compatible {
       log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");

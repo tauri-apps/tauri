@@ -1624,11 +1624,7 @@ class Window {
   }
 
   /**
-   * Sets the title bar style. Available on macOS only.
-   *
-   * ## Platform-specific
-   *
-   * - **Linux / Windows / iOS / Android:**: Unsupported.
+   * Sets the title bar style. **macOS only**.
    *
    * @since 2.0.0
    */

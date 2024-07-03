@@ -1995,11 +1995,7 @@ tauri::Builder::default()
       })
       .map_err(Into::into)
   }
-  /// Sets the title bar style. Available on macOS only.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  /// Sets the title bar style. **macOS only**.
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self
       .window

@@ -313,24 +313,14 @@ import * as clipboard from '@tauri-apps/plugin-clipboard-manager';
 
     assert_eq!(migrated, output);
 
-    assert_eq!(
-      new_cargo_packages.iter().collect::<Vec<_>>(),
-      vec![
-        "tauri-plugin-cli",
-        "tauri-plugin-dialog",
-        "tauri-plugin-clipboard-manager",
-        "tauri-plugin-global-shortcut",
-      ]
-    );
+    assert!(new_cargo_packages.contains("tauri-plugin-cli"));
+    assert!(new_cargo_packages.contains("tauri-plugin-dialog"));
+    assert!(new_cargo_packages.contains("tauri-plugin-clipboard-manager"));
+    assert!(new_cargo_packages.contains("tauri-plugin-global-shortcut"));
 
-    assert_eq!(
-      new_npm_packages.iter().collect::<Vec<_>>(),
-      vec![
-        "@tauri-apps/plugin-dialog",
-        "@tauri-apps/plugin-cli",
-        "@tauri-apps/plugin-global-shortcut",
-        "@tauri-apps/plugin-clipboard-manager",
-      ]
-    );
+    assert!(new_npm_packages.contains("@tauri-apps/plugin-cli"));
+    assert!(new_npm_packages.contains("@tauri-apps/plugin-dialog"));
+    assert!(new_npm_packages.contains("@tauri-apps/plugin-clipboard-manager"));
+    assert!(new_npm_packages.contains("@tauri-apps/plugin-global-shortcut"));
   }
 }

@@ -92,6 +92,11 @@ css-color = "0.2"
 resvg = "0.42.0"
 dunce = "1"
 glob = "0.3"
+oxc_parser = "0.16"
+oxc_codegen = "0.16"
+oxc_span = "0.16"
+oxc_allocator = "0.16"
+oxc_ast = "0.16"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.52"

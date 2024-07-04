@@ -535,7 +535,7 @@ class Webview {
   ): Promise<UnlistenFn> {
     type DragPayload = { paths: string[]; position: PhysicalPosition }
 
-    const unlistenDrag = await this.listen<DragPayload>(
+    const unlistenDragEnter = await this.listen<DragPayload>(
       TauriEvent.DRAG_ENTER,
       (event) => {
         handler({
@@ -550,7 +550,7 @@ class Webview {
     )
 
     const unlistenDragOver = await this.listen<DragPayload>(
-      TauriEvent.DRAG_LEAVE,
+      TauriEvent.DRAG_OVER,
       (event) => {
         handler({
           ...event,
@@ -562,7 +562,7 @@ class Webview {
       }
     )
 
-    const unlistenDrop = await this.listen<DragPayload>(
+    const unlistenDragDrop = await this.listen<DragPayload>(
       TauriEvent.DRAG_DROP,
       (event) => {
         handler({
@@ -576,7 +576,7 @@ class Webview {
       }
     )
 
-    const unlistenCancel = await this.listen<null>(
+    const unlistenDragLeave = await this.listen<null>(
       TauriEvent.DRAG_LEAVE,
       (event) => {
         handler({ ...event, payload: { type: 'leave' } })
@@ -584,10 +584,10 @@ class Webview {
     )
 
     return () => {
-      unlistenDrag()
-      unlistenDrop()
+      unlistenDragEnter()
+      unlistenDragDrop()
       unlistenDragOver()
-      unlistenCancel()
+      unlistenDragLeave()
     }
   }
 }

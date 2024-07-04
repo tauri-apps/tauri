@@ -156,6 +156,7 @@
           "icon": [],
           "identifier": "",
           "macOS": {
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "rpm": {
@@ -316,6 +317,7 @@
             "icon": [],
             "identifier": "",
             "macOS": {
+              "hardenedRuntime": true,
               "minimumSystemVersion": "10.13"
             },
             "rpm": {
@@ -1219,6 +1221,7 @@
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -1694,6 +1697,11 @@
             "string",
             "null"
           ]
+        },
+        "hardenedRuntime": {
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n[hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "default": true,
+          "type": "boolean"
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",

@@ -206,7 +206,9 @@ fn try_sign(
     args.push(entitlements_path);
   }
 
-  if is_an_executable {
+  // add runtime flag by default
+
+  if is_an_executable && settings.macos().hardened_runtime {
     args.push("--options");
     args.push("runtime");
   }

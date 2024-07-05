@@ -218,11 +218,9 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           steps.covector.outputs.packagesPublished != ''
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri-docs
-          event-type: update-docs
+        run: gh workflow run 18856068 -r v1 -R tauri-apps/tauri-docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
 
       - name: Trigger `@tauri-apps/cli` publishing workflow
         if: |

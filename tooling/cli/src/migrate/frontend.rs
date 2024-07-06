@@ -68,12 +68,12 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
               let js_plugin = format!("@tauri-apps/plugin-{module}");
               let cargo_crate = format!("tauri-plugin-{module}");
               new_npm_packages.push(js_plugin.clone());
-              new_cargo_packages.push(cargo_crate.clone());
               for feature in ADDITIONAL_FEATURES {
                 if feature.starts_with(&cargo_crate) {
                   new_cargo_features.push(feature.to_string());
                 }
               }
+              new_cargo_packages.push(cargo_crate);
               js_plugin
             } else {
               return original;

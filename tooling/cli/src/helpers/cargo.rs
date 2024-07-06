@@ -17,7 +17,11 @@ pub struct CargoInstallOptions<'a> {
   pub target: Option<&'a str>,
 }
 
-pub fn install(dependencies: &[String], cwd: Option<&Path>) -> crate::Result<()> {
+pub fn install(
+  dependencies: &[String],
+  features: Option<&str>,
+  cwd: Option<&Path>,
+) -> crate::Result<()> {
   let dependencies_str = if dependencies.len() > 1 {
     "dependencies"
   } else {
@@ -34,6 +38,9 @@ pub fn install(dependencies: &[String], cwd: Option<&Path>) -> crate::Result<()>
 
   let mut cmd = Command::new("cargo");
   cmd.arg("add").args(dependencies);
+  if let Some(features) = features {
+    cmd.arg("--features").arg(features);
+  }
 
   if let Some(cwd) = cwd {
     cmd.current_dir(cwd);

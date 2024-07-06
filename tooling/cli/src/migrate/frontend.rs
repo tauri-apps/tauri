@@ -90,7 +90,12 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
   }
 
   if !new_cargo_packages.is_empty() {
-    cargo::install(&new_cargo_packages, Some(tauri_dir))
+    let features = if new_cargo_packages.contains(&"tauri-plugin-updater".to_string()) {
+      Some("tauri-plugin-updater/zip")
+    } else {
+      None
+    };
+    cargo::install(&new_cargo_packages, features, Some(tauri_dir))
       .context("Error installing new Cargo packages")?;
   }
 

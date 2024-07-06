@@ -1635,6 +1635,16 @@ class Window {
     })
   }
 
+  /**
+   * Set window theme, pass in undefined or no parameters to follow system theme
+   */
+  async setTheme(theme?: Theme): Promise<void> {
+    return invoke('plugin:window|set_theme', {
+      label: this.label,
+      value: theme
+    })
+  }
+
   // Listeners
 
   /**

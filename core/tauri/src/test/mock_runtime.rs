@@ -937,6 +937,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
     Ok(())
   }
+
+  fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]

@@ -132,6 +132,7 @@ mod desktop_commands {
   setter!(set_progress_bar, ProgressBarState);
   setter!(set_visible_on_all_workspaces, bool);
   setter!(set_title_bar_style, TitleBarStyle);
+  setter!(set_theme, Option<Theme>);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -279,6 +280,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_icon,
             desktop_commands::set_visible_on_all_workspaces,
             desktop_commands::set_title_bar_style,
+            desktop_commands::set_theme,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
           ]);

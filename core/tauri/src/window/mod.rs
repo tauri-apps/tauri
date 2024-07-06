@@ -1995,6 +1995,7 @@ tauri::Builder::default()
       })
       .map_err(Into::into)
   }
+
   /// Sets the title bar style. **macOS only**.
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self
@@ -2002,6 +2003,11 @@ tauri::Builder::default()
       .dispatcher
       .set_title_bar_style(style)
       .map_err(Into::into)
+  }
+
+  /// Set the window theme.
+  pub fn set_theme(&self, theme: Option<Theme>) -> crate::Result<()> {
+    self.window.dispatcher.set_theme(theme).map_err(Into::into)
   }
 }
 

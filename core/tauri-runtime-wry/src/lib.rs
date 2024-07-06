@@ -1156,6 +1156,7 @@ pub enum WindowMessage {
   SetIgnoreCursorEvents(bool),
   SetProgressBar(ProgressBarState),
   SetTitleBarStyle(tauri_utils::TitleBarStyle),
+  SetTheme(Option<Theme>),
   DragWindow,
   ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
@@ -1954,6 +1955,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetTitleBarStyle(style)),
+    )
+  }
+
+  fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetTheme(theme)),
     )
   }
 }
@@ -2896,6 +2904,9 @@ fn handle_user_message<T: UserEvent>(
                 window.set_fullsize_content_view(true);
               }
             };
+          }
+          WindowMessage::SetTheme(_theme) => {
+            // window.set_theme(theme);
           }
         }
       }

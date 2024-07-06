@@ -2782,7 +2782,7 @@ fn handle_user_message<T: UserEvent>(
             } else if !window.is_decorated() {
               undecorated_resizing::attach_resize_handler(window.hwnd());
             }
-          },
+          }
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
           WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
           WindowMessage::SetClosable(closable) => window.set_closable(closable),

@@ -25,12 +25,14 @@ const PLUGINIFIED_MODULES: &[&str] = &[
   "shell",
   "updater",
 ];
+const ADDITIONAL_FEATURES: &[&str] = &["tauri-plugin-updater/zip"];
 const JS_EXTENSIONS: &[&str] = &["js", "mjs", "jsx", "ts", "mts", "tsx"];
 
 /// Returns a list of paths that could not be migrated
 pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
   let mut new_npm_packages = Vec::new();
   let mut new_cargo_packages = Vec::new();
+  let mut new_cargo_features = Vec::new();
 
   let pm = PackageManager::from_project(app_dir)
     .into_iter()
@@ -66,7 +68,12 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
               let js_plugin = format!("@tauri-apps/plugin-{module}");
               let cargo_crate = format!("tauri-plugin-{module}");
               new_npm_packages.push(js_plugin.clone());
-              new_cargo_packages.push(cargo_crate);
+              new_cargo_packages.push(cargo_crate.clone());
+              for feature in ADDITIONAL_FEATURES {
+                if feature.starts_with(&cargo_crate) {
+                  new_cargo_features.push(feature.to_string());
+                }
+              }
               js_plugin
             } else {
               return original;
@@ -90,12 +97,7 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
   }
 
   if !new_cargo_packages.is_empty() {
-    let features = if new_cargo_packages.contains(&"tauri-plugin-updater".to_string()) {
-      Some("tauri-plugin-updater/zip")
-    } else {
-      None
-    };
-    cargo::install(&new_cargo_packages, features, Some(tauri_dir))
+    cargo::install(&new_cargo_packages, &new_cargo_features, Some(tauri_dir))
       .context("Error installing new Cargo packages")?;
   }
 

@@ -144,7 +144,8 @@ fn migrate_imports<'a>(
             module,
             Default::default(),
           )
-          .map_err(|e| anyhow::anyhow!("{e}"))?;
+          .map_err(|e| anyhow::anyhow!("{e}"))
+          .context("failed to replace import source")?;
 
         // if module was pluginified, add to packages
         let module = module.split_once("plugin-");
@@ -222,7 +223,8 @@ fn migrate_imports<'a>(
                 new_identifier,
                 Default::default(),
               )
-              .map_err(|e| anyhow::anyhow!("{e}"))?;
+              .map_err(|e| anyhow::anyhow!("{e}"))
+              .context("failed to rename identifier")?;
           } else {
             // if None, we need to remove this specifier,
             // it will also be replaced with an import from its new plugin below
@@ -239,7 +241,8 @@ fn migrate_imports<'a>(
 
             magic_js_source
               .remove(start as _, end as _)
-              .map_err(|e| anyhow::anyhow!("{e}"))?;
+              .map_err(|e| anyhow::anyhow!("{e}"))
+              .context("failed to remove identifier")?;
           }
         }
       }
@@ -263,7 +266,8 @@ fn migrate_imports<'a>(
     for import in imports_to_add {
       magic_js_source
         .append_right(start as _, &import)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))
+        .context("failed to add import")?;
     }
   }
 
@@ -271,7 +275,8 @@ fn migrate_imports<'a>(
     for stmt in stmts_to_add {
       magic_js_source
         .append_right(start as _, stmt)
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        .map_err(|e| anyhow::anyhow!("{e}"))
+        .context("failed to add statement")?;
     }
   }
 

@@ -300,16 +300,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9475866fec1451be56a3c2400fd081ff546538961565ccb5b7142cbd22bc7a51"
 
 [[package]]
-name = "base64-simd"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "339abbe78e73178762e23bea9dfd08e697eb3f3301cd4be981c0f78ba5859195"
-dependencies = [
- "outref",
- "vsimd",
-]
-
-[[package]]
 name = "base64ct"
 version = "1.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -951,12 +941,6 @@ dependencies = [
  "quote",
  "syn 2.0.52",
 ]
-
-[[package]]
-name = "daachorse"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "63b7ef7a4be509357f4804d0a22e830daddb48f19fd604e4ad32ddce04a94c36"
 
 [[package]]
 name = "darling"
@@ -2678,6 +2662,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c41e0c4fef86961ac6d6f8a82609f55f31b05e4fce149ac5710e439df7619ba4"
 
 [[package]]
+name = "magic_string"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c8033ce8c43f7ccb207e4699f30eed50d7526379ee08fab47159f80b7934e18"
+dependencies = [
+ "base64 0.13.1",
+ "regex",
+ "serde",
+ "serde_json",
+ "vlq",
+]
+
+[[package]]
 name = "markup5ever"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3236,12 +3233,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "outref"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4030760ffd992bef45b0ae3f10ce1aba99e33464c90d14dd7c039884963ddc7a"
-
-[[package]]
 name = "owo-colors"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3276,23 +3267,6 @@ name = "oxc_ast_macros"
 version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34f6e9a0084937918818610e310edd9234b324863fcf46d9b5106b92fba30824"
-
-[[package]]
-name = "oxc_codegen"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14e4106a5e25227ea0892a3adee3c429c84941aac33a2010c86a512a85f1ee00"
-dependencies = [
- "bitflags 2.6.0",
- "daachorse",
- "once_cell",
- "oxc_allocator",
- "oxc_ast",
- "oxc_sourcemap",
- "oxc_span",
- "oxc_syntax",
- "rustc-hash 2.0.0",
-]
 
 [[package]]
 name = "oxc_diagnostics"
@@ -3330,19 +3304,6 @@ dependencies = [
  "oxc_syntax",
  "rustc-hash 2.0.0",
  "seq-macro",
-]
-
-[[package]]
-name = "oxc_sourcemap"
-version = "0.16.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8da33ca44de542eb055be8e2c75c65e156d08c2eb96ab596f9d0819489724096"
-dependencies = [
- "base64-simd",
- "cfg-if",
- "rustc-hash 2.0.0",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -5168,6 +5129,7 @@ dependencies = [
  "libc",
  "local-ip-address",
  "log",
+ "magic_string",
  "minisign",
  "notify",
  "notify-debouncer-mini",
@@ -5175,9 +5137,9 @@ dependencies = [
  "os_pipe",
  "oxc_allocator",
  "oxc_ast",
- "oxc_codegen",
  "oxc_parser",
  "oxc_span",
+ "phf 0.11.2",
  "plist",
  "regex",
  "resvg",
@@ -5985,10 +5947,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
-name = "vsimd"
-version = "0.8.0"
+name = "vlq"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64"
+checksum = "65dd7eed29412da847b0f78bcec0ac98588165988a8cfe41d4ea1d429f8ccfff"
 
 [[package]]
 name = "vswhom"

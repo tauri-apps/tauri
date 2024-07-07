@@ -7,25 +7,19 @@ use crate::{
   Result,
 };
 use anyhow::Context;
-use oxc_allocator::{Allocator, Box};
+use itertools::Itertools;
+use magic_string::MagicString;
+use oxc_allocator::Allocator;
 use oxc_ast::ast::*;
-use oxc_codegen::*;
 use oxc_parser::Parser;
-use oxc_span::Span;
-use oxc_span::{Atom, SourceType};
+use oxc_span::SourceType;
 
-use std::{
-  collections::{HashMap, HashSet},
-  fs,
-  path::Path,
+use std::{fs, path::Path};
+
+const RENAMED_MODULES: phf::Map<&str, &str> = phf::phf_map! {
+  "tauri" => "core",
+  "window" => "webviewWindow"
 };
-
-const RENAMED_MODULES: [(&str, &str); 4] = [
-  ("tauri", "core"),
-  ("window", "webviewWindow"),
-  ("clipboard", "clipboard-manager"),
-  ("globalShortcut", "global-shortcut"),
-];
 const PLUGINIFIED_MODULES: [&str; 11] = [
   "cli",
   "clipboard",
@@ -40,38 +34,29 @@ const PLUGINIFIED_MODULES: [&str; 11] = [
   "updater",
 ];
 // (from, to)
-const MODULES_MAP: [(&str, &str); 13] = [
+const MODULES_MAP: phf::Map<&str, &str> = phf::phf_map! {
   // renamed
-  ("@tauri-apps/api/tauri", "@tauri-apps/api/core"),
-  ("@tauri-apps/api/window", "@tauri-apps/api/webviewWindow"),
+  "@tauri-apps/api/tauri" => "@tauri-apps/api/core",
+  "@tauri-apps/api/window" => "@tauri-apps/api/webviewWindow",
   // pluginified
-  ("@tauri-apps/api/cli", "@tauri-apps/plugin-cli"),
-  (
-    "@tauri-apps/api/clipboard",
-    "@tauri-apps/plugin-clipboard-manager",
-  ),
-  ("@tauri-apps/api/dialog", "@tauri-apps/plugin-dialog"),
-  ("@tauri-apps/api/fs", "@tauri-apps/plugin-fs"),
-  (
-    "@tauri-apps/api/globalShortcut",
-    "@tauri-apps/plugin-global-shortcut",
-  ),
-  ("@tauri-apps/api/http", "@tauri-apps/plugin-http"),
-  (
-    "@tauri-apps/api/notification",
-    "@tauri-apps/plugin-notification",
-  ),
-  ("@tauri-apps/api/os", "@tauri-apps/plugin-os"),
-  ("@tauri-apps/api/process", "@tauri-apps/plugin-process"),
-  ("@tauri-apps/api/shell", "@tauri-apps/plugin-shell"),
-  ("@tauri-apps/api/updater", "@tauri-apps/plugin-updater"),
-];
+  "@tauri-apps/api/cli" => "@tauri-apps/plugin-cli",
+  "@tauri-apps/api/clipboard" => "@tauri-apps/plugin-clipboard-manager",
+  "@tauri-apps/api/dialog" => "@tauri-apps/plugin-dialog",
+  "@tauri-apps/api/fs" => "@tauri-apps/plugin-fs",
+  "@tauri-apps/api/globalShortcut" => "@tauri-apps/plugin-global-shortcut",
+  "@tauri-apps/api/http" => "@tauri-apps/plugin-http",
+  "@tauri-apps/api/notification" => "@tauri-apps/plugin-notification",
+  "@tauri-apps/api/os" => "@tauri-apps/plugin-os",
+  "@tauri-apps/api/process" => "@tauri-apps/plugin-process",
+  "@tauri-apps/api/shell" => "@tauri-apps/plugin-shell",
+  "@tauri-apps/api/updater" => "@tauri-apps/plugin-updater",
+};
 const JS_EXTENSIONS: &[&str] = &["js", "mjs", "jsx", "ts", "mts", "tsx"];
 
 /// Returns a list of paths that could not be migrated
 pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
-  let mut new_npm_packages = HashSet::new();
-  let mut new_cargo_packages = HashSet::new();
+  let mut new_npm_packages = Vec::new();
+  let mut new_cargo_packages = Vec::new();
 
   let pm = PackageManager::from_project(app_dir)
     .into_iter()
@@ -98,13 +83,15 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
     }
   }
 
-  let new_npm_packages = new_npm_packages.into_iter().collect::<Vec<_>>();
+  new_npm_packages.sort();
+  new_npm_packages.dedup();
   if !new_npm_packages.is_empty() {
     pm.install(&new_npm_packages)
       .context("Error installing new npm packages")?;
   }
 
-  let new_cargo_packages = new_cargo_packages.into_iter().collect::<Vec<_>>();
+  new_cargo_packages.sort();
+  new_cargo_packages.dedup();
   if !new_cargo_packages.is_empty() {
     cargo::install(&new_cargo_packages, Some(tauri_dir))
       .context("Error installing new Cargo packages")?;
@@ -116,11 +103,10 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
 fn migrate_imports<'a>(
   path: &'a Path,
   js_source: &'a str,
-  new_cargo_packages: &mut HashSet<String>,
-  new_npm_packages: &mut HashSet<String>,
+  new_cargo_packages: &mut Vec<String>,
+  new_npm_packages: &mut Vec<String>,
 ) -> crate::Result<String> {
-  let modules_map: HashMap<&str, &str> = MODULES_MAP.into_iter().collect();
-  let renamed_modules: HashMap<&str, &str> = RENAMED_MODULES.into_iter().collect();
+  let mut magic_js_source = MagicString::new(js_source);
 
   let source_type = SourceType::from_path(path).unwrap();
   let allocator = Allocator::default();
@@ -132,8 +118,10 @@ fn migrate_imports<'a>(
     )
   }
 
-  let mut imports_to_add = Vec::new();
   let mut program = ret.program;
+
+  let mut stmts_to_add = Vec::new();
+  let mut imports_to_add = Vec::new();
 
   for import in program.body.iter_mut() {
     if let Statement::ImportDeclaration(stmt) = import {
@@ -145,18 +133,25 @@ fn migrate_imports<'a>(
       }
 
       // convert module to its pluginfied module or renamed one
-      // import {} from "@tauri-apps/api/window" -> import {} from "@tauri-apps/api/webviewWindow"
-      // import {} from "@tauri-apps/api/cli" -> import {} from "@tauri-apps/plugin-cli"
-      if let Some(&module) = modules_map.get(module) {
-        stmt.source = StringLiteral::new(Span::empty(0), Atom::from(module));
+      // import { ... } from "@tauri-apps/api/window" -> import { ... } from "@tauri-apps/api/webviewWindow"
+      // import { ... } from "@tauri-apps/api/cli" -> import { ... } from "@tauri-apps/plugin-cli"
+      if let Some(&module) = MODULES_MAP.get(module) {
+        magic_js_source
+          .overwrite(
+            stmt.source.span.start as i64 + 1,
+            stmt.source.span.end as i64 - 1,
+            module,
+            Default::default(),
+          )
+          .map_err(|e| anyhow::anyhow!("{e}"))?;
 
         // if module was pluginified, add to packages
         let module = module.split_once("plugin-");
         if let Some((_, module)) = module {
           let js_plugin = format!("@tauri-apps/plugin-{module}");
           let cargo_crate = format!("tauri-plugin-{module}");
-          new_npm_packages.insert(js_plugin);
-          new_cargo_packages.insert(cargo_crate);
+          new_npm_packages.push(js_plugin);
+          new_cargo_packages.push(cargo_crate);
         }
       }
 
@@ -164,35 +159,31 @@ fn migrate_imports<'a>(
         continue;
       };
 
-      // Some modules have been pluginified
-      // and so we will need to remove their imports
-      // if they were imported from `@tauri-apps/api` root export.
-      //
-      // we store indexes here and remove later to staisfy borrow rules.
-      let mut indexes_to_remove = Vec::new();
-
-      for (index, specifier) in specifiers.iter_mut().enumerate() {
+      for specifier in specifiers.iter() {
         if let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier {
           let new_identifier = match specifier.imported.name().as_str() {
-            "appWindow" if module == "@tauri-apps/api/window" => Some("getCurrent"),
+            "appWindow" if module == "@tauri-apps/api/window" => {
+              stmts_to_add.push("\nconst appWindow = getCurrent()");
+              Some("getCurrent")
+            }
 
-            import if PLUGINIFIED_MODULES.contains(&import) => {
-              let plugin_name = renamed_modules.get(import).unwrap_or(&import);
-              let js_plugin = format!("@tauri-apps/plugin-{plugin_name}");
+            import if PLUGINIFIED_MODULES.contains(&import) && module == "@tauri-apps/api" => {
+              let js_plugin: &str = MODULES_MAP[&format!("@tauri-apps/api/{import}")];
+              let (_, plugin_name) = js_plugin.split_once("plugin-").unwrap();
               let cargo_crate = format!("tauri-plugin-{plugin_name}");
-              new_npm_packages.insert(js_plugin.clone());
-              new_cargo_packages.insert(cargo_crate);
+              new_npm_packages.push(js_plugin.to_string());
+              new_cargo_packages.push(cargo_crate);
 
-              let new_import = if specifier.local.name.as_str() != import {
-                specifier.local.name.as_str()
+              if specifier.local.name.as_str() != import {
+                let local = &specifier.local.name;
+                imports_to_add.push(format!("\nimport {import} as {local} from {js_plugin}"));
               } else {
-                import
+                imports_to_add.push(format!("\nimport {import} from {js_plugin}"));
               };
-              imports_to_add.push((js_plugin, new_import, specifier.import_kind));
               None
             }
 
-            import if module == "@tauri-apps/api" => match renamed_modules.get(import) {
+            import if module == "@tauri-apps/api" => match RENAMED_MODULES.get(import) {
               Some(m) => Some(*m),
               None => continue,
             },
@@ -203,105 +194,219 @@ fn migrate_imports<'a>(
 
           // if identifier was renamed, it will be Some()
           // and so we convert the import
-          // import { appWindow } from "@tauri-apps/api"  -> import { getCurrent as appWindow } from "@tauri-apps/api"
+          // import { appWindow } from "@tauri-apps/api"  -> import { getCurrent } from "@tauri-apps/api"
+          // const appWindow = getCurrent();
           if let Some(new_identifier) = new_identifier {
-            let new_identifier_atom = Atom::from(new_identifier);
-            let new_identifier = IdentifierName::new(Span::empty(0), new_identifier_atom.clone());
-            specifier.imported = ModuleExportName::IdentifierName(new_identifier);
-            specifier.local = specifier.local.clone();
+            magic_js_source
+              .overwrite(
+                specifier.span.start as _,
+                specifier.span.end as _,
+                new_identifier,
+                Default::default(),
+              )
+              .map_err(|e| anyhow::anyhow!("{e}"))?;
           } else {
-            // if None, we need to remove this specified and replace it
+            let start = specifier.span.start as usize;
+            let sliced = &js_source[start..];
+            let comma_or_bracket = sliced.chars().find_position(|&c| c == ',' || c == '}');
+            let end = match comma_or_bracket {
+              Some((n, ',')) => n + start + 1,
+              Some((_, '}')) => specifier.span.end as _,
+              _ => continue,
+            };
+
+            // if None, we need to remove this specifier and replace it
             // with an import from its new plugin
-            indexes_to_remove.push(index);
+            magic_js_source
+              .remove(start as _, end as _)
+              .map_err(|e| anyhow::anyhow!("{e}"))?;
           }
         }
-      }
-
-      // sort and remove elements in reverse order
-      // otherwise, the vector will shift and remaining indexes
-      // will be invalid
-      indexes_to_remove.sort();
-      for index in indexes_to_remove.into_iter().rev() {
-        specifiers.remove(index);
       }
     }
   }
 
-  // add new imports if needed
-  for (source, import, import_kind) in imports_to_add.iter() {
-    program.body.push(Statement::ImportDeclaration(Box::new_in(
-      ImportDeclaration {
-        span: Span::empty(0),
-        import_kind: *import_kind,
-        with_clause: None,
-        source: StringLiteral::new(Span::empty(0), Atom::from(source.as_str())),
-        specifiers: Some(oxc_allocator::Vec::from_iter_in(
-          [ImportDeclarationSpecifier::ImportNamespaceSpecifier(
-            Box::new_in(
-              ImportNamespaceSpecifier {
-                span: Span::empty(0),
-                local: BindingIdentifier::new(Span::empty(0), Atom::from(*import)),
-              },
-              &allocator,
-            ),
-          )],
-          &allocator,
-        )),
-      },
-      &allocator,
-    )));
+  let imports_end = program
+    .body
+    .iter()
+    .rev()
+    .find(|s| matches!(s, Statement::ImportDeclaration(_)))
+    .map(|s| match s {
+      Statement::ImportDeclaration(s) => s.span.end,
+      _ => unreachable!(),
+    });
+
+  if let Some(start) = imports_end {
+    if !imports_to_add.is_empty() {
+      for import in imports_to_add {
+        magic_js_source
+          .append_right(start as _, &import)
+          .map_err(|e| anyhow::anyhow!("{e}"))?;
+      }
+    }
+
+    if !stmts_to_add.is_empty() {
+      for stmt in stmts_to_add {
+        magic_js_source
+          .append_right(start as _, stmt)
+          .map_err(|e| anyhow::anyhow!("{e}"))?;
+      }
+    }
   }
 
-  Ok(CodeGenerator::new().build(&program).source_text)
+  Ok(magic_js_source.to_string())
 }
 
 #[cfg(test)]
 mod tests {
-
-  use std::collections::HashSet;
 
   use super::*;
 
   #[test]
   fn migrates() {
     let input = r#"
-import { open } from '@tauri-apps/api/dialog'
-import { read } from '@tauri-apps/api/clipboard'
-import { register } from '@tauri-apps/api/globalShortcut'
-import { appWindow } from '@tauri-apps/api/window'
-import { convertFileSrc as convertProtocol, invoke } from '@tauri-apps/api/tauri'
-import { event, invoke } from '@tauri-apps/api'
-import { dialog as newDialog, clipboard, app } from '@tauri-apps/api'
-import tauriApi from '@tauri-apps/api'
-import noEvent from '@tauri-apps/api/event'
-import { qwe } from '@tauri-apps/api/cli';
-import * as noApp from '@tauri-apps/api/app'
-import {
-  window as noWindow,
-  app,
-  event,
-  tauri,
-} from '@tauri-apps/api'
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import { invoke, dialog, cli as superCli } from "@tauri-apps/api";
+import { appWindow } from "@tauri-apps/api/window";
+import { convertFileSrc } from "@tauri-apps/api/tauri";
+import { open } from "@tauri-apps/api/dialog";
+import { register } from "@tauri-apps/api/globalShortcut";
+import clipboard from "@tauri-apps/api/clipboard";
+import * as fs from "@tauri-apps/api/fs";
+import "./App.css";
+
+function App() {
+  const [greetMsg, setGreetMsg] = useState("");
+  const [name, setName] = useState("");
+
+  async function greet() {
+    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+    setGreetMsg(await invoke("greet", { name }));
+    await open();
+    await dialog.save();
+    await convertFileSrc("");
+    const a = appWindow.label;
+    superCli.getMatches();
+    clipboard.readText();
+    fs.exists("");
+  }
+
+  return (
+    <div className="container">
+      <h1>Welcome to Tauri!</h1>
+
+      <div className="row">
+        <a href="https://vitejs.dev" target="_blank">
+          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
+        </a>
+        <a href="https://tauri.app" target="_blank">
+          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
+        </a>
+        <a href="https://reactjs.org" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+
+      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          greet();
+        }}
+      >
+        <input
+          id="greet-input"
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder="Enter a name..."
+        />
+        <button type="submit">Greet</button>
+      </form>
+
+      <p>{greetMsg}</p>
+    </div>
+  );
+}
+
+export default App;
 "#;
 
-    let output = r#"import { open } from '@tauri-apps/plugin-dialog';
-import { read } from '@tauri-apps/plugin-clipboard-manager';
-import { register } from '@tauri-apps/plugin-global-shortcut';
-import { getCurrent as appWindow } from '@tauri-apps/api/webviewWindow';
-import { convertFileSrc as convertProtocol, invoke } from '@tauri-apps/api/core';
-import { event, invoke } from '@tauri-apps/api';
-import { app } from '@tauri-apps/api';
-import tauriApi from '@tauri-apps/api';
-import noEvent from '@tauri-apps/api/event';
-import { qwe } from '@tauri-apps/plugin-cli';
-import * as noApp from '@tauri-apps/api/app';
-import { webviewWindow as noWindow, app, event, core as tauri } from '@tauri-apps/api';
-import * as newDialog from '@tauri-apps/plugin-dialog';
-import * as clipboard from '@tauri-apps/plugin-clipboard-manager';
+    let expected = r#"
+import { useState } from "react";
+import reactLogo from "./assets/react.svg";
+import { invoke,   } from "@tauri-apps/api";
+import { getCurrent } from "@tauri-apps/api/webviewWindow";
+import { convertFileSrc } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { register } from "@tauri-apps/plugin-global-shortcut";
+import clipboard from "@tauri-apps/plugin-clipboard-manager";
+import * as fs from "@tauri-apps/plugin-fs";
+import "./App.css";
+import dialog from @tauri-apps/plugin-dialog
+import cli as superCli from @tauri-apps/plugin-cli
+const appWindow = getCurrent()
+
+function App() {
+  const [greetMsg, setGreetMsg] = useState("");
+  const [name, setName] = useState("");
+
+  async function greet() {
+    // Learn more about Tauri commands at https://tauri.app/v1/guides/features/command
+    setGreetMsg(await invoke("greet", { name }));
+    await open();
+    await dialog.save();
+    await convertFileSrc("");
+    const a = appWindow.label;
+    superCli.getMatches();
+    clipboard.readText();
+    fs.exists("");
+  }
+
+  return (
+    <div className="container">
+      <h1>Welcome to Tauri!</h1>
+
+      <div className="row">
+        <a href="https://vitejs.dev" target="_blank">
+          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
+        </a>
+        <a href="https://tauri.app" target="_blank">
+          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
+        </a>
+        <a href="https://reactjs.org" target="_blank">
+          <img src={reactLogo} className="logo react" alt="React logo" />
+        </a>
+      </div>
+
+      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
+
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          greet();
+        }}
+      >
+        <input
+          id="greet-input"
+          onChange={(e) => setName(e.currentTarget.value)}
+          placeholder="Enter a name..."
+        />
+        <button type="submit">Greet</button>
+      </form>
+
+      <p>{greetMsg}</p>
+    </div>
+  );
+}
+
+export default App;
 "#;
 
-    let mut new_cargo_packages = HashSet::new();
-    let mut new_npm_packages = HashSet::new();
+    let mut new_cargo_packages = Vec::new();
+    let mut new_npm_packages = Vec::new();
 
     let migrated = migrate_imports(
       Path::new("file.js"),
@@ -311,16 +416,30 @@ import * as clipboard from '@tauri-apps/plugin-clipboard-manager';
     )
     .unwrap();
 
-    assert_eq!(migrated, output);
+    assert_eq!(migrated, expected);
 
-    assert!(new_cargo_packages.contains("tauri-plugin-cli"));
-    assert!(new_cargo_packages.contains("tauri-plugin-dialog"));
-    assert!(new_cargo_packages.contains("tauri-plugin-clipboard-manager"));
-    assert!(new_cargo_packages.contains("tauri-plugin-global-shortcut"));
+    assert_eq!(
+      new_cargo_packages,
+      vec![
+        "tauri-plugin-dialog",
+        "tauri-plugin-cli",
+        "tauri-plugin-dialog",
+        "tauri-plugin-global-shortcut",
+        "tauri-plugin-clipboard-manager",
+        "tauri-plugin-fs"
+      ]
+    );
 
-    assert!(new_npm_packages.contains("@tauri-apps/plugin-cli"));
-    assert!(new_npm_packages.contains("@tauri-apps/plugin-dialog"));
-    assert!(new_npm_packages.contains("@tauri-apps/plugin-clipboard-manager"));
-    assert!(new_npm_packages.contains("@tauri-apps/plugin-global-shortcut"));
+    assert_eq!(
+      new_npm_packages,
+      vec![
+        "@tauri-apps/plugin-dialog",
+        "@tauri-apps/plugin-cli",
+        "@tauri-apps/plugin-dialog",
+        "@tauri-apps/plugin-global-shortcut",
+        "@tauri-apps/plugin-clipboard-manager",
+        "@tauri-apps/plugin-fs"
+      ]
+    );
   }
 }

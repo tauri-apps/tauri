@@ -8,7 +8,7 @@ Enhance `tauri migrate` to also migrate variables like `appWindow`:
 import { appWindow } from '@tauri-apps/api/window'
 ```
 will become:
-```
+```ts
 import { getCurrent } from '@tauri-apps/api/window'
 const appWindow = getCurrent()
 ```

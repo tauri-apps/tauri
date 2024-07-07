@@ -3,4 +3,12 @@
 "@tauri-apps/cli": "patch:enhance"
 ---
 
-Enhance `tauri migrate` to also partially migrate variables like `appWindow`, so `import { appWindow } from '@tauri-apps/api/window'` becomes `import { getCurrent as appWindow } from '@tauri-apps/api/window' `
+Enhance `tauri migrate` to also migrate variables like `appWindow`:
+```ts
+import { appWindow } from '@tauri-apps/api/window'
+```
+will become:
+```ts
+import { getCurrent } from '@tauri-apps/api/window'
+const appWindow = getCurrent()
+```

@@ -136,6 +136,7 @@ fn migrate_imports<'a>(
       // import { ... } from "@tauri-apps/api/window" -> import { ... } from "@tauri-apps/api/webviewWindow"
       // import { ... } from "@tauri-apps/api/cli" -> import { ... } from "@tauri-apps/plugin-cli"
       if let Some(&module) = MODULES_MAP.get(module) {
+        // +1 and -1, to skip modifying the import quotes
         magic_js_source
           .overwrite(
             stmt.source.span.start as i64 + 1,
@@ -162,11 +163,29 @@ fn migrate_imports<'a>(
       for specifier in specifiers.iter() {
         if let ImportDeclarationSpecifier::ImportSpecifier(specifier) = specifier {
           let new_identifier = match specifier.imported.name().as_str() {
+            // migrate appWindow from:
+            // ```
+            // import { appWindow } from "@tauri-apps/api/window"
+            // ```
+            // to:
+            // ```
+            // import { getCurrent } from "@tauri-apps/api/webviewWindow"
+            // const appWindow = getCurrent()
+            // ```
             "appWindow" if module == "@tauri-apps/api/window" => {
               stmts_to_add.push("\nconst appWindow = getCurrent()");
               Some("getCurrent")
             }
 
+            // migrate pluginigied moduls from:
+            // ```
+            // import { dialog, cli as superCli } from "@tauri-apps/api"
+            // ```
+            // to:
+            // ```
+            // import dialog from "@tauri-apps/plugin-dialog"
+            // import cli as superCli from "@tauri-apps/plugin-cli"
+            // ```
             import if PLUGINIFIED_MODULES.contains(&import) && module == "@tauri-apps/api" => {
               let js_plugin: &str = MODULES_MAP[&format!("@tauri-apps/api/{import}")];
               let (_, plugin_name) = js_plugin.split_once("plugin-").unwrap();
@@ -194,8 +213,7 @@ fn migrate_imports<'a>(
 
           // if identifier was renamed, it will be Some()
           // and so we convert the import
-          // import { appWindow } from "@tauri-apps/api"  -> import { getCurrent } from "@tauri-apps/api"
-          // const appWindow = getCurrent();
+          // import { appWindow } from "@tauri-apps/api" -> import { getCurrent } from "@tauri-apps/api"
           if let Some(new_identifier) = new_identifier {
             magic_js_source
               .overwrite(
@@ -206,6 +224,10 @@ fn migrate_imports<'a>(
               )
               .map_err(|e| anyhow::anyhow!("{e}"))?;
           } else {
+            // if None, we need to remove this specifier,
+            // it will also be replaced with an import from its new plugin below
+
+            // find the next comma or the bracket ending the import
             let start = specifier.span.start as usize;
             let sliced = &js_source[start..];
             let comma_or_bracket = sliced.chars().find_position(|&c| c == ',' || c == '}');
@@ -215,8 +237,6 @@ fn migrate_imports<'a>(
               _ => continue,
             };
 
-            // if None, we need to remove this specifier and replace it
-            // with an import from its new plugin
             magic_js_source
               .remove(start as _, end as _)
               .map_err(|e| anyhow::anyhow!("{e}"))?;
@@ -226,7 +246,9 @@ fn migrate_imports<'a>(
     }
   }
 
-  let imports_end = program
+  // find the end of import list
+  // fallback to the program start
+  let start = program
     .body
     .iter()
     .rev()
@@ -234,23 +256,22 @@ fn migrate_imports<'a>(
     .map(|s| match s {
       Statement::ImportDeclaration(s) => s.span.end,
       _ => unreachable!(),
-    });
+    })
+    .unwrap_or(program.span.start);
 
-  if let Some(start) = imports_end {
-    if !imports_to_add.is_empty() {
-      for import in imports_to_add {
-        magic_js_source
-          .append_right(start as _, &import)
-          .map_err(|e| anyhow::anyhow!("{e}"))?;
-      }
+  if !imports_to_add.is_empty() {
+    for import in imports_to_add {
+      magic_js_source
+        .append_right(start as _, &import)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     }
+  }
 
-    if !stmts_to_add.is_empty() {
-      for stmt in stmts_to_add {
-        magic_js_source
-          .append_right(start as _, stmt)
-          .map_err(|e| anyhow::anyhow!("{e}"))?;
-      }
+  if !stmts_to_add.is_empty() {
+    for stmt in stmts_to_add {
+      magic_js_source
+        .append_right(start as _, stmt)
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
     }
   }
 

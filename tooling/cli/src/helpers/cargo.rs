@@ -17,7 +17,7 @@ pub struct AddOptions<'a> {
   pub features: Option<&'a str>,
 }
 
-pub fn add_one(crate_name: &str, options: AddOptions) -> crate::Result<()> {
+pub fn add(crate_name: &str, options: AddOptions) -> crate::Result<()> {
   let mut cargo = Command::new("cargo");
   cargo.arg("add");
 

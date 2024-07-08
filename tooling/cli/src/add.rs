@@ -116,7 +116,7 @@ pub fn command(options: Options) -> Result<()> {
         .then_some(r#"cfg(any(target_os = "android", target_os = "ios"))"#)
     });
 
-  cargo::add_one(
+  cargo::add(
     &crate_name,
     cargo::AddOptions {
       version,

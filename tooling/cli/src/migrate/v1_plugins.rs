@@ -1,14 +1,11 @@
 // Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
-use std::{fs, path::Path};
+use std::{collections::HashMap, fs, path::Path};
 
 use anyhow::Context;
 
-use crate::{
-  helpers::{cargo, npm::PackageManager},
-  Result,
-};
+use crate::Result;
 
 const PLUGINS: &[&str] = &[
   "authenticator",
@@ -28,59 +25,33 @@ const PLUGINS: &[&str] = &[
   "window-state",
 ];
 
-pub fn migrate(tauri_dir: &Path, app_dir: &Path) -> Result<()> {
+pub struct V1Plugins {
+  pub plugins: Vec<String>,
+  pub cargo_features: HashMap<&'static str, &'static str>,
+}
+
+pub fn migrate(tauri_dir: &Path) -> Result<V1Plugins> {
   let manifest_path = tauri_dir.join("Cargo.toml");
   let manifest = fs::read_to_string(manifest_path).context("failed to read Cargo.toml")?;
 
-  let mut features = Vec::new();
+  let mut cargo_features = HashMap::new();
 
-  let plugins_to_migrate = PLUGINS
+  let plugins = PLUGINS
     .iter()
-    .filter(|p| manifest.contains(&format!("tauri-plugin-{p}")));
-
-  let mut cargo_deps = plugins_to_migrate
+    .filter(|p| manifest.contains(&format!("tauri-plugin-{p}")))
     .clone()
     .map(|p| match *p {
-      "fs-extra" => "fs",
+      "fs-extra" => "fs".to_string(),
       "fs-watch" => {
-        features.push(format!("tauri-plugin-{p}/watch"));
-        "fs"
+        cargo_features.insert("fs", "tauri-plugin-fs/watch");
+        "fs".to_string()
       }
-      _ => p,
+      _ => p.to_string(),
     })
-    .map(|p| format!("tauri-plugin-{p}@2.0.0-beta"))
     .collect::<Vec<_>>();
 
-  cargo_deps.sort();
-  cargo_deps.dedup();
-
-  cargo::add(
-    &cargo_deps,
-    cargo::AddOptions {
-      cwd: Some(tauri_dir),
-      features: Some(features),
-    },
-  )?;
-
-  if app_dir.join("package.json").exists() {
-    let mut npm_deps = plugins_to_migrate
-      .map(|p| match *p {
-        "fs-extra" | "fs-watch" => "fs",
-        _ => p,
-      })
-      .map(|p| format!("@tauri-apps/plugin-{p}@>=2.0.0-beta.0"))
-      .collect::<Vec<_>>();
-
-    npm_deps.sort();
-    npm_deps.dedup();
-
-    let pm = PackageManager::from_project(app_dir)
-      .into_iter()
-      .next()
-      .unwrap_or(PackageManager::Npm);
-
-    pm.install(&npm_deps)?;
-  }
-
-  Ok(())
+  Ok(V1Plugins {
+    plugins,
+    cargo_features,
+  })
 }

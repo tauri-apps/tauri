@@ -72,7 +72,7 @@ fn plugins() -> HashMap<&'static str, PluginMetadata> {
   plugins
 }
 
-#[derive(Debug, Parser)]
+#[derive(Debug, Parser, Default)]
 #[clap(about = "Add a tauri plugin to the project")]
 pub struct Options {
   /// The plugin to add.
@@ -86,6 +86,9 @@ pub struct Options {
   /// Git branch to use.
   #[clap(short, long)]
   pub branch: Option<String>,
+  /// Cargo features to enable.
+  #[clap(short, long)]
+  pub features: Option<String>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -115,13 +118,14 @@ pub fn command(options: Options) -> Result<()> {
 
   cargo::add_one(
     &crate_name,
-    cargo::AddOneOptions {
+    cargo::AddOptions {
       version,
       branch: options.branch.as_deref(),
       rev: options.rev.as_deref(),
       tag: options.tag.as_deref(),
       cwd: Some(&tauri_dir),
       target: target_str,
+      features: options.features.as_deref(),
     },
   )?;
 

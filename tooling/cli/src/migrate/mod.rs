@@ -22,18 +22,23 @@ pub fn command() -> Result<()> {
 
   let migrated = config::migrate(&tauri_dir).context("Could not migrate config")?;
   manifest::migrate(&tauri_dir).context("Could not migrate manifest")?;
-  v1_plugins::migrate(&tauri_dir, app_dir).context("Could not migrate v1 plugins")?;
+  let v1_plugins = v1_plugins::migrate(&tauri_dir).context("Could not migrate v1 plugins")?;
   let frontend_plugins = frontend::migrate(app_dir).context("Could not migrate frontend")?;
 
   // Add plugins
   let mut plugins = migrated.plugins;
   plugins.extend(frontend_plugins);
+  plugins.extend(v1_plugins.plugins);
   for plugin in plugins {
+    let features = v1_plugins.cargo_features.get(plugin.as_str());
+
     crate::add::command(crate::add::Options {
       plugin: plugin.clone(),
       branch: None,
       tag: None,
       rev: None,
+      features: features.map(ToString::to_string),
+      ..Default::default()
     })
     .with_context(|| format!("Could not add '{plugin}' plugin"))?
   }

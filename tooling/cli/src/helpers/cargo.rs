@@ -2,79 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{ffi::OsStr, path::Path, process::Command};
+use std::{path::Path, process::Command};
 
 use anyhow::Context;
 
-#[derive(Debug, Clone, Copy)]
-pub struct AddOptions<'a, I: IntoIterator<Item = S>, S: AsRef<OsStr>> {
-  pub features: Option<I>,
-  pub cwd: Option<&'a Path>,
-}
-
-impl<'a> Default for AddOptions<'a, std::slice::Iter<'a, &'a str>, &'a &'a str> {
-  fn default() -> Self {
-    Self {
-      features: None,
-      cwd: Default::default(),
-    }
-  }
-}
-
-pub fn add<I, S>(dependencies: &[String], options: AddOptions<I, S>) -> crate::Result<()>
-where
-  I: IntoIterator<Item = S>,
-  S: AsRef<OsStr>,
-{
-  let dependencies_str = if dependencies.len() > 1 {
-    "dependencies"
-  } else {
-    "dependency"
-  };
-
-  log::info!(
-    "Installing Cargo {dependencies_str} {}...",
-    dependencies
-      .iter()
-      .map(|d| format!("\"{d}\""))
-      .collect::<Vec<_>>()
-      .join(", ")
-  );
-
-  let mut cmd = Command::new("cargo");
-  cmd.arg("add").args(dependencies);
-
-  if let Some(features) = options.features {
-    let mut features = features.into_iter().peekable();
-    if features.peek().is_some() {
-      cmd.arg("--features").args(features);
-    }
-  }
-
-  if let Some(cwd) = options.cwd {
-    cmd.current_dir(cwd);
-  }
-
-  let status = cmd.status().with_context(|| "failed to run cargo")?;
-
-  if !status.success() {
-    anyhow::bail!("Failed to install Cargo {dependencies_str}");
-  }
-
-  Ok(())
-}
-
 #[derive(Debug, Default, Clone, Copy)]
-pub struct AddOneOptions<'a> {
+pub struct AddOptions<'a> {
   pub version: Option<&'a str>,
   pub rev: Option<&'a str>,
   pub tag: Option<&'a str>,
   pub branch: Option<&'a str>,
   pub cwd: Option<&'a Path>,
   pub target: Option<&'a str>,
+  pub features: Option<&'a str>,
 }
 
-pub fn add_one(crate_name: &str, options: AddOneOptions) -> crate::Result<()> {
+pub fn add_one(crate_name: &str, options: AddOptions) -> crate::Result<()> {
   let mut cargo = Command::new("cargo");
   cargo.arg("add");
 
@@ -104,6 +47,10 @@ pub fn add_one(crate_name: &str, options: AddOneOptions) -> crate::Result<()> {
 
   if let Some(target) = options.target {
     cargo.args(["--target", target]);
+  }
+
+  if let Some(features) = options.features {
+    cargo.args(["--features", features]);
   }
 
   if let Some(cwd) = options.cwd {

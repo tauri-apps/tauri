@@ -1,5 +1,32 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`148f04887`](https://www.github.com/tauri-apps/tauri/commit/148f048871caee21498b236c058b8890f2b66cc7) ([#9979](https://www.github.com/tauri-apps/tauri/pull/9979)) Add `defaultWindowIcon` to the JS `app` module to retrieve the default window icon in JS.
+
+### Bug Fixes
+
+- [`c98f385cb`](https://www.github.com/tauri-apps/tauri/commit/c98f385cb5da4d72968df24b1fc0b58212d59653) ([#10044](https://www.github.com/tauri-apps/tauri/pull/10044)) Export `mocks` module in `@tauri-apps/api` npm package.
+
+## \[2.0.0-beta.13]
+
+### Breaking Changes
+
+- [`c4410daa8`](https://www.github.com/tauri-apps/tauri/commit/c4410daa85616340e911c8243fdaa69e6906fd49)([#9777](https://www.github.com/tauri-apps/tauri/pull/9777)) This release contains breaking changes to the tray event structure because of newly added events:
+
+  - Changed `TrayIconEvent` to be an enum instead of a struct.
+  - Added `MouseButtonState` and `MouseButton` enums.
+  - Removed `ClickType` enum and replaced it with `MouseButton` enum.
+  - Added `MouseButtonState` enum.
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`ec0e092ec`](https://www.github.com/tauri-apps/tauri/commit/ec0e092ecd23b547c756c7476f23a0d95be6db80)([#9770](https://www.github.com/tauri-apps/tauri/pull/9770)) Add `monitorFromPoint` function in `window` module to get the monitor from a given point.
+
 ## \[2.0.0-beta.11]
 
 ### Bug Fixes

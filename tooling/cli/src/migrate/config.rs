@@ -224,6 +224,36 @@ fn process_bundle(config: &mut Map<String, Value>) {
       if let Some(license_file) = license_file {
         bundle_config.insert("licenseFile".into(), license_file);
       }
+
+      // Migrate updater from targets to update field
+      if let Some(targets) = bundle_config.get_mut("targets") {
+        let shuold_migrate = if let Some(targets) = targets.as_array_mut() {
+          // targets: ["updater", ...]
+          if let Some(index) = targets
+            .iter()
+            .position(|target| *target == serde_json::Value::String("updater".to_owned()))
+          {
+            targets.remove(index);
+            true
+          } else {
+            false
+          }
+        } else if let Some(target) = targets.as_str() {
+          // targets: "updater"
+          // targets: "all"
+          if target == "updater" {
+            bundle_config.remove("targets");
+            true
+          } else {
+            target == "all"
+          }
+        } else {
+          false
+        };
+        if shuold_migrate {
+          bundle_config.insert("createUpdaterArtifacts".to_owned(), "v1Compatible".into());
+        }
+      }
     }
 
     config.insert("bundle".into(), bundle_config);
@@ -471,8 +501,8 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, process, relaunch => "process:allow-restart");
   permissions!(allowlist, permissions, process, exit => "process:allow-exit");
   // clipboard
-  permissions!(allowlist, permissions, clipboard, read_text => "clipboard-manager:allow-read");
-  permissions!(allowlist, permissions, clipboard, write_text => "clipboard-manager:allow-write");
+  permissions!(allowlist, permissions, clipboard, read_text => "clipboard-manager:allow-read-text");
+  permissions!(allowlist, permissions, clipboard, write_text => "clipboard-manager:allow-write-text");
   // app
   permissions!(allowlist, permissions, app, show => "app:allow-app-show");
   permissions!(allowlist, permissions, app, hide => "app:allow-app-hide");
@@ -771,6 +801,48 @@ mod test {
       migrated["plugins"]["updater"]["pubkey"],
       original["tauri"]["updater"]["pubkey"]
     );
+  }
+
+  #[test]
+  fn migrate_updater_target() {
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": ["nsis", "updater"]
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
+    assert_eq!(
+      migrated["bundle"]["targets"].as_array(),
+      Some(&vec!["nsis".into()])
+    );
+
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": "all"
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
+    assert_eq!(migrated["bundle"]["targets"], "all");
+
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": "updater"
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
+    assert_eq!(migrated["bundle"].get("targets"), None);
   }
 
   #[test]

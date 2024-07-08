@@ -89,6 +89,9 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
+
+  /// A runtime generated invoke key.
+  pub(crate) invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for WebviewManager<R> {
@@ -98,6 +101,7 @@ impl<R: Runtime> fmt::Debug for WebviewManager<R> {
         "invoke_initialization_script",
         &self.invoke_initialization_script,
       )
+      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -249,16 +253,18 @@ impl<R: Runtime> WebviewManager<R> {
       && window_url.scheme() != "https"
     {
       format!("http://{}.localhost", window_url.scheme())
-    } else {
+    } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",
         window_url.scheme(),
-        window_url.host().unwrap(),
+        host,
         window_url
           .port()
           .map(|p| format!(":{p}"))
           .unwrap_or_default()
       )
+    } else {
+      "null".into()
     };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
@@ -275,8 +281,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol =
-        crate::ipc::protocol::get(manager.manager_owned().clone(), pending.label.clone());
+      let protocol = crate::ipc::protocol::get(manager.manager_owned(), pending.label.clone());
       pending.register_uri_scheme_protocol("ipc", move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });
@@ -371,6 +376,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[default_template("../../scripts/core.js")]
     struct CoreJavascript<'a> {
       os_name: &'a str,
+      invoke_key: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -391,6 +397,7 @@ impl<R: Runtime> WebviewManager<R> {
       bundle_script,
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
+        invoke_key: self.invoke_key(),
       }
       .render_default(&Default::default())?
       .into_string(),
@@ -613,7 +620,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     // let plugins know that a new webview has been added to the manager
-    let manager = webview.manager_owned().clone();
+    let manager = webview.manager_owned();
     let webview_ = webview.clone();
     // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
     let _ = webview.run_on_main_thread(move || {
@@ -624,7 +631,7 @@ impl<R: Runtime> WebviewManager<R> {
         .webview_created(webview_);
     });
 
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", feature = "wry"))]
     {
       webview
         .with_webview(|w| {
@@ -659,6 +666,10 @@ impl<R: Runtime> WebviewManager<R> {
 
   pub fn labels(&self) -> HashSet<String> {
     self.webviews_lock().keys().cloned().collect()
+  }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.invoke_key
   }
 }
 

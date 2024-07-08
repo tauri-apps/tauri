@@ -18,9 +18,9 @@
   "devDependencies": {
     "covector": "^0.9.0",
     "husky": "^6.0.0",
-    "prettier": "^2.5.1"
+    "prettier": "^3.3.2"
   },
   "dependencies": {
-    "typescript": "^4.5.4"
+    "typescript": "^5.4.5"
   }
 }

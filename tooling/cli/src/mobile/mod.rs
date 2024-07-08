@@ -261,12 +261,15 @@ fn read_options(identifier: &str) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
+      let addr_path = temp_dir().join(format!("{identifier}-server-addr"));
       let (tx, rx) = WsTransportClientBuilder::default()
         .build(
           format!(
             "ws://{}",
-            read_to_string(temp_dir().join(format!("{identifier}-server-addr")))
-              .expect("missing addr file")
+            read_to_string(&addr_path).unwrap_or_else(|e| panic!(
+              "failed to read missing addr file {}: {e}",
+              addr_path.display()
+            ))
           )
           .parse()
           .unwrap(),
@@ -285,24 +288,21 @@ fn read_options(identifier: &str) -> CliOptions {
 }
 
 pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
-  let mut s = config.identifier.rsplit('.');
-  let app_name = s.next().unwrap_or("app").to_string();
-  let mut domain = String::new();
-  for w in s {
-    domain.push_str(w);
-    domain.push('.');
-  }
-  if domain.is_empty() {
-    domain.clone_from(&config.identifier);
-    if domain.is_empty() {
-      log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
-      exit(1);
-    }
-  } else {
-    domain.pop();
+  let identifier = config
+    .identifier
+    .rsplit('.')
+    .collect::<Vec<&str>>()
+    .join(".");
+
+  if identifier.is_empty() {
+    log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
+    exit(1);
   }
 
-  let app_name = interface.app_settings().app_name().unwrap_or(app_name);
+  let app_name = interface
+    .app_settings()
+    .app_name()
+    .unwrap_or_else(|| "app".into());
   let lib_name = interface
     .app_settings()
     .lib_name()
@@ -312,7 +312,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     name: app_name,
     lib_name: Some(lib_name),
     stylized_name: config.product_name.clone(),
-    domain,
+    identifier,
     asset_dir: None,
     template_pack: None,
   };

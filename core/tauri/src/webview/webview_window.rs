@@ -45,6 +45,8 @@ use tauri_macros::default_runtime;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
+use super::DownloadEvent;
+
 /// A builder for [`WebviewWindow`], a window that hosts a single webview.
 pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
   window_builder: WindowBuilder<'a, R, M>,
@@ -249,6 +251,54 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// ```
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
+    self
+  }
+
+  /// Set a download event handler to be notified when a download is requested or finished.
+  ///
+  /// Returning `false` prevents the download from happening on a [`DownloadEvent::Requested`] event.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  webview::{DownloadEvent, WebviewWindowBuilder},
+};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle();
+    let webview_window = WebviewWindowBuilder::new(handle, "core", WebviewUrl::App("index.html".into()))
+      .on_download(|webview, event| {
+        match event {
+          DownloadEvent::Requested { url, destination } => {
+            println!("downloading {}", url);
+            *destination = "/home/tauri/target/path".into();
+          }
+          DownloadEvent::Finished { url, path, success } => {
+            println!("downloaded {} to {:?}, success: {}", url, path, success);
+          }
+          _ => (),
+        }
+        // let the download start
+        true
+      })
+      .build()?;
+
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn on_download<F: Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder.download_handler.replace(Arc::new(f));
     self
   }
 
@@ -1019,7 +1069,7 @@ impl<R: Runtime> WebviewWindow<R> {
     menu: &M,
     position: P,
   ) -> crate::Result<()> {
-    menu.popup_at(self.webview.window().clone(), position)
+    menu.popup_at(self.webview.window(), position)
   }
 }
 
@@ -1133,6 +1183,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Returns None if it can't identify any monitor as a primary one.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self.webview.window().primary_monitor()
+  }
+
+  /// Returns the monitor that contains the given point.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+    self.webview.window().monitor_from_point(x, y)
   }
 
   /// Returns the list of all the monitors available on the system.
@@ -1504,6 +1559,11 @@ impl<R: Runtime> WebviewWindow<R> {
   ) -> crate::Result<()> {
     self.webview.window().set_progress_bar(progress_state)
   }
+
+  /// Sets the title bar style. **macOS only**.
+  pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
+    self.webview.window().set_title_bar_style(style)
+  }
 }
 
 /// Desktop webview setters and actions.
@@ -1585,8 +1645,8 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) {
-    self.webview.navigate(url);
+  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+    self.webview.navigate(url)
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

@@ -300,6 +300,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
@@ -338,6 +339,14 @@ pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
 
 #[derive(Default)]
 pub struct RuntimeInitArgs {
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub app_id: Option<String>,
   #[cfg(windows)]
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
 }
@@ -382,6 +391,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ) -> Result<DetachedWebview<T, Self>>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
@@ -587,6 +597,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Returns None if it can't identify any monitor as a primary one.
   fn primary_monitor(&self) -> Result<Option<Monitor>>;
 
+  /// Returns the monitor that contains the given point.
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
+
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
 
@@ -770,4 +783,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()>;
+
+  /// Sets the title bar style. Available on macOS only.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()>;
 }

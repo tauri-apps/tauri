@@ -1,6 +1,6 @@
 name: {{app.name}}
 options:
-  bundleIdPrefix: {{reverse-domain app.domain}}
+  bundleIdPrefix: {{reverse-domain app.identifier}}
   deploymentTarget:
     iOS: {{apple.ios-version}}
 fileGroups: [{{join file-groups}}]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: {{app.stylized-name}}
-      PRODUCT_BUNDLE_IDENTIFIER: {{reverse-domain app.domain}}.{{app.name}}
+      PRODUCT_BUNDLE_IDENTIFIER: {{reverse-domain app.identifier}}
       {{#if apple.development-team}}
       DEVELOPMENT_TEAM: {{apple.development-team}}
       {{/if}}
@@ -42,6 +42,7 @@ targets:
       - {{prefix-path this}}{{/each}}
       {{~#each ios-additional-targets}}
       - path: {{prefix-path this}}{{/each}}
+      - path: LaunchScreen.storyboard
     info:
       path: {{app.name}}_iOS/Info.plist
       properties:
@@ -127,8 +128,9 @@ targets:
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:
-          - $(SRCROOT)/target/aarch64-apple-ios/${CONFIGURATION}/deps/lib{{app.lib-name}}.a
-          - $(SRCROOT)/target/x86_64-apple-ios/${CONFIGURATION}/deps/lib{{app.lib-name}}.a
+          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/lib{{app.lib-name}}.a
+          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/lib{{app.lib-name}}.a
+          - $(SRCROOT)/Externals/arm64-sim/${CONFIGURATION}/lib{{app.lib-name}}.a
     {{~#if ios-post-compile-scripts}}
     postCompileScripts:
       {{~#each ios-post-compile-scripts}}{{#if this.path}}

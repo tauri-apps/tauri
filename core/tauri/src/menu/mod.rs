@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(desktop)]
-
 //! Menu types and utilities.
 
 mod builders;
@@ -761,5 +759,14 @@ pub(crate) mod sealed {
       window: crate::Window<R>,
       position: Option<P>,
     ) -> crate::Result<()>;
+  }
+}
+
+#[cfg(windows)]
+pub(crate) fn map_to_menu_theme(theme: tauri_utils::Theme) -> muda::MenuTheme {
+  match theme {
+    tauri_utils::Theme::Light => muda::MenuTheme::Light,
+    tauri_utils::Theme::Dark => muda::MenuTheme::Dark,
+    _ => muda::MenuTheme::Auto,
   }
 }

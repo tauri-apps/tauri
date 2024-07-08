@@ -37,6 +37,8 @@ jobs:
               - 'core/tauri-utils/src/config.rs'
               - 'tooling/cli/schema.json'
               - 'core/tauri-config-schema/schema.json'
+              - 'core/tauri-acl-schema/*.json'
+
 
   api:
     runs-on: ubuntu-latest
@@ -70,8 +72,11 @@ jobs:
         with:
           workspaces: core -> ../target
 
-      - name: generate schema.json
+      - name: generate config schema
         run: cargo build --manifest-path ./core/tauri-config-schema/Cargo.toml
+
+      - name: generate ACL schema
+        run: cargo build --manifest-path ./core/tauri-acl-schema/Cargo.toml
 
       - name: check schema
         run: ./.scripts/ci/has-diff.sh

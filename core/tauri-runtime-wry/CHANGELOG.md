@@ -1,5 +1,31 @@
 # Changelog
 
+## \[0.14.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-runtime@0.14.4`
+
+## \[0.14.8]
+
+### Security fixes
+
+- [`f6d81dfe0`](https://www.github.com/tauri-apps/tauri/commit/f6d81dfe0871e0ccd012e5190d41e3767e733608) Only process IPC commands from the main frame.
+
+## \[0.14.7]
+
+### Bug Fixes
+
+- [`2eb21378a`](https://www.github.com/tauri-apps/tauri/commit/2eb21378a65107da0d4a1ab425767e99580966c2)([#9718](https://www.github.com/tauri-apps/tauri/pull/9718)) Fixes redraw tracing span not closing.
+
+## \[0.14.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-runtime@0.14.3`
+
 ## \[0.14.5]
 
 ### What's Changed

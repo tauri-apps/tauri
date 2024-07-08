@@ -31,8 +31,8 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowUrl},
-  CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
-  PageLoadPayload, Runtime, Theme, WindowEvent,
+  CursorIcon, Error, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver,
+  Manager, Runtime, Theme, WindowEvent,
 };
 
 use serde::Serialize;
@@ -1550,9 +1550,35 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
+  #[cfg_attr(feature = "tracing", tracing::instrument("window::on_message"))]
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+
+    // ensure the passed key matches what our manager should have injected
+    let expected = manager.invoke_key();
+    match payload.invoke_key.as_deref() {
+      Some(sent) if sent == expected => { /* good */ }
+      Some(sent) => {
+        #[cfg(feature = "tracing")]
+        tracing::error!("__TAURI_INVOKE_KEY__ expected {expected} but received {sent}");
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("__TAURI_INVOKE_KEY__ expected {expected} but received {sent}");
+
+        return Err(Error::InvokeKey);
+      }
+      None => {
+        #[cfg(feature = "tracing")]
+        tracing::error!("received ipc message without a __TAURI_INVOKE_KEY__");
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("received ipc message without a __TAURI_INVOKE_KEY__");
+
+        return Err(Error::InvokeKey);
+      }
+    }
+
     let current_url = self.url();
     let config_url = manager.get_url();
     let is_local = config_url.make_relative(&current_url).is_some();
@@ -1574,54 +1600,53 @@ impl<R: Runtime> Window<R> {
         }
       }
     };
-    match payload.cmd.as_str() {
-      "__initialized" => {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
-        manager.run_on_page_load(self, payload);
-      }
-      _ => {
-        let message = InvokeMessage::new(
-          self.clone(),
-          manager.state(),
-          payload.cmd.to_string(),
-          payload.inner,
-        );
-        let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-        let invoke = Invoke { message, resolver };
 
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
+    if "__initialized" == &payload.cmd {
+      let payload = serde_json::from_value(payload.inner)?;
+      manager.run_on_page_load(self, payload);
+      return Ok(());
+    }
+
+    let message = InvokeMessage::new(
+      self.clone(),
+      manager.state(),
+      payload.cmd.to_string(),
+      payload.inner,
+    );
+    let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+    let invoke = Invoke { message, resolver };
+
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+      return Ok(());
+    }
+
+    if let Some(module) = &payload.tauri_module {
+      if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
+        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+        return Ok(());
+      }
+      crate::endpoints::handle(
+        module.to_string(),
+        invoke,
+        manager.config(),
+        manager.package_info(),
+      );
+    } else if payload.cmd.starts_with("plugin:") {
+      if !is_local {
+        let command = invoke.message.command.replace("plugin:", "");
+        let plugin_name = command.split('|').next().unwrap().to_string();
+        if !scope
+          .map(|s| s.plugins().contains(&plugin_name))
+          .unwrap_or(true)
+        {
+          invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
           return Ok(());
         }
-
-        if let Some(module) = &payload.tauri_module {
-          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return Ok(());
-          }
-          crate::endpoints::handle(
-            module.to_string(),
-            invoke,
-            manager.config(),
-            manager.package_info(),
-          );
-        } else if payload.cmd.starts_with("plugin:") {
-          if !is_local {
-            let command = invoke.message.command.replace("plugin:", "");
-            let plugin_name = command.split('|').next().unwrap().to_string();
-            if !scope
-              .map(|s| s.plugins().contains(&plugin_name))
-              .unwrap_or(true)
-            {
-              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-              return Ok(());
-            }
-          }
-          manager.extend_api(invoke);
-        } else {
-          manager.run_invoke_handler(invoke);
-        }
       }
+      manager.extend_api(invoke);
+    } else {
+      manager.run_invoke_handler(invoke);
     }
 
     Ok(())

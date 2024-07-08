@@ -35,6 +35,7 @@ pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'sta
 #[default_template("../scripts/ipc.js")]
 pub(crate) struct IpcJavascript<'a> {
   pub(crate) isolation_origin: &'a str,
+  pub(crate) invoke_key: &'a str,
 }
 
 #[cfg(feature = "isolation")]
@@ -66,6 +67,10 @@ pub struct InvokePayload {
   #[serde(rename = "__tauriModule")]
   #[doc(hidden)]
   pub tauri_module: Option<String>,
+  /// A secret key that only Tauri initialized frames have.
+  #[serde(rename = "__TAURI_INVOKE_KEY__")]
+  #[doc(hidden)]
+  pub invoke_key: Option<String>,
   /// The success callback.
   pub callback: CallbackFn,
   /// The error callback.

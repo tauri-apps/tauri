@@ -2,15 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(target_os = "windows")]
 use crate::bundle::windows::sign::{sign_command, try_sign};
 use crate::{
   bundle::{
     common::CommandExt,
     windows::util::{
-      download, download_and_verify, download_webview2_bootstrapper,
-      download_webview2_offline_installer, extract_zip, verify_file_hash, HashAlgorithm,
-      NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      verify_file_hash, HashAlgorithm, NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
   Settings,
@@ -24,7 +22,7 @@ use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode
 
 use std::{
   collections::{BTreeMap, HashMap},
-  fs::{copy, create_dir_all, remove_dir_all, rename, write},
+  fs::{create_dir_all, remove_dir_all, rename, write},
   path::{Path, PathBuf},
   process::Command,
 };
@@ -35,10 +33,9 @@ const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_APPLICATIONID_URL: &str = "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/NSIS-ApplicationID.zip";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.2.2/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "16DF1D1A5B4D5DF3859447279C55BE36D4109DFB";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.0/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "E0FC0951DEB0E5E741DF10328F95C7D6678AD3AA";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -46,7 +43,6 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/ApplicationID.dll",
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
@@ -55,10 +51,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Include/WinMessages.nsh",
 ];
 #[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &[
-  "Plugins/x86-unicode/ApplicationID.dll",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
-];
+const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/nsis_tauri_utils.dll"];
 
 const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
   "Plugins/x86-unicode/nsis_tauri_utils.dll",
@@ -70,7 +63,15 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = dirs_next::cache_dir().unwrap().join("tauri");
+  let tauri_tools_path = settings
+    .local_tools_directory()
+    .map(|d| d.join(".tauri"))
+    .unwrap_or_else(|| dirs_next::cache_dir().unwrap().join("tauri"));
+
+  if !tauri_tools_path.exists() {
+    create_dir_all(&tauri_tools_path)?;
+  }
+
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
   if !nsis_toolset_path.exists() {
@@ -109,37 +110,22 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   #[cfg(target_os = "windows")]
   {
     let data = download_and_verify(NSIS_URL, NSIS_SHA1, HashAlgorithm::Sha1)?;
-    info!("extracting NSIS");
-    extract_zip(&data, _tauri_tools_path)?;
+    log::info!("extracting NSIS");
+    crate::bundle::windows::util::extract_zip(&data, _tauri_tools_path)?;
     rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
   let nsis_plugins = nsis_toolset_path.join("Plugins");
-
-  let data = download(NSIS_APPLICATIONID_URL)?;
-  info!("extracting NSIS ApplicationID plugin");
-  extract_zip(&data, &nsis_plugins)?;
-
-  create_dir_all(nsis_plugins.join("x86-unicode"))?;
-
-  copy(
-    nsis_plugins
-      .join("ReleaseUnicode")
-      .join("ApplicationID.dll"),
-    nsis_plugins.join("x86-unicode").join("ApplicationID.dll"),
-  )?;
 
   let data = download_and_verify(
     NSIS_TAURI_UTILS_URL,
     NSIS_TAURI_UTILS_SHA1,
     HashAlgorithm::Sha1,
   )?;
-  write(
-    nsis_plugins
-      .join("x86-unicode")
-      .join("nsis_tauri_utils.dll"),
-    data,
-  )?;
+
+  let target_folder = nsis_plugins.join("x86-unicode");
+  create_dir_all(&target_folder)?;
+  write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
   Ok(())
 }
@@ -183,9 +169,6 @@ fn build_nsis_app_installer(
 
   info!("Target: {}", arch);
 
-  #[cfg(not(target_os = "windows"))]
-  info!("Code signing is currently only supported on Windows hosts, skipping...");
-
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
     remove_dir_all(&output_path)?;
@@ -213,16 +196,9 @@ fn build_nsis_app_installer(
   data.insert("short_description", to_json(settings.short_description()));
   data.insert("copyright", to_json(settings.copyright_string()));
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
   if settings.can_sign() {
-    data.insert(
-      "uninstaller_sign_cmd",
-      to_json(format!(
-        "{:?}",
-        sign_command("%1", &settings.sign_params())?.0
-      )),
-    );
+    let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
+    data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
   }
 
   let version = settings.version_string();
@@ -242,8 +218,8 @@ fn build_nsis_app_installer(
   let mut custom_template_path = None;
   let mut custom_language_files = None;
   if let Some(nsis) = &settings.windows().nsis {
-    custom_template_path = nsis.template.clone();
-    custom_language_files = nsis.custom_language_files.clone();
+    custom_template_path.clone_from(&nsis.template);
+    custom_language_files.clone_from(&nsis.custom_language_files);
     install_mode = nsis.install_mode;
     if let Some(langs) = &nsis.languages {
       languages.clear();
@@ -436,6 +412,7 @@ fn build_nsis_app_installer(
   }
 
   let mut handlebars = Handlebars::new();
+  handlebars.register_helper("unescape-dollar-sign", Box::new(unescape_dollar_sign));
   handlebars.register_escape_fn(|s| {
     let mut output = String::new();
     for c in s.chars() {
@@ -516,11 +493,25 @@ fn build_nsis_app_installer(
 
   rename(nsis_output_path, &nsis_installer_path)?;
 
-  // Code signing is currently only supported on Windows hosts
-  #[cfg(target_os = "windows")]
-  try_sign(&nsis_installer_path, settings)?;
-
+  if settings.can_sign() {
+    try_sign(&nsis_installer_path, settings)?;
+  } else {
+    #[cfg(not(target_os = "windows"))]
+    log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+  }
   Ok(vec![nsis_installer_path])
+}
+
+fn unescape_dollar_sign(
+  h: &handlebars::Helper<'_, '_>,
+  _: &Handlebars<'_>,
+  _: &handlebars::Context,
+  _: &mut handlebars::RenderContext<'_, '_>,
+  out: &mut dyn handlebars::Output,
+) -> handlebars::HelperResult {
+  let content = h.param(0).unwrap().render();
+  out.write(&content.replace("$$", "$"))?;
+  Ok(())
 }
 
 /// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>

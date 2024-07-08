@@ -44,6 +44,7 @@ impl From<BundleType> for PackageType {
   fn from(bundle: BundleType) -> Self {
     match bundle {
       BundleType::Deb => Self::Deb,
+      BundleType::Rpm => Self::Rpm,
       BundleType::AppImage => Self::AppImage,
       BundleType::Msi => Self::WindowsMsi,
       BundleType::Nsis => Self::Nsis,
@@ -148,6 +149,8 @@ pub struct PackageSettings {
   pub homepage: Option<String>,
   /// the package's authors.
   pub authors: Option<Vec<String>>,
+  /// the package's license.
+  pub license: Option<String>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -173,6 +176,12 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
+  /// the list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// the list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// the list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// List of custom files to add to the deb package.
   /// Maps the path on the debian package to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
@@ -193,6 +202,72 @@ pub struct DebianSettings {
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
   /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
   pub changelog: Option<PathBuf>,
+}
+
+/// The RPM bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct RpmSettings {
+  /// The name of the package's license.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
+  /// The RPM release tag.
+  pub release: String,
+  /// The RPM epoch.
+  pub epoch: u32,
+  /// List of custom files to add to the RPM package.
+  /// Maps the path on the RPM package to the path of the file to include (relative to the current working directory).
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  ///
+  /// Default file contents:
+  /// ```text
+  #[doc = include_str!("./linux/templates/main.desktop")]
+  /// ```
+  pub desktop_template: Option<PathBuf>,
+}
+
+/// Position coordinates struct.
+#[derive(Clone, Debug, Default)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Clone, Debug, Default)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// The DMG bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct DmgSettings {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  pub window_size: Size,
+  /// Position of app file on window.
+  pub app_position: Position,
+  /// Position of application folder on window.
+  pub application_folder_position: Position,
 }
 
 /// The macOS bundle settings.
@@ -357,6 +432,20 @@ pub struct WindowsSettings {
   ///
   /// /// The default value of this flag is `true`.
   pub allow_downgrades: bool,
+
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsSettings {
@@ -372,6 +461,7 @@ impl Default for WindowsSettings {
       webview_install_mode: Default::default(),
       webview_fixed_runtime_path: None,
       allow_downgrades: true,
+      sign_command: None,
     }
   }
 }
@@ -426,6 +516,10 @@ pub struct BundleSettings {
   pub external_bin: Option<Vec<String>>,
   /// Debian-specific settings.
   pub deb: DebianSettings,
+  /// Rpm-specific settings.
+  pub rpm: RpmSettings,
+  /// DMG-specific settings.
+  pub dmg: DmgSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -498,6 +592,9 @@ pub struct Settings {
   package_types: Option<Vec<PackageType>>,
   /// the directory where the bundles will be placed.
   project_out_directory: PathBuf,
+  /// the directory to place tools used by the bundler,
+  /// if `None`, tools are placed in the current user's platform-specific cache directory.
+  local_tools_directory: Option<PathBuf>,
   /// the bundle settings.
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
@@ -516,6 +613,7 @@ pub struct SettingsBuilder {
   bundle_settings: BundleSettings,
   binaries: Vec<BundleBinary>,
   target: Option<String>,
+  local_tools_directory: Option<PathBuf>,
 }
 
 impl SettingsBuilder {
@@ -529,6 +627,16 @@ impl SettingsBuilder {
   pub fn project_out_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
     self
       .project_out_directory
+      .replace(path.as_ref().to_path_buf());
+    self
+  }
+
+  /// Sets the directory to place tools used by the bundler
+  /// when [`BundleSettings::use_local_tools_dir`] is true.
+  #[must_use]
+  pub fn local_tools_directory<P: AsRef<Path>>(mut self, path: P) -> Self {
+    self
+      .local_tools_directory
       .replace(path.as_ref().to_path_buf());
     self
   }
@@ -589,11 +697,16 @@ impl SettingsBuilder {
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
-      package: self.package_settings.expect("package settings is required"),
+      package: self.package_settings.ok_or(crate::Error::GenericError(
+        "package settings is required".into(),
+      ))?,
       package_types: self.package_types,
       project_out_directory: self
         .project_out_directory
-        .expect("out directory is required"),
+        .ok_or(crate::Error::GenericError(
+          "out directory is required".into(),
+        ))?,
+      local_tools_directory: self.local_tools_directory,
       binaries: self.binaries,
       bundle_settings: BundleSettings {
         external_bin: self
@@ -689,7 +802,7 @@ impl Settings {
     let mut platform_types = match target_os.as_str() {
       "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
       "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::AppImage],
+      "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
       "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
@@ -827,6 +940,11 @@ impl Settings {
     }
   }
 
+  /// Returns the package's license.
+  pub fn license(&self) -> Option<&str> {
+    self.package.license.as_deref()
+  }
+
   /// Returns the package's homepage URL, defaulting to "" if not defined.
   pub fn homepage_url(&self) -> &str {
     self.package.homepage.as_deref().unwrap_or("")
@@ -851,9 +969,24 @@ impl Settings {
     self.bundle_settings.long_description.as_deref()
   }
 
+  /// Returns the directory for local tools path.
+  pub fn local_tools_directory(&self) -> Option<&Path> {
+    self.local_tools_directory.as_deref()
+  }
+
   /// Returns the debian settings.
   pub fn deb(&self) -> &DebianSettings {
     &self.bundle_settings.deb
+  }
+
+  /// Returns the RPM settings.
+  pub fn rpm(&self) -> &RpmSettings {
+    &self.bundle_settings.rpm
+  }
+
+  /// Returns the DMG settings.
+  pub fn dmg(&self) -> &DmgSettings {
+    &self.bundle_settings.dmg
   }
 
   /// Returns the MacOS settings.

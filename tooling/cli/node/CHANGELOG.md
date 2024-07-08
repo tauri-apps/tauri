@@ -1,5 +1,47 @@
 # Changelog
 
+## \[1.6.0]
+
+### New Features
+
+- [`253595a22`](https://www.github.com/tauri-apps/tauri/commit/253595a22d8659a1cb199bfc423e988ea82191e6) ([#9809](https://www.github.com/tauri-apps/tauri/pull/9809)) Add RPM packaging
+- [`a301be52d`](https://www.github.com/tauri-apps/tauri/commit/a301be52d276f1e99316d23b4f0a8e458e29bc35) ([#9914](https://www.github.com/tauri-apps/tauri/pull/9914)) Use cargo's target directory to store and cache bundling tools when `bundle > useLocalToolsDir` option is active.
+
+### Bug Fixes
+
+- [`08f57efef`](https://www.github.com/tauri-apps/tauri/commit/08f57efefdd6dac10277bfc5f71eba0ca84a64c4) ([#10136](https://www.github.com/tauri-apps/tauri/pull/10136)) Fix parsing of cargo profile when using `--profile=<profile>` syntax.
+- [`674accad7`](https://www.github.com/tauri-apps/tauri/commit/674accad75fccac6f9adc515a863f9d59efbee57) ([#10015](https://www.github.com/tauri-apps/tauri/pull/10015)) Add missing dependency `libayatana-appindicator3.so.1` for rpm package.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.6.0`
+
+## \[1.5.14]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.14`
+
+## \[1.5.13]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.13`
+
+## \[1.5.12]
+
+### Bug Fixes
+
+- [`1675e41f0`](https://www.github.com/tauri-apps/tauri/commit/1675e41f05c77d517890f59fddcf536744e6a0ad)([#9481](https://www.github.com/tauri-apps/tauri/pull/9481)) Fixed an issue with the CLI renaming the main executable in kebab-case when building for Windows on a non-Windows system which caused the bundler step to fail.
+- [`9dd67abd9`](https://www.github.com/tauri-apps/tauri/commit/9dd67abd93e96097fc169404b70e729e46c3cd64)([#9298](https://www.github.com/tauri-apps/tauri/pull/9298)) Upgrade `heck` to v0.5 to better support Chinese and Japanese product name, because Chinese do not have word separation.
+- [`f9638b631`](https://www.github.com/tauri-apps/tauri/commit/f9638b6315668ced871f242224f001f474262f85)([#9491](https://www.github.com/tauri-apps/tauri/pull/9491)) Fixed an issue that caused the CLI to rename app binaries incorrectly if the product name contained a `.` which resulted in the bundling step to fail.
+- [`77cc49ac3`](https://www.github.com/tauri-apps/tauri/commit/77cc49ac3cd27368b3be4f67e35ae021acee4c92)([#9188](https://www.github.com/tauri-apps/tauri/pull/9188)) Fixed an issue causing the `build.runner` and `build.features` configs to not take effect.
+- [`aeddc40b9`](https://www.github.com/tauri-apps/tauri/commit/aeddc40b9e461bc118382ae62431d39e29f25915)([#9411](https://www.github.com/tauri-apps/tauri/pull/9411)) Fix `tauri info` crashing when Node.js is not installed.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.5.12`
+
 ## \[1.5.11]
 
 ### Bug Fixes

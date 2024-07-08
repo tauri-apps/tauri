@@ -1,5 +1,87 @@
 # Changelog
 
+## \[1.7.1]
+
+### Bug Fixes
+
+- [`4bffa5cff`](https://www.github.com/tauri-apps/tauri/commit/4bffa5cff04a3f5da8c2493f835f560ac4a31247) ([#10174](https://www.github.com/tauri-apps/tauri/pull/10174) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fix compilation error when `shell-execute` or `shell-sidecar` features are not active
+
+## \[1.7.0]
+
+### Enhancements
+
+- [`44e3335da`](https://www.github.com/tauri-apps/tauri/commit/44e3335da8c1a811a2ebe72f2036dfad2381da24) ([#9796](https://www.github.com/tauri-apps/tauri/pull/9796)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Bug Fixes
+
+- [`8ee8f0939`](https://www.github.com/tauri-apps/tauri/commit/8ee8f093900b22c584fdf00c5efdb43ef34f6771) ([#9588](https://www.github.com/tauri-apps/tauri/pull/9588)) Fix check temporary path permission on macos.
+- [`07b02c9f9`](https://www.github.com/tauri-apps/tauri/commit/07b02c9f962312f4d90c001d21d3d72ca9daa03a) ([#9972](https://www.github.com/tauri-apps/tauri/pull/9972)) Added `test::INVOKE_KEY` to be used in `tauri::InvokePayload` when testing using `test::assert_ipc_response` and `test::get_ipc_response`.
+- [`e48157da2`](https://www.github.com/tauri-apps/tauri/commit/e48157da2f0b88d8c5df13f3287705172a684525) ([#9698](https://www.github.com/tauri-apps/tauri/pull/9698)) Fix the JS `Command` API from `shell` module, losing events for `stdout`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-runtime@0.14.4`
+- Upgraded to `tauri-runtime-wry@0.14.9`
+- Upgraded to `tauri-macros@1.4.5`
+
+## \[1.6.7]
+
+### Bug Fixes
+
+- [`50aabad1f`](https://www.github.com/tauri-apps/tauri/commit/50aabad1f602066417d815b0f2d2c5948848bb00)([#9818](https://www.github.com/tauri-apps/tauri/pull/9818)) On Windows, fix flashing PowerShell for updates for NSIS installer, and address possible "permission denied" problems.
+
+### Security fixes
+
+- [`f6d81dfe0`](https://www.github.com/tauri-apps/tauri/commit/f6d81dfe0871e0ccd012e5190d41e3767e733608) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.8`
+
+## \[1.6.6]
+
+### Bug Fixes
+
+- [`704260bb3`](https://www.github.com/tauri-apps/tauri/commit/704260bb3c2bc54c149f2fe508bff09535b083ad)([#9784](https://www.github.com/tauri-apps/tauri/pull/9784)) Fix dialog crash on macOS when the `default_path` value is empty.
+- [`3b69c1384`](https://www.github.com/tauri-apps/tauri/commit/3b69c1384bd089ad5dcff0c1b12fbfadeb585c6a)([#9792](https://www.github.com/tauri-apps/tauri/pull/9792)) Revert [#9706](https://github.com/tauri-apps/tauri/pull/9706) which broke compatability between `tauri` crate and the JS `@tauri-apps/api` npm package in a patch release where it should've been in a minor release.
+
+## \[1.6.5]
+
+### Bug Fixes
+
+- [`ef35a793c`](https://www.github.com/tauri-apps/tauri/commit/ef35a793c5d923d55e338b51e04e6c280f7c810d)([#9729](https://www.github.com/tauri-apps/tauri/pull/9729)) Fix compilation error when `shell-execute` or `shell-sidecar` features are not active
+
+## \[1.6.4]
+
+### Enhancements
+
+- [`7f885bd5e`](https://www.github.com/tauri-apps/tauri/commit/7f885bd5edf3e179ddf0b674c3ea7a96e26ce39e)([#9706](https://www.github.com/tauri-apps/tauri/pull/9706)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.7`
+
+## \[1.6.3]
+
+### Enhancements
+
+- [`3e98145ac`](https://www.github.com/tauri-apps/tauri/commit/3e98145ac3f45d37230661e136e4afc08b072285)([#9570](https://www.github.com/tauri-apps/tauri/pull/9570)) Run each plugin initialization script on its own context so they do not interfere with each other or the Tauri init script.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-runtime@0.14.3`
+- Upgraded to `tauri-runtime-wry@0.14.6`
+- Upgraded to `tauri-macros@1.4.4`
+
+## \[1.6.2]
+
+### Bug Fixes
+
+- [`e3b6d38d2`](https://www.github.com/tauri-apps/tauri/commit/e3b6d38d26d27b292f98d6c0e8603a15265a5b43)([#9166](https://www.github.com/tauri-apps/tauri/pull/9166)) Fix `basename(path, 'ext')` JS API when removing all occurances of `ext` where it should only remove the last one.
+- [`705da977a`](https://www.github.com/tauri-apps/tauri/commit/705da977a9c941a4b2d90219b34925498f507ab2)([#9529](https://www.github.com/tauri-apps/tauri/pull/9529)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
 ## \[1.6.1]
 
 ### Dependencies

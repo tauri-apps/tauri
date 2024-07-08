@@ -1,5 +1,38 @@
 # Changelog
 
+## \[1.6.0]
+
+### Enhancements
+
+- [`44e3335da`](https://www.github.com/tauri-apps/tauri/commit/44e3335da8c1a811a2ebe72f2036dfad2381da24) ([#9796](https://www.github.com/tauri-apps/tauri/pull/9796)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Bug Fixes
+
+- [`44e3335da`](https://www.github.com/tauri-apps/tauri/commit/44e3335da8c1a811a2ebe72f2036dfad2381da24) ([#9796](https://www.github.com/tauri-apps/tauri/pull/9796)) Fix The JS `Command.execute` API from `shell` module including extra new lines.
+
+## \[1.5.6]
+
+### Bug Fixes
+
+- [`3b69c1384`](https://www.github.com/tauri-apps/tauri/commit/3b69c1384bd089ad5dcff0c1b12fbfadeb585c6a)([#9792](https://www.github.com/tauri-apps/tauri/pull/9792)) Revert [#9706](https://github.com/tauri-apps/tauri/pull/9706) which broke compatability between `tauri` crate and the JS `@tauri-apps/api` npm package in a patch release where it should've been in a minor release.
+
+## \[1.5.5]
+
+### Enhancements
+
+- [`7f885bd5e`](https://www.github.com/tauri-apps/tauri/commit/7f885bd5edf3e179ddf0b674c3ea7a96e26ce39e)([#9706](https://www.github.com/tauri-apps/tauri/pull/9706)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Bug Fixes
+
+- [`7f885bd5e`](https://www.github.com/tauri-apps/tauri/commit/7f885bd5edf3e179ddf0b674c3ea7a96e26ce39e)([#9706](https://www.github.com/tauri-apps/tauri/pull/9706)) Fix The JS `Command.execute` API from `shell` module including extra new lines.
+
+## \[1.5.4]
+
+### Bug Fixes
+
+- [`e3b6d38d2`](https://www.github.com/tauri-apps/tauri/commit/e3b6d38d26d27b292f98d6c0e8603a15265a5b43)([#9166](https://www.github.com/tauri-apps/tauri/pull/9166)) Fix `basename(path, 'ext')` JS API when removing all occurances of `ext` where it should only remove the last one.
+- [`705da977a`](https://www.github.com/tauri-apps/tauri/commit/705da977a9c941a4b2d90219b34925498f507ab2)([#9529](https://www.github.com/tauri-apps/tauri/pull/9529)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
 ## \[1.5.3]
 
 ### Bug Fixes

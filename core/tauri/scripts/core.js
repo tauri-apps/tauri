@@ -102,7 +102,8 @@
       'click',
       function (e) {
         let target = e.target
-        const baseTarget = document.querySelector('head base')?.target
+        const base = document.querySelector('head base')
+        const baseTarget = base ? base.target : null
         while (target != null) {
           if (target.matches('a')) {
             if (

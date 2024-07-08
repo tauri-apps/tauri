@@ -989,6 +989,9 @@ pub struct Builder<R: Runtime> {
   /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
 
+  /// Invoke key. Used to secure IPC calls.
+  pub(crate) invoke_key: String,
+
   /// The setup hook.
   setup: SetupHook<R>,
 
@@ -1047,6 +1050,7 @@ impl<R: Runtime> Builder<R> {
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
         format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
+      invoke_key: crate::generate_invoke_key().expect("failed to generate invoke key"),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -1569,6 +1573,7 @@ impl<R: Runtime> Builder<R> {
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
       (self.invoke_responder, self.invoke_initialization_script),
+      self.invoke_key,
     );
 
     let http_scheme = manager.config().tauri.security.dangerous_use_http_scheme;

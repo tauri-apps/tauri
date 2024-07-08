@@ -1,5 +1,48 @@
 # Changelog
 
+## \[1.6.0]
+
+### New Features
+
+- [`a301be52d`](https://www.github.com/tauri-apps/tauri/commit/a301be52d276f1e99316d23b4f0a8e458e29bc35) ([#9914](https://www.github.com/tauri-apps/tauri/pull/9914)) Add `Settings::local_tools_directory`.
+- [`253595a22`](https://www.github.com/tauri-apps/tauri/commit/253595a22d8659a1cb199bfc423e988ea82191e6) ([#9809](https://www.github.com/tauri-apps/tauri/pull/9809)) Add RPM packaging
+- [`590966276`](https://www.github.com/tauri-apps/tauri/commit/5909662766c2fe9947a9eadf33725170c2f6fa99) ([#9902](https://www.github.com/tauri-apps/tauri/pull/9902)) On Windows, add option to specify a custom signing command to be used. This opens an endless possibilities, for example use `osslsigncode` on non-Windows or use hardware tokens and HSM or even using Azure Trusted Signing.
+- [`78fc84137`](https://www.github.com/tauri-apps/tauri/commit/78fc841370a76adf7af413bf1c9490b046b50de4) ([#9942](https://www.github.com/tauri-apps/tauri/pull/9942)) Added support for `provides`, `conflicts` and `replaces` (`obsoletes` for RPM) options for `bundler > deb` and `bundler > rpm` configs.
+- [`924387092`](https://www.github.com/tauri-apps/tauri/commit/924387092e8060fdfab627217ba9b1ff2dcc100d) ([#8334](https://www.github.com/tauri-apps/tauri/pull/8334)) Added support for DMG settings to `bundler > dmg`. Includes window size, background image and icon positions.
+- [`a020828d0`](https://www.github.com/tauri-apps/tauri/commit/a020828d0e5f7d22805f5e6be0755f5215111cd8) ([#9861](https://www.github.com/tauri-apps/tauri/pull/9861)) Upgraded the WiX version to 3.14 which fixes vulnerability issues and adds support for Arm targets.
+
+### Bug Fixes
+
+- [`940aa183c`](https://www.github.com/tauri-apps/tauri/commit/940aa183c78c609b5e02b8ba9bba79bf1227071f) ([#9995](https://www.github.com/tauri-apps/tauri/pull/9995)) Fix NSIS installer runs the app as admin when using `perMachine` install mode
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+
+## \[1.5.4]
+
+### Bug Fixes
+
+- [`ab9ec42c1`](https://www.github.com/tauri-apps/tauri/commit/ab9ec42c102da7594f5d83998aa095d558e86d90)([#9659](https://www.github.com/tauri-apps/tauri/pull/9659)) Fix failing to create NSIS installer when including resources that has `$` in its path.
+
+## \[1.5.3]
+
+### Enhancements
+
+- [`0749a84ae`](https://www.github.com/tauri-apps/tauri/commit/0749a84ae057365657222db3b55c05d758297c2e)([#9605](https://www.github.com/tauri-apps/tauri/pull/9605)) Update `nsis_tauri_utils` plugin to `0.3` and use the built-in NSIS download plugin, which reduces the NSIS installer size by 775kb.
+- [`b8fd8e1ba`](https://www.github.com/tauri-apps/tauri/commit/b8fd8e1baceb1bd43c3e065b43de496da515dc60)([#9606](https://www.github.com/tauri-apps/tauri/pull/9606)) Use nsis's built-in COM plugin instead of `ApplicationID` plugin, this reduces the installer size by 100 KB, and also fixes pinned shortcut not getting cleaned up on uninstall.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`dbe81b841`](https://www.github.com/tauri-apps/tauri/commit/dbe81b84104bff29bc98ecdb89934a3c6bb68150)([#9282](https://www.github.com/tauri-apps/tauri/pull/9282)) The NSIS uninstaller now won't mindlessly try to remove the whole installation folder when the "Remove application data" checkbox was ticked. This prevents data loss when the app was installed in a folder which contained other files.
+- [`017861e4d`](https://www.github.com/tauri-apps/tauri/commit/017861e4d59f89181aa4d3c35c32d78f14ff0201)([#9281](https://www.github.com/tauri-apps/tauri/pull/9281)) Fixed an issue causing the NSIS bundler to install resources incorrectly when the installer was built on a non-Windows system.
+
 ## \[1.5.1]
 
 ### Bug Fixes

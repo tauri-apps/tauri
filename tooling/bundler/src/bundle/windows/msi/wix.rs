@@ -32,8 +32,8 @@ use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
-  "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
-pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
+  "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
+pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
 
 // For Cross Platform Compilation.
 
@@ -183,6 +183,7 @@ fn app_installer_output_path(
   let arch = match settings.binary_arch() {
     "x86" => "x86",
     "x86_64" => "x64",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {}",
@@ -295,6 +296,7 @@ fn run_candle(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
@@ -389,6 +391,7 @@ pub fn build_wix_app_installer(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
@@ -570,7 +573,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(&app_exe_source));
+  data.insert("app_exe_source", to_json(app_exe_source));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
@@ -589,9 +592,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
-    fragment_paths = wix.fragment_paths.clone();
+    fragment_paths.clone_from(&wix.fragment_paths);
     enable_elevated_update_task = wix.enable_elevated_update_task;
-    custom_template_path = wix.template.clone();
+    custom_template_path.clone_from(&wix.template);
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path
@@ -788,7 +791,9 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, settings)?;
+    if settings.can_sign() {
+      try_sign(&msi_path, settings)?;
+    }
     output_paths.push(msi_path);
   }
 

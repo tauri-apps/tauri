@@ -44,7 +44,7 @@ pub struct Options {
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
   ///
-  /// Each bundle must be one of `deb`, `appimage`, `msi`, `app` or `dmg` on MacOS and `updater` on all platforms.
+  /// Each bundle must be one of `deb`, `rpm`, `appimage`, `msi`, `app` or `dmg` on MacOS and `updater` on all platforms.
   /// If `none` is specified, the bundler will be skipped.
   ///
   /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
@@ -160,7 +160,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   }
 
   if options.runner.is_none() {
-    options.runner = config_.build.runner.clone();
+    options.runner.clone_from(&config_.build.runner);
   }
 
   options

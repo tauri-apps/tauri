@@ -23,35 +23,22 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::super::common;
+use super::{super::common, freedesktop};
 use crate::Settings;
 use anyhow::Context;
-use handlebars::Handlebars;
 use heck::AsKebabCase;
-use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use log::info;
-use serde::Serialize;
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
 use std::{
-  collections::BTreeSet,
-  ffi::OsStr,
-  fs::{self, read_to_string, File},
+  fs::{self, File},
   io::{self, Write},
   os::unix::fs::MetadataExt,
   path::{Path, PathBuf},
 };
 
 use flate2::{write::GzEncoder, Compression};
-
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub struct DebIcon {
-  pub width: u32,
-  pub height: u32,
-  pub is_high_density: bool,
-  pub path: PathBuf,
-}
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
@@ -115,7 +102,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_data(
   settings: &Settings,
   package_dir: &Path,
-) -> crate::Result<(PathBuf, BTreeSet<DebIcon>)> {
+) -> crate::Result<(PathBuf, Vec<freedesktop::Icon>)> {
   // Generate data files.
   let data_dir = package_dir.join("data");
   let bin_dir = data_dir.join("usr/bin");
@@ -132,9 +119,10 @@ pub fn generate_data(
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
 
-  let icons =
-    generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
-  generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
+  let icons = freedesktop::copy_icon_files(settings, &data_dir)
+    .with_context(|| "Failed to create icon files")?;
+  freedesktop::generate_desktop_file(settings, &settings.deb().desktop_template, &data_dir)
+    .with_context(|| "Failed to create desktop file")?;
   generate_changelog_file(settings, &data_dir)
     .with_context(|| "Failed to create changelog.gz file")?;
 
@@ -156,61 +144,6 @@ fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Resul
     let mut changelog_file = gzip_encoder.finish()?;
     changelog_file.flush()?;
   }
-  Ok(())
-}
-
-/// Generate the application desktop file and store it under the `data_dir`.
-fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.main_binary_name();
-  let desktop_file_name = format!("{}.desktop", bin_name);
-  let desktop_file_path = data_dir
-    .join("usr/share/applications")
-    .join(desktop_file_name);
-
-  // For more information about the format of this file, see
-  // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  let file = &mut common::create_file(&desktop_file_path)?;
-
-  let mut handlebars = Handlebars::new();
-  handlebars.register_escape_fn(handlebars::no_escape);
-  if let Some(template) = &settings.deb().desktop_template {
-    handlebars
-      .register_template_string("main.desktop", read_to_string(template)?)
-      .with_context(|| "Failed to setup custom handlebar template")?;
-  } else {
-    handlebars
-      .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
-      .with_context(|| "Failed to setup custom handlebar template")?;
-  }
-
-  #[derive(Serialize)]
-  struct DesktopTemplateParams<'a> {
-    categories: &'a str,
-    comment: Option<&'a str>,
-    exec: &'a str,
-    icon: &'a str,
-    name: &'a str,
-  }
-
-  handlebars.render_to_write(
-    "main.desktop",
-    &DesktopTemplateParams {
-      categories: settings
-        .app_category()
-        .map(|app_category| app_category.gnome_desktop_categories())
-        .unwrap_or(""),
-      comment: if !settings.short_description().is_empty() {
-        Some(settings.short_description())
-      } else {
-        None
-      },
-      exec: bin_name,
-      icon: bin_name,
-      name: settings.product_name(),
-    },
-    file,
-  )?;
-
   Ok(())
 }
 
@@ -246,6 +179,33 @@ fn generate_control_file(
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
   if !dependencies.is_empty() {
     writeln!(file, "Depends: {}", dependencies.join(", "))?;
+  }
+  let provides = settings
+    .deb()
+    .provides
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !provides.is_empty() {
+    writeln!(file, "Provides: {}", provides.join(", "))?;
+  }
+  let conflicts = settings
+    .deb()
+    .conflicts
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !conflicts.is_empty() {
+    writeln!(file, "Conflicts: {}", conflicts.join(", "))?;
+  }
+  let replaces = settings
+    .deb()
+    .replaces
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !replaces.is_empty() {
+    writeln!(file, "Replaces: {}", replaces.join(", "))?;
   }
   let mut short_description = settings.short_description().trim();
   if short_description.is_empty() {
@@ -324,46 +284,6 @@ fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> 
     }
   }
   Ok(())
-}
-
-/// Generate the icon files and store them under the `data_dir`.
-fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BTreeSet<DebIcon>> {
-  let base_dir = data_dir.join("usr/share/icons/hicolor");
-  let get_dest_path = |width: u32, height: u32, is_high_density: bool| {
-    base_dir.join(format!(
-      "{}x{}{}/apps/{}.png",
-      width,
-      height,
-      if is_high_density { "@2" } else { "" },
-      settings.main_binary_name()
-    ))
-  };
-  let mut icons = BTreeSet::new();
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() != Some(OsStr::new("png")) {
-      continue;
-    }
-    // Put file in scope so that it's closed when copying it
-    let deb_icon = {
-      let decoder = PngDecoder::new(File::open(&icon_path)?)?;
-      let width = decoder.dimensions().0;
-      let height = decoder.dimensions().1;
-      let is_high_density = common::is_retina(&icon_path);
-      let dest_path = get_dest_path(width, height, is_high_density);
-      DebIcon {
-        width,
-        height,
-        is_high_density,
-        path: dest_path,
-      }
-    };
-    if !icons.contains(&deb_icon) {
-      common::copy_file(&icon_path, &deb_icon.path)?;
-      icons.insert(deb_icon);
-    }
-  }
-  Ok(icons)
 }
 
 /// Create an empty file at the given path, creating any parent directories as

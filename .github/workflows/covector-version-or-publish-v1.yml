@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - 1.x
+      - v1/msrv-check
 
 jobs:
   msrv-list:
@@ -28,7 +29,7 @@ jobs:
             }
           - {
               target: x86_64-apple-darwin,
-              os: macos-latest,
+              os: macos-13,
               toolchain: '1.60.0'
             }
     steps:
@@ -56,14 +57,16 @@ jobs:
       - name: Downgrade crates with MSRV conflict
         # The --precise flag can only be used once per invocation.
         run: |
-          cargo update -p system-deps:6.2.0 --precise 6.1.1
+          cargo update -p system-deps:6.2.2 --precise 6.1.1
           cargo update -p toml:0.7.8 --precise 0.7.3
           cargo update -p toml_edit:0.19.15 --precise 0.19.8
           cargo update -p embed-resource --precise 2.3.0
+          cargo update -p notify-rust --precise 4.10.0
           cargo update -p toml_datetime --precise 0.6.1
           cargo update -p serde_spanned --precise 0.6.1
           cargo update -p winnow --precise 0.4.1
           cargo update -p plist --precise 1.5.1
+          cargo update -p serde_with:3.8.2 --precise 3.0.0
           cargo update -p time --precise 0.3.15
           cargo update -p ignore --precise 0.4.18
           cargo update -p raw-window-handle --precise 0.5.0
@@ -73,13 +76,13 @@ jobs:
           cargo update -p colored --precise 2.0.2
           cargo update -p arboard --precise 3.2.1
           cargo update -p tempfile --precise 3.6.0
-          cargo update -p serde_with:3.6.1 --precise 3.0.0
           cargo update -p tokio --precise 1.29.0
           cargo update -p flate2 --precise 1.0.26
+          cargo update -p hyper --precise 0.14.28
           cargo update -p h2 --precise 0.3.20
           cargo update -p reqwest --precise 0.11.18
           cargo update -p bstr --precise 1.6.2
-          cargo update -p cfg-expr:0.15.7 --precise 0.15.4
+          cargo update -p cfg-expr:0.15.8 --precise 0.15.4
           cargo update -p memchr --precise 2.6.2
           cargo update -p async-executor --precise 1.5.1
           cargo update -p proptest --precise 1.2.0
@@ -88,7 +91,6 @@ jobs:
           cargo update -p backtrace --precise 0.3.68
           cargo update -p blocking --precise 1.4.1
           cargo update -p ignore --precise 0.4.18
-          cargo update -p regex --precise 1.9.6
           cargo update -p globset --precise 0.4.13
           cargo update -p crossbeam-channel --precise 0.5.8
           cargo update -p crossbeam-utils --precise 0.8.16
@@ -100,6 +102,16 @@ jobs:
           cargo update -p petgraph --precise 0.6.3
           cargo update -p os_str_bytes --precise 6.5.1
           cargo update -p thread_local --precise 1.1.7
+          cargo update -p cc --precise 1.0.94
+          cargo update -p home --precise 0.5.5
+          cargo update -p tree_magic_mini --precise 3.0.3
+          cargo update -p tokio-test --precise 0.4.3
+          cargo update -p tokio-stream --precise 0.1.14
+          cargo update -p tokio-util --precise 0.7.10
+          cargo update -p os_pipe --precise 1.1.5
+          cargo update -p syn:2.0.68 --precise 2.0.67
+          cargo update -p derive_more --precise 0.99.17
+          cargo update -p native-tls --precise 0.2.11
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test
@@ -107,11 +119,12 @@ jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
     needs: msrv-list
+    if: github.ref == 'refs/heads/1.x'
 
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-latest, windows-latest]
+        platform: [ubuntu-latest, macos-13, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -166,7 +179,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v2
         with:
-          node-version: 14
+          node-version: 16
           registry-url: 'https://registry.npmjs.org'
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
@@ -188,6 +201,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
+          recognizeContributors: true
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
@@ -204,11 +218,9 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           steps.covector.outputs.packagesPublished != ''
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri-docs
-          event-type: update-docs
+        run: gh workflow run 18856068 -r v1 -R tauri-apps/tauri-docs
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
 
       - name: Trigger `@tauri-apps/cli` publishing workflow
         if: |

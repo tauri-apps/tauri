@@ -238,6 +238,8 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_initialization_script: String,
   /// Application pattern.
   pub(crate) pattern: Pattern,
+  /// A runtime generated key to ensure an IPC call comes from an initialized frame.
+  invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -252,6 +254,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
       .field("pattern", &self.pattern)
+      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -303,6 +306,7 @@ impl<R: Runtime> WindowManager<R> {
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -333,6 +337,7 @@ impl<R: Runtime> WindowManager<R> {
         window_event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
+        invoke_key,
       }),
     }
   }
@@ -427,7 +432,7 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
-    let plugin_init = self
+    let plugin_init_scripts = self
       .inner
       .plugins
       .lock()
@@ -449,6 +454,7 @@ impl<R: Runtime> WindowManager<R> {
         }
         _ => "".to_string(),
       },
+      invoke_key: self.invoke_key(),
     }
     .render_default(&Default::default())?;
 
@@ -471,8 +477,11 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),is_init_global)?);
+
+    for plugin_init_script in plugin_init_scripts {
+      webview_attributes = webview_attributes.initialization_script(&plugin_init_script);
+    }
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -781,7 +790,6 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     ipc_script: &str,
     pattern_script: &str,
-    plugin_initialization_script: &str,
     with_global_tauri: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -800,8 +808,6 @@ impl<R: Runtime> WindowManager<R> {
       core_script: &'a str,
       #[raw]
       event_initialization_script: &'a str,
-      #[raw]
-      plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
       #[raw]
@@ -867,7 +873,6 @@ impl<R: Runtime> WindowManager<R> {
       .render_default(&Default::default())?
       .into_string(),
       event_initialization_script: &self.event_initialization_script(),
-      plugin_initialization_script,
       freeze_prototype,
       hotkeys: &hotkeys,
     }
@@ -897,6 +902,10 @@ impl<R: Runtime> WindowManager<R> {
       listeners = self.event_listeners_object_name()
     )
   }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.inner.invoke_key
+  }
 }
 
 #[cfg(test)]
@@ -918,6 +927,7 @@ mod test {
       Default::default(),
       Default::default(),
       (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
+      crate::generate_invoke_key().unwrap(),
     );
 
     #[cfg(custom_protocol)]

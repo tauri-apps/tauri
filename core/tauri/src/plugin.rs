@@ -607,14 +607,13 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Generates an initialization script from all plugins in the store.
-  pub(crate) fn initialization_script(&self) -> String {
+  pub(crate) fn initialization_script(&self) -> Vec<String> {
     self
       .store
       .values()
       .filter_map(|p| p.initialization_script())
-      .fold(String::new(), |acc, script| {
-        format!("{acc}\n(function () {{ {script} }})();")
-      })
+      .map(|script| format!("(function () {{ {script} }})();"))
+      .collect()
   }
 
   /// Runs the created hook for all plugins in the store.

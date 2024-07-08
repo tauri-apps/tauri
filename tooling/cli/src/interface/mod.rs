@@ -11,6 +11,7 @@ use std::{
 };
 
 use crate::helpers::config::Config;
+use anyhow::Context;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{Options, Rust as AppInterface};
@@ -57,6 +58,14 @@ pub trait AppSettings {
 
     if let Some(types) = package_types {
       settings_builder = settings_builder.package_types(types);
+    }
+
+    if config.tauri.bundle.use_local_tools_dir {
+      settings_builder = settings_builder.local_tools_directory(
+        rust::get_cargo_metadata()
+          .context("failed to get cargo metadata")?
+          .target_directory,
+      )
     }
 
     settings_builder.build().map_err(Into::into)

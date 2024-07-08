@@ -1,29 +1,26 @@
 [package]
 name = "tauri-build"
-version = "1.5.1"
-authors = ["Tauri Programme within The Commons Conservancy"]
-categories = ["gui", "web-programming"]
+version = "1.5.3"
+authors = [ "Tauri Programme within The Commons Conservancy" ]
+categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build"
 description = "build time code to pair with https://crates.io/crates/tauri"
 edition = "2021"
 rust-version = "1.60"
-exclude = ["CHANGELOG.md", "/target"]
+exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "doc_cfg"]
+rustdoc-args = [ "--cfg", "doc_cfg" ]
 
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }
-tauri-codegen = { version = "1.4.2", path = "../tauri-codegen", optional = true }
-tauri-utils = { version = "1.5.3", path = "../tauri-utils", features = [
-  "build",
-  "resources",
-] }
+tauri-codegen = { version = "1.4.4", path = "../tauri-codegen", optional = true }
+tauri-utils = { version = "1.6.0", path = "../tauri-utils", features = [ "build", "resources" ] }
 cargo_toml = "0.15"
 serde = "1"
 serde_json = "1"
@@ -35,7 +32,7 @@ walkdir = "2"
 dirs-next = "2"
 
 [features]
-codegen = ["tauri-codegen", "quote"]
-isolation = ["tauri-codegen/isolation", "tauri-utils/isolation"]
-config-json5 = ["tauri-utils/config-json5"]
-config-toml = ["tauri-utils/config-toml"]
+codegen = [ "tauri-codegen", "quote" ]
+isolation = [ "tauri-codegen/isolation", "tauri-utils/isolation" ]
+config-json5 = [ "tauri-utils/config-json5" ]
+config-toml = [ "tauri-utils/config-toml" ]

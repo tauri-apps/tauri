@@ -28,8 +28,8 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  UpdaterSettings, WindowsSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
+  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
@@ -46,7 +46,7 @@ mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Options {
   pub runner: Option<String>,
   pub debug: bool,
@@ -607,6 +607,7 @@ struct WorkspacePackageSettings {
   description: Option<String>,
   homepage: Option<String>,
   version: Option<String>,
+  license: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -629,6 +630,8 @@ pub struct CargoPackageSettings {
   pub homepage: Option<MaybeWorkspace<String>>,
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
+  /// the package's license.
+  pub license: Option<MaybeWorkspace<String>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -682,12 +685,16 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
+    let arch64bits =
+      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+
     tauri_config_to_bundle_settings(
       &self.manifest,
       features,
       config.tauri.bundle.clone(),
       config.tauri.system_tray.clone(),
       config.tauri.updater.clone(),
+      arch64bits,
     )
   }
 
@@ -738,10 +745,12 @@ impl AppSettings for RustAppSettings {
             BundleBinary::new(
               format!(
                 "{}{}",
-                config
-                  .package
-                  .binary_name()
-                  .unwrap_or_else(|| binary.name.clone()),
+                (if target_os == "windows" {
+                  config.package.product_name.clone()
+                } else {
+                  config.package.binary_name()
+                })
+                .unwrap_or_else(|| binary.name.clone()),
                 &binary_extension
               ),
               true,
@@ -780,17 +789,23 @@ impl AppSettings for RustAppSettings {
       match binaries.iter_mut().find(|bin| bin.name() == default_run) {
         Some(bin) => {
           if let Some(bin_name) = config.package.binary_name() {
-            bin.set_name(bin_name);
+            if target_os == "windows" {
+              bin.set_name(config.package.product_name.clone().unwrap());
+            } else {
+              bin.set_name(bin_name);
+            }
           }
         }
         None => {
           binaries.push(BundleBinary::new(
             format!(
               "{}{}",
-              config
-                .package
-                .binary_name()
-                .unwrap_or_else(|| default_run.to_string()),
+              (if target_os == "windows" {
+                config.package.product_name.clone()
+              } else {
+                config.package.binary_name()
+              })
+              .unwrap_or_else(|| default_run.to_string()),
               &binary_extension
             ),
             true,
@@ -896,6 +911,16 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
+      license: cargo_package_settings.license.clone().map(|license| {
+        license
+          .resolve("license", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.license.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `license` from workspace"))
+          })
+          .unwrap()
+      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -947,12 +972,12 @@ impl RustAppSettings {
 }
 
 #[derive(Deserialize)]
-struct CargoMetadata {
-  target_directory: PathBuf,
-  workspace_root: PathBuf,
+pub struct CargoMetadata {
+  pub target_directory: PathBuf,
+  pub workspace_root: PathBuf,
 }
 
-fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
+pub fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   let output = Command::new("cargo")
     .args(["metadata", "--no-deps", "--format-version", "1"])
     .current_dir(tauri_dir())
@@ -997,9 +1022,14 @@ pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
-    .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].as_str())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+    .position(|a| a.starts_with("--profile"))
+    .and_then(|i| {
+      options.args[i]
+        .split_once('=')
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| options.args.get(i + 1).map(|s| s.as_str()))
+    })
+    .unwrap_or(if options.debug { "dev" } else { "release" })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1016,6 +1046,7 @@ fn tauri_config_to_bundle_settings(
   config: crate::helpers::config::BundleConfig,
   system_tray_config: Option<crate::helpers::config::SystemTrayConfig>,
   updater_config: crate::helpers::config::UpdaterConfig,
+  arch64bits: bool,
 ) -> crate::Result<BundleSettings> {
   let enabled_features = manifest.all_enabled_features(features);
 
@@ -1036,22 +1067,39 @@ fn tauri_config_to_bundle_settings(
     .resources
     .unwrap_or(BundleResources::List(Vec::new()));
   #[allow(unused_mut)]
-  let mut depends = config.deb.depends.unwrap_or_default();
+  let mut depends_deb = config.deb.depends.unwrap_or_default();
+  #[allow(unused_mut)]
+  let mut depends_rpm = config.rpm.depends.unwrap_or_default();
 
   #[cfg(target_os = "linux")]
   {
+    let mut libs: Vec<String> = Vec::new();
+
     if let Some(system_tray_config) = &system_tray_config {
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
-        depends.push("libayatana-appindicator3-1".into());
+        depends_deb.push("libayatana-appindicator3-1".into());
+        libs.push("libayatana-appindicator3.so.1".into());
       } else {
-        depends.push("libappindicator3-1".into());
+        depends_deb.push("libappindicator3-1".into());
+        libs.push("libappindicator3.so.1".into());
       }
     }
 
     // provides `libwebkit2gtk-4.0.so.37` and all `4.0` versions have the -37 package name
-    depends.push("libwebkit2gtk-4.0-37".to_string());
-    depends.push("libgtk-3-0".to_string());
+    depends_deb.push("libwebkit2gtk-4.0-37".to_string());
+    depends_deb.push("libgtk-3-0".to_string());
+
+    libs.push("libwebkit2gtk-4.0.so.37".into());
+    libs.push("libgtk-3.so.0".into());
+
+    for lib in libs {
+      let mut requires = lib;
+      if arch64bits {
+        requires.push_str("()(64bit)");
+      }
+      depends_rpm.push(requires);
+    }
   }
 
   #[cfg(windows)]
@@ -1108,16 +1156,53 @@ fn tauri_config_to_bundle_settings(
     long_description: config.long_description,
     external_bin: config.external_bin,
     deb: DebianSettings {
-      depends: if depends.is_empty() {
+      depends: if depends_deb.is_empty() {
         None
       } else {
-        Some(depends)
+        Some(depends_deb)
       },
+      provides: config.deb.provides,
+      conflicts: config.deb.conflicts,
+      replaces: config.deb.replaces,
       files: config.deb.files,
       desktop_template: config.deb.desktop_template,
       section: config.deb.section,
       priority: config.deb.priority,
       changelog: config.deb.changelog,
+    },
+    rpm: RpmSettings {
+      license: config.rpm.license,
+      depends: if depends_rpm.is_empty() {
+        None
+      } else {
+        Some(depends_rpm)
+      },
+      provides: config.rpm.provides,
+      conflicts: config.rpm.conflicts,
+      obsoletes: config.rpm.obsoletes,
+      release: config.rpm.release,
+      epoch: config.rpm.epoch,
+      files: config.rpm.files,
+      desktop_template: config.rpm.desktop_template,
+    },
+    dmg: DmgSettings {
+      background: config.dmg.background,
+      window_position: config.dmg.window_position.map(|window_position| Position {
+        x: window_position.x,
+        y: window_position.y,
+      }),
+      window_size: Size {
+        width: config.dmg.window_size.width,
+        height: config.dmg.window_size.height,
+      },
+      app_position: Position {
+        x: config.dmg.app_position.x,
+        y: config.dmg.app_position.y,
+      },
+      application_folder_position: Position {
+        x: config.dmg.application_folder_position.x,
+        y: config.dmg.application_folder_position.y,
+      },
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
@@ -1151,6 +1236,7 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
+      sign_command: config.windows.sign_command,
     },
     updater: Some(UpdaterSettings {
       active: updater_config.active,
@@ -1165,4 +1251,70 @@ fn tauri_config_to_bundle_settings(
     }),
     ..Default::default()
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn parse_profile_from_opts() {
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "testing");
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile=customprofile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "customprofile");
+
+    let options = Options {
+      debug: true,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "dev");
+
+    let options = Options {
+      debug: false,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+  }
 }

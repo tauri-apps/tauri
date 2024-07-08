@@ -54,8 +54,9 @@ pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
                 "globalShortcut" => module = String::from("global-shortcut"),
                 _ => {}
               }
+              let plugin = format!("@tauri-apps/plugin-{module}");
               new_plugins.push(module);
-              format!("@tauri-apps/plugin-{module}")
+              plugin
             } else {
               return original;
             };

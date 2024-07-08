@@ -467,6 +467,11 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
+  /// Whether the codesign should enable [hardened runtime] (for executables) or not.
+  ///
+  /// [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>
+  #[serde(alias = "hardened-runtime", default = "default_true")]
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   #[serde(alias = "provider-short-name")]
   pub provider_short_name: Option<String>,
@@ -482,6 +487,7 @@ impl Default for MacConfig {
       exception_domain: None,
       license: None,
       signing_identity: None,
+      hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
     }

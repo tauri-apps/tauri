@@ -3,5 +3,5 @@
 "@tauri-apps/cli": "patch:feat"
 ---
 
-`tauri migrate` will migrate v1 plugins if detected.
+Migrate v1 plugin if detected when using `tauri migrate`.
 

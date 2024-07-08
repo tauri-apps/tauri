@@ -238,6 +238,14 @@
     mainEl.classList.add('dark:bg-darkPrimary')
   }
 
+  async function updatePosition() {
+    webviewMap[selectedWebview]?.setPosition(new PhysicalPosition(x, y))
+  }
+
+  async function updateSize() {
+    webviewMap[selectedWebview]?.setSize(new PhysicalSize(width, height))
+  }
+
   $: {
     webviewMap[selectedWebview]
     loadWindowPosition()
@@ -256,9 +264,6 @@
   $: webviewMap[selectedWebview]?.setContentProtected(contentProtected)
   $: webviewMap[selectedWebview]?.setFullscreen(fullscreen)
 
-  $: width &&
-    height &&
-    webviewMap[selectedWebview]?.setSize(new PhysicalSize(width, height))
   $: minWidth && minHeight
     ? webviewMap[selectedWebview]?.setMinSize(
         new LogicalSize(minWidth, minHeight)
@@ -269,9 +274,6 @@
         new LogicalSize(maxWidth, maxHeight)
       )
     : webviewMap[selectedWebview]?.setMaxSize(null)
-  $: x !== null &&
-    y !== null &&
-    webviewMap[selectedWebview]?.setPosition(new PhysicalPosition(x, y))
   $: webviewMap[selectedWebview]
     ?.scaleFactor()
     .then((factor) => (scaleFactor = factor))
@@ -403,22 +405,46 @@
       <div class="flex children:grow flex-col">
         <div>
           X
-          <input class="input" type="number" bind:value={x} min="0" />
+          <input
+            class="input"
+            type="number"
+            bind:value={x}
+            on:change={updatePosition}
+            min="0"
+          />
         </div>
         <div>
           Y
-          <input class="input" type="number" bind:value={y} min="0" />
+          <input
+            class="input"
+            type="number"
+            bind:value={y}
+            on:change={updatePosition}
+            min="0"
+          />
         </div>
       </div>
 
       <div class="flex children:grow flex-col">
         <div>
           Width
-          <input class="input" type="number" bind:value={width} min="400" />
+          <input
+            class="input"
+            type="number"
+            bind:value={width}
+            on:change={updateSize}
+            min="400"
+          />
         </div>
         <div>
           Height
-          <input class="input" type="number" bind:value={height} min="400" />
+          <input
+            class="input"
+            type="number"
+            bind:value={height}
+            on:change={updateSize}
+            min="400"
+          />
         </div>
       </div>
 
@@ -445,70 +471,58 @@
       </div>
     </div>
     <br />
-    <div>
-      <div class="flex">
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Inner Size
-          </div>
-          <span>Width: {innerSize.width}</span>
-          <span>Height: {innerSize.height}</span>
-        </div>
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Outer Size
-          </div>
-          <span>Width: {outerSize.width}</span>
-          <span>Height: {outerSize.height}</span>
-        </div>
+    <div class="grid grid-cols-2 gap-2 max-inline-2xl">
+      <div >
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">Inner Size</div>
+        <span>Width: {innerSize.width}</span>
+        <span>Height: {innerSize.height}</span>
       </div>
-      <div class="flex">
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Inner Logical Size
-          </div>
-          <span>Width: {innerSize.toLogical(scaleFactor).width}</span>
-          <span>Height: {innerSize.toLogical(scaleFactor).height}</span>
-        </div>
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Outer Logical Size
-          </div>
-          <span>Width: {outerSize.toLogical(scaleFactor).width}</span>
-          <span>Height: {outerSize.toLogical(scaleFactor).height}</span>
-        </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">Outer Size</div>
+        <span>Width: {outerSize.width}</span>
+        <span>Height: {outerSize.height}</span>
       </div>
-      <div class="flex">
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Inner Position
-          </div>
-          <span>x: {innerPosition.x}</span>
-          <span>y: {innerPosition.y}</span>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">
+          Inner Logical Size
         </div>
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Outer Position
-          </div>
-          <span>x: {outerPosition.x}</span>
-          <span>y: {outerPosition.y}</span>
-        </div>
+        <span>Width: {innerSize.toLogical(scaleFactor).width.toFixed(3)}</span>
+        <span>Height: {innerSize.toLogical(scaleFactor).height.toFixed(3)}</span>
       </div>
-      <div class="flex">
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Inner Logical Position
-          </div>
-          <span>x: {innerPosition.toLogical(scaleFactor).x}</span>
-          <span>y: {innerPosition.toLogical(scaleFactor).y}</span>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">
+          Outer Logical Size
         </div>
-        <div class="grow">
-          <div class="text-accent dark:text-darkAccent font-700">
-            Outer Logical Position
-          </div>
-          <span>x: {outerPosition.toLogical(scaleFactor).x}</span>
-          <span>y: {outerPosition.toLogical(scaleFactor).y}</span>
+        <span>Width: {outerSize.toLogical(scaleFactor).width.toFixed(3)}</span>
+        <span>Height: {outerSize.toLogical(scaleFactor).height.toFixed(3)}</span>
+      </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">
+          Inner Position
         </div>
+        <span>x: {innerPosition.x}</span>
+        <span>y: {innerPosition.y}</span>
+      </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">
+          Outer Position
+        </div>
+        <span>x: {outerPosition.x}</span>
+        <span>y: {outerPosition.y}</span>
+      </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">
+          Inner Logical Position
+        </div>
+        <span>x: {innerPosition.toLogical(scaleFactor).x.toFixed(3)}</span>
+        <span>y: {innerPosition.toLogical(scaleFactor).y.toFixed(3)}</span>
+      </div>
+      <div>
+        <div class="text-accent dark:text-darkAccent font-700 m-block-2">
+          Outer Logical Position
+        </div>
+        <span>x: {outerPosition.toLogical(scaleFactor).x.toFixed(3)}</span>
+        <span>y: {outerPosition.toLogical(scaleFactor).y.toFixed(3)}</span>
       </div>
     </div>
     <br />

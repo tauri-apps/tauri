@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.1-beta.9"
+version = "2.0.1-beta.17"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-beta.12", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-beta.18", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.9"
 flate2 = "1.0"
 anyhow = "1.0"
@@ -30,7 +30,7 @@ walkdir = "2"
 handlebars = "5.1"
 tempfile = "3.10.1"
 log = { version = "0.4.21", features = [ "kv" ] }
-dirs-next = "2.0"
+dirs = "5"
 os_pipe = "1"
 ureq = { version = "2.9.6", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }
@@ -44,7 +44,7 @@ dunce = "1"
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
 bitness = "0.4"
-winreg = "0.52"
+windows-registry = "0.1.1"
 glob = "0.3"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows-sys]

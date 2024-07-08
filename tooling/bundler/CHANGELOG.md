@@ -1,5 +1,119 @@
 # Changelog
 
+## \[2.0.1-beta.17]
+
+### New Features
+
+- [`fafc238f7`](https://www.github.com/tauri-apps/tauri/commit/fafc238f7288548975ca7d3e5207b925c0295c91) ([#9977](https://www.github.com/tauri-apps/tauri/pull/9977)) Add `bundle > homepage` option, if unset, it will fallback to `homepage` defined in `Cargo.toml`.
+- [`656a64974`](https://www.github.com/tauri-apps/tauri/commit/656a64974468bc207bf39537e02ae179bdee9b83) ([#9318](https://www.github.com/tauri-apps/tauri/pull/9318)) Added a configuration option to disable hardened runtime on macOS codesign.
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Add an option to disable NSIS compression `bundle > nsis > compression: "none"`
+- [`f21029b1b`](https://www.github.com/tauri-apps/tauri/commit/f21029b1bc25f5cb987e1a25de94c2d364e3e462) ([#9994](https://www.github.com/tauri-apps/tauri/pull/9994)) Add `bundle > nsis > startMenuFolder` option to customize start menu folder for NSIS installer
+
+### Enhancements
+
+- [`61bbd8373`](https://www.github.com/tauri-apps/tauri/commit/61bbd8373fc5fc7ada835aecc6d92610d214174a) ([#10117](https://www.github.com/tauri-apps/tauri/pull/10117)) Added a public property to the msi to tell the installer to launch the app after installation. This was added for the updater plugin.
+- [`ea78bf555`](https://www.github.com/tauri-apps/tauri/commit/ea78bf55587e5a8891e918bb9b560b3b2d75f445) ([#9915](https://www.github.com/tauri-apps/tauri/pull/9915)) For NSIS installer, migrate old shortcuts by setting the path only instead of re-creating a new one
+
+### Bug Fixes
+
+- [`b9e11a8b9`](https://www.github.com/tauri-apps/tauri/commit/b9e11a8b971f149d9b2a4262eed41670716c910c) ([#10036](https://www.github.com/tauri-apps/tauri/pull/10036)) Fixed an issue that caused the AppImage to segfault on start due to an incorrect .desktop file.
+- [`3fd84cb3c`](https://www.github.com/tauri-apps/tauri/commit/3fd84cb3c9aca7560ad6db8dbebda564308a3bfa) ([#10049](https://www.github.com/tauri-apps/tauri/pull/10049)) Fix encoding of NSIS license page when using a license file without a BOM.
+- [`de7da04a6`](https://www.github.com/tauri-apps/tauri/commit/de7da04a62dfd247633a03563afbc6f387cc0b82) ([#9974](https://www.github.com/tauri-apps/tauri/pull/9974)) Use the `productName` for `rpm` package name instead of main binary name, to be consistent with other bundle types.
+- [`faf282ca6`](https://www.github.com/tauri-apps/tauri/commit/faf282ca6ccf76c706db46f85aa207018dcf1ced) ([#10103](https://www.github.com/tauri-apps/tauri/pull/10103)) Fix NSIS uninstaller failing to clean up deep links
+- [`58821fc0e`](https://www.github.com/tauri-apps/tauri/commit/58821fc0e5bcca01f3702f4d31edf91d696f323d) ([#10086](https://www.github.com/tauri-apps/tauri/pull/10086)) Fix NSIS esitmated size unit being in kB (1000 bytes) not KB (1024 bytes)
+- [`6f469534b`](https://www.github.com/tauri-apps/tauri/commit/6f469534b075d901d978c940873f9480f0d10ee0) ([#9944](https://www.github.com/tauri-apps/tauri/pull/9944)) Fix NSIS installer runs the app as admin when using `perMachine` install mode
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+
+### Breaking Changes
+
+- [`f21029b1b`](https://www.github.com/tauri-apps/tauri/commit/f21029b1bc25f5cb987e1a25de94c2d364e3e462) ([#9994](https://www.github.com/tauri-apps/tauri/pull/9994)) Changed NSIS start menu shortcut to be placed directly inside `%AppData%\Microsoft\Windows\Start Menu\Programs` without an additional folder. You can get the old behavior by setting `bundle > nsis > startMenuFolder` to the same value as your `productName`
+- [`911242f09`](https://www.github.com/tauri-apps/tauri/commit/911242f0928e0a2add3595fa9de27850fb875fa6) ([#9883](https://www.github.com/tauri-apps/tauri/pull/9883)) Move updater target from `bundle > targets` to a separate field `bundle > createUpdaterArtifacts`
+
+## \[2.0.1-beta.16]
+
+### Bug Fixes
+
+- [`38df6ea1c`](https://www.github.com/tauri-apps/tauri/commit/38df6ea1c184307d294ee467c4b1c6a488b6e289)([#9909](https://www.github.com/tauri-apps/tauri/pull/9909)) Fix regression in NSIS where it created shortcuts that point to non-existent files.
+
+## \[2.0.1-beta.15]
+
+### New Features
+
+- [`5462e5cad`](https://www.github.com/tauri-apps/tauri/commit/5462e5cadc73c1b9083d852061d7c7f982cfbe53)([#9731](https://www.github.com/tauri-apps/tauri/pull/9731)) Add support for NSIS installer hooks providing a path to a `.nsh` file in `bundle > windows > nsis > installer_hooks` key in `tauri.conf.json`.
+- [`d6d3efbd1`](https://www.github.com/tauri-apps/tauri/commit/d6d3efbd125489cb46642b6d013cdc1eb7fc1a66)([#9865](https://www.github.com/tauri-apps/tauri/pull/9865)) On Windows, add option to specify a custom signing command to be used. This opens an endless possibilities, for example use `osslsigncode` on non-Windows or use hardware tokens and HSM or even using Azure Trusted Signing.
+
+### Enhancements
+
+- [`418d72d72`](https://www.github.com/tauri-apps/tauri/commit/418d72d72ded0e8238ae433ac60e5c6df19d947c)([#9559](https://www.github.com/tauri-apps/tauri/pull/9559)) Added `/UPDATE` flag for NSIS installer which will make the installer avoid deleting app data and re-creating shortcuts.
+
+### Bug Fixes
+
+- [`4754786aa`](https://www.github.com/tauri-apps/tauri/commit/4754786aa278a9e61f3973ce736f248b075e6bdc)([#9885](https://www.github.com/tauri-apps/tauri/pull/9885)) Fixed an issue causing the deep link feature to create invalid `Info.plist` values on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+
+### Breaking Changes
+
+- [`fc1543c65`](https://www.github.com/tauri-apps/tauri/commit/fc1543c65e736622bed93543dcc6504c43e200bb)([#9864](https://www.github.com/tauri-apps/tauri/pull/9864)) Removed `skip_webview_install` (`skipWebviewInstall`) option from config, which has been deprecated for a while now and planned to be removed in v2. Use `webview_install_mode` (`webviewInstallMode`) instead.
+
+## \[2.0.1-beta.14]
+
+### Enhancements
+
+- [`781d74799`](https://www.github.com/tauri-apps/tauri/commit/781d74799a543def205a255fa6fced19967c9872)([#9840](https://www.github.com/tauri-apps/tauri/pull/9840)) Reduced the compression level for rpm bundles from 9 (max) to 6. This has almost no effect on file size but should reduce build time by roughly 25%.
+
+### Bug Fixes
+
+- [`d0d974fa5`](https://www.github.com/tauri-apps/tauri/commit/d0d974fa5ef250b2a9219e4c6a2ca175f495e88f)([#9833](https://www.github.com/tauri-apps/tauri/pull/9833)) Fix NSIS installer deep links registration.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+
+## \[2.0.1-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+
+## \[2.0.1-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.1-beta.11]
+
+### Enhancements
+
+- [`128c58000`](https://www.github.com/tauri-apps/tauri/commit/128c5800091b7fda54bf7d157b785066281e0c74)([#9604](https://www.github.com/tauri-apps/tauri/pull/9604)) Update `nsis_tauri_utils` plugin to `0.3` and use the built-in NSIS download plugin, which reduces the NSIS installer size by 775kb.
+- [`68c39b8c0`](https://www.github.com/tauri-apps/tauri/commit/68c39b8c0ca79e2fa9e250fccdf966136af18c0e)([#9527](https://www.github.com/tauri-apps/tauri/pull/9527)) Use nsis's built-in COM plugin instead of `ApplicationID` plugin, this reduces the installer size by 100 KB, and also fixes pinned shortcut not getting cleaned up on uninstall.
+
+## \[2.0.1-beta.10]
+
+### New Features
+
+- [`05088b067`](https://www.github.com/tauri-apps/tauri/commit/05088b0679912ab352e54bfed02e0b97dd3f0f08)([#9494](https://www.github.com/tauri-apps/tauri/pull/9494)) Expose `{{long_description}}` variable for custom templates.
+
+### Enhancements
+
+- [`de7bcf3cc`](https://www.github.com/tauri-apps/tauri/commit/de7bcf3cc5cea6754491a9a4a8657ef3321c8398)([#9478](https://www.github.com/tauri-apps/tauri/pull/9478)) Append product name automatically when choosing a new install path using browse for nsis installer
+
+### Bug Fixes
+
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) The NSIS uninstaller now won't mindlessly try to remove the whole installation folder when the "Remove application data" checkbox was ticked. This prevents data loss when the app was installed in a folder which contained other files.
+- [`e64b8f1dc`](https://www.github.com/tauri-apps/tauri/commit/e64b8f1dcedad3222f46755bf6f30392a7ec2f90)([#9479](https://www.github.com/tauri-apps/tauri/pull/9479)) Fixed an issue causing the NSIS bundler to install resources incorrectly when the installer was built on a non-Windows system.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
 ## \[2.0.1-beta.9]
 
 ### New Features

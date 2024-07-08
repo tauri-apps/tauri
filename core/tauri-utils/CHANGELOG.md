@@ -1,5 +1,62 @@
 # Changelog
 
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`fafc238f7`](https://www.github.com/tauri-apps/tauri/commit/fafc238f7288548975ca7d3e5207b925c0295c91) ([#9977](https://www.github.com/tauri-apps/tauri/pull/9977)) Add `bundle > homepage` option, if unset, it will fallback to `homepage` defined in `Cargo.toml`.
+- [`656a64974`](https://www.github.com/tauri-apps/tauri/commit/656a64974468bc207bf39537e02ae179bdee9b83) ([#9318](https://www.github.com/tauri-apps/tauri/pull/9318)) Added a configuration option to disable hardened runtime on macOS codesign.
+- [`5b769948a`](https://www.github.com/tauri-apps/tauri/commit/5b769948a81cac333f64c870a470ba6525bd5cd3) ([#9959](https://www.github.com/tauri-apps/tauri/pull/9959)) Add `include_image` macro to help embedding instances of `Image` struct at compile-time in rust to be used with window, menu or tray icons.
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Add an option to disable NSIS compression `bundle > nsis > compression: "none"`
+- [`f21029b1b`](https://www.github.com/tauri-apps/tauri/commit/f21029b1bc25f5cb987e1a25de94c2d364e3e462) ([#9994](https://www.github.com/tauri-apps/tauri/pull/9994)) Add `bundle > nsis > startMenuFolder` option to customize start menu folder for NSIS installer
+
+### Enhancements
+
+- [`878198777`](https://www.github.com/tauri-apps/tauri/commit/878198777ef693efdbd394cb4be4b234e8a7ed3d) ([#9999](https://www.github.com/tauri-apps/tauri/pull/9999)) Mark ACL `permissions` array with unique items
+
+### Breaking Changes
+
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Changed `NsisSettings::compression` field from `Option<NsisCompression>` to just `NsisCompression`
+- [`911242f09`](https://www.github.com/tauri-apps/tauri/commit/911242f0928e0a2add3595fa9de27850fb875fa6) ([#9883](https://www.github.com/tauri-apps/tauri/pull/9883)) Move updater target from `bundle > targets` to a separate field `bundle > createUpdaterArtifacts`
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Changed `NsisConfig::compression` field from `Option<NsisCompression>` to just `NsisCompression`
+
+## \[2.0.0-beta.17]
+
+### New Features
+
+- [`8a1ae2dea`](https://www.github.com/tauri-apps/tauri/commit/8a1ae2deaf3086e531ada25b1627f900e2e421fb)([#9843](https://www.github.com/tauri-apps/tauri/pull/9843)) Added an option to use a Xcode project for the iOS plugin instead of a plain SwiftPM project.
+- [`5462e5cad`](https://www.github.com/tauri-apps/tauri/commit/5462e5cadc73c1b9083d852061d7c7f982cfbe53)([#9731](https://www.github.com/tauri-apps/tauri/pull/9731)) Add `installer_hooks` NSIS configuration field
+- [`d6d3efbd1`](https://www.github.com/tauri-apps/tauri/commit/d6d3efbd125489cb46642b6d013cdc1eb7fc1a66)([#9865](https://www.github.com/tauri-apps/tauri/pull/9865)) Add `sign_command` in `WindowsConfig`
+
+### Breaking Changes
+
+- [`fc1543c65`](https://www.github.com/tauri-apps/tauri/commit/fc1543c65e736622bed93543dcc6504c43e200bb)([#9864](https://www.github.com/tauri-apps/tauri/pull/9864)) Removed `skip_webview_install` (`skipWebviewInstall`) option from config, which has been deprecated for a while now and planned to be removed in v2. Use `webview_install_mode` (`webviewInstallMode`) instead.
+- [`265c23886`](https://www.github.com/tauri-apps/tauri/commit/265c23886ee5efbcc6d7188ff5c84cb32fa82aea)([#9375](https://www.github.com/tauri-apps/tauri/pull/9375)) Removed `Config::binary_name` and `PackageInfo::package_name`
+
+## \[2.0.0-beta.16]
+
+### Bug Fixes
+
+- [`be95d8d37`](https://www.github.com/tauri-apps/tauri/commit/be95d8d37c4b1a420c0d28a83b7efa40ab0b0ab5)([#9782](https://www.github.com/tauri-apps/tauri/pull/9782)) Fixes the `ToTokens` implementation for `Capability`.
+
+## \[2.0.0-beta.15]
+
+### Bug Fixes
+
+- [`a5205f179`](https://www.github.com/tauri-apps/tauri/commit/a5205f179e577cce5c05b710b597da8f4e1d0780)([#9691](https://www.github.com/tauri-apps/tauri/pull/9691)) Fixes the ToTokens implementation of the window configuration `proxy_url` field.
+
+## \[2.0.0-beta.14]
+
+### Bug Fixes
+
+- [`3fbc1703f`](https://www.github.com/tauri-apps/tauri/commit/3fbc1703f107dfb2c5a75e848805dcf60d449eb1)([#9676](https://www.github.com/tauri-apps/tauri/pull/9676)) Fixes `schemars` compilation issue.
+
+## \[2.0.0-beta.13]
+
+### Bug Fixes
+
+- [`a1e0e268f`](https://www.github.com/tauri-apps/tauri/commit/a1e0e268f02f7e2934bec48de4cac0dc00529a2b)([#9477](https://www.github.com/tauri-apps/tauri/pull/9477)) Replace `tauri:` prefix with `tauri-` for temporary permission file names
+
 ## \[2.0.0-beta.12]
 
 ### New Features

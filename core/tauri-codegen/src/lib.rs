@@ -13,14 +13,17 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
+pub use self::image::include_image_codegen;
 use std::{
   borrow::Cow,
   path::{Path, PathBuf},
 };
 pub use tauri_utils::config::{parse::ConfigError, Config};
+use tauri_utils::platform::Target;
 
 mod context;
 pub mod embedded_assets;
+mod image;
 #[doc(hidden)]
 pub mod vendor;
 
@@ -63,22 +66,28 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
     .map(ToOwned::to_owned)
     .ok_or_else(|| CodegenConfigError::Parent(path.into_owned()))?;
 
+  let target = std::env::var("TAURI_ENV_TARGET_TRIPLE")
+    .as_deref()
+    .map(Target::from_triple)
+    .unwrap_or_else(|_| Target::current());
+
   // in the future we may want to find a way to not need the TAURI_CONFIG env var so that
   // it is impossible for the content of two separate configs to get mixed up. The chances are
   // already unlikely unless the developer goes out of their way to run the cli on a different
   // project than the target crate.
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
-    tauri_utils::platform::Target::current(),
+    target,
     parent.clone(),
   )?)?;
+
   if let Ok(env) = std::env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value =
       serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?;
     json_patch::merge(&mut config, &merge_config);
   }
 
-  let old_cwd = std::env::current_dir().map_err(CodegenConfigError::CurrentDir)?;
   // Set working directory to where `tauri.config.json` is, so that relative paths in it are parsed correctly.
+  let old_cwd = std::env::current_dir().map_err(CodegenConfigError::CurrentDir)?;
   std::env::set_current_dir(parent.clone()).map_err(CodegenConfigError::CurrentDir)?;
 
   let config = serde_json::from_value(config)?;

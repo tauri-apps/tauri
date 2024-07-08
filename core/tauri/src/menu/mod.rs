@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(desktop)]
-
 //! Menu types and utilities.
 
 mod builders;
@@ -70,6 +68,7 @@ macro_rules! gen_wrappers {
     ),*
   ) => {
     $(
+      #[tauri_macros::default_runtime(crate::Wry, wry)]
       pub(crate) struct $inner<R: $crate::Runtime> {
         id: $crate::menu::MenuId,
         inner: ::std::option::Option<::muda::$type>,
@@ -447,13 +446,13 @@ pub enum NativeIcon {
   Slideshow,
   /// A badge for a `smart` item.
   SmartBadge,
-  /// Small green indicator, similar to iChat’s available image.
+  /// Small green indicator, similar to iChat's available image.
   StatusAvailable,
   /// Small clear indicator.
   StatusNone,
-  /// Small yellow indicator, similar to iChat’s idle image.
+  /// Small yellow indicator, similar to iChat's idle image.
   StatusPartiallyAvailable,
-  /// Small red indicator, similar to iChat’s unavailable image.
+  /// Small red indicator, similar to iChat's unavailable image.
   StatusUnavailable,
   /// A stop progress template image.
   StopProgressFreestanding,
@@ -760,5 +759,14 @@ pub(crate) mod sealed {
       window: crate::Window<R>,
       position: Option<P>,
     ) -> crate::Result<()>;
+  }
+}
+
+#[cfg(windows)]
+pub(crate) fn map_to_menu_theme(theme: tauri_utils::Theme) -> muda::MenuTheme {
+  match theme {
+    tauri_utils::Theme::Light => muda::MenuTheme::Light,
+    tauri_utils::Theme::Dark => muda::MenuTheme::Dark,
+    _ => muda::MenuTheme::Auto,
   }
 }

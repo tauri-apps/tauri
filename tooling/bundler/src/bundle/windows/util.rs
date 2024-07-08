@@ -132,6 +132,7 @@ pub fn verify_file_hash<P: AsRef<Path>>(
 }
 
 /// Extracts the zips from memory into a usable path.
+#[allow(dead_code)]
 pub fn extract_zip(data: &[u8], path: &Path) -> crate::Result<()> {
   let cursor = Cursor::new(data);
 

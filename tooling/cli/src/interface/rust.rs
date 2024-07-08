@@ -16,7 +16,6 @@ use std::{
 
 use anyhow::Context;
 use glob::glob;
-use heck::ToKebabCase;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
 use notify_debouncer_mini::new_debouncer;
@@ -25,7 +24,7 @@ use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
   MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
@@ -69,6 +68,19 @@ impl From<crate::build::Options> for Options {
   }
 }
 
+impl From<crate::bundle::Options> for Options {
+  fn from(options: crate::bundle::Options) -> Self {
+    Self {
+      debug: options.debug,
+      config: options.config,
+      target: options.target,
+      features: options.features,
+      no_watch: true,
+      ..Default::default()
+    }
+  }
+}
+
 impl From<crate::dev::Options> for Options {
   fn from(options: crate::dev::Options) -> Self {
     Self {
@@ -101,7 +113,6 @@ pub struct RustupTarget {
 pub struct Rust {
   app_settings: Arc<RustAppSettings>,
   config_features: Vec<String>,
-  product_name: Option<String>,
   available_targets: Option<Vec<RustupTarget>>,
 }
 
@@ -143,7 +154,6 @@ impl Interface for Rust {
     Ok(Self {
       app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
-      product_name: config.product_name.clone(),
       available_targets: None,
     })
   }
@@ -156,7 +166,6 @@ impl Interface for Rust {
     desktop::build(
       options,
       &self.app_settings,
-      self.product_name.clone(),
       &mut self.available_targets,
       self.config_features.clone(),
     )?;
@@ -483,7 +492,6 @@ impl Rust {
       &mut self.available_targets,
       self.config_features.clone(),
       &self.app_settings,
-      self.product_name.clone(),
       on_exit,
     )
     .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
@@ -659,7 +667,7 @@ struct BinarySettings {
 #[serde(rename_all = "kebab-case")]
 pub struct CargoPackageSettings {
   /// the package's name.
-  pub name: Option<String>,
+  pub name: String,
   /// the package's version.
   pub version: Option<MaybeWorkspace<String>>,
   /// the package's description.
@@ -799,11 +807,23 @@ impl AppSettings for RustAppSettings {
     let arch64bits =
       self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
 
-    let updater_settings = if let Some(updater_plugin_config) = config.plugins.0.get("updater") {
-      let updater: UpdaterConfig = serde_json::from_value(updater_plugin_config.clone())?;
+    let updater_enabled = config.bundle.create_updater_artifacts != Updater::Bool(false);
+    let v1_compatible = matches!(config.bundle.create_updater_artifacts, Updater::String(_));
+    let updater_settings = if updater_enabled {
+      let updater: UpdaterConfig = serde_json::from_value(
+        config
+          .plugins
+          .0
+          .get("updater")
+          .ok_or_else(|| {
+            anyhow::anyhow!("failed to get updater configuration: plugins > updater doesn't exist")
+          })?
+          .clone(),
+      )?;
       Some(UpdaterSettings {
+        v1_compatible,
         pubkey: updater.pubkey,
-        msiexec_args: Some(updater.windows.install_mode.msiexec_args()),
+        msiexec_args: updater.windows.install_mode.msiexec_args(),
       })
     } else {
       None
@@ -835,11 +855,7 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let bin_name = self
-      .cargo_package_settings()
-      .name
-      .clone()
-      .expect("Cargo manifest must have the `package.name` field");
+    let bin_name = self.cargo_package_settings().name.clone();
 
     let out_dir = self
       .out_dir(options.target.clone(), get_profile_dir(options).to_string())
@@ -855,7 +871,7 @@ impl AppSettings for RustAppSettings {
     Ok(out_dir.join(bin_name).with_extension(binary_extension))
   }
 
-  fn get_binaries(&self, config: &Config, target: &str) -> crate::Result<Vec<BundleBinary>> {
+  fn get_binaries(&self, target: &str) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
 
     let binary_extension: String = if target.contains("windows") {
@@ -865,35 +881,17 @@ impl AppSettings for RustAppSettings {
     }
     .into();
 
-    let target_os = target.split('-').nth(2).unwrap_or(std::env::consts::OS);
-
-    if let Some(bin) = &self.cargo_settings.bin {
+    if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
         .package_settings
         .default_run
         .clone()
         .unwrap_or_default();
-      for binary in bin {
-        binaries.push(
-          if Some(&binary.name) == self.cargo_package_settings.name.as_ref()
-            || binary.name.as_str() == default_run
-          {
-            BundleBinary::new(
-              format!(
-                "{}{}",
-                config.binary_name().unwrap_or_else(|| binary.name.clone()),
-                &binary_extension
-              ),
-              true,
-            )
-          } else {
-            BundleBinary::new(
-              format!("{}{}", binary.name.clone(), &binary_extension),
-              false,
-            )
-          }
-          .set_src_path(binary.path.clone()),
-        )
+      for bin in bins {
+        let name = format!("{}{}", bin.name, binary_extension);
+        let is_main =
+          bin.name == self.cargo_package_settings.name || bin.name.as_str() == default_run;
+        binaries.push(BundleBinary::with_path(name, is_main, bin.path.clone()))
       }
     }
 
@@ -917,38 +915,17 @@ impl AppSettings for RustAppSettings {
     }
 
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
-      match binaries.iter_mut().find(|bin| bin.name() == default_run) {
-        Some(bin) => {
-          if let Some(bin_name) = config.binary_name() {
-            bin.set_name(bin_name);
-          }
-        }
-        None => {
-          binaries.push(BundleBinary::new(
-            format!(
-              "{}{}",
-              config
-                .binary_name()
-                .unwrap_or_else(|| default_run.to_string()),
-              &binary_extension
-            ),
-            true,
-          ));
-        }
+      if !binaries.iter_mut().any(|bin| bin.name() == default_run) {
+        binaries.push(BundleBinary::new(
+          format!("{}{}", default_run, binary_extension),
+          true,
+        ));
       }
     }
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        if target_os == "linux" {
-          self.package_settings.product_name.to_kebab_case()
-        } else {
-          format!(
-            "{}{}",
-            self.package_settings.product_name.clone(),
-            &binary_extension
-          )
-        },
+        format!("{}{}", self.cargo_package_settings.name, &binary_extension),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),
@@ -1006,12 +983,10 @@ impl RustAppSettings {
       .and_then(|v| v.package);
 
     let package_settings = PackageSettings {
-      product_name: config.product_name.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .name
-          .clone()
-          .expect("Cargo manifest must have the `package.name` field")
-      }),
+      product_name: config
+        .product_name
+        .clone()
+        .unwrap_or_else(|| cargo_package_settings.name.clone()),
       version: config.version.clone().unwrap_or_else(|| {
         cargo_package_settings
           .version
@@ -1167,9 +1142,14 @@ pub fn get_profile(options: &Options) -> &str {
   options
     .args
     .iter()
-    .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].as_str())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+    .position(|a| a.starts_with("--profile"))
+    .and_then(|i| {
+      options.args[i]
+        .split_once('=')
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| options.args.get(i + 1).map(|s| s.as_str()))
+    })
+    .unwrap_or(if options.debug { "dev" } else { "release" })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1250,6 +1230,7 @@ fn tauri_config_to_bundle_settings(
       match tray_kind {
         pkgconfig_utils::TrayKind::Ayatana => {
           depends_deb.push("libayatana-appindicator3-1".into());
+          libs.push("libayatana-appindicator3.so.1".into());
         }
         pkgconfig_utils::TrayKind::Libappindicator => {
           depends_deb.push("libappindicator3-1".into());
@@ -1314,6 +1295,7 @@ fn tauri_config_to_bundle_settings(
   Ok(BundleSettings {
     identifier: Some(identifier),
     publisher: config.publisher,
+    homepage: config.homepage,
     icon: Some(config.icon),
     resources,
     resources_map,
@@ -1398,6 +1380,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {
@@ -1420,6 +1403,7 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
+      sign_command: config.windows.sign_command,
     },
     license: config.license.or_else(|| {
       settings
@@ -1488,5 +1472,71 @@ mod pkgconfig_utils {
     } else {
       None
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn parse_profile_from_opts() {
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "testing");
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile=customprofile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "customprofile");
+
+    let options = Options {
+      debug: true,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "dev");
+
+    let options = Options {
+      debug: false,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
   }
 }

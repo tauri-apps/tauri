@@ -235,6 +235,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    unimplemented!()
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     unimplemented!()
   }
@@ -267,6 +271,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
     todo!()
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
   }
 }
 
@@ -454,6 +462,10 @@ impl WindowBuilder for MockWindowBuilder {
   fn has_icon(&self) -> bool {
     false
   }
+
+  fn get_theme(&self) -> Option<Theme> {
+    None
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -498,13 +510,8 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
-  fn url(&self) -> Result<url::Url> {
-    self
-      .url
-      .lock()
-      .unwrap()
-      .parse()
-      .map_err(|_| Error::FailedToReceiveMessage)
+  fn url(&self) -> Result<String> {
+    Ok(self.url.lock().unwrap().clone())
   }
 
   fn bounds(&self) -> Result<tauri_runtime::Rect> {
@@ -648,6 +655,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   }
 
   fn primary_monitor(&self) -> Result<Option<Monitor>> {
+    Ok(None)
+  }
+
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>> {
     Ok(None)
   }
 
@@ -922,6 +933,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     Ok(())
   }
+
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -1055,6 +1070,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     unimplemented!()
   }
 
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor> {
+    unimplemented!()
+  }
+
   fn available_monitors(&self) -> Vec<Monitor> {
     unimplemented!()
   }
@@ -1151,5 +1170,9 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
     }
 
     callback(RunEvent::Exit);
+  }
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
+    Ok(PhysicalPosition::new(0.0, 0.0))
   }
 }

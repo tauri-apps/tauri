@@ -26,7 +26,6 @@ import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
   // imported for documentation purposes
-  // eslint-disable-next-line
   type EventTarget,
   emit,
   emitTo,
@@ -375,7 +374,7 @@ class Window {
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
       return Promise.resolve(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
+        // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
       })
@@ -673,7 +672,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native maximize button state.
+   * Gets the window's native maximize button state.
    *
    * #### Platform-specific
    *
@@ -694,7 +693,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native minimize button state.
+   * Gets the window's native minimize button state.
    *
    * #### Platform-specific
    *
@@ -715,7 +714,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native close button state.
+   * Gets the window's native close button state.
    *
    * #### Platform-specific
    *
@@ -1624,6 +1623,18 @@ class Window {
     })
   }
 
+  /**
+   * Sets the title bar style. **macOS only**.
+   *
+   * @since 2.0.0
+   */
+  async setTitleBarStyle(style: TitleBarStyle): Promise<void> {
+    return invoke('plugin:window|set_title_bar_style', {
+      label: this.label,
+      value: style
+    })
+  }
+
   // Listeners
 
   /**
@@ -1696,7 +1707,6 @@ class Window {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
@@ -1709,7 +1719,6 @@ class Window {
       })
     })
   }
-  /* eslint-enable */
 
   /**
    * Listen to a file drop event.
@@ -2241,6 +2250,23 @@ async function primaryMonitor(): Promise<Monitor | null> {
 }
 
 /**
+ * Returns the monitor that contains the given point. Returns `null` if can't find any.
+ * @example
+ * ```typescript
+ * import { monitorFromPoint } from '@tauri-apps/api/window';
+ * const monitor = monitorFromPoint();
+ * ```
+ *
+ * @since 1.0.0
+ */
+async function monitorFromPoint(x: number, y: number): Promise<Monitor | null> {
+  return invoke<Monitor | null>('plugin:window|monitor_from_point', {
+    x,
+    y
+  }).then(mapMonitor)
+}
+
+/**
  * Returns the list of all the monitors available on the system.
  * @example
  * ```typescript
@@ -2253,6 +2279,22 @@ async function primaryMonitor(): Promise<Monitor | null> {
 async function availableMonitors(): Promise<Monitor[]> {
   return invoke<Monitor[]>('plugin:window|available_monitors').then(
     (ms) => ms.map(mapMonitor) as Monitor[]
+  )
+}
+
+/**
+ * Get the cursor position relative to the top-left hand corner of the desktop.
+ *
+ * Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+ * If the user uses a desktop with multiple monitors,
+ * the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+ * or the top-left of the leftmost monitor on X11.
+ *
+ * The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+ */
+async function cursorPosition(): Promise<PhysicalPosition> {
+  return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
+    mapPhysicalPosition
   )
 }
 
@@ -2269,8 +2311,10 @@ export {
   Effect,
   EffectState,
   currentMonitor,
+  monitorFromPoint,
   primaryMonitor,
-  availableMonitors
+  availableMonitors,
+  cursorPosition
 }
 
 export type {

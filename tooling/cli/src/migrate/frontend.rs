@@ -40,7 +40,7 @@ pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
         let new_contents =
           tauri_api_import_regex.replace_all(&js_contents, |cap: &regex::bytes::Captures<'_>| {
             let module = cap.get(1).unwrap().as_bytes();
-            let module = String::from_utf8_lossy(module).to_string();
+            let mut module = String::from_utf8_lossy(module).to_string();
             let original = cap.get(0).unwrap().as_bytes();
             let original = String::from_utf8_lossy(original).to_string();
 
@@ -49,13 +49,13 @@ pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
             {
               format!("@tauri-apps/api/{renamed_to}")
             } else if PLUGINIFIED_MODULES.contains(&module.as_str()) {
-              let plugin = format!("@tauri-apps/plugin-{module}");
-              new_plugins.push(if module == "clipboard" {
-                "clipboard-manager".to_string()
-              } else {
-                module
-              });
-              plugin
+              match module.as_str() {
+                "clipboard" => module = String::from("clipboard-manager"),
+                "globalShortcut" => module = String::from("global-shortcut"),
+                _ => {}
+              }
+              new_plugins.push(module);
+              format!("@tauri-apps/plugin-{module}")
             } else {
               return original;
             };

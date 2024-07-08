@@ -1,5 +1,205 @@
 # Changelog
 
+## \[2.0.0-beta.23]
+
+### New Features
+
+- [`148f04887`](https://www.github.com/tauri-apps/tauri/commit/148f048871caee21498b236c058b8890f2b66cc7) ([#9979](https://www.github.com/tauri-apps/tauri/pull/9979)) Add `defaultWindowIcon` to the JS `app` module to retrieve the default window icon in JS.
+- [`5b769948a`](https://www.github.com/tauri-apps/tauri/commit/5b769948a81cac333f64c870a470ba6525bd5cd3) ([#9959](https://www.github.com/tauri-apps/tauri/pull/9959)) Add `include_image` macro to help embedding instances of `Image` struct at compile-time in rust to be used with window, menu or tray icons.
+- [`ddaabda36`](https://www.github.com/tauri-apps/tauri/commit/ddaabda365ed5dc0780925049473989cbd1d7ea3) ([#9922](https://www.github.com/tauri-apps/tauri/pull/9922)) Add `WebviewWindowBuilder::on_download`.
+
+### Enhancements
+
+- [`cee0bfcd6`](https://www.github.com/tauri-apps/tauri/commit/cee0bfcd6c03c2a6794abca8f4fde700f3f818ba) ([#10092](https://www.github.com/tauri-apps/tauri/pull/10092)) Make `tray:default` and `menu:default` include all tray and menu permissions
+
+### Bug Fixes
+
+- [`e93ca1df3`](https://www.github.com/tauri-apps/tauri/commit/e93ca1df3b3948647f501f9f958e894ade6a27fb) ([#10138](https://www.github.com/tauri-apps/tauri/pull/10138)) Fix `InvokeBody::deserialize` method deserialization for `InvokeBody::Raw` variant
+- [`e6e17ad1c`](https://www.github.com/tauri-apps/tauri/commit/e6e17ad1c8a6b53463946c407a354c250bd7e701) ([#9954](https://www.github.com/tauri-apps/tauri/pull/9954)) Add `std` feature to `raw-window-handle` crate so that using `default-features = false` on `tauri` crate can work
+- [`f29b78811`](https://www.github.com/tauri-apps/tauri/commit/f29b78811080bc8313459f34545152d939c62bf6) ([#9862](https://www.github.com/tauri-apps/tauri/pull/9862)) On Windows, handle resizing undecorated windows natively which improves performance and fixes a couple of annoyances with previous JS implementation:
+
+  - No more cursor flickering when moving the cursor across an edge.
+  - Can resize from top even when `data-tauri-drag-region` element exists there.
+  - Upon starting rezing, clicks don't go through elements behind it so no longer accidental clicks.
+
+### What's Changed
+
+- [`669b9c6b5`](https://www.github.com/tauri-apps/tauri/commit/669b9c6b5af791129b77ee440dacaa98288c906b) ([#9621](https://www.github.com/tauri-apps/tauri/pull/9621)) Set the gtk application to the identifier defined in `tauri.conf.json` to ensure the app uniqueness.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- Upgraded to `tauri-build@2.0.0-beta.18`
+- Upgraded to `tauri-macros@2.0.0-beta.18`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.19`
+- Upgraded to `tauri-runtime@2.0.0-beta.19`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+- [`d4c908cfb`](https://www.github.com/tauri-apps/tauri/commit/d4c908cfb8c567abdaf99b85f65f482ea81967e5) ([#10048](https://www.github.com/tauri-apps/tauri/pull/10048)) Update `windows` crate to version `0.57` and `webview2-com` crate to version `0.31`
+
+### Breaking Changes
+
+- [`3afe82894`](https://www.github.com/tauri-apps/tauri/commit/3afe8289407b53791e761764964a42207a7f7881) ([#10134](https://www.github.com/tauri-apps/tauri/pull/10134)) Changed `WebviewWindow::navigate` and `Webview::navigate` method signature to return a `Result`
+
+## \[2.0.0-beta.22]
+
+### Bug Fixes
+
+- [`dfd05441c`](https://www.github.com/tauri-apps/tauri/commit/dfd05441c761b1737e29794ab1f02e41e5d7cc12)([#9860](https://www.github.com/tauri-apps/tauri/pull/9860)) Revert adding `app-region: drag` to HTML elements with `data-tauri-drag-region` on Windows as it has a few issues:
+
+  - Doesn't allow right click, as it will always show the system context menu on right click.
+  - `data-tauri-drag-region` works only if the click was on an element that has it, this allows buttons in the custom titlebar to work, however `app-region: drag` will treat the whole area as a titlebar won't even allow clicks on buttons.
+
+## \[2.0.0-beta.21]
+
+### New Features
+
+- [`8a1ae2dea`](https://www.github.com/tauri-apps/tauri/commit/8a1ae2deaf3086e531ada25b1627f900e2e421fb)([#9843](https://www.github.com/tauri-apps/tauri/pull/9843)) Added an option to use a Xcode project for the iOS plugin instead of a plain SwiftPM project.
+
+### Bug Fixes
+
+- [`276c4b143`](https://www.github.com/tauri-apps/tauri/commit/276c4b14385e17cff15a2e5b57fd2a7cddef9f08)([#9832](https://www.github.com/tauri-apps/tauri/pull/9832)) On Windows, fix wrong menubar theme when window is using an explicit theme.
+- [`ccc3ea729`](https://www.github.com/tauri-apps/tauri/commit/ccc3ea729de205ef467f737f1feeb5bf02d9cd72)([#9646](https://www.github.com/tauri-apps/tauri/pull/9646)) Parse the correct platform `tauri.<platform>.conf.json` config file when building or developing for mobile.
+- [`aa55e0335`](https://www.github.com/tauri-apps/tauri/commit/aa55e033540cc77c3fb159b9230337d9dd33034e)([#9899](https://www.github.com/tauri-apps/tauri/pull/9899)) Set default window origin to `null`. Prevent window crash when loading `about:blank`.
+
+### What's Changed
+
+- [`9ac930380`](https://www.github.com/tauri-apps/tauri/commit/9ac930380a5df3fe700e68e75df8684d261ca292)([#9850](https://www.github.com/tauri-apps/tauri/pull/9850)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+- [`80aa50498`](https://www.github.com/tauri-apps/tauri/commit/80aa504987dd9cfa59aa5848c4d7960e1d58d0e6)([#9870](https://www.github.com/tauri-apps/tauri/pull/9870)) Updated Android target SDK to 34.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-beta.17`
+- Upgraded to `tauri-macros@2.0.0-beta.17`
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-runtime@2.0.0-beta.18`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.18`
+
+### Breaking Changes
+
+- [`e8f6eb59a`](https://www.github.com/tauri-apps/tauri/commit/e8f6eb59a5eaad26ae0314ac9e4c0061e6bd25fe)([#9552](https://www.github.com/tauri-apps/tauri/pull/9552)) Include binary path in `Env.args_os`, previously it was skipped.
+- [`1df5cdeb0`](https://www.github.com/tauri-apps/tauri/commit/1df5cdeb06f5464e0eec4055e21b7b7bc8739eed)([#9858](https://www.github.com/tauri-apps/tauri/pull/9858)) Use `tauri.conf.json > identifier` to set the `PackageName` in Android and `BundleId` in iOS.
+- [`aaecb6a72`](https://www.github.com/tauri-apps/tauri/commit/aaecb6a72e5d1462967cc910c2628999997742d0)([#9890](https://www.github.com/tauri-apps/tauri/pull/9890)) Renamed `dev` function to `is_dev` and marked it as `const fn`
+- [`c4410daa8`](https://www.github.com/tauri-apps/tauri/commit/c4410daa85616340e911c8243fdaa69e6906fd49)([#9777](https://www.github.com/tauri-apps/tauri/pull/9777)) This release contains breaking changes to the tray event structure because of newly added events:
+
+  - Changed `TrayIconEvent` to be an enum instead of a struct.
+  - Added `MouseButtonState` and `MouseButton` enums.
+  - Removed `ClickType` enum and replaced it with `MouseButton` enum.
+  - Added `MouseButtonState` enum.
+
+## \[2.0.0-beta.20]
+
+### New Features
+
+- [`ae6b13dfc`](https://www.github.com/tauri-apps/tauri/commit/ae6b13dfc0590dcaedbdb619c148072f072df050)([#9789](https://www.github.com/tauri-apps/tauri/pull/9789)) Add `app-region: drag` to HTML elements with `data-tauri-drag-region` on Windows, only WebView2 123+, which should fix dragging using touch.
+- [`ec0e092ec`](https://www.github.com/tauri-apps/tauri/commit/ec0e092ecd23b547c756c7476f23a0d95be6db80)([#9770](https://www.github.com/tauri-apps/tauri/pull/9770)) Add `App/AppHandle/Window/Webview/WebviewWindow::monitor_from_point(x, y)` getter to get the monitor from a given point.
+
+### Enhancements
+
+- [`5d20530c9`](https://www.github.com/tauri-apps/tauri/commit/5d20530c91495e548ecc9cb4369da09977a9a962)([#9842](https://www.github.com/tauri-apps/tauri/pull/9842)) Added `AppHandle::set_activation_policy` for macOS.
+
+### Bug Fixes
+
+- [`0b690f242`](https://www.github.com/tauri-apps/tauri/commit/0b690f242f3a9fdffc268ee66464151b3466d00b)([#9845](https://www.github.com/tauri-apps/tauri/pull/9845)) Export `tauri::UriSchemeResponder`.
+
+### Security fixes
+
+- [`d950ac123`](https://www.github.com/tauri-apps/tauri/commit/d950ac1239817d17324c035e5c4769ee71fc197d) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.17`
+- Upgraded to `tauri-runtime@2.0.0-beta.17`
+- Upgraded to `tauri-macros@2.0.0-beta.16`
+- Upgraded to `tauri-build@2.0.0-beta.16`
+
+## \[2.0.0-beta.19]
+
+### New Features
+
+- [`78839b6d2`](https://www.github.com/tauri-apps/tauri/commit/78839b6d2f1005a5e6e1a54b0305136bae0c3a7c)([#4865](https://www.github.com/tauri-apps/tauri/pull/4865)) Add `RunEvent::Reopen` for handle click on dock icon on macOS.
+
+### Bug Fixes
+
+- [`fedca7386`](https://www.github.com/tauri-apps/tauri/commit/fedca7386079fe639c629d6084cc13031150baf6)([#9720](https://www.github.com/tauri-apps/tauri/pull/9720)) Fix IPC tracing format incompatible between the custom protocol and the postMessage implementations.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.16`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.16`
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+- Upgraded to `tauri-macros@2.0.0-beta.15`
+- Upgraded to `tauri-build@2.0.0-beta.15`
+
+### Breaking Changes
+
+- [`783ef0f2d`](https://www.github.com/tauri-apps/tauri/commit/783ef0f2d331f520fa827c3112f36c0b519b9292)([#9647](https://www.github.com/tauri-apps/tauri/pull/9647)) Changed `WebviewWindow::url` and `Webview::url` getter to return a result.
+
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`07ff78c2d`](https://www.github.com/tauri-apps/tauri/commit/07ff78c2de74d3bd85328ce6536f8a858be89128)([#9615](https://www.github.com/tauri-apps/tauri/pull/9615)) Add `TrayIcon::rect` method to retrieve the tray icon rectangle
+
+### Enhancements
+
+- [`7f6d2698c`](https://www.github.com/tauri-apps/tauri/commit/7f6d2698c923019e4ce53f794e68aa7e56fd7b86)([#9631](https://www.github.com/tauri-apps/tauri/pull/9631)) Improve the error message that is shown when deserializing the Tauri plugin config.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `Menu`, `MenuItem`, `Submenu`, `PredefinedMenuItem`, `CheckMenuItem` and `IconMenuItem`.
+- [`8a71858eb`](https://www.github.com/tauri-apps/tauri/commit/8a71858eb2a9dc12a43d8fb56f803cdcae072b68)([#9630](https://www.github.com/tauri-apps/tauri/pull/9630)) Provide a default for the runtime generic on `TrayIcon`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-runtime@2.0.0-beta.15`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.15`
+- Upgraded to `tauri-macros@2.0.0-beta.14`
+- Upgraded to `tauri-build@2.0.0-beta.14`
+
+## \[2.0.0-beta.17]
+
+### New Features
+
+- [`12b4159bd`](https://www.github.com/tauri-apps/tauri/commit/12b4159bdaf6e1f8d7b58ed8ff96345fa69c2ef0)([#9392](https://www.github.com/tauri-apps/tauri/pull/9392)) Add `specta` feature flag which adds `specta` support for `AppHandle`, `State`, `Window`, `Webview` and `WebviewWindow` types.
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
+### Enhancements
+
+- [`eff778b8f`](https://www.github.com/tauri-apps/tauri/commit/eff778b8f0c675fda3f6f6d1041bc94afd765d1c)([#9571](https://www.github.com/tauri-apps/tauri/pull/9571)) Run each plugin initialization script on its own context so they do not interfere with each other or the Tauri init script.
+
+### Bug Fixes
+
+- [`6c047aee1`](https://www.github.com/tauri-apps/tauri/commit/6c047aee14fcae86b341e4fcefdbbf8f8378ac20)([#9612](https://www.github.com/tauri-apps/tauri/pull/9612)) Fix window white flashing on exit on Windows
+- [`98101cb17`](https://www.github.com/tauri-apps/tauri/commit/98101cb17fe49f305a75fcb4267f82d89f7ac0c3)([#9561](https://www.github.com/tauri-apps/tauri/pull/9561)) Allow any headers on the IPC custom protocol.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.14`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.14`
+
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`70c51371e`](https://www.github.com/tauri-apps/tauri/commit/70c51371e01184223312de3dba8030394a5a9406)([#9539](https://www.github.com/tauri-apps/tauri/pull/9539)) Add `window.isTauri` to check whether running inside tauri or not.
+
+### Bug Fixes
+
+- [`daf018e4f`](https://www.github.com/tauri-apps/tauri/commit/daf018e4f5d5f6dcde51c5de42d73ab15287ec7e)([#9505](https://www.github.com/tauri-apps/tauri/pull/9505)) Fix resource tables not cleaned up on exit which causes tray icon inside resource tables not cleaned up on exit
+- [`a07b51320`](https://www.github.com/tauri-apps/tauri/commit/a07b5132019faa7695c573a6610d2def0ff9c40a)([#9490](https://www.github.com/tauri-apps/tauri/pull/9490)) Add missing permission for `window.start_resize_dragging`
+- [`35b25f7e5`](https://www.github.com/tauri-apps/tauri/commit/35b25f7e5c0fe03af4ed3582e22a626863f035f0)([#9530](https://www.github.com/tauri-apps/tauri/pull/9530)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
+### What's Changed
+
+- [`005fe8ce1`](https://www.github.com/tauri-apps/tauri/commit/005fe8ce1ef71ea46a7d86f98bdf397ca81eb920)([#9410](https://www.github.com/tauri-apps/tauri/pull/9410)) Fix `closable`, `maximizable` and `minimizable` options not taking effect when used in tauri.conf.json or from JS APIs.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.13`
+- Upgraded to `tauri-build@2.0.0-beta.13`
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-runtime@2.0.0-beta.13`
+- Upgraded to `tauri-macros@2.0.0-beta.13`
+
 ## \[2.0.0-beta.15]
 
 ### New Features

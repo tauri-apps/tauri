@@ -151,10 +151,21 @@ pub enum Error {
   /// Failed to deserialize scope object.
   #[error("error deserializing scope: {0}")]
   CannotDeserializeScope(Box<dyn std::error::Error + Send + Sync>),
-
   /// Failed to get a raw handle.
   #[error(transparent)]
   RawHandleError(#[from] raw_window_handle::HandleError),
+  /// Something went wrong with the CSPRNG.
+  #[error("unable to generate random bytes from the operating system: {0}")]
+  Csprng(getrandom::Error),
+  /// Bad `__TAURI_INVOKE_KEY__` value received in ipc message.
+  #[error("bad __TAURI_INVOKE_KEY__ value received in ipc message")]
+  InvokeKey,
+}
+
+impl From<getrandom::Error> for Error {
+  fn from(value: getrandom::Error) -> Self {
+    Self::Csprng(value)
+  }
 }
 
 /// `Result<T, ::tauri::Error>`

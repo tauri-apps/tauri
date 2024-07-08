@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(all(desktop, feature = "tray-icon"))]
-
 //! Tray icon types and utilities.
 
 pub(crate) mod plugin;
@@ -19,69 +17,165 @@ use serde::Serialize;
 use std::path::Path;
 pub use tray_icon::TrayIconId;
 
-/// Describes the click type that triggered this tray icon event.
+/// Describes the mouse button state.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
-pub enum ClickType {
-  /// Left mouse click.
-  Left,
-  /// Right mouse click.
-  Right,
-  /// Double left mouse click.
-  Double,
+pub enum MouseButtonState {
+  /// Mouse button pressed.
+  Up,
+  /// Mouse button released.
+  Down,
 }
 
-impl Default for ClickType {
+impl Default for MouseButtonState {
+  fn default() -> Self {
+    Self::Up
+  }
+}
+
+impl From<tray_icon::MouseButtonState> for MouseButtonState {
+  fn from(value: tray_icon::MouseButtonState) -> Self {
+    match value {
+      tray_icon::MouseButtonState::Up => MouseButtonState::Up,
+      tray_icon::MouseButtonState::Down => MouseButtonState::Down,
+    }
+  }
+}
+
+/// Describes which mouse button triggered the event..
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Serialize)]
+pub enum MouseButton {
+  /// Left mouse button.
+  Left,
+  /// Right mouse button.
+  Right,
+  /// Middle mouse button.
+  Middle,
+}
+
+impl Default for MouseButton {
   fn default() -> Self {
     Self::Left
   }
 }
 
-/// Describes a tray event emitted when a tray icon is clicked
-///
-/// ## Platform-specific:
-///
-/// - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
-/// the icon will still show a context menu on right click.
-#[derive(Debug, Clone, Default, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TrayIconEvent {
-  /// Id of the tray icon which triggered this event.
-  pub id: TrayIconId,
-  /// Physical Position of the click the triggered this event.
-  pub position: PhysicalPosition<f64>,
-  /// Position and size of the tray icon
-  pub icon_rect: Rect,
-  /// The click type that triggered this event.
-  pub click_type: ClickType,
-}
-
-impl TrayIconEvent {
-  /// Returns the id of the tray icon which triggered this event.
-  pub fn id(&self) -> &TrayIconId {
-    &self.id
+impl From<tray_icon::MouseButton> for MouseButton {
+  fn from(value: tray_icon::MouseButton) -> Self {
+    match value {
+      tray_icon::MouseButton::Left => MouseButton::Left,
+      tray_icon::MouseButton::Right => MouseButton::Right,
+      tray_icon::MouseButton::Middle => MouseButton::Middle,
+    }
   }
 }
 
-impl From<tray_icon::ClickType> for ClickType {
-  fn from(value: tray_icon::ClickType) -> Self {
-    match value {
-      tray_icon::ClickType::Left => Self::Left,
-      tray_icon::ClickType::Right => Self::Right,
-      tray_icon::ClickType::Double => Self::Double,
+/// Describes a tray icon event.
+///
+/// ## Platform-specific:
+///
+/// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
+/// and will still show a context menu on right click.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[non_exhaustive]
+pub enum TrayIconEvent {
+  /// A click happened on the tray icon.
+  Click {
+    /// Id of the tray icon which triggered this event.
+    id: TrayIconId,
+    /// Physical Position of this event.
+    position: PhysicalPosition<f64>,
+    /// Position and size of the tray icon.
+    rect: Rect,
+    /// Mouse button that triggered this event.
+    button: MouseButton,
+    /// Mouse button state when this event was triggered.
+    button_state: MouseButtonState,
+  },
+  /// The mouse entered the tray icon region.
+  Enter {
+    /// Id of the tray icon which triggered this event.
+    id: TrayIconId,
+    /// Physical Position of this event.
+    position: PhysicalPosition<f64>,
+    /// Position and size of the tray icon.
+    rect: Rect,
+  },
+  /// The mouse moved over the tray icon region.
+  Move {
+    /// Id of the tray icon which triggered this event.
+    id: TrayIconId,
+    /// Physical Position of this event.
+    position: PhysicalPosition<f64>,
+    /// Position and size of the tray icon.
+    rect: Rect,
+  },
+  /// The mouse left the tray icon region.
+  Leave {
+    /// Id of the tray icon which triggered this event.
+    id: TrayIconId,
+    /// Physical Position of this event.
+    position: PhysicalPosition<f64>,
+    /// Position and size of the tray icon.
+    rect: Rect,
+  },
+}
+
+impl TrayIconEvent {
+  /// Get the id of the tray icon that triggered this event.
+  pub fn id(&self) -> &TrayIconId {
+    match self {
+      TrayIconEvent::Click { id, .. } => id,
+      TrayIconEvent::Enter { id, .. } => id,
+      TrayIconEvent::Move { id, .. } => id,
+      TrayIconEvent::Leave { id, .. } => id,
     }
   }
 }
 
 impl From<tray_icon::TrayIconEvent> for TrayIconEvent {
   fn from(value: tray_icon::TrayIconEvent) -> Self {
-    Self {
-      id: value.id,
-      position: value.position,
-      icon_rect: Rect {
-        position: value.icon_rect.position.into(),
-        size: value.icon_rect.size.into(),
+    match value {
+      tray_icon::TrayIconEvent::Click {
+        id,
+        position,
+        rect,
+        button,
+        button_state,
+      } => TrayIconEvent::Click {
+        id,
+        position,
+        rect: Rect {
+          position: rect.position.into(),
+          size: rect.size.into(),
+        },
+        button: button.into(),
+        button_state: button_state.into(),
       },
-      click_type: value.click_type.into(),
+      tray_icon::TrayIconEvent::Enter { id, position, rect } => TrayIconEvent::Enter {
+        id,
+        position,
+        rect: Rect {
+          position: rect.position.into(),
+          size: rect.size.into(),
+        },
+      },
+      tray_icon::TrayIconEvent::Move { id, position, rect } => TrayIconEvent::Move {
+        id,
+        position,
+        rect: Rect {
+          position: rect.position.into(),
+          size: rect.size.into(),
+        },
+      },
+      tray_icon::TrayIconEvent::Leave { id, position, rect } => TrayIconEvent::Leave {
+        id,
+        position,
+        rect: Rect {
+          position: rect.position.into(),
+          size: rect.size.into(),
+        },
+      },
+      _ => todo!(),
     }
   }
 }
@@ -243,6 +337,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
 /// This type is reference-counted and the icon is removed when the last instance is dropped.
 ///
 /// See [TrayIconBuilder] to construct this type.
+#[tauri_macros::default_runtime(crate::Wry, wry)]
 pub struct TrayIcon<R: Runtime> {
   id: TrayIconId,
   inner: tray_icon::TrayIcon,
@@ -419,6 +514,20 @@ impl<R: Runtime> TrayIcon<R> {
       .inner
       .set_show_menu_on_left_click(enable))?;
     Ok(())
+  }
+
+  /// Get tray icon rect.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported, always returns `None`.
+  pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
+    run_item_main_thread!(self, |self_: Self| self_.inner.rect().map(|rect| {
+      Rect {
+        position: rect.position.into(),
+        size: rect.size.into(),
+      }
+    }))
   }
 }
 

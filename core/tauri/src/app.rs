@@ -220,7 +220,7 @@ pub enum RunEvent {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
@@ -239,6 +239,14 @@ pub enum RunEvent {
   #[cfg(all(desktop, feature = "tray-icon"))]
   #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
   TrayIconEvent(crate::tray::TrayIconEvent),
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[non_exhaustive]
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
 }
 
 impl From<EventLoopMessage> for RunEvent {
@@ -321,7 +329,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
 impl<'de, R: Runtime> CommandArg<'de, R> for AppHandle<R> {
   /// Grabs the [`Window`] from the [`CommandItem`] and returns the associated [`AppHandle`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.webview().window().app_handle.clone())
+    Ok(command.message.webview().window().app_handle)
   }
 }
 
@@ -409,11 +417,31 @@ impl<R: Runtime> AppHandle<R> {
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`]..
-  pub fn restart(&self) {
+  pub fn restart(&self) -> ! {
     if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
       self.cleanup_before_exit();
     }
     crate::process::restart(&self.env());
+  }
+
+  /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .set_activation_policy(activation_policy)
+      .map_err(Into::into)
   }
 }
 
@@ -584,6 +612,15 @@ macro_rules! shared_app_impl {
         })
       }
 
+      /// Returns the monitor that contains the given point.
+      pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.monitor_from_point(x, y).map(Into::into),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.monitor_from_point(x, y).map(Into::into),
+          _ => unreachable!(),
+        })
+      }
+
       /// Returns the list of all the monitors available on the system.
       pub fn available_monitors(&self) -> crate::Result<Vec<Monitor>> {
         Ok(match self.runtime() {
@@ -596,6 +633,23 @@ macro_rules! shared_app_impl {
           _ => unreachable!(),
         })
       }
+
+      /// Get the cursor position relative to the top-left hand corner of the desktop.
+      ///
+      /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+      /// If the user uses a desktop with multiple monitors,
+      /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+      /// or the top-left of the leftmost monitor on X11.
+      ///
+      /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+      pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+        Ok(match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.cursor_position()?,
+          RuntimeOrDispatch::RuntimeHandle(h) => h.cursor_position()?,
+          _ => unreachable!(),
+        })
+      }
+
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()
@@ -755,10 +809,12 @@ macro_rules! shared_app_impl {
         #[cfg(all(desktop, feature = "tray-icon"))]
         self.manager.tray.icons.lock().unwrap().clear();
         self.manager.resources_table().clear();
-        for (_, window) in self.manager.windows().iter() {
+        for (_, window) in self.manager.windows() {
           window.resources_table().clear();
+          #[cfg(windows)]
+          let _ = window.hide();
         }
-        for (_, webview) in self.manager.webviews().iter() {
+        for (_, webview) in self.manager.webviews() {
           webview.resources_table().clear();
         }
       }
@@ -862,13 +918,12 @@ impl<R: Runtime> App<R> {
   ///
   /// # Examples
   /// ```,no_run
-  /// let mut app = tauri::Builder::default()
-  ///   // on an actual app, remove the string argument
-  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
-  ///   .expect("error while building tauri application");
-  /// #[cfg(target_os = "macos")]
-  /// app.set_activation_policy(tauri::ActivationPolicy::Accessory);
-  /// app.run(|_app_handle, _event| {});
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+  ///     Ok(())
+  ///   });
   /// ```
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -876,10 +931,7 @@ impl<R: Runtime> App<R> {
     if let Some(runtime) = self.runtime.as_mut() {
       runtime.set_activation_policy(activation_policy);
     } else {
-      let _ = self
-        .app_handle()
-        .runtime_handle
-        .set_activation_policy(activation_policy);
+      let _ = self.app_handle().set_activation_policy(activation_policy);
     }
   }
 
@@ -1012,7 +1064,7 @@ pub struct Builder<R: Runtime> {
   invoke_responder: Option<Arc<InvokeResponder<R>>>,
 
   /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
-  invoke_initialization_script: String,
+  pub(crate) invoke_initialization_script: String,
 
   /// The setup hook.
   setup: SetupHook<R>,
@@ -1045,17 +1097,20 @@ pub struct Builder<R: Runtime> {
 
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
+
+  pub(crate) invoke_key: String,
 }
 
 #[derive(Template)]
 #[default_template("../scripts/ipc-protocol.js")]
-struct InvokeInitializationScript<'a> {
+pub(crate) struct InvokeInitializationScript<'a> {
   /// The function that processes the IPC message.
   #[raw]
-  process_ipc_message_fn: &'a str,
-  os_name: &'a str,
-  fetch_channel_data_command: &'a str,
-  linux_ipc_protocol_enabled: bool,
+  pub(crate) process_ipc_message_fn: &'a str,
+  pub(crate) os_name: &'a str,
+  pub(crate) fetch_channel_data_command: &'a str,
+  pub(crate) linux_ipc_protocol_enabled: bool,
+  pub(crate) invoke_key: &'a str,
 }
 
 /// Make `Wry` the default `Runtime` for `Builder`
@@ -1078,6 +1133,8 @@ impl<R: Runtime> Default for Builder<R> {
 impl<R: Runtime> Builder<R> {
   /// Creates a new App builder.
   pub fn new() -> Self {
+    let invoke_key = crate::generate_invoke_key().unwrap();
+
     Self {
       #[cfg(any(windows, target_os = "linux"))]
       runtime_any_thread: false,
@@ -1089,6 +1146,7 @@ impl<R: Runtime> Builder<R> {
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
         linux_ipc_protocol_enabled: cfg!(feature = "linux-ipc-protocol"),
+        invoke_key: &invoke_key.clone(),
       }
       .render_default(&Default::default())
       .unwrap()
@@ -1103,6 +1161,7 @@ impl<R: Runtime> Builder<R> {
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
+      invoke_key,
     }
   }
 }
@@ -1570,9 +1629,19 @@ tauri::Builder::default()
       #[cfg(desktop)]
       HashMap::new(),
       (self.invoke_responder, self.invoke_initialization_script),
+      self.invoke_key,
     ));
 
     let runtime_args = RuntimeInitArgs {
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
+      app_id: Some(manager.config.identifier.clone()),
+
       #[cfg(windows)]
       msg_hook: {
         let menus = manager.menu.menus.clone();
@@ -1724,6 +1793,8 @@ tauri::Builder::default()
 }
 
 pub(crate) type UriSchemeResponderFn = Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>;
+
+/// Async uri scheme protocol responder.
 pub struct UriSchemeResponder(pub(crate) UriSchemeResponderFn);
 
 impl UriSchemeResponder {
@@ -1885,7 +1956,7 @@ fn on_event_loop_event<R: Runtime>(
           }
 
           for (id, listener) in &*app_handle.manager.tray.event_listeners.lock().unwrap() {
-            if e.id == id {
+            if e.id() == id {
               if let Some(tray) = app_handle.tray_by_id(id) {
                 listener(&tray, e.clone());
               }
@@ -1899,6 +1970,12 @@ fn on_event_loop_event<R: Runtime>(
     }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     RuntimeRunEvent::Opened { urls } => RunEvent::Opened { urls },
+    #[cfg(target_os = "macos")]
+    RuntimeRunEvent::Reopen {
+      has_visible_windows,
+    } => RunEvent::Reopen {
+      has_visible_windows,
+    },
     _ => unimplemented!(),
   };
 

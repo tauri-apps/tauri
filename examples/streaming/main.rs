@@ -6,7 +6,6 @@
 
 use http::{header::*, response::Builder as ResponseBuilder, status::StatusCode};
 use http_range::HttpRange;
-use std::sync::{Arc, Mutex};
 use std::{
   io::{Read, Seek, SeekFrom, Write},
   path::PathBuf,
@@ -36,13 +35,10 @@ fn main() {
     assert!(video_file.exists());
   }
 
-  // NOTE: for production use `rand` crate to generate a random boundary
-  let boundary_id = Arc::new(Mutex::new(0));
-
   tauri::Builder::default()
     .invoke_handler(tauri::generate_handler![video_uri])
     .register_asynchronous_uri_scheme_protocol("stream", move |_app, request, responder| {
-      match get_stream_response(request, &boundary_id) {
+      match get_stream_response(request) {
         Ok(http_response) => responder.respond(http_response),
         Err(e) => responder.respond(
           ResponseBuilder::new()
@@ -76,7 +72,6 @@ fn video_uri() -> (&'static str, std::path::PathBuf) {
 
 fn get_stream_response(
   request: http::Request<Vec<u8>>,
-  boundary_id: &Arc<Mutex<i32>>,
 ) -> Result<http::Response<Vec<u8>>, Box<dyn std::error::Error>> {
   // skip leading `/`
   let path = percent_encoding::percent_decode(request.uri().path()[1..].as_bytes())
@@ -171,9 +166,7 @@ fn get_stream_response(
         })
         .collect::<Vec<_>>();
 
-      let mut id = boundary_id.lock().unwrap();
-      *id += 1;
-      let boundary = format!("sadasq2e{id}");
+      let boundary = random_boundary();
       let boundary_sep = format!("\r\n--{boundary}\r\n");
       let boundary_closer = format!("\r\n--{boundary}\r\n");
 
@@ -214,4 +207,16 @@ fn get_stream_response(
   };
 
   http_response.map_err(Into::into)
+}
+
+fn random_boundary() -> String {
+  let mut x = [0_u8; 30];
+  getrandom::getrandom(&mut x).expect("failed to get random bytes");
+  (x[..])
+    .iter()
+    .map(|&x| format!("{x:x}"))
+    .fold(String::new(), |mut a, x| {
+      a.push_str(x.as_str());
+      a
+    })
 }

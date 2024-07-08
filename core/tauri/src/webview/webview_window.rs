@@ -44,6 +44,8 @@ use tauri_macros::default_runtime;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
+use super::DownloadEvent;
+
 /// A builder for [`WebviewWindow`], a window that hosts a single webview.
 pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
   window_builder: WindowBuilder<'a, R, M>,
@@ -260,6 +262,54 @@ tauri::Builder::default()
   )]
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
+    self
+  }
+
+  /// Set a download event handler to be notified when a download is requested or finished.
+  ///
+  /// Returning `false` prevents the download from happening on a [`DownloadEvent::Requested`] event.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  webview::{DownloadEvent, WebviewWindowBuilder},
+};
+
+tauri::Builder::default()
+  .setup(|app| {
+    let handle = app.handle();
+    let webview_window = WebviewWindowBuilder::new(handle, "core", WebviewUrl::App("index.html".into()))
+      .on_download(|webview, event| {
+        match event {
+          DownloadEvent::Requested { url, destination } => {
+            println!("downloading {}", url);
+            *destination = "/home/tauri/target/path".into();
+          }
+          DownloadEvent::Finished { url, path, success } => {
+            println!("downloaded {} to {:?}, success: {}", url, path, success);
+          }
+          _ => (),
+        }
+        // let the download start
+        true
+      })
+      .build()?;
+
+    Ok(())
+  });
+```
+  "####
+  )]
+  pub fn on_download<F: Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder.download_handler.replace(Arc::new(f));
     self
   }
 
@@ -1044,7 +1094,7 @@ tauri::Builder::default()
     menu: &M,
     position: P,
   ) -> crate::Result<()> {
-    menu.popup_at(self.webview.window().clone(), position)
+    menu.popup_at(self.webview.window(), position)
   }
 }
 
@@ -1099,17 +1149,17 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_focused()
   }
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   pub fn is_decorated(&self) -> crate::Result<bool> {
     self.webview.window().is_decorated()
   }
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   pub fn is_resizable(&self) -> crate::Result<bool> {
     self.webview.window().is_resizable()
   }
 
-  /// Gets the window’s native maximize button state
+  /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
   ///
@@ -1118,7 +1168,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_maximizable()
   }
 
-  /// Gets the window’s native minimize button state
+  /// Gets the window's native minimize button state
   ///
   /// ## Platform-specific
   ///
@@ -1127,7 +1177,7 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_minimizable()
   }
 
-  /// Gets the window’s native close button state
+  /// Gets the window's native close button state
   ///
   /// ## Platform-specific
   ///
@@ -1158,6 +1208,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Returns None if it can't identify any monitor as a primary one.
   pub fn primary_monitor(&self) -> crate::Result<Option<Monitor>> {
     self.webview.window().primary_monitor()
+  }
+
+  /// Returns the monitor that contains the given point.
+  pub fn monitor_from_point(&self, x: f64, y: f64) -> crate::Result<Option<Monitor>> {
+    self.webview.window().monitor_from_point(x, y)
   }
 
   /// Returns the list of all the monitors available on the system.
@@ -1218,6 +1273,22 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **macOS**: Only supported on macOS 10.14+.
   pub fn theme(&self) -> crate::Result<crate::Theme> {
     self.webview.window().theme()
+  }
+}
+
+/// Desktop window getters.
+#[cfg(desktop)]
+impl<R: Runtime> WebviewWindow<R> {
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.webview.cursor_position()
   }
 }
 
@@ -1415,12 +1486,12 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().set_size(size.into())
   }
 
-  /// Sets this window's minimum size.
+  /// Sets this window's minimum inner size.
   pub fn set_min_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_min_size(size.map(|s| s.into()))
   }
 
-  /// Sets this window's maximum size.
+  /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_max_size(size.map(|s| s.into()))
   }
@@ -1513,6 +1584,11 @@ impl<R: Runtime> WebviewWindow<R> {
   ) -> crate::Result<()> {
     self.webview.window().set_progress_bar(progress_state)
   }
+
+  /// Sets the title bar style. **macOS only**.
+  pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
+    self.webview.window().set_title_bar_style(style)
+  }
 }
 
 /// Desktop webview setters and actions.
@@ -1589,14 +1665,13 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
+  pub fn url(&self) -> crate::Result<Url> {
     self.webview.url()
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) {
-    self.webview.navigate(url);
+  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+    self.webview.navigate(url)
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

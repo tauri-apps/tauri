@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-beta.15"
+version = "2.0.0-beta.23"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -23,7 +23,8 @@ features = [
   "devtools",
   "image-png",
   "protocol-asset",
-  "test"
+  "test",
+  "specta"
 ]
 rustc-args = [ "--cfg", "docsrs" ]
 rustdoc-args = [ "--cfg", "docsrs" ]
@@ -50,19 +51,19 @@ uuid = { version = "1", features = [ "v4" ], optional = true }
 url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "2.0.0-beta.12", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-beta.12", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-beta.12", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.0.0-beta.12", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "2.0.0-beta.19", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-beta.18", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-beta.18", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "2.0.0-beta.19", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
 http = "1.1"
-dirs-next = "2.0"
+dirs = "5"
 percent-encoding = "2.3"
 reqwest = { version = "0.12", default-features = false, features = [ "json", "stream" ] }
 bytes = { version = "1", features = [ "serde" ] }
-raw-window-handle = "0.6"
+raw-window-handle = { version = "0.6", features = [ "std" ]}
 glob = "0.3"
 urlpattern = "0.2"
 mime = "0.3"
@@ -71,13 +72,14 @@ serialize-to-javascript = "=0.1.1"
 image = { version = "0.24", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
-heck = "0.4"
+heck = "0.5"
 log = "0.4"
 dunce = "1"
+specta = { version = "^2.0.0-rc.9", optional = true, default-features = false, features = [ "function" ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.13", default-features = false, features = [ "serde" ] }
-tray-icon = { version = "0.13", default-features = false, features = [ "serde" ], optional = true }
+muda = { version = "0.13.4", default-features = false, features = [ "serde" ] }
+tray-icon = { version = "0.14", default-features = false, features = [ "serde" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = [ "v3_24" ] }
@@ -90,12 +92,12 @@ objc = "0.2"
 window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.29"
+webview2-com = "0.31"
 window-vibrancy = "0.5"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.54"
-  features = [ "Win32_Foundation" ]
+  version = "0.57"
+  features = ["Win32_Foundation"]
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
@@ -107,9 +109,9 @@ cocoa = "0.25"
 swift-rs = "1.0.6"
 
 [build-dependencies]
-heck = "0.4"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-beta.12" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.12", features = [ "build" ] }
+heck = "0.5"
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-beta.18" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-beta.18", features = [ "build" ] }
 
 [dev-dependencies]
 proptest = "1.4.0"
@@ -156,6 +158,7 @@ config-toml = [ "tauri-macros/config-toml" ]
 image-ico = [ "image/ico" ]
 image-png = [ "image/png" ]
 macos-proxy = [ "tauri-runtime-wry/macos-proxy" ]
+specta = [ "dep:specta" ]
 
 [[example]]
 name = "commands"

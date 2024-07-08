@@ -6,15 +6,11 @@ use super::{
   get_profile_dir, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
 };
 use crate::CommandExt;
-use tauri_utils::display_path;
 
 use anyhow::Context;
-use heck::ToKebabCase;
 use shared_child::SharedChild;
 use std::{
-  fs::rename,
   io::{BufReader, ErrorKind, Write},
-  path::{Path, PathBuf},
   process::{Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -70,16 +66,9 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   app_settings: &RustAppSettings,
-  product_name: Option<String>,
   on_exit: F,
 ) -> crate::Result<impl DevProcess> {
   let bin_path = app_settings.app_binary_path(&options)?;
-  let target_os = options
-    .target
-    .as_ref()
-    .and_then(|t| t.split('-').nth(2))
-    .unwrap_or(std::env::consts::OS)
-    .replace("darwin", "macos");
 
   let manually_killed_app = Arc::new(AtomicBool::default());
   let manually_killed_app_ = manually_killed_app.clone();
@@ -92,8 +81,6 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     config_features,
     move |status, reason| {
       if status == Some(0) {
-        let bin_path =
-          rename_app(target_os, &bin_path, product_name.as_deref()).expect("failed to rename app");
         let mut app = Command::new(bin_path);
         app.stdout(os_pipe::dup_stdout().unwrap());
         app.stderr(os_pipe::dup_stderr().unwrap());
@@ -132,7 +119,6 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
 pub fn build(
   options: Options,
   app_settings: &RustAppSettings,
-  product_name: Option<String>,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
 ) -> crate::Result<()> {
@@ -144,13 +130,6 @@ pub fn build(
   if !std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "false") {
     std::env::set_var("STATIC_VCRUNTIME", "true");
   }
-
-  let target_os = options
-    .target
-    .as_ref()
-    .and_then(|t| t.split('-').nth(2))
-    .unwrap_or(std::env::consts::OS)
-    .replace("darwin", "macos");
 
   if options.target == Some("universal-apple-darwin".into()) {
     std::fs::create_dir_all(out_dir).with_context(|| "failed to create project out directory")?;
@@ -184,8 +163,6 @@ pub fn build(
     build_production_app(options, available_targets, config_features)
       .with_context(|| "failed to build app")?;
   }
-
-  rename_app(target_os, &bin_path, product_name.as_deref())?;
 
   Ok(())
 }
@@ -388,37 +365,6 @@ fn validate_target(
   Ok(())
 }
 
-fn rename_app(
-  target_os: String,
-  bin_path: &Path,
-  product_name: Option<&str>,
-) -> crate::Result<PathBuf> {
-  if let Some(product_name) = product_name {
-    let product_name = if target_os == "linux" {
-      product_name.to_kebab_case()
-    } else {
-      product_name.into()
-    };
-
-    let product_path = bin_path
-      .parent()
-      .unwrap()
-      .join(product_name)
-      .with_extension(bin_path.extension().unwrap_or_default());
-
-    rename(bin_path, &product_path).with_context(|| {
-      format!(
-        "failed to rename `{}` to `{}`",
-        display_path(bin_path),
-        display_path(&product_path),
-      )
-    })?;
-    Ok(product_path)
-  } else {
-    Ok(bin_path.to_path_buf())
-  }
-}
-
 // taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L514
 #[cfg(unix)]
 mod terminal {
@@ -446,12 +392,14 @@ mod terminal {
 #[cfg(windows)]
 mod terminal {
   use std::{cmp, mem, ptr};
-  use winapi::um::fileapi::*;
-  use winapi::um::handleapi::*;
-  use winapi::um::processenv::*;
-  use winapi::um::winbase::*;
-  use winapi::um::wincon::*;
-  use winapi::um::winnt::*;
+
+  use windows_sys::Win32::{
+    Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
+    Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
+    System::Console::{
+      GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+    },
+  };
 
   pub fn stderr_width() -> Option<usize> {
     unsafe {
@@ -465,13 +413,13 @@ mod terminal {
       // INVALID_HANDLE_VALUE. Use an alternate method which works
       // in that case as well.
       let h = CreateFileA(
-        "CONOUT$\0".as_ptr() as *const CHAR,
+        "CONOUT$\0".as_ptr(),
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         ptr::null_mut(),
         OPEN_EXISTING,
         0,
-        ptr::null_mut(),
+        0,
       );
       if h == INVALID_HANDLE_VALUE {
         return None;

@@ -1,5 +1,64 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- [`d4c908cfb`](https://www.github.com/tauri-apps/tauri/commit/d4c908cfb8c567abdaf99b85f65f482ea81967e5) ([#10048](https://www.github.com/tauri-apps/tauri/pull/10048)) Update `windows` crate to version `0.57` and `webview2-com` crate to version `0.31`
+
+## \[2.0.0-beta.18]
+
+### Enhancements
+
+- [`276c4b143`](https://www.github.com/tauri-apps/tauri/commit/276c4b14385e17cff15a2e5b57fd2a7cddef9f08)([#9832](https://www.github.com/tauri-apps/tauri/pull/9832)) Added `WindowBuilder::get_theme`.
+
+### What's Changed
+
+- [`9ac930380`](https://www.github.com/tauri-apps/tauri/commit/9ac930380a5df3fe700e68e75df8684d261ca292)([#9850](https://www.github.com/tauri-apps/tauri/pull/9850)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+
+## \[2.0.0-beta.17]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`78839b6d2`](https://www.github.com/tauri-apps/tauri/commit/78839b6d2f1005a5e6e1a54b0305136bae0c3a7c)([#4865](https://www.github.com/tauri-apps/tauri/pull/4865)) Add `RunEvent::Reopen` for handle click on dock icon on macOS.
+
+### What's Changed
+
+- [`783ef0f2d`](https://www.github.com/tauri-apps/tauri/commit/783ef0f2d331f520fa827c3112f36c0b519b9292)([#9647](https://www.github.com/tauri-apps/tauri/pull/9647)) Changed `WebviewDispatch::url` getter to return a result.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+
 ## \[2.0.0-beta.12]
 
 ### New Features

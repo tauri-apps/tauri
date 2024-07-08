@@ -38,7 +38,6 @@ pub fn command() -> Result<()> {
       tag: None,
       rev: None,
       features: features.map(ToString::to_string),
-      ..Default::default()
     })
     .with_context(|| format!("Could not add '{plugin}' plugin"))?
   }

@@ -113,15 +113,17 @@ pub fn command(options: Options) -> Result<()> {
         .then_some(r#"cfg(any(target_os = "android", target_os = "ios"))"#)
     });
 
-  cargo::install_one(cargo::CargoInstallOptions {
-    name: &crate_name,
-    version,
-    branch: options.branch.as_deref(),
-    rev: options.rev.as_deref(),
-    tag: options.tag.as_deref(),
-    cwd: Some(&tauri_dir),
-    target: target_str,
-  })?;
+  cargo::add_one(
+    &crate_name,
+    cargo::AddOneOptions {
+      version,
+      branch: options.branch.as_deref(),
+      rev: options.rev.as_deref(),
+      tag: options.tag.as_deref(),
+      cwd: Some(&tauri_dir),
+      target: target_str,
+    },
+  )?;
 
   if !metadata.rust_only {
     if let Some(manager) = std::panic::catch_unwind(app_dir)

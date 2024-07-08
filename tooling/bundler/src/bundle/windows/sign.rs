@@ -43,6 +43,7 @@ impl Settings {
   }
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 pub struct SignParams {
   pub product_name: String,
   pub digest_algorithm: String,

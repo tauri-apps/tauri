@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#![cfg(desktop)]
-
 //! Menu types and utilities.
 
 mod builders;

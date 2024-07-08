@@ -72,6 +72,7 @@
         "android": {
           "minSdkVersion": 24
         },
+        "createUpdaterArtifacts": false,
         "iOS": {},
         "icon": [],
         "linux": {
@@ -1126,7 +1127,8 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/PermissionEntry"
-          }
+          },
+          "uniqueItems": true
         },
         "platforms": {
           "description": "Limit which target platforms this capability applies to.\n\n By default all platforms are targeted.\n\n ## Example\n\n `[\"macOS\",\"windows\"]`",
@@ -1518,11 +1520,20 @@
           "type": "boolean"
         },
         "targets": {
-          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\", \"updater\"] or \"all\".",
+          "description": "The bundle targets, currently supports [\"deb\", \"rpm\", \"appimage\", \"nsis\", \"msi\", \"app\", \"dmg\"] or \"all\".",
           "default": "all",
           "allOf": [
             {
               "$ref": "#/definitions/BundleTarget"
+            }
+          ]
+        },
+        "createUpdaterArtifacts": {
+          "description": "Produce updaters and their signatures or not",
+          "default": false,
+          "allOf": [
+            {
+              "$ref": "#/definitions/Updater"
             }
           ]
         },
@@ -1793,12 +1804,34 @@
           "enum": [
             "dmg"
           ]
+        }
+      ]
+    },
+    "Updater": {
+      "description": "Updater type",
+      "anyOf": [
+        {
+          "description": "Generates lagacy zipped v1 compatible updaters",
+          "allOf": [
+            {
+              "$ref": "#/definitions/V1Compatible"
+            }
+          ]
         },
         {
-          "description": "The Tauri updater bundle.",
+          "description": "Produce updaters and their signatures or not",
+          "type": "boolean"
+        }
+      ]
+    },
+    "V1Compatible": {
+      "description": "Generates lagacy zipped v1 compatible updaters",
+      "oneOf": [
+        {
+          "description": "Generates lagacy zipped v1 compatible updaters",
           "type": "string",
           "enum": [
-            "updater"
+            "v1Compatible"
           ]
         }
       ]
@@ -2306,8 +2339,15 @@
             }
           ]
         },
+        "startMenuFolder": {
+          "description": "Set the folder name for the start menu shortcut.\n\n Use this option if you have multiple apps and wish to group their shortcuts under one folder\n or if you generally prefer to set your shortcut inside a folder.\n\n Examples:\n - `AwesomePublisher`, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\AwesomePublisher\\<your-app>.lnk`\n - If unset, shortcut will be placed in `%AppData%\\Microsoft\\Windows\\Start Menu\\Programs\\<your-app>.lnk`",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "installerHooks": {
-          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n\n ### Example\n\n ```nsh\n !define NSIS_HOOK_PREINSTALL \"NSIS_HOOK_PREINSTALL_\"\n !macro NSIS_HOOK_PREINSTALL_\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !define NSIS_HOOK_POSTINSTALL \"NSIS_HOOK_POSTINSTALL_\"\n !macro NSIS_HOOK_POSTINSTALL_\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !define NSIS_HOOK_PREUNINSTALL \"NSIS_HOOK_PREUNINSTALL_\"\n !macro NSIS_HOOK_PREUNINSTALL_\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !define NSIS_HOOK_POSTUNINSTALL \"NSIS_HOOK_POSTUNINSTALL_\"\n !macro NSIS_HOOK_POSTUNINSTALL_\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n\n ```",
+          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n\n ### Example\n\n ```nsh\n !macro NSIS_HOOK_PREINSTALL\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTINSTALL\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !macro NSIS_HOOK_PREUNINSTALL\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTUNINSTALL\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n\n ```",
           "type": [
             "string",
             "null"

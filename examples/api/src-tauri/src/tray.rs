@@ -4,6 +4,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
+  include_image,
   menu::{Menu, MenuItem},
   tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
   Manager, Runtime, WebviewUrl,
@@ -82,13 +83,11 @@ pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
       i @ "icon-1" | i @ "icon-2" => {
         if let Some(tray) = app.tray_by_id("tray-1") {
           let icon = if i == "icon-1" {
-            tauri::image::Image::from_bytes(include_bytes!("../../../.icons/icon.ico"))
+            include_image!("../../.icons/icon.ico")
           } else {
-            tauri::image::Image::from_bytes(include_bytes!(
-              "../../../.icons/tray_icon_with_transparency.png"
-            ))
+            include_image!("../../.icons/tray_icon_with_transparency.png")
           };
-          let _ = tray.set_icon(Some(icon.unwrap()));
+          let _ = tray.set_icon(Some(icon));
         }
       }
       "switch-menu" => {

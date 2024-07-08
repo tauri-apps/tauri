@@ -42,15 +42,13 @@ pub struct Bundle {
 
 /// Bundles the project.
 /// Returns the list of paths where the bundles can be found.
-pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
+pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   let mut package_types = settings.package_types()?;
   if package_types.is_empty() {
     return Ok(Vec::new());
   }
 
   package_types.sort_by_key(|a| a.priority());
-
-  let mut bundles: Vec<Bundle> = Vec::new();
 
   let target_os = settings
     .target()
@@ -68,7 +66,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     if settings.can_sign() {
       for bin in settings.binaries() {
         let bin_path = settings.binary_path(bin);
-        windows::sign::try_sign(&bin_path, &settings)?;
+        windows::sign::try_sign(&bin_path, settings)?;
       }
 
       // Sign the sidecar binaries
@@ -89,7 +87,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
           continue;
         }
 
-        windows::sign::try_sign(&path, &settings)?;
+        windows::sign::try_sign(&path, settings)?;
       }
     } else {
       #[cfg(not(target_os = "windows"))]
@@ -97,6 +95,7 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
+  let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {
@@ -105,13 +104,13 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
-      PackageType::MacOsBundle => macos::app::bundle_project(&settings)?,
+      PackageType::MacOsBundle => macos::app::bundle_project(settings)?,
       #[cfg(target_os = "macos")]
-      PackageType::IosBundle => macos::ios::bundle_project(&settings)?,
+      PackageType::IosBundle => macos::ios::bundle_project(settings)?,
       // dmg is dependent of MacOsBundle, we send our bundles to prevent rebuilding
       #[cfg(target_os = "macos")]
       PackageType::Dmg => {
-        let bundled = macos::dmg::bundle_project(&settings, &bundles)?;
+        let bundled = macos::dmg::bundle_project(settings, &bundles)?;
         if !bundled.app.is_empty() {
           bundles.push(Bundle {
             package_type: PackageType::MacOsBundle,
@@ -122,33 +121,15 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       }
 
       #[cfg(target_os = "windows")]
-      PackageType::WindowsMsi => windows::msi::bundle_project(&settings, false)?,
-      PackageType::Nsis => windows::nsis::bundle_project(&settings, false)?,
+      PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
+      PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]
-      PackageType::Deb => linux::debian::bundle_project(&settings)?,
+      PackageType::Deb => linux::debian::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
-      PackageType::Rpm => linux::rpm::bundle_project(&settings)?,
+      PackageType::Rpm => linux::rpm::bundle_project(settings)?,
       #[cfg(target_os = "linux")]
-      PackageType::AppImage => linux::appimage::bundle_project(&settings)?,
-
-      // updater is dependent of multiple bundle, we send our bundles to prevent rebuilding
-      PackageType::Updater => {
-        if !package_types.iter().any(|p| {
-          matches!(
-            p,
-            PackageType::AppImage
-              | PackageType::MacOsBundle
-              | PackageType::Dmg
-              | PackageType::Nsis
-              | PackageType::WindowsMsi
-          )
-        }) {
-          log::warn!("The updater bundle target exists but couldn't find any updater-enabled target, so the updater artifacts won't be generated. Please add one of these targets as well: app, appimage, msi, nsis");
-          continue;
-        }
-        updater_bundle::bundle_project(&settings, &bundles)?
-      }
+      PackageType::AppImage => linux::appimage::bundle_project(settings)?,
       _ => {
         log::warn!("ignoring {}", package_type.short_name());
         continue;
@@ -159,6 +140,33 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
       package_type: package_type.to_owned(),
       bundle_paths,
     });
+  }
+
+  if let Some(updater) = settings.updater() {
+    if package_types.iter().any(|package_type| {
+      if updater.v1_compatible {
+        matches!(
+          package_type,
+          PackageType::AppImage
+            | PackageType::MacOsBundle
+            | PackageType::Nsis
+            | PackageType::WindowsMsi
+        )
+      } else {
+        matches!(package_type, PackageType::MacOsBundle)
+      }
+    }) {
+      let updater_paths = updater_bundle::bundle_project(settings, &bundles)?;
+      bundles.push(Bundle {
+        package_type: PackageType::Updater,
+        bundle_paths: updater_paths,
+      });
+    } else {
+      log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
+    }
+    if updater.v1_compatible {
+      log::warn!("Legacy v1 compatible updater is deprecated and will be removed in v3, change bundle > createUpdaterArtifacts to true when your users are updated to the version with v2 updater plugin");
+    }
   }
 
   #[cfg(target_os = "macos")]
@@ -188,34 +196,37 @@ pub fn bundle_project(settings: Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
-  if !bundles.is_empty() {
-    let bundles_wo_updater = bundles
-      .iter()
-      .filter(|b| b.package_type != PackageType::Updater)
-      .collect::<Vec<_>>();
-    let pluralised = if bundles_wo_updater.len() == 1 {
-      "bundle"
-    } else {
-      "bundles"
-    };
-
-    let mut printable_paths = String::new();
-    for bundle in &bundles {
-      for path in &bundle.bundle_paths {
-        let mut note = "";
-        if bundle.package_type == crate::PackageType::Updater {
-          note = " (updater)";
-        }
-        writeln!(printable_paths, "        {}{}", display_path(path), note).unwrap();
-      }
-    }
-
-    log::info!(action = "Finished"; "{} {} at:\n{}", bundles_wo_updater.len(), pluralised, printable_paths);
-
-    Ok(bundles)
-  } else {
-    Err(anyhow::anyhow!("No bundles were built").into())
+  if bundles.is_empty() {
+    return Err(anyhow::anyhow!("No bundles were built").into());
   }
+
+  let bundles_wo_updater = bundles
+    .iter()
+    .filter(|b| b.package_type != PackageType::Updater)
+    .collect::<Vec<_>>();
+  let finished_bundles = bundles_wo_updater.len();
+  let pluralised = if finished_bundles == 1 {
+    "bundle"
+  } else {
+    "bundles"
+  };
+
+  let mut printable_paths = String::new();
+  for bundle in &bundles {
+    for path in &bundle.bundle_paths {
+      let note = if bundle.package_type == crate::PackageType::Updater {
+        " (updater)"
+      } else {
+        ""
+      };
+      let path_display = display_path(path);
+      writeln!(printable_paths, "        {path_display}{note}").unwrap();
+    }
+  }
+
+  log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
+
+  Ok(bundles)
 }
 
 /// Check to see if there are icons in the settings struct

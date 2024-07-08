@@ -1155,6 +1155,7 @@ pub enum WindowMessage {
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
   SetProgressBar(ProgressBarState),
+  SetTitleBarStyle(tauri_utils::TitleBarStyle),
   DragWindow,
   ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
@@ -1948,6 +1949,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       ),
     )
   }
+
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetTitleBarStyle(style)),
+    )
+  }
 }
 
 #[derive(Clone)]
@@ -2244,6 +2252,18 @@ impl<T: UserEvent> Wry<T> {
     if let Some(hook) = args.msg_hook {
       use tao::platform::windows::EventLoopBuilderExtWindows;
       event_loop_builder.with_msg_hook(hook);
+    }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    if let Some(app_id) = args.app_id {
+      use tao::platform::unix::EventLoopBuilderExtUnix;
+      event_loop_builder.with_app_id(app_id);
     }
     Self::init(event_loop_builder.build())
   }
@@ -2754,7 +2774,15 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::RequestUserAttention(request_type) => {
             window.request_user_attention(request_type.map(|r| r.0));
           }
-          WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+          WindowMessage::SetResizable(resizable) => {
+            window.set_resizable(resizable);
+            #[cfg(windows)]
+            if !resizable {
+              undecorated_resizing::detach_resize_handler(window.hwnd());
+            } else if !window.is_decorated() {
+              undecorated_resizing::attach_resize_handler(window.hwnd());
+            }
+          }
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
           WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
           WindowMessage::SetClosable(closable) => window.set_closable(closable),
@@ -2776,7 +2804,7 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(windows)]
             if decorations {
               undecorated_resizing::detach_resize_handler(window.hwnd());
-            } else {
+            } else if window.is_resizable() {
               undecorated_resizing::attach_resize_handler(window.hwnd());
             }
           }
@@ -2859,6 +2887,23 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetProgressBar(progress_state) => {
             window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
+          }
+          WindowMessage::SetTitleBarStyle(_style) => {
+            #[cfg(target_os = "macos")]
+            match _style {
+              TitleBarStyle::Visible => {
+                window.set_titlebar_transparent(false);
+                window.set_fullsize_content_view(true);
+              }
+              TitleBarStyle::Transparent => {
+                window.set_titlebar_transparent(true);
+                window.set_fullsize_content_view(false);
+              }
+              TitleBarStyle::Overlay => {
+                window.set_titlebar_transparent(true);
+                window.set_fullsize_content_view(true);
+              }
+            };
           }
         }
       }

@@ -307,17 +307,23 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       }
       if let Some(version) = &config.version {
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-      }
-      let format =
-        time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
-      if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
-        plist.insert("CFBundleVersion".into(), build_number.into());
+        plist.insert("CFBundleVersion".into(), version.clone().into());
       }
     }
 
+    let plist_file = out_dir.join("Info.plist");
+
+    let mut plist_contents = std::io::BufWriter::new(Vec::new());
     info_plist
-      .to_file_xml(out_dir.join("Info.plist"))
-      .expect("failed to write Info.plist");
+      .to_writer_xml(&mut plist_contents)
+      .expect("failed to serialize plist");
+    let plist_contents =
+      String::from_utf8_lossy(&plist_contents.into_inner().unwrap()).into_owned();
+
+    if plist_contents != std::fs::read_to_string(&plist_file).unwrap_or_default() {
+      std::fs::write(&plist_file, &plist_contents).expect("failed to write Info.plist");
+    }
+
     quote!({
       tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })

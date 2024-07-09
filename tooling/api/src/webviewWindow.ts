@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import {
-  getCurrent as getCurrentWebview,
+  getCurrentWebview,
   Webview,
   WebviewLabel,
   WebviewOptions
@@ -20,7 +20,7 @@ import type { DragDropEvent, DragDropPayload } from './webview'
  *
  * @since 2.0.0
  */
-function getCurrent(): WebviewWindow {
+function getCurrentWebviewWindow(): WebviewWindow {
   const webview = getCurrentWebview()
   // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
   return new WebviewWindow(webview.label, { skip: true })
@@ -120,7 +120,7 @@ class WebviewWindow {
    * Get an instance of `Webview` for the current webview.
    */
   static getCurrent(): WebviewWindow {
-    return getCurrent()
+    return getCurrentWebviewWindow()
   }
 
   /**
@@ -229,5 +229,5 @@ function applyMixins(
   })
 }
 
-export { WebviewWindow, getCurrent, getAll }
+export { WebviewWindow, getCurrentWebviewWindow, getAll }
 export type { DragDropEvent, DragDropPayload }

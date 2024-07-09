@@ -29,7 +29,7 @@ import {
   once
 } from './event'
 import { invoke } from './core'
-import { Window, getCurrent as getCurrentWindow } from './window'
+import { Window, getCurrentWindow } from './window'
 import { WebviewWindow } from './webviewWindow'
 
 interface DragDropPayload {
@@ -53,7 +53,7 @@ type DragDropEvent =
  *
  * @since 2.0.0
  */
-function getCurrent(): Webview {
+function getCurrentWebview(): Webview {
   return new Webview(
     getCurrentWindow(),
     window.__TAURI_INTERNALS__.metadata.currentWebview.label,
@@ -191,7 +191,7 @@ class Webview {
    * Get an instance of `Webview` for the current webview.
    */
   static getCurrent(): Webview {
-    return getCurrent()
+    return getCurrentWebview()
   }
 
   /**
@@ -677,6 +677,6 @@ interface WebviewOptions {
   zoomHotkeysEnabled?: boolean
 }
 
-export { Webview, getCurrent, getAll }
+export { Webview, getCurrentWebview, getAll }
 
 export type { DragDropEvent, DragDropPayload, WebviewOptions }

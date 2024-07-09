@@ -199,7 +199,7 @@ export interface ProgressBarState {
  *
  * @since 1.0.0
  */
-function getCurrent(): Window {
+function getCurrentWindow(): Window {
   return new Window(window.__TAURI_INTERNALS__.metadata.currentWindow.label, {
     // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
@@ -320,7 +320,7 @@ class Window {
    * Get an instance of `Window` for the current window.
    */
   static getCurrent(): Window {
-    return getCurrent()
+    return getCurrentWindow()
   }
 
   /**
@@ -2301,7 +2301,7 @@ async function cursorPosition(): Promise<PhysicalPosition> {
 export {
   Window,
   CloseRequestedEvent,
-  getCurrent,
+  getCurrentWindow,
   getAll,
   LogicalSize,
   PhysicalSize,

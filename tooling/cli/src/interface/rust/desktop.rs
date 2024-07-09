@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{
-  get_profile_dir, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
-};
+use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
 use crate::CommandExt;
 
 use anyhow::Context;
@@ -144,7 +142,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), get_profile_dir(&options).to_string())
+        .out_dir(&options)
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())

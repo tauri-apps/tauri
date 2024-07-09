@@ -858,7 +858,7 @@ impl AppSettings for RustAppSettings {
     let bin_name = self.cargo_package_settings().name.clone();
 
     let out_dir = self
-      .out_dir(&options)
+      .out_dir(options)
       .with_context(|| "failed to get project out directory")?;
 
     let binary_extension: String = if self.target_triple.contains("windows") {
@@ -1138,7 +1138,7 @@ fn get_target_dir(triple: Option<&str>, options: &Options) -> crate::Result<Path
 }
 
 #[inline]
-fn get_cargo_option<'a>(args: &'a Vec<String>, option: &'a str) -> Option<&'a str> {
+fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> {
   args
     .iter()
     .position(|a| a.starts_with(option))

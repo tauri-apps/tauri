@@ -1995,6 +1995,14 @@ tauri::Builder::default()
       })
       .map_err(Into::into)
   }
+  /// Sets the title bar style. **macOS only**.
+  pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_title_bar_style(style)
+      .map_err(Into::into)
+  }
 }
 
 /// Progress bar state.

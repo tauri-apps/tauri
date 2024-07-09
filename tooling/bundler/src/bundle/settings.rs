@@ -440,23 +440,19 @@ pub struct NsisSettings {
   /// ### Example
   ///
   /// ```nsh
-  /// !define NSIS_HOOK_PREINSTALL "NSIS_HOOK_PREINSTALL_"
-  /// !macro NSIS_HOOK_PREINSTALL_
+  /// !macro NSIS_HOOK_PREINSTALL
   ///   MessageBox MB_OK "PreInstall"
   /// !macroend
   ///
-  /// !define NSIS_HOOK_POSTINSTALL "NSIS_HOOK_POSTINSTALL_"
-  /// !macro NSIS_HOOK_POSTINSTALL_
+  /// !macro NSIS_HOOK_POSTINSTALL
   ///   MessageBox MB_OK "PostInstall"
   /// !macroend
   ///
-  /// !define NSIS_HOOK_PREUNINSTALL "NSIS_HOOK_PREUNINSTALL_"
-  /// !macro NSIS_HOOK_PREUNINSTALL_
+  /// !macro NSIS_HOOK_PREUNINSTALL
   ///   MessageBox MB_OK "PreUnInstall"
   /// !macroend
   ///
-  /// !define NSIS_HOOK_POSTUNINSTALL "NSIS_HOOK_POSTUNINSTALL_"
-  /// !macro NSIS_HOOK_POSTUNINSTALL_
+  /// !macro NSIS_HOOK_POSTUNINSTALL
   ///   MessageBox MB_OK "PostUninstall"
   /// !macroend
   /// ```

@@ -631,7 +631,7 @@ impl<R: Runtime> WebviewManager<R> {
         .webview_created(webview_);
     });
 
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", feature = "wry"))]
     {
       webview
         .with_webview(|w| {

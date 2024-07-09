@@ -501,8 +501,8 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, process, relaunch => "process:allow-restart");
   permissions!(allowlist, permissions, process, exit => "process:allow-exit");
   // clipboard
-  permissions!(allowlist, permissions, clipboard, read_text => "clipboard-manager:allow-read");
-  permissions!(allowlist, permissions, clipboard, write_text => "clipboard-manager:allow-write");
+  permissions!(allowlist, permissions, clipboard, read_text => "clipboard-manager:allow-read-text");
+  permissions!(allowlist, permissions, clipboard, write_text => "clipboard-manager:allow-write-text");
   // app
   permissions!(allowlist, permissions, app, show => "app:allow-app-show");
   permissions!(allowlist, permissions, app, hide => "app:allow-app-hide");

@@ -70,7 +70,7 @@ export default defineConfig({
     }
   ],
   shortcuts: {
-    btn: `select-none outline-none shadow-md p-2 rd-1 text-primaryText border-none font-400 dark:font-600
+    btn: `select-none outline-none cursor-pointer shadow-md p-2 rd-1 text-primaryText border-none font-400 dark:font-600
             bg-accent hover:bg-accentDarker active:bg-accentDarkest text-accentText
             dark:bg-darkAccent dark:hover:bg-darkAccentDarker dark:active:bg-darkAccentDarkest dark:text-darkAccentText`,
     nv: `decoration-none flex items-center relative p-2 rd-1 transition-all-125 ease
@@ -84,7 +84,8 @@ export default defineConfig({
     'note-red':
       'note bg-red-700/10 dark:bg-red-700/10 after:bg-red-700 dark:after:bg-red-700',
     input:
-      'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText'
+      'flex items-center outline-none border-none py-3 px-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText',
+    checkbox: 'accent-accent'
   },
   presets: [
     presetUno(),

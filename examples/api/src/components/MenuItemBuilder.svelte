@@ -127,6 +127,7 @@
         <input
             id="checkItemCheckedInput"
             type="checkbox"
+            class="checkbox"
             bind:checked={checked}
           />
         <label for="checkItemCheckedInput">Enabled</label>

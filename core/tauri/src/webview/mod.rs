@@ -1084,8 +1084,8 @@ fn main() {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) {
-    self.webview.dispatcher.navigate(url).unwrap();
+  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+    self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {

@@ -1442,6 +1442,32 @@ Denies the set_title command without any pre-configured scope.
 <tr>
 <td>
 
+`window:allow-set-title-bar-style`
+
+</td>
+<td>
+
+Enables the set_title_bar_style command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`window:deny-set-title-bar-style`
+
+</td>
+<td>
+
+Denies the set_title_bar_style command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `window:allow-set-visible-on-all-workspaces`
 
 </td>

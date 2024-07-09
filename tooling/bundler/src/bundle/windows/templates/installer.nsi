@@ -558,8 +558,8 @@ Section Install
 
   !insertmacro CheckIfAppIsRunning
 
-  !ifdef NSIS_HOOK_PREINSTALL
-    !insertmacro "${NSIS_HOOK_PREINSTALL}"
+  !ifmacrodef NSIS_HOOK_PREINSTALL
+    !insertmacro NSIS_HOOK_PREINSTALL
   !endif
 
   ; Copy main executable
@@ -614,7 +614,12 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
+
+  ${GetSize} "$INSTDIR" "/M=uninstall.exe /S=0K /G=0" $0 $1 $2
+  IntOp $0 $0 + ${ESTIMATEDSIZE}
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$0"
+
   !if "${HOMEPAGE}" != ""
     WriteRegStr SHCTX "${UNINSTKEY}" "URLInfoAbout" "${HOMEPAGE}"
     WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"
@@ -633,8 +638,8 @@ Section Install
     Call CreateOrUpdateDesktopShortcut
   ${EndIf}
 
-  !ifdef NSIS_HOOK_POSTINSTALL
-    !insertmacro "${NSIS_HOOK_POSTINSTALL}"
+  !ifmacrodef NSIS_HOOK_POSTINSTALL
+    !insertmacro NSIS_HOOK_POSTINSTALL
   !endif
 
   ; Auto close this page for passive mode
@@ -680,8 +685,8 @@ Section Uninstall
 
   !insertmacro CheckIfAppIsRunning
 
-  !ifdef NSIS_HOOK_PREUNINSTALL
-    !insertmacro "${NSIS_HOOK_PREUNINSTALL}"
+  !ifmacrodef NSIS_HOOK_PREUNINSTALL
+    !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
 
   ; Delete the app directory and its content from disk
@@ -771,8 +776,8 @@ Section Uninstall
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}
 
-  !ifdef NSIS_HOOK_POSTUNINSTALL
-    !insertmacro "${NSIS_HOOK_POSTUNINSTALL}"
+  !ifmacrodef NSIS_HOOK_POSTUNINSTALL
+    !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
 
   ; Auto close if passive mode

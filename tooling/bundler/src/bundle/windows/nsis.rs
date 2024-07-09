@@ -34,8 +34,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.0/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "E0FC0951DEB0E5E741DF10328F95C7D6678AD3AA";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.1/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "F99A50209A345185A84D34D0E5F66D04C75FF52F";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -673,17 +673,17 @@ fn generate_estimated_size(
   main: &PathBuf,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
-) -> crate::Result<String> {
+) -> crate::Result<u64> {
   let mut size = 0;
   for k in std::iter::once(main)
     .chain(binaries.keys())
     .chain(resources.keys())
   {
     size += std::fs::metadata(k)
-      .with_context(|| format!("when getting size of {}", main.display()))?
+      .with_context(|| format!("when getting size of {}", k.display()))?
       .len();
   }
-  Ok(format!("{:#08x}", size / 1024))
+  Ok(size / 1024)
 }
 
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {

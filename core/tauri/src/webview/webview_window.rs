@@ -1584,6 +1584,11 @@ impl<R: Runtime> WebviewWindow<R> {
   ) -> crate::Result<()> {
     self.webview.window().set_progress_bar(progress_state)
   }
+
+  /// Sets the title bar style. **macOS only**.
+  pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
+    self.webview.window().set_title_bar_style(style)
+  }
 }
 
 /// Desktop webview setters and actions.
@@ -1665,8 +1670,8 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) {
-    self.webview.navigate(url);
+  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+    self.webview.navigate(url)
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

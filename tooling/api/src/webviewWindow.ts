@@ -155,11 +155,11 @@ class WebviewWindow {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return listen(event, handler, {
       target: { kind: 'WebviewWindow', label: this.label }
@@ -185,13 +185,16 @@ class WebviewWindow {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  async once<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return once(event, handler, {
       target: { kind: 'WebviewWindow', label: this.label }

@@ -2,18 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import {
-  getCurrent as getCurrentWebview,
-  Webview,
-  WebviewLabel,
-  WebviewOptions
-} from './webview'
-import type { WindowOptions } from './window'
+import { getCurrent as getCurrentWebview, Webview } from './webview'
+import type { WindowOptions, WindowSizeConstraints } from './window'
 import { Window } from './window'
 import { listen, once } from './event'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { invoke } from './core'
-import type { DragDropEvent, DragDropPayload } from './webview'
+import type {
+  DragDropEvent,
+  DragDropPayload,
+  WebviewOptions,
+  WebviewLabel
+} from './webview'
 
 /**
  * Get an instance of `Webview` for the current webview window.
@@ -230,4 +230,11 @@ function applyMixins(
 }
 
 export { WebviewWindow, getCurrent, getAll }
-export type { DragDropEvent, DragDropPayload }
+export type {
+  DragDropEvent,
+  DragDropPayload,
+  WindowSizeConstraints,
+  WindowOptions,
+  WebviewOptions,
+  WebviewLabel
+}

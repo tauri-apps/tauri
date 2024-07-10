@@ -183,6 +183,13 @@ export enum ProgressBarStatus {
   Error = 'error'
 }
 
+export interface WindowSizeConstraints {
+  minWidth?: number
+  minHeight?: number
+  maxWidth?: number
+  maxHeight?: number
+}
+
 export interface ProgressBarState {
   /**
    * The progress bar status.
@@ -1305,6 +1312,35 @@ class Window {
     return invoke('plugin:window|set_max_size', {
       label: this.label,
       value
+    })
+  }
+
+  /**
+   * Sets the window inner size constraints.
+   * @example
+   * ```typescript
+   * import { getCurrent, PhysicalSize } from '@tauri-apps/api/window';
+   * await getCurrent().setSizeConstraints(new PhysicalSize(600, 500));
+   * ```
+   *
+   * @param size The logical or physical inner size, or `null` to unset the constraint.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSizeConstraints(
+    constraints: WindowSizeConstraints | null | undefined
+  ): Promise<void> {
+    function logical(pixel?: number): { Logical: number } | null {
+      return pixel ? { Logical: pixel } : null
+    }
+
+    return invoke('plugin:window|set_size_constraints', {
+      label: this.label,
+      value: {
+        minWidth: logical(constraints?.minWidth),
+        minHeight: logical(constraints?.minHeight),
+        maxWidth: logical(constraints?.maxWidth),
+        maxHeight: logical(constraints?.maxHeight)
+      }
     })
   }
 

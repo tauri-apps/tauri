@@ -788,6 +788,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(max_height) = config.max_height {
         constraints.max_height = Some(ToaLogicalUnit::new(max_height).into());
       }
+      dbg!(&constraints);
       window = window.inner_size_constraints(constraints);
 
       if let (Some(x), Some(y)) = (config.x, config.y) {
@@ -837,7 +838,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner.window.inner_size_constraints = tao::window::WindowSizeConstraints {
       min_width: constraints.min_width,
       min_height: constraints.min_height,
-      max_width: constraints.min_width,
+      max_width: constraints.max_width,
       max_height: constraints.max_height,
     };
     self

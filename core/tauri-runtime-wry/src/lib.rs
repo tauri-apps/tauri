@@ -788,7 +788,6 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(max_height) = config.max_height {
         constraints.max_height = Some(ToaLogicalUnit::new(max_height).into());
       }
-      dbg!(&constraints);
       window = window.inner_size_constraints(constraints);
 
       if let (Some(x), Some(y)) = (config.x, config.y) {

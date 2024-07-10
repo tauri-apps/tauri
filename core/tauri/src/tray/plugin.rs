@@ -17,7 +17,7 @@ use crate::{
   AppHandle, Manager, Runtime, Webview,
 };
 
-use super::TrayIcon;
+use super::{TrayIcon, TrayIconEvent};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,7 +36,7 @@ struct TrayIconOptions {
 fn new<R: Runtime>(
   webview: Webview<R>,
   options: TrayIconOptions,
-  handler: Channel,
+  handler: Channel<TrayIconEvent>,
 ) -> crate::Result<(ResourceId, String)> {
   let mut builder = if let Some(id) = options.id {
     TrayIconBuilder::<R>::with_id(id)

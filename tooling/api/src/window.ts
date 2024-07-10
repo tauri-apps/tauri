@@ -105,7 +105,7 @@ class CloseRequestedEvent {
   id: number
   private _preventDefault = false
 
-  constructor(event: Event<null>) {
+  constructor(event: Event<unknown>) {
     this.event = event.event
     this.id = event.id
   }
@@ -380,11 +380,11 @@ class Window {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return listen(event, handler, {
       target: { kind: 'Window', label: this.label }
@@ -410,13 +410,16 @@ class Window {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  async once<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return once(event, handler, {
       target: { kind: 'Window', label: this.label }
@@ -444,7 +447,7 @@ class Window {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emit(event, payload)
   }
@@ -467,7 +470,7 @@ class Window {
     payload?: unknown
   ): Promise<void> {
     if (localTauriEvents.includes(event)) {
-      // eslint-disable-next-line
+      // eslint-disable-next-line security/detect-object-injection
       for (const handler of this.listeners[event] || []) {
         handler({
           event,
@@ -475,7 +478,7 @@ class Window {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emitTo(target, event, payload)
   }
@@ -1746,13 +1749,13 @@ class Window {
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
-    return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    return this.listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async (event) => {
       const evt = new CloseRequestedEvent(event)
-      void Promise.resolve(handler(evt)).then(() => {
-        if (!evt.isPreventDefault()) {
-          return this.destroy()
-        }
-      })
+      await handler(evt)
+      if (!evt.isPreventDefault()) {
+        await this.destroy()
+      }
     })
   }
 

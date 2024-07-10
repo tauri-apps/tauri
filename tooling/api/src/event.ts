@@ -28,7 +28,7 @@ interface Event<T> {
   payload: T
 }
 
-type EventCallback<T> = (event: Event<T>) => void
+type EventCallback<T> = (event: Event<T>) => unknown
 
 type UnlistenFn = () => void
 
@@ -152,8 +152,9 @@ async function once<T>(
   return listen<T>(
     event,
     (eventData) => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      _unlisten(event, eventData.id)
       handler(eventData)
-      _unlisten(event, eventData.id).catch(() => {})
     },
     options
   )

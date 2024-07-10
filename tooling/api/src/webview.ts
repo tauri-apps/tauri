@@ -225,11 +225,11 @@ class Webview {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return listen(event, handler, {
       target: { kind: 'Webview', label: this.label }
@@ -255,13 +255,16 @@ class Webview {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  async once<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return once(event, handler, {
       target: { kind: 'Webview', label: this.label }
@@ -290,7 +293,7 @@ class Webview {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emit(event, payload)
   }
@@ -322,7 +325,7 @@ class Webview {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emitTo(target, event, payload)
   }
@@ -331,10 +334,10 @@ class Webview {
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
     if (localTauriEvents.includes(event)) {
       if (!(event in this.listeners)) {
-        // eslint-disable-next-line
+        // eslint-disable-next-line security/detect-object-injection
         this.listeners[event] = [handler]
       } else {
-        // eslint-disable-next-line
+        // eslint-disable-next-line security/detect-object-injection
         this.listeners[event].push(handler)
       }
       return true

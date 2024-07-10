@@ -28,7 +28,7 @@ interface Event<T> {
   payload: T
 }
 
-type EventCallback<T> = (event: Event<T>) => unknown
+type EventCallback<T> = (event: Event<T>) => void
 
 type UnlistenFn = () => void
 

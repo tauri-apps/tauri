@@ -1713,6 +1713,7 @@ class Window {
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     return this.listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async (event) => {
       const evt = new CloseRequestedEvent(event)
       await handler(evt)

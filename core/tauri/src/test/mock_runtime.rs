@@ -332,6 +332,13 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn inner_size_constraints(
+    self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
+    self
+  }
+
   fn resizable(self, resizable: bool) -> Self {
     self
   }
@@ -935,6 +942,13 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   }
 
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_size_constraints(
+    &self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Result<()> {
     Ok(())
   }
 }

@@ -1164,7 +1164,7 @@ pub enum WindowMessage {
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
-  SetSizConstraints(WindowSizeConstraints),
+  SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
   SetFocus,
@@ -1876,7 +1876,7 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       &self.context,
       Message::Window(
         self.window_id,
-        WindowMessage::SetSizConstraints(constraints),
+        WindowMessage::SetSizeConstraints(constraints),
       ),
     )
   }
@@ -2862,7 +2862,7 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::SetMaxSize(size) => {
             window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
           }
-          WindowMessage::SetSizConstraints(constraints) => {
+          WindowMessage::SetSizeConstraints(constraints) => {
             window.set_inner_size_constraints(tao::window::WindowSizeConstraints {
               min_width: constraints.min_width,
               min_height: constraints.min_height,

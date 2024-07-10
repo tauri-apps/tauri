@@ -1,12 +1,12 @@
 <script>
-  import { getCurrent } from '@tauri-apps/api/webviewWindow'
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
   import { invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
 
   export let onMessage
   let unlisten
 
-  const webviewWindow = getCurrent()
+  const webviewWindow = getCurrentWebviewWindow()
 
   onMount(async () => {
     unlisten = await webviewWindow.listen('rust-event', onMessage)

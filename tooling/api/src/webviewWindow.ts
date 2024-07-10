@@ -31,7 +31,7 @@ function getCurrentWebviewWindow(): WebviewWindow {
  *
  * @since 2.0.0
  */
-function getAll(): WebviewWindow[] {
+function getAllWebviewWindows(): WebviewWindow[] {
   return window.__TAURI_INTERNALS__.metadata.webviews.map(
     (w) =>
       new WebviewWindow(w.label, {
@@ -108,7 +108,8 @@ class WebviewWindow {
    * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
    */
   static getByLabel(label: string): WebviewWindow | null {
-    const webview = getAll().find((w) => w.label === label) ?? null
+    const webview =
+      getAllWebviewWindows().find((w) => w.label === label) ?? null
     if (webview) {
       // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(webview.label, { skip: true })
@@ -127,8 +128,10 @@ class WebviewWindow {
    * Gets a list of instances of `Webview` for all available webviews.
    */
   static getAll(): WebviewWindow[] {
-    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-    return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
+    return getAllWebviewWindows().map(
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+      (w) => new WebviewWindow(w.label, { skip: true })
+    )
   }
 
   /**
@@ -229,5 +232,5 @@ function applyMixins(
   })
 }
 
-export { WebviewWindow, getCurrentWebviewWindow, getAll }
+export { WebviewWindow, getCurrentWebviewWindow, getAllWebviewWindows }
 export type { DragDropEvent, DragDropPayload }

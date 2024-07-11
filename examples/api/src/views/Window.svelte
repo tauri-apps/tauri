@@ -303,46 +303,52 @@
 </script>
 
 <div class="flex flex-col children:grow gap-8 mb-4">
-  <div class="flex flex-wrap items-center gap-4 pb-6 border-b-solid border-b-1 border-code">
+  <div
+    class="flex flex-wrap items-center gap-4 pb-6 border-b-solid border-b-1 border-code"
+  >
     {#if Object.keys(webviewMap).length >= 1}
-    <div class="grid gap-1">
-      <h4 class="my-2">Selected Window</h4>
-      <select class="input" bind:value={selectedWebview}>
-        <option value="" disabled selected>Choose a window...</option>
-        {#each Object.keys(webviewMap) as label}
-          <option value={label}>{label}</option>
-        {/each}
-      </select>
-    </div>
+      <div class="grid gap-1">
+        <h4 class="my-2">Selected Window</h4>
+        <select class="input" bind:value={selectedWebview}>
+          <option value="" disabled selected>Choose a window...</option>
+          {#each Object.keys(webviewMap) as label}
+            <option value={label}>{label}</option>
+          {/each}
+        </select>
+      </div>
     {/if}
     <div class="grid gap-1">
       <h4 class="my-2">Create New Window</h4>
-      <div class="flex gap-2">
+      <form class="flex gap-2" on:submit|preventDefault={createWebviewWindow}>
         <input
           class="input"
           type="text"
           placeholder="New window label.."
           bind:value={newWebviewLabel}
         />
-        <button class="btn" on:click={createWebviewWindow}>Create</button>
-      </div>
+        <button class="btn" type="submit">Create</button>
+      </form>
     </div>
   </div>
   {#if webviewMap[selectedWebview]}
     <div class="flex flex-wrap items-center gap-4">
       <div class="grid gap-1 grow">
         <h4 class="my-2">Change Window Icon</h4>
-        <div class="flex gap-2">
-          <input class="input flex-1 min-w-10" placeholder="Window icon path" bind:value={windowIconPath} />
-          <button class="btn" on:click={changeIcon}>Change</button>
-        </div>
+        <form class="flex gap-2" on:submit|preventDefault={changeIcon}>
+          <input
+            class="input flex-1 min-w-10"
+            placeholder="Window icon path"
+            bind:value={windowIconPath}
+          />
+          <button class="btn" type="submit">Change</button>
+        </form>
       </div>
       <div class="grid gap-1 grow">
         <h4 class="my-2">Set Window Title</h4>
-        <div class="flex gap-2">
-          <input class="input flex-1 min-w-10" bind:value={windowTitle}/>
-          <button class="btn" on:click={setTitle_}>Set</button>
-        </div>
+        <form class="flex gap-2" on:submit|preventDefault={setTitle_}>
+          <input class="input flex-1 min-w-10" bind:value={windowTitle} />
+          <button class="btn" type="submit">Set</button>
+        </form>
       </div>
     </div>
     <div class="flex flex-wrap gap-2">
@@ -404,7 +410,11 @@
         Always on bottom
       </label>
       <label>
-        <input type="checkbox" class="checkbox" bind:checked={contentProtected} />
+        <input
+          type="checkbox"
+          class="checkbox"
+          bind:checked={contentProtected}
+        />
         Content protected
       </label>
       <label>
@@ -548,11 +558,19 @@
           Grab
         </label>
         <label>
-          <input type="checkbox" class="checkbox" bind:checked={cursorVisible} />
+          <input
+            type="checkbox"
+            class="checkbox"
+            bind:checked={cursorVisible}
+          />
           Visible
         </label>
         <label>
-          <input type="checkbox" class="checkbox" bind:checked={cursorIgnoreEvents} />
+          <input
+            type="checkbox"
+            class="checkbox"
+            bind:checked={cursorIgnoreEvents}
+          />
           Ignore events
         </label>
       </div>
@@ -612,9 +630,7 @@
             Applied effects: {effects.length ? effects.join(', ') : 'None'}
           </div>
 
-          <button class="btn" on:click={clearEffects}
-            >Clear</button
-          >
+          <button class="btn" on:click={clearEffects}>Clear</button>
         </div>
 
         <div class="flex gap-2">
@@ -675,9 +691,7 @@
         </div>
 
         <div class="flex">
-          <button class="btn" on:click={addEffect}
-            >Add</button
-          >
+          <button class="btn" on:click={addEffect}>Add</button>
         </div>
       </div>
     {/if}

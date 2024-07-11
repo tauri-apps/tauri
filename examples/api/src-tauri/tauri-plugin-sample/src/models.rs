@@ -6,10 +6,16 @@ use serde::{Deserialize, Serialize};
 use tauri::ipc::Channel;
 
 #[derive(Serialize)]
+pub struct Event {
+  pub kind: String,
+  pub value: Option<String>
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PingRequest {
   pub value: Option<String>,
-  #[serde(rename = "onEvent")]
-  pub on_event: Channel,
+  pub on_event: Channel<Event>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]

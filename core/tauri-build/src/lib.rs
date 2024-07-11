@@ -168,11 +168,8 @@ fn copy_framework_from(src_dir: &Path, framework: &str, dest_dir: &Path) -> Resu
 
 // Copies the macOS application bundle frameworks to the target folder
 fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
-  std::fs::create_dir_all(dest_dir).with_context(|| {
-    format!(
-      "Failed to create frameworks output directory at {dest_dir:?}"
-    )
-  })?;
+  std::fs::create_dir_all(dest_dir)
+    .with_context(|| format!("Failed to create frameworks output directory at {dest_dir:?}"))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);

@@ -111,11 +111,11 @@ export function mockIPC(
  *
  * ```js
  * import { mockWindows } from "@tauri-apps/api/mocks";
- * import { getCurrent } from "@tauri-apps/api/window";
+ * import { getCurrentWindow } from "@tauri-apps/api/window";
  *
  * mockWindows("main", "second", "third");
  *
- * const win = getCurrent();
+ * const win = getCurrentWindow();
  *
  * win.label // "main"
  * ```

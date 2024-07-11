@@ -50,7 +50,7 @@ const _: () = {
   struct Channel<TSend>(std::marker::PhantomData<TSend>);
 };
 
-impl Serialize for Channel {
+impl<TSend> Serialize for Channel<TSend> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: Serializer,

@@ -319,48 +319,36 @@
     {/if}
     <div class="grid gap-1">
       <h4 class="my-2">Create New Window</h4>
-      <div class="flex gap-2">
+      <form class="flex gap-2" on:submit|preventDefault={createWebviewWindow}>
         <input
           class="input"
           type="text"
           placeholder="New window label.."
           bind:value={newWebviewLabel}
-          on:keydown={(e) => {
-            if (e.key === 'Enter') createWebviewWindow()
-          }}
         />
-        <button class="btn" on:click={createWebviewWindow}>Create</button>
-      </div>
+        <button class="btn" type="submit">Create</button>
+      </form>
     </div>
   </div>
   {#if webviewMap[selectedWebview]}
     <div class="flex flex-wrap items-center gap-4">
       <div class="grid gap-1 grow">
         <h4 class="my-2">Change Window Icon</h4>
-        <div class="flex gap-2">
+        <form class="flex gap-2" on:submit|preventDefault={changeIcon}>
           <input
             class="input flex-1 min-w-10"
             placeholder="Window icon path"
             bind:value={windowIconPath}
-            on:keydown={(e) => {
-              if (e.key === 'Enter') changeIcon()
-            }}
           />
-          <button class="btn" on:click={changeIcon}>Change</button>
-        </div>
+          <button class="btn" type="submit">Change</button>
+        </form>
       </div>
       <div class="grid gap-1 grow">
         <h4 class="my-2">Set Window Title</h4>
-        <div class="flex gap-2">
-          <input
-            class="input flex-1 min-w-10"
-            bind:value={windowTitle}
-            on:keydown={(e) => {
-              if (e.key === 'Enter') setTitle_()
-            }}
-          />
-          <button class="btn" on:click={setTitle_}>Set</button>
-        </div>
+        <form class="flex gap-2" on:submit|preventDefault={setTitle_}>
+          <input class="input flex-1 min-w-10" bind:value={windowTitle} />
+          <button class="btn" type="submit">Set</button>
+        </form>
       </div>
     </div>
     <div class="flex flex-wrap gap-2">

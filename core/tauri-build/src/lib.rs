@@ -156,7 +156,7 @@ fn copy_dir(from: &Path, to: &Path) -> Result<()> {
 
 // Copies the framework under `{src_dir}/{framework}.framework` to `{dest_dir}/{framework}.framework`.
 fn copy_framework_from(src_dir: &Path, framework: &str, dest_dir: &Path) -> Result<bool> {
-  let src_name = format!("{}.framework", framework);
+  let src_name = format!("{framework}.framework");
   let src_path = src_dir.join(&src_name);
   if src_path.exists() {
     copy_dir(&src_path, &dest_dir.join(&src_name))?;
@@ -170,8 +170,7 @@ fn copy_framework_from(src_dir: &Path, framework: &str, dest_dir: &Path) -> Resu
 fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
   std::fs::create_dir_all(dest_dir).with_context(|| {
     format!(
-      "Failed to create frameworks output directory at {:?}",
-      dest_dir
+      "Failed to create frameworks output directory at {dest_dir:?}"
     )
   })?;
   for framework in frameworks.iter() {
@@ -469,7 +468,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
     if i == last {
-      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}", w);
+      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={w}");
     } else {
       android_package_prefix.push_str(w);
       android_package_prefix.push('_');

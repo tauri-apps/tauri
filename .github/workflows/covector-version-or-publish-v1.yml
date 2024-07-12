@@ -226,16 +226,14 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          event-type: publish-js-cli
-          client-payload: >-
-            {"releaseId": "${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}" }
+        run: gh workflow run 31554138 -r 1.x -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          event-type: publish-clirs
+        run: gh workflow run 31554139 -r 1.x
+        env:
+          GITHUB_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}

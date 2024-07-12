@@ -170,15 +170,15 @@ fn migrate_imports<'a>(
             // ```
             // to:
             // ```
-            // import { getCurrent } from "@tauri-apps/api/webviewWindow"
-            // const appWindow = getCurrent()
+            // import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
+            // const appWindow = getCurrentWebviewWindow()
             // ```
             "appWindow" if module == "@tauri-apps/api/window" => {
-              stmts_to_add.push("\nconst appWindow = getCurrent()");
-              Some("getCurrent")
+              stmts_to_add.push("\nconst appWindow = getCurrentWebviewWindow()");
+              Some("getCurrentWebviewWindow")
             }
 
-            // migrate pluginigied moduls from:
+            // migrate pluginified modules from:
             // ```
             // import { dialog, cli as superCli } from "@tauri-apps/api"
             // ```
@@ -196,9 +196,9 @@ fn migrate_imports<'a>(
 
               if specifier.local.name.as_str() != import {
                 let local = &specifier.local.name;
-                imports_to_add.push(format!("\nimport {import} as {local} from {js_plugin}"));
+                imports_to_add.push(format!("\nimport {import} as {local} from \"{js_plugin}\""));
               } else {
-                imports_to_add.push(format!("\nimport {import} from {js_plugin}"));
+                imports_to_add.push(format!("\nimport {import} from \"{js_plugin}\""));
               };
               None
             }
@@ -214,7 +214,7 @@ fn migrate_imports<'a>(
 
           // if identifier was renamed, it will be Some()
           // and so we convert the import
-          // import { appWindow } from "@tauri-apps/api" -> import { getCurrent } from "@tauri-apps/api"
+          // import { appWindow } from "@tauri-apps/api/window" -> import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow"
           if let Some(new_identifier) = new_identifier {
             magic_js_source
               .overwrite(
@@ -363,16 +363,16 @@ export default App;
 import { useState } from "react";
 import reactLogo from "./assets/react.svg";
 import { invoke,   } from "@tauri-apps/api";
-import { getCurrent } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { register } from "@tauri-apps/plugin-global-shortcut";
 import clipboard from "@tauri-apps/plugin-clipboard-manager";
 import * as fs from "@tauri-apps/plugin-fs";
 import "./App.css";
-import dialog from @tauri-apps/plugin-dialog
-import cli as superCli from @tauri-apps/plugin-cli
-const appWindow = getCurrent()
+import dialog from "@tauri-apps/plugin-dialog"
+import cli as superCli from "@tauri-apps/plugin-cli"
+const appWindow = getCurrentWebviewWindow()
 
 function App() {
   const [greetMsg, setGreetMsg] = useState("");

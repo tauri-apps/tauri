@@ -45,11 +45,11 @@
     const { contentType, data } = __RAW_process_ipc_message_fn__(payload)
 
     const message =
-      contentType === 'application/octet-stream'
-        ? ArrayBuffer.isView(data)
-          ? data
-          : new Uint8Array(data)
-        : new TextEncoder().encode(data)
+      typeof data === 'string'
+        ? new TextEncoder().encode(data)
+        : ArrayBuffer.isView(data) || data instanceof ArrayBuffer
+        ? data
+        : new Uint8Array(data)
 
     return window.crypto.subtle
       .encrypt(algorithm, aesGcmKey, message)

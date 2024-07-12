@@ -203,7 +203,12 @@ pub fn include_image(tokens: TokenStream) -> TokenStream {
     );
     return quote!(compile_error!(#error_string)).into();
   }
-  match tauri_codegen::include_image_codegen(&resolved_path).map_err(|error| error.to_string()) {
+  match tauri_codegen::include_image_codegen(
+    &resolved_path,
+    resolved_path.file_name().unwrap().to_str().unwrap(),
+  )
+  .map_err(|error| error.to_string())
+  {
     Ok(output) => output,
     Err(error) => quote!(compile_error!(#error)),
   }

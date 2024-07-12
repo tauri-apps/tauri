@@ -55,9 +55,9 @@ dependencies {"
   app_build_gradle.push_str("\n}");
 
   if let Some(version) = config.version.as_ref() {
-    app_tauri_properties.push(format!("tauri.android.versionName={}", version));
+    app_tauri_properties.push(format!("tauri.android.versionName={version}"));
     if let Some(version_code) = config.bundle.android.version_code.as_ref() {
-      app_tauri_properties.push(format!("tauri.android.versionCode={}", version_code));
+      app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
     } else if let Ok(version) = Version::parse(version) {
       let mut version_code = version.major * 1000000 + version.minor * 1000 + version.patch;
 
@@ -76,7 +76,7 @@ dependencies {"
         ));
       }
 
-      app_tauri_properties.push(format!("tauri.android.versionCode={}", version_code));
+      app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
     }
   }
 

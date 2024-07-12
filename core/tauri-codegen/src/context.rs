@@ -183,8 +183,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           let assets_path = config_parent.join(path);
           if !assets_path.exists() {
             panic!(
-              "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
-              path
+              "The `frontendDist` configuration is set to `{path:?}` but this path doesn't exist"
             )
           }
           EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?

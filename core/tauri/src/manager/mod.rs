@@ -759,9 +759,7 @@ mod test {
     assert_eq!(
       received.len(),
       expected.len(),
-      "received {:?} `{kind}` events but expected {:?}",
-      received,
-      expected
+      "received {received:?} `{kind}` events but expected {expected:?}"
     );
   }
 

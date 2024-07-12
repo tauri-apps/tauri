@@ -43,6 +43,8 @@ pub struct ContextData {
   pub capabilities: Option<Vec<PathBuf>>,
   /// The custom assets implementation
   pub assets: Option<Expr>,
+  /// Skip runtime-only types generation for tests (e.g. embed-plist usage).
+  pub test: bool,
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
@@ -140,7 +142,11 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     root,
     capabilities: additional_capabilities,
     assets,
+    test,
   } = data;
+
+  #[allow(unused_variables)]
+  let running_tests = test;
 
   let target = std::env::var("TAURI_ENV_TARGET_TRIPLE")
     .as_deref()
@@ -291,7 +297,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::MacOS && dev {
+  let info_plist = if target == Target::MacOS && dev && !running_tests {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)

@@ -692,7 +692,7 @@ mod test {
 
   #[test]
   fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
     let manager: AppManager<Wry> = AppManager::with_handlers(
       context,
       PluginStore::default(),

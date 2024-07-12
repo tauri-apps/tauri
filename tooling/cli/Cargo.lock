@@ -473,9 +473,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9b4151a9a0e09e3acc2695c326cfdcf0b5ce5b04ab617cea6405a085f639b001"
+checksum = "13791faaa60df73f79fdd6328e46fd7a95cc3e9ee9320831eb028502d4e522a7"
 dependencies = [
  "colored",
  "core-foundation",
@@ -486,7 +486,7 @@ dependencies = [
  "english-numbers",
  "freedesktop_entry_parser",
  "handlebars 4.5.0",
- "heck",
+ "heck 0.4.1",
  "home",
  "ignore",
  "java-properties",
@@ -613,7 +613,7 @@ version = "4.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "307bc0538d5f0f83b8248db3087aa92fe504e4691294d0c96c0eabc33f47ba47"
 dependencies = [
- "heck",
+ "heck 0.4.1",
  "proc-macro2",
  "quote",
  "syn 2.0.52",
@@ -1830,9 +1830,12 @@ name = "heck"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
-dependencies = [
- "unicode-segmentation",
-]
+
+[[package]]
+name = "heck"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
 name = "hermit-abi"
@@ -2101,6 +2104,18 @@ dependencies = [
  "png",
  "qoi",
  "tiff",
+]
+
+[[package]]
+name = "image"
+version = "0.25.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd54d660e773627692c524beaad361aca785a4f9f5730ce91f42aabe5bce3d11"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "num-traits",
+ "png",
 ]
 
 [[package]]
@@ -4840,9 +4855,9 @@ dependencies = [
  "flate2",
  "glob",
  "handlebars 5.1.0",
- "heck",
+ "heck 0.4.1",
  "hex",
- "image",
+ "image 0.24.9",
  "log",
  "md5",
  "native-tls",
@@ -4891,10 +4906,10 @@ dependencies = [
  "env_logger",
  "glob",
  "handlebars 5.1.0",
- "heck",
+ "heck 0.5.0",
  "html5ever",
  "ignore",
- "image",
+ "image 0.25.1",
  "include_dir",
  "itertools",
  "json-patch",
@@ -4967,7 +4982,7 @@ dependencies = [
  "ctor",
  "dunce",
  "getrandom 0.2.12",
- "heck",
+ "heck 0.4.1",
  "html5ever",
  "infer 0.13.0",
  "json-patch",
@@ -4997,7 +5012,7 @@ dependencies = [
  "dunce",
  "getrandom 0.2.12",
  "glob",
- "heck",
+ "heck 0.4.1",
  "html5ever",
  "infer 0.15.0",
  "json-patch",

@@ -37,18 +37,22 @@
    * @param {object} data
    * @return {Promise<{nonce: number[], payload: number[]}>}
    */
-  async function encrypt(data) {
+  async function encrypt(payload) {
     const algorithm = Object.create(null)
     algorithm.name = 'AES-GCM'
     algorithm.iv = window.crypto.getRandomValues(new Uint8Array(12))
 
-    const { contentType, data: _data } = __RAW_process_ipc_message_fn__(data)
+    const { contentType, data } = __RAW_process_ipc_message_fn__(payload)
 
-    const encoder = new TextEncoder()
-    const encoded = encoder.encode(_data)
+    const message =
+      contentType === 'application/octet-stream'
+        ? ArrayBuffer.isView(data)
+          ? data
+          : new Uint8Array(data)
+        : new TextEncoder().encode(data)
 
     return window.crypto.subtle
-      .encrypt(algorithm, aesGcmKey, encoded)
+      .encrypt(algorithm, aesGcmKey, message)
       .then((payload) => {
         const result = Object.create(null)
         result.nonce = Array.from(new Uint8Array(algorithm.iv))

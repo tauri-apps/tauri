@@ -83,12 +83,22 @@
   let messages = writable([])
   let consoleTextEl
   async function onMessage(value) {
+    const valueStr =
+      typeof value === 'string'
+        ? value
+        : JSON.stringify(
+            value instanceof ArrayBuffer
+              ? Array.from(new Uint8Array(value))
+              : value,
+            null,
+            1
+          )
     messages.update((r) => [
       ...r,
       {
         html:
           `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
-          (typeof value === 'string' ? value : JSON.stringify(value, null, 1)) +
+          valueStr +
           '</pre>'
       }
     ])

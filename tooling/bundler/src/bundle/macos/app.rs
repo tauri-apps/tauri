@@ -118,12 +118,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     remove_extra_attr(&app_bundle_path)?;
 
     // sign application
-    sign(sign_paths, identity, settings)?;
+    let keychain = sign(sign_paths, identity, settings)?;
 
     // notarization is required for distribution
     match notarize_auth() {
       Ok(auth) => {
-        notarize(app_bundle_path.clone(), auth, settings)?;
+        notarize(&keychain, app_bundle_path.clone(), &auth)?;
       }
       Err(e) => {
         if matches!(e, NotarizeAuthError::MissingTeamId) {

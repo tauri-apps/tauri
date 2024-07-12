@@ -9,6 +9,6 @@ import { appWindow } from '@tauri-apps/api/window'
 ```
 will become:
 ```ts
-import { getCurrent } from '@tauri-apps/api/window'
-const appWindow = getCurrent()
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+const appWindow = getCurrentWebviewWindow()
 ```

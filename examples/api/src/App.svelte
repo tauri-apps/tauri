@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte'
   import { writable } from 'svelte/store'
   import { invoke } from '@tauri-apps/api/core'
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
@@ -15,6 +16,11 @@
     if (event.ctrlKey && event.key === 'b') {
       invoke('plugin:app-menu|toggle')
     }
+  })
+
+  const appWindow = getCurrentWebviewWindow()
+  appWindow.onDragDropEvent((event) => {
+    onMessage(event.payload)
   })
 
   const userAgent = navigator.userAgent.toLowerCase()

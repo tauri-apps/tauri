@@ -13,7 +13,7 @@ import { Window } from './window'
 import { listen, once } from './event'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { invoke } from './core'
-import type { DragDropEvent, DragDropPayload } from './webview'
+import type { DragDropEvent } from './webview'
 
 /**
  * Get an instance of `Webview` for the current webview window.
@@ -236,4 +236,4 @@ function applyMixins(
 }
 
 export { WebviewWindow, getCurrentWebviewWindow, getAllWebviewWindows }
-export type { DragDropEvent, DragDropPayload }
+export type { DragDropEvent }

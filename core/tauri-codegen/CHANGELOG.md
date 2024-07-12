@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### Bug Fixes
+
+- [`5d2922985`](https://www.github.com/tauri-apps/tauri/commit/5d2922985801908e4b929a7a0e387806ff02ab89) ([#10268](https://www.github.com/tauri-apps/tauri/pull/10268) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix icon rewriting always triggering build to rerun due to conflicts between file names.
+
+### What's Changed
+
+- [`4c239729c`](https://www.github.com/tauri-apps/tauri/commit/4c239729c3e1b899ecbc6793c3682848e8de1729) ([#10167](https://www.github.com/tauri-apps/tauri/pull/10167) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add support for `test = true` in `generate_context!` macro to skip some code generation that could affect some tests, for now it only skips empedding a plist on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
 ## \[2.0.0-beta.18]
 
 ### New Features

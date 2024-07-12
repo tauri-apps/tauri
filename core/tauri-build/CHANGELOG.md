@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### Bug Fixes
+
+- [`69dcfdfe0`](https://www.github.com/tauri-apps/tauri/commit/69dcfdfe0f3b0570fcf5997267a7200087d5341b) ([#10267](https://www.github.com/tauri-apps/tauri/pull/10267) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix build script rerun-if-changed instruction if Info.plist do not exist next to tauri.conf.json.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.19`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
 ## \[2.0.0-beta.18]
 
 ### Enhancements

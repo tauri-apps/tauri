@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.1-beta.18]
+
+### New Features
+
+- [`c734b9e3c`](https://www.github.com/tauri-apps/tauri/commit/c734b9e3cd6e5a22dfd84ec8a779c2ee9591751b) ([#10072](https://www.github.com/tauri-apps/tauri/pull/10072) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Upgraded the WiX version to 3.14 which fixes vulnerability issues and adds support for Arm targets.
+
+### Bug Fixes
+
+- [`96f65fef3`](https://www.github.com/tauri-apps/tauri/commit/96f65fef3659e83bbee4426e94da4472c962e391) ([#10188](https://www.github.com/tauri-apps/tauri/pull/10188) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) On macOS, the bundler will now correctly print a warning when the updater is enabled while the `.app` bundle is disabled.
+- [`5998a90f3`](https://www.github.com/tauri-apps/tauri/commit/5998a90f3f0dda124eff1ce3c59e96d329e8b435) ([#10184](https://www.github.com/tauri-apps/tauri/pull/10184) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix NSIS installer failing to launch apps that contain spaces after installation.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@0.1.0-beta.0`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
+### Breaking Changes
+
+- [`11aa7743e`](https://www.github.com/tauri-apps/tauri/commit/11aa7743e7a277ed9ec3e92040dc484afe77d261) ([#10177](https://www.github.com/tauri-apps/tauri/pull/10177) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Changed NSIS installer hooks from `!define` to `!macro`
+
 ## \[2.0.1-beta.17]
 
 ### New Features

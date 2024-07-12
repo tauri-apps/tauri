@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "2.0.1-beta.17"
+version = "2.0.1-beta.18"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.70"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-beta.18", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "2.0.0-beta.19", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.9"
 flate2 = "1.0"
 anyhow = "1.0"
@@ -58,7 +58,7 @@ glob = "0.3"
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = [ "formatting" ] }
 plist = "1"
-tauri-macos-sign = { version = "0.0.0", path = "../macos-sign" }
+tauri-macos-sign = { version = "0.1.0-beta.0", path = "../macos-sign" }
 
 [target."cfg(any(target_os = \"macos\", target_os = \"windows\"))".dependencies]
 regex = "1"

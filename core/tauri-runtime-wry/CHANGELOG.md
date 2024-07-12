@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.20]
+
+### Bug Fixes
+
+- [`afb102c59`](https://www.github.com/tauri-apps/tauri/commit/afb102c59ba0de27e330589269001e0d2a01576d) ([#10211](https://www.github.com/tauri-apps/tauri/pull/10211) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix window edge not working after setting resizable false and decorated false dynamically
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+- Upgraded to `tauri-runtime@2.0.0-beta.20`
+
 ## \[2.0.0-beta.19]
 
 ### Bug Fixes

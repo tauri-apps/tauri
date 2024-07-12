@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.0-beta.22]
+
+### New Features
+
+- [`7c7fa0964`](https://www.github.com/tauri-apps/tauri/commit/7c7fa0964db3403037fdb9a34de2b877ddb8df1c) ([#9963](https://www.github.com/tauri-apps/tauri/pull/9963) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `--method` argument for `ios build` to select the export options' method.
+- [`7c7fa0964`](https://www.github.com/tauri-apps/tauri/commit/7c7fa0964db3403037fdb9a34de2b877ddb8df1c) ([#9963](https://www.github.com/tauri-apps/tauri/pull/9963) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Setup iOS signing by reading `IOS_CERTIFICATE`, `IOS_CERTIFICATE_PASSWORD` and `IOS_MOBILE_PROVISION` environment variables.
+
+### Enhancements
+
+- [`c01e87ad4`](https://www.github.com/tauri-apps/tauri/commit/c01e87ad46e2a5b3fb8d018739e724ef932008d7) ([#10198](https://www.github.com/tauri-apps/tauri/pull/10198) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Enhance `tauri migrate` to also migrate variables like `appWindow`:
+
+  ```ts
+  import { appWindow } from '@tauri-apps/api/window'
+  ```
+
+  will become:
+
+  ```ts
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+  const appWindow = getCurrentWebviewWindow()
+  ```
+
+### Bug Fixes
+
+- [`94136578b`](https://www.github.com/tauri-apps/tauri/commit/94136578bc89e4b973c471050ae9c2d83ffcb7c6) ([#10186](https://www.github.com/tauri-apps/tauri/pull/10186) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `migrate` command, migrating incorrect permissions for `clipboard`.
+- [`c01e87ad4`](https://www.github.com/tauri-apps/tauri/commit/c01e87ad46e2a5b3fb8d018739e724ef932008d7) ([#10198](https://www.github.com/tauri-apps/tauri/pull/10198) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `tauri migrate` incorrectly migrating `@tauri-apps/api/tauri` module to just `core` and `@tauri-apps/api/window` to just `webviewWindow`.
+- [`15e125996`](https://www.github.com/tauri-apps/tauri/commit/15e12599667b749c3d7cd2259e6cf7c7b5c6e2be) ([#10234](https://www.github.com/tauri-apps/tauri/pull/10234) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix cli failing to detect the correct cargo target directory when using cargo `--target-dir` flag with `tauri build` or `tauri dev`
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.22`
+
 ## \[2.0.0-beta.21]
 
 ### New Features

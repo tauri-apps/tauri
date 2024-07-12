@@ -2,7 +2,7 @@ workspace = {}
 
 [package]
 name = "tauri-macos-sign"
-version = "0.0.0"
+version = "0.1.0-beta.0"
 authors = ["Tauri Programme within The Commons Conservancy"]
 license = "Apache-2.0 OR MIT"
 keywords = ["codesign", "signing", "macos", "ios", "tauri"]

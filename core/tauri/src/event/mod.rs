@@ -175,22 +175,20 @@ pub fn listen_js_script(
 ) -> String {
   format!(
     "(function () {{
-      if (window['{listeners}'] === void 0) {{
-        Object.defineProperty(window, '{listeners}', {{ value: Object.create(null) }});
+      if (window['{listeners_object_name}'] === void 0) {{
+        Object.defineProperty(window, '{listeners_object_name}', {{ value: Object.create(null) }});
       }}
-      if (window['{listeners}']['{event}'] === void 0) {{
-        Object.defineProperty(window['{listeners}'], '{event}', {{ value: Object.create(null) }});
+      if (window['{listeners_object_name}']['{event}'] === void 0) {{
+        Object.defineProperty(window['{listeners_object_name}'], '{event}', {{ value: Object.create(null) }});
       }}
-      const eventListeners = window['{listeners}']['{event}']
+      const eventListeners = window['{listeners_object_name}']['{event}']
       const listener = {{
-        target: {target},
+        target: {serialized_target},
         handler: {handler}
       }};
       Object.defineProperty(eventListeners, '{event_id}', {{ value: listener, configurable: true }});
     }})()
   ",
-    listeners = listeners_object_name,
-    target = serialized_target,
   )
 }
 
@@ -231,7 +229,7 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
         for (const id of ids) {{
           const listener = listeners[id]
-          if (listener) {{
+          if (listener && listener.handler) {{
             eventData.id = id
             listener.handler(eventData)
           }}

@@ -307,7 +307,7 @@ impl Scope {
       path.to_path_buf()
     };
     let path = if !path.exists() {
-      crate::Result::Ok(path.to_path_buf())
+      crate::Result::Ok(path)
     } else {
       std::fs::canonicalize(path).map_err(Into::into)
     };

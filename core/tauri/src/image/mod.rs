@@ -9,7 +9,7 @@ pub(crate) mod plugin;
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use crate::{Manager, Resource, ResourceId, Runtime};
+use crate::{Resource, ResourceId, ResourceTable};
 
 /// An RGBA Image in row-major order from top to bottom.
 #[derive(Debug, Clone)]
@@ -132,7 +132,7 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
 }
 
 /// An image type that accepts file paths, raw bytes, previously loaded images and image objects.
-/// This type is meant to be used along the [transformImage](https://beta.tauri.app/references/v2/js/image/namespaceimage/#transformimage) API.
+/// This type is meant to be used along the [transformImage](https://v2.tauri.app/reference/javascript/api/namespaceimage/#transformimage) API.
 ///
 /// # Stability
 ///
@@ -165,9 +165,14 @@ pub enum JsImage {
 
 impl JsImage {
   /// Converts this intermediate image format into an actual [`Image`].
-  pub fn into_img<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<Arc<Image<'_>>> {
+  ///
+  /// This will retrieve the image from the passed [`ResourceTable`] if it is [`JsImage::Resource`]
+  /// and will return an error if it doesn't exist in the passed [`ResourceTable`] so make sure
+  /// the passed [`ResourceTable`] is the same one used to store the image, usually this should be
+  /// the webview [resources table](crate::webview::Webview::resources_table).
+  pub fn into_img(self, resources_table: &ResourceTable) -> crate::Result<Arc<Image<'_>>> {
     match self {
-      Self::Resource(rid) => manager.resources_table().get::<Image<'static>>(rid),
+      Self::Resource(rid) => resources_table.get::<Image<'static>>(rid),
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
       Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
 

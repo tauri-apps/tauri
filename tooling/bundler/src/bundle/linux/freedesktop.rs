@@ -80,7 +80,7 @@ pub fn list_icon_files(
 
 /// Generate the icon files and store them under the `data_dir`.
 pub fn copy_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<Vec<Icon>> {
-  let icons = self::list_icon_files(settings, data_dir)?;
+  let icons = list_icon_files(settings, data_dir)?;
   for (icon, src) in &icons {
     common::copy_file(src, &icon.path)?;
   }
@@ -93,7 +93,7 @@ pub fn copy_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<Ve
 /// path in the package.
 pub fn generate_desktop_file(
   settings: &Settings,
-  template_settings: &Option<PathBuf>,
+  custom_template_path: &Option<PathBuf>,
   data_dir: &Path,
 ) -> crate::Result<(PathBuf, PathBuf)> {
   let bin_name = settings.main_binary_name();
@@ -105,7 +105,7 @@ pub fn generate_desktop_file(
 
   let mut handlebars = Handlebars::new();
   handlebars.register_escape_fn(handlebars::no_escape);
-  if let Some(template) = template_settings {
+  if let Some(template) = custom_template_path {
     handlebars
       .register_template_string("main.desktop", read_to_string(template)?)
       .with_context(|| "Failed to setup custom handlebar template")?;
@@ -123,6 +123,7 @@ pub fn generate_desktop_file(
     icon: &'a str,
     name: &'a str,
     mime_type: Option<String>,
+    long_description: String,
   }
 
   let mut mime_type: Vec<String> = Vec::new();
@@ -162,6 +163,7 @@ pub fn generate_desktop_file(
       icon: bin_name,
       name: settings.product_name(),
       mime_type,
+      long_description: settings.long_description().unwrap_or_default().to_string(),
     },
     file,
   )?;

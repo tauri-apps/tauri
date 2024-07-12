@@ -71,7 +71,10 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
     .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();
 
-  let permission_files_path = out_dir.join(format!("{}-permission-files", pkg_name));
+  let permission_files_path = out_dir.join(format!(
+    "{}-permission-files",
+    pkg_name.replace("tauri:", "tauri-")
+  ));
   std::fs::write(
     &permission_files_path,
     serde_json::to_string(&permission_files)?,
@@ -234,36 +237,66 @@ pub fn generate_schema<P: AsRef<Path>>(
 }
 
 /// Generate a markdown documentation page containing the list of permissions of the plugin.
-pub fn generate_docs(permissions: &[PermissionFile], out_dir: &Path) -> Result<(), Error> {
-  let mut docs = "| Permission | Description |\n|------|-----|\n".to_string();
+pub fn generate_docs(
+  permissions: &[PermissionFile],
+  out_dir: &Path,
+  plugin_identifier: &str,
+) -> Result<(), Error> {
+  let mut permission_table = "".to_string();
+  let permission_table_header =
+    "### Permission Table \n\n<table>\n<tr>\n<th>Identifier</th>\n<th>Description</th>\n</tr>\n"
+      .to_string();
 
-  fn docs_from(id: &str, description: Option<&str>) -> String {
-    let mut docs = format!("|`{id}`");
+  let mut default_permission = "## Default Permission\n\n".to_string();
+  let mut contains_default = false;
+
+  fn docs_from(id: &str, description: Option<&str>, plugin_identifier: &str) -> String {
+    let mut docs = format!("\n<tr>\n<td>\n\n`{plugin_identifier}:{id}`\n\n</td>\n");
     if let Some(d) = description {
-      docs.push_str(&format!("|{d}|"));
+      docs.push_str(&format!("<td>\n\n{d}\n\n</td>"));
     }
+    docs.push_str("\n</tr>");
     docs
   }
 
   for permission in permissions {
     for set in &permission.set {
-      docs.push_str(&docs_from(&set.identifier, Some(&set.description)));
-      docs.push('\n');
+      permission_table.push_str(&docs_from(
+        &set.identifier,
+        Some(&set.description),
+        plugin_identifier,
+      ));
+      permission_table.push('\n');
     }
 
     if let Some(default) = &permission.default {
-      docs.push_str(&docs_from("default", default.description.as_deref()));
-      docs.push('\n');
+      default_permission.push_str(default.description.as_deref().unwrap_or_default());
+      default_permission.push('\n');
+      default_permission.push('\n');
+      for permission in &default.permissions {
+        default_permission.push_str(&format!("- `{permission}`"));
+        default_permission.push('\n');
+      }
+
+      contains_default = true;
     }
 
     for permission in &permission.permission {
-      docs.push_str(&docs_from(
+      permission_table.push_str(&docs_from(
         &permission.identifier,
         permission.description.as_deref(),
+        plugin_identifier,
       ));
-      docs.push('\n');
+      permission_table.push('\n');
     }
   }
+  permission_table.push_str("</table>");
+
+  if !contains_default {
+    default_permission = "".to_string();
+  }
+
+  let docs = format!("{default_permission}\n{permission_table_header}\n{permission_table}\n");
 
   let reference_path = out_dir.join(PERMISSION_DOCS_FILE_NAME);
   if docs != read_to_string(&reference_path).unwrap_or_default() {
@@ -402,8 +435,6 @@ identifier = "deny-{slugified_command}"
 description = "Denies the {command} command without any pre-configured scope."
 commands.deny = ["{command}"]
 "###,
-      command = command,
-      slugified_command = slugified_command,
     );
 
     let out_path = path.join(format!("{command}.toml"));

@@ -2,13 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import {
-  defineConfig,
-  presetIcons,
-  presetUno,
-  extractorSvelte,
-  presetWebFonts
-} from 'unocss'
+import { defineConfig, presetIcons, presetUno, presetWebFonts } from 'unocss'
+import extractorSvelte from '@unocss/extractor-svelte'
 
 export default defineConfig({
   theme: {
@@ -89,7 +84,8 @@ export default defineConfig({
     'note-red':
       'note bg-red-700/10 dark:bg-red-700/10 after:bg-red-700 dark:after:bg-red-700',
     input:
-      'h-10 flex items-center outline-none border-none p-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText'
+      'flex items-center outline-none border-none py-3 px-2 rd-1 shadow-md bg-primaryLighter dark:bg-darkPrimaryLighter text-primaryText dark:text-darkPrimaryText',
+    checkbox: 'accent-accent'
   },
   presets: [
     presetUno(),

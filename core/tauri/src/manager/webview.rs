@@ -25,14 +25,11 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
+  AppHandle, Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
 };
 
 use super::{
-  window::{
-    DragDropPayload, DragOverPayload, DRAG_EVENT, DROP_CANCELLED_EVENT, DROP_EVENT,
-    DROP_HOVER_EVENT,
-  },
+  window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
   AppManager,
 };
 
@@ -89,6 +86,9 @@ pub struct WebviewManager<R: Runtime> {
   pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
+
+  /// A runtime generated invoke key.
+  pub(crate) invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for WebviewManager<R> {
@@ -98,6 +98,7 @@ impl<R: Runtime> fmt::Debug for WebviewManager<R> {
         "invoke_initialization_script",
         &self.invoke_initialization_script,
       )
+      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -133,7 +134,7 @@ impl<R: Runtime> WebviewManager<R> {
     let app_manager = manager.manager();
 
     let is_init_global = app_manager.config.app.with_global_tauri;
-    let plugin_init = app_manager
+    let plugin_init_scripts = app_manager
       .plugins
       .lock()
       .expect("poisoned plugin store")
@@ -165,6 +166,10 @@ impl<R: Runtime> WebviewManager<R> {
     webview_attributes = webview_attributes
       .initialization_script(
         r#"
+        Object.defineProperty(window, 'isTauri', {
+          value: true,
+        });
+
         if (!window.__TAURI_INTERNALS__) {
           Object.defineProperty(window, '__TAURI_INTERNALS__', {
             value: {
@@ -195,9 +200,12 @@ impl<R: Runtime> WebviewManager<R> {
         app_manager,
         &ipc_init.into_string(),
         &pattern_init.into_string(),
-        &plugin_init,
         is_init_global,
       )?);
+
+    for plugin_init_script in plugin_init_scripts {
+      webview_attributes = webview_attributes.initialization_script(&plugin_init_script);
+    }
 
     #[cfg(feature = "isolation")]
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
@@ -242,16 +250,18 @@ impl<R: Runtime> WebviewManager<R> {
       && window_url.scheme() != "https"
     {
       format!("http://{}.localhost", window_url.scheme())
-    } else {
+    } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",
         window_url.scheme(),
-        window_url.host().unwrap(),
+        host,
         window_url
           .port()
           .map(|p| format!(":{p}"))
           .unwrap_or_default()
       )
+    } else {
+      "null".into()
     };
 
     if !registered_scheme_protocols.contains(&"tauri".into()) {
@@ -268,8 +278,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol =
-        crate::ipc::protocol::get(manager.manager_owned().clone(), pending.label.clone());
+      let protocol = crate::ipc::protocol::get(manager.manager_owned(), pending.label.clone());
       pending.register_uri_scheme_protocol("ipc", move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });
@@ -341,7 +350,6 @@ impl<R: Runtime> WebviewManager<R> {
     app_manager: &AppManager<R>,
     ipc_script: &str,
     pattern_script: &str,
-    plugin_initialization_script: &str,
     with_global_tauri: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -358,8 +366,6 @@ impl<R: Runtime> WebviewManager<R> {
       #[raw]
       event_initialization_script: &'a str,
       #[raw]
-      plugin_initialization_script: &'a str,
-      #[raw]
       freeze_prototype: &'a str,
     }
 
@@ -367,6 +373,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[default_template("../../scripts/core.js")]
     struct CoreJavascript<'a> {
       os_name: &'a str,
+      invoke_key: &'a str,
     }
 
     let bundle_script = if with_global_tauri {
@@ -387,6 +394,7 @@ impl<R: Runtime> WebviewManager<R> {
       bundle_script,
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
+        invoke_key: self.invoke_key(),
       }
       .render_default(&Default::default())?
       .into_string(),
@@ -394,7 +402,6 @@ impl<R: Runtime> WebviewManager<R> {
         app_manager.listeners().function_name(),
         app_manager.listeners().listeners_object_name(),
       ),
-      plugin_initialization_script,
       freeze_prototype,
     }
     .render_default(&Default::default())
@@ -534,6 +541,23 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
+    #[cfg(all(desktop, not(target_os = "windows")))]
+    if pending.webview_attributes.zoom_hotkeys_enabled {
+      #[derive(Template)]
+      #[default_template("../webview/scripts/zoom-hotkey.js")]
+      struct HotkeyZoom<'a> {
+        os_name: &'a str,
+      }
+
+      pending.webview_attributes.initialization_scripts.push(
+        HotkeyZoom {
+          os_name: std::env::consts::OS,
+        }
+        .render_default(&Default::default())?
+        .into_string(),
+      )
+    }
+
     #[cfg(feature = "isolation")]
     let pattern = app_manager.pattern.clone();
     let navigation_handler = pending.navigation_handler.take();
@@ -593,7 +617,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     // let plugins know that a new webview has been added to the manager
-    let manager = webview.manager_owned().clone();
+    let manager = webview.manager_owned();
     let webview_ = webview.clone();
     // run on main thread so the plugin store doesn't dead lock with the event loop handler in App
     let _ = webview.run_on_main_thread(move || {
@@ -604,7 +628,7 @@ impl<R: Runtime> WebviewManager<R> {
         .webview_created(webview_);
     });
 
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", feature = "wry"))]
     {
       webview
         .with_webview(|w| {
@@ -640,6 +664,10 @@ impl<R: Runtime> WebviewManager<R> {
   pub fn labels(&self) -> HashSet<String> {
     self.webviews_lock().keys().cloned().collect()
   }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.invoke_key
+  }
 }
 
 impl<R: Runtime> Webview<R> {
@@ -658,15 +686,21 @@ impl<R: Runtime> Webview<R> {
 fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> crate::Result<()> {
   match event {
     WebviewEvent::DragDrop(event) => match event {
-      DragDropEvent::Dragged { paths, position } => {
-        let payload = DragDropPayload { paths, position };
-        webview.emit_to_webview(DRAG_EVENT, payload)?
+      DragDropEvent::Enter { paths, position } => {
+        let payload = DragDropPayload {
+          paths: Some(paths),
+          position,
+        };
+        webview.emit_to_webview(DRAG_ENTER_EVENT, payload)?
       }
-      DragDropEvent::DragOver { position } => {
-        let payload = DragOverPayload { position };
-        webview.emit_to_webview(DROP_HOVER_EVENT, payload)?
+      DragDropEvent::Over { position } => {
+        let payload = DragDropPayload {
+          position,
+          paths: None,
+        };
+        webview.emit_to_webview(DRAG_OVER_EVENT, payload)?
       }
-      DragDropEvent::Dropped { paths, position } => {
+      DragDropEvent::Drop { paths, position } => {
         let scopes = webview.state::<Scopes>();
         for path in paths {
           if path.is_file() {
@@ -675,10 +709,13 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
             let _ = scopes.allow_directory(path, false);
           }
         }
-        let payload = DragDropPayload { paths, position };
-        webview.emit_to_webview(DROP_EVENT, payload)?
+        let payload = DragDropPayload {
+          paths: Some(paths),
+          position,
+        };
+        webview.emit_to_webview(DRAG_DROP_EVENT, payload)?
       }
-      DragDropEvent::Cancelled => webview.emit_to_webview(DROP_CANCELLED_EVENT, ())?,
+      DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, ())?,
       _ => unimplemented!(),
     },
   }

@@ -89,13 +89,17 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
 
   let mut build_options: BuildOptions = options.clone().into();
-  build_options.target = Some(
-    Target::all()
-      .get(Target::DEFAULT_KEY)
-      .unwrap()
-      .triple
-      .into(),
-  );
+
+  let first_target = Target::all()
+    .get(
+      options
+        .targets
+        .as_ref()
+        .and_then(|l| l.first().map(|t| t.as_str()))
+        .unwrap_or(Target::DEFAULT_KEY),
+    )
+    .unwrap();
+  build_options.target = Some(first_target.triple.into());
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
@@ -138,14 +142,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   // run an initial build to initialize plugins
-  Target::all().values().next().unwrap().build(
-    &config,
-    &metadata,
-    &env,
-    noise_level,
-    true,
-    profile,
-  )?;
+  first_target.build(&config, &metadata, &env, noise_level, true, profile)?;
 
   let open = options.open;
   let _handle = run_build(

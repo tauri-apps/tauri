@@ -1,5 +1,62 @@
 # Changelog
 
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`5b769948a`](https://www.github.com/tauri-apps/tauri/commit/5b769948a81cac333f64c870a470ba6525bd5cd3) ([#9959](https://www.github.com/tauri-apps/tauri/pull/9959)) Add `include_image` macro to help embedding instances of `Image` struct at compile-time in rust to be used with window, menu or tray icons.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- Upgraded to `tauri-codegen@2.0.0-beta.18`
+
+## \[2.0.0-beta.17]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-codegen@2.0.0-beta.17`
+
+### Breaking Changes
+
+- [`1df5cdeb0`](https://www.github.com/tauri-apps/tauri/commit/1df5cdeb06f5464e0eec4055e21b7b7bc8739eed)([#9858](https://www.github.com/tauri-apps/tauri/pull/9858)) Use `tauri.conf.json > identifier` to set the `PackageName` in Android and `BundleId` in iOS.
+
+## \[2.0.0-beta.16]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-codegen@2.0.0-beta.16`
+
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+- Upgraded to `tauri-codegen@2.0.0-beta.15`
+
+## \[2.0.0-beta.14]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-codegen@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-codegen@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-codegen@2.0.0-beta.12`
+
 ## \[2.0.0-beta.11]
 
 ### Dependencies

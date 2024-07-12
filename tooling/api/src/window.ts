@@ -9,8 +9,8 @@
  *
  * Events can be listened to using {@link Window.listen}:
  * ```typescript
- * import { getCurrent } from "@tauri-apps/api/window";
- * getCurrent().listen("my-window-event", ({ event, payload }) => { });
+ * import { getCurrentWindow } from "@tauri-apps/api/window";
+ * getCurrentWindow().listen("my-window-event", ({ event, payload }) => { });
  * ```
  *
  * @module
@@ -26,7 +26,6 @@ import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
   // imported for documentation purposes
-  // eslint-disable-next-line
   type EventTarget,
   emit,
   emitTo,
@@ -35,7 +34,7 @@ import {
 } from './event'
 import { invoke } from './core'
 import { WebviewWindow } from './webviewWindow'
-import type { DragDropEvent, DragDropPayload } from './webview'
+import type { DragDropEvent } from './webview'
 import { Image, transformImage } from './image'
 
 /**
@@ -106,7 +105,7 @@ class CloseRequestedEvent {
   id: number
   private _preventDefault = false
 
-  constructor(event: Event<null>) {
+  constructor(event: Event<unknown>) {
     this.event = event.event
     this.id = event.id
   }
@@ -200,7 +199,7 @@ export interface ProgressBarState {
  *
  * @since 1.0.0
  */
-function getCurrent(): Window {
+function getCurrentWindow(): Window {
   return new Window(window.__TAURI_INTERNALS__.metadata.currentWindow.label, {
     // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
     skip: true
@@ -212,7 +211,7 @@ function getCurrent(): Window {
  *
  * @since 1.0.0
  */
-function getAll(): Window[] {
+function getAllWindows(): Window[] {
   return window.__TAURI_INTERNALS__.metadata.windows.map(
     (w) =>
       new Window(w.label, {
@@ -314,21 +313,21 @@ class Window {
    * @returns The Window instance to communicate with the window or null if the window doesn't exist.
    */
   static getByLabel(label: string): Window | null {
-    return getAll().find((w) => w.label === label) ?? null
+    return getAllWindows().find((w) => w.label === label) ?? null
   }
 
   /**
    * Get an instance of `Window` for the current window.
    */
   static getCurrent(): Window {
-    return getCurrent()
+    return getCurrentWindow()
   }
 
   /**
    * Gets a list of instances of `Window` for all available windows.
    */
   static getAll(): Window[] {
-    return getAll()
+    return getAllWindows()
   }
 
   /**
@@ -342,7 +341,7 @@ class Window {
    * @returns The Window instance or `undefined` if there is not any focused window.
    */
   static async getFocusedWindow(): Promise<Window | null> {
-    for (const w of getAll()) {
+    for (const w of getAllWindows()) {
       if (await w.isFocused()) {
         return w
       }
@@ -355,8 +354,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const unlisten = await getCurrent().listen<string>('state-changed', (event) => {
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const unlisten = await getCurrentWindow().listen<string>('state-changed', (event) => {
    *   console.log(`Got error: ${payload}`);
    * });
    *
@@ -374,11 +373,11 @@ class Window {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
+      return () => {
+        // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return listen(event, handler, {
       target: { kind: 'Window', label: this.label }
@@ -390,8 +389,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const unlisten = await getCurrent().once<null>('initialized', (event) => {
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const unlisten = await getCurrentWindow().once<null>('initialized', (event) => {
    *   console.log(`Window initialized!`);
    * });
    *
@@ -404,13 +403,16 @@ class Window {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  async once<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return once(event, handler, {
       target: { kind: 'Window', label: this.label }
@@ -421,8 +423,8 @@ class Window {
    * Emits an event to all {@link EventTarget|targets}.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().emit('window-loaded', { loggedIn: true, token: 'authToken' });
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().emit('window-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -438,7 +440,7 @@ class Window {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emit(event, payload)
   }
@@ -448,8 +450,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().emit('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().emit('main', 'window-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -461,7 +463,7 @@ class Window {
     payload?: unknown
   ): Promise<void> {
     if (localTauriEvents.includes(event)) {
-      // eslint-disable-next-line
+      // eslint-disable-next-line security/detect-object-injection
       for (const handler of this.listeners[event] || []) {
         handler({
           event,
@@ -469,7 +471,7 @@ class Window {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emitTo(target, event, payload)
   }
@@ -494,8 +496,8 @@ class Window {
    * The scale factor that can be used to map physical pixels to logical pixels.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const factor = await getCurrent().scaleFactor();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const factor = await getCurrentWindow().scaleFactor();
    * ```
    *
    * @returns The window's monitor scale factor.
@@ -510,8 +512,8 @@ class Window {
    * The position of the top-left hand corner of the window's client area relative to the top-left hand corner of the desktop.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const position = await getCurrent().innerPosition();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const position = await getCurrentWindow().innerPosition();
    * ```
    *
    * @returns The window's inner position.
@@ -526,8 +528,8 @@ class Window {
    * The position of the top-left hand corner of the window relative to the top-left hand corner of the desktop.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const position = await getCurrent().outerPosition();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const position = await getCurrentWindow().outerPosition();
    * ```
    *
    * @returns The window's outer position.
@@ -543,8 +545,8 @@ class Window {
    * The client area is the content of the window, excluding the title bar and borders.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const size = await getCurrent().innerSize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const size = await getCurrentWindow().innerSize();
    * ```
    *
    * @returns The window's inner size.
@@ -563,8 +565,8 @@ class Window {
    * These dimensions include the title bar and borders. If you don't want that (and you usually don't), use inner_size instead.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const size = await getCurrent().outerSize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const size = await getCurrentWindow().outerSize();
    * ```
    *
    * @returns The window's outer size.
@@ -582,8 +584,8 @@ class Window {
    * Gets the window's current fullscreen state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const fullscreen = await getCurrent().isFullscreen();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const fullscreen = await getCurrentWindow().isFullscreen();
    * ```
    *
    * @returns Whether the window is in fullscreen mode or not.
@@ -598,8 +600,8 @@ class Window {
    * Gets the window's current minimized state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const minimized = await getCurrent().isMinimized();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const minimized = await getCurrentWindow().isMinimized();
    * ```
    */
   async isMinimized(): Promise<boolean> {
@@ -612,8 +614,8 @@ class Window {
    * Gets the window's current maximized state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const maximized = await getCurrent().isMaximized();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const maximized = await getCurrentWindow().isMaximized();
    * ```
    *
    * @returns Whether the window is maximized or not.
@@ -628,8 +630,8 @@ class Window {
    * Gets the window's current focus state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const focused = await getCurrent().isFocused();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const focused = await getCurrentWindow().isFocused();
    * ```
    *
    * @returns Whether the window is focused or not.
@@ -644,8 +646,8 @@ class Window {
    * Gets the window's current decorated state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const decorated = await getCurrent().isDecorated();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const decorated = await getCurrentWindow().isDecorated();
    * ```
    *
    * @returns Whether the window is decorated or not.
@@ -660,8 +662,8 @@ class Window {
    * Gets the window's current resizable state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const resizable = await getCurrent().isResizable();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const resizable = await getCurrentWindow().isResizable();
    * ```
    *
    * @returns Whether the window is resizable or not.
@@ -673,7 +675,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native maximize button state.
+   * Gets the window's native maximize button state.
    *
    * #### Platform-specific
    *
@@ -681,8 +683,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const maximizable = await getCurrent().isMaximizable();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const maximizable = await getCurrentWindow().isMaximizable();
    * ```
    *
    * @returns Whether the window's native maximize button is enabled or not.
@@ -694,7 +696,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native minimize button state.
+   * Gets the window's native minimize button state.
    *
    * #### Platform-specific
    *
@@ -702,8 +704,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const minimizable = await getCurrent().isMinimizable();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const minimizable = await getCurrentWindow().isMinimizable();
    * ```
    *
    * @returns Whether the window's native minimize button is enabled or not.
@@ -715,7 +717,7 @@ class Window {
   }
 
   /**
-   * Gets the window’s native close button state.
+   * Gets the window's native close button state.
    *
    * #### Platform-specific
    *
@@ -723,8 +725,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const closable = await getCurrent().isClosable();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const closable = await getCurrentWindow().isClosable();
    * ```
    *
    * @returns Whether the window's native close button is enabled or not.
@@ -739,8 +741,8 @@ class Window {
    * Gets the window's current visible state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const visible = await getCurrent().isVisible();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const visible = await getCurrentWindow().isVisible();
    * ```
    *
    * @returns Whether the window is visible or not.
@@ -755,8 +757,8 @@ class Window {
    * Gets the window's current title.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const title = await getCurrent().title();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const title = await getCurrentWindow().title();
    * ```
    */
   async title(): Promise<string> {
@@ -774,8 +776,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * const theme = await getCurrent().theme();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const theme = await getCurrentWindow().theme();
    * ```
    *
    * @returns The window theme.
@@ -792,8 +794,8 @@ class Window {
    * Centers the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().center();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().center();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -818,8 +820,8 @@ class Window {
    * - **Linux:** Urgency levels have the same effect.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().requestUserAttention();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().requestUserAttention();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -846,8 +848,8 @@ class Window {
    * Updates the window resizable flag.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setResizable(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setResizable(false);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -870,8 +872,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setMaximizable(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setMaximizable(false);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -892,8 +894,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setMinimizable(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setMinimizable(false);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -915,8 +917,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setClosable(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setClosable(false);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -932,8 +934,8 @@ class Window {
    * Sets the window title.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setTitle('Tauri');
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setTitle('Tauri');
    * ```
    *
    * @param title The new title
@@ -950,8 +952,8 @@ class Window {
    * Maximizes the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().maximize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().maximize();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -966,8 +968,8 @@ class Window {
    * Unmaximizes the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().unmaximize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().unmaximize();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -982,8 +984,8 @@ class Window {
    * Toggles the window maximized state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().toggleMaximize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().toggleMaximize();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -998,8 +1000,8 @@ class Window {
    * Minimizes the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().minimize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().minimize();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1014,8 +1016,8 @@ class Window {
    * Unminimizes the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().unminimize();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().unminimize();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1030,8 +1032,8 @@ class Window {
    * Sets the window visibility to true.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().show();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().show();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1046,8 +1048,8 @@ class Window {
    * Sets the window visibility to false.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().hide();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().hide();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1064,8 +1066,8 @@ class Window {
    * Note this emits a closeRequested event so you can intercept it. To force window close, use {@link Window.destroy}.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().close();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().close();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1080,8 +1082,8 @@ class Window {
    * Destroys the window. Behaves like {@link Window.close} but forces the window close instead of emitting a closeRequested event.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().destroy();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().destroy();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1096,8 +1098,8 @@ class Window {
    * Whether the window should have borders and bars.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setDecorations(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setDecorations(false);
    * ```
    *
    * @param decorations Whether the window should have borders and bars.
@@ -1123,8 +1125,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setShadow(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setShadow(false);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1160,8 +1162,8 @@ class Window {
    * Whether the window should always be on top of other windows.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setAlwaysOnTop(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setAlwaysOnTop(true);
    * ```
    *
    * @param alwaysOnTop Whether the window should always be on top of other windows or not.
@@ -1178,8 +1180,8 @@ class Window {
    * Whether the window should always be below other windows.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setAlwaysOnBottom(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setAlwaysOnBottom(true);
    * ```
    *
    * @param alwaysOnBottom Whether the window should always be below other windows or not.
@@ -1196,8 +1198,8 @@ class Window {
    * Prevents the window contents from being captured by other apps.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setContentProtected(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setContentProtected(true);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1213,8 +1215,8 @@ class Window {
    * Resizes the window with a new inner size.
    * @example
    * ```typescript
-   * import { getCurrent, LogicalSize } from '@tauri-apps/api/window';
-   * await getCurrent().setSize(new LogicalSize(600, 500));
+   * import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setSize(new LogicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical inner size.
@@ -1227,15 +1229,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${size.type}`] = {
+      width: size.width,
+      height: size.height
+    }
+
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value: {
-        type: size.type,
-        data: {
-          width: size.width,
-          height: size.height
-        }
-      }
+      value
     })
   }
 
@@ -1243,8 +1245,8 @@ class Window {
    * Sets the window minimum inner size. If the `size` argument is not provided, the constraint is unset.
    * @example
    * ```typescript
-   * import { getCurrent, PhysicalSize } from '@tauri-apps/api/window';
-   * await getCurrent().setMinSize(new PhysicalSize(600, 500));
+   * import { getCurrentWindow, PhysicalSize } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setMinSize(new PhysicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
@@ -1259,17 +1261,18 @@ class Window {
       )
     }
 
+    let value = null as Record<string, unknown> | null
+    if (size) {
+      value = {}
+      value[`${size.type}`] = {
+        width: size.width,
+        height: size.height
+      }
+    }
+
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value: size
-        ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
-          }
-        : null
+      value
     })
   }
 
@@ -1277,8 +1280,8 @@ class Window {
    * Sets the window maximum inner size. If the `size` argument is undefined, the constraint is unset.
    * @example
    * ```typescript
-   * import { getCurrent, LogicalSize } from '@tauri-apps/api/window';
-   * await getCurrent().setMaxSize(new LogicalSize(600, 500));
+   * import { getCurrentWindow, LogicalSize } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setMaxSize(new LogicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.
@@ -1293,17 +1296,18 @@ class Window {
       )
     }
 
+    let value = null as Record<string, unknown> | null
+    if (size) {
+      value = {}
+      value[`${size.type}`] = {
+        width: size.width,
+        height: size.height
+      }
+    }
+
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value: size
-        ? {
-            type: size.type,
-            data: {
-              width: size.width,
-              height: size.height
-            }
-          }
-        : null
+      value
     })
   }
 
@@ -1311,8 +1315,8 @@ class Window {
    * Sets the window outer position.
    * @example
    * ```typescript
-   * import { getCurrent, LogicalPosition } from '@tauri-apps/api/window';
-   * await getCurrent().setPosition(new LogicalPosition(600, 500));
+   * import { getCurrentWindow, LogicalPosition } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setPosition(new LogicalPosition(600, 500));
    * ```
    *
    * @param position The new position, in logical or physical pixels.
@@ -1330,15 +1334,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -1346,8 +1350,8 @@ class Window {
    * Sets the window fullscreen state.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setFullscreen(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setFullscreen(true);
    * ```
    *
    * @param fullscreen Whether the window should go to fullscreen or not.
@@ -1364,8 +1368,8 @@ class Window {
    * Bring the window to front and focus.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setFocus();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setFocus();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -1380,8 +1384,8 @@ class Window {
    * Sets the window icon.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setIcon('/tauri/awesome.png');
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setIcon('/tauri/awesome.png');
    * ```
    *
    * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
@@ -1411,8 +1415,8 @@ class Window {
    * - **macOS:** Unsupported.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setSkipTaskbar(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setSkipTaskbar(true);
    * ```
    *
    * @param skip true to hide window icon, false to show it.
@@ -1437,8 +1441,8 @@ class Window {
    * - **macOS:** This locks the cursor in a fixed location, which looks visually awkward.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setCursorGrab(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setCursorGrab(true);
    * ```
    *
    * @param grab `true` to grab the cursor icon, `false` to release it.
@@ -1461,8 +1465,8 @@ class Window {
    *   outside of the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setCursorVisible(false);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setCursorVisible(false);
    * ```
    *
    * @param visible If `false`, this will hide the cursor. If `true`, this will show the cursor.
@@ -1479,8 +1483,8 @@ class Window {
    * Modifies the cursor icon of the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setCursorIcon('help');
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setCursorIcon('help');
    * ```
    *
    * @param icon The new cursor icon.
@@ -1497,8 +1501,8 @@ class Window {
    * Changes the position of the cursor in window coordinates.
    * @example
    * ```typescript
-   * import { getCurrent, LogicalPosition } from '@tauri-apps/api/window';
-   * await getCurrent().setCursorPosition(new LogicalPosition(600, 300));
+   * import { getCurrentWindow, LogicalPosition } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setCursorPosition(new LogicalPosition(600, 300));
    * ```
    *
    * @param position The new cursor position.
@@ -1516,15 +1520,15 @@ class Window {
       )
     }
 
+    const value = {} as Record<string, unknown>
+    value[`${position.type}`] = {
+      x: position.x,
+      y: position.y
+    }
+
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value: {
-        type: position.type,
-        data: {
-          x: position.x,
-          y: position.y
-        }
-      }
+      value
     })
   }
 
@@ -1533,8 +1537,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().setIgnoreCursorEvents(true);
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setIgnoreCursorEvents(true);
    * ```
    *
    * @param ignore `true` to ignore the cursor events; `false` to process them as usual.
@@ -1551,8 +1555,8 @@ class Window {
    * Starts dragging the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().startDragging();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().startDragging();
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
@@ -1567,8 +1571,8 @@ class Window {
    * Starts resize-dragging the window.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/window';
-   * await getCurrent().startResizeDragging();
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().startResizeDragging();
    * ```
    *
    * @return A promise indicating the success or failure of the operation.
@@ -1590,8 +1594,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent, ProgressBarStatus } from '@tauri-apps/api/window';
-   * await getCurrent().setProgressBar({
+   * import { getCurrentWindow, ProgressBarStatus } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setProgressBar({
    *   status: ProgressBarStatus.Normal,
    *   progress: 50,
    * });
@@ -1622,6 +1626,18 @@ class Window {
     })
   }
 
+  /**
+   * Sets the title bar style. **macOS only**.
+   *
+   * @since 2.0.0
+   */
+  async setTitleBarStyle(style: TitleBarStyle): Promise<void> {
+    return invoke('plugin:window|set_title_bar_style', {
+      label: this.label,
+      value: style
+    })
+  }
+
   // Listeners
 
   /**
@@ -1629,8 +1645,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onResized(({ payload: size }) => {
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
+   * const unlisten = await getCurrentWindow().onResized(({ payload: size }) => {
    *  console.log('Window resized', size);
    * });
    *
@@ -1653,8 +1669,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onMoved(({ payload: position }) => {
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
+   * const unlisten = await getCurrentWindow().onMoved(({ payload: position }) => {
    *  console.log('Window moved', position);
    * });
    *
@@ -1677,9 +1693,9 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
    * import { confirm } from '@tauri-apps/api/dialog';
-   * const unlisten = await getCurrent().onCloseRequested(async (event) => {
+   * const unlisten = await getCurrentWindow().onCloseRequested(async (event) => {
    *   const confirmed = await confirm('Are you sure?');
    *   if (!confirmed) {
    *     // user did not confirm closing the window; let's prevent it
@@ -1694,20 +1710,18 @@ class Window {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  /* eslint-disable @typescript-eslint/promise-function-async */
   async onCloseRequested(
     handler: (event: CloseRequestedEvent) => void | Promise<void>
   ): Promise<UnlistenFn> {
-    return this.listen<null>(TauriEvent.WINDOW_CLOSE_REQUESTED, (event) => {
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    return this.listen(TauriEvent.WINDOW_CLOSE_REQUESTED, async (event) => {
       const evt = new CloseRequestedEvent(event)
-      void Promise.resolve(handler(evt)).then(() => {
-        if (!evt.isPreventDefault()) {
-          return this.destroy()
-        }
-      })
+      await handler(evt)
+      if (!evt.isPreventDefault()) {
+        await this.destroy()
+      }
     })
   }
-  /* eslint-enable */
 
   /**
    * Listen to a file drop event.
@@ -1716,8 +1730,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/webview";
-   * const unlisten = await getCurrent().onDragDropEvent((event) => {
+   * import { getCurrentWindow } from "@tauri-apps/api/webview";
+   * const unlisten = await getCurrentWindow().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -1737,13 +1751,15 @@ class Window {
   async onDragDropEvent(
     handler: EventCallback<DragDropEvent>
   ): Promise<UnlistenFn> {
-    const unlistenDrag = await this.listen<DragDropPayload>(
-      TauriEvent.DRAG,
+    type DragPayload = { paths: string[]; position: PhysicalPosition }
+
+    const unlistenDrag = await this.listen<DragPayload>(
+      TauriEvent.DRAG_ENTER,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dragged',
+            type: 'enter',
             paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
@@ -1751,27 +1767,27 @@ class Window {
       }
     )
 
-    const unlistenDrop = await this.listen<DragDropPayload>(
-      TauriEvent.DROP,
+    const unlistenDragOver = await this.listen<DragPayload>(
+      TauriEvent.DRAG_OVER,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dropped',
-            paths: event.payload.paths,
+            type: 'over',
             position: mapPhysicalPosition(event.payload.position)
           }
         })
       }
     )
 
-    const unlistenDragOver = await this.listen<DragDropPayload>(
-      TauriEvent.DROP_OVER,
+    const unlistenDrop = await this.listen<DragPayload>(
+      TauriEvent.DRAG_DROP,
       (event) => {
         handler({
           ...event,
           payload: {
-            type: 'dragOver',
+            type: 'drop',
+            paths: event.payload.paths,
             position: mapPhysicalPosition(event.payload.position)
           }
         })
@@ -1779,9 +1795,9 @@ class Window {
     )
 
     const unlistenCancel = await this.listen<null>(
-      TauriEvent.DROP_CANCELLED,
+      TauriEvent.DRAG_LEAVE,
       (event) => {
-        handler({ ...event, payload: { type: 'cancelled' } })
+        handler({ ...event, payload: { type: 'leave' } })
       }
     )
 
@@ -1798,8 +1814,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onFocusChanged(({ payload: focused }) => {
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
+   * const unlisten = await getCurrentWindow().onFocusChanged(({ payload: focused }) => {
    *  console.log('Focus changed, window is focused? ' + focused);
    * });
    *
@@ -1838,8 +1854,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onScaleChanged(({ payload }) => {
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
+   * const unlisten = await getCurrentWindow().onScaleChanged(({ payload }) => {
    *  console.log('Scale changed', payload.scaleFactor, payload.size);
    * });
    *
@@ -1864,8 +1880,8 @@ class Window {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/window";
-   * const unlisten = await getCurrent().onThemeChanged(({ payload: theme }) => {
+   * import { getCurrentWindow } from "@tauri-apps/api/window";
+   * const unlisten = await getCurrentWindow().onThemeChanged(({ payload: theme }) => {
    *  console.log('New theme: ' + theme);
    * });
    *
@@ -2239,6 +2255,23 @@ async function primaryMonitor(): Promise<Monitor | null> {
 }
 
 /**
+ * Returns the monitor that contains the given point. Returns `null` if can't find any.
+ * @example
+ * ```typescript
+ * import { monitorFromPoint } from '@tauri-apps/api/window';
+ * const monitor = monitorFromPoint();
+ * ```
+ *
+ * @since 1.0.0
+ */
+async function monitorFromPoint(x: number, y: number): Promise<Monitor | null> {
+  return invoke<Monitor | null>('plugin:window|monitor_from_point', {
+    x,
+    y
+  }).then(mapMonitor)
+}
+
+/**
  * Returns the list of all the monitors available on the system.
  * @example
  * ```typescript
@@ -2254,11 +2287,27 @@ async function availableMonitors(): Promise<Monitor[]> {
   )
 }
 
+/**
+ * Get the cursor position relative to the top-left hand corner of the desktop.
+ *
+ * Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+ * If the user uses a desktop with multiple monitors,
+ * the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+ * or the top-left of the leftmost monitor on X11.
+ *
+ * The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+ */
+async function cursorPosition(): Promise<PhysicalPosition> {
+  return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
+    mapPhysicalPosition
+  )
+}
+
 export {
   Window,
   CloseRequestedEvent,
-  getCurrent,
-  getAll,
+  getCurrentWindow,
+  getAllWindows,
   LogicalSize,
   PhysicalSize,
   LogicalPosition,
@@ -2267,8 +2316,10 @@ export {
   Effect,
   EffectState,
   currentMonitor,
+  monitorFromPoint,
   primaryMonitor,
-  availableMonitors
+  availableMonitors,
+  cursorPosition
 }
 
 export type {
@@ -2278,6 +2329,5 @@ export type {
   ScaleFactorChanged,
   WindowOptions,
   Color,
-  DragDropEvent,
-  DragDropPayload
+  DragDropEvent
 }

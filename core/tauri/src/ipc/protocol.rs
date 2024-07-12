@@ -19,6 +19,7 @@ use super::{CallbackFn, InvokeBody, InvokeResponse};
 
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
+const TAURI_INVOKE_KEY_HEADER_NAME: &str = "Tauri-Invoke-Key";
 
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
@@ -137,10 +138,8 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
 
       Method::OPTIONS => {
         let mut r = http::Response::new(Vec::new().into());
-        r.headers_mut().insert(
-          ACCESS_CONTROL_ALLOW_HEADERS,
-          HeaderValue::from_static("Content-Type, Tauri-Callback, Tauri-Error, Tauri-Channel-Id"),
-        );
+        r.headers_mut()
+          .insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
         respond(r);
       }
 
@@ -169,7 +168,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       "ipc::request",
       kind = "post-message",
       uri = request.uri().to_string(),
-      body = request.body()
+      request = request.body()
     )
     .entered();
 
@@ -212,6 +211,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       error: CallbackFn,
       payload: serde_json::Value,
       options: Option<RequestOptions>,
+      #[serde(rename = "__TAURI_INVOKE_KEY__")]
+      invoke_key: String,
     }
 
     #[allow(unused_mut)]
@@ -226,6 +227,8 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
         error: CallbackFn,
         payload: crate::utils::pattern::isolation::RawIsolationPayload<'a>,
         options: Option<RequestOptions>,
+        #[serde(rename = "__TAURI_INVOKE_KEY__")]
+        invoke_key: String,
       }
 
       if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
@@ -242,6 +245,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                 error: message.error,
                 payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
                 options: message.options,
+                invoke_key: message.invoke_key,
               })
             }),
         );
@@ -263,6 +267,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
           url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
           body: message.payload.into(),
           headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
+          invoke_key: message.invoke_key,
         };
 
         #[cfg(feature = "tracing")]
@@ -383,6 +388,15 @@ fn parse_invoke_request<R: Runtime>(
   // so we must ignore it because some commands use the IPC for faster response
   let has_payload = !body.is_empty();
 
+  #[allow(unused_mut)]
+  let mut content_type = parts
+    .headers
+    .get(http::header::CONTENT_TYPE)
+    .and_then(|h| h.to_str().ok())
+    .map(|mime| mime.parse())
+    .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
+    .map_err(|_| "unknown content type")?;
+
   #[cfg(feature = "isolation")]
   if let crate::Pattern::Isolation { crypto_keys, .. } = &*manager.pattern {
     // if the platform does not support request body, we ignore it
@@ -390,11 +404,29 @@ fn parse_invoke_request<R: Runtime>(
       #[cfg(feature = "tracing")]
       let _span = tracing::trace_span!("ipc::request::decrypt_isolation_payload").entered();
 
-      body = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
-        .and_then(|raw| crypto_keys.decrypt(raw))
+      (body, content_type) = crate::utils::pattern::isolation::RawIsolationPayload::try_from(&body)
+        .and_then(|raw| {
+          let content_type = raw.content_type().clone();
+          crypto_keys.decrypt(raw).map(|decrypted| {
+            (
+              decrypted,
+              content_type
+                .parse()
+                .unwrap_or(mime::APPLICATION_OCTET_STREAM),
+            )
+          })
+        })
         .map_err(|e| e.to_string())?;
     }
   }
+
+  let invoke_key = parts
+    .headers
+    .get(TAURI_INVOKE_KEY_HEADER_NAME)
+    .ok_or("missing Tauri-Invoke-Key header")?
+    .to_str()
+    .map_err(|_| "Tauri invoke key header value must be a string")?
+    .to_owned();
 
   let url = Url::parse(
     parts
@@ -427,14 +459,6 @@ fn parse_invoke_request<R: Runtime>(
       .map_err(|_| "Tauri error header value must be a numeric string")?,
   );
 
-  let content_type = parts
-    .headers
-    .get(http::header::CONTENT_TYPE)
-    .and_then(|h| h.to_str().ok())
-    .map(|mime| mime.parse())
-    .unwrap_or(Ok(mime::APPLICATION_OCTET_STREAM))
-    .map_err(|_| "unknown content type")?;
-
   #[cfg(feature = "tracing")]
   let span = tracing::trace_span!("ipc::request::deserialize").entered();
 
@@ -463,7 +487,199 @@ fn parse_invoke_request<R: Runtime>(
     url,
     body,
     headers: parts.headers,
+    invoke_key,
   };
 
   Ok(payload)
+}
+
+#[cfg(test)]
+mod tests {
+  use std::str::FromStr;
+
+  use super::*;
+  use crate::{manager::AppManager, plugin::PluginStore, StateManager, Wry};
+  use http::header::*;
+  use serde_json::json;
+  use tauri_macros::generate_context;
+
+  #[test]
+  fn parse_invoke_request() {
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
+    let manager: AppManager<Wry> = AppManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      None,
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+      crate::generate_invoke_key().unwrap(),
+    );
+
+    let cmd = "write_something";
+    let url = "tauri://localhost";
+    let invoke_key = "1234ahdsjkl123";
+    let callback = 12378123;
+    let error = 6243;
+    let headers = HeaderMap::from_iter(vec![
+      (
+        CONTENT_TYPE,
+        HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_INVOKE_KEY_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(invoke_key).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_CALLBACK_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&callback.to_string()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_ERROR_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&error.to_string()).unwrap(),
+      ),
+      (ORIGIN, HeaderValue::from_str("tauri://localhost").unwrap()),
+    ]);
+
+    let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
+    *request.headers_mut().unwrap() = headers.clone();
+
+    let body = vec![123, 31, 45];
+    let request = request.body(body.clone()).unwrap();
+    let invoke_request = super::parse_invoke_request(&manager, request).unwrap();
+
+    assert_eq!(invoke_request.cmd, cmd);
+    assert_eq!(invoke_request.callback.0, callback);
+    assert_eq!(invoke_request.error.0, error);
+    assert_eq!(invoke_request.invoke_key, invoke_key);
+    assert_eq!(invoke_request.url, url.parse().unwrap());
+    assert_eq!(invoke_request.headers, headers);
+    assert_eq!(invoke_request.body, InvokeBody::Raw(body));
+
+    let body = json!({
+      "key": 1,
+      "anotherKey": "asda",
+    });
+
+    let mut headers = headers.clone();
+    headers.insert(
+      CONTENT_TYPE,
+      HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),
+    );
+
+    let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
+    *request.headers_mut().unwrap() = headers.clone();
+
+    let request = request.body(serde_json::to_vec(&body).unwrap()).unwrap();
+    let invoke_request = super::parse_invoke_request(&manager, request).unwrap();
+
+    assert_eq!(invoke_request.headers, headers);
+    assert_eq!(invoke_request.body, InvokeBody::Json(body));
+  }
+
+  #[test]
+  #[cfg(feature = "isolation")]
+  fn parse_invoke_request_isolation() {
+    let context = generate_context!(
+      "test/fixture/isolation/src-tauri/tauri.conf.json",
+      crate,
+      test = false
+    );
+
+    let crate::pattern::Pattern::Isolation { crypto_keys, .. } = &context.pattern else {
+      unreachable!()
+    };
+
+    let mut nonce = [0u8; 12];
+    getrandom::getrandom(&mut nonce).unwrap();
+
+    let body_raw = vec![1, 41, 65, 12, 78];
+    let body_bytes = crypto_keys.aes_gcm().encrypt(&nonce, &body_raw).unwrap();
+    let isolation_payload_raw = json!({
+      "nonce": nonce,
+      "payload": body_bytes,
+      "contentType":  mime::APPLICATION_OCTET_STREAM.to_string(),
+    });
+
+    let body_json = json!({
+      "key": 1,
+      "anotherKey": "string"
+    });
+    let body_bytes = crypto_keys
+      .aes_gcm()
+      .encrypt(&nonce, &serde_json::to_vec(&body_json).unwrap())
+      .unwrap();
+    let isolation_payload_json = json!({
+      "nonce": nonce,
+      "payload": body_bytes,
+      "contentType":  mime::APPLICATION_JSON.to_string(),
+    });
+
+    let manager: AppManager<Wry> = AppManager::with_handlers(
+      context,
+      PluginStore::default(),
+      Box::new(|_| false),
+      None,
+      Default::default(),
+      StateManager::new(),
+      Default::default(),
+      Default::default(),
+      Default::default(),
+      (None, "".into()),
+      crate::generate_invoke_key().unwrap(),
+    );
+
+    let cmd = "write_something";
+    let url = "tauri://localhost";
+    let invoke_key = "1234ahdsjkl123";
+    let callback = 12378123;
+    let error = 6243;
+
+    let headers = HeaderMap::from_iter(vec![
+      (
+        CONTENT_TYPE,
+        HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_INVOKE_KEY_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(invoke_key).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_CALLBACK_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&callback.to_string()).unwrap(),
+      ),
+      (
+        HeaderName::from_str(TAURI_ERROR_HEADER_NAME).unwrap(),
+        HeaderValue::from_str(&error.to_string()).unwrap(),
+      ),
+      (ORIGIN, HeaderValue::from_str("tauri://localhost").unwrap()),
+    ]);
+
+    let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
+    *request.headers_mut().unwrap() = headers.clone();
+    let body = serde_json::to_vec(&isolation_payload_raw).unwrap();
+    let request = request.body(body).unwrap();
+    let invoke_request = super::parse_invoke_request(&manager, request).unwrap();
+
+    assert_eq!(invoke_request.cmd, cmd);
+    assert_eq!(invoke_request.callback.0, callback);
+    assert_eq!(invoke_request.error.0, error);
+    assert_eq!(invoke_request.invoke_key, invoke_key);
+    assert_eq!(invoke_request.url, url.parse().unwrap());
+    assert_eq!(invoke_request.headers, headers);
+    assert_eq!(invoke_request.body, InvokeBody::Raw(body_raw));
+
+    let mut request = Request::builder().uri(format!("ipc://localhost/{cmd}"));
+    *request.headers_mut().unwrap() = headers.clone();
+    let body = serde_json::to_vec(&isolation_payload_json).unwrap();
+    let request = request.body(body).unwrap();
+    let invoke_request = super::parse_invoke_request(&manager, request).unwrap();
+
+    assert_eq!(invoke_request.headers, headers);
+    assert_eq!(invoke_request.body, InvokeBody::Json(body_json));
+  }
 }

@@ -197,7 +197,7 @@ impl Listeners {
     let mut maybe_pending = false;
 
     match self.inner.handlers.try_lock() {
-      Err(_) => self.insert_pending(Pending::Emit(emit_args.clone())),
+      Err(_) => self.insert_pending(Pending::Emit(emit_args)),
       Ok(lock) => {
         if let Some(handlers) = lock.get(&emit_args.event_name) {
           let handlers = handlers.iter();

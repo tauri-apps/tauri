@@ -61,7 +61,7 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
-  if var_os("npm_lifecycle_event").is_none() {
+  if var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none() {
     set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }
 
@@ -202,7 +202,7 @@ pub fn command(options: Options) -> Result<()> {
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
-      return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
+      return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
     }
 
     let project_dir = config.project_dir();

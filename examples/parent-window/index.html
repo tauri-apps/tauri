@@ -14,8 +14,8 @@
     <div id="response"></div>
 
     <script>
-      const WebviewWindow = window.__TAURI__.webview.WebviewWindow
-      const thisTauriWindow = window.__TAURI__.window.getCurrent()
+      const { WebviewWindow } = window.__TAURI__.webviewWindow
+      const thisTauriWindow = window.__TAURI__.window.getCurrentWindow()
       const windowLabel = thisTauriWindow.label
       const windowLabelContainer = document.getElementById('window-label')
       windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'

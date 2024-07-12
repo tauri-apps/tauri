@@ -14,6 +14,4 @@
   __RAW_event_initialization_script__
 
   __RAW_bundle_script__
-
-  __RAW_plugin_initialization_script__
 })()

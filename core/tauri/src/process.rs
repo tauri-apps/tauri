@@ -71,12 +71,13 @@ pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
 ///     Ok(())
 ///   });
 /// ```
-pub fn restart(env: &Env) {
+pub fn restart(env: &Env) -> ! {
   use std::process::{exit, Command};
 
   if let Ok(path) = current_binary(env) {
     Command::new(path)
-      .args(&env.args_os)
+      // first arg is the binary name, must skip it
+      .args(env.args_os.iter().skip(1).collect::<Vec<_>>())
       .spawn()
       .expect("application failed to start");
   }

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import {
-  getCurrent as getCurrentWebview,
+  getCurrentWebview,
   Webview,
   WebviewLabel,
   WebviewOptions
@@ -13,14 +13,14 @@ import { Window } from './window'
 import { listen, once } from './event'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { invoke } from './core'
-import type { DragDropEvent, DragDropPayload } from './webview'
+import type { DragDropEvent } from './webview'
 
 /**
  * Get an instance of `Webview` for the current webview window.
  *
  * @since 2.0.0
  */
-function getCurrent(): WebviewWindow {
+function getCurrentWebviewWindow(): WebviewWindow {
   const webview = getCurrentWebview()
   // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
   return new WebviewWindow(webview.label, { skip: true })
@@ -31,10 +31,9 @@ function getCurrent(): WebviewWindow {
  *
  * @since 2.0.0
  */
-function getAll(): WebviewWindow[] {
+function getAllWebviewWindows(): WebviewWindow[] {
   return window.__TAURI_INTERNALS__.metadata.webviews.map(
     (w) =>
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       new WebviewWindow(w.label, {
         // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
         skip: true
@@ -109,7 +108,8 @@ class WebviewWindow {
    * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
    */
   static getByLabel(label: string): WebviewWindow | null {
-    const webview = getAll().find((w) => w.label === label) ?? null
+    const webview =
+      getAllWebviewWindows().find((w) => w.label === label) ?? null
     if (webview) {
       // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(webview.label, { skip: true })
@@ -121,15 +121,17 @@ class WebviewWindow {
    * Get an instance of `Webview` for the current webview.
    */
   static getCurrent(): WebviewWindow {
-    return getCurrent()
+    return getCurrentWebviewWindow()
   }
 
   /**
    * Gets a list of instances of `Webview` for all available webviews.
    */
   static getAll(): WebviewWindow[] {
-    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-    return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
+    return getAllWebviewWindows().map(
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+      (w) => new WebviewWindow(w.label, { skip: true })
+    )
   }
 
   /**
@@ -156,11 +158,11 @@ class WebviewWindow {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access, security/detect-object-injection
+      return () => {
+        // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return listen(event, handler, {
       target: { kind: 'WebviewWindow', label: this.label }
@@ -186,13 +188,16 @@ class WebviewWindow {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  async once<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return once(event, handler, {
       target: { kind: 'WebviewWindow', label: this.label }
@@ -230,5 +235,5 @@ function applyMixins(
   })
 }
 
-export { WebviewWindow, getCurrent, getAll }
-export type { DragDropEvent, DragDropPayload }
+export { WebviewWindow, getCurrentWebviewWindow, getAllWebviewWindows }
+export type { DragDropEvent }

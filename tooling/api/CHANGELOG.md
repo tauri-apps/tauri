@@ -1,5 +1,67 @@
 # Changelog
 
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`148f04887`](https://www.github.com/tauri-apps/tauri/commit/148f048871caee21498b236c058b8890f2b66cc7) ([#9979](https://www.github.com/tauri-apps/tauri/pull/9979)) Add `defaultWindowIcon` to the JS `app` module to retrieve the default window icon in JS.
+
+### Bug Fixes
+
+- [`c98f385cb`](https://www.github.com/tauri-apps/tauri/commit/c98f385cb5da4d72968df24b1fc0b58212d59653) ([#10044](https://www.github.com/tauri-apps/tauri/pull/10044)) Export `mocks` module in `@tauri-apps/api` npm package.
+
+## \[2.0.0-beta.13]
+
+### Breaking Changes
+
+- [`c4410daa8`](https://www.github.com/tauri-apps/tauri/commit/c4410daa85616340e911c8243fdaa69e6906fd49)([#9777](https://www.github.com/tauri-apps/tauri/pull/9777)) This release contains breaking changes to the tray event structure because of newly added events:
+
+  - Changed `TrayIconEvent` to be an enum instead of a struct.
+  - Added `MouseButtonState` and `MouseButton` enums.
+  - Removed `ClickType` enum and replaced it with `MouseButton` enum.
+  - Added `MouseButtonState` enum.
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`ec0e092ec`](https://www.github.com/tauri-apps/tauri/commit/ec0e092ecd23b547c756c7476f23a0d95be6db80)([#9770](https://www.github.com/tauri-apps/tauri/pull/9770)) Add `monitorFromPoint` function in `window` module to get the monitor from a given point.
+
+## \[2.0.0-beta.11]
+
+### Bug Fixes
+
+- [`aa080696e`](https://www.github.com/tauri-apps/tauri/commit/aa080696e0952abff416dd9088d519eaf2587a3a)([#9618](https://www.github.com/tauri-apps/tauri/pull/9618)) Fix `isTauri` incorrect return type.
+
+## \[2.0.0-beta.10]
+
+### New Features
+
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `cursorPosition` function in `window` module to get the current cursor position.
+
+## \[2.0.0-beta.9]
+
+### New Features
+
+- [`70c51371e`](https://www.github.com/tauri-apps/tauri/commit/70c51371e01184223312de3dba8030394a5a9406)([#9539](https://www.github.com/tauri-apps/tauri/pull/9539)) Add `isTauri` function in `core` module to check whether running inside tauri or not.
+
+### Bug Fixes
+
+- [`be7eab209`](https://www.github.com/tauri-apps/tauri/commit/be7eab209c60c45e140f7bcb4bab1037d62d4c03)([#9486](https://www.github.com/tauri-apps/tauri/pull/9486)) Set the `exports > types` package.json field.
+- [`cf615e8e4`](https://www.github.com/tauri-apps/tauri/commit/cf615e8e4d5008ee1ac3f77e530ba26fb91e8977)([#9463](https://www.github.com/tauri-apps/tauri/pull/9463)) Fixes a bug when processing channel messages out of order.
+- [`35b25f7e5`](https://www.github.com/tauri-apps/tauri/commit/35b25f7e5c0fe03af4ed3582e22a626863f035f0)([#9530](https://www.github.com/tauri-apps/tauri/pull/9530)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
+## \[2.0.0-beta.8]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+
+### Bug Fixes
+
+- [`48a7a78f8`](https://www.github.com/tauri-apps/tauri/commit/48a7a78f8094d08e5e403e88050391642d29151b)([#9376](https://www.github.com/tauri-apps/tauri/pull/9376)) Fix `Window/Webview/WebviewWindow.setSize`, `Window/Webview/WebviewWindow.setPostion`, `Window/WebviewWindow.setMinSize`, `Window/WebviewWindow.setMaxSize`, `Window/WebviewWindow.setCursorPosition` and `Menu/Submenu.popup` methods failing with invalid args.
+
 ## \[2.0.0-beta.7]
 
 ### Bug Fixes

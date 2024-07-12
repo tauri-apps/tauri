@@ -25,7 +25,10 @@ use tauri_utils::platform::Target;
 use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
 
-use crate::embedded_assets::{AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsError};
+use crate::embedded_assets::{
+  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+};
+use crate::image::{ico_icon, image_icon, png_icon, raw_icon};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -40,6 +43,8 @@ pub struct ContextData {
   pub capabilities: Option<Vec<PathBuf>>,
   /// The custom assets implementation
   pub assets: Option<Expr>,
+  /// Skip runtime-only types generation for tests (e.g. embed-plist usage).
+  pub test: bool,
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
@@ -65,7 +70,7 @@ fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut Csp
 
 fn map_core_assets(
   options: &AssetOptions,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
   let csp = options.csp;
   let dangerous_disable_asset_csp_modification =
     options.dangerous_disable_asset_csp_modification.clone();
@@ -92,7 +97,7 @@ fn map_core_assets(
 fn map_isolation(
   _options: &AssetOptions,
   dir: PathBuf,
-) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> Result<(), EmbeddedAssetsError> {
+) -> impl Fn(&AssetKey, &Path, &mut Vec<u8>, &mut CspHashes) -> EmbeddedAssetsResult<()> {
   // create the csp for the isolation iframe styling now, to make the runtime less complex
   let mut hasher = Sha256::new();
   hasher.update(tauri_utils::pattern::isolation::IFRAME_STYLE);
@@ -129,7 +134,7 @@ fn map_isolation(
 }
 
 /// Build a `tauri::Context` for including in application code.
-pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsError> {
+pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let ContextData {
     dev,
     config,
@@ -137,10 +142,13 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     root,
     capabilities: additional_capabilities,
     assets,
+    test,
   } = data;
 
-  let target = std::env::var("TARGET")
-    .or_else(|_| std::env::var("TAURI_ENV_TARGET_TRIPLE"))
+  #[allow(unused_variables)]
+  let running_tests = test;
+
+  let target = std::env::var("TAURI_ENV_TARGET_TRIPLE")
     .as_deref()
     .map(Target::from_triple)
     .unwrap_or_else(|_| Target::current());
@@ -181,8 +189,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
           let assets_path = config_parent.join(path);
           if !assets_path.exists() {
             panic!(
-              "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
-              path
+              "The `frontendDist` configuration is set to `{path:?}` but this path doesn't exist"
             )
           }
           EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
@@ -202,17 +209,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
     quote!(#assets)
   };
 
-  let out_dir = {
-    let out_dir = std::env::var("OUT_DIR")
-      .map_err(|_| EmbeddedAssetsError::OutDir)
-      .map(PathBuf::from)
-      .and_then(|p| p.canonicalize().map_err(|_| EmbeddedAssetsError::OutDir))?;
-
-    // make sure that our output directory is created
-    std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
-
-    out_dir
-  };
+  let out_dir = ensure_out_dir()?;
 
   let default_window_icon = {
     if target == Target::Windows {
@@ -224,7 +221,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        ico_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+          .map(|i| quote!(::std::option::Option::Some(#i)))?
       } else {
         let icon_path = find_icon(
           &config,
@@ -232,7 +230,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+          .map(|i| quote!(::std::option::Option::Some(#i)))?
       }
     } else {
       // handle default window icons for Unix targets
@@ -242,7 +241,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+      png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+        .map(|i| quote!(::std::option::Option::Some(#i)))?
     }
   };
 
@@ -261,7 +261,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
         "icons/icon.png",
       );
     }
-    raw_icon(&out_dir, icon_path)?
+    raw_icon(&out_dir, &icon_path, "dev-macos-icon.png")?
   } else {
     quote!(::std::option::Option::None)
   };
@@ -290,18 +290,8 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      let ext = tray_icon_icon_path.extension();
-      if ext.map_or(false, |e| e == "ico") {
-        ico_icon(&root, &out_dir, tray_icon_icon_path)
-          .map(|i| quote!(context.set_tray_icon(Some(#i));))?
-      } else if ext.map_or(false, |e| e == "png") {
-        png_icon(&root, &out_dir, tray_icon_icon_path)
-          .map(|i| quote!(context.set_tray_icon(Some(#i));))?
-      } else {
-        quote!(compile_error!(
-          "The tray icon extension must be either `.ico` or `.png`."
-        ))
-      }
+      image_icon(&root, &out_dir, &tray_icon_icon_path, "tray-icon")
+        .map(|i| quote!(context.set_tray_icon(Some(#i));))?
     } else {
       quote!()
     }
@@ -310,7 +300,7 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::MacOS && dev {
+  let info_plist = if target == Target::MacOS && dev && !running_tests {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)
@@ -325,17 +315,23 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
       }
       if let Some(version) = &config.version {
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-      }
-      let format =
-        time::format_description::parse("[year][month][day].[hour][minute][second]").unwrap();
-      if let Ok(build_number) = time::OffsetDateTime::now_utc().format(&format) {
-        plist.insert("CFBundleVersion".into(), build_number.into());
+        plist.insert("CFBundleVersion".into(), version.clone().into());
       }
     }
 
+    let plist_file = out_dir.join("Info.plist");
+
+    let mut plist_contents = std::io::BufWriter::new(Vec::new());
     info_plist
-      .to_file_xml(out_dir.join("Info.plist"))
-      .expect("failed to write Info.plist");
+      .to_writer_xml(&mut plist_contents)
+      .expect("failed to serialize plist");
+    let plist_contents =
+      String::from_utf8_lossy(&plist_contents.into_inner().unwrap()).into_owned();
+
+    if plist_contents != std::fs::read_to_string(&plist_file).unwrap_or_default() {
+      std::fs::write(&plist_file, &plist_contents).expect("failed to write Info.plist");
+    }
+
     quote!({
       tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
     })
@@ -505,122 +501,18 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   }))
 }
 
-fn ico_icon<P: AsRef<Path>>(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: P,
-) -> Result<TokenStream, EmbeddedAssetsError> {
-  let path = path.as_ref();
-  let bytes = std::fs::read(path)
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
-    .to_vec();
-  let icon_dir = ico::IconDir::read(std::io::Cursor::new(bytes))
-    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
-  let entry = &icon_dir.entries()[0];
-  let rgba = entry
-    .decode()
-    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
-    .rgba_data()
-    .to_vec();
-  let width = entry.width();
-  let height = entry.height();
-
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
-  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn raw_icon<P: AsRef<Path>>(out_dir: &Path, path: P) -> Result<TokenStream, EmbeddedAssetsError> {
-  let path = path.as_ref();
-  let bytes = std::fs::read(path)
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
-    .to_vec();
-
-  let out_path = out_dir.join(path.file_name().unwrap());
-  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
-  let icon = quote!(::std::option::Option::Some(
-    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
-  ));
-  Ok(icon)
-}
-
-fn png_icon<P: AsRef<Path>>(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: P,
-) -> Result<TokenStream, EmbeddedAssetsError> {
-  let path = path.as_ref();
-  let bytes = std::fs::read(path)
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e))
-    .to_vec();
-  let decoder = png::Decoder::new(std::io::Cursor::new(bytes));
-  let mut reader = decoder
-    .read_info()
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let (color_type, _) = reader.output_color_type();
-
-  if color_type != png::ColorType::Rgba {
-    panic!("icon {} is not RGBA", path.display());
-  }
-
-  let mut buffer: Vec<u8> = Vec::new();
-  while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row.data());
-  }
-  let width = reader.info().width;
-  let height = reader.info().height;
-
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
-  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
-  use std::fs::File;
-  use std::io::Write;
-
-  if let Ok(curr) = std::fs::read(out_path) {
-    if curr == data {
-      return Ok(());
-    }
-  }
-
-  let mut out_file = File::create(out_path)?;
-  out_file.write_all(data)
-}
-
-fn find_icon<F: Fn(&&String) -> bool>(
+fn find_icon(
   config: &Config,
   config_parent: &Path,
-  predicate: F,
+  predicate: impl Fn(&&String) -> bool,
   default: &str,
 ) -> PathBuf {
   let icon_path = config
     .bundle
     .icon
     .iter()
-    .find(|i| predicate(i))
-    .cloned()
-    .unwrap_or_else(|| default.to_string());
+    .find(predicate)
+    .map(AsRef::as_ref)
+    .unwrap_or(default);
   config_parent.join(icon_path)
 }

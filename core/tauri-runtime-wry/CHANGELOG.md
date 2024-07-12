@@ -1,5 +1,117 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### Bug Fixes
+
+- [`f29b78811`](https://www.github.com/tauri-apps/tauri/commit/f29b78811080bc8313459f34545152d939c62bf6) ([#9862](https://www.github.com/tauri-apps/tauri/pull/9862)) On Windows, handle resizing undecorated windows natively which improves performance and fixes a couple of annoyances with previous JS implementation:
+
+  - No more cursor flickering when moving the cursor across an edge.
+  - Can resize from top even when `data-tauri-drag-region` element exists there.
+  - Upon starting rezing, clicks don't go through elements behind it so no longer accidental clicks.
+
+### What's Changed
+
+- [`669b9c6b5`](https://www.github.com/tauri-apps/tauri/commit/669b9c6b5af791129b77ee440dacaa98288c906b) ([#9621](https://www.github.com/tauri-apps/tauri/pull/9621)) Set the gtk application to the identifier defined in `tauri.conf.json` to ensure the app uniqueness.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- Upgraded to `tauri-runtime@2.0.0-beta.19`
+- [`d4c908cfb`](https://www.github.com/tauri-apps/tauri/commit/d4c908cfb8c567abdaf99b85f65f482ea81967e5) ([#10048](https://www.github.com/tauri-apps/tauri/pull/10048)) Update `windows` crate to version `0.57` and `webview2-com` crate to version `0.31`
+
+## \[2.0.0-beta.18]
+
+### Enhancements
+
+- [`276c4b143`](https://www.github.com/tauri-apps/tauri/commit/276c4b14385e17cff15a2e5b57fd2a7cddef9f08)([#9832](https://www.github.com/tauri-apps/tauri/pull/9832)) Added `WindowBuilder::get_theme`.
+
+### What's Changed
+
+- [`9ac930380`](https://www.github.com/tauri-apps/tauri/commit/9ac930380a5df3fe700e68e75df8684d261ca292)([#9850](https://www.github.com/tauri-apps/tauri/pull/9850)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.17`
+- Upgraded to `tauri-runtime@2.0.0-beta.18`
+
+## \[2.0.0-beta.17]
+
+### Security fixes
+
+- [`d950ac123`](https://www.github.com/tauri-apps/tauri/commit/d950ac1239817d17324c035e5c4769ee71fc197d) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.16`
+- Upgraded to `tauri-runtime@2.0.0-beta.17`
+
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`78839b6d2`](https://www.github.com/tauri-apps/tauri/commit/78839b6d2f1005a5e6e1a54b0305136bae0c3a7c)([#4865](https://www.github.com/tauri-apps/tauri/pull/4865)) Add `RunEvent::Reopen` for handle click on dock icon on macOS.
+
+### Bug Fixes
+
+- [`c0bcc6c0b`](https://www.github.com/tauri-apps/tauri/commit/c0bcc6c0b74ef7167de85002a5c29b6f731bae41)([#9717](https://www.github.com/tauri-apps/tauri/pull/9717)) Fixes redraw tracing span not closing.
+
+### What's Changed
+
+- [`783ef0f2d`](https://www.github.com/tauri-apps/tauri/commit/783ef0f2d331f520fa827c3112f36c0b519b9292)([#9647](https://www.github.com/tauri-apps/tauri/pull/9647)) Changed `WebviewDispatch::url` getter to return a result.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.16`
+- Upgraded to `tauri-utils@2.0.0-beta.15`
+
+## \[2.0.0-beta.15]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.14`
+- Upgraded to `tauri-runtime@2.0.0-beta.15`
+
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`477bb8cd4`](https://www.github.com/tauri-apps/tauri/commit/477bb8cd4ea88ade3f6c1f268ad1701a68150161)([#9297](https://www.github.com/tauri-apps/tauri/pull/9297)) Add `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter to get the current cursor position.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.14`
+
+## \[2.0.0-beta.13]
+
+### What's Changed
+
+- [`005fe8ce1`](https://www.github.com/tauri-apps/tauri/commit/005fe8ce1ef71ea46a7d86f98bdf397ca81eb920)([#9410](https://www.github.com/tauri-apps/tauri/pull/9410)) Fix `closable`, `maximizable` and `minimizable` options not taking effect when used in tauri.conf.json or from JS APIs.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.13`
+- Upgraded to `tauri-runtime@2.0.0-beta.13`
+
+## \[2.0.0-beta.12]
+
+### New Features
+
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Added the `set_zoom` function to the webview API.
+- [`58a7a552d`](https://www.github.com/tauri-apps/tauri/commit/58a7a552d739b77b71d61af11c53f7f2dc7a6e7e)([#9378](https://www.github.com/tauri-apps/tauri/pull/9378)) Add `zoom_hotkeys_enabled` to enable browser native zoom controls on creating webviews.
+
+### Bug Fixes
+
+- [`2f20fdf1d`](https://www.github.com/tauri-apps/tauri/commit/2f20fdf1d6b92fa8b9b38caf7321c3ce3e895f1b)([#9361](https://www.github.com/tauri-apps/tauri/pull/9361)) Fixes an issue causing compilation to fail for i686 and armv7 32-bit targets.
+- [`4c2e7477e`](https://www.github.com/tauri-apps/tauri/commit/4c2e7477e6869e2ce0578265825bbd42a5f28393)([#9309](https://www.github.com/tauri-apps/tauri/pull/9309)) Fix window centering not taking taskbar into account on Windows
+- [`02eaf0787`](https://www.github.com/tauri-apps/tauri/commit/02eaf07872b90225eead22ecdd6ff0a9ed5dd0ff)([#9428](https://www.github.com/tauri-apps/tauri/pull/9428)) Fixes `inner_size` crash when the window has no webviews.
+- [`f22ea2998`](https://www.github.com/tauri-apps/tauri/commit/f22ea2998619cc09c2d426f7b42211a80eed578e)([#9465](https://www.github.com/tauri-apps/tauri/pull/9465)) Revert the [fix](https://github.com/tauri-apps/tauri/pull/9246) for webview's visibility doesn't change with the app window on Windows as it caused white flashes on show/restore.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.12`
+- Upgraded to `tauri-runtime@2.0.0-beta.12`
+
 ## \[2.0.0-beta.11]
 
 ### Bug Fixes
@@ -331,6 +443,12 @@
 
 - Support `with_webview` for Android platform alowing execution of JNI code in context.
   - [8ea87e9c](https://www.github.com/tauri-apps/tauri/commit/8ea87e9c9ca8ba4c7017c8281f78aacd08f45785) feat(android): with_webview access for jni execution ([#5148](https://www.github.com/tauri-apps/tauri/pull/5148)) on 2022-09-08
+
+## \[0.14.5]
+
+### What's Changed
+
+- [`d42668ce`](https://www.github.com/tauri-apps/tauri/commit/d42668ce17494ab778f436aaa9b216d6db3f0b31)([#9003](https://www.github.com/tauri-apps/tauri/pull/9003)) Fix panic during intialization on wayland when using `clipboard` feature, instead propagate the error during API usage.
 
 ## \[0.14.4]
 

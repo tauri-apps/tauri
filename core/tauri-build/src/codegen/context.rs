@@ -115,13 +115,15 @@ impl CodegenContext {
     }
 
     #[cfg(target_os = "macos")]
-    println!(
-      "cargo:rerun-if-changed={}",
-      config_parent.join("Info.plist").display()
-    );
+    {
+      let info_plist_path = config_parent.join("Info.plist");
+      if info_plist_path.exists() {
+        println!("cargo:rerun-if-changed={}", info_plist_path.display());
+      }
+    }
 
     let code = context_codegen(ContextData {
-      dev: crate::dev(),
+      dev: crate::is_dev(),
       config,
       config_parent,
       // it's very hard to have a build script for unit tests, so assume this is always called from
@@ -129,6 +131,7 @@ impl CodegenContext {
       root: quote::quote!(::tauri),
       capabilities: self.capabilities,
       assets: None,
+      test: false,
     })?;
 
     // get the full output file path

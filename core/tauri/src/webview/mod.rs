@@ -34,7 +34,8 @@ use crate::{
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Event, EventId, EventLoopMessage, Manager, ResourceTable, Runtime, Window,
+  AppHandle, Emitter, Event, EventId, EventLoopMessage, Listener, Manager, ResourceTable, Runtime,
+  Window,
 };
 
 use std::{
@@ -124,6 +125,8 @@ pub struct InvokeRequest {
   pub body: InvokeBody,
   /// The request headers.
   pub headers: HeaderMap,
+  /// The invoke key. Must match what was passed to the app manager.
+  pub invoke_key: String,
 }
 
 /// The platform webview handle. Accessed with [`Webview#method.with_webview`];
@@ -733,7 +736,7 @@ fn main() {
     self
   }
 
-  /// Enable or disable incognito mode for the WebView..
+  /// Enable or disable incognito mode for the WebView.
   ///
   ///  ## Platform-specific:
   ///
@@ -776,7 +779,15 @@ fn main() {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled **Windows Only**
+  /// Whether page zooming by hotkeys is enabled
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
+  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///
+  /// - **Android / iOS**: Unsupported.
   #[must_use]
   pub fn zoom_hotkeys_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes.zoom_hotkeys_enabled = enabled;
@@ -885,6 +896,18 @@ impl<R: Runtime> Webview<R> {
   /// `window.print()` works on all platforms.
   pub fn print(&self) -> crate::Result<()> {
     self.webview.dispatcher.print().map_err(Into::into)
+  }
+
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
+  ///
+  /// Note that the top-left hand corner of the desktop is not necessarily the same as the screen.
+  /// If the user uses a desktop with multiple monitors,
+  /// the top-left hand corner of the desktop is the top-left hand corner of the main monitor on Windows and macOS
+  /// or the top-left of the leftmost monitor on X11.
+  ///
+  /// The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
+  pub fn cursor_position(&self) -> crate::Result<PhysicalPosition<f64>> {
+    self.app_handle.cursor_position()
   }
 
   /// Closes this webview.
@@ -1053,14 +1076,17 @@ fn main() {
   }
 
   /// Returns the current url of the webview.
-  // TODO: in v2, change this type to Result
-  pub fn url(&self) -> Url {
-    self.webview.dispatcher.url().unwrap()
+  pub fn url(&self) -> crate::Result<Url> {
+    self
+      .webview
+      .dispatcher
+      .url()
+      .map(|url| url.parse().map_err(crate::Error::InvalidUrl))?
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) {
-    self.webview.dispatcher.navigate(url).unwrap();
+  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+    self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
@@ -1108,6 +1134,24 @@ fn main() {
   pub fn on_message(self, request: InvokeRequest, responder: Box<OwnedInvokeResponder<R>>) {
     let manager = self.manager_owned();
     let is_local = self.is_local_url(&request.url);
+
+    // ensure the passed key matches what our manager should have injected
+    let expected = manager.invoke_key();
+    if request.invoke_key != expected {
+      #[cfg(feature = "tracing")]
+      tracing::error!(
+        "__TAURI_INVOKE_KEY__ expected {expected} but received {}",
+        request.invoke_key
+      );
+
+      #[cfg(not(feature = "tracing"))]
+      eprintln!(
+        "__TAURI_INVOKE_KEY__ expected {expected} but received {}",
+        request.invoke_key
+      );
+
+      return;
+    }
 
     let custom_responder = self.manager().webview.invoke_responder.clone();
 
@@ -1225,7 +1269,7 @@ fn main() {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
                   let _ = crate::ipc::JavaScriptChannelId::from_str(s)
-                    .map(|id| id.channel_on(webview.clone()));
+                    .map(|id| id.channel_on::<R, ()>(webview.clone()));
                 }
               }
             }
@@ -1424,10 +1468,24 @@ tauri::Builder::default()
       .is_devtools_open()
       .unwrap_or_default()
   }
+
+  /// Set the webview zoom level
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android**: Not supported.
+  /// - **macOS**: available on macOS 11+ only.
+  /// - **iOS**: available on iOS 14+ only.
+  pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_zoom(scale_factor)
+      .map_err(Into::into)
+  }
 }
 
-/// Event system APIs.
-impl<R: Runtime> Webview<R> {
+impl<R: Runtime> Listener<R> for Webview<R> {
   /// Listen to an event on this webview.
   ///
   /// # Examples
@@ -1435,13 +1493,13 @@ impl<R: Runtime> Webview<R> {
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Manager;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {
     let webview = app.get_webview("main").unwrap();
     webview.listen("component-loaded", move |event| {
-      println!("window just loaded a component");
+      println!("webview just loaded a component");
     });
 
     Ok(())
@@ -1449,11 +1507,27 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
     self.manager.listen(
+      event.into(),
+      EventTarget::Webview {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
+  }
+
+  /// Listen to an event on this webview only once.
+  ///
+  /// See [`Self::listen`] for more information.
+  fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  where
+    F: FnOnce(Event) + Send + 'static,
+  {
+    self.manager.once(
       event.into(),
       EventTarget::Webview {
         label: self.label().to_string(),
@@ -1469,7 +1543,7 @@ tauri::Builder::default()
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Manager;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {
@@ -1491,24 +1565,97 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn unlisten(&self, id: EventId) {
+  fn unlisten(&self, id: EventId) {
     self.manager.unlisten(id)
   }
+}
 
-  /// Listen to an event on this webview only once.
+impl<R: Runtime> Emitter<R> for Webview<R> {
+  /// Emits an event to all [targets](EventTarget).
   ///
-  /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Emitter;
+
+#[tauri::command]
+fn synchronize(webview: tauri::Webview) {
+  // emits the synchronized event to all webviews
+  webview.emit("synchronized", ());
+}
+  ```
+  "####
+  )]
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.manager.emit(event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) matching the given target.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{Emitter, EventTarget};
+
+#[tauri::command]
+fn download(webview: tauri::Webview) {
+  for i in 1..100 {
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // emit a download progress event to all listeners
+    webview.emit_to(EventTarget::any(), "download-progress", i);
+    // emit an event to listeners that used App::listen or AppHandle::listen
+    webview.emit_to(EventTarget::app(), "download-progress", i);
+    // emit an event to any webview/window/webviewWindow matching the given label
+    webview.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
+    webview.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+    // emit an event to listeners that used WebviewWindow::listen
+    webview.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
+  }
+}
+```
+"####
+  )]
+  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
   where
-    F: FnOnce(Event) + Send + 'static,
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
   {
-    self.manager.once(
-      event.into(),
-      EventTarget::Webview {
-        label: self.label().to_string(),
-      },
-      handler,
-    )
+    self.manager.emit_to(target, event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) based on the given filter.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{Emitter, EventTarget};
+
+#[tauri::command]
+fn download(webview: tauri::Webview) {
+  for i in 1..100 {
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // emit a download progress event to the updater window
+    webview.emit_filter("download-progress", i, |t| match t {
+      EventTarget::WebviewWindow { label } => label == "main",
+      _ => false,
+    });
+  }
+}
+  ```
+  "####
+  )]
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&EventTarget) -> bool,
+  {
+    self.manager.emit_filter(event, payload, filter)
   }
 }
 

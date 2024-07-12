@@ -1,6 +1,62 @@
-| Permission | Description |
-|------|-----|
-|`allow-ping`|Enables the ping command without any pre-configured scope.|
-|`deny-ping`|Denies the ping command without any pre-configured scope.|
-|`global-scope`|Sets a global scope.|
-|`allow-ping-scoped`|Enables the ping command with a test scope.|
+
+### Permission Table 
+
+<table>
+<tr>
+<th>Identifier</th>
+<th>Description</th>
+</tr>
+
+
+<tr>
+<td>
+
+`sample:allow-ping`
+
+</td>
+<td>
+
+Enables the ping command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sample:deny-ping`
+
+</td>
+<td>
+
+Denies the ping command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sample:global-scope`
+
+</td>
+<td>
+
+Sets a global scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`sample:allow-ping-scoped`
+
+</td>
+<td>
+
+Enables the ping command with a test scope.
+
+</td>
+</tr>
+</table>

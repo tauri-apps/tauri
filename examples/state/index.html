@@ -35,14 +35,14 @@
       }
 
       incrementBtn.addEventListener('click', () => {
-        window.__TAURI__
+        window.__TAURI__.core
           .invoke('increment_counter')
           .then(updateResponse)
           .catch(updateResponse)
       })
 
       storeBtn.addEventListener('click', () => {
-        window.__TAURI__
+        window.__TAURI__.core
           .invoke('db_insert', {
             key: KEY,
             value: storeInput.value
@@ -52,7 +52,7 @@
       })
 
       readBtn.addEventListener('click', () => {
-        window.__TAURI__
+        window.__TAURI__.core
           .invoke('db_read', {
             key: KEY
           })

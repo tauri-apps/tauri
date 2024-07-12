@@ -158,6 +158,9 @@ pub enum Error {
   /// Failed to get monitor on window operation.
   #[error("failed to get monitor")]
   FailedToGetMonitor,
+  /// Failed to get cursor position.
+  #[error("failed to get cursor position")]
+  FailedToGetCursorPosition,
   #[error("Invalid header name: {0}")]
   InvalidHeaderName(#[from] InvalidHeaderName),
   #[error("Invalid header value: {0}")]
@@ -225,13 +228,19 @@ pub enum RunEvent<T: UserEvent> {
   Ready,
   /// Sent if the event loop is being resumed.
   Resumed,
-  /// Emitted when all of the event loop’s input events have been processed and redraw processing is about to begin.
+  /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
   /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   Opened { urls: Vec<url::Url> },
+  /// Emitted when the NSApplicationDelegate's applicationShouldHandleReopen gets called
+  #[cfg(target_os = "macos")]
+  Reopen {
+    /// Indicates whether the NSApplication object found any visible windows in your application.
+    has_visible_windows: bool,
+  },
   /// A custom event defined by the user.
   UserEvent(T),
 }
@@ -291,7 +300,10 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
@@ -327,6 +339,14 @@ pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
 
 #[derive(Default)]
 pub struct RuntimeInitArgs {
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub app_id: Option<String>,
   #[cfg(windows)]
   pub msg_hook: Option<Box<dyn FnMut(*const std::ffi::c_void) -> bool + 'static>>,
 }
@@ -371,7 +391,10 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ) -> Result<DetachedWebview<T, Self>>;
 
   fn primary_monitor(&self) -> Option<Monitor>;
+  fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
   fn available_monitors(&self) -> Vec<Monitor>;
+
+  fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
   /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
@@ -438,7 +461,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   // GETTERS
 
   /// Returns the webview's current URL.
-  fn url(&self) -> Result<Url>;
+  fn url(&self) -> Result<String>;
 
   /// Returns the webview's bounds.
   fn bounds(&self) -> Result<Rect>;
@@ -480,6 +503,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
+
+  /// Set the webview zoom level
+  fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.
@@ -529,10 +555,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Gets the window's current focus state.
   fn is_focused(&self) -> Result<bool>;
 
-  /// Gets the window’s current decoration state.
+  /// Gets the window's current decoration state.
   fn is_decorated(&self) -> Result<bool>;
 
-  /// Gets the window’s current resizable state.
+  /// Gets the window's current resizable state.
   fn is_resizable(&self) -> Result<bool>;
 
   /// Gets the window's native maximize button state.
@@ -570,6 +596,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ///
   /// Returns None if it can't identify any monitor as a primary one.
   fn primary_monitor(&self) -> Result<Option<Monitor>>;
+
+  /// Returns the monitor that contains the given point.
+  fn monitor_from_point(&self, x: f64, y: f64) -> Result<Option<Monitor>>;
 
   /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Result<Vec<Monitor>>;
@@ -700,10 +729,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Resizes the window.
   fn set_size(&self, size: Size) -> Result<()>;
 
-  /// Updates the window min size.
+  /// Updates the window min inner size.
   fn set_min_size(&self, size: Option<Size>) -> Result<()>;
 
-  /// Updates the window max size.
+  /// Updates the window max inner size.
   fn set_max_size(&self, size: Option<Size>) -> Result<()>;
 
   /// Updates the window position.
@@ -754,4 +783,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / macOS**: Progress bar is app-wide and not specific to this window. Only supported desktop environments with `libunity` (e.g. GNOME).
   /// - **iOS / Android:** Unsupported.
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()>;
+
+  /// Sets the title bar style. Available on macOS only.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()>;
 }

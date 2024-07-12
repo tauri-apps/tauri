@@ -42,7 +42,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 ## Development Guide
 
-**NOTE: Tauri is undergoing rapid development right now, and the docs match the latest published version of Tauri. They are horribly out of date when compared with the code in the dev branch. This contributor guide is up-to-date, but it doesn't cover all of Tauri's functions in depth. If you have any questions, don't hesitate to ask in our Discord server.**
+**NOTE: If you have any question don't hesitate to ask in our Discord server. We try to keep this guide to up guide, but if something doesn't work let us know.**
 
 ### General Setup
 
@@ -52,14 +52,9 @@ To set up your machine for development, follow the [Tauri setup guide](https://t
 
 Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To build these automatically, run the `.scripts/setup.sh` (Linux and macOS) or `.scripts/setup.ps1` (Windows) script. This will install the Rust and Node.js CLI and build the JS API. After that, you should be able to run all the examples. Note that the setup script should be executed from the root folder of the repository in order to run correctly.
 
-### Packages Overview
+### Overview
 
-- Tauri Core (`/core/tauri`) is the heart of Tauri. It contains the code that starts the app, configures communication between Rust and the Webview, and ties all the other packages together.
-- The Macros (`/core/tauri-macros`) are used by Tauri Core for various functions.
-- Tauri Bundler (`/tooling/bundler`) is used by the Rust CLI to package executables into installers.
-- The Rust CLI aka `tauri-cli` (`/tooling/cli`) is the primary CLI for creating and developing Tauri apps.
-- The JS CLI aka `@tauri-apps/cli` (`/tooling/cli/node`) is a Node.js CLI wrapper for `tauri-cli`.
-- The JS API aka `@tauri-apps/api` (`/tooling/api`) contains JS bindings to the builtin Rust functions in the Rust API.
+See [Architecture](../ARCHITECTURE.md#major-components) for an overview of the packages in this repository.
 
 ### Developing Tauri Bundler and Rust CLI
 
@@ -71,7 +66,7 @@ The code for the bundler is located in `[Tauri repo root]/tooling/bundler`, and 
 
 ### Developing Tauri Core and Related Components (Rust API, Macros, Codegen, and Utils)
 
-The code for Tauri Core is located in `[Tauri repo root]/core/tauri`, and the Rust API, Macros, and Utils are in `[Tauri repo root]/core/tauri-(api/macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `yarn tauri build` or `yarn tauri dev` in the helloworld app directory after making changes to test them out. To use your local changes in another project, edit its `src-tauri/Cargo.toml` file so that the `tauri` key looks like `tauri = { path = "PATH" }`, where `PATH` is the relative path to `[Tauri repo root]/core/tauri`. Then, your local copy of the Tauri core packages will be rebuilt and used whenever you build that project.
+The code for the Rust crates, including the Core, Macros, Utils, WRY runtime, and a few more are located in `[Tauri repo root]/core/tauri-(macros/utils)`. The easiest way to test your changes is to use the `[Tauri repo root]/examples/helloworld` app. It automatically rebuilds and uses your local copy of the Tauri core packages. Just run `cargo run --example helloworld` after making changes to test them out.
 
 #### Building the documentation locally
 
@@ -87,4 +82,4 @@ The JS API provides bindings between the developer's JS in the Webview and the b
 
 ## Financial Contribution
 
-Tauri is an MIT-licensed open source project. Its ongoing development can be supported via [GitHub Sponsors](https://github.com/sponsors/nothingismagick) or [Open Collective](https://opencollective.com/tauri). We prefer GitHub Sponsors as donations made are doubled through the matching fund program.
+Tauri is an MIT-licensed open source project. Its ongoing development can be supported via [GitHub Sponsors](https://github.com/sponsors/tauri-apps) or [Open Collective](https://opencollective.com/tauri). We prefer GitHub Sponsors as donations made are doubled through the matching fund program.

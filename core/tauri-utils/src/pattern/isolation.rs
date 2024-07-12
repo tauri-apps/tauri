@@ -73,6 +73,14 @@ impl AesGcmPair {
   pub fn key(&self) -> &Aes256Gcm {
     &self.key
   }
+
+  #[doc(hidden)]
+  pub fn encrypt(&self, nonce: &[u8; 12], payload: &[u8]) -> Result<Vec<u8>, Error> {
+    self
+      .key
+      .encrypt(nonce.into(), payload)
+      .map_err(|_| self::Error::Aes)
+  }
 }
 
 /// All cryptographic keys required for Isolation encryption
@@ -97,7 +105,7 @@ impl Keys {
 
   /// Decrypts a message using the generated keys.
   pub fn decrypt(&self, raw: RawIsolationPayload<'_>) -> Result<Vec<u8>, Error> {
-    let RawIsolationPayload { nonce, payload } = raw;
+    let RawIsolationPayload { nonce, payload, .. } = raw;
     let nonce: [u8; 12] = nonce.as_ref().try_into()?;
     self
       .aes_gcm
@@ -109,9 +117,18 @@ impl Keys {
 
 /// Raw representation of
 #[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RawIsolationPayload<'a> {
   nonce: Cow<'a, [u8]>,
   payload: Cow<'a, [u8]>,
+  content_type: Cow<'a, str>,
+}
+
+impl<'a> RawIsolationPayload<'a> {
+  /// Content type of this payload.
+  pub fn content_type(&self) -> &Cow<'a, str> {
+    &self.content_type
+  }
 }
 
 impl<'a> TryFrom<&'a Vec<u8>> for RawIsolationPayload<'a> {

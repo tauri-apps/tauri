@@ -71,27 +71,27 @@ pub enum WebviewEvent {
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum DragDropEvent {
-  /// A drag operation started.
-  Dragged {
-    /// Paths of the files that are being dragged.
+  /// A drag operation has entered the webview.
+  Enter {
+    /// List of paths that are being dragged onto the webview.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
     position: dpi::PhysicalPosition<f64>,
   },
-  /// The files have been dragged onto the window, but have not been dropped yet.
-  DragOver {
+  /// A drag operation is moving over the webview.
+  Over {
     /// The position of the mouse cursor.
     position: dpi::PhysicalPosition<f64>,
   },
-  /// The user dropped the operation.
-  Dropped {
-    /// Path of the files that were dropped.
+  /// The file(s) have been dropped onto the webview.
+  Drop {
+    /// List of paths that are being dropped onto the window.
     paths: Vec<PathBuf>,
     /// The position of the mouse cursor.
     position: dpi::PhysicalPosition<f64>,
   },
-  /// The drag operation was cancelled.
-  Cancelled,
+  /// The drag operation has been cancelled or left the window.
+  Leave,
 }
 
 /// Describes the appearance of the mouse cursor.
@@ -409,6 +409,8 @@ pub trait WindowBuilder: WindowBuilderBase {
 
   /// Whether the icon was set or not.
   fn has_icon(&self) -> bool;
+
+  fn get_theme(&self) -> Option<Theme>;
 }
 
 /// A window that has yet to be built.

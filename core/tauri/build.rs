@@ -63,7 +63,9 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("title", true),
       ("current_monitor", true),
       ("primary_monitor", true),
+      ("monitor_from_point", true),
       ("available_monitors", true),
+      ("cursor_position", true),
       ("theme", true),
       // setters
       ("center", false),
@@ -101,8 +103,10 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_cursor_position", false),
       ("set_ignore_cursor_events", false),
       ("start_dragging", false),
+      ("start_resize_dragging", false),
       ("set_progress_bar", false),
       ("set_icon", false),
+      ("set_title_bar_style", false),
       ("toggle_maximize", false),
       // internal
       ("internal_toggle_maximize", true),
@@ -121,6 +125,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_webview_size", false),
       ("set_webview_position", false),
       ("set_webview_focus", false),
+      ("set_webview_zoom", false),
       ("print", false),
       ("reparent", false),
       // internal
@@ -135,6 +140,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("tauri_version", true),
       ("app_show", false),
       ("app_hide", false),
+      ("default_window_icon", false),
     ],
   ),
   (
@@ -151,44 +157,44 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   (
     "menu",
     &[
-      ("new", false),
-      ("append", false),
-      ("prepend", false),
-      ("insert", false),
-      ("remove", false),
-      ("remove_at", false),
-      ("items", false),
-      ("get", false),
-      ("popup", false),
-      ("create_default", false),
-      ("set_as_app_menu", false),
-      ("set_as_window_menu", false),
-      ("text", false),
-      ("set_text", false),
-      ("is_enabled", false),
-      ("set_enabled", false),
-      ("set_accelerator", false),
-      ("set_as_windows_menu_for_nsapp", false),
-      ("set_as_help_menu_for_nsapp", false),
-      ("is_checked", false),
-      ("set_checked", false),
-      ("set_icon", false),
+      ("new", true),
+      ("append", true),
+      ("prepend", true),
+      ("insert", true),
+      ("remove", true),
+      ("remove_at", true),
+      ("items", true),
+      ("get", true),
+      ("popup", true),
+      ("create_default", true),
+      ("set_as_app_menu", true),
+      ("set_as_window_menu", true),
+      ("text", true),
+      ("set_text", true),
+      ("is_enabled", true),
+      ("set_enabled", true),
+      ("set_accelerator", true),
+      ("set_as_windows_menu_for_nsapp", true),
+      ("set_as_help_menu_for_nsapp", true),
+      ("is_checked", true),
+      ("set_checked", true),
+      ("set_icon", true),
     ],
   ),
   (
     "tray",
     &[
-      ("new", false),
-      ("get_by_id", false),
-      ("remove_by_id", false),
-      ("set_icon", false),
-      ("set_menu", false),
-      ("set_tooltip", false),
-      ("set_title", false),
-      ("set_visible", false),
-      ("set_temp_dir_path", false),
-      ("set_icon_as_template", false),
-      ("set_show_menu_on_left_click", false),
+      ("new", true),
+      ("get_by_id", true),
+      ("remove_by_id", true),
+      ("set_icon", true),
+      ("set_menu", true),
+      ("set_tooltip", true),
+      ("set_title", true),
+      ("set_visible", true),
+      ("set_temp_dir_path", true),
+      ("set_icon_as_template", true),
+      ("set_show_menu_on_left_click", true),
     ],
   ),
 ];
@@ -211,6 +217,7 @@ fn has_feature(feature: &str) -> bool {
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }
@@ -222,7 +229,7 @@ fn main() {
   alias("custom_protocol", custom_protocol);
   alias("dev", dev);
 
-  println!("cargo:dev={}", dev);
+  println!("cargo:dev={dev}");
 
   let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
@@ -250,10 +257,7 @@ fn main() {
     if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
       fn env_var(var: &str) -> String {
         std::env::var(var).unwrap_or_else(|_| {
-          panic!(
-            "`{}` is not set, which is needed to generate the kotlin files for android.",
-            var
-          )
+          panic!("`{var}` is not set, which is needed to generate the kotlin files for android.")
         })
       }
 
@@ -308,7 +312,7 @@ fn main() {
     if target_os == "ios" {
       let lib_path =
         PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("mobile/ios-api");
-      tauri_utils::build::link_swift_library("Tauri", &lib_path);
+      tauri_utils::build::link_apple_library("Tauri", &lib_path);
       println!("cargo:ios_library_path={}", lib_path.display());
     }
   }
@@ -339,7 +343,7 @@ fn define_permissions(out_dir: &Path) {
       .filter(|(_cmd, default)| *default)
       .map(|(cmd, _)| {
         let slugified_command = cmd.replace('_', "-");
-        format!("\"allow-{}\"", slugified_command)
+        format!("\"allow-{slugified_command}\"")
       })
       .collect::<Vec<_>>()
       .join(", ");
@@ -372,8 +376,12 @@ permissions = [{default_permissions}]
 
     let docs_out_dir = Path::new("permissions").join(plugin).join("autogenerated");
     create_dir_all(&docs_out_dir).expect("failed to create plugin documentation directory");
-    tauri_utils::acl::build::generate_docs(&permissions, &docs_out_dir)
-      .expect("failed to generate plugin documentation page");
+    tauri_utils::acl::build::generate_docs(
+      &permissions,
+      &docs_out_dir,
+      plugin.strip_prefix("tauri-plugin-").unwrap_or(plugin),
+    )
+    .expect("failed to generate plugin documentation page");
   }
 }
 

@@ -135,7 +135,6 @@ fn map_isolation(
 
 /// Build a `tauri::Context` for including in application code.
 pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
-  #[allow(unused_variables)]
   let ContextData {
     dev,
     config,
@@ -145,6 +144,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     assets,
     test,
   } = data;
+
+  #[allow(unused_variables)]
+  let running_tests = test;
 
   let target = std::env::var("TAURI_ENV_TARGET_TRIPLE")
     .as_deref()
@@ -242,7 +244,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     }
   };
 
-  let app_icon = if target == Target::MacOS && dev {
+  let app_icon = if target == Target::MacOS && dev && !running_tests {
     let mut icon_path = find_icon(
       &config,
       &config_parent,
@@ -296,7 +298,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::MacOS && dev && !test {
+  let info_plist = if target == Target::MacOS && dev {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)

@@ -109,7 +109,7 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// ```
 /// but you can't have mixed negations and positive kinds.
 /// ```ignore
-/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submeun);
+/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submenu);
 /// ```
 ///
 /// #### Example
@@ -203,7 +203,12 @@ pub fn include_image(tokens: TokenStream) -> TokenStream {
     );
     return quote!(compile_error!(#error_string)).into();
   }
-  match tauri_codegen::include_image_codegen(&resolved_path).map_err(|error| error.to_string()) {
+  match tauri_codegen::include_image_codegen(
+    &resolved_path,
+    resolved_path.file_name().unwrap().to_str().unwrap(),
+  )
+  .map_err(|error| error.to_string())
+  {
     Ok(output) => output,
     Err(error) => quote!(compile_error!(#error)),
   }

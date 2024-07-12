@@ -34,8 +34,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.0/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "E0FC0951DEB0E5E741DF10328F95C7D6678AD3AA";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.1/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "F99A50209A345185A84D34D0E5F66D04C75FF52F";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -253,6 +253,10 @@ fn build_nsis_app_installer(
       let installer_hooks = dunce::canonicalize(installer_hooks)?;
       data.insert("installer_hooks", to_json(installer_hooks));
     }
+
+    if let Some(start_menu_folder) = &nsis.start_menu_folder {
+      data.insert("start_menu_folder", to_json(start_menu_folder));
+    }
   }
 
   let compression = settings
@@ -330,7 +334,12 @@ fn build_nsis_app_installer(
   let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
   data.insert(
     "main_binary_name",
-    to_json(main_binary.name().replace(".exe", "")),
+    to_json(
+      main_binary_path
+        .file_stem()
+        .and_then(|file_name| file_name.to_str())
+        .unwrap_or_else(|| main_binary.name()),
+    ),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));
 
@@ -664,17 +673,17 @@ fn generate_estimated_size(
   main: &PathBuf,
   binaries: &BinariesMap,
   resources: &ResourcesMap,
-) -> crate::Result<String> {
+) -> crate::Result<u64> {
   let mut size = 0;
   for k in std::iter::once(main)
     .chain(binaries.keys())
     .chain(resources.keys())
   {
     size += std::fs::metadata(k)
-      .with_context(|| format!("when getting size of {}", main.display()))?
+      .with_context(|| format!("when getting size of {}", k.display()))?
       .len();
   }
-  Ok(format!("{:#08x}", size / 1024))
+  Ok(size / 1024)
 }
 
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {

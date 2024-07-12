@@ -1,10 +1,15 @@
 Unicode true
 ManifestDPIAware true
+; Add in `dpiAwareness` `PerMonitorV2` to manifest for Windows 10 1607+ (note this should not affect lower versions since they should be able to ignore this and pick up `dpiAware` `true` set by `ManifestDPIAware true`)
+; Currently undocumented on NSIS's website but is in the Docs folder of source tree, see
+; https://github.com/kichik/nsis/blob/5fc0b87b819a9eec006df4967d08e522ddd651c9/Docs/src/attributes.but#L286-L300
+; https://github.com/tauri-apps/tauri/pull/10106
+ManifestDPIAwareness PerMonitorV2
 
 !if "{{compression}}" == "none"
   SetCompress off
 !else
-  ; Set the compression algorithm. Default is LZMA.
+  ; Set the compression algorithm. We default to LZMA.
   SetCompressor /SOLID "{{compression}}"
 !endif
 
@@ -52,6 +57,7 @@ ${StrLoc}
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
 !define ESTIMATEDSIZE "{{estimated_size}}"
+!define STARTMENUFOLDER "{{start_menu_folder}}"
 
 Var PassiveMode
 Var UpdateMode
@@ -332,7 +338,12 @@ FunctionEnd
 
 ; 6. Start menu shortcut page
 Var AppStartMenuFolder
-!define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!if "${STARTMENUFOLDER}" != ""
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+  !define MUI_STARTMENUPAGE_DEFAULTFOLDER "${STARTMENUFOLDER}"
+!else
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE Skip
+!endif
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
 ; 7. Installation page
@@ -364,19 +375,37 @@ Var DeleteAppDataCheckboxState
 !define /ifndef WS_EX_LAYOUTRTL         0x00400000
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
 Function un.ConfirmShow ; Add add a `Delete app data` check box
-    FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
-    ${If} $(^RTL) = 1
-      System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE}|${WS_EX_LAYOUTRTL},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 50,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
-    ${Else}
-      System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 0,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
-    ${EndIf}
-    Pop $DeleteAppDataCheckbox
-    SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $1
-    SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $1 1
+  ; $1 inner dialog HWND
+  ; $2 window DPI
+  ; $3 style
+  ; $4 x
+  ; $5 y
+  ; $6 width
+  ; $7 height
+  FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
+  System::Call "user32::GetDpiForWindow(p r1) i .r2"
+  ${If} $(^RTL) = 1
+    StrCpy $3 "${__NSD_CheckBox_EXSTYLE} | ${WS_EX_LAYOUTRTL}"
+    IntOp $4 50 * $2
+  ${Else}
+    StrCpy $3 "${__NSD_CheckBox_EXSTYLE}"
+    IntOp $4 0 * $2
+  ${EndIf}
+  IntOp $5 100 * $2
+  IntOp $6 400 * $2
+  IntOp $7 25 * $2
+  IntOp $4 $4 / 96
+  IntOp $5 $5 / 96
+  IntOp $6 $6 / 96
+  IntOp $7 $7 / 96
+  System::Call 'user32::CreateWindowEx(i r3, w "${__NSD_CheckBox_CLASS}", w "$(deleteAppData)", i ${__NSD_CheckBox_STYLE}, i r4, i r5, i r6, i r7, p r1, i0, i0, i0) i .s'
+  Pop $DeleteAppDataCheckbox
+  SendMessage $HWNDPARENT ${WM_GETFONT} 0 0 $1
+  SendMessage $DeleteAppDataCheckbox ${WM_SETFONT} $1 1
 FunctionEnd
 !define MUI_PAGE_CUSTOMFUNCTION_LEAVE un.ConfirmLeave
 Function un.ConfirmLeave
-    SendMessage $DeleteAppDataCheckbox ${BM_GETCHECK} 0 0 $DeleteAppDataCheckboxState
+  SendMessage $DeleteAppDataCheckbox ${BM_GETCHECK} 0 0 $DeleteAppDataCheckboxState
 FunctionEnd
 !insertmacro MUI_UNPAGE_CONFIRM
 
@@ -529,8 +558,8 @@ Section Install
 
   !insertmacro CheckIfAppIsRunning
 
-  !ifdef NSIS_HOOK_PREINSTALL
-    !insertmacro "${NSIS_HOOK_PREINSTALL}"
+  !ifmacrodef NSIS_HOOK_PREINSTALL
+    !insertmacro NSIS_HOOK_PREINSTALL
   !endif
 
   ; Copy main executable
@@ -585,7 +614,12 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
+
+  ${GetSize} "$INSTDIR" "/M=uninstall.exe /S=0K /G=0" $0 $1 $2
+  IntOp $0 $0 + ${ESTIMATEDSIZE}
+  IntFmt $0 "0x%08X" $0
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$0"
+
   !if "${HOMEPAGE}" != ""
     WriteRegStr SHCTX "${UNINSTKEY}" "URLInfoAbout" "${HOMEPAGE}"
     WriteRegStr SHCTX "${UNINSTKEY}" "URLUpdateInfo" "${HOMEPAGE}"
@@ -604,8 +638,8 @@ Section Install
     Call CreateOrUpdateDesktopShortcut
   ${EndIf}
 
-  !ifdef NSIS_HOOK_POSTINSTALL
-    !insertmacro "${NSIS_HOOK_POSTINSTALL}"
+  !ifmacrodef NSIS_HOOK_POSTINSTALL
+    !insertmacro NSIS_HOOK_POSTINSTALL
   !endif
 
   ; Auto close this page for passive mode
@@ -651,8 +685,8 @@ Section Uninstall
 
   !insertmacro CheckIfAppIsRunning
 
-  !ifdef NSIS_HOOK_PREUNINSTALL
-    !insertmacro "${NSIS_HOOK_PREUNINSTALL}"
+  !ifmacrodef NSIS_HOOK_PREUNINSTALL
+    !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
 
   ; Delete the app directory and its content from disk
@@ -699,13 +733,27 @@ Section Uninstall
 
     ; Remove start menu shortcut
     !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
-    !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+    !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+      Delete "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+      RMDir "$SMPROGRAMS\$AppStartMenuFolder"
+    ${EndIf}
+    !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+      Delete "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+    ${EndIf}
 
     ; Remove desktop shortcuts
-    !insertmacro UnpinShortcut "$DESKTOP\${PRODUCTNAME}.lnk"
-    Delete "$DESKTOP\${PRODUCTNAME}.lnk"
+    !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    Pop $0
+    ${If} $0 = 1
+      !insertmacro UnpinShortcut "$DESKTOP\${PRODUCTNAME}.lnk"
+      Delete "$DESKTOP\${PRODUCTNAME}.lnk"
+    ${EndIf}
   ${EndIf}
 
   ; Remove registry information for add/remove programs
@@ -728,8 +776,8 @@ Section Uninstall
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}
 
-  !ifdef NSIS_HOOK_POSTUNINSTALL
-    !insertmacro "${NSIS_HOOK_POSTUNINSTALL}"
+  !ifmacrodef NSIS_HOOK_POSTUNINSTALL
+    !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
 
   ; Auto close if passive mode
@@ -744,6 +792,10 @@ Function RestorePreviousInstallLocation
     StrCpy $INSTDIR $4
 FunctionEnd
 
+Function Skip
+  Abort
+FunctionEnd
+
 Function SkipIfPassive
   ${IfThen} $PassiveMode = 1  ${|} Abort ${|}
 FunctionEnd
@@ -751,8 +803,23 @@ FunctionEnd
 Function CreateOrUpdateStartMenuShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
-  ${If} ${FileExists} "$DESKTOP\${PRODUCTNAME}.lnk"
-    !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  StrCpy $R0 0
+
+  !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  Pop $0
+  ${If} $0 = 1
+    !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    StrCpy $R0 1
+  ${EndIf}
+
+  !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  Pop $0
+  ${If} $0 = 1
+    !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    StrCpy $R0 1
+  ${EndIf}
+
+  ${If} $R0 = 1
     Return
   ${EndIf}
 
@@ -762,16 +829,23 @@ Function CreateOrUpdateStartMenuShortcut
     Return
   ${EndIf}
 
-  CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
-  CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+  !if "${STARTMENUFOLDER}" != ""
+    CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
+    CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
+  !else
+    CreateShortcut "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+    !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\${PRODUCTNAME}.lnk"
+  !endif
 FunctionEnd
 
 Function CreateOrUpdateDesktopShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
-  ${If} ${FileExists} "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk"
-    !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
+  !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  Pop $0
+  ${If} $0 = 1
+    !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     Return
   ${EndIf}
 

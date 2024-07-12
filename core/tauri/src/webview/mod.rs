@@ -34,7 +34,8 @@ use crate::{
   },
   manager::{webview::WebviewLabelDef, AppManager},
   sealed::{ManagerBase, RuntimeOrDispatch},
-  AppHandle, Event, EventId, EventLoopMessage, Manager, ResourceTable, Runtime, Window,
+  AppHandle, Emitter, Event, EventId, EventLoopMessage, Listener, Manager, ResourceTable, Runtime,
+  Window,
 };
 
 use std::{
@@ -1084,8 +1085,8 @@ fn main() {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) {
-    self.webview.dispatcher.navigate(url).unwrap();
+  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+    self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
@@ -1268,7 +1269,7 @@ fn main() {
               for v in map.values() {
                 if let serde_json::Value::String(s) = v {
                   let _ = crate::ipc::JavaScriptChannelId::from_str(s)
-                    .map(|id| id.channel_on(webview.clone()));
+                    .map(|id| id.channel_on::<R, ()>(webview.clone()));
                 }
               }
             }
@@ -1484,8 +1485,7 @@ tauri::Builder::default()
   }
 }
 
-/// Event system APIs.
-impl<R: Runtime> Webview<R> {
+impl<R: Runtime> Listener<R> for Webview<R> {
   /// Listen to an event on this webview.
   ///
   /// # Examples
@@ -1493,13 +1493,13 @@ impl<R: Runtime> Webview<R> {
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Manager;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {
     let webview = app.get_webview("main").unwrap();
     webview.listen("component-loaded", move |event| {
-      println!("window just loaded a component");
+      println!("webview just loaded a component");
     });
 
     Ok(())
@@ -1507,11 +1507,27 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
     self.manager.listen(
+      event.into(),
+      EventTarget::Webview {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
+  }
+
+  /// Listen to an event on this webview only once.
+  ///
+  /// See [`Self::listen`] for more information.
+  fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  where
+    F: FnOnce(Event) + Send + 'static,
+  {
+    self.manager.once(
       event.into(),
       EventTarget::Webview {
         label: self.label().to_string(),
@@ -1527,7 +1543,7 @@ tauri::Builder::default()
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Manager;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {
@@ -1549,24 +1565,97 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn unlisten(&self, id: EventId) {
+  fn unlisten(&self, id: EventId) {
     self.manager.unlisten(id)
   }
+}
 
-  /// Listen to an event on this webview only once.
+impl<R: Runtime> Emitter<R> for Webview<R> {
+  /// Emits an event to all [targets](EventTarget).
   ///
-  /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Emitter;
+
+#[tauri::command]
+fn synchronize(webview: tauri::Webview) {
+  // emits the synchronized event to all webviews
+  webview.emit("synchronized", ());
+}
+  ```
+  "####
+  )]
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.manager.emit(event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) matching the given target.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{Emitter, EventTarget};
+
+#[tauri::command]
+fn download(webview: tauri::Webview) {
+  for i in 1..100 {
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // emit a download progress event to all listeners
+    webview.emit_to(EventTarget::any(), "download-progress", i);
+    // emit an event to listeners that used App::listen or AppHandle::listen
+    webview.emit_to(EventTarget::app(), "download-progress", i);
+    // emit an event to any webview/window/webviewWindow matching the given label
+    webview.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
+    webview.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+    // emit an event to listeners that used WebviewWindow::listen
+    webview.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
+  }
+}
+```
+"####
+  )]
+  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
   where
-    F: FnOnce(Event) + Send + 'static,
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
   {
-    self.manager.once(
-      event.into(),
-      EventTarget::Webview {
-        label: self.label().to_string(),
-      },
-      handler,
-    )
+    self.manager.emit_to(target, event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) based on the given filter.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{Emitter, EventTarget};
+
+#[tauri::command]
+fn download(webview: tauri::Webview) {
+  for i in 1..100 {
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // emit a download progress event to the updater window
+    webview.emit_filter("download-progress", i, |t| match t {
+      EventTarget::WebviewWindow { label } => label == "main",
+      _ => false,
+    });
+  }
+}
+  ```
+  "####
+  )]
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&EventTarget) -> bool,
+  {
+    self.manager.emit_filter(event, payload, filter)
   }
 }
 

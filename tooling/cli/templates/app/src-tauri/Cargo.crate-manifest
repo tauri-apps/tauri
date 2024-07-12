@@ -12,7 +12,7 @@ rust-version = "1.70"
 
 [lib]
 name = "app_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "cdylib", "lib"]
 
 [build-dependencies]
 tauri-build = {{  tauri_build_dep  }}

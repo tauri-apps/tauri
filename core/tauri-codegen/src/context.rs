@@ -244,7 +244,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     }
   };
 
-  let app_icon = if target == Target::MacOS && dev && !running_tests {
+  let app_icon = if target == Target::MacOS && dev {
     let mut icon_path = find_icon(
       &config,
       &config_parent,
@@ -298,7 +298,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::MacOS && dev {
+  let info_plist = if target == Target::MacOS && dev && !running_tests {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)

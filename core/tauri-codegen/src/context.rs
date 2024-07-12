@@ -221,7 +221,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        ico_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+          .map(|i| quote!(::std::option::Option::Some(#i)))?
       } else {
         let icon_path = find_icon(
           &config,
@@ -229,7 +230,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+          .map(|i| quote!(::std::option::Option::Some(#i)))?
       }
     } else {
       // handle default window icons for Unix targets
@@ -239,7 +241,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+      png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+        .map(|i| quote!(::std::option::Option::Some(#i)))?
     }
   };
 
@@ -258,7 +261,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.png",
       );
     }
-    raw_icon(&out_dir, &icon_path)?
+    raw_icon(&out_dir, &icon_path, "dev-macos-icon.png")?
   } else {
     quote!(::std::option::Option::None)
   };
@@ -287,7 +290,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      image_icon(&root, &out_dir, &tray_icon_icon_path)
+      image_icon(&root, &out_dir, &tray_icon_icon_path, "tray-icon")
         .map(|i| quote!(context.set_tray_icon(Some(#i));))?
     } else {
       quote!()

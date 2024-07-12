@@ -37,12 +37,20 @@ pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
 
 /// An IPC channel.
 #[derive(Clone)]
-pub struct Channel {
+pub struct Channel<TSend = InvokeBody> {
   id: u32,
   on_message: Arc<dyn Fn(InvokeBody) -> crate::Result<()> + Send + Sync>,
+  phantom: std::marker::PhantomData<TSend>,
 }
 
-impl Serialize for Channel {
+#[cfg(feature = "specta")]
+const _: () = {
+  #[derive(specta::Type)]
+  #[specta(remote = Channel, rename = "TAURI_CHANNEL")]
+  struct Channel<TSend>(std::marker::PhantomData<TSend>);
+};
+
+impl<TSend> Serialize for Channel<TSend> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: Serializer,
@@ -88,7 +96,7 @@ impl FromStr for JavaScriptChannelId {
 
 impl JavaScriptChannelId {
   /// Gets a [`Channel`] for this channel ID on the given [`Webview`].
-  pub fn channel_on<R: Runtime>(&self, webview: Webview<R>) -> Channel {
+  pub fn channel_on<R: Runtime, TSend>(&self, webview: Webview<R>) -> Channel<TSend> {
     let callback_id = self.0;
     let counter = AtomicUsize::new(0);
 
@@ -128,7 +136,7 @@ impl<'de> Deserialize<'de> for JavaScriptChannelId {
   }
 }
 
-impl Channel {
+impl<TSend> Channel<TSend> {
   /// Creates a new channel with the given message handler.
   pub fn new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
     on_message: F,
@@ -144,10 +152,15 @@ impl Channel {
     let channel = Self {
       id,
       on_message: Arc::new(on_message),
+      phantom: Default::default(),
     };
 
     #[cfg(mobile)]
-    crate::plugin::mobile::register_channel(channel.clone());
+    crate::plugin::mobile::register_channel(Channel {
+      id,
+      on_message: channel.on_message.clone(),
+      phantom: Default::default(),
+    });
 
     channel
   }
@@ -178,13 +191,16 @@ impl Channel {
   }
 
   /// Sends the given data through the channel.
-  pub fn send<T: IpcResponse>(&self, data: T) -> crate::Result<()> {
+  pub fn send(&self, data: TSend) -> crate::Result<()>
+  where
+    TSend: IpcResponse,
+  {
     let body = data.body()?;
     (self.on_message)(body)
   }
 }
 
-impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
+impl<'de, R: Runtime, TSend: Clone> CommandArg<'de, R> for Channel<TSend> {
   /// Grabs the [`Webview`] from the [`CommandItem`] and returns the associated [`Channel`].
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let name = command.name;
@@ -196,8 +212,8 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Channel {
       .map(|id| id.channel_on(webview))
       .map_err(|_| {
         InvokeError::from_anyhow(anyhow::anyhow!(
-        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
-      ))
+	        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
+	      ))
       })
   }
 }

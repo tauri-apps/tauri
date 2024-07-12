@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-echo"
+description = "Enables the echo command without any pre-configured scope."
+commands.allow = ["echo"]
+
+[[permission]]
+identifier = "deny-echo"
+description = "Denies the echo command without any pre-configured scope."
+commands.deny = ["echo"]

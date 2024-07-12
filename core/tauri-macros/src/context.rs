@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use syn::{
   parse::{Parse, ParseBuffer},
   punctuated::Punctuated,
-  Expr, ExprLit, Lit, LitStr, Meta, PathArguments, PathSegment, Token,
+  Expr, ExprLit, Lit, LitBool, LitStr, Meta, PathArguments, PathSegment, Token,
 };
 use tauri_codegen::{context_codegen, get_config, ContextData};
 use tauri_utils::{config::parse::does_supported_file_name_exist, platform::Target};
@@ -18,6 +18,7 @@ pub(crate) struct ContextItems {
   root: syn::Path,
   capabilities: Option<Vec<PathBuf>>,
   assets: Option<Expr>,
+  test: bool,
 }
 
 impl Parse for ContextItems {
@@ -31,6 +32,7 @@ impl Parse for ContextItems {
     let mut root = None;
     let mut capabilities = None;
     let mut assets = None;
+    let mut test = false;
     let config_file = input.parse::<LitStr>().ok().map(|raw| {
       let _ = input.parse::<Token![,]>();
       let path = PathBuf::from(raw.value());
@@ -93,6 +95,17 @@ impl Parse for ContextItems {
             "assets" => {
               assets.replace(v.value);
             }
+            "test" => {
+              if let Expr::Lit(ExprLit {
+                lit: Lit::Bool(LitBool { value, .. }),
+                ..
+              }) = v.value
+              {
+                test = value;
+              } else {
+                return Err(syn::Error::new(input.span(), "unexpected value for test"));
+              }
+            }
             name => {
               return Err(syn::Error::new(
                 input.span(),
@@ -105,6 +118,8 @@ impl Parse for ContextItems {
           return Err(syn::Error::new(input.span(), "unexpected list input"));
         }
       }
+
+      let _ = input.parse::<Token![,]>();
     }
 
     Ok(Self {
@@ -128,6 +143,7 @@ impl Parse for ContextItems {
       }),
       capabilities,
       assets,
+      test,
     })
   }
 }
@@ -142,6 +158,7 @@ pub(crate) fn generate_context(context: ContextItems) -> TokenStream {
       root: context.root.to_token_stream(),
       capabilities: context.capabilities,
       assets: context.assets,
+      test: context.test,
     })
     .and_then(|data| context_codegen(data).map_err(|e| e.to_string()));
 

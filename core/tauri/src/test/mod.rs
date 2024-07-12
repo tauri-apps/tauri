@@ -314,7 +314,7 @@ mod tests {
     });
 
     app.run(|_app, event| {
-      println!("{:?}", event);
+      println!("{event:?}");
     });
   }
 }

@@ -9,8 +9,8 @@
  *
  * Events can be listened to using {@link Webview.listen}:
  * ```typescript
- * import { getCurrent } from "@tauri-apps/api/webview";
- * getCurrent().listen("my-webview-event", ({ event, payload }) => { });
+ * import { getCurrentWebview } from "@tauri-apps/api/webview";
+ * getCurrentWebview().listen("my-webview-event", ({ event, payload }) => { });
  * ```
  *
  * @module
@@ -29,7 +29,7 @@ import {
   once
 } from './event'
 import { invoke } from './core'
-import { Window, getCurrent as getCurrentWindow } from './window'
+import { Window, getCurrentWindow } from './window'
 import { WebviewWindow } from './webviewWindow'
 
 /** The drag and drop event types. */
@@ -44,7 +44,7 @@ type DragDropEvent =
  *
  * @since 2.0.0
  */
-function getCurrent(): Webview {
+function getCurrentWebview(): Webview {
   return new Webview(
     getCurrentWindow(),
     window.__TAURI_INTERNALS__.metadata.currentWebview.label,
@@ -60,7 +60,7 @@ function getCurrent(): Webview {
  *
  * @since 2.0.0
  */
-function getAll(): Webview[] {
+function getAllWebviews(): Webview[] {
   return window.__TAURI_INTERNALS__.metadata.webviews.map(
     (w) =>
       new Webview(Window.getByLabel(w.windowLabel)!, w.label, {
@@ -175,21 +175,21 @@ class Webview {
    * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
    */
   static getByLabel(label: string): Webview | null {
-    return getAll().find((w) => w.label === label) ?? null
+    return getAllWebviews().find((w) => w.label === label) ?? null
   }
 
   /**
    * Get an instance of `Webview` for the current webview.
    */
   static getCurrent(): Webview {
-    return getCurrent()
+    return getCurrentWebview()
   }
 
   /**
    * Gets a list of instances of `Webview` for all available webviews.
    */
   static getAll(): Webview[] {
-    return getAll()
+    return getAllWebviews()
   }
 
   /**
@@ -197,8 +197,8 @@ class Webview {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * const unlisten = await getCurrent().listen<string>('state-changed', (event) => {
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * const unlisten = await getCurrentWebview().listen<string>('state-changed', (event) => {
    *   console.log(`Got error: ${payload}`);
    * });
    *
@@ -216,11 +216,11 @@ class Webview {
     handler: EventCallback<T>
   ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return listen(event, handler, {
       target: { kind: 'Webview', label: this.label }
@@ -232,7 +232,7 @@ class Webview {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
    * const unlisten = await getCurrent().once<null>('initialized', (event) => {
    *   console.log(`Webview initialized!`);
    * });
@@ -246,13 +246,16 @@ class Webview {
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
    */
-  async once<T>(event: string, handler: EventCallback<T>): Promise<UnlistenFn> {
+  async once<T>(
+    event: EventName,
+    handler: EventCallback<T>
+  ): Promise<UnlistenFn> {
     if (this._handleTauriEvent(event, handler)) {
-      return Promise.resolve(() => {
+      return () => {
         // eslint-disable-next-line security/detect-object-injection
         const listeners = this.listeners[event]
         listeners.splice(listeners.indexOf(handler), 1)
-      })
+      }
     }
     return once(event, handler, {
       target: { kind: 'Webview', label: this.label }
@@ -264,8 +267,8 @@ class Webview {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().emit('webview-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    *
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
@@ -281,7 +284,7 @@ class Webview {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emit(event, payload)
   }
@@ -291,8 +294,8 @@ class Webview {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().emitTo('main', 'webview-loaded', { loggedIn: true, token: 'authToken' });
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().emitTo('main', 'webview-loaded', { loggedIn: true, token: 'authToken' });
    * ```
    *
    * @param target Label of the target Window/Webview/WebviewWindow or raw {@link EventTarget} object.
@@ -313,7 +316,7 @@ class Webview {
           payload
         })
       }
-      return Promise.resolve()
+      return
     }
     return emitTo(target, event, payload)
   }
@@ -322,10 +325,10 @@ class Webview {
   _handleTauriEvent<T>(event: string, handler: EventCallback<T>): boolean {
     if (localTauriEvents.includes(event)) {
       if (!(event in this.listeners)) {
-        // eslint-disable-next-line
+        // eslint-disable-next-line security/detect-object-injection
         this.listeners[event] = [handler]
       } else {
-        // eslint-disable-next-line
+        // eslint-disable-next-line security/detect-object-injection
         this.listeners[event].push(handler)
       }
       return true
@@ -338,8 +341,8 @@ class Webview {
    * The position of the top-left hand corner of the webview's client area relative to the top-left hand corner of the desktop.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * const position = await getCurrent().position();
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * const position = await getCurrentWebview().position();
    * ```
    *
    * @returns The webview's position.
@@ -355,8 +358,8 @@ class Webview {
    * The client area is the content of the webview, excluding the title bar and borders.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * const size = await getCurrent().size();
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * const size = await getCurrentWebview().size();
    * ```
    *
    * @returns The webview's size.
@@ -376,8 +379,8 @@ class Webview {
    * Closes the webview.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().close();
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().close();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -393,7 +396,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent, LogicalSize } from '@tauri-apps/api/webview';
-   * await getCurrent().setSize(new LogicalSize(600, 500));
+   * await getCurrentWebview().setSize(new LogicalSize(600, 500));
    * ```
    *
    * @param size The logical or physical size.
@@ -423,7 +426,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent, LogicalPosition } from '@tauri-apps/api/webview';
-   * await getCurrent().setPosition(new LogicalPosition(600, 500));
+   * await getCurrentWebview().setPosition(new LogicalPosition(600, 500));
    * ```
    *
    * @param position The new position, in logical or physical pixels.
@@ -457,8 +460,8 @@ class Webview {
    * Bring the webview to front and focus.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().setFocus();
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().setFocus();
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -473,8 +476,8 @@ class Webview {
    * Set webview zoom level.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().setZoom(1.5);
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().setZoom(1.5);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -490,8 +493,8 @@ class Webview {
    * Moves this webview to the given label.
    * @example
    * ```typescript
-   * import { getCurrent } from '@tauri-apps/api/webview';
-   * await getCurrent().reparent('other-window');
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().reparent('other-window');
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.
@@ -513,7 +516,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrent } from "@tauri-apps/api/webview";
-   * const unlisten = await getCurrent().onDragDropEvent((event) => {
+   * const unlisten = await getCurrentWebview().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
@@ -670,6 +673,6 @@ interface WebviewOptions {
   zoomHotkeysEnabled?: boolean
 }
 
-export { Webview, getCurrent, getAll }
+export { Webview, getCurrentWebview, getAllWebviews }
 
 export type { DragDropEvent, WebviewOptions }

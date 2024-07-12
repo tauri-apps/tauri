@@ -129,6 +129,7 @@ impl CodegenContext {
       root: quote::quote!(::tauri),
       capabilities: self.capabilities,
       assets: None,
+      test: false,
     })?;
 
     // get the full output file path

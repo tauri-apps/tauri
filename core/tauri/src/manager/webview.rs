@@ -25,7 +25,7 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
+  AppHandle, Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
 };
 
 use super::{
@@ -628,7 +628,7 @@ impl<R: Runtime> WebviewManager<R> {
         .webview_created(webview_);
     });
 
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", feature = "wry"))]
     {
       webview
         .with_webview(|w| {

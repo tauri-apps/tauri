@@ -106,6 +106,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("start_resize_dragging", false),
       ("set_progress_bar", false),
       ("set_icon", false),
+      ("set_title_bar_style", false),
       ("toggle_maximize", false),
       // internal
       ("internal_toggle_maximize", true),
@@ -228,7 +229,7 @@ fn main() {
   alias("custom_protocol", custom_protocol);
   alias("dev", dev);
 
-  println!("cargo:dev={}", dev);
+  println!("cargo:dev={dev}");
 
   let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
@@ -256,10 +257,7 @@ fn main() {
     if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
       fn env_var(var: &str) -> String {
         std::env::var(var).unwrap_or_else(|_| {
-          panic!(
-            "`{}` is not set, which is needed to generate the kotlin files for android.",
-            var
-          )
+          panic!("`{var}` is not set, which is needed to generate the kotlin files for android.")
         })
       }
 
@@ -345,7 +343,7 @@ fn define_permissions(out_dir: &Path) {
       .filter(|(_cmd, default)| *default)
       .map(|(cmd, _)| {
         let slugified_command = cmd.replace('_', "-");
-        format!("\"allow-{}\"", slugified_command)
+        format!("\"allow-{slugified_command}\"")
       })
       .collect::<Vec<_>>()
       .join(", ");

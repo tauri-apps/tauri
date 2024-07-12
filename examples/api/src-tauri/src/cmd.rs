@@ -45,3 +45,8 @@ pub fn perform_request(endpoint: String, body: RequestBody) -> ApiResponse {
     message: "message response".into(),
   }
 }
+
+#[command]
+pub fn echo(request: tauri::ipc::Request<'_>) -> tauri::ipc::Response {
+  tauri::ipc::Response::new(request.body().clone())
+}

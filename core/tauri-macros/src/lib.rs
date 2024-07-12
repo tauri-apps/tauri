@@ -109,7 +109,7 @@ pub fn default_runtime(attributes: TokenStream, input: TokenStream) -> TokenStre
 /// ```
 /// but you can't have mixed negations and positive kinds.
 /// ```ignore
-/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submeun);
+/// do_menu_item!(resources_table, rid, kind, |i| i.set_text(text), !Check | Submenu);
 /// ```
 ///
 /// #### Example

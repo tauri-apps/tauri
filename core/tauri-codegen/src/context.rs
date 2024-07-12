@@ -43,6 +43,7 @@ pub struct ContextData {
   pub capabilities: Option<Vec<PathBuf>>,
   /// The custom assets implementation
   pub assets: Option<Expr>,
+  /// Skip runtime-only types generation for tests (e.g. embed-plist usage).
   pub test: bool,
 }
 

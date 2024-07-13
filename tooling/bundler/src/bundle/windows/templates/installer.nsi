@@ -556,11 +556,11 @@ SectionEnd
 Section Install
   SetOutPath $INSTDIR
 
-  !insertmacro CheckIfAppIsRunning
-
   !ifmacrodef NSIS_HOOK_PREINSTALL
     !insertmacro NSIS_HOOK_PREINSTALL
   !endif
+
+  !insertmacro CheckIfAppIsRunning
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
@@ -683,11 +683,11 @@ FunctionEnd
 
 Section Uninstall
 
-  !insertmacro CheckIfAppIsRunning
-
   !ifmacrodef NSIS_HOOK_PREUNINSTALL
     !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
+
+  !insertmacro CheckIfAppIsRunning
 
   ; Delete the app directory and its content from disk
   ; Copy main executable

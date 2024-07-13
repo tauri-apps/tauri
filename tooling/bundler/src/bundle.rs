@@ -161,7 +161,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         package_type: PackageType::Updater,
         bundle_paths: updater_paths,
       });
-    } else {
+    } else if updater.v1_compatible
+      || !package_types.iter().any(|package_type| {
+        // Self contained updater, no need to zip
+        matches!(
+          package_type,
+          PackageType::AppImage | PackageType::Nsis | PackageType::WindowsMsi
+        )
+      })
+    {
       log::warn!("The bundler was configured to create updater artifacts but no updater-enabled targets were built. Please enable one of these targets: app, appimage, msi, nsis");
     }
     if updater.v1_compatible {

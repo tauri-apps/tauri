@@ -152,7 +152,7 @@ mod desktop_commands {
   getter!(webview_size, size, tauri_runtime::dpi::PhysicalSize<u32>);
   //getter!(is_focused, bool);
 
-  setter!(print);
+  setter!(print, print_with_options, crate::webview::PrintOptions);
   setter!(webview_close, close);
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);

@@ -22,6 +22,7 @@ use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
   Rect, WebviewDispatch,
 };
+use tauri_runtime_wry::PrintOption;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
@@ -888,14 +889,22 @@ impl<R: Runtime> Webview<R> {
   }
 }
 
+/// Alias for a list of print options
+pub type PrintOptions = Vec<PrintOption>;
+
 /// Desktop webview setters and actions.
 #[cfg(desktop)]
 impl<R: Runtime> Webview<R> {
-  /// Opens the dialog to prints the contents of the webview.
+  /// Opens the dialog to prints the contents of the webview. Print options are not used.
   /// Currently only supported on macOS on `wry`.
   /// `window.print()` works on all platforms.
   pub fn print(&self) -> crate::Result<()> {
     self.webview.dispatcher.print().map_err(Into::into)
+  }
+
+  /// Executes a print operation with the options given
+  pub fn print_with_options(&self, opts: PrintOptions) -> crate::Result<()> {
+    self.webview.dispatcher.print_with_options(opts).map_err(Into::into)
   }
 
   /// Get the cursor position relative to the top-left hand corner of the desktop.

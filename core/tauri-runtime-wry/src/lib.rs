@@ -71,6 +71,7 @@ pub use tao;
 pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};
 pub use wry;
 pub use wry::webview_version;
+pub use wry::{PrintOption, PrintMargin};
 
 #[cfg(windows)]
 use wry::WebViewExtWindows;
@@ -1187,6 +1188,7 @@ pub enum WebviewMessage {
   SynthesizedWindowEvent(SynthesizedWindowEvent),
   Navigate(Url),
   Print,
+  PrintWithOptions(Vec<wry::PrintOption>),
   Close,
   SetPosition(Position),
   SetSize(Size),
@@ -1347,6 +1349,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Print,
+      ),
+    )
+  }
+
+  fn print_with_options(&self, opts: Vec<PrintOption>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::PrintWithOptions(opts),
       ),
     )
   }
@@ -3014,6 +3027,9 @@ fn handle_user_message<T: UserEvent>(
           }
           WebviewMessage::Print => {
             let _ = webview.print();
+          }
+          WebviewMessage::PrintWithOptions(opts) => {
+            let _ = webview.print_with_options(&opts);
           }
           WebviewMessage::Close => {
             windows.0.borrow_mut().get_mut(&window_id).map(|window| {

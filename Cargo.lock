@@ -3830,6 +3830,7 @@ dependencies = [
  "thiserror",
  "url",
  "windows 0.57.0",
+ "wry",
 ]
 
 [[package]]
@@ -5016,8 +5017,6 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.41.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68b00c945786b02d7805d09a969fa36d0eee4e0bd4fb3ec2a79d2bf45a1b44cd"
 dependencies = [
  "base64 0.22.1",
  "block",
@@ -5042,6 +5041,7 @@ dependencies = [
  "once_cell",
  "percent-encoding",
  "raw-window-handle 0.6.2",
+ "serde",
  "sha2",
  "soup3",
  "tao-macros",

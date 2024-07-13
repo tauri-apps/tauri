@@ -38,6 +38,8 @@ use http::{
 /// UI scaling utilities.
 pub use dpi;
 
+pub use wry::{PrintOption, PrintMargin};
+
 pub type WindowEventId = u32;
 pub type WebviewEventId = u32;
 
@@ -479,6 +481,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
+
+  /// Triggers a configurable print for the content of the webview
+  fn print_with_options(&self, opts: Vec<PrintOption>) -> Result<()>;
 
   /// Closes the webview.
   fn close(&self) -> Result<()>;

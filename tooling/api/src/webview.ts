@@ -18,6 +18,7 @@
 
 import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
+import type { PrintOption } from './print'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
@@ -334,6 +335,16 @@ class Webview {
       return true
     }
     return false
+  }
+
+  /**
+   * Prints the current webview given the provided options
+   */
+  async print(options: PrintOption[]): Promise<void> {
+    return invoke('plugin:webview|print', {
+      label: this.label,
+      value: options
+    })
   }
 
   // Getters

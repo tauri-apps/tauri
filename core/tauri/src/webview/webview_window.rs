@@ -932,7 +932,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
     if webview.window().is_webview_window() {
       Ok(Self { webview })
     } else {
-      Err(InvokeError::from_anyhow(anyhow::anyhow!(
+      Err(InvokeError::from(format!(
         "current webview is not a WebviewWindow"
       )))
     }

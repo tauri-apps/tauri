@@ -500,7 +500,7 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async reparent(window: Window | WebviewWindow | string): Promise<void> {
-    return invoke('plugin:webview|set_webview_focus', {
+    return invoke('plugin:webview|reparent', {
       label: this.label,
       window: typeof window === 'string' ? window : window.label
     })

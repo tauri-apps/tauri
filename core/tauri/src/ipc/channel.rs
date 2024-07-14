@@ -211,7 +211,7 @@ impl<'de, R: Runtime, TSend: Clone> CommandArg<'de, R> for Channel<TSend> {
     JavaScriptChannelId::from_str(&value)
       .map(|id| id.channel_on(webview))
       .map_err(|_| {
-        InvokeError::from_anyhow(anyhow::anyhow!(
+        InvokeError::from(format!(
 	        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
 	      ))
       })

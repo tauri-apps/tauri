@@ -165,7 +165,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
     webview_attributes = webview_attributes
       .initialization_script(
-        r#"
+        r"
         Object.defineProperty(window, 'isTauri', {
           value: true,
         });
@@ -177,7 +177,7 @@ impl<R: Runtime> WebviewManager<R> {
             }
           })
         }
-      "#,
+      ",
       )
       .initialization_script(&self.invoke_initialization_script)
       .initialization_script(&format!(

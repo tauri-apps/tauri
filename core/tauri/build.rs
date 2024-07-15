@@ -321,10 +321,10 @@ fn main() {
 }
 
 fn define_permissions(out_dir: &Path) {
-  let license_header = r#"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+  let license_header = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
-"#;
+";
 
   for (plugin, commands) in PLUGINS {
     let permissions_out_dir = out_dir.join("permissions").join(plugin);

@@ -30,7 +30,7 @@ use super::{
 use crate::{helpers::config::Config as TauriConfig, Result};
 
 use std::{
-  env::set_var,
+  env::{set_var, var_os},
   fs::create_dir_all,
   path::{Path, PathBuf},
   thread::sleep,
@@ -275,16 +275,36 @@ fn inject_assets(config: &AppleConfig) -> Result<()> {
   Ok(())
 }
 
-fn merge_plist(src: &[PathBuf], dest: &Path) -> Result<()> {
+enum PlistKind {
+  Path(PathBuf),
+  Plist(plist::Value),
+}
+
+impl From<PathBuf> for PlistKind {
+  fn from(p: PathBuf) -> Self {
+    Self::Path(p)
+  }
+}
+impl From<plist::Value> for PlistKind {
+  fn from(p: plist::Value) -> Self {
+    Self::Plist(p)
+  }
+}
+
+fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
   let mut dest_plist = None;
 
-  for src_path in src {
-    if let Ok(src_plist) = plist::Value::from_file(src_path) {
+  for plist_kind in src {
+    let plist = match plist_kind {
+      PlistKind::Path(p) => plist::Value::from_file(p),
+      PlistKind::Plist(v) => Ok(v),
+    };
+    if let Ok(src_plist) = plist {
       if dest_plist.is_none() {
         dest_plist.replace(plist::Value::from_file(dest)?);
       }
 
-      let plist = dest_plist.as_mut().expect("Info.plist not loaded");
+      let plist = dest_plist.as_mut().expect("plist not loaded");
       if let Some(plist) = plist.as_dictionary_mut() {
         if let Some(dict) = src_plist.into_dictionary() {
           for (key, value) in dict {
@@ -300,4 +320,41 @@ fn merge_plist(src: &[PathBuf], dest: &Path) -> Result<()> {
   }
 
   Ok(())
+}
+
+pub fn signing_from_env() -> Result<(
+  Option<tauri_macos_sign::Keychain>,
+  Option<tauri_macos_sign::ProvisioningProfile>,
+)> {
+  let keychain = if let (Some(certificate), Some(certificate_password)) = (
+    var_os("IOS_CERTIFICATE"),
+    var_os("IOS_CERTIFICATE_PASSWORD"),
+  ) {
+    tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password).map(Some)?
+  } else {
+    None
+  };
+  let provisioning_profile = if let Some(provisioning_profile) = var_os("IOS_MOBILE_PROVISION") {
+    tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile).map(Some)?
+  } else {
+    None
+  };
+
+  Ok((keychain, provisioning_profile))
+}
+
+pub fn init_config(
+  keychain: Option<&tauri_macos_sign::Keychain>,
+  provisioning_profile: Option<&tauri_macos_sign::ProvisioningProfile>,
+) -> Result<super::init::IosInitConfig> {
+  Ok(super::init::IosInitConfig {
+    code_sign_style: if keychain.is_some() && provisioning_profile.is_some() {
+      super::init::CodeSignStyle::Manual
+    } else {
+      super::init::CodeSignStyle::Automatic
+    },
+    code_sign_identity: keychain.map(|k| k.signing_identity()),
+    team_id: keychain.and_then(|k| k.team_id().map(ToString::to_string)),
+    provisioning_profile_uuid: provisioning_profile.and_then(|p| p.uuid().ok()),
+  })
 }

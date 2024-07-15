@@ -46,6 +46,7 @@ pub type OwnedInvokeResponder<R> =
 
 /// Possible values of an IPC payload.
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum InvokeBody {
   /// Json payload.
   Json(JsonValue),

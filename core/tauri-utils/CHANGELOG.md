@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-beta.19]
+
+### New Features
+
+- [`4c239729c`](https://www.github.com/tauri-apps/tauri/commit/4c239729c3e1b899ecbc6793c3682848e8de1729) ([#10167](https://www.github.com/tauri-apps/tauri/pull/10167) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `RawIsolationPayload::content_type` method.
+
 ## \[2.0.0-beta.18]
 
 ### New Features

@@ -2,25 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { getCurrent as getCurrentWebview, Webview } from './webview'
-import type { WindowOptions, WindowSizeConstraints } from './window'
+import {
+  getCurrentWebview,
+  Webview,
+  WebviewLabel,
+  WebviewOptions
+} from './webview'
+import type { WindowOptions } from './window'
 import { Window } from './window'
 import { listen, once } from './event'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { invoke } from './core'
-import type {
-  DragDropEvent,
-  DragDropPayload,
-  WebviewOptions,
-  WebviewLabel
-} from './webview'
+import type { DragDropEvent } from './webview'
 
 /**
  * Get an instance of `Webview` for the current webview window.
  *
  * @since 2.0.0
  */
-function getCurrent(): WebviewWindow {
+function getCurrentWebviewWindow(): WebviewWindow {
   const webview = getCurrentWebview()
   // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
   return new WebviewWindow(webview.label, { skip: true })
@@ -31,7 +31,7 @@ function getCurrent(): WebviewWindow {
  *
  * @since 2.0.0
  */
-function getAll(): WebviewWindow[] {
+function getAllWebviewWindows(): WebviewWindow[] {
   return window.__TAURI_INTERNALS__.metadata.webviews.map(
     (w) =>
       new WebviewWindow(w.label, {
@@ -108,7 +108,8 @@ class WebviewWindow {
    * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
    */
   static getByLabel(label: string): WebviewWindow | null {
-    const webview = getAll().find((w) => w.label === label) ?? null
+    const webview =
+      getAllWebviewWindows().find((w) => w.label === label) ?? null
     if (webview) {
       // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(webview.label, { skip: true })
@@ -120,15 +121,17 @@ class WebviewWindow {
    * Get an instance of `Webview` for the current webview.
    */
   static getCurrent(): WebviewWindow {
-    return getCurrent()
+    return getCurrentWebviewWindow()
   }
 
   /**
    * Gets a list of instances of `Webview` for all available webviews.
    */
   static getAll(): WebviewWindow[] {
-    // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-    return getAll().map((w) => new WebviewWindow(w.label, { skip: true }))
+    return getAllWebviewWindows().map(
+      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+      (w) => new WebviewWindow(w.label, { skip: true })
+    )
   }
 
   /**
@@ -232,12 +235,5 @@ function applyMixins(
   })
 }
 
-export { WebviewWindow, getCurrent, getAll }
-export type {
-  DragDropEvent,
-  DragDropPayload,
-  WindowSizeConstraints,
-  WindowOptions,
-  WebviewOptions,
-  WebviewLabel
-}
+export { WebviewWindow, getCurrentWebviewWindow, getAllWebviewWindows }
+export type { DragDropEvent }

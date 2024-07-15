@@ -43,6 +43,8 @@ pub struct ContextData {
   pub capabilities: Option<Vec<PathBuf>>,
   /// The custom assets implementation
   pub assets: Option<Expr>,
+  /// Skip runtime-only types generation for tests (e.g. embed-plist usage).
+  pub test: bool,
 }
 
 fn inject_script_hashes(document: &NodeRef, key: &AssetKey, csp_hashes: &mut CspHashes) {
@@ -140,7 +142,11 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     root,
     capabilities: additional_capabilities,
     assets,
+    test,
   } = data;
+
+  #[allow(unused_variables)]
+  let running_tests = test;
 
   let target = std::env::var("TAURI_ENV_TARGET_TRIPLE")
     .as_deref()
@@ -183,8 +189,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           let assets_path = config_parent.join(path);
           if !assets_path.exists() {
             panic!(
-              "The `frontendDist` configuration is set to `{:?}` but this path doesn't exist",
-              path
+              "The `frontendDist` configuration is set to `{path:?}` but this path doesn't exist"
             )
           }
           EmbeddedAssets::new(assets_path, &options, map_core_assets(&options))?
@@ -216,7 +221,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        ico_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+          .map(|i| quote!(::std::option::Option::Some(#i)))?
       } else {
         let icon_path = find_icon(
           &config,
@@ -224,7 +230,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+        png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+          .map(|i| quote!(::std::option::Option::Some(#i)))?
       }
     } else {
       // handle default window icons for Unix targets
@@ -234,7 +241,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, &icon_path).map(|i| quote!(::std::option::Option::Some(#i)))?
+      png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
+        .map(|i| quote!(::std::option::Option::Some(#i)))?
     }
   };
 
@@ -253,7 +261,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.png",
       );
     }
-    raw_icon(&out_dir, &icon_path)?
+    raw_icon(&out_dir, &icon_path, "dev-macos-icon.png")?
   } else {
     quote!(::std::option::Option::None)
   };
@@ -282,7 +290,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      image_icon(&root, &out_dir, &tray_icon_icon_path)
+      image_icon(&root, &out_dir, &tray_icon_icon_path, "tray-icon")
         .map(|i| quote!(context.set_tray_icon(Some(#i));))?
     } else {
       quote!()
@@ -292,7 +300,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::MacOS && dev {
+  let info_plist = if target == Target::MacOS && dev && !running_tests {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)

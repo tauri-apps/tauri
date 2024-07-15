@@ -50,7 +50,7 @@ const _: () = {
   struct Channel<TSend>(std::marker::PhantomData<TSend>);
 };
 
-impl Serialize for Channel {
+impl<TSend> Serialize for Channel<TSend> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
   where
     S: Serializer,
@@ -211,7 +211,7 @@ impl<'de, R: Runtime, TSend: Clone> CommandArg<'de, R> for Channel<TSend> {
     JavaScriptChannelId::from_str(&value)
       .map(|id| id.channel_on(webview))
       .map_err(|_| {
-        InvokeError::from_anyhow(anyhow::anyhow!(
+        InvokeError::from(format!(
 	        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
 	      ))
       })

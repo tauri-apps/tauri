@@ -8,7 +8,10 @@ use quote::{quote, ToTokens};
 use std::path::Path;
 use syn::{punctuated::Punctuated, Ident, PathArguments, PathSegment, Token};
 
-pub fn include_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
+pub fn include_image_codegen(
+  path: &Path,
+  out_file_name: &str,
+) -> EmbeddedAssetsResult<TokenStream> {
   let out_dir = ensure_out_dir()?;
 
   let mut segments = Punctuated::new();
@@ -21,19 +24,20 @@ pub fn include_image_codegen(path: &Path) -> EmbeddedAssetsResult<TokenStream> {
     segments,
   };
 
-  image_icon(&root.to_token_stream(), &out_dir, path)
+  image_icon(&root.to_token_stream(), &out_dir, path, out_file_name)
 }
 
 pub(crate) fn image_icon(
   root: &TokenStream,
   out_dir: &Path,
   path: &Path,
+  out_file_name: &str,
 ) -> EmbeddedAssetsResult<TokenStream> {
   let extension = path.extension().unwrap_or_default();
   if extension == "ico" {
-    ico_icon(root, out_dir, path)
+    ico_icon(root, out_dir, path, out_file_name)
   } else if extension == "png" {
-    png_icon(root, out_dir, path)
+    png_icon(root, out_dir, path, out_file_name)
   } else {
     Err(EmbeddedAssetsError::InvalidImageExtension {
       extension: extension.into(),
@@ -42,19 +46,22 @@ pub(crate) fn image_icon(
   }
 }
 
-pub(crate) fn raw_icon(out_dir: &Path, path: &Path) -> EmbeddedAssetsResult<TokenStream> {
+pub(crate) fn raw_icon(
+  out_dir: &Path,
+  path: &Path,
+  out_file_name: &str,
+) -> EmbeddedAssetsResult<TokenStream> {
   let bytes =
     std::fs::read(path).unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
 
-  let out_path = out_dir.join(path.file_name().unwrap());
+  let out_path = out_dir.join(out_file_name);
   write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let icon_path = path.file_name().unwrap().to_str().unwrap().to_string();
   let icon = quote!(::std::option::Option::Some(
-    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_path)).to_vec()
+    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)).to_vec()
   ));
   Ok(icon)
 }
@@ -63,6 +70,7 @@ pub(crate) fn ico_icon(
   root: &TokenStream,
   out_dir: &Path,
   path: &Path,
+  out_file_name: &str,
 ) -> EmbeddedAssetsResult<TokenStream> {
   let file = std::fs::File::open(path)
     .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
@@ -77,15 +85,13 @@ pub(crate) fn ico_icon(
   let width = entry.width();
   let height = entry.height();
 
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
+  let out_path = out_dir.join(out_file_name);
   write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
+  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)), #width, #height));
   Ok(icon)
 }
 
@@ -93,6 +99,7 @@ pub(crate) fn png_icon(
   root: &TokenStream,
   out_dir: &Path,
   path: &Path,
+  out_file_name: &str,
 ) -> EmbeddedAssetsResult<TokenStream> {
   let file = std::fs::File::open(path)
     .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
@@ -114,23 +121,22 @@ pub(crate) fn png_icon(
   let width = reader.info().width;
   let height = reader.info().height;
 
-  let icon_file_name = path.file_name().unwrap();
-  let out_path = out_dir.join(icon_file_name);
+  let out_path = out_dir.join(out_file_name);
   write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
     path: path.to_owned(),
     error,
   })?;
 
-  let icon_file_name = icon_file_name.to_str().unwrap();
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #icon_file_name)), #width, #height));
+  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)), #width, #height));
   Ok(icon)
 }
 
-pub(crate) fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
+fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
   if let Ok(curr) = std::fs::read(out_path) {
     if curr == data {
       return Ok(());
     }
   }
+
   std::fs::write(out_path, data)
 }

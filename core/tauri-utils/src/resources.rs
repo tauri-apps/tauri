@@ -140,9 +140,7 @@ pub struct ResourcePathsIter<'a> {
 
 impl<'a> ResourcePathsIter<'a> {
   fn next_glob_iter(&mut self) -> Option<crate::Result<Resource>> {
-    let Some(entry) = self.glob_iter.as_mut().unwrap().next() else {
-      return None;
-    };
+    let entry = self.glob_iter.as_mut().unwrap().next()?;
 
     let entry = match entry {
       Ok(entry) => entry,
@@ -154,9 +152,7 @@ impl<'a> ResourcePathsIter<'a> {
   }
 
   fn next_walk_iter(&mut self) -> Option<crate::Result<Resource>> {
-    let Some(entry) = self.walk_iter.as_mut().unwrap().next() else {
-      return None;
-    };
+    let entry = self.walk_iter.as_mut().unwrap().next()?;
 
     let entry = match entry {
       Ok(entry) => entry,
@@ -179,7 +175,7 @@ impl<'a> ResourcePathsIter<'a> {
     }
 
     if is_dir {
-      if let None = self.walk_iter {
+      if self.walk_iter.is_none() {
         self.walk_iter = Some(WalkDir::new(path).into_iter());
       }
 
@@ -230,9 +226,8 @@ impl<'a> ResourcePathsIter<'a> {
         Ok(glob) => Some(glob),
         Err(error) => return Some(Err(error.into())),
       };
-      match self.next_glob_iter() {
-        Some(r) => return Some(r),
-        None => {}
+      if let Some(r) = self.next_glob_iter() {
+        return Some(r);
       };
     }
 
@@ -258,16 +253,14 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
     }
 
     if self.walk_iter.is_some() {
-      match self.next_walk_iter() {
-        Some(r) => return Some(r),
-        None => {}
+      if let Some(r) = self.next_walk_iter() {
+        return Some(r);
       };
     }
 
     if self.glob_iter.is_some() {
-      match self.next_glob_iter() {
-        Some(r) => return Some(r),
-        None => {}
+      if let Some(r) = self.next_glob_iter() {
+        return Some(r);
       };
     }
 
@@ -290,7 +283,7 @@ mod tests {
 
   fn expected_resources(resources: &[(&str, &str)]) -> Vec<Resource> {
     resources
-      .into_iter()
+      .iter()
       .map(|(path, target)| Resource {
         path: Path::new(path).components().collect(),
         target: Path::new(target).components().collect(),
@@ -306,7 +299,7 @@ mod tests {
     let temp = temp.join(format!("tauri_resource_paths_iter_test_{}", random[0]));
 
     let _ = fs::remove_dir_all(&temp);
-    let _ = fs::create_dir_all(&temp).unwrap();
+    fs::create_dir_all(&temp).unwrap();
 
     std::env::set_current_dir(&temp).unwrap();
 

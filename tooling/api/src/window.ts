@@ -1322,8 +1322,8 @@ class Window {
    * Sets the window inner size constraints.
    * @example
    * ```typescript
-   * import { getCurrent, PhysicalSize } from '@tauri-apps/api/window';
-   * await getCurrent().setSizeConstraints(new PhysicalSize(600, 500));
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setSizeConstraints({ minWidth: 300 });
    * ```
    *
    * @param size The logical or physical inner size, or `null` to unset the constraint.

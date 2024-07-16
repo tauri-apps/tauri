@@ -1293,6 +1293,12 @@ impl<R: Runtime> Builder<R> {
     self
   }
 
+  /// Append a custom initialization script.
+  pub fn append_invoke_initialization_script(mut self, initialization_script: &String) -> Self {
+    self.invoke_initialization_script.push_str(initialization_script);
+    self
+  }
+
   /// Defines the setup hook.
   ///
   /// # Examples

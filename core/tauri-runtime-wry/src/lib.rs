@@ -715,7 +715,15 @@ unsafe impl Send for WindowBuilderWrapper {}
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
-    Self::default().focused(true)
+    #[allow(unused_mut)]
+    let mut builder = Self::default().focused(true);
+
+    #[cfg(target_os = "macos")]
+    {
+      builder = builder.title_bar_style(TitleBarStyle::Visible);
+    }
+
+    builder
   }
 
   fn with_config(config: &WindowConfig) -> Self {

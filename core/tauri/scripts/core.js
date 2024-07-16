@@ -7,14 +7,19 @@
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
 
+  const osName = __TEMPLATE_os_name__
+  const protocolScheme = __TEMPLATE_protocol_scheme__
+
+  // Workaround for webview2 injecting scripts into subframes, unlike webkitgtk/wkwebview.
+  if (osName === 'windows' && window.location !== window.parent.location) {
+    return
+  }
+
   if (!window.__TAURI__) {
     Object.defineProperty(window, '__TAURI__', {
       value: {}
     })
   }
-
-  const osName = __TEMPLATE_os_name__
-  const protocolScheme = __TEMPLATE_protocol_scheme__
 
   window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)

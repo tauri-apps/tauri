@@ -2126,7 +2126,7 @@ where
 /// ```json title="Example tauri.config.json file"
 /// {
 ///   "productName": "tauri-app",
-///   "version": "0.1.0"
+///   "version": "0.1.0",
 ///   "build": {
 ///     "beforeBuildCommand": "",
 ///     "beforeDevCommand": "",

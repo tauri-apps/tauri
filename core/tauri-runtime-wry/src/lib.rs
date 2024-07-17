@@ -715,7 +715,20 @@ unsafe impl Send for WindowBuilderWrapper {}
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
-    Self::default().focused(true)
+    #[allow(unused_mut)]
+    let mut builder = Self::default().focused(true);
+
+    #[cfg(target_os = "macos")]
+    {
+      // TODO: find a proper way to prevent webview being pushed out of the window.
+      // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
+      // The window requies `NSFullSizeContentViewWindowMask` flag to prevent devtools
+      // pushing the content view out of the window.
+      // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
+      builder = builder.title_bar_style(TitleBarStyle::Visible);
+    }
+
+    builder
   }
 
   fn with_config(config: &WindowConfig) -> Self {

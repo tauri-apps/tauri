@@ -9,6 +9,7 @@ pub(crate) mod plugin;
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
+  window::WindowSizeConstraints,
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
@@ -489,6 +490,13 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Window inner size constraints.
+  #[must_use]
+  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
 
@@ -1852,6 +1860,15 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_max_size(size.map(|s| s.into()))
+      .map_err(Into::into)
+  }
+
+  /// Sets this window's minimum inner width.
+  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_size_constraints(constriants)
       .map_err(Into::into)
   }
 

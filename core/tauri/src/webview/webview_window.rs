@@ -27,6 +27,7 @@ use crate::{
   },
 };
 use serde::Serialize;
+use tauri_runtime::window::WindowSizeConstraints;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
@@ -403,6 +404,13 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Window inner size constraints.
+  #[must_use]
+  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
 
@@ -1467,6 +1475,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_max_size(size.map(|s| s.into()))
+  }
+
+  /// Sets this window's minimum inner width.
+  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+    self.webview.window().set_size_constraints(constriants)
   }
 
   /// Sets this window's position.

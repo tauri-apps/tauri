@@ -26,7 +26,10 @@ pub mod window;
 
 use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
 use monitor::Monitor;
-use window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent};
+use window::{
+  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
+  WindowSizeConstraints,
+};
 use window::{WindowBuilder, WindowId};
 
 use http::{
@@ -734,6 +737,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window max inner size.
   fn set_max_size(&self, size: Option<Size>) -> Result<()>;
+
+  /// Sets this window's minimum inner width.
+  fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()>;
 
   /// Updates the window position.
   fn set_position(&self, position: Position) -> Result<()>;

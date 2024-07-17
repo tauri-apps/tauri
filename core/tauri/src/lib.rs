@@ -222,7 +222,7 @@ pub use {
   self::runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
     webview::WebviewAttributes,
-    window::{CursorIcon, DragDropEvent},
+    window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
     DeviceEventFilter, Rect, UserAttentionType,
   },
   self::state::{State, StateManager},

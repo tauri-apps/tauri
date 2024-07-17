@@ -20,7 +20,7 @@ use tauri_runtime::{
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
     CursorIcon, DetachedWindow, DragDropEvent, PendingWindow, RawWindow, WebviewEvent,
-    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
+    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
   ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType,
@@ -43,8 +43,8 @@ use wry::WebViewBuilderExtWindows;
 use tao::{
   dpi::{
     LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
-    PhysicalPosition as TaoPhysicalPosition, PhysicalSize as TaoPhysicalSize,
-    Position as TaoPosition, Size as TaoSize,
+    LogicalUnit as ToaLogicalUnit, PhysicalPosition as TaoPhysicalPosition,
+    PhysicalSize as TaoPhysicalSize, Position as TaoPosition, Size as TaoSize,
   },
   event::{Event, StartCause, WindowEvent as TaoWindowEvent},
   event_loop::{
@@ -774,12 +774,22 @@ impl WindowBuilder for WindowBuilderWrapper {
         .minimizable(config.minimizable)
         .shadow(config.shadow);
 
-      if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-        window = window.min_inner_size(min_width, min_height);
+      let mut constraints = WindowSizeConstraints::default();
+
+      if let Some(min_width) = config.min_width {
+        constraints.min_width = Some(ToaLogicalUnit::new(min_width).into());
       }
-      if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-        window = window.max_inner_size(max_width, max_height);
+      if let Some(min_height) = config.min_height {
+        constraints.min_height = Some(ToaLogicalUnit::new(min_height).into());
       }
+      if let Some(max_width) = config.max_width {
+        constraints.max_width = Some(ToaLogicalUnit::new(max_width).into());
+      }
+      if let Some(max_height) = config.max_height {
+        constraints.max_height = Some(ToaLogicalUnit::new(max_height).into());
+      }
+      window = window.inner_size_constraints(constraints);
+
       if let (Some(x), Some(y)) = (config.x, config.y) {
         window = window.position(x, y);
       }
@@ -820,6 +830,16 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner = self
       .inner
       .with_max_inner_size(TaoLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.inner.window.inner_size_constraints = tao::window::WindowSizeConstraints {
+      min_width: constraints.min_width,
+      min_height: constraints.min_height,
+      max_width: constraints.max_width,
+      max_height: constraints.max_height,
+    };
     self
   }
 
@@ -1144,6 +1164,7 @@ pub enum WindowMessage {
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
+  SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
   SetFocus,
@@ -1847,6 +1868,16 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetMaxSize(size)),
+    )
+  }
+
+  fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetSizeConstraints(constraints),
+      ),
     )
   }
 
@@ -2830,6 +2861,14 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetMaxSize(size) => {
             window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
+          }
+          WindowMessage::SetSizeConstraints(constraints) => {
+            window.set_inner_size_constraints(tao::window::WindowSizeConstraints {
+              min_width: constraints.min_width,
+              min_height: constraints.min_height,
+              max_width: constraints.max_width,
+              max_height: constraints.max_height,
+            });
           }
           WindowMessage::SetPosition(position) => {
             window.set_outer_position(PositionWrapper::from(position).0)

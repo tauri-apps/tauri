@@ -96,6 +96,7 @@ impl<'a> ResourcePaths<'a> {
         pattern_iter: PatternIter::Slice(patterns.iter()),
         allow_walk,
         current_path: None,
+        current_pattern: None,
         current_dest: None,
         walk_iter: None,
         glob_iter: None,
@@ -110,6 +111,7 @@ impl<'a> ResourcePaths<'a> {
         pattern_iter: PatternIter::Map(patterns.iter()),
         allow_walk,
         current_path: None,
+        current_pattern: None,
         current_dest: None,
         walk_iter: None,
         glob_iter: None,
@@ -133,7 +135,9 @@ pub struct ResourcePathsIter<'a> {
   allow_walk: bool,
 
   current_path: Option<PathBuf>,
-  current_dest: Option<&'a str>,
+  current_pattern: Option<String>,
+  current_dest: Option<PathBuf>,
+
   walk_iter: Option<walkdir::IntoIter>,
   glob_iter: Option<glob::Paths>,
 }
@@ -163,6 +167,34 @@ impl<'a> ResourcePathsIter<'a> {
     self.next_current_path()
   }
 
+  fn resource_from_path(&mut self, path: &Path) -> Resource {
+    Resource {
+      target: self
+        .current_dest
+        .as_ref()
+        .map(|current_dest| {
+          // if processing a directory, preserve directory structure under current_dest
+          if self.walk_iter.is_some() {
+            let current_pattern = self.current_pattern.as_ref().unwrap();
+            current_dest.join(path.strip_prefix(&current_pattern).unwrap_or(&path))
+          } else if current_dest.components().count() == 0 {
+            // else if current_dest is empty while processing a file pattern or glob
+            // we preserve the file name as it is
+            PathBuf::from(path.file_name().unwrap())
+          } else if self.glob_iter.is_some() {
+            // if processing a glob and current_dest is not empty
+            // we put all globbed paths under current_dest
+            // preserving the file name as it is
+            current_dest.join(path.file_name().unwrap())
+          } else {
+            current_dest.clone()
+          }
+        })
+        .unwrap_or_else(|| resource_relpath(&path)),
+      path: path.to_path_buf(),
+    }
+  }
+
   fn next_current_path(&mut self) -> Option<crate::Result<Resource>> {
     // should be safe to unwrap since every call to `self.next_current_path()`
     // is preceeded with assignemt to `self.current_path`
@@ -181,29 +213,18 @@ impl<'a> ResourcePathsIter<'a> {
 
       match self.next_walk_iter() {
         Some(resource) => Some(resource),
-        None => self.next(),
+        None => {
+          self.walk_iter = None;
+          self.next()
+        }
       }
     } else {
-      let resource = Resource {
-        target: self
-          .current_dest
-          .map(|current_dest| {
-            if current_dest.is_empty() {
-              if let Some(file_name) = path.file_name() {
-                return PathBuf::from(file_name);
-              }
-            }
-
-            PathBuf::from(current_dest)
-          })
-          .unwrap_or_else(|| resource_relpath(&path)),
-        path: path.to_path_buf(),
-      };
-      Some(Ok(resource))
+      Some(Ok(self.resource_from_path(&path)))
     }
   }
 
   fn next_pattern(&mut self) -> Option<crate::Result<Resource>> {
+    self.current_pattern = None;
     self.current_dest = None;
     self.current_path = None;
 
@@ -214,7 +235,8 @@ impl<'a> ResourcePathsIter<'a> {
       },
       PatternIter::Map(iter) => match iter.next() {
         Some((pattern, dest)) => {
-          self.current_dest = Some(dest.as_str());
+          self.current_pattern = Some(pattern.clone());
+          self.current_dest = Some(resource_relpath(Path::new(dest)));
           pattern
         }
         None => return None,
@@ -226,9 +248,10 @@ impl<'a> ResourcePathsIter<'a> {
         Ok(glob) => Some(glob),
         Err(error) => return Some(Err(error.into())),
       };
-      if let Some(r) = self.next_glob_iter() {
-        return Some(r);
-      };
+      match self.next_glob_iter() {
+        Some(r) => return Some(r),
+        None => self.glob_iter = None,
+      }
     }
 
     self.current_path = Some(normalize(Path::new(pattern)));
@@ -253,15 +276,17 @@ impl<'a> Iterator for ResourcePathsIter<'a> {
     }
 
     if self.walk_iter.is_some() {
-      if let Some(r) = self.next_walk_iter() {
-        return Some(r);
-      };
+      match self.next_walk_iter() {
+        Some(r) => return Some(r),
+        None => self.walk_iter = None,
+      }
     }
 
     if self.glob_iter.is_some() {
-      if let Some(r) = self.next_glob_iter() {
-        return Some(r);
-      };
+      match self.next_glob_iter() {
+        Some(r) => return Some(r),
+        None => self.glob_iter = None,
+      }
     }
 
     self.next_pattern()
@@ -312,6 +337,10 @@ mod tests {
       Path::new("src/assets/javascript.svg"),
       Path::new("src/assets/tauri.svg"),
       Path::new("src/assets/rust.svg"),
+      Path::new("src/assets/lang/en.json"),
+      Path::new("src/assets/lang/ar.json"),
+      Path::new("src/sounds/lang/es.wav"),
+      Path::new("src/sounds/lang/fr.wav"),
       Path::new("src/index.html"),
       Path::new("src/style.css"),
       Path::new("src/script.js"),
@@ -336,6 +365,7 @@ mod tests {
         "../src/script.js".into(),
         "../src/assets".into(),
         "../src/index.html".into(),
+        "../src/sounds".into(),
         "*.toml".into(),
         "*.conf.json".into(),
       ],
@@ -353,7 +383,11 @@ mod tests {
       ),
       ("../src/assets/tauri.svg", "_up_/src/assets/tauri.svg"),
       ("../src/assets/rust.svg", "_up_/src/assets/rust.svg"),
+      ("../src/assets/lang/en.json", "_up_/src/assets/lang/en.json"),
+      ("../src/assets/lang/ar.json", "_up_/src/assets/lang/ar.json"),
       ("../src/index.html", "_up_/src/index.html"),
+      ("../src/sounds/lang/es.wav", "_up_/src/sounds/lang/es.wav"),
+      ("../src/sounds/lang/fr.wav", "_up_/src/sounds/lang/fr.wav"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
       ("tauri.conf.json", "tauri.conf.json"),
@@ -380,6 +414,7 @@ mod tests {
         "../src/script.js".into(),
         "../src/assets".into(),
         "../src/index.html".into(),
+        "../src/sounds".into(),
         "*.toml".into(),
         "*.conf.json".into(),
       ],
@@ -418,8 +453,9 @@ mod tests {
         ("../src/script.js".into(), "main.js".into()),
         ("../src/assets".into(), "".into()),
         ("../src/index.html".into(), "frontend/index.html".into()),
+        ("../src/sounds".into(), "voices".into()),
         ("*.toml".into(), "".into()),
-        ("*.conf.json".into(), "".into()),
+        ("*.conf.json".into(), "json".into()),
       ]),
       true,
     )
@@ -432,10 +468,14 @@ mod tests {
       ("../src/assets/javascript.svg", "javascript.svg"),
       ("../src/assets/tauri.svg", "tauri.svg"),
       ("../src/assets/rust.svg", "rust.svg"),
+      ("../src/assets/lang/en.json", "lang/en.json"),
+      ("../src/assets/lang/ar.json", "lang/ar.json"),
       ("../src/index.html", "frontend/index.html"),
+      ("../src/sounds/lang/es.wav", "voices/lang/es.wav"),
+      ("../src/sounds/lang/fr.wav", "voices/lang/fr.wav"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
-      ("tauri.conf.json", "tauri.conf.json"),
+      ("tauri.conf.json", "json/tauri.conf.json"),
     ]);
 
     assert_eq!(resources.len(), expected.len());
@@ -459,8 +499,9 @@ mod tests {
         ("../src/script.js".into(), "main.js".into()),
         ("../src/assets".into(), "".into()),
         ("../src/index.html".into(), "frontend/index.html".into()),
+        ("../src/sounds".into(), "voices".into()),
         ("*.toml".into(), "".into()),
-        ("*.conf.json".into(), "".into()),
+        ("*.conf.json".into(), "json".into()),
       ]),
       false,
     )
@@ -473,7 +514,7 @@ mod tests {
       ("../src/index.html", "frontend/index.html"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
-      ("tauri.conf.json", "tauri.conf.json"),
+      ("tauri.conf.json", "json/tauri.conf.json"),
     ]);
 
     assert_eq!(resources.len(), expected.len());

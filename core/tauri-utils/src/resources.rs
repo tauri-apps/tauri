@@ -176,7 +176,7 @@ impl<'a> ResourcePathsIter<'a> {
           // if processing a directory, preserve directory structure under current_dest
           if self.walk_iter.is_some() {
             let current_pattern = self.current_pattern.as_ref().unwrap();
-            current_dest.join(path.strip_prefix(&current_pattern).unwrap_or(&path))
+            current_dest.join(path.strip_prefix(current_pattern).unwrap_or(path))
           } else if current_dest.components().count() == 0 {
             // else if current_dest is empty while processing a file pattern or glob
             // we preserve the file name as it is
@@ -190,7 +190,7 @@ impl<'a> ResourcePathsIter<'a> {
             current_dest.clone()
           }
         })
-        .unwrap_or_else(|| resource_relpath(&path)),
+        .unwrap_or_else(|| resource_relpath(path)),
       path: path.to_path_buf(),
     }
   }

@@ -11,7 +11,7 @@ use thiserror::Error;
 const IDENTIFIER_SEPARATOR: u8 = b':';
 const PLUGIN_PREFIX: &str = "tauri-plugin-";
 
-// https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field
+// <https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field>
 const MAX_LEN_PREFIX: usize = 64 - PLUGIN_PREFIX.len();
 const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;

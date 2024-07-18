@@ -209,7 +209,7 @@ fn has_feature(feature: &str) -> bool {
     .push(feature.to_string());
 
   // when a feature is enabled, Cargo sets the `CARGO_FEATURE_<name>` env var to 1
-  // https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts
+  // <https://doc.rust-lang.org/cargo/reference/environment-variables.html#environment-variables-cargo-sets-for-build-scripts>
   std::env::var(format!("CARGO_FEATURE_{}", AsShoutySnakeCase(feature)))
     .map(|x| x == "1")
     .unwrap_or(false)

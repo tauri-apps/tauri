@@ -169,6 +169,7 @@ impl<'a> ResourcePathsIter<'a> {
 
   fn resource_from_path(&mut self, path: &Path) -> Resource {
     Resource {
+      path: path.to_path_buf(),
       target: self
         .current_dest
         .as_ref()
@@ -178,7 +179,7 @@ impl<'a> ResourcePathsIter<'a> {
             let current_pattern = self.current_pattern.as_ref().unwrap();
             current_dest.join(path.strip_prefix(current_pattern).unwrap_or(path))
           } else if current_dest.components().count() == 0 {
-            // else if current_dest is empty while processing a file pattern or glob
+            // if current_dest is empty while processing a file pattern or glob
             // we preserve the file name as it is
             PathBuf::from(path.file_name().unwrap())
           } else if self.glob_iter.is_some() {
@@ -191,7 +192,6 @@ impl<'a> ResourcePathsIter<'a> {
           }
         })
         .unwrap_or_else(|| resource_relpath(path)),
-      path: path.to_path_buf(),
     }
   }
 
@@ -202,13 +202,17 @@ impl<'a> ResourcePathsIter<'a> {
 
     let is_dir = path.is_dir();
 
-    if is_dir && !self.allow_walk {
-      return Some(Err(crate::Error::NotAllowedToWalkDir(path.to_path_buf())));
-    }
-
     if is_dir {
+      if self.glob_iter.is_some() {
+        return self.next();
+      }
+
+      if !self.allow_walk {
+        return Some(Err(crate::Error::NotAllowedToWalkDir(path.to_path_buf())));
+      }
+
       if self.walk_iter.is_none() {
-        self.walk_iter = Some(WalkDir::new(path).into_iter());
+        self.walk_iter = Some(WalkDir::new(&path).into_iter());
       }
 
       match self.next_walk_iter() {
@@ -341,6 +345,14 @@ mod tests {
       Path::new("src/assets/lang/ar.json"),
       Path::new("src/sounds/lang/es.wav"),
       Path::new("src/sounds/lang/fr.wav"),
+      Path::new("src/textures/ground/earth.tex"),
+      Path::new("src/textures/ground/sand.tex"),
+      Path::new("src/textures/water.tex"),
+      Path::new("src/textures/fire.tex"),
+      Path::new("src/tiles/sky/grey.tile"),
+      Path::new("src/tiles/sky/yellow.tile"),
+      Path::new("src/tiles/grass.tile"),
+      Path::new("src/tiles/stones.tile"),
       Path::new("src/index.html"),
       Path::new("src/style.css"),
       Path::new("src/script.js"),
@@ -454,6 +466,8 @@ mod tests {
         ("../src/assets".into(), "".into()),
         ("../src/index.html".into(), "frontend/index.html".into()),
         ("../src/sounds".into(), "voices".into()),
+        ("../src/textures/*".into(), "textures".into()),
+        ("../src/tiles/**/*".into(), "tiles".into()),
         ("*.toml".into(), "".into()),
         ("*.conf.json".into(), "json".into()),
       ]),
@@ -473,6 +487,12 @@ mod tests {
       ("../src/index.html", "frontend/index.html"),
       ("../src/sounds/lang/es.wav", "voices/lang/es.wav"),
       ("../src/sounds/lang/fr.wav", "voices/lang/fr.wav"),
+      ("../src/textures/water.tex", "textures/water.tex"),
+      ("../src/textures/fire.tex", "textures/fire.tex"),
+      ("../src/tiles/grass.tile", "tiles/grass.tile"),
+      ("../src/tiles/stones.tile", "tiles/stones.tile"),
+      ("../src/tiles/sky/grey.tile", "tiles/grey.tile"),
+      ("../src/tiles/sky/yellow.tile", "tiles/yellow.tile"),
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
       ("tauri.conf.json", "json/tauri.conf.json"),

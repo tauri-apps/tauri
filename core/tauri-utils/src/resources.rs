@@ -167,8 +167,12 @@ impl<'a> ResourcePathsIter<'a> {
     self.next_current_path()
   }
 
-  fn resource_from_path(&mut self, path: &Path) -> Resource {
-    Resource {
+  fn resource_from_path(&mut self, path: &Path) -> crate::Result<Resource> {
+    if !path.exists() {
+      return Err(crate::Error::ResourcePathNotFound(path.to_path_buf()));
+    }
+
+    Ok(Resource {
       path: path.to_path_buf(),
       target: self
         .current_dest
@@ -192,7 +196,7 @@ impl<'a> ResourcePathsIter<'a> {
           }
         })
         .unwrap_or_else(|| resource_relpath(path)),
-    }
+    })
   }
 
   fn next_current_path(&mut self) -> Option<crate::Result<Resource>> {
@@ -223,7 +227,7 @@ impl<'a> ResourcePathsIter<'a> {
         }
       }
     } else {
-      Some(Ok(self.resource_from_path(&path)))
+      Some(self.resource_from_path(&path))
     }
   }
 
@@ -470,6 +474,8 @@ mod tests {
         ("../src/tiles/**/*".into(), "tiles".into()),
         ("*.toml".into(), "".into()),
         ("*.conf.json".into(), "json".into()),
+        ("../non-existent-file".into(), "asd".into()), // invalid case
+        ("../non/*".into(), "asd".into()),             // invalid case
       ]),
       true,
     )

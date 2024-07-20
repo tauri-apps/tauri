@@ -119,7 +119,7 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
-          GITHUB_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
@@ -127,4 +127,4 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         run: gh workflow run 31554139 -r dev
         env:
-          GITHUB_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}

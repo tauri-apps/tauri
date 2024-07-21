@@ -53,6 +53,7 @@ ${StrLoc}
 !define WEBVIEW2INSTALLERARGS "{{webview2_installer_args}}"
 !define WEBVIEW2BOOTSTRAPPERPATH "{{webview2_bootstrapper_path}}"
 !define WEBVIEW2INSTALLERPATH "{{webview2_installer_path}}"
+!define MINIMUMWEBVIEW2VERSION "130"
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
@@ -499,57 +500,75 @@ Section WebView2
   ${EndIf}
   ReadRegStr $5 HKCU "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
 
-  StrCmp $4 "" 0 webview2_done
-  StrCmp $5 "" 0 webview2_done
+  ${If} $4 == ""
+  ${AndIf} $5 == ""
+    ; Webview2 installation
+    ;
+    ; Skip if updating
+    ${If} $UpdateMode <> 1
+      !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
+        Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+        DetailPrint "$(webview2Downloading)"
+        NSISdl::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+        Pop $0
+        ${If} $0 = 0
+          DetailPrint "$(webview2DownloadSuccess)"
+        ${Else}
+          DetailPrint "$(webview2DownloadError)"
+          Abort "$(webview2AbortError)"
+        ${EndIf}
+        StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+        Goto install_webview2
+      !endif
 
-  ; Webview2 installation
-  ;
-  ; Skip if updating
-  ${If} $UpdateMode <> 1
-    !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
-      Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-      DetailPrint "$(webview2Downloading)"
-      NSISdl::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-      Pop $0
-      ${If} $0 = 0
-        DetailPrint "$(webview2DownloadSuccess)"
+      !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
+        Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+        File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
+        DetailPrint "$(installingWebview2)"
+        StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+        Goto install_webview2
+      !endif
+
+      !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
+        Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+        File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
+        DetailPrint "$(installingWebview2)"
+        StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
+        Goto install_webview2
+      !endif
+
+      Goto webview2_done
+
+      install_webview2:
+        DetailPrint "$(installingWebview2)"
+        ; $6 holds the path to the webview2 installer
+        ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
+        ${If} $1 = 0
+          DetailPrint "$(webview2InstallSuccess)"
+        ${Else}
+          DetailPrint "$(webview2InstallError)"
+          Abort "$(webview2AbortError)"
+        ${EndIf}
+      webview2_done:
+    ${EndIf}
+  ${Else}
+    !if "${MINIMUMWEBVIEW2VERSION}" != ""
+      ${If} $4 != ""
+        ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
       ${Else}
-        DetailPrint "$(webview2DownloadError)"
-        Abort "$(webview2AbortError)"
+        ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$5" $R0
       ${EndIf}
-      StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-      Goto install_webview2
-    !endif
-
-    !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
-      Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-      File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
-      DetailPrint "$(installingWebview2)"
-      StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-      Goto install_webview2
-    !endif
-
-    !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
-      Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
-      File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
-      DetailPrint "$(installingWebview2)"
-      StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
-      Goto install_webview2
-    !endif
-
-    Goto webview2_done
-
-    install_webview2:
-      DetailPrint "$(installingWebview2)"
-      ; $6 holds the path to the webview2 installer
-      ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
-      ${If} $1 = 0
-        DetailPrint "$(webview2InstallSuccess)"
-      ${Else}
-        DetailPrint "$(webview2InstallError)"
-        Abort "$(webview2AbortError)"
+      ${If} $R0 = 1
+        DetailPrint "$(installingWebview2)"
+        ExecWait `"C:\Program Files (x86)\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe" /install appguid={F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}` $1
+        ${If} $1 = 0
+          DetailPrint "$(webview2InstallSuccess)"
+        ${Else}
+          DetailPrint "$(webview2InstallError)"
+          Abort "$(webview2AbortError)"
+        ${EndIf}
       ${EndIf}
-    webview2_done:
+    !endif
   ${EndIf}
 SectionEnd
 

@@ -457,6 +457,10 @@ pub struct NsisSettings {
   /// !macroend
   /// ```
   pub installer_hooks: Option<PathBuf>,
+  /// Ensure webview2 version to be newer than this major version,
+  /// if the user's webview2 is older than this version,
+  /// the installer will trigger a webview2 update
+  pub ensure_webview2_version: Option<u16>,
 }
 
 /// The Windows bundle settings.

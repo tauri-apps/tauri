@@ -218,6 +218,8 @@ pub struct InnerWindowManager<R: Runtime> {
   on_page_load: Box<OnPageLoad<R>>,
 
   config: Arc<Config>,
+  #[cfg(dev)]
+  config_parent: Option<std::path::PathBuf>,
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
@@ -325,6 +327,8 @@ impl<R: Runtime> WindowManager<R> {
         invoke_handler,
         on_page_load,
         config: Arc::new(context.config),
+        #[cfg(dev)]
+        config_parent: context.config_parent,
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
@@ -1192,6 +1196,11 @@ impl<R: Runtime> WindowManager<R> {
 
   pub fn config(&self) -> Arc<Config> {
     self.inner.config.clone()
+  }
+
+  #[cfg(dev)]
+  pub fn config_parent(&self) -> Option<&std::path::PathBuf> {
+    self.inner.config_parent.as_ref()
   }
 
   pub fn package_info(&self) -> &PackageInfo {

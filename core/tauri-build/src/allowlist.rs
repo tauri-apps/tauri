@@ -59,7 +59,7 @@ pub fn check(config: &Config, manifest: &mut Manifest) -> Result<()> {
     if deps.is_empty() {
       if let Some(alias) = &metadata.alias {
         deps = find_dependency(manifest, alias, metadata.kind);
-        name = alias.clone();
+        name.clone_from(alias);
       }
     }
 

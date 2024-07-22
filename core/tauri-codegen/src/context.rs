@@ -437,17 +437,33 @@ pub fn context_codegen(data: ContextData) -> Result<TokenStream, EmbeddedAssetsE
   #[cfg(not(feature = "shell-scope"))]
   let shell_scope_config = quote!();
 
-  Ok(quote!(#root::Context::new(
-    #config,
-    ::std::sync::Arc::new(#assets),
-    #default_window_icon,
-    #app_icon,
-    #system_tray_icon,
-    #package_info,
-    #info_plist,
-    #pattern,
-    #shell_scope_config
-  )))
+  let maybe_config_parent_setter = if dev {
+    let config_parent = config_parent.to_string_lossy();
+    quote!({
+      context.with_config_parent(#config_parent);
+    })
+  } else {
+    quote!()
+  };
+
+  Ok(quote!({
+    #[allow(unused_assignments, unused_mut)]
+    let mut context = #root::Context::new(
+      #config,
+      ::std::sync::Arc::new(#assets),
+      #default_window_icon,
+      #app_icon,
+      #system_tray_icon,
+      #package_info,
+      #info_plist,
+      #pattern,
+      #shell_scope_config
+    );
+
+    #maybe_config_parent_setter
+
+    context
+  }))
 }
 
 fn ico_icon<P: AsRef<Path>>(

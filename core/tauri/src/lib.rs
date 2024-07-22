@@ -471,6 +471,8 @@ impl TryFrom<Icon> for runtime::Icon {
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
+  #[cfg(dev)]
+  pub(crate) config_parent: Option<std::path::PathBuf>,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
@@ -587,6 +589,8 @@ impl<A: Assets> Context<A> {
   ) -> Self {
     Self {
       config,
+      #[cfg(dev)]
+      config_parent: None,
       assets,
       default_window_icon,
       app_icon,
@@ -597,6 +601,14 @@ impl<A: Assets> Context<A> {
       #[cfg(shell_scope)]
       shell_scope,
     }
+  }
+
+  #[cfg(dev)]
+  #[doc(hidden)]
+  pub fn with_config_parent(&mut self, config_parent: impl AsRef<std::path::Path>) {
+    self
+      .config_parent
+      .replace(config_parent.as_ref().to_owned());
   }
 }
 

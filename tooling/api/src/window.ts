@@ -1326,7 +1326,7 @@ class Window {
    * await getCurrentWindow().setSizeConstraints({ minWidth: 300 });
    * ```
    *
-   * @param size The logical or physical inner size, or `null` to unset the constraint.
+   * @param constraints The logical or physical inner size, or `null` to unset the constraint.
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSizeConstraints(

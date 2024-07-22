@@ -483,6 +483,15 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     quote!(::std::option::Option::None)
   };
 
+  let maybe_config_parent_setter = if dev {
+    let config_parent = config_parent.to_string_lossy();
+    quote!({
+      context.with_config_parent(#config_parent);
+    })
+  } else {
+    quote!()
+  };
+
   Ok(quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
@@ -496,7 +505,10 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       #runtime_authority,
       #plugin_global_api_script
     );
+
     #with_tray_icon_code
+    #maybe_config_parent_setter
+
     context
   }))
 }

@@ -269,7 +269,45 @@ pub struct AssetResolver<R: Runtime> {
 
 impl<R: Runtime> AssetResolver<R> {
   /// Gets the app asset associated with the given path.
+  ///
+  /// Resolves to the embedded asset that is part of the app
+  /// in dev when [`devPath`](https://tauri.app/v1/api/config/#buildconfig.devpath) points to a folder in your filesystem
+  /// or in production when [`distDir`](https://tauri.app/v1/api/config/#buildconfig.distdir)
+  /// points to your frontend assets.
+  ///
+  /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
+  /// Note that the dist directory must exist so you might need to build your frontend assets first.
   pub fn get(&self, path: String) -> Option<Asset> {
+    #[cfg(dev)]
+    {
+      // on dev if the devPath is a path to a directory we have the embedded assets
+      // so we can use get_asset() directly
+      // we only fallback to reading from distDir directly if we're using an external URL (which is likely)
+      if let (Some(_), Some(crate::utils::config::FrontendDist::Directory(dist_path))) = (
+        &self.manager.config().build.dev_url,
+        &self.manager.config().build.frontend_dist,
+      ) {
+        let asset_path = std::path::PathBuf::from(&path)
+          .components()
+          .filter(|c| !matches!(c, std::path::Component::RootDir))
+          .collect::<std::path::PathBuf>();
+
+        let asset_path = self
+          .manager
+          .config_parent()
+          .map(|p| p.join(dist_path).join(&asset_path))
+          .unwrap_or_else(|| dist_path.join(&asset_path));
+        return std::fs::read(asset_path).ok().map(|bytes| {
+          let mime_type = crate::utils::mime_type::MimeType::parse(&bytes, &path);
+          Asset {
+            bytes,
+            mime_type,
+            csp_header: None,
+          }
+        });
+      }
+    }
+
     self.manager.get_asset(path).ok()
   }
 

@@ -379,6 +379,8 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
 #[tauri_macros::default_runtime(Wry, wry)]
 pub struct Context<R: Runtime> {
   pub(crate) config: Config,
+  #[cfg(dev)]
+  pub(crate) config_parent: Option<std::path::PathBuf>,
   /// Asset provider.
   pub assets: Box<dyn Assets<R>>,
   pub(crate) default_window_icon: Option<image::Image<'static>>,
@@ -507,6 +509,8 @@ impl<R: Runtime> Context<R> {
   ) -> Self {
     Self {
       config,
+      #[cfg(dev)]
+      config_parent: None,
       assets,
       default_window_icon,
       app_icon,
@@ -518,6 +522,14 @@ impl<R: Runtime> Context<R> {
       runtime_authority,
       plugin_global_api_scripts,
     }
+  }
+
+  #[cfg(dev)]
+  #[doc(hidden)]
+  pub fn with_config_parent(&mut self, config_parent: impl AsRef<std::path::Path>) {
+    self
+      .config_parent
+      .replace(config_parent.as_ref().to_owned());
   }
 }
 

@@ -33,11 +33,7 @@ import { Window, getCurrentWindow } from './window'
 import { WebviewWindow } from './webviewWindow'
 
 /** The drag and drop event types. */
-type DragDropEvent =
-  | { type: 'enter'; paths: string[]; position: PhysicalPosition }
-  | { type: 'over'; position: PhysicalPosition }
-  | { type: 'drop'; paths: string[]; position: PhysicalPosition }
-  | { type: 'leave' }
+type DragDropEvent = {type: 'enter' | 'over' | 'drop' | 'leave', paths?: string[], position?: PhysicalPosition}
 
 /**
  * Get an instance of `Webview` for the current webview.

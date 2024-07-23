@@ -3201,9 +3201,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.203"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7253ab4de971e72fb7be983802300c30b5a7f0c2e56fab8abfc6a214307c0094"
+checksum = "bc76f558e0cbb2a839d37354c575f1dc3fdc6546b5be373ba43d95f231bf7c12"
 dependencies = [
  "serde_derive",
 ]
@@ -3221,9 +3221,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.203"
+version = "1.0.204"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "500cbc0ebeb6f46627f50f3f5811ccf6bf00643be300b4c3eabc0ef55dc5b5ba"
+checksum = "e0cd7e117be63d3c3678776753929474f3b04a43a080c744d6b0ae2a8c28e222"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3470,11 +3470,10 @@ dependencies = [
 
 [[package]]
 name = "specta"
-version = "2.0.0-rc.12"
+version = "2.0.0-rc.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3624a07cbde326fdf1ec37cbd39d06a224660fa0199b7db7316f2349583df981"
+checksum = "49c724a69c6d78156078a2b915df0c7031334402a669a150fbacc4f626120998"
 dependencies = [
- "once_cell",
  "paste",
  "serde",
  "specta-macros",
@@ -3483,14 +3482,14 @@ dependencies = [
 
 [[package]]
 name = "specta-macros"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef33e9678ae36993fcbfc46aa29568ef10d32fd54428808759c6a450998c43ec"
+checksum = "169054738abd29aa5e8a3cf152ed5e3d736dc6987ba049bf4aaa12ecdd03a5d8"
 dependencies = [
  "Inflector",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.71",
 ]
 
 [[package]]

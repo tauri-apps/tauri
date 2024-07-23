@@ -75,7 +75,7 @@ tracing = { version = "0.1", optional = true }
 heck = "0.5"
 log = "0.4"
 dunce = "1"
-specta = { version = "^2.0.0-rc.9", optional = true, default-features = false, features = [ "function", "derive" ] }
+specta = { version = "^2.0.0-rc.15", optional = true, default-features = false, features = [ "function", "derive" ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.13.4", default-features = false, features = [ "serde" ] }

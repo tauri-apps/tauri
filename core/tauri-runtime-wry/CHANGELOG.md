@@ -1,5 +1,12 @@
 # Changelog
 
+## \[0.14.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-runtime@0.14.4`
+
 ## \[0.14.8]
 
 ### Security fixes

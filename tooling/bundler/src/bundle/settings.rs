@@ -237,6 +237,39 @@ pub struct RpmSettings {
   pub desktop_template: Option<PathBuf>,
 }
 
+/// Position coordinates struct.
+#[derive(Clone, Debug, Default)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Clone, Debug, Default)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// The DMG bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct DmgSettings {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  pub window_size: Size,
+  /// Position of app file on window.
+  pub app_position: Position,
+  /// Position of application folder on window.
+  pub application_folder_position: Position,
+}
+
 /// The macOS bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct MacOsSettings {
@@ -263,6 +296,10 @@ pub struct MacOsSettings {
   pub exception_domain: Option<String>,
   /// Code signing identity.
   pub signing_identity: Option<String>,
+  /// Preserve the hardened runtime version flag, see <https://developer.apple.com/documentation/security/hardened_runtime>
+  ///
+  /// Settings this to `false` is useful when using an ad-hoc signature, making it less strict.
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
   /// Path to the entitlements.plist file.
@@ -485,6 +522,8 @@ pub struct BundleSettings {
   pub deb: DebianSettings,
   /// Rpm-specific settings.
   pub rpm: RpmSettings,
+  /// DMG-specific settings.
+  pub dmg: DmgSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -947,6 +986,11 @@ impl Settings {
   /// Returns the RPM settings.
   pub fn rpm(&self) -> &RpmSettings {
     &self.bundle_settings.rpm
+  }
+
+  /// Returns the DMG settings.
+  pub fn dmg(&self) -> &DmgSettings {
+    &self.bundle_settings.dmg
   }
 
   /// Returns the MacOS settings.

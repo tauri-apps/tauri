@@ -28,8 +28,8 @@ use notify_debouncer_mini::new_debouncer;
 use serde::Deserialize;
 use shared_child::SharedChild;
 use tauri_bundler::{
-  AppCategory, BundleBinary, BundleSettings, DebianSettings, MacOsSettings, PackageSettings,
-  RpmSettings, UpdaterSettings, WindowsSettings,
+  AppCategory, BundleBinary, BundleSettings, DebianSettings, DmgSettings, MacOsSettings,
+  PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::parse::is_configuration_file;
 
@@ -46,7 +46,7 @@ mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Options {
   pub runner: Option<String>,
   pub debug: bool,
@@ -607,6 +607,7 @@ struct WorkspacePackageSettings {
   description: Option<String>,
   homepage: Option<String>,
   version: Option<String>,
+  license: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -630,7 +631,7 @@ pub struct CargoPackageSettings {
   /// the package's authors.
   pub authors: Option<MaybeWorkspace<Vec<String>>>,
   /// the package's license.
-  pub license: Option<String>,
+  pub license: Option<MaybeWorkspace<String>>,
   /// the default binary to run.
   pub default_run: Option<String>,
 }
@@ -705,7 +706,7 @@ impl AppSettings for RustAppSettings {
       .expect("Cargo manifest must have the `package.name` field");
 
     let out_dir = self
-      .out_dir(options.target.clone(), get_profile_dir(options).to_string())
+      .out_dir(options)
       .with_context(|| "failed to get project out directory")?;
 
     let binary_extension: String = if self.target_triple.contains("windows") {
@@ -910,7 +911,16 @@ impl RustAppSettings {
           })
           .unwrap()
       }),
-      license: cargo_package_settings.license.clone(),
+      license: cargo_package_settings.license.clone().map(|license| {
+        license
+          .resolve("license", || {
+            ws_package_settings
+              .as_ref()
+              .and_then(|v| v.license.clone())
+              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `license` from workspace"))
+          })
+          .unwrap()
+      }),
       default_run: cargo_package_settings.default_run.clone(),
     };
 
@@ -951,13 +961,15 @@ impl RustAppSettings {
     &self.cargo_package_settings
   }
 
-  pub fn out_dir(&self, target: Option<String>, profile: String) -> crate::Result<PathBuf> {
-    get_target_dir(
-      target
-        .as_deref()
-        .or_else(|| self.cargo_config.build().target()),
-      profile,
-    )
+  fn target<'a>(&'a self, options: &'a Options) -> Option<&'a str> {
+    options
+      .target
+      .as_deref()
+      .or_else(|| self.cargo_config.build().target())
+  }
+
+  pub fn out_dir(&self, options: &Options) -> crate::Result<PathBuf> {
+    get_target_dir(self.target(options), options)
   }
 }
 
@@ -985,18 +997,37 @@ pub fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 
 /// This function determines the 'target' directory and suffixes it with the profile
 /// to determine where the compiled binary will be located.
-fn get_target_dir(target: Option<&str>, profile: String) -> crate::Result<PathBuf> {
-  let mut path = get_cargo_metadata()
-    .with_context(|| "failed to get cargo metadata")?
-    .target_directory;
+fn get_target_dir(triple: Option<&str>, options: &Options) -> crate::Result<PathBuf> {
+  let mut path = if let Some(target) = get_cargo_option(&options.args, "--target-dir") {
+    std::env::current_dir()?.join(target)
+  } else {
+    let mut path = get_cargo_metadata()
+      .with_context(|| "failed to get cargo metadata")?
+      .target_directory;
 
-  if let Some(triple) = target {
-    path.push(triple);
-  }
+    if let Some(triple) = triple {
+      path.push(triple);
+    }
 
-  path.push(profile);
+    path
+  };
+
+  path.push(get_profile_dir(options));
 
   Ok(path)
+}
+
+#[inline]
+fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> {
+  args
+    .iter()
+    .position(|a| a.starts_with(option))
+    .and_then(|i| {
+      args[i]
+        .split_once('=')
+        .map(|(_, p)| Some(p))
+        .unwrap_or_else(|| args.get(i + 1).map(|s| s.as_str()))
+    })
 }
 
 /// Executes `cargo metadata` to get the workspace directory.
@@ -1009,12 +1040,11 @@ pub fn get_workspace_dir() -> crate::Result<PathBuf> {
 }
 
 pub fn get_profile(options: &Options) -> &str {
-  options
-    .args
-    .iter()
-    .position(|a| a == "--profile")
-    .map(|i| options.args[i + 1].as_str())
-    .unwrap_or_else(|| if options.debug { "debug" } else { "release" })
+  get_cargo_option(&options.args, "--profile").unwrap_or(if options.debug {
+    "dev"
+  } else {
+    "release"
+  })
 }
 
 pub fn get_profile_dir(options: &Options) -> &str {
@@ -1064,6 +1094,7 @@ fn tauri_config_to_bundle_settings(
       let tray = std::env::var("TAURI_TRAY").unwrap_or_else(|_| "ayatana".to_string());
       if tray == "ayatana" {
         depends_deb.push("libayatana-appindicator3-1".into());
+        libs.push("libayatana-appindicator3.so.1".into());
       } else {
         depends_deb.push("libappindicator3-1".into());
         libs.push("libappindicator3.so.1".into());
@@ -1169,12 +1200,32 @@ fn tauri_config_to_bundle_settings(
       files: config.rpm.files,
       desktop_template: config.rpm.desktop_template,
     },
+    dmg: DmgSettings {
+      background: config.dmg.background,
+      window_position: config.dmg.window_position.map(|window_position| Position {
+        x: window_position.x,
+        y: window_position.y,
+      }),
+      window_size: Size {
+        width: config.dmg.window_size.width,
+        height: config.dmg.window_size.height,
+      },
+      app_position: Position {
+        x: config.dmg.app_position.x,
+        y: config.dmg.app_position.y,
+      },
+      application_folder_position: Position {
+        x: config.dmg.application_folder_position.x,
+        y: config.dmg.application_folder_position.y,
+      },
+    },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       minimum_system_version: config.macos.minimum_system_version,
       license: config.macos.license,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,
       info_plist_path: {
@@ -1216,4 +1267,162 @@ fn tauri_config_to_bundle_settings(
     }),
     ..Default::default()
   })
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn parse_cargo_option() {
+    let args = vec![
+      "build".into(),
+      "--".into(),
+      "--profile".into(),
+      "holla".into(),
+      "--features".into(),
+      "a".into(),
+      "b".into(),
+      "--target-dir".into(),
+      "path/to/dir".into(),
+    ];
+
+    assert_eq!(get_cargo_option(&args, "--profile"), Some("holla"));
+    assert_eq!(get_cargo_option(&args, "--target-dir"), Some("path/to/dir"));
+    assert_eq!(get_cargo_option(&args, "--non-existent"), None);
+  }
+
+  #[test]
+  fn parse_profile_from_opts() {
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "testing");
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--profile=customprofile".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "customprofile");
+
+    let options = Options {
+      debug: true,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "dev");
+
+    let options = Options {
+      debug: false,
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "testing".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+
+    let options = Options {
+      args: vec!["build".into(), "--".into(), "--profile".into()],
+      ..Default::default()
+    };
+    assert_eq!(get_profile(&options), "release");
+  }
+
+  #[test]
+  fn parse_target_dir_from_opts() {
+    let current_dir = std::env::current_dir().unwrap();
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--target-dir".into(),
+        "path/to/some/dir".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      debug: false,
+      ..Default::default()
+    };
+
+    assert_eq!(
+      get_target_dir(None, &options).unwrap(),
+      current_dir.join("path/to/some/dir/release")
+    );
+    assert_eq!(
+      get_target_dir(Some("x86_64-pc-windows-msvc"), &options).unwrap(),
+      current_dir.join("path/to/some/dir/release")
+    );
+
+    let options = Options {
+      args: vec![
+        "build".into(),
+        "--".into(),
+        "--features".into(),
+        "feat1".into(),
+      ],
+      debug: false,
+      ..Default::default()
+    };
+
+    #[cfg(windows)]
+    assert!(get_target_dir(Some("x86_64-pc-windows-msvc"), &options)
+      .unwrap()
+      .ends_with("x86_64-pc-windows-msvc\\release"));
+    #[cfg(not(windows))]
+    assert!(get_target_dir(Some("x86_64-pc-windows-msvc"), &options)
+      .unwrap()
+      .ends_with("x86_64-pc-windows-msvc/release"));
+
+    #[cfg(windows)]
+    {
+      std::env::set_var("CARGO_TARGET_DIR", "D:\\path\\to\\env\\dir");
+      assert_eq!(
+        get_target_dir(None, &options).unwrap(),
+        PathBuf::from("D:\\path\\to\\env\\dir\\release")
+      );
+      assert_eq!(
+        get_target_dir(Some("x86_64-pc-windows-msvc"), &options).unwrap(),
+        PathBuf::from("D:\\path\\to\\env\\dir\\x86_64-pc-windows-msvc\\release")
+      );
+    }
+
+    #[cfg(not(windows))]
+    {
+      std::env::set_var("CARGO_TARGET_DIR", "/path/to/env/dir");
+      assert_eq!(
+        get_target_dir(None, &options).unwrap(),
+        PathBuf::from("/path/to/env/dir/release")
+      );
+      assert_eq!(
+        get_target_dir(Some("x86_64-pc-windows-msvc"), &options).unwrap(),
+        PathBuf::from("/path/to/env/dir/x86_64-pc-windows-msvc/release")
+      );
+    }
+  }
 }

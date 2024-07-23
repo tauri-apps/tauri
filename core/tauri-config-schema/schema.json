@@ -139,9 +139,24 @@
           "deb": {
             "files": {}
           },
+          "dmg": {
+            "appPosition": {
+              "x": 180,
+              "y": 170
+            },
+            "applicationFolderPosition": {
+              "x": 480,
+              "y": 170
+            },
+            "windowSize": {
+              "height": 400,
+              "width": 660
+            }
+          },
           "icon": [],
           "identifier": "",
           "macOS": {
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "rpm": {
@@ -285,9 +300,24 @@
             "deb": {
               "files": {}
             },
+            "dmg": {
+              "appPosition": {
+                "x": 180,
+                "y": 170
+              },
+              "applicationFolderPosition": {
+                "x": 480,
+                "y": 170
+              },
+              "windowSize": {
+                "height": 400,
+                "width": 660
+              }
+            },
             "icon": [],
             "identifier": "",
             "macOS": {
+              "hardenedRuntime": true,
               "minimumSystemVersion": "10.13"
             },
             "rpm": {
@@ -1166,9 +1196,32 @@
             }
           ]
         },
+        "dmg": {
+          "description": "DMG-specific settings.",
+          "default": {
+            "appPosition": {
+              "x": 180,
+              "y": 170
+            },
+            "applicationFolderPosition": {
+              "x": 480,
+              "y": 170
+            },
+            "windowSize": {
+              "height": 400,
+              "width": 660
+            }
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/DmgConfig"
+            }
+          ]
+        },
         "macOS": {
           "description": "Configuration for the macOS bundles.",
           "default": {
+            "hardenedRuntime": true,
             "minimumSystemVersion": "10.13"
           },
           "allOf": [
@@ -1495,6 +1548,113 @@
       },
       "additionalProperties": false
     },
+    "DmgConfig": {
+      "description": "Configuration for Apple Disk Image (.dmg) bundles.\n\nSee more: https://tauri.app/v1/api/config#dmgconfig",
+      "type": "object",
+      "properties": {
+        "background": {
+          "description": "Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "windowPosition": {
+          "description": "Position of volume window on screen.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Position"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "windowSize": {
+          "description": "Size of volume window.",
+          "default": {
+            "height": 400,
+            "width": 660
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Size"
+            }
+          ]
+        },
+        "appPosition": {
+          "description": "Position of app file on window.",
+          "default": {
+            "x": 180,
+            "y": 170
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Position"
+            }
+          ]
+        },
+        "applicationFolderPosition": {
+          "description": "Position of application folder on window.",
+          "default": {
+            "x": 480,
+            "y": 170
+          },
+          "allOf": [
+            {
+              "$ref": "#/definitions/Position"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Position": {
+      "description": "Position coordinates struct.",
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "description": "X coordinate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "y": {
+          "description": "Y coordinate.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Size": {
+      "description": "Size of the window.",
+      "type": "object",
+      "required": [
+        "height",
+        "width"
+      ],
+      "properties": {
+        "width": {
+          "description": "Width of the window.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "height": {
+          "description": "Height of the window.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
     "MacConfig": {
       "description": "Configuration for the macOS bundles.\n\nSee more: https://tauri.app/v1/api/config#macconfig",
       "type": "object",
@@ -1537,6 +1697,11 @@
             "string",
             "null"
           ]
+        },
+        "hardenedRuntime": {
+          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n[hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "default": true,
+          "type": "boolean"
         },
         "providerShortName": {
           "description": "Provider short name for notarization.",

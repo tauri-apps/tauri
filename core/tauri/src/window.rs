@@ -1577,7 +1577,7 @@ impl<R: Runtime> Window<R> {
         tracing::error!(error);
 
         #[cfg(not(feature = "tracing"))]
-        eprintln!(error);
+        eprintln!("{error}");
 
         return Err(Error::InvokeKey);
       }

@@ -78,7 +78,9 @@ pub struct Options {
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
-
+  /// Desktop: expose the dev server to the local network.
+  #[clap(long)]
+  pub expose: bool,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -205,12 +207,18 @@ pub fn setup(
             url.set_host(Some(&local_ip_address))?;
           }
         } else {
+          let default = if options.expose {
+            "0.0.0.0"
+          } else {
+            "127.0.0.1"
+          };
+          
           before_dev = before_dev.replace(
             "$HOST",
             if let Some(url) = &dev_url {
-              url.host_str().unwrap_or("0.0.0.0")
+              url.host_str().unwrap_or(default)
             } else {
-              "0.0.0.0"
+              default
             },
           );
         }

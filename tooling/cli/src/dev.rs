@@ -212,7 +212,7 @@ pub fn setup(
           } else {
             "127.0.0.1"
           };
-          
+
           before_dev = before_dev.replace(
             "$HOST",
             if let Some(url) = &dev_url {

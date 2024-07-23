@@ -1,0 +1,15 @@
+[package]
+name = "invoke-key"
+version = "0.1.0"
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { path = "../../tauri-build", features = [] }
+
+[dependencies]
+tauri = { path = "../../tauri", features = ["tracing"] }
+tracing = "0.1"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

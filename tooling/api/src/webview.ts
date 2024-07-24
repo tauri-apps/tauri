@@ -579,13 +579,13 @@ class Webview {
     const unlistenDragLeave = await this.listen<null>(
       TauriEvent.DRAG_LEAVE,
       (event) => {
-        handler({ 
-          ...event, 
-           payload: { 
-             type: 'leave',
-             paths: [],
-             position: undefined
-           } 
+        handler({
+          ...event,
+          payload: {
+            type: 'leave',
+            paths: [],
+            position: undefined
+           }
         })
       }
     )

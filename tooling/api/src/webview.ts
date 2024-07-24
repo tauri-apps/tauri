@@ -513,8 +513,8 @@ class Webview {
    * ```typescript
    * import { getCurrent } from "@tauri-apps/api/webview";
    * const unlisten = await getCurrentWebview().onDragDropEvent((event) => {
-   *  if (event.payload.type === 'hover') {
-   *    console.log('User hovering', event.payload.paths);
+   *  if (event.payload.type === 'over') {
+   *    console.log('User over', event.payload.paths);
    *  } else if (event.payload.type === 'drop') {
    *    console.log('User dropped', event.payload.paths);
    *  } else {
@@ -555,7 +555,8 @@ class Webview {
           ...event,
           payload: {
             type: 'over',
-            position: mapPhysicalPosition(event.payload.position)
+            paths: [],
+            position: mapPhysicalPosition(event.payload.position),
           }
         })
       }
@@ -578,7 +579,14 @@ class Webview {
     const unlistenDragLeave = await this.listen<null>(
       TauriEvent.DRAG_LEAVE,
       (event) => {
-        handler({ ...event, payload: { type: 'leave' } })
+        handler({ 
+          ...event, 
+           payload: { 
+             type: 'leave',
+             paths: [],
+             position: undefined
+           } 
+        })
       }
     )
 

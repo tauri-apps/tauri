@@ -1294,6 +1294,48 @@ impl<R: Runtime> Builder<R> {
   }
 
   /// Append a custom initialization script.
+  ///
+  /// Allow to append custom initialization script instend of replacing entire invoke system.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// fn main() {
+  ///   let custom_script = r#"
+  ///   // A custom call system bridge build on top of tauri invoke system.
+  ///   async function invoke(cmd, args = {}) {
+  ///       if (!args) args = {};
+  ///
+  ///       let prefix = "";
+  ///
+  ///       if (args?.__module) {
+  ///           prefix = `plugin:hybridcall.${args.__module}|`;
+  ///       }
+  ///
+  ///       const command = `${prefix}tauri_${cmd}`;
+  ///
+  ///       const invoke = window.__TAURI_INVOKE__ || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
+  ///
+  ///       return invoke(command, args).then(result => {
+  ///           if (window.build.debug) {
+  ///               window["console"]["log"](`call: ${command}`);
+  ///               window["console"]["log"](`args: ${JSON.stringify(args)}`);
+  ///               window["console"]["log"](`return: ${JSON.stringify(result)}`);
+  ///           }
+  ///
+  ///           return result;
+  ///       });
+  ///   }
+  ///   "#;
+  ///
+  ///   let app = tauri::Builder::default()
+  ///       .append_invoke_initialization_script(custom_script)
+  ///       .build(tauri::generate_context!())
+  ///       .expect("failed to launch");
+  ///
+  ///   app.run(|_, _| {});
+  /// }
+  /// ```
   pub fn append_invoke_initialization_script(mut self, initialization_script: &String) -> Self {
     self.invoke_initialization_script.push_str(initialization_script);
     self

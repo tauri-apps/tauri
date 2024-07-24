@@ -78,6 +78,7 @@ pub struct Options {
   /// Force prompting for an IP to use to connect to the dev server on mobile.
   #[clap(long)]
   pub force_ip_prompt: bool,
+
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,

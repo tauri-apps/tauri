@@ -514,9 +514,9 @@ class Webview {
    * import { getCurrent } from "@tauri-apps/api/webview";
    * const unlisten = await getCurrentWebview().onDragDropEvent((event) => {
    *  if (event.payload.type === 'over') {
-   *    console.log('User over', event.payload.paths);
+   *    console.log('User over', event.payload);
    *  } else if (event.payload.type === 'drop') {
-   *    console.log('User dropped', event.payload.paths);
+   *    console.log('User dropped', event.payload);
    *  } else {
    *    console.log('File drop cancelled');
    *  }

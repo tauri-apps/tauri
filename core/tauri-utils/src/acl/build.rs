@@ -435,8 +435,6 @@ identifier = "deny-{slugified_command}"
 description = "Denies the {command} command without any pre-configured scope."
 commands.deny = ["{command}"]
 "###,
-      command = command,
-      slugified_command = slugified_command,
     );
 
     let out_path = path.join(format!("{command}.toml"));

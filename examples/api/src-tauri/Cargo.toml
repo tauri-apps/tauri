@@ -8,7 +8,7 @@ license = "Apache-2.0 OR MIT"
 
 [lib]
 name = "api_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["staticlib", "cdylib", "lib"]
 
 [build-dependencies]
 tauri-build = { path = "../../../core/tauri-build", features = [

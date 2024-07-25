@@ -1,5 +1,72 @@
 # Changelog
 
+## \[2.0.0-beta.22]
+
+### New Features
+
+- [`7c7fa0964`](https://www.github.com/tauri-apps/tauri/commit/7c7fa0964db3403037fdb9a34de2b877ddb8df1c) ([#9963](https://www.github.com/tauri-apps/tauri/pull/9963) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `--method` argument for `ios build` to select the export options' method.
+- [`7c7fa0964`](https://www.github.com/tauri-apps/tauri/commit/7c7fa0964db3403037fdb9a34de2b877ddb8df1c) ([#9963](https://www.github.com/tauri-apps/tauri/pull/9963) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Setup iOS signing by reading `IOS_CERTIFICATE`, `IOS_CERTIFICATE_PASSWORD` and `IOS_MOBILE_PROVISION` environment variables.
+
+### Enhancements
+
+- [`c01e87ad4`](https://www.github.com/tauri-apps/tauri/commit/c01e87ad46e2a5b3fb8d018739e724ef932008d7) ([#10198](https://www.github.com/tauri-apps/tauri/pull/10198) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Enhance `tauri migrate` to also migrate variables like `appWindow`:
+
+  ```ts
+  import { appWindow } from '@tauri-apps/api/window'
+  ```
+
+  will become:
+
+  ```ts
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+  const appWindow = getCurrentWebviewWindow()
+  ```
+
+### Bug Fixes
+
+- [`94136578b`](https://www.github.com/tauri-apps/tauri/commit/94136578bc89e4b973c471050ae9c2d83ffcb7c6) ([#10186](https://www.github.com/tauri-apps/tauri/pull/10186) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `migrate` command, migrating incorrect permissions for `clipboard`.
+- [`c01e87ad4`](https://www.github.com/tauri-apps/tauri/commit/c01e87ad46e2a5b3fb8d018739e724ef932008d7) ([#10198](https://www.github.com/tauri-apps/tauri/pull/10198) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `tauri migrate` incorrectly migrating `@tauri-apps/api/tauri` module to just `core` and `@tauri-apps/api/window` to just `webviewWindow`.
+- [`15e125996`](https://www.github.com/tauri-apps/tauri/commit/15e12599667b749c3d7cd2259e6cf7c7b5c6e2be) ([#10234](https://www.github.com/tauri-apps/tauri/pull/10234) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix cli failing to detect the correct cargo target directory when using cargo `--target-dir` flag with `tauri build` or `tauri dev`
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.22`
+
+## \[2.0.0-beta.21]
+
+### New Features
+
+- [`656a64974`](https://www.github.com/tauri-apps/tauri/commit/656a64974468bc207bf39537e02ae179bdee9b83) ([#9318](https://www.github.com/tauri-apps/tauri/pull/9318)) Added a configuration option to disable hardened runtime on macOS codesign.
+
+### Enhancements
+
+- [`f44a2ec47`](https://www.github.com/tauri-apps/tauri/commit/f44a2ec47c13243d472fa08a9df8b20d8490d79f) ([#10030](https://www.github.com/tauri-apps/tauri/pull/10030)) Enhance the plugin template to include `permissions/default.toml` and default capabilities file for the example application.
+
+### Bug Fixes
+
+- [`019a74e97`](https://www.github.com/tauri-apps/tauri/commit/019a74e970958d29cf69a6f24669d603399dcbb3) ([#9931](https://www.github.com/tauri-apps/tauri/pull/9931)) Fix wrong migration of `clipboard` and `globalShortcut` modules
+- [`27838365a`](https://www.github.com/tauri-apps/tauri/commit/27838365a6841b0d3fa645ba2528221d23d4aeb2) ([#10135](https://www.github.com/tauri-apps/tauri/pull/10135)) Fix parsing of cargo profile when using `--profile=<profile>` syntax.
+- [`79542f4d4`](https://www.github.com/tauri-apps/tauri/commit/79542f4d4542bd97451da7605de16e8464d6a06c) ([#10039](https://www.github.com/tauri-apps/tauri/pull/10039)) Fixed an issue that prevented `tauri icon` from rendering `<text>` nodes in SVG files.
+- [`40c0f44e1`](https://www.github.com/tauri-apps/tauri/commit/40c0f44e1c74c18ed0d6c645724d650637725456) ([#9971](https://www.github.com/tauri-apps/tauri/pull/9971)) Changed the deployment target of plugin iOS Xcode project to 13.0 so it works on older iOS releases.
+- [`f56cdc9e3`](https://www.github.com/tauri-apps/tauri/commit/f56cdc9e391c4d55e4d7e935203d0f891864f22d) ([#10016](https://www.github.com/tauri-apps/tauri/pull/10016)) Add missing dependency `libayatana-appindicator3.so.1` for rpm package.
+- [`1601da5b5`](https://www.github.com/tauri-apps/tauri/commit/1601da5b525de05cb813002d611f22ea4217a4fb) ([#10114](https://www.github.com/tauri-apps/tauri/pull/10114)) Removed alpha channel from default icons in iOS template to comply with Apple's human interface guideline
+  (https://developer.apple.com/design/human-interface-guidelines/app-icons), because
+  transparent icons with alpha channel are not allowed, and will be rejected
+  upon upload to Apple appstore.
+
+### What's Changed
+
+- [`3cca5c2be`](https://www.github.com/tauri-apps/tauri/commit/3cca5c2be88bbd52139e7dda371e88510d28bc8e) ([#9924](https://www.github.com/tauri-apps/tauri/pull/9924)) Migrate to new Android buildFeatures.buildConfig format.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-beta.21`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+
+### Breaking Changes
+
+- [`911242f09`](https://www.github.com/tauri-apps/tauri/commit/911242f0928e0a2add3595fa9de27850fb875fa6) ([#9883](https://www.github.com/tauri-apps/tauri/pull/9883)) Move updater target from `bundle > targets` to a separate field `bundle > createUpdaterArtifacts`
+
 ## \[2.0.0-beta.20]
 
 ### Dependencies

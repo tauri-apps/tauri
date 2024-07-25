@@ -2,6 +2,7 @@
   import { onMount, tick } from 'svelte'
   import { writable } from 'svelte/store'
   import { invoke } from '@tauri-apps/api/core'
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
@@ -15,6 +16,11 @@
     if (event.ctrlKey && event.key === 'b') {
       invoke('plugin:app-menu|toggle')
     }
+  })
+
+  const appWindow = getCurrentWebviewWindow()
+  appWindow.onDragDropEvent((event) => {
+    onMessage(event.payload)
   })
 
   const userAgent = navigator.userAgent.toLowerCase()
@@ -83,12 +89,22 @@
   let messages = writable([])
   let consoleTextEl
   async function onMessage(value) {
+    const valueStr =
+      typeof value === 'string'
+        ? value
+        : JSON.stringify(
+            value instanceof ArrayBuffer
+              ? Array.from(new Uint8Array(value))
+              : value,
+            null,
+            1
+          )
     messages.update((r) => [
       ...r,
       {
         html:
           `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
-          (typeof value === 'string' ? value : JSON.stringify(value, null, 1)) +
+          valueStr +
           '</pre>'
       }
     ])
@@ -210,7 +226,7 @@
 <!-- Sidebar toggle, only visible on small screens -->
 <div
   id="sidebarToggle"
-  class="z-2000 display-none lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
+  class="z-2000 hidden lt-sm:flex justify-center items-center absolute top-2 left-2 w-8 h-8 rd-8
             bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
 >
   {#if isSideBarOpen}
@@ -221,7 +237,7 @@
 </div>
 
 <div
-  class="flex h-screen w-screen overflow-hidden children-pt8 children-pb-2 text-primaryText dark:text-darkPrimaryText"
+  class="flex h-screen w-screen overflow-hidden children-pt4 children-pb-2 text-primaryText dark:text-darkPrimaryText"
 >
   <aside
     id="sidebar"
@@ -233,7 +249,7 @@
       src="tauri_logo.png"
       alt="Tauri logo"
     />
-    <a href="##" class="nv justify-between h-8" on:click={toggleDark}>
+    <a href="##" class="nv justify-between" on:click={toggleDark}>
       {#if isDark}
         Switch to Light mode
         <div class="i-ph-sun" />
@@ -247,7 +263,7 @@
     <br />
 
     <a
-      class="nv justify-between h-8"
+      class="nv justify-between"
       target="_blank"
       href="https://tauri.app/v1/guides/"
     >
@@ -255,7 +271,7 @@
       <span class="i-codicon-link-external" />
     </a>
     <a
-      class="nv justify-between h-8"
+      class="nv justify-between"
       target="_blank"
       href="https://github.com/tauri-apps/tauri"
     >
@@ -263,7 +279,7 @@
       <span class="i-codicon-link-external" />
     </a>
     <a
-      class="nv justify-between h-8"
+      class="nv justify-between"
       target="_blank"
       href="https://github.com/tauri-apps/tauri/tree/dev/examples/api"
     >
@@ -273,9 +289,7 @@
     <br />
     <div class="bg-white/5 h-2px" />
     <br />
-    <div
-      class="flex flex-col overflow-y-auto children-h-10 children-flex-none gap-1"
-    >
+    <div class="flex flex-col overflow-y-auto children-flex-none gap-1">
       {#each views as view}
         {#if view}
           <a
@@ -318,7 +332,7 @@
         role="button"
         tabindex="0"
         on:mousedown={startResizingConsole}
-        class="bg-black/20 h-2px cursor-ns-resize"
+        class="bg-black/20 h-4px cursor-ns-resize"
       />
       <div class="flex justify-between items-center px-2">
         <p class="font-semibold">Console</p>

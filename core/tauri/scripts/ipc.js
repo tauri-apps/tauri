@@ -39,7 +39,9 @@
       const keys = Object.keys(event.data.payload || {})
       return (
         keys.length > 0 &&
-        keys.every((key) => key === 'nonce' || key === 'payload')
+        keys.every(
+          (key) => key === 'contentType' || key === 'nonce' || key === 'payload'
+        )
       )
     }
     return false

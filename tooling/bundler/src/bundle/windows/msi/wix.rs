@@ -31,8 +31,8 @@ use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
-  "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
-pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
+  "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
+pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
 
 // For Cross Platform Compilation.
 
@@ -182,6 +182,7 @@ fn app_installer_output_path(
   let arch = match settings.binary_arch() {
     "x86" => "x86",
     "x86_64" => "x64",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {}",
@@ -294,6 +295,7 @@ fn run_candle(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
@@ -388,6 +390,7 @@ pub fn build_wix_app_installer(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
@@ -646,7 +649,7 @@ pub fn build_wix_app_installer(
       to_json(
         settings
           .updater()
-          .and_then(|updater| updater.msiexec_args)
+          .map(|updater| updater.msiexec_args)
           .map(|args| args.join(" "))
           .unwrap_or_else(|| "/passive".to_string()),
       ),

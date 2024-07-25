@@ -188,10 +188,14 @@
       "path": "./core/tauri-utils",
       "manager": "rust"
     },
+    "tauri-macos-sign": {
+      "path": "./tooling/macos-sign",
+      "manager": "rust"
+    },
     "tauri-bundler": {
       "path": "./tooling/bundler",
       "manager": "rust",
-      "dependencies": ["tauri-utils"]
+      "dependencies": ["tauri-utils", "tauri-macos-sign"]
     },
     "tauri-runtime": {
       "path": "./core/tauri-runtime",
@@ -262,7 +266,7 @@
     "tauri-cli": {
       "path": "./tooling/cli",
       "manager": "rust",
-      "dependencies": ["tauri-bundler", "tauri-utils"],
+      "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"],
       "postversion": [
         "cargo check",
         "cargo build --manifest-path ../../core/tauri-config-schema/Cargo.toml"

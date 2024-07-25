@@ -556,11 +556,11 @@ SectionEnd
 Section Install
   SetOutPath $INSTDIR
 
-  !insertmacro CheckIfAppIsRunning
-
-  !ifdef NSIS_HOOK_PREINSTALL
-    !insertmacro "${NSIS_HOOK_PREINSTALL}"
+  !ifmacrodef NSIS_HOOK_PREINSTALL
+    !insertmacro NSIS_HOOK_PREINSTALL
   !endif
+
+  !insertmacro CheckIfAppIsRunning
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
@@ -638,8 +638,8 @@ Section Install
     Call CreateOrUpdateDesktopShortcut
   ${EndIf}
 
-  !ifdef NSIS_HOOK_POSTINSTALL
-    !insertmacro "${NSIS_HOOK_POSTINSTALL}"
+  !ifmacrodef NSIS_HOOK_POSTINSTALL
+    !insertmacro NSIS_HOOK_POSTINSTALL
   !endif
 
   ; Auto close this page for passive mode
@@ -683,11 +683,11 @@ FunctionEnd
 
 Section Uninstall
 
-  !insertmacro CheckIfAppIsRunning
-
-  !ifdef NSIS_HOOK_PREUNINSTALL
-    !insertmacro "${NSIS_HOOK_PREUNINSTALL}"
+  !ifmacrodef NSIS_HOOK_PREUNINSTALL
+    !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
+
+  !insertmacro CheckIfAppIsRunning
 
   ; Delete the app directory and its content from disk
   ; Copy main executable
@@ -776,8 +776,8 @@ Section Uninstall
     RmDir /r "$LOCALAPPDATA\${BUNDLEID}"
   ${EndIf}
 
-  !ifdef NSIS_HOOK_POSTUNINSTALL
-    !insertmacro "${NSIS_HOOK_POSTUNINSTALL}"
+  !ifmacrodef NSIS_HOOK_POSTUNINSTALL
+    !insertmacro NSIS_HOOK_PREUNINSTALL
   !endif
 
   ; Auto close if passive mode

@@ -93,6 +93,9 @@ impl<'a> Builder<'a> {
     if name.contains('_') {
       anyhow::bail!("plugin names cannot contain underscores");
     }
+    if name == "core" {
+      anyhow::bail!("plugin name `core` is reserved");
+    }
 
     let out_dir = PathBuf::from(build_var("OUT_DIR")?);
 

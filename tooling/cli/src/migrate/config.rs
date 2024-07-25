@@ -24,13 +24,13 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
 
     let mut permissions: Vec<PermissionEntry> = vec![
-      "path:default",
-      "event:default",
-      "window:default",
-      "app:default",
-      "resources:default",
-      "menu:default",
-      "tray:default",
+      "core:path:default",
+      "core:event:default",
+      "core:window:default",
+      "core:app:default",
+      "core:resources:default",
+      "core:menu:default",
+      "core:tray:default",
     ]
     .into_iter()
     .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
@@ -381,39 +381,39 @@ fn allowlist_to_permissions(
   }
 
   // window
-  permissions!(allowlist, permissions, window, create => "window:allow-create");
-  permissions!(allowlist, permissions, window, center => "window:allow-center");
-  permissions!(allowlist, permissions, window, request_user_attention => "window:allow-request-user-attention");
-  permissions!(allowlist, permissions, window, set_resizable => "window:allow-set-resizable");
-  permissions!(allowlist, permissions, window, set_maximizable => "window:allow-set-maximizable");
-  permissions!(allowlist, permissions, window, set_minimizable => "window:allow-set-minimizable");
-  permissions!(allowlist, permissions, window, set_closable => "window:allow-set-closable");
-  permissions!(allowlist, permissions, window, set_title => "window:allow-set-title");
-  permissions!(allowlist, permissions, window, maximize => "window:allow-maximize");
-  permissions!(allowlist, permissions, window, unmaximize => "window:allow-unmaximize");
-  permissions!(allowlist, permissions, window, minimize => "window:allow-minimize");
-  permissions!(allowlist, permissions, window, unminimize => "window:allow-unminimize");
-  permissions!(allowlist, permissions, window, show => "window:allow-show");
-  permissions!(allowlist, permissions, window, hide => "window:allow-hide");
-  permissions!(allowlist, permissions, window, close => "window:allow-close");
-  permissions!(allowlist, permissions, window, set_decorations => "window:allow-set-decorations");
-  permissions!(allowlist, permissions, window, set_always_on_top => "window:allow-set-always-on-top");
-  permissions!(allowlist, permissions, window, set_content_protected => "window:allow-set-content-protected");
-  permissions!(allowlist, permissions, window, set_size => "window:allow-set-size");
-  permissions!(allowlist, permissions, window, set_min_size => "window:allow-set-min-size");
-  permissions!(allowlist, permissions, window, set_max_size => "window:allow-set-max-size");
-  permissions!(allowlist, permissions, window, set_position => "window:allow-set-position");
-  permissions!(allowlist, permissions, window, set_fullscreen => "window:allow-set-fullscreen");
-  permissions!(allowlist, permissions, window, set_focus => "window:allow-set-focus");
-  permissions!(allowlist, permissions, window, set_icon => "window:allow-set-icon");
-  permissions!(allowlist, permissions, window, set_skip_taskbar => "window:allow-set-skip-taskbar");
-  permissions!(allowlist, permissions, window, set_cursor_grab => "window:allow-set-cursor-grab");
-  permissions!(allowlist, permissions, window, set_cursor_visible => "window:allow-set-cursor-visible");
-  permissions!(allowlist, permissions, window, set_cursor_icon => "window:allow-set-cursor-icon");
-  permissions!(allowlist, permissions, window, set_cursor_position => "window:allow-set-cursor-position");
-  permissions!(allowlist, permissions, window, set_ignore_cursor_events => "window:allow-set-ignore-cursor-events");
-  permissions!(allowlist, permissions, window, start_dragging => "window:allow-start-dragging");
-  permissions!(allowlist, permissions, window, print => "webview:allow-print");
+  permissions!(allowlist, permissions, window, create => "core:window:allow-create");
+  permissions!(allowlist, permissions, window, center => "core:window:allow-center");
+  permissions!(allowlist, permissions, window, request_user_attention => "core:window:allow-request-user-attention");
+  permissions!(allowlist, permissions, window, set_resizable => "core:window:allow-set-resizable");
+  permissions!(allowlist, permissions, window, set_maximizable => "core:window:allow-set-maximizable");
+  permissions!(allowlist, permissions, window, set_minimizable => "core:window:allow-set-minimizable");
+  permissions!(allowlist, permissions, window, set_closable => "core:window:allow-set-closable");
+  permissions!(allowlist, permissions, window, set_title => "core:window:allow-set-title");
+  permissions!(allowlist, permissions, window, maximize => "core:window:allow-maximize");
+  permissions!(allowlist, permissions, window, unmaximize => "core:window:allow-unmaximize");
+  permissions!(allowlist, permissions, window, minimize => "core:window:allow-minimize");
+  permissions!(allowlist, permissions, window, unminimize => "core:window:allow-unminimize");
+  permissions!(allowlist, permissions, window, show => "core:window:allow-show");
+  permissions!(allowlist, permissions, window, hide => "core:window:allow-hide");
+  permissions!(allowlist, permissions, window, close => "core:window:allow-close");
+  permissions!(allowlist, permissions, window, set_decorations => "core:window:allow-set-decorations");
+  permissions!(allowlist, permissions, window, set_always_on_top => "core:window:allow-set-always-on-top");
+  permissions!(allowlist, permissions, window, set_content_protected => "core:window:allow-set-content-protected");
+  permissions!(allowlist, permissions, window, set_size => "core:window:allow-set-size");
+  permissions!(allowlist, permissions, window, set_min_size => "core:window:allow-set-min-size");
+  permissions!(allowlist, permissions, window, set_max_size => "core:window:allow-set-max-size");
+  permissions!(allowlist, permissions, window, set_position => "core:window:allow-set-position");
+  permissions!(allowlist, permissions, window, set_fullscreen => "core:window:allow-set-fullscreen");
+  permissions!(allowlist, permissions, window, set_focus => "core:window:allow-set-focus");
+  permissions!(allowlist, permissions, window, set_icon => "core:window:allow-set-icon");
+  permissions!(allowlist, permissions, window, set_skip_taskbar => "core:window:allow-set-skip-taskbar");
+  permissions!(allowlist, permissions, window, set_cursor_grab => "core:window:allow-set-cursor-grab");
+  permissions!(allowlist, permissions, window, set_cursor_visible => "core:window:allow-set-cursor-visible");
+  permissions!(allowlist, permissions, window, set_cursor_icon => "core:window:allow-set-cursor-icon");
+  permissions!(allowlist, permissions, window, set_cursor_position => "core:window:allow-set-cursor-position");
+  permissions!(allowlist, permissions, window, set_ignore_cursor_events => "core:window:allow-set-ignore-cursor-events");
+  permissions!(allowlist, permissions, window, start_dragging => "core:window:allow-start-dragging");
+  permissions!(allowlist, permissions, window, print => "core:webview:allow-print");
 
   // shell
   if allowlist.shell.scope.0.is_empty() {
@@ -504,8 +504,8 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, clipboard, read_text => "clipboard-manager:allow-read-text");
   permissions!(allowlist, permissions, clipboard, write_text => "clipboard-manager:allow-write-text");
   // app
-  permissions!(allowlist, permissions, app, show => "app:allow-app-show");
-  permissions!(allowlist, permissions, app, hide => "app:allow-app-hide");
+  permissions!(allowlist, permissions, app, show => "core:app:allow-app-show");
+  permissions!(allowlist, permissions, app, hide => "core:app:allow-app-hide");
 
   permissions
 }

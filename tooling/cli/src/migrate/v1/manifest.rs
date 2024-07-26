@@ -44,7 +44,7 @@ fn migrate_manifest(manifest: &mut Document) -> Result<()> {
     .entry("dependencies")
     .or_insert(Item::Table(Table::new()))
     .as_table_mut()
-    .expect("manifest dependencies isn't a table");
+    .context("manifest dependencies isn't a table")?;
 
   migrate_dependency(dependencies, "tauri", &version, &features_to_remove());
 
@@ -53,7 +53,7 @@ fn migrate_manifest(manifest: &mut Document) -> Result<()> {
     .entry("build-dependencies")
     .or_insert(Item::Table(Table::new()))
     .as_table_mut()
-    .expect("manifest build-dependencies isn't a table");
+    .context("manifest build-dependencies isn't a table")?;
 
   migrate_dependency(build_dependencies, "tauri-build", &version, &[]);
 
@@ -186,19 +186,21 @@ mod tests {
     features.extend(keep_features.clone());
     let toml = get_toml(&features);
 
-    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
-    super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
+    let mut manifest = toml
+      .parse::<toml_edit::Document>()
+      .context("invalid toml")?;
+    super::migrate_manifest(&mut manifest).context("failed to migrate manifest")?;
 
     let dependencies = manifest
       .as_table()
       .get("dependencies")
-      .expect("missing manifest dependencies")
+      .context("missing manifest dependencies")?
       .as_table()
-      .expect("manifest dependencies isn't a table");
+      .context("manifest dependencies isn't a table")?;
 
     let tauri = dependencies
       .get("tauri")
-      .expect("missing tauri dependency in manifest");
+      .context("missing tauri dependency in manifest")?;
 
     let tauri_table = if let Some(table) = tauri.as_table() {
       table.clone()
@@ -223,17 +225,17 @@ mod tests {
     // assert version matches
     let version = tauri_table
       .get("version")
-      .expect("missing version")
+      .context("missing version")?
       .as_str()
-      .expect("version must be a string");
+      .context("version must be a string")?;
     assert_eq!(version, super::dependency_version());
 
     // assert features matches
     let features = tauri_table
       .get("features")
-      .expect("missing features")
+      .context("missing features")?
       .as_array()
-      .expect("features must be an array")
+      .context("features must be an array")?
       .clone();
 
     if toml.contains("reqwest-native-tls-vendored") {
@@ -255,7 +257,7 @@ mod tests {
     }
 
     for feature in features.iter() {
-      let feature = feature.as_str().expect("feature must be a string");
+      let feature = feature.as_str().context("feature must be a string")?;
       assert!(
         keep_features.contains(&feature)
           || feature == "native-tls-vendored"

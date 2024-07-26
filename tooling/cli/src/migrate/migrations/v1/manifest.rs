@@ -177,21 +177,19 @@ mod tests {
     features.extend(keep_features.clone());
     let toml = get_toml(&features);
 
-    let mut manifest = toml
-      .parse::<toml_edit::Document>()
-      .context("invalid toml")?;
-    super::migrate_manifest(&mut manifest).context("failed to migrate manifest")?;
+    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+    super::migrate_manifest(&mut manifest).expect("failed to migrate manifest");
 
     let dependencies = manifest
       .as_table()
       .get("dependencies")
-      .context("missing manifest dependencies")?
+      .expect("missing manifest dependencies")
       .as_table()
-      .context("manifest dependencies isn't a table")?;
+      .expect("manifest dependencies isn't a table");
 
     let tauri = dependencies
       .get("tauri")
-      .context("missing tauri dependency in manifest")?;
+      .expect("missing tauri dependency in manifest");
 
     let tauri_table = if let Some(table) = tauri.as_table() {
       table.clone()
@@ -216,17 +214,17 @@ mod tests {
     // assert version matches
     let version = tauri_table
       .get("version")
-      .context("missing version")?
+      .expect("missing version")
       .as_str()
-      .context("version must be a string")?;
+      .expect("version must be a string");
     assert_eq!(version, super::dependency_version());
 
     // assert features matches
     let features = tauri_table
       .get("features")
-      .context("missing features")?
+      .expect("missing features")
       .as_array()
-      .context("features must be an array")?
+      .expect("features must be an array")
       .clone();
 
     if toml.contains("reqwest-native-tls-vendored") {
@@ -248,7 +246,7 @@ mod tests {
     }
 
     for feature in features.iter() {
-      let feature = feature.as_str().context("feature must be a string")?;
+      let feature = feature.as_str().expect("feature must be a string");
       assert!(
         keep_features.contains(&feature)
           || feature == "native-tls-vendored"

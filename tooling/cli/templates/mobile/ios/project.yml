@@ -99,7 +99,9 @@ targets:
       - framework: {{this}}
         embed: false{{/each}}
       {{~#each ios-vendor-frameworks}}
-      - framework: {{prefix-path this}}{{/each}}
+
+      - framework: {{this}}
+      {{/each}}
       {{~#each ios-vendor-sdks}}
       - sdk: {{prefix-path this}}{{/each}}
       - sdk: CoreGraphics.framework
@@ -109,7 +111,9 @@ targets:
       - sdk: Security.framework
       - sdk: UIKit.framework
       {{~#each ios-frameworks}}
-      - sdk: {{this}}.framework{{/each}}
+
+      - sdk: {{this}}.framework
+      {{/each}}
       - sdk: WebKit.framework
     preBuildScripts:
       {{~#each ios-pre-build-scripts}}{{#if this.path}}

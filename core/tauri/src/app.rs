@@ -1706,6 +1706,11 @@ tauri::Builder::default()
       self.invoke_key,
     ));
 
+    let mut app_id = None;
+    if manager.config.app.enable_gtk_app_id {
+      app_id = Some(manager.config.identifier.clone())
+    }
+
     let runtime_args = RuntimeInitArgs {
       #[cfg(any(
         target_os = "linux",
@@ -1714,7 +1719,7 @@ tauri::Builder::default()
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      app_id: Some(manager.config.identifier.clone()),
+      app_id,
 
       #[cfg(windows)]
       msg_hook: {

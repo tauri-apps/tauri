@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{interface::rust::manifest::read_manifest, Result};
+use crate::{
+  interface::rust::manifest::{read_manifest, serialize_manifest},
+  Result,
+};
 
 use anyhow::Context;
 use itertools::Itertools;
 use tauri_utils_v1::config::Allowlist;
 use toml_edit::{Document, Entry, Item, Table, TableLike, Value};
 
-use std::{fs::File, io::Write, path::Path};
+use std::path::Path;
 
 const CRATE_TYPES: [&str; 3] = ["lib", "staticlib", "cdylib"];
 
@@ -18,20 +21,8 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
   let (mut manifest, _) = read_manifest(&manifest_path)?;
   migrate_manifest(&mut manifest)?;
 
-  let mut manifest_file =
-    File::create(&manifest_path).with_context(|| "failed to open Cargo.toml for rewrite")?;
-  manifest_file.write_all(
-    manifest
-      .to_string()
-      // apply some formatting fixes
-      .replace(r#"" ,features =["#, r#"", features = ["#)
-      .replace(r#"" , features"#, r#"", features"#)
-      .replace("]}", "] }")
-      .replace("={", "= {")
-      .replace("=[", "= [")
-      .as_bytes(),
-  )?;
-  manifest_file.flush()?;
+  std::fs::write(&manifest_path, serialize_manifest(&manifest))
+    .context("failed to rewrite Cargo manifest")?;
 
   Ok(())
 }

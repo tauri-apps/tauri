@@ -15,7 +15,7 @@ use std::{fs::read_to_string, str::FromStr};
 
 use anyhow::Context;
 
-mod v1;
+mod migrations;
 
 pub fn command() -> Result<()> {
   let tauri_dir = tauri_dir();
@@ -40,7 +40,13 @@ pub fn command() -> Result<()> {
   let tauri_version = semver::Version::from_str(&tauri_version)?;
 
   if tauri_version.major == 1 {
-    v1::run().context("failed to migrate from v1")?;
+    migrations::v1::run().context("failed to migrate from v1")?;
+  } else if tauri_version.major == 2 {
+    if let Some((pre, _number)) = tauri_version.pre.as_str().split_once('.') {
+      if pre == "beta" {
+        migrations::v2_rc::run().context("failed to migrate from v2 beta to rc")?;
+      }
+    }
   }
 
   Ok(())

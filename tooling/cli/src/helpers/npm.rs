@@ -81,7 +81,7 @@ impl PackageManager {
     }
   }
 
-  pub fn install(&self, dependencies: &[String]) -> crate::Result<()> {
+  pub fn install<P: AsRef<Path>>(&self, dependencies: &[String], app_dir: P) -> crate::Result<()> {
     let dependencies_str = if dependencies.len() > 1 {
       "dependencies"
     } else {
@@ -100,6 +100,7 @@ impl PackageManager {
       .cross_command()
       .arg("add")
       .args(dependencies)
+      .current_dir(app_dir)
       .status()
       .with_context(|| format!("failed to run {self}"))?;
 
@@ -108,5 +109,72 @@ impl PackageManager {
     }
 
     Ok(())
+  }
+
+  pub fn current_package_version<P: AsRef<Path>>(
+    &self,
+    name: &str,
+    app_dir: P,
+  ) -> crate::Result<Option<String>> {
+    let (output, regex) = match self {
+      PackageManager::Yarn => (
+        cross_command("yarn")
+          .args(["list", "--pattern"])
+          .arg(name)
+          .args(["--depth", "0"])
+          .current_dir(app_dir)
+          .output()?,
+        None,
+      ),
+      PackageManager::YarnBerry => (
+        cross_command("yarn")
+          .arg("info")
+          .arg(name)
+          .arg("--json")
+          .current_dir(app_dir)
+          .output()?,
+        Some(regex::Regex::new("\"Version\":\"([\\da-zA-Z\\-\\.]+)\"").unwrap()),
+      ),
+      PackageManager::Npm => (
+        cross_command("npm")
+          .arg("list")
+          .arg(name)
+          .args(["version", "--depth", "0"])
+          .current_dir(app_dir)
+          .output()?,
+        None,
+      ),
+      PackageManager::Pnpm => (
+        cross_command("pnpm")
+          .arg("list")
+          .arg(name)
+          .args(["--parseable", "--depth", "0"])
+          .current_dir(app_dir)
+          .output()?,
+        None,
+      ),
+      // Bun doesn't support `list` command
+      PackageManager::Bun => (
+        cross_command("npm")
+          .arg("list")
+          .arg(name)
+          .args(["version", "--depth", "0"])
+          .current_dir(app_dir)
+          .output()?,
+        None,
+      ),
+    };
+    if output.status.success() {
+      let stdout = String::from_utf8_lossy(&output.stdout);
+      let regex = regex.unwrap_or_else(|| regex::Regex::new("@(\\d[\\da-zA-Z\\-\\.]+)").unwrap());
+      Ok(
+        regex
+          .captures_iter(&stdout)
+          .last()
+          .and_then(|cap| cap.get(1).map(|v| v.as_str().to_string())),
+      )
+    } else {
+      Ok(None)
+    }
   }
 }

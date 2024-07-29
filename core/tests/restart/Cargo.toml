@@ -10,3 +10,6 @@ path = "../../tauri"
 
 [dev-dependencies]
 tempfile = "3"
+
+[features]
+process-relaunch-dangerous-allow-symlink-macos = []

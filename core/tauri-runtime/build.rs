@@ -5,6 +5,7 @@
 // creates a cfg alias if `has_feature` is true.
 // `alias` must be a snake case string.
 fn alias(alias: &str, has_feature: bool) {
+  println!("cargo:rustc-check-cfg=cfg({alias})");
   if has_feature {
     println!("cargo:rustc-cfg={alias}");
   }

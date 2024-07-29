@@ -160,6 +160,8 @@ impl Resolved {
                 &mut allowed_commands,
                 if key == APP_ACL_KEY {
                   allowed_command.to_string()
+                } else if let Some(core_plugin_name) = key.strip_prefix("core:") {
+                  format!("plugin:{core_plugin_name}|{allowed_command}")
                 } else {
                   format!("plugin:{key}|{allowed_command}")
                 },
@@ -175,6 +177,8 @@ impl Resolved {
                 &mut denied_commands,
                 if key == APP_ACL_KEY {
                   denied_command.to_string()
+                } else if let Some(core_plugin_name) = key.strip_prefix("core:") {
+                  format!("plugin:{core_plugin_name}|{denied_command}")
                 } else {
                   format!("plugin:{key}|{denied_command}")
                 },

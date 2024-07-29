@@ -48,7 +48,7 @@
       }
     },
     "permissions": {
-      "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n\n ## Example\n\n ```json\n [\n  \"core:path:default\",\n  \"core:event:default\",\n  \"core:window:default\",\n  \"core:app:default\",\n  \"core:image:default\",\n  \"core:resources:default\",\n  \"core:menu:default\",\n  \"core:tray:default\",\n  \"core:shell:allow-open\",\n  \"core:dialog:open\",\n  {\n    \"identifier\": \"fs:allow-write-text-file\",\n    \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n  }\n ```",
+      "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n\n ## Example\n\n ```json\n [\n  \"core:path:default\",\n  \"core:event:default\",\n  \"core:window:default\",\n  \"core:app:default\",\n  \"core:image:default\",\n  \"core:resources:default\",\n  \"core:menu:default\",\n  \"core:tray:default\",\n  \"shell:allow-open\",\n  \"dialog:open\",\n  {\n    \"identifier\": \"fs:allow-write-text-file\",\n    \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n  }\n ```",
       "type": "array",
       "items": {
         "$ref": "#/definitions/PermissionEntry"

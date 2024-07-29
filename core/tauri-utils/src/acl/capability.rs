@@ -182,8 +182,8 @@ pub struct Capability {
   ///  "core:resources:default",
   ///  "core:menu:default",
   ///  "core:tray:default",
-  ///  "core:shell:allow-open",
-  ///  "core:dialog:open",
+  ///  "shell:allow-open",
+  ///  "dialog:open",
   ///  {
   ///    "identifier": "fs:allow-write-text-file",
   ///    "allow": [{ "path": "$HOME/test.txt" }]

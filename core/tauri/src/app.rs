@@ -1706,9 +1706,10 @@ tauri::Builder::default()
       self.invoke_key,
     ));
 
-    let mut app_id = None;
-    if manager.config.app.enable_gtk_app_id {
-      app_id = Some(manager.config.identifier.clone())
+    let app_id = if manager.config.app.enable_gtk_app_id {
+      Some(manager.config.identifier.clone())
+    } else {
+      None
     }
 
     let runtime_args = RuntimeInitArgs {

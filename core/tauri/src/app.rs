@@ -1710,7 +1710,7 @@ tauri::Builder::default()
       Some(manager.config.identifier.clone())
     } else {
       None
-    }
+    };
 
     let runtime_args = RuntimeInitArgs {
       #[cfg(any(

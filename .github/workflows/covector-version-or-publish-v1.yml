@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-name: covector version or publish
+name: covector version or publish v1
 
 on:
   push:
     branches:
       - 1.x
+      - v1/msrv-check
 
 jobs:
   msrv-list:
@@ -65,6 +66,7 @@ jobs:
           cargo update -p serde_spanned --precise 0.6.1
           cargo update -p winnow --precise 0.4.1
           cargo update -p plist --precise 1.5.1
+          cargo update -p serde_with:3.8.3 --precise 3.0.0
           cargo update -p time --precise 0.3.15
           cargo update -p ignore --precise 0.4.18
           cargo update -p raw-window-handle --precise 0.5.0
@@ -74,9 +76,9 @@ jobs:
           cargo update -p colored --precise 2.0.2
           cargo update -p arboard --precise 3.2.1
           cargo update -p tempfile --precise 3.6.0
-          cargo update -p serde_with:3.8.1 --precise 3.0.0
           cargo update -p tokio --precise 1.29.0
           cargo update -p flate2 --precise 1.0.26
+          cargo update -p hyper --precise 0.14.28
           cargo update -p h2 --precise 0.3.20
           cargo update -p reqwest --precise 0.11.18
           cargo update -p bstr --precise 1.6.2
@@ -106,6 +108,10 @@ jobs:
           cargo update -p tokio-test --precise 0.4.3
           cargo update -p tokio-stream --precise 0.1.14
           cargo update -p tokio-util --precise 0.7.10
+          cargo update -p os_pipe --precise 1.1.5
+          cargo update -p syn:2.0.71 --precise 2.0.67
+          cargo update -p derive_more --precise 0.99.17
+          cargo update -p native-tls --precise 0.2.11
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test
@@ -113,6 +119,7 @@ jobs:
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
     needs: msrv-list
+    if: github.ref == 'refs/heads/1.x'
 
     strategy:
       fail-fast: false
@@ -194,6 +201,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
           createRelease: true
+          recognizeContributors: true
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
@@ -210,26 +218,22 @@ jobs:
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           steps.covector.outputs.packagesPublished != ''
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri-docs
-          event-type: update-docs
+        run: gh workflow run 18856068 -r v1 -R tauri-apps/tauri-docs
+        env:
+          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
 
       - name: Trigger `@tauri-apps/cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          event-type: publish-js-cli
-          client-payload: >-
-            {"releaseId": "${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}" }
+        run: gh workflow run 31554138 -r 1.x -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        env:
+          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          event-type: publish-clirs
+        run: gh workflow run 31554139 -r 1.x
+        env:
+          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}

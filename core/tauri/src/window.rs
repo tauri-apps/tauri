@@ -1569,11 +1569,15 @@ impl<R: Runtime> Window<R> {
         return Err(Error::InvokeKey);
       }
       None => {
+        // this specific string is tested against in `core/tests/invoke-key`.
+        // if this error changes then that integration test should be updated accordingly.
+        let error = "received ipc message without a __TAURI_INVOKE_KEY__";
+
         #[cfg(feature = "tracing")]
-        tracing::error!("received ipc message without a __TAURI_INVOKE_KEY__");
+        tracing::error!(error);
 
         #[cfg(not(feature = "tracing"))]
-        eprintln!("received ipc message without a __TAURI_INVOKE_KEY__");
+        eprintln!("{error}");
 
         return Err(Error::InvokeKey);
       }

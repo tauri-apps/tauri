@@ -1,5 +1,21 @@
 # Changelog
 
+## \[1.6.0]
+
+### New Features
+
+- [`253595a22`](https://www.github.com/tauri-apps/tauri/commit/253595a22d8659a1cb199bfc423e988ea82191e6) ([#9809](https://www.github.com/tauri-apps/tauri/pull/9809)) Add RPM packaging
+- [`a301be52d`](https://www.github.com/tauri-apps/tauri/commit/a301be52d276f1e99316d23b4f0a8e458e29bc35) ([#9914](https://www.github.com/tauri-apps/tauri/pull/9914)) Use cargo's target directory to store and cache bundling tools when `bundle > useLocalToolsDir` option is active.
+
+### Bug Fixes
+
+- [`08f57efef`](https://www.github.com/tauri-apps/tauri/commit/08f57efefdd6dac10277bfc5f71eba0ca84a64c4) ([#10136](https://www.github.com/tauri-apps/tauri/pull/10136)) Fix parsing of cargo profile when using `--profile=<profile>` syntax.
+- [`674accad7`](https://www.github.com/tauri-apps/tauri/commit/674accad75fccac6f9adc515a863f9d59efbee57) ([#10015](https://www.github.com/tauri-apps/tauri/pull/10015)) Add missing dependency `libayatana-appindicator3.so.1` for rpm package.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.6.0`
+
 ## \[1.5.14]
 
 ### Dependencies

@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -47,10 +47,10 @@
     "@rollup/plugin-typescript": "11.1.5",
     "@types/node": "20.10.5",
     "@typescript-eslint/eslint-plugin": "5.62.0",
-    "eslint-config-standard-with-typescript": "34.0.1",
     "@typescript-eslint/parser": "5.62.0",
     "eslint": "8.56.0",
     "eslint-config-prettier": "8.10.0",
+    "eslint-config-standard-with-typescript": "34.0.1",
     "eslint-plugin-import": "2.29.1",
     "eslint-plugin-n": "15.7.0",
     "eslint-plugin-node": "11.1.0",
@@ -65,5 +65,8 @@
     "node": ">= 14.6.0",
     "npm": ">= 6.6.0",
     "yarn": ">= 1.19.1"
+  },
+  "resolutions": {
+    "braces": "3.0.3"
   }
 }

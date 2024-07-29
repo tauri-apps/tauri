@@ -1922,6 +1922,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "invoke-key"
+version = "0.1.0"
+dependencies = [
+ "tauri",
+ "tauri-build",
+ "tracing",
+]
+
+[[package]]
 name = "io-lifetimes"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4021,7 +4030,7 @@ checksum = "e1fc403891a21bcfb7c37834ba66a547a8f402146eba7265b5a6d88059c9ff2f"
 
 [[package]]
 name = "tauri"
-version = "1.6.7"
+version = "1.7.1"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -4096,7 +4105,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.5.2"
+version = "1.5.3"
 dependencies = [
  "anyhow",
  "cargo_toml 0.15.2",
@@ -4115,7 +4124,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.4.3"
+version = "1.4.4"
 dependencies = [
  "base64 0.21.7",
  "brotli",
@@ -4150,7 +4159,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -4162,7 +4171,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.14.3"
+version = "0.14.4"
 dependencies = [
  "gtk",
  "http",
@@ -4181,7 +4190,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.14.8"
+version = "0.14.9"
 dependencies = [
  "arboard",
  "cocoa",
@@ -4201,7 +4210,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.5.4"
+version = "1.6.0"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -4669,6 +4678,14 @@ name = "unicode-segmentation"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
+
+[[package]]
+name = "uninitialized-ipc"
+version = "0.1.0"
+dependencies = [
+ "tauri",
+ "tauri-build",
+]
 
 [[package]]
 name = "universal-hash"

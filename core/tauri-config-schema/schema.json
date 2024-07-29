@@ -34,6 +34,7 @@
     "app": {
       "description": "The App configuration.",
       "default": {
+        "enableGTKAppId": false,
         "macOSPrivateApi": false,
         "security": {
           "assetProtocol": {
@@ -193,6 +194,11 @@
         },
         "withGlobalTauri": {
           "description": "Whether we should inject the Tauri API on `window.__TAURI__` or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "enableGTKAppId": {
+          "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
           "default": false,
           "type": "boolean"
         }

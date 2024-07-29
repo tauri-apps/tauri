@@ -97,23 +97,16 @@ targets:
         embed: false
       {{~#each ios-libraries}}
       - framework: {{this}}
-        embed: false{{/each}}
-      {{~#each ios-vendor-frameworks}}
-
-      - framework: {{this}}
-      {{/each}}
-      {{~#each ios-vendor-sdks}}
-      - sdk: {{prefix-path this}}{{/each}}
+        embed: false{{/each}}{{#if ios-vendor-frameworks}}{{~#each ios-vendor-frameworks}}
+      - framework: {{this}}{{/each}}{{/if}}{{#if ios-vendor-sdks}}{{~#each ios-vendor-sdks}}
+      - sdk: {{prefix-path this}}{{/each}}{{/if}}
       - sdk: CoreGraphics.framework
-      - sdk: Metal.framework
+      - sdk: Metal.frameworks
       - sdk: MetalKit.framework
       - sdk: QuartzCore.framework
       - sdk: Security.framework
-      - sdk: UIKit.framework
-      {{~#each ios-frameworks}}
-
-      - sdk: {{this}}.framework
-      {{/each}}
+      - sdk: UIKit.framework{{#if this.ios-frameworks}}{{~#each ios-frameworks}}
+      - sdk: {{this}}.framework{{/each}}{{/if}}
       - sdk: WebKit.framework
     preBuildScripts:
       {{~#each ios-pre-build-scripts}}{{#if this.path}}

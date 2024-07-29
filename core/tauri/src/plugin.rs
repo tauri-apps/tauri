@@ -15,6 +15,7 @@ use crate::{
 use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
+use thiserror::Error;
 use url::Url;
 
 use std::{
@@ -150,6 +151,17 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
       .get_global_scope_typed(&self.handle, self.name)
   }
 }
+
+/// Errors that can happen during [`Builder`].
+#[derive(Debug, Clone, Error)]
+#[non_exhaustive]
+pub enum BuilderError {
+  /// Plugin attempted to use a reserved name.
+  #[error("plugin uses reserved name: {0}")]
+  ReservedName(String),
+}
+
+const RESERVED_PLUGIN_NAMES: &[&str] = &["core", "tauri"];
 
 /// Builds a [`TauriPlugin`].
 ///
@@ -616,9 +628,13 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self
   }
 
-  /// Builds the [TauriPlugin].
-  pub fn build(self) -> TauriPlugin<R, C> {
-    TauriPlugin {
+  /// Builds the [`TauriPlugin`].
+  pub fn try_build(self) -> Result<TauriPlugin<R, C>, BuilderError> {
+    if let Some(&reserved) = RESERVED_PLUGIN_NAMES.iter().find(|&r| r == &self.name) {
+      return Err(BuilderError::ReservedName(reserved.into()));
+    }
+
+    Ok(TauriPlugin {
       name: self.name,
       app: None,
       invoke_handler: self.invoke_handler,
@@ -631,7 +647,16 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
       on_event: self.on_event,
       on_drop: self.on_drop,
       uri_scheme_protocols: self.uri_scheme_protocols,
-    }
+    })
+  }
+
+  /// Builds the [`TauriPlugin`].
+  ///
+  /// # Panics
+  ///
+  /// If the builder returns an error during [`Self::try_build`], then this method will panic.
+  pub fn build(self) -> TauriPlugin<R, C> {
+    self.try_build().expect("valid plugin")
   }
 }
 

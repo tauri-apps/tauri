@@ -94,7 +94,7 @@ impl<'de> Deserialize<'de> for PermissionEntry {
 ///     "main"
 ///   ],
 ///  "permissions": [
-///   "core:path:default",
+///   "core:default",
 ///   "dialog:open",
 ///   {
 ///     "identifier": "fs:allow-write-text-file",
@@ -174,14 +174,7 @@ pub struct Capability {
   ///
   /// ```json
   /// [
-  ///  "core:path:default",
-  ///  "core:event:default",
-  ///  "core:window:default",
-  ///  "core:app:default",
-  ///  "core:image:default",
-  ///  "core:resources:default",
-  ///  "core:menu:default",
-  ///  "core:tray:default",
+  ///  "core:default",
   ///  "shell:allow-open",
   ///  "dialog:open",
   ///  {

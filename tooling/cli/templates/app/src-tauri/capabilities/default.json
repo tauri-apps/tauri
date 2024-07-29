@@ -6,14 +6,6 @@
     "main"
   ],
   "permissions": [
-    "core:path:default",
-    "core:event:default",
-    "core:window:default",
-    "core:webview:default",
-    "core:app:default",
-    "core:resources:default",
-    "core:image:default",
-    "core:menu:default",
-    "core:tray:default"
+    "core:default"
   ]
 }

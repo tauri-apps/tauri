@@ -23,18 +23,10 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     let migrated = migrate_config(&mut config)?;
     fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
 
-    let mut permissions: Vec<PermissionEntry> = vec![
-      "core:path:default",
-      "core:event:default",
-      "core:window:default",
-      "core:app:default",
-      "core:resources:default",
-      "core:menu:default",
-      "core:tray:default",
-    ]
-    .into_iter()
-    .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
-    .collect();
+    let mut permissions: Vec<PermissionEntry> = vec!["core:default"]
+      .into_iter()
+      .map(|p| PermissionEntry::PermissionRef(p.to_string().try_into().unwrap()))
+      .collect();
     permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");

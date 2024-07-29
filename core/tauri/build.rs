@@ -18,6 +18,7 @@ use std::{
 static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   // (plugin_name, &[(command, enabled-by_default)])
+  // note that when adding new core plugins, they must be added to the ACL resolver aswell
   (
     "core:path",
     &[

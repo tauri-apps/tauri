@@ -14,7 +14,7 @@ impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
-  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn new<M, T, A>(
     manager: &M,
     text: T,
@@ -52,7 +52,7 @@ impl<R: Runtime> IconMenuItem<R> {
   /// Create a new menu item with the specified id.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
-  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn with_id<M, I, T, A>(
     manager: &M,
     id: I,

@@ -1007,6 +1007,13 @@ impl WindowBuilder for WindowBuilderWrapper {
         self.inner = self.inner.with_titlebar_transparent(true);
         self.inner = self.inner.with_fullsize_content_view(true);
       }
+      unknown => {
+        #[cfg(feature = "tracing")]
+        tracing::warn!("unknown title bar style applied: {unknown}");
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("unknown title bar style applied: {unknown}");
+      }
     }
     self
   }
@@ -2957,6 +2964,13 @@ fn handle_user_message<T: UserEvent>(
               TitleBarStyle::Overlay => {
                 window.set_titlebar_transparent(true);
                 window.set_fullsize_content_view(true);
+              }
+              unknown => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("unknown title bar style applied: {unknown}");
+
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("unknown title bar style applied: {unknown}");
               }
             };
           }

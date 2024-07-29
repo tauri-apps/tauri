@@ -680,7 +680,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
   ///   - `true` will make undecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
   pub fn shadow(mut self, enable: bool) -> Self {
@@ -1157,7 +1157,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  ///   window, if you need to set it, use [`AppHandle::set_menu`] instead.
   #[cfg_attr(target_os = "macos", allow(unused_variables))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
@@ -1203,7 +1203,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  ///   window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
@@ -1743,7 +1743,7 @@ impl<R: Runtime> Window<R> {
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
   ///   - `true` will make undecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
     self

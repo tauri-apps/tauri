@@ -172,7 +172,7 @@ pub fn is_configuration_file(target: Target, path: &Path) -> bool {
 /// - `tauri.windows.conf.json[5]` or `Tauri.windows.toml` on Windows
 /// - `tauri.android.conf.json[5]` or `Tauri.android.toml` on Android
 /// - `tauri.ios.conf.json[5]` or `Tauri.ios.toml` on iOS
-/// Merging the configurations using [JSON Merge Patch (RFC 7396)].
+///   Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.
 pub fn read_from(target: Target, root_dir: PathBuf) -> Result<Value, ConfigError> {
@@ -224,15 +224,15 @@ pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) 
 ///
 /// Hierarchy:
 /// 1. Check if `tauri.conf.json` exists
-///   a. Parse it with `serde_json`
-///   b. Parse it with `json5` if `serde_json` fails
-///   c. Return original `serde_json` error if all above steps failed
+///     a. Parse it with `serde_json`
+///     b. Parse it with `json5` if `serde_json` fails
+///     c. Return original `serde_json` error if all above steps failed
 /// 2. Check if `tauri.conf.json5` exists
-///   a. Parse it with `json5`
-///   b. Return error if all above steps failed
+///     a. Parse it with `json5`
+///     b. Return error if all above steps failed
 /// 3. Check if `Tauri.json` exists
-///   a. Parse it with `toml`
-///   b. Return error if all above steps failed
+///     a. Parse it with `toml`
+///     b. Return error if all above steps failed
 /// 4. Return error if all above steps failed
 pub fn parse(target: Target, path: impl Into<PathBuf>) -> Result<(Config, PathBuf), ConfigError> {
   do_parse(target, path.into())
@@ -300,7 +300,7 @@ fn do_parse<D: DeserializeOwned>(
     #[cfg(feature = "config-json5")]
     {
       let raw = read_to_string(&json5)?;
-      do_parse_json5(&raw, &path).map(|config| (config, json5))
+      do_parse_json5(&raw, &json5).map(|config| (config, json5))
     }
 
     #[cfg(not(feature = "config-json5"))]
@@ -312,7 +312,7 @@ fn do_parse<D: DeserializeOwned>(
     #[cfg(feature = "config-toml")]
     {
       let raw = read_to_string(&toml)?;
-      do_parse_toml(&raw, &path).map(|config| (config, toml))
+      do_parse_toml(&raw, &toml).map(|config| (config, toml))
     }
 
     #[cfg(not(feature = "config-toml"))]

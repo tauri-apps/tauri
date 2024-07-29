@@ -153,7 +153,7 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
 }
 
 /// Errors that can happen during [`Builder`].
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Clone, Hash, PartialEq, Error)]
 #[non_exhaustive]
 pub enum BuilderError {
   /// Plugin attempted to use a reserved name.

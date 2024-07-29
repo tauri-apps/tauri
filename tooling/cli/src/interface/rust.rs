@@ -180,6 +180,7 @@ impl Interface for Rust {
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     mut options: Options,
+    invocation_dir: &Path,
     on_exit: F,
   ) -> crate::Result<()> {
     let on_exit = Arc::new(on_exit);
@@ -210,13 +211,14 @@ impl Interface for Rust {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(config, invocation_dir, run)
     }
   }
 
   fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     mut options: MobileOptions,
+    invocation_dir: &Path,
     runner: R,
   ) -> crate::Result<()> {
     let mut run_args = Vec::new();
@@ -234,7 +236,7 @@ impl Interface for Rust {
     } else {
       let config = options.config.clone().map(|c| c.0);
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(config, invocation_dir, run)
     }
   }
 
@@ -505,13 +507,14 @@ impl Rust {
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     config: Option<serde_json::Value>,
+    invocation_dir: &Path,
     run: Arc<F>,
   ) -> crate::Result<()> {
     let child = run(self)?;
 
     let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
-    let app_path = app_dir();
+    let app_path = app_dir(invocation_dir);
 
     let watch_folders = get_watch_folders()?;
 

@@ -14,7 +14,10 @@ use crate::{
 };
 use anyhow::Context;
 use clap::{ArgAction, Parser};
-use std::env::set_current_dir;
+use std::{
+  env::{current_dir, set_current_dir},
+  path::Path,
+};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -73,7 +76,15 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(&interface, &mut options, config.clone(), false)?;
+  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
+
+  setup(
+    &interface,
+    &mut options,
+    config.clone(),
+    &invocation_dir,
+    false,
+  )?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -98,6 +109,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       &interface,
       &app_settings,
       config_,
+      &invocation_dir,
       out_dir,
     )?;
   }
@@ -109,6 +121,7 @@ pub fn setup(
   interface: &AppInterface,
   options: &mut Options,
   config: ConfigHandle,
+  invocation_dir: &Path,
   mobile: bool,
 ) -> Result<()> {
   let tauri_path = tauri_dir();
@@ -143,7 +156,13 @@ pub fn setup(
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
-    helpers::run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
+    helpers::run_hook(
+      "beforeBuildCommand",
+      before_build,
+      interface,
+      invocation_dir,
+      options.debug,
+    )?;
   }
 
   if let Some(FrontendDist::Directory(web_asset_path)) = &config_.build.frontend_dist {

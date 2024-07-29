@@ -27,7 +27,11 @@ use cargo_mobile2::{
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
 
-use std::{env::set_current_dir, fs};
+use std::{
+  env::{current_dir, set_current_dir},
+  fs,
+  path::Path,
+};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -153,6 +157,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, app, config)
   };
 
+  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -204,6 +209,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &mut env,
     noise_level,
+    &invocation_dir,
   )?;
 
   if open {
@@ -248,6 +254,7 @@ fn create_export_options(
   (!plist.is_empty()).then(|| plist.into())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_build(
   interface: AppInterface,
   options: Options,
@@ -256,6 +263,7 @@ fn run_build(
   config: &AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
+  invocation_dir: &Path,
 ) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
@@ -263,7 +271,13 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(
+    &interface,
+    &mut build_options,
+    tauri_config.clone(),
+    invocation_dir,
+    true,
+  )?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

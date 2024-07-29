@@ -26,7 +26,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::set_current_dir;
+use std::env::{current_dir, set_current_dir};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -128,6 +128,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     Profile::Release
   };
 
+  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -141,7 +142,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut env = env()?;
   configure_cargo(&app, Some((&mut env, &config)))?;
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(
+    &interface,
+    &mut build_options,
+    tauri_config.clone(),
+    &invocation_dir,
+    true,
+  )?;
 
   // run an initial build to initialize plugins
   first_target.build(&config, &metadata, &env, noise_level, true, profile)?;

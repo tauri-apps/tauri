@@ -110,14 +110,12 @@ pub fn tauri_dir() -> PathBuf {
   )
 }
 
-fn get_app_dir() -> Option<PathBuf> {
-  let cwd = current_dir().expect("failed to read cwd");
-
-  if cwd.join("package.json").exists() {
-    return Some(cwd);
+fn get_app_dir(base_dir: &Path) -> Option<PathBuf> {
+  if base_dir.join("package.json").exists() {
+    return Some(base_dir.into());
   }
 
-  lookup(&cwd, |path| {
+  lookup(base_dir, |path| {
     if let Some(file_name) = path.file_name() {
       file_name == OsStr::new("package.json")
     } else {
@@ -127,8 +125,9 @@ fn get_app_dir() -> Option<PathBuf> {
   .map(|p| p.parent().unwrap().to_path_buf())
 }
 
-pub fn app_dir() -> &'static PathBuf {
+pub fn app_dir(base_dir: &Path) -> &'static PathBuf {
   static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
-  APP_DIR
-    .get_or_init(|| get_app_dir().unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf()))
+  APP_DIR.get_or_init(|| {
+    get_app_dir(base_dir).unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf())
+  })
 }

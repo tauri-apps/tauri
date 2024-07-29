@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use clap::Parser;
 use colored::Colorize;
 use regex::Regex;
@@ -16,7 +17,7 @@ use crate::{
   Result,
 };
 
-use std::{collections::HashMap, process::Command};
+use std::{collections::HashMap, env::current_dir, process::Command};
 
 #[derive(Default)]
 struct PluginMetadata {
@@ -102,6 +103,7 @@ pub fn command(options: Options) -> Result<()> {
   let mut plugins = plugins();
   let metadata = plugins.remove(plugin).unwrap_or_default();
 
+  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_dir = tauri_dir();
 
   let target_str = metadata
@@ -124,7 +126,7 @@ pub fn command(options: Options) -> Result<()> {
   })?;
 
   if !metadata.rust_only {
-    if let Some(manager) = std::panic::catch_unwind(app_dir)
+    if let Some(manager) = std::panic::catch_unwind(|| app_dir(&invocation_dir))
       .map(Some)
       .unwrap_or_default()
       .map(PackageManager::from_project)

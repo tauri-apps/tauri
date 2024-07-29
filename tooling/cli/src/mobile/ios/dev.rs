@@ -31,8 +31,9 @@ use cargo_mobile2::{
 };
 
 use std::{
-  env::set_current_dir,
+  env::{current_dir, set_current_dir},
   net::{IpAddr, Ipv4Addr, SocketAddr},
+  path::Path,
   sync::OnceLock,
 };
 
@@ -165,6 +166,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, app, config)
   };
 
+  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_path = tauri_dir();
   set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -198,6 +200,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &app,
     &config,
     noise_level,
+    &invocation_dir,
   )
 }
 
@@ -343,6 +346,7 @@ fn run_dev(
   app: &App,
   config: &AppleConfig,
   noise_level: NoiseLevel,
+  invocation_dir: &Path,
 ) -> Result<()> {
   // when running on an actual device we must use the network IP
   if options.host.is_some()
@@ -354,7 +358,12 @@ fn run_dev(
     use_network_address_for_dev_url(&tauri_config, &mut options, &mut dev_options)?;
   }
 
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
+  crate::dev::setup(
+    &interface,
+    &mut dev_options,
+    tauri_config.clone(),
+    invocation_dir,
+  )?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {
@@ -378,6 +387,7 @@ fn run_dev(
       config: options.config,
       no_watch: options.no_watch,
     },
+    invocation_dir,
     |options| {
       let cli_options = CliOptions {
         dev: true,

@@ -3,11 +3,13 @@
 // SPDX-License-Identifier: MIT
 
 use crate::Result;
+use anyhow::Context;
 use clap::Parser;
 use colored::{ColoredString, Colorize};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use serde::Deserialize;
 use std::{
+  env::current_dir,
   fmt::{self, Display, Formatter},
   panic,
 };
@@ -263,7 +265,9 @@ pub fn command(options: Options) -> Result<()> {
   panic::set_hook(Box::new(|_info| {
     // do nothing
   }));
-  let app_dir = panic::catch_unwind(crate::helpers::app_paths::app_dir)
+
+  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
+  let app_dir = panic::catch_unwind(|| crate::helpers::app_paths::app_dir(&invocation_dir))
     .map(Some)
     .unwrap_or_default();
   let tauri_dir = panic::catch_unwind(crate::helpers::app_paths::tauri_dir)

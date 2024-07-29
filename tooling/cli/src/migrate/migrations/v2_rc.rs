@@ -11,13 +11,14 @@ use crate::{
   Result,
 };
 
-use std::{fs::read_to_string, path::Path};
+use std::{env::current_dir, fs::read_to_string, path::Path};
 
 use anyhow::Context;
 use toml_edit::{Document, Item, Table, TableLike, Value};
 
 pub fn run() -> Result<()> {
-  let app_dir = app_dir();
+  let current_dir = current_dir().with_context(|| "failed to get current working directory")?;
+  let app_dir = app_dir(&current_dir);
   let tauri_dir = tauri_dir();
 
   let manifest_path = tauri_dir.join("Cargo.toml");

@@ -300,7 +300,7 @@ fn do_parse<D: DeserializeOwned>(
     #[cfg(feature = "config-json5")]
     {
       let raw = read_to_string(&json5)?;
-      do_parse_json5(&raw, &path).map(|config| (config, json5))
+      do_parse_json5(&raw, &json5).map(|config| (config, json5))
     }
 
     #[cfg(not(feature = "config-json5"))]
@@ -312,7 +312,7 @@ fn do_parse<D: DeserializeOwned>(
     #[cfg(feature = "config-toml")]
     {
       let raw = read_to_string(&toml)?;
-      do_parse_toml(&raw, &path).map(|config| (config, toml))
+      do_parse_toml(&raw, &toml).map(|config| (config, toml))
     }
 
     #[cfg(not(feature = "config-toml"))]

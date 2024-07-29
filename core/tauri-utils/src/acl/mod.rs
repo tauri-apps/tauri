@@ -3,23 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 //! Access Control List types.
-//!
-//! # Stability
-//!
-//! This is a core functionality that is not considered part of the stable API.
-//! If you use it, note that it may include breaking changes in the future.
-//!
-//! These items are intended to be non-breaking from a de/serialization standpoint only.
-//! Using and modifying existing config values will try to avoid breaking changes, but they are
-//! free to add fields in the future - causing breaking changes for creating and full destructuring.
-//!
-//! To avoid this, [ignore unknown fields when destructuring] with the `{my, config, ..}` pattern.
-//! If you need to create the Rust config directly without deserializing, then create the struct
-//! the [Struct Update Syntax] with `..Default::default()`, which may need a
-//! `#[allow(clippy::needless_update)]` attribute if you are declaring all fields.
-//!
-//! [ignore unknown fields when destructuring]: https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#ignoring-remaining-parts-of-a-value-with-
-//! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 use serde::{Deserialize, Serialize};
 use std::{num::NonZeroU64, str::FromStr, sync::Arc};

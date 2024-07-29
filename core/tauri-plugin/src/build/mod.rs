@@ -95,7 +95,7 @@ impl<'a> Builder<'a> {
     if name.contains('_') {
       anyhow::bail!("plugin names cannot contain underscores");
     }
-    if RESERVED_PLUGIN_NAMES.contains(name) {
+    if RESERVED_PLUGIN_NAMES.contains(&name.as_str()) {
       anyhow::bail!("plugin name `{name}` is reserved");
     }
 

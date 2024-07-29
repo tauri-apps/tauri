@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.0.0-beta.25]
+
+### New Features
+
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add APIs to enable setting window size constraints separately:
+
+  - Added `WindowBuilder::inner_size_constraints` and `WebviewWindowBuilder::inner_size_constraints` which can be used for setting granular constraints.
+  - Added `WindowSizeConstraints` struct
+  - Added `Window::set_size_constraints` and `WebviewWindow::set_size_constraints`
+
+### Bug Fixes
+
+- [`e1776946a`](https://www.github.com/tauri-apps/tauri/commit/e1776946ad034d7a6e005834a754773671d9f7ef) ([#10362](https://www.github.com/tauri-apps/tauri/pull/10362) by [@Brendonovich](https://www.github.com/tauri-apps/tauri/../../Brendonovich)) Use ` specta rc.15's  `derive\` feature which fixes build issues in docs.rs.
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Apply `minWidth`, `minHieght`, `maxWidth` and `maxHeight` constraints separately, which fixes a long standing bug where these constraints were never applied unless width and height were constrained together.
+
+### What's Changed
+
+- [`9546548ec`](https://www.github.com/tauri-apps/tauri/commit/9546548ec0c83ba620b1bc9d1d424a7009d0b423) ([#10297](https://www.github.com/tauri-apps/tauri/pull/10297) by [@pewsheen](https://www.github.com/tauri-apps/tauri/../../pewsheen)) On macOS, set default titlebar style to `Visible` to prevent webview move out of the view.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.21`
+- Upgraded to `tauri-runtime@2.0.0-beta.21`
+
 ## \[2.0.0-beta.24]
 
 ### New Features

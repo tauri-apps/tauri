@@ -45,6 +45,10 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
+[lints.rust]
+# cfg(doc_cfg) is used for docs.rs detection. see above
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
 [package.metadata.cargo-udeps.ignore]
 normal = [ "reqwest", "nix" ]
 

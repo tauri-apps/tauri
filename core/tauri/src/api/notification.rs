@@ -61,8 +61,8 @@ pub enum Sound {
   ///   if `ms-winsoundevent:Notification.Looping.Alarm2`, you would use `Alarm2`.
   ///   Windows 7 is not supported, if a sound is provided, it will play the default sound, otherwise it will be silent.
   /// - **macOS**: you can specify the name of the sound you'd like to play when the notification is shown.
-  /// Any of the default sounds (under System Preferences > Sound) can be used, in addition to custom sound files.
-  /// Be sure that the sound file is under one of the following locations:
+  ///   Any of the default sounds (under System Preferences > Sound) can be used, in addition to custom sound files.
+  ///   Be sure that the sound file is under one of the following locations:
   ///   - `~/Library/Sounds`
   ///   - `/Library/Sounds`
   ///   - `/Network/Library/Sounds`

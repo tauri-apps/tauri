@@ -92,6 +92,7 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
     "event",
     "image",
     "menu",
+    "path",
     "resources",
     "tray",
     "webview",

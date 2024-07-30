@@ -146,7 +146,7 @@ pub fn command(options: Options) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec])?;
+      manager.install(&[npm_spec], &tauri_dir)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {

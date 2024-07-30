@@ -5181,6 +5181,7 @@ dependencies = [
  "toml_edit 0.22.6",
  "ureq",
  "url",
+ "walkdir",
  "windows-sys 0.52.0",
 ]
 

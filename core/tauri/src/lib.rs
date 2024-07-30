@@ -20,7 +20,7 @@
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
-//! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
+//!   On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.

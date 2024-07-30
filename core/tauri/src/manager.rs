@@ -459,6 +459,7 @@ impl<R: Runtime> WindowManager<R> {
         _ => "".to_string(),
       },
       invoke_key: self.invoke_key(),
+      os_name: std::env::consts::OS,
     }
     .render_default(&Default::default())?;
 

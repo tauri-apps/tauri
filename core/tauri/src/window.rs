@@ -1569,11 +1569,15 @@ impl<R: Runtime> Window<R> {
         return Err(Error::InvokeKey);
       }
       None => {
+        // this specific string is tested against in `core/tests/invoke-key`.
+        // if this error changes then that integration test should be updated accordingly.
+        let error = "received ipc message without a __TAURI_INVOKE_KEY__";
+
         #[cfg(feature = "tracing")]
-        tracing::error!("received ipc message without a __TAURI_INVOKE_KEY__");
+        tracing::error!(error);
 
         #[cfg(not(feature = "tracing"))]
-        eprintln!("received ipc message without a __TAURI_INVOKE_KEY__");
+        eprintln!("{error}");
 
         return Err(Error::InvokeKey);
       }
@@ -1709,7 +1713,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
@@ -1734,7 +1738,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1767,7 +1771,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples

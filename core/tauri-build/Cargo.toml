@@ -16,6 +16,10 @@ readme = "README.md"
 all-features = true
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 
+[lints.rust]
+# cfg(doc_cfg) is used for docs.rs detection. see above
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
 [dependencies]
 anyhow = "1"
 quote = { version = "1", optional = true }

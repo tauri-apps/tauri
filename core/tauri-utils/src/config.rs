@@ -333,7 +333,7 @@ pub struct DebConfig {
   /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
   pub priority: Option<String>,
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
-  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  /// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
   pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
@@ -341,19 +341,19 @@ pub struct DebConfig {
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "pre-install-script")]
   pub pre_install_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is unpacked. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-install-script")]
   pub post_install_script: Option<PathBuf>,
   /// Path to script that will be executed before the package is removed. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "pre-remove-script")]
   pub pre_remove_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is removed. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
 }
@@ -408,19 +408,19 @@ pub struct RpmConfig {
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "pre-install-script")]
   pub pre_install_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is unpacked. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "post-install-script")]
   pub post_install_script: Option<PathBuf>,
   /// Path to script that will be executed before the package is removed. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "pre-remove-script")]
   pub pre_remove_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is removed. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
 }
@@ -1803,6 +1803,9 @@ pub struct AppConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
+  /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
+  #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
+  pub enable_gtk_app_id: bool,
 }
 
 impl AppConfig {
@@ -2732,6 +2735,7 @@ mod build {
       let tray_icon = opt_lit(self.tray_icon.as_ref());
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
+      let enable_gtk_app_id = self.enable_gtk_app_id;
 
       literal_struct!(
         tokens,
@@ -2740,7 +2744,8 @@ mod build {
         security,
         tray_icon,
         macos_private_api,
-        with_global_tauri
+        with_global_tauri,
+        enable_gtk_app_id
       );
     }
   }
@@ -2817,6 +2822,7 @@ mod test {
       tray_icon: None,
       macos_private_api: false,
       with_global_tauri: false,
+      enable_gtk_app_id: false,
     };
 
     // create a build config

@@ -129,7 +129,7 @@ pub fn generate_data(
 }
 
 /// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
-/// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+/// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
 fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;

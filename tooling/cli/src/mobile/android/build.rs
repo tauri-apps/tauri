@@ -26,7 +26,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::{set_current_dir, set_var};
+use std::env::set_current_dir;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -121,9 +121,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     );
     (interface, app, config, metadata)
   };
-
-  set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
-  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
 
   let profile = if options.debug {
     Profile::Debug

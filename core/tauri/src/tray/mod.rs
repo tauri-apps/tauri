@@ -73,7 +73,7 @@ impl From<tray_icon::MouseButton> for MouseButton {
 /// ## Platform-specific:
 ///
 /// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
-/// and will still show a context menu on right click.
+///   and will still show a context menu on right click.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[non_exhaustive]
@@ -194,7 +194,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
+  ///   Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn new() -> Self {
     Self {
       inner: tray_icon::TrayIconBuilder::new(),
@@ -208,7 +208,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
+  ///   Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn with_id<I: Into<TrayIconId>>(id: I) -> Self {
     let mut builder = Self::new();
     builder.inner = builder.inner.with_id(id);
@@ -230,7 +230,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  /// Setting an empty [`Menu`](crate::menu::Menu) is enough.
+  ///   Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn icon(mut self, icon: Image<'_>) -> Self {
     let icon = icon.try_into().ok();
     if let Some(icon) = icon {
@@ -254,10 +254,10 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// ## Platform-specific
   ///
   /// - **Linux:** The title will not be shown unless there is an icon
-  /// as well.  The title is useful for numerical and other frequently
-  /// updated information.  In general, it shouldn't be shown unless a
-  /// user requests it as it can take up a significant amount of space
-  /// on the user's panel.  This may not be shown in all visualizations.
+  ///   as well.  The title is useful for numerical and other frequently
+  ///   updated information.  In general, it shouldn't be shown unless a
+  ///   user requests it as it can take up a significant amount of space
+  ///   on the user's panel.  This may not be shown in all visualizations.
   /// - **Windows:** Unsupported.
   pub fn title<S: AsRef<str>>(mut self, title: S) -> Self {
     self.inner = self.inner.with_title(title);
@@ -471,10 +471,10 @@ impl<R: Runtime> TrayIcon<R> {
   /// ## Platform-specific:
   ///
   /// - **Linux:** The title will not be shown unless there is an icon
-  /// as well.  The title is useful for numerical and other frequently
-  /// updated information.  In general, it shouldn't be shown unless a
-  /// user requests it as it can take up a significant amount of space
-  /// on the user's panel.  This may not be shown in all visualizations.
+  ///   as well.  The title is useful for numerical and other frequently
+  ///   updated information.  In general, it shouldn't be shown unless a
+  ///   user requests it as it can take up a significant amount of space
+  ///   on the user's panel.  This may not be shown in all visualizations.
   /// - **Windows:** Unsupported
   pub fn set_title<S: AsRef<str>>(&self, title: Option<S>) -> crate::Result<()> {
     let s = title.map(|s| s.as_ref().to_string());

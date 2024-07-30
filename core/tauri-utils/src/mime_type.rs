@@ -71,7 +71,7 @@ impl MimeType {
       // Assume HTML when a TLD is found for eg. `wry:://tauri.app` | `wry://hello.com`
       Some(_) => fallback,
       // using octet stream according to this:
-      // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
+      // <https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types>
       None => Self::OctetStream,
     }
   }

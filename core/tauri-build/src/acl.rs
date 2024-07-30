@@ -473,10 +473,13 @@ pub fn validate_capabilities(
 
     for permission_entry in &capability.permissions {
       let permission_id = permission_entry.identifier();
-      let (key, permission_name) = permission_id
-        .get()
-        .split_once(':')
-        .unwrap_or_else(|| (APP_ACL_KEY, permission_id.get()));
+
+      let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);
+      let permission_name = permission_id.get_base();
+
+      if key == "core" && permission_name == "default" {
+        continue;
+      }
 
       let permission_exists = acl_manifests
         .get(key)

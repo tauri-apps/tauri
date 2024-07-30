@@ -17,6 +17,18 @@ use super::{
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = u64;
 
+const CORE_PLUGINS: &[&str] = &[
+  "core:app",
+  "core:event",
+  "core:image",
+  "core:menu",
+  "core:path",
+  "core:resources",
+  "core:tray",
+  "core:webview",
+  "core:window",
+];
+
 /// Metadata for what referenced a [`ResolvedCommand`].
 #[cfg(debug_assertions)]
 #[derive(Default, Clone, PartialEq, Eq)]
@@ -80,7 +92,7 @@ impl Resolved {
   /// Resolves the ACL for the given plugin permissions and app capabilities.
   pub fn resolve(
     acl: &BTreeMap<String, Manifest>,
-    capabilities: BTreeMap<String, Capability>,
+    mut capabilities: BTreeMap<String, Capability>,
     target: Target,
   ) -> Result<Self, Error> {
     let mut allowed_commands = BTreeMap::new();
@@ -91,7 +103,7 @@ impl Resolved {
     let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 
     // resolve commands
-    for capability in capabilities.values() {
+    for capability in capabilities.values_mut() {
       if !capability
         .platforms
         .as_ref()
@@ -99,6 +111,20 @@ impl Resolved {
         .unwrap_or(true)
       {
         continue;
+      }
+
+      if let Some(core_default_index) = capability.permissions.iter().position(|permission| {
+        matches!(
+          permission,
+          PermissionEntry::PermissionRef(i) if i.get() == "core:default"
+        )
+      }) {
+        capability.permissions.remove(core_default_index);
+        for plugin in CORE_PLUGINS {
+          capability.permissions.push(PermissionEntry::PermissionRef(
+            format!("{plugin}:default").try_into().unwrap(),
+          ));
+        }
       }
 
       with_resolved_permissions(
@@ -134,6 +160,8 @@ impl Resolved {
                 &mut allowed_commands,
                 if key == APP_ACL_KEY {
                   allowed_command.to_string()
+                } else if let Some(core_plugin_name) = key.strip_prefix("core:") {
+                  format!("plugin:{core_plugin_name}|{allowed_command}")
                 } else {
                   format!("plugin:{key}|{allowed_command}")
                 },
@@ -149,6 +177,8 @@ impl Resolved {
                 &mut denied_commands,
                 if key == APP_ACL_KEY {
                   denied_command.to_string()
+                } else if let Some(core_plugin_name) = key.strip_prefix("core:") {
+                  format!("plugin:{core_plugin_name}|{denied_command}")
                 } else {
                   format!("plugin:{key}|{denied_command}")
                 },

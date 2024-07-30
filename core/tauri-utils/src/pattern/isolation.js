@@ -18,6 +18,11 @@
   }
 
   /**
+   * @type {string} - The main frame origin.
+   */
+  const origin = __TEMPLATE_origin__
+
+  /**
    * @type {Uint8Array} - Injected by Tauri during runtime
    */
   const aesGcmKeyRaw = new Uint8Array(__TEMPLATE_runtime_aes_gcm_key__)
@@ -101,7 +106,7 @@
    * @param {MessageEvent<any>} event
    */
   async function payloadHandler(event) {
-    if (!isIsolationPayload(event.data)) {
+    if (!event.origin.startsWith(origin) || !isIsolationPayload(event.data)) {
       return
     }
 

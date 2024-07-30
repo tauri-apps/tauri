@@ -142,7 +142,7 @@ pub fn command(options: Options) -> Result<()> {
 
   for (capability, path) in &mut capabilities {
     capability.insert_permission(options.identifier.clone());
-    std::fs::write(&path, capability.to_string()?)?;
+    std::fs::write(&*path, capability.to_string()?)?;
     log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
   }
 

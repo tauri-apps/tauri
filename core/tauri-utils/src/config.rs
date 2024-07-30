@@ -1803,6 +1803,9 @@ pub struct AppConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
+  /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
+  #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
+  pub enable_gtk_app_id: bool,
 }
 
 impl AppConfig {
@@ -2732,6 +2735,7 @@ mod build {
       let tray_icon = opt_lit(self.tray_icon.as_ref());
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
+      let enable_gtk_app_id = self.enable_gtk_app_id;
 
       literal_struct!(
         tokens,
@@ -2740,7 +2744,8 @@ mod build {
         security,
         tray_icon,
         macos_private_api,
-        with_global_tauri
+        with_global_tauri,
+        enable_gtk_app_id
       );
     }
   }
@@ -2817,6 +2822,7 @@ mod test {
       tray_icon: None,
       macos_private_api: false,
       with_global_tauri: false,
+      enable_gtk_app_id: false,
     };
 
     // create a build config

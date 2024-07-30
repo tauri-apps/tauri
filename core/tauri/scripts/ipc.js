@@ -7,7 +7,13 @@
  */
 
 ;
-(function() {
+(function () {
+  // Workaround for webview2 injecting scripts into subframes, unlike webkitgtk/wkwebview.
+  const osName = __TEMPLATE_os_name__
+  if (osName === 'windows' && window.location !== window.parent.location) {
+    return
+  }
+
   /**
    * @type {string}
    */

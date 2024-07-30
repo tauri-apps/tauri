@@ -36,6 +36,7 @@ pub type OnPageLoad<R> = dyn Fn(Window<R>, PageLoadPayload) + Send + Sync + 'sta
 pub(crate) struct IpcJavascript<'a> {
   pub(crate) isolation_origin: &'a str,
   pub(crate) invoke_key: &'a str,
+  pub(crate) os_name: &'a str,
 }
 
 #[cfg(feature = "isolation")]

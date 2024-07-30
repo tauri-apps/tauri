@@ -52,6 +52,7 @@ pub struct DialogFilter {
 /// The options for the open dialog API.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(not(dialog_open), allow(dead_code))]
 pub struct OpenDialogOptions {
   /// The title of the dialog window.
   pub title: Option<String>,
@@ -75,6 +76,7 @@ pub struct OpenDialogOptions {
 /// The options for the save dialog API.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(not(dialog_save), allow(dead_code))]
 pub struct SaveDialogOptions {
   /// The title of the dialog window.
   pub title: Option<String>,

@@ -22,6 +22,10 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
+[lints.rust]
+# cfg(doc_cfg) is used for docs.rs detection. see above
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
 [dependencies]
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"

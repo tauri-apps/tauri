@@ -3196,7 +3196,9 @@ impl PackageConfig {
 /// - [`build`](#buildconfig): The build configuration
 /// - [`plugins`](#pluginconfig): The plugins config
 ///
-/// ```json title="Example tauri.config.json file"
+/// Example tauri.config.json file:
+///
+/// ```json
 /// {
 ///   "build": {
 ///     "beforeBuildCommand": "",

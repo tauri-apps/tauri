@@ -187,25 +187,25 @@ pub struct DebianSettings {
   #[doc = include_str!("./linux/templates/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
-  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  /// Define the section in Debian Control file. See : <https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections>
   pub section: Option<String>,
   /// Change the priority of the Debian Package. By default, it is set to `optional`.
   /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
   pub priority: Option<String>,
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
-  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  /// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
   pub changelog: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub pre_install_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is unpacked. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub post_install_script: Option<PathBuf>,
   /// Path to script that will be executed before the package is removed. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub pre_remove_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is removed. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   pub post_remove_script: Option<PathBuf>,
 }
 
@@ -246,16 +246,16 @@ pub struct RpmSettings {
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   pub pre_install_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is unpacked. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   pub post_install_script: Option<PathBuf>,
   /// Path to script that will be executed before the package is removed. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   pub pre_remove_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is removed. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   pub post_remove_script: Option<PathBuf>,
 }
 

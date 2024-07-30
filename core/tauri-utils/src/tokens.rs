@@ -131,7 +131,7 @@ where
 
 /// Create a `serde_json::Value` variant `TokenStream` for a number
 pub fn json_value_number_lit(num: &serde_json::Number) -> TokenStream {
-  // See https://docs.rs/serde_json/1/serde_json/struct.Number.html for guarantees
+  // See <https://docs.rs/serde_json/1/serde_json/struct.Number.html> for guarantees
   let prefix = quote! { ::serde_json::Value };
   if num.is_u64() {
     // guaranteed u64

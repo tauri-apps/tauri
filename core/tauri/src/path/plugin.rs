@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util.
-/// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
+/// <https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106>
 fn normalize_path(path: &Path) -> PathBuf {
   let mut components = path.components().peekable();
   let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {
@@ -44,7 +44,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 
 /// Normalize a path, removing things like `.` and `..`, this snippet is taken from cargo's paths util but
 /// slightly modified to not resolve absolute paths.
-/// https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106
+/// <https://github.com/rust-lang/cargo/blob/46fa867ff7043e3a0545bf3def7be904e1497afd/crates/cargo-util/src/paths.rs#L73-L106>
 fn normalize_path_no_absolute(path: &Path) -> PathBuf {
   let mut components = path.components().peekable();
   let mut ret = if let Some(c @ Component::Prefix(..)) = components.peek().cloned() {

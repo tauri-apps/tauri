@@ -28,7 +28,7 @@ pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
 /// The token used for style nonces.
 pub const STYLE_NONCE_TOKEN: &str = "__TAURI_STYLE_NONCE__";
 
-// taken from https://github.com/kuchiki-rs/kuchiki/blob/57ee6920d835315a498e748ba4b07a851ae5e498/src/serializer.rs#L12
+// taken from <https://github.com/kuchiki-rs/kuchiki/blob/57ee6920d835315a498e748ba4b07a851ae5e498/src/serializer.rs#L12>
 fn serialize_node_ref_internal<S: Serializer>(
   node: &NodeRef,
   serializer: &mut S,

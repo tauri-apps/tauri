@@ -2241,9 +2241,9 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "openssl"
-version = "0.10.64"
+version = "0.10.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95a0481286a310808298130d22dd1fef0fa571e05a8f44ec801801e84b216b1f"
+checksum = "9529f4786b70a3e8c61e11179af17ab6188ad8d0ded78c5529441ed39d4bd9c1"
 dependencies = [
  "bitflags 2.5.0",
  "cfg-if",
@@ -2282,9 +2282,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.102"
+version = "0.9.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c597637d56fbc83893a35eb0dd04b2b8e7a50c91e64e9493e398b5df4fb45fa2"
+checksum = "7f9e8deee91df40a943c71b917e5874b951d32a802526c85721ce3b776c929d6"
 dependencies = [
  "cc",
  "libc",

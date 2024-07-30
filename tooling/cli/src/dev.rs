@@ -208,9 +208,9 @@ pub fn setup(
           before_dev = before_dev.replace(
             "$HOST",
             if let Some(url) = &dev_url {
-              url.host_str().unwrap_or("0.0.0.0")
+              url.host_str().unwrap_or("127.0.0.1")
             } else {
-              "0.0.0.0"
+              "127.0.0.1"
             },
           );
         }

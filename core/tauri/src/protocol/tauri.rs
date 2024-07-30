@@ -103,13 +103,8 @@ fn get_response<R: Runtime>(
       .decode_utf8_lossy()
       .to_string();
     let url = format!("{url}{decoded_path}");
-    #[allow(unused_mut)]
-    let mut client_builder = reqwest::ClientBuilder::new();
-    #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
-    {
-      client_builder = client_builder.danger_accept_invalid_certs(true);
-    }
-    let mut proxy_builder = client_builder
+
+    let mut proxy_builder = reqwest::ClientBuilder::new()
       .build()
       .unwrap()
       .request(request.method().clone(), &url);

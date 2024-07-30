@@ -102,7 +102,7 @@ pub(crate) fn set_csp<R: Runtime>(
   csp
 }
 
-// inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
+// inspired by <https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297>
 fn replace_with_callback<F: FnMut() -> String>(
   original: &str,
   pattern: &str,

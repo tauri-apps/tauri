@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-beta.22"
+version = "2.0.0-beta.23"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.70"
@@ -48,7 +48,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = [ "derive", "env" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.1-beta.18", default-features = false, path = "../bundler" }
+tauri-bundler = { version = "2.0.1-beta.19", default-features = false, path = "../bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = { version = "1.0", features = [ "preserve_order" ] }
@@ -98,6 +98,7 @@ oxc_allocator = "0.16"
 oxc_ast = "0.16"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
+walkdir = "2"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.52"

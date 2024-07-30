@@ -6,7 +6,7 @@ use super::SectionItem;
 use super::{env_nodejs::manager_version, VersionMetadata};
 use colored::Colorize;
 use serde::Deserialize;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::helpers::{cross_command, npm::PackageManager};
 
@@ -84,73 +84,6 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
         Ok(None)
       }
     }
-  }
-}
-
-fn npm_package_version<P: AsRef<Path>>(
-  pm: &PackageManager,
-  name: &str,
-  app_dir: P,
-) -> crate::Result<Option<String>> {
-  let (output, regex) = match pm {
-    PackageManager::Yarn => (
-      cross_command("yarn")
-        .args(["list", "--pattern"])
-        .arg(name)
-        .args(["--depth", "0"])
-        .current_dir(app_dir)
-        .output()?,
-      None,
-    ),
-    PackageManager::YarnBerry => (
-      cross_command("yarn")
-        .arg("info")
-        .arg(name)
-        .arg("--json")
-        .current_dir(app_dir)
-        .output()?,
-      Some(regex::Regex::new("\"Version\":\"([\\da-zA-Z\\-\\.]+)\"").unwrap()),
-    ),
-    PackageManager::Npm => (
-      cross_command("npm")
-        .arg("list")
-        .arg(name)
-        .args(["version", "--depth", "0"])
-        .current_dir(app_dir)
-        .output()?,
-      None,
-    ),
-    PackageManager::Pnpm => (
-      cross_command("pnpm")
-        .arg("list")
-        .arg(name)
-        .args(["--parseable", "--depth", "0"])
-        .current_dir(app_dir)
-        .output()?,
-      None,
-    ),
-    // Bun doesn't support `list` command
-    PackageManager::Bun => (
-      cross_command("npm")
-        .arg("list")
-        .arg(name)
-        .args(["version", "--depth", "0"])
-        .current_dir(app_dir)
-        .output()?,
-      None,
-    ),
-  };
-  if output.status.success() {
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let regex = regex.unwrap_or_else(|| regex::Regex::new("@(\\d[\\da-zA-Z\\-\\.]+)").unwrap());
-    Ok(
-      regex
-        .captures_iter(&stdout)
-        .last()
-        .and_then(|cap| cap.get(1).map(|v| v.as_str().to_string())),
-    )
-  } else {
-    Ok(None)
   }
 }
 
@@ -244,7 +177,8 @@ pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<Secti
       let app_dir = app_dir.clone();
       let item = SectionItem::new().action(move || {
         let version = version.clone().unwrap_or_else(|| {
-          npm_package_version(&package_manager, package, &app_dir)
+          package_manager
+            .current_package_version(package, &app_dir)
             .unwrap_or_default()
             .unwrap_or_default()
         });

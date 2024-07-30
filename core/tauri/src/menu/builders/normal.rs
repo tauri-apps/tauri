@@ -16,7 +16,7 @@ impl MenuItemBuilder {
   /// Create a new menu item builder.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
-  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn new<S: AsRef<str>>(text: S) -> Self {
     Self {
       id: None,
@@ -29,7 +29,7 @@ impl MenuItemBuilder {
   /// Create a new menu item builder with the specified id.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
-  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(id: I, text: S) -> Self {
     Self {
       id: Some(id.into()),

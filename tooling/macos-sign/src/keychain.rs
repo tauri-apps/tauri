@@ -52,7 +52,7 @@ impl Keychain {
   /// By example you can use; openssl base64 -in MyCertificate.p12 -out MyCertificate-base64.txt
   /// Then use the value of the base64 as `certificate_encoded`.
   /// You need to set certificate_password to the password you set when you exported your certificate.
-  /// https://help.apple.com/xcode/mac/current/#/dev154b28f09 see: `Export a signing certificate`
+  /// <https://help.apple.com/xcode/mac/current/#/dev154b28f09> see: `Export a signing certificate`
   pub fn with_certificate(
     certificate_encoded: &OsString,
     certificate_password: &OsString,

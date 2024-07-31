@@ -163,6 +163,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       build: Default::default(),
       plugins: Default::default(),
     },
+    #[cfg(dev)]
+    config_parent: None,
     assets: Arc::new(assets),
     default_window_icon: None,
     app_icon: None,

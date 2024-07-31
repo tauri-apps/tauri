@@ -35,7 +35,6 @@ plist = "1"
 time = { version = "0.3", features = [ "parsing", "formatting" ] }
 
 [features]
-default = [ "compression" ]
 compression = [ "brotli", "tauri-utils/compression" ]
 isolation = [ "tauri-utils/isolation" ]
 shell-scope = [ "regex" ]

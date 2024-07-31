@@ -23,7 +23,7 @@ serde_json = "1"
 tauri-utils = { version = "2.0.0-beta.19", path = "../tauri-utils", features = [ "build" ] }
 thiserror = "1"
 walkdir = "2"
-brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
+brotli = { version = "6", optional = true, default-features = false, features = [ "std" ] }
 regex = { version = "1", optional = true }
 uuid = { version = "1", features = [ "v4" ] }
 semver = "1"

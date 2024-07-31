@@ -1,6 +1,6 @@
 ---
-"tauri-cli": patch:enhance
-"@tauri-apps/cli": patch:enhance
+"tauri-cli": patch:breaking
+"@tauri-apps/cli": patch:breaking
 ---
 
 `ios dev` and `android dev` now uses localhost for the development server unless running on an iOS device,

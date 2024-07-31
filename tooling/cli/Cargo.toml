@@ -1,13 +1,13 @@
 [workspace]
-members = ["node"]
+members = [ "node" ]
 
 [package]
 name = "tauri-cli"
 version = "2.0.0-beta.23"
-authors = ["Tauri Programme within The Commons Conservancy"]
+authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.70"
-categories = ["gui", "web-programming"]
+categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
@@ -20,7 +20,7 @@ include = [
   "*.rs",
   "tauri.gitignore",
   "tauri-dev-watcher.gitignore",
-  "LICENSE*",
+  "LICENSE*"
 ]
 
 [package.metadata.binstall]
@@ -40,60 +40,50 @@ path = "src/main.rs"
 
 [dependencies]
 cargo-mobile2 = { git = "https://github.com/tauri-apps/cargo-mobile2/", branch = "feat/expose-adb", default-features = false }
-jsonrpsee = { version = "0.22", features = ["server"] }
+jsonrpsee = { version = "0.22", features = [ "server" ] }
 jsonrpsee-core = "0.22"
-jsonrpsee-client-transport = { version = "0.22", features = ["ws"] }
+jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
 jsonrpsee-ws-client = { version = "0.22", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
-clap = { version = "4.5", features = ["derive", "env"] }
+clap = { version = "4.5", features = [ "derive", "env" ] }
 anyhow = "1.0"
 tauri-bundler = { version = "2.0.1-beta.19", default-features = false, path = "../bundler" }
 colored = "2.1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
+serde = { version = "1.0", features = [ "derive" ] }
+serde_json = { version = "1.0", features = [ "preserve_order" ] }
 notify = "6.1"
 notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
-toml_edit = { version = "0.22", features = ["serde"] }
+toml_edit = { version = "0.22", features = [ "serde" ] }
 json-patch = "1.2"
-tauri-utils = { version = "2.0.0-beta.19", path = "../../core/tauri-utils", features = [
-  "isolation",
-  "schema",
-  "config-json5",
-  "config-toml",
-] }
-tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [
-  "isolation",
-  "schema",
-  "config-json5",
-  "config-toml",
-] }
+tauri-utils = { version = "2.0.0-beta.19", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
 handlebars = "5.1"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.22.0"
-ureq = { version = "2.9.6", default-features = false, features = ["gzip"] }
+ureq = { version = "2.9.6", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
 regex = "1.10.3"
 heck = "0.5"
 dialoguer = "0.11"
-url = { version = "2.5", features = ["serde"] }
+url = { version = "2.5", features = [ "serde" ] }
 os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.4"
-log = { version = "0.4.21", features = ["kv", "kv_std"] }
+log = { version = "0.4.21", features = [ "kv", "kv_std" ] }
 env_logger = "0.11.3"
 icns = { package = "tauri-icns", version = "0.1" }
-image = { version = "0.24", default-features = false, features = ["ico"] }
-axum = { version = "0.7.4", features = ["ws"] }
+image = { version = "0.24", default-features = false, features = [ "ico" ] }
+axum = { version = "0.7.4", features = [ "ws" ] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
-tokio = { version = "1", features = ["macros", "sync"] }
+tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
 itertools = "0.12"
@@ -115,7 +105,7 @@ version = "0.52"
 features = [
   "Win32_Storage_FileSystem",
   "Win32_System_IO",
-  "Win32_System_Console",
+  "Win32_System_Console"
 ]
 
 [target."cfg(unix)".dependencies]
@@ -126,14 +116,14 @@ plist = "1"
 tauri-macos-sign = { version = "0.1.0-beta.0", path = "../macos-sign" }
 
 [features]
-default = ["rustls"]
+default = [ "rustls" ]
 native-tls = [
   "tauri-bundler/native-tls",
   "cargo-mobile2/native-tls",
-  "ureq/native-tls",
+  "ureq/native-tls"
 ]
-native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
-rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls"]
+native-tls-vendored = [ "native-tls", "tauri-bundler/native-tls-vendored" ]
+rustls = [ "tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls" ]
 
 [profile.dev.package.miniz_oxide]
 opt-level = 3

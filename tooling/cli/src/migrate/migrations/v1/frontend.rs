@@ -58,10 +58,33 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
   let mut new_npm_packages = Vec::new();
   let mut new_cargo_packages = Vec::new();
 
+  let pre = env!("CARGO_PKG_VERSION_PRE");
+  let npm_version = if pre.is_empty() {
+    format!("{}.0.0", env!("CARGO_PKG_VERSION_MAJOR"))
+  } else {
+    format!(
+      "{}.{}.{}-{}.0",
+      env!("CARGO_PKG_VERSION_MAJOR"),
+      env!("CARGO_PKG_VERSION_MINOR"),
+      env!("CARGO_PKG_VERSION_PATCH"),
+      pre.split('.').next().unwrap()
+    )
+  };
+
   let pm = PackageManager::from_project(app_dir)
     .into_iter()
     .next()
     .unwrap_or(PackageManager::Npm);
+
+  for pkg in ["@tauri-apps/cli", "@tauri-apps/api"] {
+    let version = pm
+      .current_package_version(pkg, app_dir)
+      .unwrap_or_default()
+      .unwrap_or_default();
+    if version.starts_with("1") {
+      new_npm_packages.push(format!("{pkg}@^{npm_version}"));
+    }
+  }
 
   for entry in walk_builder(app_dir).build().flatten() {
     if entry.file_type().map(|t| t.is_file()).unwrap_or_default() {
@@ -86,7 +109,7 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
   new_npm_packages.sort();
   new_npm_packages.dedup();
   if !new_npm_packages.is_empty() {
-    pm.install(&new_npm_packages)
+    pm.install(&new_npm_packages, app_dir)
       .context("Error installing new npm packages")?;
   }
 

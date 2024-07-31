@@ -156,6 +156,8 @@ pub struct IsolationJavascriptCodegen {
 pub struct IsolationJavascriptRuntime<'a> {
   /// The key used on the Rust backend and the Isolation Javascript
   pub runtime_aes_gcm_key: &'a [u8; 32],
+  /// The origin the isolation application is expecting messages from.
+  pub origin: String,
   /// The function that processes the IPC message.
   #[raw]
   pub process_ipc_message_fn: &'a str,

@@ -33,8 +33,8 @@ export default defineConfig({
     hmr: mobile
       ? {
           protocol: 'ws',
-          host: internalIpV4Sync(),
-          port: 1421
+          host: mobile ? internalIpV4Sync() : 'localhost',
+          port: 1430
         }
       : undefined,
     fs: {

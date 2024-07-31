@@ -32,16 +32,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::{set_current_dir, set_var};
-
-const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
-    @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
-    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler, error: android.net.http.SslError) {
-        handler.proceed()
-    }
-";
-const WEBVIEW_CLASS_INIT: &str =
-  "this.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW";
+use std::env::set_current_dir;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -153,12 +144,6 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     );
     (interface, app, config, metadata)
   };
-
-  set_var(
-    "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
-    WEBVIEW_CLIENT_CLASS_EXTENSION,
-  );
-  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
 
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;

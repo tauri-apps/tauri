@@ -61,7 +61,7 @@ Thank you to everyone contributing to Tauri!
 
 ### Documentation
 
-Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: https://github.com/tauri-apps/tauri-docs
+Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: <https://github.com/tauri-apps/tauri-docs>
 
 ## Partners
 

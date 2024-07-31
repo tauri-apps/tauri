@@ -3127,7 +3127,7 @@ dependencies = [
 [[package]]
 name = "schemars_derive"
 version = "0.8.21"
-source = "git+https://github.com/chippers/schemars.git?branch=feat/preserve-description-newlines#8c5441c0f045ff7ae2ccc83fefb9e6f70173bd1b"
+source = "git+https://github.com/tauri-apps/schemars.git?branch=feat/preserve-description-newlines#c30f98480e6e4742aa72202d55d5264c6b2e6476"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -5,6 +5,9 @@
 //! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
 //!
 //! The [`wry`] Tauri [`Runtime`].
+//!
+//! None of the exposed API of this crate is stable, and it may break semver
+//! compatibility in the future. The major version only signifies the intended Tauri version.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
@@ -1003,6 +1006,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       TitleBarStyle::Overlay => {
         self.inner = self.inner.with_titlebar_transparent(true);
         self.inner = self.inner.with_fullsize_content_view(true);
+      }
+      unknown => {
+        #[cfg(feature = "tracing")]
+        tracing::warn!("unknown title bar style applied: {unknown}");
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("unknown title bar style applied: {unknown}");
       }
     }
     self
@@ -2954,6 +2964,13 @@ fn handle_user_message<T: UserEvent>(
               TitleBarStyle::Overlay => {
                 window.set_titlebar_transparent(true);
                 window.set_fullsize_content_view(true);
+              }
+              unknown => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("unknown title bar style applied: {unknown}");
+
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("unknown title bar style applied: {unknown}");
               }
             };
           }

@@ -59,10 +59,7 @@ fn symlink_runner(create_symlinks: impl Fn(&Path) -> io::Result<Symlink>) -> Res
 
       // we expect the output to be the bin path, twice
       assert_eq!(stdout, format!("{bin}\n{bin}\n", bin = bin.display()));
-    } else if cfg!(all(
-      target_os = "macos",
-      not(feature = "process-relaunch-dangerous-allow-symlink-macos")
-    )) {
+    } else if cfg!(target_os = "macos") {
       // we expect this to fail on macOS without the dangerous symlink flag set
       let stderr = String::from_utf8(output.stderr)?;
 

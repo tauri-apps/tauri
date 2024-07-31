@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
-  merge_plist, open_and_wait, setup_dev_config, MobileTarget,
+  merge_plist, open_and_wait, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -58,9 +58,6 @@ pub struct Options {
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Force prompting for an IP to use to connect to the dev server on mobile.
-  #[clap(long)]
-  pub force_ip_prompt: bool,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -83,7 +80,6 @@ impl From<Options> for DevOptions {
       no_dev_server: options.no_dev_server,
       no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
-      force_ip_prompt: options.force_ip_prompt,
     }
   }
 }
@@ -171,7 +167,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn run_dev(
   mut interface: AppInterface,
-  mut options: Options,
+  options: Options,
   mut dev_options: DevOptions,
   tauri_config: ConfigHandle,
   device: Option<Device>,
@@ -180,13 +176,7 @@ fn run_dev(
   config: &AppleConfig,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(
-    MobileTarget::Ios,
-    &mut options.config,
-    options.force_ip_prompt,
-  )?;
-
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone(), true)?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

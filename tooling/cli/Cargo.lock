@@ -498,8 +498,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.12.2"
-source = "git+https://github.com/tauri-apps/cargo-mobile2/?branch=feat/expose-adb#6b4a1558afab6cce6ef74c11fe185cedd5f971c4"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06f70f6ff0db884929c9b3b7825031607e2800e40ce1569e8f9c6a58bd82eae8"
 dependencies = [
  "colored",
  "core-foundation",

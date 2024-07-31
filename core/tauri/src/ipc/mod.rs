@@ -160,6 +160,9 @@ impl Response {
 }
 
 /// The message and resolver given to a custom command.
+///
+/// This struct is used internally by macros and is explicitly **NOT** stable.
+#[doc(hidden)]
 #[default_runtime(crate::Wry, wry)]
 pub struct Invoke<R: Runtime> {
   /// The message passed.

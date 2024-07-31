@@ -5,6 +5,9 @@
 //! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
 //!
 //! Internal runtime between Tauri and the underlying webview runtime.
+//!
+//! None of the exposed API of this crate is stable, and it may break semver
+//! compatibility in the future. The major version only signifies the intended Tauri version.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",

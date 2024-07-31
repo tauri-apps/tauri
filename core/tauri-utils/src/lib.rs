@@ -159,6 +159,7 @@ pub use window_effects::{WindowEffect, WindowEffectState};
 /// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[non_exhaustive]
 pub enum TitleBarStyle {
   /// A normal title bar.
   Visible,

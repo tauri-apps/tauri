@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.0.0-rc.0]
+
+### New Features
+
+- [`d5511c311`](https://www.github.com/tauri-apps/tauri/commit/d5511c3117b1a117cb0b7359c5fa09aa4795122b) ([#10395](https://www.github.com/tauri-apps/tauri/pull/10395)) Added migration from `2.0.0-beta` to `2.0.0-rc`.
+
+### Enhancements
+
+- [`a0841d509`](https://www.github.com/tauri-apps/tauri/commit/a0841d509abc43b62bb7c755e8727f3f461862d1) ([#10421](https://www.github.com/tauri-apps/tauri/pull/10421)) Changes the default behavior of the `dev` command to only expose to localhost (`127.0.0.1`) instead of the default system interface.
+
+### Security fixes
+
+- [`289ae5555`](https://www.github.com/tauri-apps/tauri/commit/289ae5555da3802741018015bfe4927729a2eb33) ([#10386](https://www.github.com/tauri-apps/tauri/pull/10386)) Re-enable TLS checks that were previously disabled to support an insecure HTTPS custom protocol on Android which is no longer used.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.0`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+
 ## \[2.0.0-beta.23]
 
 ### Dependencies

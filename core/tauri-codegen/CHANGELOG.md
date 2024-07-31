@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.0]
+
+### Enhancements
+
+- [`1e0793b68`](https://www.github.com/tauri-apps/tauri/commit/1e0793b6821799829e380c88066b3415cc9006df) ([#10357](https://www.github.com/tauri-apps/tauri/pull/10357)) Enhance `AssetResolver::get` in development mode by reading distDir directly as a fallback to the embedded assets.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
 ## \[2.0.0-beta.19]
 
 ### Bug Fixes

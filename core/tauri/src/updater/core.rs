@@ -1082,6 +1082,7 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, target_path: &Path) -> 
   Ok(())
 }
 
+#[cfg(target_os = "macos")]
 fn is_permission_error(err: &crate::api::Error) -> bool {
   if let crate::api::Error::Io(io_err) = err {
     if io_err.kind() == std::io::ErrorKind::PermissionDenied {

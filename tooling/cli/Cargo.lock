@@ -499,6 +499,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile2"
 version = "0.12.2"
+source = "git+https://github.com/tauri-apps/cargo-mobile2/?branch=feat/expose-adb#7572074857a86b94ea9c936c534c4c15230875c5"
 dependencies = [
  "colored",
  "core-foundation",

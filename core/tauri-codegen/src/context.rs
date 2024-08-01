@@ -263,7 +263,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     }
 
     let icon = CachedIcon::new_raw(&root, &icon_path)?;
-    quote!(::std::option::Option::Some(Vec::from(#icon)))
+    quote!(::std::option::Option::Some(#icon.to_vec()))
   } else {
     quote!(::std::option::Option::None)
   };

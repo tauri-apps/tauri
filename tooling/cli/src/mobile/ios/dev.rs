@@ -45,7 +45,7 @@ It also runs your `build.beforeDevCommand` which usually starts your frontend de
 
 When connected to a physical iOS device, the public network address must be used instead of `localhost`
 for the devUrl property. Tauri makes that change automatically, but your dev server might need
-a different configuration to listen on the public address. You can check the `TAURI_DEV_PUBLIC_NETWORK_HOST_REQUIRED`
+a different configuration to listen on the public address. You can check the `TAURI_DEV_HOST`
 environment variable to determine whether the public network should be used or not."
 )]
 pub struct Options {
@@ -83,7 +83,7 @@ pub struct Options {
   /// it is your responsability to set up your development server to listen on this address
   /// by using 0.0.0.0 as host for instance.
   ///
-  /// When this is set or when running on an iOS device the CLI sets the `TAURI_DEV_PUBLIC_NETWORK_HOST_REQUIRED`
+  /// When this is set or when running on an iOS device the CLI sets the `TAURI_DEV_HOST`
   /// environment variable so you can check this on your framework's configuration to expose the development server
   /// on the public network address.
   #[clap(long)]
@@ -265,7 +265,7 @@ fn use_network_address_for_dev_url(
       println!(
         "Replacing devUrl host with {ip}. {}. {}.",
         "If your frontend is not listening on that address, try configuring your development server to use 0.0.0.0 as host",
-        "When this is required, Tauri sets the TAURI_DEV_PUBLIC_NETWORK_HOST_REQUIRED environment variable"
+        "When this is required, Tauri sets the TAURI_DEV_HOST environment variable"
       );
       url.set_host(Some(&ip)).unwrap();
 
@@ -312,7 +312,7 @@ fn run_dev(
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
   {
-    std::env::set_var("TAURI_DEV_PUBLIC_NETWORK_HOST_REQUIRED", "true");
+    std::env::set_var("TAURI_DEV_HOST", "true");
     use_network_address_for_dev_url(&tauri_config, &mut options.config, options.force_ip_prompt)?;
   }
 

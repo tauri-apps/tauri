@@ -7,7 +7,7 @@ import Unocss from 'unocss/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
 import { internalIpV4Sync } from 'internal-ip'
 
-const publicNetwork = process.env.TAURI_DEV_PUBLIC_NETWORK_HOST_REQUIRED
+const host = process.env.TAURI_DEV_HOST
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -27,10 +27,10 @@ export default defineConfig({
   clearScreen: false,
   // tauri expects a fixed port, fail if that port is not available
   server: {
-    host: publicNetwork ? '0.0.0.0' : false,
+    host: host ? '0.0.0.0' : false,
     port: 1420,
     strictPort: true,
-    hmr: publicNetwork
+    hmr: host
       ? {
           protocol: 'ws',
           host: internalIpV4Sync(),

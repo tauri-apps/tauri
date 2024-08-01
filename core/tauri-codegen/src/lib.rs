@@ -13,6 +13,9 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
+use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError, EmbeddedAssetsResult};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   borrow::Cow,
   fmt::{self, Write},
@@ -20,6 +23,7 @@ use std::{
 };
 pub use tauri_utils::config::{parse::ConfigError, Config};
 use tauri_utils::platform::Target;
+use tauri_utils::write_if_changed;
 
 mod context;
 pub mod embedded_assets;
@@ -111,4 +115,37 @@ fn checksum(bytes: &[u8]) -> Result<String, fmt::Error> {
     write!(hex, "{b:02x}")?;
   }
   Ok(hex)
+}
+
+pub struct Cached {
+  pub content: Vec<u8>,
+  checksum: String,
+}
+
+impl TryFrom<String> for Cached {
+  type Error = EmbeddedAssetsError;
+
+  fn try_from(value: String) -> Result<Self, Self::Error> {
+    Self::try_from(Vec::from(value))
+  }
+}
+
+impl TryFrom<Vec<u8>> for Cached {
+  type Error = EmbeddedAssetsError;
+
+  fn try_from(content: Vec<u8>) -> Result<Self, Self::Error> {
+    let checksum = checksum(content.as_ref()).map_err(EmbeddedAssetsError::Hex)?;
+    let path = ensure_out_dir()?.join(&checksum);
+
+    write_if_changed(&path, &content)
+      .map(|_| Self { content, checksum })
+      .map_err(|error| EmbeddedAssetsError::AssetWrite { path, error })
+  }
+}
+
+impl ToTokens for Cached {
+  fn to_tokens(&self, tokens: &mut TokenStream) {
+    let path = &self.checksum;
+    tokens.append_all(quote!(::std::concat!(::std::env!("OUT_DIR"), "/", #path)))
+  }
 }

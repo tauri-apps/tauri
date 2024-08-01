@@ -12,6 +12,11 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
+use crate::embedded_assets::{
+  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+};
+use crate::image::CachedIcon;
+use crate::Cached;
 use syn::Expr;
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::manifest::Manifest;
@@ -24,11 +29,6 @@ use tauri_utils::html::{
 use tauri_utils::platform::Target;
 use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
 use tauri_utils::tokens::{map_lit, str_lit};
-
-use crate::embedded_assets::{
-  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
-};
-use crate::image::CachedIcon;
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -329,12 +329,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     let plist_contents =
       String::from_utf8_lossy(&plist_contents.into_inner().unwrap()).into_owned();
 
-    if plist_contents != std::fs::read_to_string(&plist_file).unwrap_or_default() {
-      std::fs::write(&plist_file, &plist_contents).expect("failed to write Info.plist");
-    }
-
+    let plist = Cached::try_from(plist_contents)?;
     quote!({
-      tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
+      tauri::embed_plist::embed_info_plist!(#plist);
     })
   } else {
     quote!(())

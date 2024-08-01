@@ -46,7 +46,7 @@ pub struct Channel<TSend = InvokeBody> {
 #[cfg(feature = "specta")]
 const _: () = {
   #[derive(specta::Type)]
-  #[specta(remote = Channel, rename = "TAURI_CHANNEL")]
+  #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
   struct Channel<TSend>(std::marker::PhantomData<TSend>);
 };
 

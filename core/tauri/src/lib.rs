@@ -992,7 +992,7 @@ pub mod test;
 
 #[cfg(feature = "specta")]
 const _: () = {
-  use specta::{function::FunctionArg, DataType, TypeMap};
+  use specta::{datatype::DataType, function::FunctionArg, TypeMap};
 
   impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {

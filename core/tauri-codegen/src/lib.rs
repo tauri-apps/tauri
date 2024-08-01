@@ -13,9 +13,9 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
-pub use self::image::include_image_codegen;
 use std::{
   borrow::Cow,
+  fmt::{self, Write},
   path::{Path, PathBuf},
 };
 pub use tauri_utils::config::{parse::ConfigError, Config};
@@ -23,7 +23,7 @@ use tauri_utils::platform::Target;
 
 mod context;
 pub mod embedded_assets;
-mod image;
+pub mod image;
 #[doc(hidden)]
 pub mod vendor;
 
@@ -96,4 +96,19 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   std::env::set_current_dir(old_cwd).map_err(CodegenConfigError::CurrentDir)?;
 
   Ok((config, parent))
+}
+
+/// Create a blake3 checksum of the passed bytes.
+fn checksum(bytes: &[u8]) -> Result<String, fmt::Error> {
+  let mut hasher = vendor::blake3_reference::Hasher::default();
+  hasher.update(bytes);
+
+  let mut bytes = [0u8; 32];
+  hasher.finalize(&mut bytes);
+
+  let mut hex = String::with_capacity(2 * bytes.len());
+  for b in bytes {
+    write!(hex, "{b:02x}")?;
+  }
+  Ok(hex)
 }

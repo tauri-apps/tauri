@@ -3,140 +3,155 @@
 // SPDX-License-Identifier: MIT
 
 use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError, EmbeddedAssetsResult};
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
-use std::path::Path;
-use syn::{punctuated::Punctuated, Ident, PathArguments, PathSegment, Token};
+use proc_macro2::TokenStream;
+use quote::quote;
+use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf};
 
-pub fn include_image_codegen(
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let out_dir = ensure_out_dir()?;
+/// The format the Icon is consumed as.
+pub(crate) enum IconFormat {
+  /// The image, completely unmodified.
+  Raw,
 
-  let mut segments = Punctuated::new();
-  segments.push(PathSegment {
-    ident: Ident::new("tauri", Span::call_site()),
-    arguments: PathArguments::None,
-  });
-  let root = syn::Path {
-    leading_colon: Some(Token![::](Span::call_site())),
-    segments,
-  };
-
-  image_icon(&root.to_token_stream(), &out_dir, path, out_file_name)
+  /// RGBA raw data, meant to be consumed by [`tauri::image::Image`].
+  Image { width: u32, height: u32 },
 }
 
-pub(crate) fn image_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let extension = path.extension().unwrap_or_default();
-  if extension == "ico" {
-    ico_icon(root, out_dir, path, out_file_name)
-  } else if extension == "png" {
-    png_icon(root, out_dir, path, out_file_name)
-  } else {
-    Err(EmbeddedAssetsError::InvalidImageExtension {
-      extension: extension.into(),
-      path: path.to_path_buf(),
-    })
+pub struct CachedIcon {
+  /// Relative path from `$OUT_DIR` to the cached file.
+  path: PathBuf,
+
+  /// How the icon is meant to be consumed.
+  format: IconFormat,
+}
+
+impl TryFrom<&PathBuf> for CachedIcon {
+  type Error = EmbeddedAssetsError;
+
+  /// Read and cache the file in `$OUT_DIR`.
+  ///
+  /// This only supports the [`IconFormat::Image`] format.
+  fn try_from(path: &PathBuf) -> Result<Self, Self::Error> {
+    Self::try_from(path.as_path())
   }
 }
 
-pub(crate) fn raw_icon(
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let bytes =
-    std::fs::read(path).unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
+impl TryFrom<&Path> for CachedIcon {
+  type Error = EmbeddedAssetsError;
 
-  let out_path = out_dir.join(out_file_name);
-  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon = quote!(::std::option::Option::Some(
-    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)).to_vec()
-  ));
-  Ok(icon)
-}
-
-pub(crate) fn ico_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let file = std::fs::File::open(path)
-    .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
-  let icon_dir = ico::IconDir::read(file)
-    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
-  let entry = &icon_dir.entries()[0];
-  let rgba = entry
-    .decode()
-    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
-    .rgba_data()
-    .to_vec();
-  let width = entry.width();
-  let height = entry.height();
-
-  let out_path = out_dir.join(out_file_name);
-  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)), #width, #height));
-  Ok(icon)
-}
-
-pub(crate) fn png_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let file = std::fs::File::open(path)
-    .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
-  let decoder = png::Decoder::new(file);
-  let mut reader = decoder
-    .read_info()
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let (color_type, _) = reader.output_color_type();
-
-  if color_type != png::ColorType::Rgba {
-    panic!("icon {} is not RGBA", path.display());
-  }
-
-  let mut buffer: Vec<u8> = Vec::new();
-  while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row.data());
-  }
-  let width = reader.info().width;
-  let height = reader.info().height;
-
-  let out_path = out_dir.join(out_file_name);
-  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
-  if let Ok(curr) = std::fs::read(out_path) {
-    if curr == data {
-      return Ok(());
+  /// Read and cache the file in `$OUT_DIR`.
+  ///
+  /// This only supports the [`IconFormat::Image`] format.
+  fn try_from(path: &Path) -> Result<Self, Self::Error> {
+    match path.extension().map(OsStr::to_string_lossy).as_deref() {
+      Some("png") => Self::try_from_png(path),
+      Some("ico") => Self::try_from_ico(path),
+      unknown => Err(EmbeddedAssetsError::InvalidImageExtension {
+        extension: unknown.unwrap_or_default().into(),
+        path: path.to_path_buf(),
+      }),
     }
   }
+}
 
-  std::fs::write(out_path, data)
+impl CachedIcon {
+  fn open(path: &Path) -> Vec<u8> {
+    std::fs::read(path).unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e))
+  }
+
+  /// Cache the icon without any manipulation.
+  pub fn try_from_raw(path: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(path);
+    Self::cache(&buf).map(|path| Self {
+      path,
+      format: IconFormat::Raw,
+    })
+  }
+
+  /// Cache an ICO icon as RGBA data, see [`ImageFormat::Image`].
+  pub fn try_from_ico(path: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(path);
+
+    let icon_dir = ico::IconDir::read(Cursor::new(&buf))
+      .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
+
+    let entry = &icon_dir.entries()[0];
+    let rgba = entry
+      .decode()
+      .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
+      .rgba_data()
+      .to_vec();
+
+    Self::cache(&rgba).map(|path| Self {
+      path,
+      format: IconFormat::Image {
+        width: entry.width(),
+        height: entry.height(),
+      },
+    })
+  }
+
+  /// Cache a PNG icon as RGBA data, see [`ImageFormat::Image`].
+  pub fn try_from_png(path: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(path);
+    let decoder = png::Decoder::new(Cursor::new(&buf));
+    let mut reader = decoder
+      .read_info()
+      .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
+
+    if reader.output_color_type().0 != png::ColorType::Rgba {
+      panic!("icon {} is not RGBA", path.display());
+    }
+
+    let mut rgba = Vec::with_capacity(reader.output_buffer_size());
+    while let Ok(Some(row)) = reader.next_row() {
+      rgba.extend(row.data());
+    }
+
+    Self::cache(&rgba).map(|path| Self {
+      path,
+      format: IconFormat::Image {
+        width: reader.info().width,
+        height: reader.info().height,
+      },
+    })
+  }
+
+  /// Cache the data to `$OUT_DIR`, only if it does not already exist.
+  ///
+  /// Due to using a checksum as the filename, an existing file should be the exact same content
+  /// as the data being checked.
+  fn cache(buf: &[u8]) -> EmbeddedAssetsResult<PathBuf> {
+    let hash = crate::checksum(buf).map_err(EmbeddedAssetsError::Hex)?;
+    let filename = PathBuf::from(dbg!(hash));
+    let path = ensure_out_dir()?.join(&filename);
+    if let Ok(existing) = std::fs::read(&path) {
+      if existing == buf {
+        return Ok(filename);
+      }
+    }
+
+    dbg!(
+      std::fs::write(&path, buf).map_err(|error| EmbeddedAssetsError::AssetWrite {
+        path: path.to_owned(),
+        error,
+      })?
+    );
+
+    Ok(filename)
+  }
+
+  /// Generate the code to read the image from `$OUT_DIR`.
+  pub fn codegen(&self, root: &TokenStream) -> TokenStream {
+    let path = self.path.to_string_lossy();
+    let raw = quote! {
+      ::std::include_bytes!(::std::concat!(::std::env!("OUT_DIR"), "/", #path))
+    };
+
+    match self.format {
+      IconFormat::Raw => raw,
+      IconFormat::Image { width, height } => quote! {
+        #root::image::Image::new(#raw, #width, #height)
+      },
+    }
+  }
 }

@@ -17,6 +17,7 @@ use crate::context::ContextItems;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse2, parse_macro_input, LitStr};
+use tauri_codegen::image::CachedIcon;
 
 mod command;
 mod menu;
@@ -203,13 +204,9 @@ pub fn include_image(tokens: TokenStream) -> TokenStream {
     );
     return quote!(compile_error!(#error_string)).into();
   }
-  match tauri_codegen::include_image_codegen(
-    &resolved_path,
-    resolved_path.file_name().unwrap().to_str().unwrap(),
-  )
-  .map_err(|error| error.to_string())
-  {
-    Ok(output) => output,
+
+  match CachedIcon::try_from(&resolved_path).map_err(|error| error.to_string()) {
+    Ok(output) => output.codegen(&quote!(::tauri)),
     Err(error) => quote!(compile_error!(#error)),
   }
   .into()

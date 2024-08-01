@@ -122,7 +122,7 @@ impl CachedIcon {
   /// as the data being checked.
   fn cache(buf: &[u8]) -> EmbeddedAssetsResult<PathBuf> {
     let hash = crate::checksum(buf).map_err(EmbeddedAssetsError::Hex)?;
-    let filename = PathBuf::from(dbg!(hash));
+    let filename = PathBuf::from(hash);
     let path = ensure_out_dir()?.join(&filename);
     if let Ok(existing) = std::fs::read(&path) {
       if existing == buf {
@@ -130,12 +130,10 @@ impl CachedIcon {
       }
     }
 
-    dbg!(
-      std::fs::write(&path, buf).map_err(|error| EmbeddedAssetsError::AssetWrite {
-        path: path.to_owned(),
-        error,
-      })?
-    );
+    std::fs::write(&path, buf).map_err(|error| EmbeddedAssetsError::AssetWrite {
+      path: path.to_owned(),
+      error,
+    })?;
 
     Ok(filename)
   }

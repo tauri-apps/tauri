@@ -2,10 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError, EmbeddedAssetsResult};
+use crate::{
+  embedded_assets::{EmbeddedAssetsError, EmbeddedAssetsResult},
+  Cached,
+};
 use proc_macro2::TokenStream;
-use quote::quote;
-use std::{ffi::OsStr, io::Cursor, path::Path, path::PathBuf};
+use quote::{quote, ToTokens, TokenStreamExt};
+use std::{ffi::OsStr, io::Cursor, path::Path};
 
 /// The format the Icon is consumed as.
 pub(crate) enum IconFormat {
@@ -17,72 +20,50 @@ pub(crate) enum IconFormat {
 }
 
 pub struct CachedIcon {
-  /// Relative path from `$OUT_DIR` to the cached file.
-  path: PathBuf,
-
-  /// How the icon is meant to be consumed.
+  cache: Cached,
   format: IconFormat,
-}
-
-impl TryFrom<&PathBuf> for CachedIcon {
-  type Error = EmbeddedAssetsError;
-
-  /// Read and cache the file in `$OUT_DIR`.
-  ///
-  /// This only supports the [`IconFormat::Image`] format.
-  fn try_from(path: &PathBuf) -> Result<Self, Self::Error> {
-    Self::try_from(path.as_path())
-  }
-}
-
-impl TryFrom<&Path> for CachedIcon {
-  type Error = EmbeddedAssetsError;
-
-  /// Read and cache the file in `$OUT_DIR`.
-  ///
-  /// This only supports the [`IconFormat::Image`] format.
-  fn try_from(path: &Path) -> Result<Self, Self::Error> {
-    match path.extension().map(OsStr::to_string_lossy).as_deref() {
-      Some("png") => Self::try_from_png(path),
-      Some("ico") => Self::try_from_ico(path),
-      unknown => Err(EmbeddedAssetsError::InvalidImageExtension {
-        extension: unknown.unwrap_or_default().into(),
-        path: path.to_path_buf(),
-      }),
-    }
-  }
+  root: TokenStream,
 }
 
 impl CachedIcon {
-  fn open(path: &Path) -> Vec<u8> {
-    std::fs::read(path).unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e))
+  pub fn new(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    match icon.extension().map(OsStr::to_string_lossy).as_deref() {
+      Some("png") => Self::new_png(root, icon),
+      Some("ico") => Self::new_ico(root, icon),
+      unknown => Err(EmbeddedAssetsError::InvalidImageExtension {
+        extension: unknown.unwrap_or_default().into(),
+        path: icon.to_path_buf(),
+      }),
+    }
   }
 
   /// Cache the icon without any manipulation.
-  pub fn try_from_raw(path: &Path) -> EmbeddedAssetsResult<Self> {
-    let buf = Self::open(path);
-    Self::cache(&buf).map(|path| Self {
-      path,
+  pub fn new_raw(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(icon);
+    Cached::try_from(buf).map(|cache| Self {
+      cache,
+      root: root.clone(),
       format: IconFormat::Raw,
     })
   }
 
   /// Cache an ICO icon as RGBA data, see [`ImageFormat::Image`].
-  pub fn try_from_ico(path: &Path) -> EmbeddedAssetsResult<Self> {
-    let buf = Self::open(path);
+  pub fn new_ico(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(icon);
 
     let icon_dir = ico::IconDir::read(Cursor::new(&buf))
-      .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
+      .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", icon.display(), e));
 
     let entry = &icon_dir.entries()[0];
     let rgba = entry
       .decode()
-      .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
+      .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", icon.display(), e))
       .rgba_data()
       .to_vec();
 
-    Self::cache(&rgba).map(|path| Self {
-      path,
+    Cached::try_from(rgba).map(|cache| Self {
+      cache,
+      root: root.clone(),
       format: IconFormat::Image {
         width: entry.width(),
         height: entry.height(),
@@ -91,15 +72,15 @@ impl CachedIcon {
   }
 
   /// Cache a PNG icon as RGBA data, see [`ImageFormat::Image`].
-  pub fn try_from_png(path: &Path) -> EmbeddedAssetsResult<Self> {
-    let buf = Self::open(path);
+  pub fn new_png(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(icon);
     let decoder = png::Decoder::new(Cursor::new(&buf));
     let mut reader = decoder
       .read_info()
-      .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
+      .unwrap_or_else(|e| panic!("failed to read icon {}: {}", icon.display(), e));
 
     if reader.output_color_type().0 != png::ColorType::Rgba {
-      panic!("icon {} is not RGBA", path.display());
+      panic!("icon {} is not RGBA", icon.display());
     }
 
     let mut rgba = Vec::with_capacity(reader.output_buffer_size());
@@ -107,8 +88,9 @@ impl CachedIcon {
       rgba.extend(row.data());
     }
 
-    Self::cache(&rgba).map(|path| Self {
-      path,
+    Cached::try_from(rgba).map(|cache| Self {
+      cache,
+      root: root.clone(),
       format: IconFormat::Image {
         width: reader.info().width,
         height: reader.info().height,
@@ -116,40 +98,21 @@ impl CachedIcon {
     })
   }
 
-  /// Cache the data to `$OUT_DIR`, only if it does not already exist.
-  ///
-  /// Due to using a checksum as the filename, an existing file should be the exact same content
-  /// as the data being checked.
-  fn cache(buf: &[u8]) -> EmbeddedAssetsResult<PathBuf> {
-    let hash = crate::checksum(buf).map_err(EmbeddedAssetsError::Hex)?;
-    let filename = PathBuf::from(hash);
-    let path = ensure_out_dir()?.join(&filename);
-    if let Ok(existing) = std::fs::read(&path) {
-      if existing == buf {
-        return Ok(filename);
-      }
-    }
-
-    std::fs::write(&path, buf).map_err(|error| EmbeddedAssetsError::AssetWrite {
-      path: path.to_owned(),
-      error,
-    })?;
-
-    Ok(filename)
+  fn open(path: &Path) -> Vec<u8> {
+    std::fs::read(path).unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e))
   }
+}
 
-  /// Generate the code to read the image from `$OUT_DIR`.
-  pub fn codegen(&self, root: &TokenStream) -> TokenStream {
-    let path = self.path.to_string_lossy();
-    let raw = quote! {
-      ::std::include_bytes!(::std::concat!(::std::env!("OUT_DIR"), "/", #path))
-    };
-
-    match self.format {
+impl ToTokens for CachedIcon {
+  fn to_tokens(&self, tokens: &mut TokenStream) {
+    let root = &self.root;
+    let cache = &self.cache;
+    let raw = quote!(::std::include_bytes!(#cache));
+    tokens.append_all(match self.format {
       IconFormat::Raw => raw,
-      IconFormat::Image { width, height } => quote! {
-        #root::image::Image::new(#raw, #width, #height)
-      },
-    }
+      IconFormat::Image { width, height } => {
+        quote!(#root::image::Image::new(#raw, #width, #height))
+      }
+    })
   }
 }

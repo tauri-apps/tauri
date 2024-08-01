@@ -13,7 +13,7 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
-use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError, EmbeddedAssetsResult};
+use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError};
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
@@ -117,8 +117,11 @@ fn checksum(bytes: &[u8]) -> Result<String, fmt::Error> {
   Ok(hex)
 }
 
-pub struct Cached {
-  pub content: Vec<u8>,
+/// Cache the data to `$OUT_DIR`, only if it does not already exist.
+///
+/// Due to using a checksum as the filename, an existing file should be the exact same content
+/// as the data being checked.
+struct Cached {
   checksum: String,
 }
 
@@ -138,7 +141,7 @@ impl TryFrom<Vec<u8>> for Cached {
     let path = ensure_out_dir()?.join(&checksum);
 
     write_if_changed(&path, &content)
-      .map(|_| Self { content, checksum })
+      .map(|_| Self { checksum })
       .map_err(|error| EmbeddedAssetsError::AssetWrite { path, error })
   }
 }

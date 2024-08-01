@@ -12,11 +12,13 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 
-use crate::embedded_assets::{
-  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+use crate::{
+  embedded_assets::{
+    ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+  },
+  image::CachedIcon,
+  Cached,
 };
-use crate::image::CachedIcon;
-use crate::Cached;
 use syn::Expr;
 use tauri_utils::acl::capability::{Capability, CapabilityFile};
 use tauri_utils::acl::manifest::Manifest;
@@ -221,8 +223,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        let cached = CachedIcon::try_from(&icon_path)?.codegen(&root);
-        quote!(::std::option::Option::Some(#cached))
+        let icon = CachedIcon::new(&root, &icon_path)?;
+        quote!(::std::option::Option::Some(#icon))
       } else {
         let icon_path = find_icon(
           &config,
@@ -230,8 +232,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        let cached = CachedIcon::try_from(&icon_path)?.codegen(&root);
-        quote!(::std::option::Option::Some(#cached))
+        let icon = CachedIcon::new(&root, &icon_path)?;
+        quote!(::std::option::Option::Some(#icon))
       }
     } else {
       // handle default window icons for Unix targets
@@ -241,8 +243,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      let cached = CachedIcon::try_from(&icon_path)?.codegen(&root);
-      quote!(::std::option::Option::Some(#cached))
+      let icon = CachedIcon::new(&root, &icon_path)?;
+      quote!(::std::option::Option::Some(#icon))
     }
   };
 
@@ -261,8 +263,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.png",
       );
     }
-    let cached = CachedIcon::try_from_raw(&icon_path)?.codegen(&root);
-    quote!(::std::option::Option::Some(Vec::from(#cached)))
+
+    let icon = CachedIcon::new_raw(&root, &icon_path)?;
+    quote!(::std::option::Option::Some(Vec::from(#icon)))
   } else {
     quote!(::std::option::Option::None)
   };
@@ -291,8 +294,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      let cached = CachedIcon::try_from(&tray_icon_icon_path)?.codegen(&root);
-      quote!(context.set_tray_icon(::std::option::Option::Some(#cached));)
+      let icon = CachedIcon::new(&root, &tray_icon_icon_path)?;
+      quote!(context.set_tray_icon(::std::option::Option::Some(#icon));)
     } else {
       quote!()
     }
@@ -319,8 +322,6 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         plist.insert("CFBundleVersion".into(), version.clone().into());
       }
     }
-
-    let plist_file = out_dir.join("Info.plist");
 
     let mut plist_contents = std::io::BufWriter::new(Vec::new());
     info_plist

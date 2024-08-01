@@ -28,7 +28,7 @@ use tauri_utils::tokens::{map_lit, str_lit};
 use crate::embedded_assets::{
   ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
 };
-use crate::image::{ico_icon, image_icon, png_icon, raw_icon};
+use crate::image::CachedIcon;
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -221,8 +221,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
-          .map(|i| quote!(::std::option::Option::Some(#i)))?
+        let cached = CachedIcon::try_from(&icon_path)?.codegen(&root);
+        quote!(::std::option::Option::Some(#cached))
       } else {
         let icon_path = find_icon(
           &config,
@@ -230,8 +230,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
-          .map(|i| quote!(::std::option::Option::Some(#i)))?
+        let cached = CachedIcon::try_from(&icon_path)?.codegen(&root);
+        quote!(::std::option::Option::Some(#cached))
       }
     } else {
       // handle default window icons for Unix targets
@@ -241,8 +241,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
-        .map(|i| quote!(::std::option::Option::Some(#i)))?
+      let cached = CachedIcon::try_from(&icon_path)?.codegen(&root);
+      quote!(::std::option::Option::Some(#cached))
     }
   };
 
@@ -261,7 +261,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.png",
       );
     }
-    raw_icon(&out_dir, &icon_path, "dev-macos-icon.png")?
+    let cached = CachedIcon::try_from_raw(&icon_path)?.codegen(&root);
+    quote!(::std::option::Option::Some(Vec::from(#cached)))
   } else {
     quote!(::std::option::Option::None)
   };
@@ -290,8 +291,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      image_icon(&root, &out_dir, &tray_icon_icon_path, "tray-icon")
-        .map(|i| quote!(context.set_tray_icon(Some(#i));))?
+      let cached = CachedIcon::try_from(&tray_icon_icon_path)?.codegen(&root);
+      quote!(context.set_tray_icon(::std::option::Option::Some(#cached));)
     } else {
       quote!()
     }

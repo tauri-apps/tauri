@@ -12,7 +12,6 @@ use crate::{
     ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
   },
   image::CachedIcon,
-  Cached,
 };
 use base64::Engine;
 use proc_macro2::TokenStream;
@@ -329,7 +328,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     let plist_contents =
       String::from_utf8_lossy(&plist_contents.into_inner().unwrap()).into_owned();
 
-    let plist = Cached::try_from(plist_contents)?;
+    let plist = crate::Cached::try_from(plist_contents)?;
     quote!({
       tauri::embed_plist::embed_info_plist!(#plist);
     })

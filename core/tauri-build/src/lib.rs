@@ -419,16 +419,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let mut manifest =
     Manifest::<cargo_toml::Value>::from_slice_with_metadata(&std::fs::read("Cargo.toml")?)?;
 
-  if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
-    Manifest::complete_from_path_and_workspace(
-      &mut manifest,
-      Path::new("Cargo.toml"),
-      Some((&ws_manifest, ws_path.as_path())),
-    )?;
-  } else {
-    Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
-  }
-
   allowlist::check(&config, &mut manifest)?;
 
   let target_triple = std::env::var("TARGET").unwrap();

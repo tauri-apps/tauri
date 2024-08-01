@@ -5,9 +5,11 @@
 use std::{error::Error, path::PathBuf};
 
 use schemars::schema_for;
-use tauri_utils::acl::capability::Capability;
-use tauri_utils::acl::{Permission, Scopes};
-use tauri_utils::write_if_changed;
+use tauri_utils::{
+  acl::capability::Capability,
+  acl::{Permission, Scopes},
+  write_if_changed,
+};
 
 macro_rules! schema {
   ($name:literal, $path:ty) => {

@@ -7,11 +7,6 @@ use std::convert::identity;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
-use base64::Engine;
-use proc_macro2::TokenStream;
-use quote::quote;
-use sha2::{Digest, Sha256};
-
 use crate::{
   embedded_assets::{
     ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
@@ -19,18 +14,22 @@ use crate::{
   image::CachedIcon,
   Cached,
 };
+use base64::Engine;
+use proc_macro2::TokenStream;
+use quote::quote;
+use sha2::{Digest, Sha256};
 use syn::Expr;
-use tauri_utils::acl::capability::{Capability, CapabilityFile};
-use tauri_utils::acl::manifest::Manifest;
-use tauri_utils::acl::resolved::Resolved;
-use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{CapabilityEntry, Config, FrontendDist, PatternKind};
-use tauri_utils::html::{
-  inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef,
+use tauri_utils::{
+  acl::capability::{Capability, CapabilityFile},
+  acl::manifest::Manifest,
+  acl::resolved::Resolved,
+  assets::AssetKey,
+  config::{CapabilityEntry, Config, FrontendDist, PatternKind},
+  html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
+  platform::Target,
+  plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH,
+  tokens::{map_lit, str_lit},
 };
-use tauri_utils::platform::Target;
-use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
-use tauri_utils::tokens::{map_lit, str_lit};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";

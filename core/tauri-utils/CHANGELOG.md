@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.0.0-beta.20]
+
+### New Features
+
+- [`a5bfbaa62`](https://www.github.com/tauri-apps/tauri/commit/a5bfbaa62b8cd0aacbb33f730d4e30b43c461fe1) ([#10393](https://www.github.com/tauri-apps/tauri/pull/10393) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > iOS > frameworks` configuration to define a list of frameworks that are linked to the Xcode project when it is generated.
+
+### Enhancements
+
+- [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397) by [@vlabo](https://www.github.com/tauri-apps/tauri/../../vlabo)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.
+
+### Bug Fixes
+
+- [`498f405ca`](https://www.github.com/tauri-apps/tauri/commit/498f405ca80440447823dd3c9cd53c0f79d655b5) ([#10404](https://www.github.com/tauri-apps/tauri/pull/10404) by [@ernstvanderlinden](https://www.github.com/tauri-apps/tauri/../../ernstvanderlinden)) Fixed an issue where configuration parsing errors always displayed 'tauri.conf.json' as the file path, even when using 'Tauri.toml' or 'tauri.conf.json5'.
+
+  The error messages now correctly shows the actual config file being used.
+
+### Security fixes
+
+- [`426d14bb4`](https://www.github.com/tauri-apps/tauri/commit/426d14bb4164290d93b5a0f61e925cb2dfc4aafa) ([#10423](https://www.github.com/tauri-apps/tauri/pull/10423) by [@chippers](https://www.github.com/tauri-apps/tauri/../../chippers)) Explicitly check that the main frame's origin is the sender of Isolation Payloads
+
 ## \[2.0.0-beta.19]
 
 ### New Features

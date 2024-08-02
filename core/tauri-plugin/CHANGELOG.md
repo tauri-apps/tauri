@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-beta.20]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.20`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+
 ## \[2.0.0-beta.19]
 
 ### Dependencies

@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-beta.20]
+
+### Enhancements
+
+- [`1e0793b68`](https://www.github.com/tauri-apps/tauri/commit/1e0793b6821799829e380c88066b3415cc9006df) ([#10357](https://www.github.com/tauri-apps/tauri/pull/10357) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Enhance `AssetResolver::get` in development mode by reading distDir directly as a fallback to the embedded assets.
+
+### Bug Fixes
+
+- [`24445d71d`](https://www.github.com/tauri-apps/tauri/commit/24445d71de92d526d0ccaecb54f13003ddc6f6b4) ([#10432](https://www.github.com/tauri-apps/tauri/pull/10432) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes asset resolving when not using the `compression` feature.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.20`
+
 ## \[2.0.0-beta.19]
 
 ### Bug Fixes

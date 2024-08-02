@@ -2,6 +2,10 @@
 
 ## \[2.0.0-rc.0]
 
+### New Features
+
+- [`a5bfbaa62`](https://www.github.com/tauri-apps/tauri/commit/a5bfbaa62b8cd0aacbb33f730d4e30b43c461fe1)([#9962](https://www.github.com/tauri-apps/tauri/pull/9962)) Added `bundle > iOS > frameworks` configuration to define a list of frameworks that are linked to the Xcode project when it is generated.
+
 ### Enhancements
 
 - [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.

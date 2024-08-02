@@ -2,6 +2,11 @@
 
 ## \[2.0.0-rc.0]
 
+### Bug Fixes
+
+- [`6755af230`](https://www.github.com/tauri-apps/tauri/commit/6755af23021a254cff98c07aa7711545771097a6)([#10435](https://www.github.com/tauri-apps/tauri/pull/10435)) Fix Specta remote implementation target for `Channel`.
+- [`24445d71d`](https://www.github.com/tauri-apps/tauri/commit/24445d71de92d526d0ccaecb54f13003ddc6f6b4)([#10432](https://www.github.com/tauri-apps/tauri/pull/10432)) Fixes asset resolving when not using the `compression` feature.
+
 ### Enhancements
 
 - [`1e0793b68`](https://www.github.com/tauri-apps/tauri/commit/1e0793b6821799829e380c88066b3415cc9006df) ([#10357](https://www.github.com/tauri-apps/tauri/pull/10357)) Enhance `AssetResolver::get` in development mode by reading distDir directly as a fallback to the embedded assets.

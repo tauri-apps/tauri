@@ -1889,6 +1889,10 @@ pub struct TrayIconConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
+  /// A list of strings indicating any iOS frameworks that need to be bundled with the application.
+  ///
+  /// Note that you need to recreate the iOS project for the changes to be applied.
+  pub frameworks: Option<Vec<String>>,
   /// The development team. This value is required for iOS development because code signing is enforced.
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]

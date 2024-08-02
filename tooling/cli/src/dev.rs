@@ -21,7 +21,7 @@ use tauri_utils::platform::Target;
 
 use std::{
   env::set_current_dir,
-  net::Ipv4Addr,
+  net::{IpAddr, Ipv4Addr},
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -82,6 +82,9 @@ pub struct Options {
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,
+
+  #[clap(skip)]
+  pub host: Option<IpAddr>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -249,8 +252,11 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
       if path.exists() {
         let path = path.canonicalize()?;
 
-        let server_url =
-          builtin_dev_server::start(path, Ipv4Addr::new(127, 0, 0, 1).into(), options.port)?;
+        let ip = options
+          .host
+          .unwrap_or_else(|| Ipv4Addr::new(127, 0, 0, 1).into());
+
+        let server_url = builtin_dev_server::start(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 

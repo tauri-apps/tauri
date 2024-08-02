@@ -86,6 +86,7 @@ impl From<Options> for DevOptions {
       no_dev_server: options.no_dev_server,
       port: options.port,
       release_mode: options.release_mode,
+      host: None,
     }
   }
 }

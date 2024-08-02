@@ -11,8 +11,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "../../tooling/api/dist",
-    "@zerodevx/svelte-json-view": "1.0.9",
-    "internal-ip": "^7.0.0"
+    "@zerodevx/svelte-json-view": "1.0.9"
   },
   "devDependencies": {
     "@iconify-json/codicon": "^1.1.49",

@@ -1,6 +1,5 @@
 import { defineConfig } from "vite";
 import { svelte } from "@sveltejs/vite-plugin-svelte";
-import { internalIpV4Sync } from 'internal-ip';
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -13,12 +12,12 @@ export default defineConfig({
   clearScreen: false,
   // tauri expects a fixed port, fail if that port is not available
   server: {
-    host: host ? "0.0.0.0" : false,
+    host: host || false,
     port: 1420,
     strictPort: true,
     hmr: host ? {
       protocol: 'ws',
-      host: internalIpV4Sync(),
+      host,
       port: 1421
     } : undefined,
   },

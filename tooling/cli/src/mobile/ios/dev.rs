@@ -32,7 +32,7 @@ use cargo_mobile2::{
 
 use std::{
   env::set_current_dir,
-  net::{IpAddr, Ipv4Addr},
+  net::{IpAddr, Ipv4Addr, SocketAddr},
   sync::OnceLock,
 };
 
@@ -76,6 +76,7 @@ pub struct Options {
   #[clap(long)]
   pub force_ip_prompt: bool,
   /// Use the public network address for the development server.
+  /// If an actual address it provided, it is used instead of prompting to pick one.
   ///
   /// This option is particularly useful along the `--open` flag when you intend on running on a physical device.
   ///
@@ -87,7 +88,7 @@ pub struct Options {
   /// environment variable so you can check this on your framework's configuration to expose the development server
   /// on the public network address.
   #[clap(long)]
-  pub host: bool,
+  pub host: Option<Option<IpAddr>>,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -110,6 +111,7 @@ impl From<Options> for DevOptions {
       no_dev_server: options.no_dev_server,
       no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
+      host: None,
     }
   }
 }
@@ -204,7 +206,8 @@ fn local_ip_address(force: bool) -> &'static IpAddr {
         .map(|(_, ipaddr)| ipaddr)
         .filter(|ipaddr| match ipaddr {
           IpAddr::V4(i) => i != &Ipv4Addr::LOCALHOST,
-          _ => false,
+          IpAddr::V6(i) => i.to_string().ends_with("::2"),
+
         })
         .collect();
       match addresses.len() {
@@ -239,8 +242,8 @@ fn local_ip_address(force: bool) -> &'static IpAddr {
 
 fn use_network_address_for_dev_url(
   config: &ConfigHandle,
-  config_extension: &mut Option<ConfigValue>,
-  force_ip_prompt: bool,
+  options: &mut Options,
+  dev_options: &mut DevOptions,
 ) -> crate::Result<()> {
   let mut dev_url = config
     .lock()
@@ -251,7 +254,7 @@ fn use_network_address_for_dev_url(
     .dev_url
     .clone();
 
-  if let Some(url) = &mut dev_url {
+  let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
       Some(url::Host::Ipv4(i)) => {
@@ -261,15 +264,23 @@ fn use_network_address_for_dev_url(
     };
 
     if localhost {
-      let ip = local_ip_address(force_ip_prompt).to_string();
-      println!(
-        "Replacing devUrl host with {ip}. {}. {}.",
-        "If your frontend is not listening on that address, try configuring your development server to use 0.0.0.0 as host",
-        "When this is required, Tauri sets the TAURI_DEV_HOST environment variable"
+      let ip = options
+        .host
+        .unwrap_or_default()
+        .unwrap_or_else(|| *local_ip_address(options.force_ip_prompt));
+      log::info!(
+        "Replacing devUrl host with {ip}. {}.",
+        "If your frontend is not listening on that address, try configuring your development server to use the `TAURI_DEV_HOST` environment variable or 0.0.0.0 as host"
       );
-      url.set_host(Some(&ip)).unwrap();
 
-      if let Some(c) = config_extension {
+      *url = url::Url::parse(&format!(
+        "{}://{}{}",
+        url.scheme(),
+        SocketAddr::new(ip, url.port_or_known_default().unwrap()),
+        url.path()
+      ))?;
+
+      if let Some(c) = &mut options.config {
         if let Some(build) = c
           .0
           .as_object_mut()
@@ -282,11 +293,34 @@ fn use_network_address_for_dev_url(
         let mut build = serde_json::Map::new();
         build.insert("devUrl".into(), url.to_string().into());
 
-        config_extension.replace(crate::ConfigValue(serde_json::json!({
-          "build": build
-        })));
+        options
+          .config
+          .replace(crate::ConfigValue(serde_json::json!({
+            "build": build
+          })));
       }
-      reload_config(config_extension.as_ref().map(|c| &c.0))?;
+      reload_config(options.config.as_ref().map(|c| &c.0))?;
+
+      Some(ip)
+    } else {
+      None
+    }
+  } else if !dev_options.no_dev_server {
+    let ip = options
+      .host
+      .unwrap_or_default()
+      .unwrap_or_else(|| *local_ip_address(options.force_ip_prompt));
+    dev_options.host.replace(ip.clone());
+    Some(ip)
+  } else {
+    None
+  };
+
+  if let Some(ip) = ip {
+    std::env::set_var("TAURI_DEV_HOST", ip.to_string());
+    if ip.is_ipv6() {
+      // in this case we can't ping the server for some reason
+      dev_options.no_dev_server_wait = true;
     }
   }
 
@@ -306,14 +340,13 @@ fn run_dev(
   noise_level: NoiseLevel,
 ) -> Result<()> {
   // when running on an actual device we must use the network IP
-  if options.host
+  if options.host.is_some()
     || device
       .as_ref()
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
   {
-    std::env::set_var("TAURI_DEV_HOST", "true");
-    use_network_address_for_dev_url(&tauri_config, &mut options.config, options.force_ip_prompt)?;
+    use_network_address_for_dev_url(&tauri_config, &mut options, &mut dev_options)?;
   }
 
   crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;

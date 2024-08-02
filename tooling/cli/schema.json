@@ -2896,6 +2896,16 @@
       "description": "General configuration for the iOS target.",
       "type": "object",
       "properties": {
+        "frameworks": {
+          "description": "A list of strings indicating any iOS frameworks that need to be bundled with the application.\n\n Note that you need to recreate the iOS project for the changes to be applied.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "developmentTeam": {
           "description": "The development team. This value is required for iOS development because code signing is enforced.\n The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
           "type": [

@@ -2,141 +2,117 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError, EmbeddedAssetsResult};
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
-use std::path::Path;
-use syn::{punctuated::Punctuated, Ident, PathArguments, PathSegment, Token};
+use crate::{
+  embedded_assets::{EmbeddedAssetsError, EmbeddedAssetsResult},
+  Cached,
+};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
+use std::{ffi::OsStr, io::Cursor, path::Path};
 
-pub fn include_image_codegen(
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let out_dir = ensure_out_dir()?;
+/// The format the Icon is consumed as.
+pub(crate) enum IconFormat {
+  /// The image, completely unmodified.
+  Raw,
 
-  let mut segments = Punctuated::new();
-  segments.push(PathSegment {
-    ident: Ident::new("tauri", Span::call_site()),
-    arguments: PathArguments::None,
-  });
-  let root = syn::Path {
-    leading_colon: Some(Token![::](Span::call_site())),
-    segments,
-  };
-
-  image_icon(&root.to_token_stream(), &out_dir, path, out_file_name)
+  /// RGBA raw data, meant to be consumed by [`tauri::image::Image`].
+  Image { width: u32, height: u32 },
 }
 
-pub(crate) fn image_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let extension = path.extension().unwrap_or_default();
-  if extension == "ico" {
-    ico_icon(root, out_dir, path, out_file_name)
-  } else if extension == "png" {
-    png_icon(root, out_dir, path, out_file_name)
-  } else {
-    Err(EmbeddedAssetsError::InvalidImageExtension {
-      extension: extension.into(),
-      path: path.to_path_buf(),
-    })
-  }
+pub struct CachedIcon {
+  cache: Cached,
+  format: IconFormat,
+  root: TokenStream,
 }
 
-pub(crate) fn raw_icon(
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let bytes =
-    std::fs::read(path).unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let out_path = out_dir.join(out_file_name);
-  write_if_changed(&out_path, &bytes).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon = quote!(::std::option::Option::Some(
-    include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)).to_vec()
-  ));
-  Ok(icon)
-}
-
-pub(crate) fn ico_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let file = std::fs::File::open(path)
-    .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
-  let icon_dir = ico::IconDir::read(file)
-    .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", path.display(), e));
-  let entry = &icon_dir.entries()[0];
-  let rgba = entry
-    .decode()
-    .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", path.display(), e))
-    .rgba_data()
-    .to_vec();
-  let width = entry.width();
-  let height = entry.height();
-
-  let out_path = out_dir.join(out_file_name);
-  write_if_changed(&out_path, &rgba).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)), #width, #height));
-  Ok(icon)
-}
-
-pub(crate) fn png_icon(
-  root: &TokenStream,
-  out_dir: &Path,
-  path: &Path,
-  out_file_name: &str,
-) -> EmbeddedAssetsResult<TokenStream> {
-  let file = std::fs::File::open(path)
-    .unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e));
-  let decoder = png::Decoder::new(file);
-  let mut reader = decoder
-    .read_info()
-    .unwrap_or_else(|e| panic!("failed to read icon {}: {}", path.display(), e));
-
-  let (color_type, _) = reader.output_color_type();
-
-  if color_type != png::ColorType::Rgba {
-    panic!("icon {} is not RGBA", path.display());
-  }
-
-  let mut buffer: Vec<u8> = Vec::new();
-  while let Ok(Some(row)) = reader.next_row() {
-    buffer.extend(row.data());
-  }
-  let width = reader.info().width;
-  let height = reader.info().height;
-
-  let out_path = out_dir.join(out_file_name);
-  write_if_changed(&out_path, &buffer).map_err(|error| EmbeddedAssetsError::AssetWrite {
-    path: path.to_owned(),
-    error,
-  })?;
-
-  let icon = quote!(#root::image::Image::new(include_bytes!(concat!(std::env!("OUT_DIR"), "/", #out_file_name)), #width, #height));
-  Ok(icon)
-}
-
-fn write_if_changed(out_path: &Path, data: &[u8]) -> std::io::Result<()> {
-  if let Ok(curr) = std::fs::read(out_path) {
-    if curr == data {
-      return Ok(());
+impl CachedIcon {
+  pub fn new(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    match icon.extension().map(OsStr::to_string_lossy).as_deref() {
+      Some("png") => Self::new_png(root, icon),
+      Some("ico") => Self::new_ico(root, icon),
+      unknown => Err(EmbeddedAssetsError::InvalidImageExtension {
+        extension: unknown.unwrap_or_default().into(),
+        path: icon.to_path_buf(),
+      }),
     }
   }
 
-  std::fs::write(out_path, data)
+  /// Cache the icon without any manipulation.
+  pub fn new_raw(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(icon);
+    Cached::try_from(buf).map(|cache| Self {
+      cache,
+      root: root.clone(),
+      format: IconFormat::Raw,
+    })
+  }
+
+  /// Cache an ICO icon as RGBA data, see [`ImageFormat::Image`].
+  pub fn new_ico(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(icon);
+
+    let icon_dir = ico::IconDir::read(Cursor::new(&buf))
+      .unwrap_or_else(|e| panic!("failed to parse icon {}: {}", icon.display(), e));
+
+    let entry = &icon_dir.entries()[0];
+    let rgba = entry
+      .decode()
+      .unwrap_or_else(|e| panic!("failed to decode icon {}: {}", icon.display(), e))
+      .rgba_data()
+      .to_vec();
+
+    Cached::try_from(rgba).map(|cache| Self {
+      cache,
+      root: root.clone(),
+      format: IconFormat::Image {
+        width: entry.width(),
+        height: entry.height(),
+      },
+    })
+  }
+
+  /// Cache a PNG icon as RGBA data, see [`ImageFormat::Image`].
+  pub fn new_png(root: &TokenStream, icon: &Path) -> EmbeddedAssetsResult<Self> {
+    let buf = Self::open(icon);
+    let decoder = png::Decoder::new(Cursor::new(&buf));
+    let mut reader = decoder
+      .read_info()
+      .unwrap_or_else(|e| panic!("failed to read icon {}: {}", icon.display(), e));
+
+    if reader.output_color_type().0 != png::ColorType::Rgba {
+      panic!("icon {} is not RGBA", icon.display());
+    }
+
+    let mut rgba = Vec::with_capacity(reader.output_buffer_size());
+    while let Ok(Some(row)) = reader.next_row() {
+      rgba.extend(row.data());
+    }
+
+    Cached::try_from(rgba).map(|cache| Self {
+      cache,
+      root: root.clone(),
+      format: IconFormat::Image {
+        width: reader.info().width,
+        height: reader.info().height,
+      },
+    })
+  }
+
+  fn open(path: &Path) -> Vec<u8> {
+    std::fs::read(path).unwrap_or_else(|e| panic!("failed to open icon {}: {}", path.display(), e))
+  }
+}
+
+impl ToTokens for CachedIcon {
+  fn to_tokens(&self, tokens: &mut TokenStream) {
+    let root = &self.root;
+    let cache = &self.cache;
+    let raw = quote!(::std::include_bytes!(#cache));
+    tokens.append_all(match self.format {
+      IconFormat::Raw => raw,
+      IconFormat::Image { width, height } => {
+        quote!(#root::image::Image::new(#raw, #width, #height))
+      }
+    })
+  }
 }

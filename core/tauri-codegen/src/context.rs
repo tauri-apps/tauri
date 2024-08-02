@@ -7,28 +7,28 @@ use std::convert::identity;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
 
+use crate::{
+  embedded_assets::{
+    ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
+  },
+  image::CachedIcon,
+};
 use base64::Engine;
 use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
-
 use syn::Expr;
-use tauri_utils::acl::capability::{Capability, CapabilityFile};
-use tauri_utils::acl::manifest::Manifest;
-use tauri_utils::acl::resolved::Resolved;
-use tauri_utils::assets::AssetKey;
-use tauri_utils::config::{CapabilityEntry, Config, FrontendDist, PatternKind};
-use tauri_utils::html::{
-  inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef,
+use tauri_utils::{
+  acl::capability::{Capability, CapabilityFile},
+  acl::manifest::Manifest,
+  acl::resolved::Resolved,
+  assets::AssetKey,
+  config::{CapabilityEntry, Config, FrontendDist, PatternKind},
+  html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
+  platform::Target,
+  plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH,
+  tokens::{map_lit, str_lit},
 };
-use tauri_utils::platform::Target;
-use tauri_utils::plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH;
-use tauri_utils::tokens::{map_lit, str_lit};
-
-use crate::embedded_assets::{
-  ensure_out_dir, AssetOptions, CspHashes, EmbeddedAssets, EmbeddedAssetsResult,
-};
-use crate::image::{ico_icon, image_icon, png_icon, raw_icon};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -221,8 +221,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.ico",
       );
       if icon_path.exists() {
-        ico_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
-          .map(|i| quote!(::std::option::Option::Some(#i)))?
+        let icon = CachedIcon::new(&root, &icon_path)?;
+        quote!(::std::option::Option::Some(#icon))
       } else {
         let icon_path = find_icon(
           &config,
@@ -230,8 +230,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
           |i| i.ends_with(".png"),
           "icons/icon.png",
         );
-        png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
-          .map(|i| quote!(::std::option::Option::Some(#i)))?
+        let icon = CachedIcon::new(&root, &icon_path)?;
+        quote!(::std::option::Option::Some(#icon))
       }
     } else {
       // handle default window icons for Unix targets
@@ -241,8 +241,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         |i| i.ends_with(".png"),
         "icons/icon.png",
       );
-      png_icon(&root, &out_dir, &icon_path, "default-window-icon.png")
-        .map(|i| quote!(::std::option::Option::Some(#i)))?
+      let icon = CachedIcon::new(&root, &icon_path)?;
+      quote!(::std::option::Option::Some(#icon))
     }
   };
 
@@ -261,7 +261,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
         "icons/icon.png",
       );
     }
-    raw_icon(&out_dir, &icon_path, "dev-macos-icon.png")?
+
+    let icon = CachedIcon::new_raw(&root, &icon_path)?;
+    quote!(::std::option::Option::Some(#icon.to_vec()))
   } else {
     quote!(::std::option::Option::None)
   };
@@ -290,8 +292,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let with_tray_icon_code = if target.is_desktop() {
     if let Some(tray) = &config.app.tray_icon {
       let tray_icon_icon_path = config_parent.join(&tray.icon_path);
-      image_icon(&root, &out_dir, &tray_icon_icon_path, "tray-icon")
-        .map(|i| quote!(context.set_tray_icon(Some(#i));))?
+      let icon = CachedIcon::new(&root, &tray_icon_icon_path)?;
+      quote!(context.set_tray_icon(::std::option::Option::Some(#icon));)
     } else {
       quote!()
     }
@@ -319,8 +321,6 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       }
     }
 
-    let plist_file = out_dir.join("Info.plist");
-
     let mut plist_contents = std::io::BufWriter::new(Vec::new());
     info_plist
       .to_writer_xml(&mut plist_contents)
@@ -328,12 +328,9 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     let plist_contents =
       String::from_utf8_lossy(&plist_contents.into_inner().unwrap()).into_owned();
 
-    if plist_contents != std::fs::read_to_string(&plist_file).unwrap_or_default() {
-      std::fs::write(&plist_file, &plist_contents).expect("failed to write Info.plist");
-    }
-
+    let plist = crate::Cached::try_from(plist_contents)?;
     quote!({
-      tauri::embed_plist::embed_info_plist!(concat!(std::env!("OUT_DIR"), "/Info.plist"));
+      tauri::embed_plist::embed_info_plist!(#plist);
     })
   } else {
     quote!(())

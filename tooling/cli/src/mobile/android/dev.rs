@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_assets, open_and_wait, setup_dev_config, MobileTarget,
+  inject_assets, open_and_wait, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -22,6 +22,7 @@ use clap::{ArgAction, Parser};
 use anyhow::Context;
 use cargo_mobile2::{
   android::{
+    adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::Device,
     env::Env,
@@ -63,9 +64,6 @@ pub struct Options {
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Force prompting for an IP to use to connect to the dev server on mobile.
-  #[clap(long)]
-  pub force_ip_prompt: bool,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -87,7 +85,6 @@ impl From<Options> for DevOptions {
       no_dev_server_wait: options.no_dev_server_wait,
       no_dev_server: options.no_dev_server,
       port: options.port,
-      force_ip_prompt: options.force_ip_prompt,
       release_mode: options.release_mode,
     }
   }
@@ -166,7 +163,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn run_dev(
   mut interface: AppInterface,
-  mut options: Options,
+  options: Options,
   mut dev_options: DevOptions,
   tauri_config: ConfigHandle,
   device: Option<Device>,
@@ -176,13 +173,7 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(
-    MobileTarget::Android,
-    &mut options.config,
-    options.force_ip_prompt,
-  )?;
-
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone(), true)?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -215,6 +206,19 @@ fn run_dev(
       Profile::Debug
     },
   )?;
+
+  let dev_url = tauri_config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .build
+    .dev_url
+    .clone();
+  if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
+    let forward = format!("tcp:{port}");
+    adb::adb(&env, ["reverse", &forward, &forward]).run()?;
+  }
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

@@ -1010,6 +1010,8 @@ impl<R: Runtime> WindowManager<R> {
         }
       }
       WindowUrl::External(url) => url.clone(),
+      #[cfg(feature = "window-data-url")]
+      WindowUrl::DataUrl(url) => url.clone(),
       _ => unimplemented!(),
     };
 
@@ -1020,23 +1022,46 @@ impl<R: Runtime> WindowManager<R> {
       ));
     }
 
-    #[cfg(feature = "window-data-url")]
-    if let Some(csp) = self.csp() {
-      if url.scheme() == "data" {
-        if let Ok(data_url) = data_url::DataUrl::process(url.as_str()) {
-          let (body, _) = data_url.decode_to_vec().unwrap();
-          let html = String::from_utf8_lossy(&body).into_owned();
-          // naive way to check if it's an html
-          if html.contains('<') && html.contains('>') {
+    match (
+      url.scheme(),
+      tauri_utils::html::extract_html_content(url.as_str()),
+    ) {
+      #[cfg(feature = "window-data-url")]
+      ("data", Some(html_string)) => {
+        // There is an issue with the external DataUrl where HTML containing special characters
+        // are not correctly processed. A workaround is to first percent encode the html string,
+        // before it processed by DataUrl.
+        let encoded_string = percent_encoding::utf8_percent_encode(html_string, percent_encoding::NON_ALPHANUMERIC).to_string();
+        let url = data_url::DataUrl::process(&format!("data:text/html,{}", encoded_string))
+          .map_err(|_| crate::Error::InvalidWindowUrl("Failed to process data url"))
+          .and_then(|data_url| {
+            data_url
+              .decode_to_vec()
+              .map_err(|_| crate::Error::InvalidWindowUrl("Failed to decode processed data url"))
+          })
+          .and_then(|(body, _)| {
+            let html = String::from_utf8_lossy(&body).into_owned();
             let mut document = tauri_utils::html::parse(html);
-            tauri_utils::html::inject_csp(&mut document, &csp.to_string());
-            url.set_path(&format!("text/html,{}", document.to_string()));
-          }
-        }
+            if let Some(csp) = self.csp() {
+              tauri_utils::html::inject_csp(&mut document, &csp.to_string());
+            }
+            // decode back to raw html, as the content should be fully decoded
+            // when passing to wry / tauri-runtime-wry, which will be responsible
+            // for handling the encoding based on the OS.
+            let encoded_html = document.to_string();
+            Ok(
+              percent_encoding::percent_decode_str(encoded_html.as_str())
+                .decode_utf8_lossy()
+                .to_string(),
+            )
+          })
+          .unwrap_or(html_string.to_string());
+        pending.url = format!("data:text/html,{}", url);
       }
-    }
-
-    pending.url = url.to_string();
+      _ => {
+        pending.url = url.to_string();
+      }
+    };
 
     if !pending.window_builder.has_icon() {
       if let Some(default_window_icon) = self.inner.default_window_icon.clone() {

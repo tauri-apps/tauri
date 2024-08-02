@@ -893,9 +893,9 @@ dependencies = [
 
 [[package]]
 name = "data-url"
-version = "0.2.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d7439c3735f405729d52c3fbbe4de140eaf938a1fe47d227c27f8254d4302a5"
+checksum = "5c297a1c74b71ae29df00c3e22dd9534821d60eb9af5a0192823fa2acea70c2a"
 
 [[package]]
 name = "derivative"
@@ -4215,6 +4215,7 @@ dependencies = [
  "aes-gcm",
  "brotli",
  "ctor",
+ "data-url",
  "dunce",
  "getrandom 0.2.14",
  "glob",

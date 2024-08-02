@@ -91,7 +91,7 @@ time = { version = "0.3", features = [ "parsing", "formatting" ], optional = tru
 os_info = { version = "3", optional = true }
 regex = { version = "1", optional = true }
 glob = "0.3"
-data-url = { version = "0.2", optional = true }
+data-url = { version = "0.3.1", optional = true }
 serialize-to-javascript = "=0.1.1"
 infer = { version = "0.9", optional = true }
 png = { version = "0.17", optional = true }
@@ -193,7 +193,7 @@ macos-private-api = [
   "tauri-runtime-wry/macos-private-api"
 ]
 windows7-compat = [ "win7-notifications" ]
-window-data-url = [ "data-url" ]
+window-data-url = [ "tauri-utils/window-data-url", "data-url" ]
 api-all = [
   "clipboard-all",
   "dialog-all",

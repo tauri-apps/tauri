@@ -1,5 +1,36 @@
 # Changelog
 
+## \[2.0.0-rc.0]
+
+### Bug Fixes
+
+- [`6755af230`](https://www.github.com/tauri-apps/tauri/commit/6755af23021a254cff98c07aa7711545771097a6)([#10435](https://www.github.com/tauri-apps/tauri/pull/10435)) Fix Specta remote implementation target for `Channel`.
+- [`24445d71d`](https://www.github.com/tauri-apps/tauri/commit/24445d71de92d526d0ccaecb54f13003ddc6f6b4)([#10432](https://www.github.com/tauri-apps/tauri/pull/10432)) Fixes asset resolving when not using the `compression` feature.
+
+### Enhancements
+
+- [`1e0793b68`](https://www.github.com/tauri-apps/tauri/commit/1e0793b6821799829e380c88066b3415cc9006df) ([#10357](https://www.github.com/tauri-apps/tauri/pull/10357)) Enhance `AssetResolver::get` in development mode by reading distDir directly as a fallback to the embedded assets.
+- [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.
+- [`cf994a6bb`](https://www.github.com/tauri-apps/tauri/commit/cf994a6bb064a50d3e5aef67e9a25903ee17a1e2) ([#10405](https://www.github.com/tauri-apps/tauri/pull/10405)) Add `tauri::plugin::Builder::try_build` to allow plugins to check if their `TauriPlugin` initialization is valid.
+
+### Security fixes
+
+- [`426d14bb4`](https://www.github.com/tauri-apps/tauri/commit/426d14bb4164290d93b5a0f61e925cb2dfc4aafa) ([#10423](https://www.github.com/tauri-apps/tauri/pull/10423)) Explicitly check that the main frame's origin is the sender of Isolation Payloads
+- [`289ae5555`](https://www.github.com/tauri-apps/tauri/commit/289ae5555da3802741018015bfe4927729a2eb33) ([#10386](https://www.github.com/tauri-apps/tauri/pull/10386)) Re-enable TLS checks that were previously disabled to support an insecure HTTPS custom protocol on Android which is no longer used.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+- Upgraded to `tauri-macros@2.0.0-rc.0`
+- Upgraded to `tauri-build@2.0.0-rc.0`
+- Upgraded to `tauri-runtime@2.0.0-rc.0`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.0`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+
 ## \[2.0.0-beta.25]
 
 ### New Features

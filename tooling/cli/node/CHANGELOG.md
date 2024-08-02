@@ -1,5 +1,33 @@
 # Changelog
 
+## \[2.0.0-rc.0]
+
+### New Features
+
+- [`d5511c311`](https://www.github.com/tauri-apps/tauri/commit/d5511c3117b1a117cb0b7359c5fa09aa4795122b) ([#10395](https://www.github.com/tauri-apps/tauri/pull/10395)) Added migration from `2.0.0-beta` to `2.0.0-rc`.
+- [`a5bfbaa62`](https://www.github.com/tauri-apps/tauri/commit/a5bfbaa62b8cd0aacbb33f730d4e30b43c461fe1)([#9962](https://www.github.com/tauri-apps/tauri/pull/9962)) Added `bundle > iOS > frameworks` configuration to define a list of frameworks that are linked to the Xcode project when it is generated.
+
+### Enhancements
+
+- [`a0841d509`](https://www.github.com/tauri-apps/tauri/commit/a0841d509abc43b62bb7c755e8727f3f461862d1) ([#10421](https://www.github.com/tauri-apps/tauri/pull/10421)) Changes the default behavior of the `dev` command to only expose to localhost (`127.0.0.1`) instead of the default system interface.
+
+### Security fixes
+
+- [`289ae5555`](https://www.github.com/tauri-apps/tauri/commit/289ae5555da3802741018015bfe4927729a2eb33) ([#10386](https://www.github.com/tauri-apps/tauri/pull/10386)) Re-enable TLS checks that were previously disabled to support an insecure HTTPS custom protocol on Android which is no longer used.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.0`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+- [`7ba67b4ac`](https://www.github.com/tauri-apps/tauri/commit/7ba67b4aca8d3f3b1aa5ad08819605029d36e6b4)([#10437](https://www.github.com/tauri-apps/tauri/pull/10437)) `ios dev` and `android dev` now uses localhost for the development server unless running on an iOS device,
+  which still requires connecting to the public network address. To conditionally check this on your frontend
+  framework's configuration you can check for the existence of the `TAURI_DEV_HOST`
+  environment variable instead of checking if the target is iOS or Android (previous recommendation).
+
 ## \[2.0.0-beta.23]
 
 ### Dependencies

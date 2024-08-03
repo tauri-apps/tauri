@@ -1342,7 +1342,7 @@ use tauri::Manager;
 tauri::Builder::default()
   .setup(|app| {
     let main_window = app.get_window("main").unwrap();
-    main_window.set_title("Tauri!");
+    main_window.set_title("Tauri!")?;
     Ok(())
   });
 ```

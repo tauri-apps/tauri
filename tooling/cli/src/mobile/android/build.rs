@@ -189,6 +189,7 @@ fn run_build(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let cli_options = CliOptions {
+    dev: false,
     features: build_options.features.clone(),
     args: build_options.args.clone(),
     noise_level,

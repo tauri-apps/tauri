@@ -218,7 +218,11 @@ fn run_dev(
     .clone();
   if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
     let forward = format!("tcp:{port}");
-    adb::adb(&env, ["reverse", &forward, &forward]).run()?;
+    adb::adb(&env, ["reverse", &forward, &forward])
+      .stdin_file(os_pipe::dup_stdin().unwrap())
+      .stdout_file(os_pipe::dup_stdout().unwrap())
+      .stderr_capture()
+      .run()?;
   }
 
   let open = options.open;

@@ -1,11 +1,13 @@
 {
   "tag": "rc",
   "changes": [
+    ".changes/android-dev-open-adb-fix.md",
     ".changes/asset-resolver-dev-fallback.md",
     ".changes/change-pr-10435.md",
     ".changes/cli-desktop-port-exposure.md",
     ".changes/core-plugin-namespace.md",
     ".changes/dev-url-localhost-mobile.md",
+    ".changes/fix-adb.md",
     ".changes/fix-conf-parsing-error-filepath.md",
     ".changes/fix-usage-without-compression.md",
     ".changes/ios-frameworks.md",

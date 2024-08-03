@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### Bug Fixes
+
+- [`fb1933f17`](https://www.github.com/tauri-apps/tauri/commit/fb1933f17442674e53374578e57a8cad241ac3c6) ([#10467](https://www.github.com/tauri-apps/tauri/pull/10467) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes running `android dev --open`.
+- [`206914fe8`](https://www.github.com/tauri-apps/tauri/commit/206914fe8d97eb61a2ff2a80e94e65e7a42bcea5) ([#10466](https://www.github.com/tauri-apps/tauri/pull/10466) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes running `adb reverse` in Node.js context.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.1`
+
 ## \[2.0.0-rc.0]
 
 ### New Features

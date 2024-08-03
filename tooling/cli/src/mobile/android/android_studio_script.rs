@@ -11,7 +11,7 @@ use crate::{
 use clap::{ArgAction, Parser};
 
 use cargo_mobile2::{
-  android::target::Target,
+  android::{adb, target::Target},
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
@@ -57,6 +57,26 @@ pub fn command(options: Options) -> Result<()> {
   ensure_init(config.project_dir(), MobileTarget::Android)?;
 
   let env = env()?;
+
+  if cli_options.dev {
+    let dev_url = tauri_config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_url
+      .clone();
+    if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
+      let forward = format!("tcp:{port}");
+      // ignore errors in case we do not have a device available
+      let _ = adb::adb(&env, ["reverse", &forward, &forward])
+        .stdin_file(os_pipe::dup_stdin().unwrap())
+        .stdout_file(os_pipe::dup_stdout().unwrap())
+        .stderr_capture()
+        .run();
+    }
+  }
 
   call_for_targets_with_fallback(
     options.targets.unwrap_or_default().iter(),

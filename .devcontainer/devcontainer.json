@@ -1,30 +1,48 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the README at:
-// https://github.com/microsoft/vscode-dev-containers/tree/v0.234.0/containers/ubuntu
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/rust
 {
-  "name": "Ubuntu",
-  "build": {
-    "dockerfile": "Dockerfile",
-    // Update 'VARIANT' to pick an Ubuntu version: jammy / ubuntu-22.04, focal / ubuntu-20.04, bionic /ubuntu-18.04
-    // Use ubuntu-22.04 or ubuntu-18.04 on local arm64/Apple Silicon.
-    "args": { "VARIANT": "ubuntu-22.04" }
-  },
+	"name": "Tauri",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	"image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
 
-  // Set *default* container specific settings.json values on container create.
-  "settings": {},
+	"remoteEnv": {
+		"XDG_RUNTIME_DIR": "/tmp",
+		"WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}"
+	},
 
-  // Add the IDs of extensions you want installed when the container is created.
-  "extensions": [],
+	// Use 'mounts' to make the cargo cache persistent in a Docker Volume.
+	"mounts": [
+		// Wayland
+		// TODO: ${containerEnv:} substitution currently broken (https://github.com/microsoft/vscode-remote-release/issues/10033)
+		// "source=/${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/${containerEnv:XDG_RUNTIME_DIR}/${containerEnv:WAYLAND_DISPLAY},readonly,type=bind",
+		"source=${localEnv:XDG_RUNTIME_DIR}/${localEnv:WAYLAND_DISPLAY},target=/tmp/${localEnv:WAYLAND_DISPLAY},readonly,type=bind"
 
-  // Use 'forwardPorts' to make a list of ports inside the container available locally.
-  // "forwardPorts": [],
+		// X11
+		// TODO: does not work
+		// "source=/tmp/.X11-unix,target=/tmp/.X11-unix,readonly,type=bind"
+	],
 
-  // Use 'postCreateCommand' to run commands after the container is created.
-  // "postCreateCommand": "uname -a",
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	// "features": {},
 
-  // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
-  "remoteUser": "vscode",
-  "features": {
-    "node": "lts",
-    "rust": "latest"
-  }
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	"runArgs": [
+		"--userns=keep-id"
+	],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "./.devcontainer/postCreateCommand.sh",
+
+	// Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"tauri-apps.tauri-vscode"
+			]
+		}
+	},
+
+	"containerUser": "vscode"
 }

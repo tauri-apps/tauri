@@ -22,7 +22,6 @@ use clap::{ArgAction, Parser};
 use anyhow::Context;
 use cargo_mobile2::{
   android::{
-    adb,
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
     device::Device,
     env::Env,
@@ -208,23 +207,6 @@ fn run_dev(
     },
   )?;
 
-  let dev_url = tauri_config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
-  if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
-    let forward = format!("tcp:{port}");
-    adb::adb(&env, ["reverse", &forward, &forward])
-      .stdin_file(os_pipe::dup_stdin().unwrap())
-      .stdout_file(os_pipe::dup_stdout().unwrap())
-      .stderr_capture()
-      .run()?;
-  }
-
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -238,6 +220,7 @@ fn run_dev(
     },
     |options| {
       let cli_options = CliOptions {
+        dev: true,
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,

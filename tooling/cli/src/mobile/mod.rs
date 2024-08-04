@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{Config as TauriConfig, ConfigHandle},
+  },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
 use anyhow::{bail, Result};
@@ -277,7 +280,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     })
 }
 
-fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
+fn ensure_init(tauri_config: &ConfigHandle, project_dir: PathBuf, target: Target) -> Result<()> {
   if !project_dir.exists() {
     bail!(
       "{} project directory {} doesn't exist. Please run `tauri {} init` and try again.",
@@ -286,6 +289,28 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   }
+
+  let tauri_config_guard = tauri_config.lock().unwrap();
+  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+  match target {
+    Target::Android => {
+      let java_folder = project_dir
+        .join("app/src/main/java")
+        .join(tauri_config_.identifier.replace('.', "/"));
+      if !java_folder.exists() {
+        bail!(
+          "{} project directory {} doesn't exist. This happens when you modify your \"identifier\" in the Tauri configuration. Please run `tauri {} init` and try again.",
+          target.ide_name(),
+          java_folder.display(),
+          target.command_name(),
+        )
+      }
+    }
+    #[cfg(target_os = "macos")]
+    Target::Ios => {}
+  }
+
   Ok(())
 }
 

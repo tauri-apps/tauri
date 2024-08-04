@@ -145,7 +145,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  ensure_init(&tauri_config, config.project_dir(), MobileTarget::Android)?;
   run_dev(
     interface,
     options,

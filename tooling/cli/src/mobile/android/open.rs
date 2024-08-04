@@ -24,7 +24,7 @@ pub fn command() -> Result<()> {
       &Default::default(),
     )
   };
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  ensure_init(&tauri_config, config.project_dir(), MobileTarget::Android)?;
   inject_assets(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
   let env = env()?;
   os::open_file_with("Android Studio", config.project_dir(), &env.base).map_err(Into::into)

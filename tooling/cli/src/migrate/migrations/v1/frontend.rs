@@ -81,7 +81,7 @@ pub fn migrate(app_dir: &Path, tauri_dir: &Path) -> Result<()> {
       .current_package_version(pkg, app_dir)
       .unwrap_or_default()
       .unwrap_or_default();
-    if version.starts_with("1") {
+    if version.starts_with('1') {
       new_npm_packages.push(format!("{pkg}@^{npm_version}"));
     }
   }

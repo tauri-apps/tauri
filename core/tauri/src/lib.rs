@@ -147,6 +147,7 @@ macro_rules! android_binding {
       ::tauri::tao
     );
 
+    // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
     ::tauri::tao::platform::android::prelude::android_fn!(
       app_tauri,
       plugin,

@@ -281,7 +281,12 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     })
 }
 
-fn ensure_init(tauri_config: &ConfigHandle, project_dir: PathBuf, target: Target) -> Result<()> {
+fn ensure_init(
+  tauri_config: &ConfigHandle,
+  app: &App,
+  project_dir: PathBuf,
+  target: Target,
+) -> Result<()> {
   if !project_dir.exists() {
     bail!(
       "{} project directory {} doesn't exist. Please run `tauri {} init` and try again.",
@@ -294,7 +299,7 @@ fn ensure_init(tauri_config: &ConfigHandle, project_dir: PathBuf, target: Target
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let mut identifier_changed = false;
+  let mut project_outdated_reasons = Vec::new();
 
   match target {
     Target::Android => {
@@ -302,7 +307,8 @@ fn ensure_init(tauri_config: &ConfigHandle, project_dir: PathBuf, target: Target
         .join("app/src/main/java")
         .join(tauri_config_.identifier.replace('.', "/"));
       if !java_folder.exists() {
-        identifier_changed = true;
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
       }
     }
     #[cfg(target_os = "macos")]
@@ -313,14 +319,22 @@ fn ensure_init(tauri_config: &ConfigHandle, project_dir: PathBuf, target: Target
         "PRODUCT_BUNDLE_IDENTIFIER: {}",
         tauri_config_.identifier
       )) {
-        identifier_changed = true;
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
+      }
+
+      println!("{}", app.lib_name());
+      if !project_yml.contains(&format!("framework: lib{}.a", app.lib_name())) {
+        project_outdated_reasons
+          .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
       }
     }
   }
 
-  if identifier_changed {
+  if !project_outdated_reasons.is_empty() {
+    let reason = project_outdated_reasons.join(" and ");
     bail!(
-        "{} project directory is outdated because you have modified your \"identifier\" in the Tauri configuration. Please run `tauri {} init` and try again.",
+        "{} project directory is outdated because {reason}. Please run `tauri {} init` and try again.",
         target.ide_name(),
         target.command_name(),
       )

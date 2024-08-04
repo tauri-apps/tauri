@@ -16,7 +16,7 @@ use cargo_mobile2::{
   env::Env,
   opts::NoiseLevel,
   os,
-  util::prompt,
+  util::{prompt, relativize_path},
 };
 use clap::{Parser, Subcommand};
 use sublime_fuzzy::best_match;
@@ -24,10 +24,13 @@ use sublime_fuzzy::best_match;
 use super::{
   ensure_init, env, get_app,
   init::{command as init_command, configure_cargo},
-  log_finished, read_options, setup_dev_config, CliOptions, OptionsHandle, Target as MobileTarget,
+  log_finished, read_options, CliOptions, OptionsHandle, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{helpers::config::Config as TauriConfig, Result};
+use crate::{
+  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  Result,
+};
 
 use std::{
   env::{set_var, var_os},
@@ -104,7 +107,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 
 pub fn get_config(
   app: &App,
-  config: &TauriConfig,
+  tauri_config: &TauriConfig,
   features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AppleConfig, AppleMetadata) {
@@ -119,7 +122,7 @@ pub fn get_config(
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
         .ok()
-        .or_else(|| config.bundle.ios.development_team.clone())
+        .or_else(|| tauri_config.bundle.ios.development_team.clone())
         .or_else(|| {
           let teams = find_development_teams().unwrap_or_default();
           match teams.len() {
@@ -135,18 +138,52 @@ pub fn get_config(
           }
         }),
     ios_features: ios_options.features.clone(),
-    bundle_version: config.version.clone(),
-    bundle_version_short: config.version.clone(),
+    bundle_version: tauri_config.version.clone(),
+    bundle_version_short: tauri_config.version.clone(),
     ios_version: Some(TARGET_IOS_VERSION.into()),
     ..Default::default()
   };
   let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
+
+  let tauri_dir = tauri_dir();
+
+  let mut vendor_frameworks = Vec::new();
+  let mut frameworks = Vec::new();
+  for framework in tauri_config
+    .bundle
+    .ios
+    .frameworks
+    .clone()
+    .unwrap_or_default()
+  {
+    let framework_path = PathBuf::from(&framework);
+    let ext = framework_path.extension().unwrap_or_default();
+    if ext.is_empty() {
+      frameworks.push(framework);
+    } else if ext == "framework" {
+      frameworks.push(
+        framework_path
+          .file_stem()
+          .unwrap()
+          .to_string_lossy()
+          .to_string(),
+      );
+    } else {
+      vendor_frameworks.push(
+        relativize_path(tauri_dir.join(framework_path), config.project_dir())
+          .to_string_lossy()
+          .to_string(),
+      );
+    }
+  }
 
   let metadata = AppleMetadata {
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
       features: ios_options.features,
+      frameworks: Some(frameworks),
+      vendor_frameworks: Some(vendor_frameworks),
       ..Default::default()
     },
     macos: Default::default(),

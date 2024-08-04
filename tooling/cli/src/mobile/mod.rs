@@ -3,12 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{
-    app_paths::tauri_dir,
-    config::{get as get_config, reload as reload_config, Config as TauriConfig},
-  },
+  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
-  ConfigValue,
 };
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
@@ -135,6 +131,7 @@ impl Target {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
+  pub dev: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
@@ -144,65 +141,13 @@ pub struct CliOptions {
 impl Default for CliOptions {
   fn default() -> Self {
     Self {
+      dev: false,
       features: None,
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),
     }
   }
-}
-
-fn setup_dev_config(
-  target: Target,
-  config_extension: &mut Option<ConfigValue>,
-  force_ip_prompt: bool,
-) -> crate::Result<()> {
-  let config = get_config(
-    target.platform_target(),
-    config_extension.as_ref().map(|c| &c.0),
-  )?;
-
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
-
-  if let Some(url) = &mut dev_url {
-    let localhost = match url.host() {
-      Some(url::Host::Domain(d)) => d == "localhost",
-      Some(url::Host::Ipv4(i)) => {
-        i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
-      }
-      _ => false,
-    };
-    if localhost {
-      let ip = crate::dev::local_ip_address(force_ip_prompt);
-      url.set_host(Some(&ip.to_string())).unwrap();
-      if let Some(c) = config_extension {
-        if let Some(build) = c
-          .0
-          .as_object_mut()
-          .and_then(|root| root.get_mut("build"))
-          .and_then(|build| build.as_object_mut())
-        {
-          build.insert("devUrl".into(), url.to_string().into());
-        }
-      } else {
-        config_extension.replace(crate::ConfigValue(serde_json::json!({
-          "build": {
-            "devUrl": url
-          }
-        })));
-      }
-      reload_config(config_extension.as_ref().map(|c| &c.0))?;
-    }
-  }
-
-  Ok(())
 }
 
 fn env_vars() -> HashMap<String, OsString> {

@@ -111,7 +111,14 @@ impl<'a> PageLoadPayload<'a> {
 }
 
 /// The IPC invoke request.
+///
+/// # Stability
+///
+/// This struct is **NOT** part of the public stable API and is only meant to be used
+/// by internal code and external testing/fuzzing tools. If not used with feature `unstable`, this
+/// struct is marked `#[non_exhaustive]` and is non-constructable externally.
 #[derive(Debug)]
+#[cfg_attr(not(feature = "unstable"), non_exhaustive)]
 pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,

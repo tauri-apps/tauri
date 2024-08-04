@@ -7,8 +7,21 @@
 //! It is pulled from a `tauri.conf.json` file and the [`Config`] struct is generated at compile time.
 //!
 //! # Stability
+//!
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
+//!
+//! These items are intended to be non-breaking from a de/serialization standpoint only.
+//! Using and modifying existing config values will try to avoid breaking changes, but they are
+//! free to add fields in the future - causing breaking changes for creating and full destructuring.
+//!
+//! To avoid this, [ignore unknown fields when destructuring] with the `{my, config, ..}` pattern.
+//! If you need to create the Rust config directly without deserializing, then create the struct
+//! the [Struct Update Syntax] with `..Default::default()`, which may need a
+//! `#[allow(clippy::needless_update)]` attribute if you are declaring all fields.
+//!
+//! [ignore unknown fields when destructuring]: https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#ignoring-remaining-parts-of-a-value-with-
+//! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
@@ -1881,6 +1894,10 @@ pub struct TrayIconConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
+  /// A list of strings indicating any iOS frameworks that need to be bundled with the application.
+  ///
+  /// Note that you need to recreate the iOS project for the changes to be applied.
+  pub frameworks: Option<Vec<String>>,
   /// The development team. This value is required for iOS development because code signing is enforced.
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]

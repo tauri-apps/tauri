@@ -8,7 +8,6 @@ use quote::{quote, ToTokens, TokenStreamExt};
 use sha2::{Digest, Sha256};
 use std::{
   collections::HashMap,
-  fmt::Write,
   fs::File,
   path::{Path, PathBuf},
 };
@@ -48,7 +47,7 @@ pub enum EmbeddedAssetsError {
   #[error("invalid prefix {prefix} used while including path {path}")]
   PrefixInvalid { prefix: PathBuf, path: PathBuf },
 
-  #[error("invalid extension {extension} used for image {path}, must be `ico` or `png`")]
+  #[error("invalid extension `{extension}` used for image {path}, must be `ico` or `png`")]
   InvalidImageExtension { extension: PathBuf, path: PathBuf },
 
   #[error("failed to walk directory {path} because {error}")]
@@ -341,19 +340,7 @@ impl EmbeddedAssets {
     std::fs::create_dir_all(&out_dir).map_err(|_| EmbeddedAssetsError::OutDir)?;
 
     // get a hash of the input - allows for caching existing files
-    let hash = {
-      let mut hasher = crate::vendor::blake3_reference::Hasher::default();
-      hasher.update(&input);
-
-      let mut bytes = [0u8; 32];
-      hasher.finalize(&mut bytes);
-
-      let mut hex = String::with_capacity(2 * bytes.len());
-      for b in bytes {
-        write!(hex, "{b:02x}").map_err(EmbeddedAssetsError::Hex)?;
-      }
-      hex
-    };
+    let hash = crate::checksum(&input).map_err(EmbeddedAssetsError::Hex)?;
 
     // use the content hash to determine filename, keep extensions that exist
     let out_path = if let Some(ext) = path.extension().and_then(|e| e.to_str()) {

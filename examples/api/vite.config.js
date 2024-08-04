@@ -5,9 +5,8 @@
 import { defineConfig } from 'vite'
 import Unocss from 'unocss/vite'
 import { svelte } from '@sveltejs/vite-plugin-svelte'
-import { internalIpV4Sync } from 'internal-ip'
 
-const mobile = !!/android|ios/.exec(process.env.TAURI_ENV_PLATFORM)
+const host = process.env.TAURI_DEV_HOST
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -27,13 +26,13 @@ export default defineConfig({
   clearScreen: false,
   // tauri expects a fixed port, fail if that port is not available
   server: {
-    host: mobile ? '0.0.0.0' : false,
+    host: host || false,
     port: 1420,
     strictPort: true,
-    hmr: mobile
+    hmr: host
       ? {
           protocol: 'ws',
-          host: mobile ? internalIpV4Sync() : 'localhost',
+          host: host,
           port: 1430
         }
       : undefined,

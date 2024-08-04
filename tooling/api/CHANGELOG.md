@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.0]
+
+### Changes
+
+- Promoted to RC!
+
 ## \[2.0.0-beta.16]
 
 ### New Features

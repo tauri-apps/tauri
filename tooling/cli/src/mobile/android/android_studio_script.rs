@@ -114,8 +114,8 @@ pub fn command(options: Options) -> Result<()> {
   .map_err(|e| anyhow::anyhow!(e.to_string()))?
 }
 
-fn validate_lib(so_path: &Path) -> Result<()> {
-  let so_bytes = std::fs::read(so_path)?;
+fn validate_lib(path: &Path) -> Result<()> {
+  let so_bytes = std::fs::read(path)?;
   let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&so_bytes)
     .context("failed to parse ELF")?;
   let (symbol_table, string_table) = elf
@@ -133,7 +133,7 @@ fn validate_lib(so_path: &Path) -> Result<()> {
   if !symbols.contains(&"Java_app_tauri_plugin_PluginManager_handlePluginResponse") {
     anyhow::bail!(
       "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
-      so_path.display()
+      path.display()
     );
   }
 

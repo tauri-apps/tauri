@@ -3,4 +3,4 @@
 "@tauri-apps/cli": patch:enhance
 ---
 
-Check if the Rust library contains the symbols required at runtime by Java (Android).
+Check if the Rust library contains the symbols required at runtime for Android and iOS apps.

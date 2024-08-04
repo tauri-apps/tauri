@@ -42,7 +42,6 @@ use std::{
 
 mod build;
 mod dev;
-mod open;
 pub(crate) mod project;
 mod xcode_script;
 
@@ -79,8 +78,6 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
-  /// Open project in Xcode
-  Open,
   Dev(dev::Options),
   Build(build::Options),
   #[clap(hide(true))]
@@ -96,7 +93,6 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
       options.reinstall_deps,
       options.skip_targets_install,
     )?,
-    Commands::Open => open::command()?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,

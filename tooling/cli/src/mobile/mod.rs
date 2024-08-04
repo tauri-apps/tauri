@@ -9,6 +9,7 @@ use crate::{
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
+#[cfg(target_os = "macos")]
 use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
@@ -281,6 +282,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     })
 }
 
+#[allow(unused_variables)]
 fn ensure_init(
   tauri_config: &ConfigHandle,
   app: &App,

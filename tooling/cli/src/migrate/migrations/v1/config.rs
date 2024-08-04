@@ -114,6 +114,10 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       process_updater(tauri_config, &mut plugins)?;
     }
 
+    if plugins.contains_key("updater") {
+      migrated.plugins.insert("updater".to_string());
+    }
+
     config.insert("plugins".into(), plugins.into());
 
     process_bundle(config);

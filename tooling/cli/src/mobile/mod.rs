@@ -9,6 +9,7 @@ use crate::{
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
+use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
@@ -293,22 +294,36 @@ fn ensure_init(tauri_config: &ConfigHandle, project_dir: PathBuf, target: Target
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
+  let mut identifier_changed = false;
+
   match target {
     Target::Android => {
       let java_folder = project_dir
         .join("app/src/main/java")
         .join(tauri_config_.identifier.replace('.', "/"));
       if !java_folder.exists() {
-        bail!(
-          "{} project directory {} doesn't exist. This happens when you modify your \"identifier\" in the Tauri configuration. Please run `tauri {} init` and try again.",
-          target.ide_name(),
-          java_folder.display(),
-          target.command_name(),
-        )
+        identifier_changed = true;
       }
     }
     #[cfg(target_os = "macos")]
-    Target::Ios => {}
+    Target::Ios => {
+      let project_yml = read_to_string(project_dir.join("project.yml"))
+        .context("missing project.yml file in the Xcode project directory")?;
+      if !project_yml.contains(&format!(
+        "PRODUCT_BUNDLE_IDENTIFIER: {}",
+        tauri_config_.identifier
+      )) {
+        identifier_changed = true;
+      }
+    }
+  }
+
+  if identifier_changed {
+    bail!(
+        "{} project directory is outdated because you have modified your \"identifier\" in the Tauri configuration. Please run `tauri {} init` and try again.",
+        target.ide_name(),
+        target.command_name(),
+      )
   }
 
   Ok(())

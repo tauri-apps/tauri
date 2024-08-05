@@ -18,6 +18,7 @@
 use std::collections::BTreeMap;
 use std::ffi::OsStr;
 use std::fs::{read_to_string, File};
+use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -60,7 +61,7 @@ pub fn list_icon_files(
     }
     // Put file in scope so that it's closed when copying it
     let icon = {
-      let decoder = PngDecoder::new(File::open(&icon_path)?)?;
+      let decoder = PngDecoder::new(BufReader::new(File::open(&icon_path)?))?;
       let width = decoder.dimensions().0;
       let height = decoder.dimensions().1;
       let is_high_density = common::is_retina(&icon_path);

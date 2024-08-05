@@ -59,7 +59,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: delete lockfile
-        run: rm Cargo.lock
+        run: |
+          rm Cargo.lock
+          rm tooling/bundler/Cargo.lock
+          rm tooling/cli/Cargo.lock
 
       - name: Downgrade crates with MSRV conflict (core)
         if: ${{ matrix.project.name == 'core' }}
@@ -128,8 +131,9 @@ jobs:
         if: ${{ matrix.project.name != 'core' }}
         # The --precise flag can only be used once per invocation.
         run: |
-          cargo update -p bitstream-io --precise 2.3.0
+          echo "bundler"
 
+      # Not really required since it's a binary
       - name: Downgrade crates with MSRV conflict (cli)
         if: ${{ matrix.project.name == 'cli' }}
         # The --precise flag can only be used once per invocation.

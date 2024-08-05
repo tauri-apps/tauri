@@ -55,6 +55,8 @@ jobs:
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
+    permissions:
+      contents: write # required for workflow_dispatch
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -119,7 +121,7 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
-          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
@@ -127,4 +129,4 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         run: gh workflow run 31554139 -r dev
         env:
-          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

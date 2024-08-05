@@ -136,7 +136,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: install stable
-        uses: dtolnay@rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@stable
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |

@@ -1235,7 +1235,10 @@ mod test {
 
   #[test]
   fn simple_http_updater() {
-    let _m = mockito::mock("GET", "/")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
@@ -1244,7 +1247,7 @@ mod test {
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
       .current_version("0.0.0".parse().unwrap())
-      .url(mockito::server_url())
+      .url(s.url())
       .build());
 
     let updater = check_update.expect("Can't check update");
@@ -1254,7 +1257,10 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json() {
-    let _m = mockito::mock("GET", "/")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
@@ -1263,7 +1269,7 @@ mod test {
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
       .current_version("0.0.0".parse().unwrap())
-      .url(mockito::server_url())
+      .url(s.url())
       .build());
 
     let updater = check_update.expect("Can't check update");
@@ -1273,7 +1279,10 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json_windows_x86_64() {
-    let _m = mockito::mock("GET", "/")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
@@ -1283,7 +1292,7 @@ mod test {
     let check_update = block!(builder(app.handle())
       .current_version("0.0.0".parse().unwrap())
       .target("windows-x86_64")
-      .url(mockito::server_url())
+      .url(s.url())
       .build());
 
     let updater = check_update.expect("Can't check update");
@@ -1299,7 +1308,10 @@ mod test {
 
   #[test]
   fn simple_http_updater_raw_json_uptodate() {
-    let _m = mockito::mock("GET", "/")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
@@ -1308,7 +1320,7 @@ mod test {
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
       .current_version("10.0.0".parse().unwrap())
-      .url(mockito::server_url())
+      .url(s.url())
       .build());
 
     let updater = check_update.expect("Can't check update");
@@ -1318,7 +1330,10 @@ mod test {
 
   #[test]
   fn simple_http_updater_without_version() {
-    let _m = mockito::mock("GET", "/darwin-aarch64/1.0.0")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/darwin-aarch64/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1333,7 +1348,7 @@ mod test {
       .current_version("1.0.0".parse().unwrap())
       .url(format!(
         "{}/darwin-aarch64/{{{{current_version}}}}",
-        mockito::server_url()
+        s.url()
       ))
       .build());
 
@@ -1344,7 +1359,10 @@ mod test {
 
   #[test]
   fn simple_http_updater_percent_decode() {
-    let _m = mockito::mock("GET", "/darwin-aarch64/1.0.0")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/darwin-aarch64/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1360,7 +1378,7 @@ mod test {
       .url(
         url::Url::parse(&format!(
           "{}/darwin-aarch64/{{{{current_version}}}}",
-          mockito::server_url()
+          s.url()
         ))
         .unwrap()
         .to_string()
@@ -1376,7 +1394,7 @@ mod test {
       .current_version("1.0.0".parse().unwrap())
       .urls(&[url::Url::parse(&format!(
         "{}/darwin-aarch64/{{{{current_version}}}}",
-        mockito::server_url()
+        s.url()
       ))
       .unwrap()
       .to_string()])
@@ -1389,7 +1407,10 @@ mod test {
 
   #[test]
   fn simple_http_updater_with_elevated_task() {
-    let _m = mockito::mock("GET", "/windows-x86_64/1.0.0")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/windows-x86_64/1.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_with_elevated_task_platform_json(
@@ -1405,7 +1426,7 @@ mod test {
       .current_version("1.0.0".parse().unwrap())
       .url(format!(
         "{}/windows-x86_64/{{{{current_version}}}}",
-        mockito::server_url()
+        s.url()
       ))
       .build());
 
@@ -1416,7 +1437,10 @@ mod test {
 
   #[test]
   fn http_updater_uptodate() {
-    let _m = mockito::mock("GET", "/darwin-aarch64/10.0.0")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/darwin-aarch64/10.0.0")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1431,7 +1455,7 @@ mod test {
       .current_version("10.0.0".parse().unwrap())
       .url(format!(
         "{}/darwin-aarch64/{{{{current_version}}}}",
-        mockito::server_url()
+        s.url()
       ))
       .build());
 
@@ -1442,7 +1466,10 @@ mod test {
 
   #[test]
   fn http_updater_fallback_urls() {
-    let _m = mockito::mock("GET", "/")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
@@ -1451,7 +1478,7 @@ mod test {
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
       .url("http://badurl.www.tld/1".into())
-      .url(mockito::server_url())
+      .url(s.url())
       .current_version("0.0.1".parse().unwrap())
       .build());
 
@@ -1462,7 +1489,10 @@ mod test {
 
   #[test]
   fn http_updater_fallback_urls_with_array() {
-    let _m = mockito::mock("GET", "/")
+    let mut s = mockito::Server::new();
+
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_raw_json())
@@ -1470,7 +1500,7 @@ mod test {
 
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .urls(&["http://badurl.www.tld/1".into(), mockito::server_url()])
+      .urls(&["http://badurl.www.tld/1".into(), s.url()])
       .current_version("0.0.1".parse().unwrap())
       .build());
 
@@ -1594,7 +1624,10 @@ mod test {
     ];
 
     for (response, validator) in test_cases {
-      let _m = mockito::mock("GET", "/")
+      let mut s = mockito::Server::new();
+
+      let _m = s
+        .mock("GET", "/")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(response)
@@ -1602,7 +1635,7 @@ mod test {
 
       let app = crate::test::mock_app();
       let check_update = block!(builder(app.handle())
-        .url(mockito::server_url())
+        .url(s.url())
         .current_version("0.0.1".parse().unwrap())
         .target("test-target")
         .build());
@@ -1686,7 +1719,10 @@ mod test {
     ];
 
     for (response, error) in test_cases {
-      let _m = mockito::mock("GET", "/")
+      let mut s = mockito::Server::new();
+
+      let _m = s
+        .mock("GET", "/")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(response)
@@ -1694,7 +1730,7 @@ mod test {
 
       let app = crate::test::mock_app();
       let check_update = block!(builder(app.handle())
-        .url(mockito::server_url())
+        .url(s.url())
         .current_version("0.0.1".parse().unwrap())
         .target("test-target")
         .build());
@@ -1719,7 +1755,9 @@ mod test {
     #[cfg(target_os = "windows")]
     let archive_file = "archive.windows.zip";
 
-    let good_archive_url = format!("{}/{archive_file}", mockito::server_url());
+    let mut s = mockito::Server::new();
+
+    let good_archive_url = format!("{}/{archive_file}", s.url());
 
     let mut signature_file = File::open(format!(
       "./test/updater/fixture/archives/{archive_file}.sig"
@@ -1738,14 +1776,16 @@ mod test {
       .expect("Unable to read signature as string");
 
     // add sample file
-    let _m = mockito::mock("GET", format!("/{archive_file}").as_str())
+    let _m = s
+      .mock("GET", format!("/{archive_file}").as_str())
       .with_status(200)
       .with_header("content-type", "application/octet-stream")
       .with_body_from_file(format!("./test/updater/fixture/archives/{archive_file}"))
       .create();
 
     // sample mock for update file
-    let _m = mockito::mock("GET", "/")
+    let _m = s
+      .mock("GET", "/")
       .with_status(200)
       .with_header("content-type", "application/json")
       .with_body(generate_sample_platform_json(
@@ -1781,7 +1821,7 @@ mod test {
     // configure the updater
     let app = crate::test::mock_app();
     let check_update = block!(builder(app.handle())
-      .url(mockito::server_url())
+      .url(s.url())
       // It should represent the executable path, that's why we add my_app.exe in our
       // test path -- in production you shouldn't have to provide it
       .executable_path(my_executable)

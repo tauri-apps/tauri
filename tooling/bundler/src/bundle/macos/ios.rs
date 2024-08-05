@@ -128,7 +128,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
           let dest_path = get_dest_path(width, height, is_retina);
           icon.write_to(
             &mut common::create_file(&dest_path)?,
-            image::ImageOutputFormat::Png,
+            image::ImageFormat::Png,
           )?;
         }
       }

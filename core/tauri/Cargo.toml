@@ -65,23 +65,23 @@ tauri-runtime-wry = { version = "0.14.1", path = "../tauri-runtime-wry", optiona
 rand = "0.8"
 semver = { version = "1", features = [ "serde" ] }
 serde_repr = "0.1"
-state = "0.5"
+state = "0.5" # 0.6 raised msrv
 tar = "0.4"
 tempfile = "3"
-zip = { version = "0.6", default-features = false, optional = true }
+zip = { version = "0.6", default-features = false, optional = true } # 0.7(?) raised msrv
 ignore = "0.4"
 flate2 = "1"
-http = "0.2"
+http = "0.2" # All other crates we use here are still on 0.2
 dirs-next = "2.0"
 percent-encoding = "2"
-base64 = { version = "0.21", optional = true }
-clap = { version = "3", optional = true }
-reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true }
+base64 = { version = "0.22", optional = true }
+clap = { version = "3", optional = true } # 4.0 is too big of a change to be worth to upgrade in tauri v1
+reqwest = { version = "0.11", features = [ "json", "stream" ], optional = true } # 0.12 raised msrv
 bytes = { version = "1", features = [ "serde" ], optional = true }
-open = { version = "3", optional = true }
+open = { version = "3", optional = true } # 4.0 raised msrv
 shared_child = { version = "1.0", optional = true }
 os_pipe = { version = "1", optional = true }
-raw-window-handle = "0.5"
+raw-window-handle = "0.5" # All other crates we use here are still on 0.5
 minisign-verify = { version = "0.2", optional = true }
 time = { version = "0.3", features = [ "parsing", "formatting" ], optional = true }
 os_info = { version = "3", optional = true }
@@ -89,36 +89,36 @@ regex = { version = "1", optional = true }
 glob = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-infer = { version = "0.15", optional = true }
+infer = { version = "0.16", optional = true }
 png = { version = "0.17", optional = true }
 ico = { version = "0.3", optional = true }
 encoding_rs = "0.8"
 sys-locale = { version = "0.3", optional = true }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] }
+rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] } # 0.11 raised gtk version
 notify-rust = { version = "4", optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.15", features = [ "v3_20" ] }
-glib = "0.15"
-webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] }
+gtk = { version = "0.15", features = [ "v3_20" ] } # Do not update without consensus
+glib = "0.15" # Do not update without consensus
+webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] } # Do not update without consensus
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
 cocoa = "0.25"
-objc = "0.2"
+objc = "0.2" # Do not update without consensus
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.19.1"
+webview2-com = "0.19.1" # Do not update without consensus
 win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.39.0"
+  version = "0.39.0" # Do not update without consensus
   features = [ "Win32_Foundation" ]
 
 [build-dependencies]
-heck = "0.4"
+heck = "0.5"
 once_cell = "1"
 
 [dev-dependencies]
@@ -131,7 +131,7 @@ serde_json = "1"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4"
 tokio = { version = "1", features = [ "full" ] }
-cargo_toml = "0.11"
+cargo_toml = "0.15"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]

@@ -16,6 +16,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        project:
+          - flags: '--manifest-path=./Cargo.toml --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test'
+          - flags: '--manifest-path=./tooling/bundler/Cargo.toml'
+          - flags: '--manifest-path=./tooling/cli/Cargo.toml'
+            toolchain: '1.70.0'
+
         platform:
           - {
               target: x86_64-pc-windows-msvc,
@@ -35,13 +41,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install rust ${{ matrix.platform.toolchain }}
-        uses: actions-rs/toolchain@v1
+      - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: ${{ matrix.platform.toolchain }}
+          toolchain: ${{ matrix.project.toolchain || matrix.platform.toolchain }}
           target: ${{ matrix.platform.target }}
-          override: true
-          default: true
 
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')
@@ -115,7 +119,7 @@ jobs:
           cargo update -p ppv-lite86 --precise 0.2.17
 
       - name: test build
-        run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test
+        run:  cargo check --target ${{ matrix.platform.target }} ${{ matrix.project.flags }}
 
   run-integration-tests:
     runs-on: ${{ matrix.platform }}
@@ -132,9 +136,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay@rust-toolchain@stable
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
@@ -148,10 +150,7 @@ jobs:
             tooling/cli
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
 
       - name: run integration tests
         run: cargo test --test '*' -- --ignored
@@ -167,6 +166,8 @@ jobs:
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
+    permissions:
+      contents: write
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -178,7 +179,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v4
         with:
           node-version: 16
           registry-url: 'https://registry.npmjs.org'
@@ -229,7 +230,7 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         run: gh workflow run 31554138 -r 1.x -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
-          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
@@ -237,4 +238,4 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         run: gh workflow run 31554139 -r 1.x
         env:
-          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

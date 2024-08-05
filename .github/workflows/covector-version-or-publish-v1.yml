@@ -61,7 +61,7 @@ jobs:
       - name: delete lockfile
         run: rm Cargo.lock
 
-      - name: Downgrade crates with MSRV conflict
+      - name: Downgrade crates with MSRV conflict (core)
         if: ${{ matrix.project.name == 'core' }}
         # The --precise flag can only be used once per invocation.
         run: |
@@ -122,18 +122,19 @@ jobs:
           cargo update -p native-tls --precise 0.2.11
           cargo update -p ppv-lite86 --precise 0.2.17
 
-      - name: Downgrade crates with MSRV conflict
+      - name: Downgrade crates with MSRV conflict (bundler)
         # This is for the bundler but since cli depends on the bundler we enable it for the cli too
         if: ${{ matrix.project.name != 'core' }}
         # The --precise flag can only be used once per invocation.
         run: |
-#cargo update -p rav1e --precise 0.6.9
+          cargo update -p ravif --precise 0.11.5
+          cargo update -p bitstream-io --precise 2.3.0
 
-      - name: Downgrade crates with MSRV conflict
+      - name: Downgrade crates with MSRV conflict (cli)
         if: ${{ matrix.project.name == 'cli' }}
         # The --precise flag can only be used once per invocation.
         run: |
-          cargo update -p bitstream-io --precise 2.3.0
+          echo "cli"
 
       - name: test build
         run:  cargo check --target ${{ matrix.platform.target }} ${{ matrix.project.flags }}

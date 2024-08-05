@@ -10,11 +10,14 @@ use crate::{
 };
 use clap::{ArgAction, Parser};
 
+use anyhow::Context;
 use cargo_mobile2::{
   android::{adb, target::Target},
   opts::Profile,
   target::{call_for_targets_with_fallback, TargetTrait},
 };
+
+use std::path::Path;
 
 #[derive(Debug, Parser)]
 pub struct Options {
@@ -83,22 +86,61 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
+  let mut validated_lib = false;
+
   call_for_targets_with_fallback(
     options.targets.unwrap_or_default().iter(),
     &detect_target_ok,
     &env,
     |target: &Target| {
-      target
-        .build(
-          &config,
-          &metadata,
-          &env,
-          cli_options.noise_level,
-          true,
-          profile,
-        )
-        .map_err(Into::into)
+      target.build(
+        &config,
+        &metadata,
+        &env,
+        cli_options.noise_level,
+        true,
+        profile,
+      )?;
+
+      if !validated_lib {
+        validated_lib = true;
+
+        let lib_path = config
+          .app()
+          .target_dir(target.triple, profile)
+          .join(config.so_name());
+
+        validate_lib(&lib_path)?;
+      }
+
+      Ok(())
     },
   )
   .map_err(|e| anyhow::anyhow!(e.to_string()))?
+}
+
+fn validate_lib(path: &Path) -> Result<()> {
+  let so_bytes = std::fs::read(path)?;
+  let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&so_bytes)
+    .context("failed to parse ELF")?;
+  let (symbol_table, string_table) = elf
+    .dynamic_symbol_table()
+    .context("failed to read dynsym section")?
+    .context("missing dynsym tables")?;
+
+  let mut symbols = Vec::new();
+  for s in symbol_table.iter() {
+    if let Ok(symbol) = string_table.get(s.st_name as usize) {
+      symbols.push(symbol);
+    }
+  }
+
+  if !symbols.contains(&"Java_app_tauri_plugin_PluginManager_handlePluginResponse") {
+    anyhow::bail!(
+      "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
+      path.display()
+    );
+  }
+
+  Ok(())
 }

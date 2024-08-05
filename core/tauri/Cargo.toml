@@ -93,7 +93,7 @@ regex = { version = "1", optional = true }
 glob = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-infer = { version = "0.14", optional = true } # 0.15 raised msrv
+infer = { version = "0.13", optional = true } # 0.14 raised msrv
 png = { version = "0.17", optional = true }
 ico = { version = "0.3", optional = true }
 encoding_rs = "0.8"

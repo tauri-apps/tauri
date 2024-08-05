@@ -25,7 +25,12 @@ pub fn command() -> Result<()> {
     )
   };
 
-  ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Ios,
+  )?;
   inject_assets(&config)?;
   let env = env()?;
   os::open_file_with("Xcode", config.project_dir(), &env).map_err(Into::into)

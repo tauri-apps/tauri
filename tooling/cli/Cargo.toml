@@ -51,7 +51,7 @@ notify = "6.1"
 notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 toml_edit = "0.21"
-json-patch = "1.2"
+json-patch = "2"
 tauri-utils = { version = "1.6.0", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"

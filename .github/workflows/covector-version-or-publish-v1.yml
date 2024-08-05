@@ -66,7 +66,7 @@ jobs:
           cargo update -p serde_spanned --precise 0.6.1
           cargo update -p winnow --precise 0.4.1
           cargo update -p plist --precise 1.5.1
-          cargo update -p serde_with:3.8.3 --precise 3.0.0
+          cargo update -p serde_with:3.9.0 --precise 3.0.0
           cargo update -p time --precise 0.3.15
           cargo update -p ignore --precise 0.4.18
           cargo update -p raw-window-handle --precise 0.5.0
@@ -109,9 +109,10 @@ jobs:
           cargo update -p tokio-stream --precise 0.1.14
           cargo update -p tokio-util --precise 0.7.10
           cargo update -p os_pipe --precise 1.1.5
-          cargo update -p syn:2.0.71 --precise 2.0.67
+          cargo update -p syn:2.0.72 --precise 2.0.67
           cargo update -p derive_more --precise 0.99.17
           cargo update -p native-tls --precise 0.2.11
+          cargo update -p ppv-lite86 --precise 0.2.17
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test

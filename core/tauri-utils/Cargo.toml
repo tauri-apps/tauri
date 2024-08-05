@@ -16,28 +16,28 @@ serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
 thiserror = "1"
 phf = { version = "0.11", features = [ "macros" ] }
-brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
+brotli = { version = "6", optional = true }
 url = { version = "2", features = [ "serde" ] }
-html5ever = "0.26"
+html5ever = "0.26" # kuchikiki requires 0.26 still
 kuchiki = { package = "kuchikiki", version = "0.8" }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
-schemars = { version = "0.8.18", features = [ "url" ], optional = true }
+schemars = { version = "0.8.18", features = [ "url" ], optional = true } # Forcing 0.8.18 as minimum due to breaking changes
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.2", optional = true, features = [ "std" ] }
 serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.7", optional = true }
-json-patch = "1.2"
+toml = { version = "0.7", optional = true } # the other used toml crates still use 0.7
+json-patch = "2"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.13"
+infer = "0.13" # 0.14 raised msrv
 dunce = "1"
-log = "0.4.20"
+log = "0.4"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"

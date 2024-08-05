@@ -16,7 +16,7 @@
    "postinstall": "husky install"
   },
   "devDependencies": {
-    "covector": "^0.7.3",
+    "covector": "^0.12.3",
     "husky": "^6.0.0",
     "prettier": "^2.5.1"
   },

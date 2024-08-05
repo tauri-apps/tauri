@@ -135,7 +135,7 @@ heck = "0.5"
 once_cell = "1"
 
 [dev-dependencies]
-mockito = "0.32"
+mockito = "0.31" # 0.32 raised msrv
 proptest = "1"
 quickcheck = "1"
 quickcheck_macros = "1"

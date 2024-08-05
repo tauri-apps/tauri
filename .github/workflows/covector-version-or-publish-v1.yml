@@ -59,11 +59,16 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      - name: delete lockfile
+      - name: regen lockfile
         run: |
           rm Cargo.lock
           rm tooling/bundler/Cargo.lock
           rm tooling/cli/Cargo.lock
+          cargo generate-lockfile
+          cd tooling/bundler
+          cargo generate-lockfile
+          cd ../cli
+          cargo generate-lockfile
 
       - name: Downgrade crates with MSRV conflict (core)
         if: ${{ matrix.project.name == 'core' }}
@@ -140,10 +145,11 @@ jobs:
         if: ${{ matrix.project.name == 'cli' }}
         # The --precise flag can only be used once per invocation.
         run: |
-          echo "cli"
+          cargo update -p clap_complete --precise 4.4.10
+          cargo update -p clap --precise 4.4.18
 
       - name: test build
-        run:  cargo check --target ${{ matrix.platform.target }} ${{ matrix.project.flags }}
+        run: cargo check --target ${{ matrix.platform.target }} ${{ matrix.project.flags }}
 
   run-integration-tests:
     runs-on: ${{ matrix.platform }}

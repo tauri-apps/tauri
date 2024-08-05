@@ -82,6 +82,9 @@
       "../../.icons/icon.icns",
       "../../.icons/icon.ico"
     ],
+    "iOS": {
+      "minimumSystemVersion": "14.0"
+    },
     "windows": {
       "wix": {
         "language": {

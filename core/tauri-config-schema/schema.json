@@ -74,7 +74,9 @@
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
-        "iOS": {},
+        "iOS": {
+          "minimumSystemVersion": ""
+        },
         "icon": [],
         "linux": {
           "appimage": {
@@ -1712,7 +1714,9 @@
         },
         "iOS": {
           "description": "iOS configuration.",
-          "default": {},
+          "default": {
+            "minimumSystemVersion": ""
+          },
           "allOf": [
             {
               "$ref": "#/definitions/IosConfig"
@@ -2912,6 +2916,11 @@
             "string",
             "null"
           ]
+        },
+        "minimumSystemVersion": {
+          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
+          "default": "13.0",
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -601,6 +601,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     }
   }
 
+  if target_triple.contains("ios") {
+    println!(
+      "cargo:rustc-env=IPHONEOS_DEPLOYMENT_TARGET={}",
+      config.bundle.ios.minimum_system_version
+    );
+  }
+
   if target_triple.contains("windows") {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};

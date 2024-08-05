@@ -59,6 +59,7 @@ jobs:
         run: rm Cargo.lock
 
       - name: Downgrade crates with MSRV conflict
+        continue-on-error: true
         # The --precise flag can only be used once per invocation.
         run: |
           : # core

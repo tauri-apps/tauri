@@ -18,7 +18,7 @@ thiserror = "1"
 phf = { version = "0.11", features = [ "macros" ] }
 brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
 url = { version = "2", features = [ "serde" ] }
-html5ever = "0.26"
+html5ever = "0.27"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
@@ -26,16 +26,16 @@ schemars = { version = "0.8.18", features = [ "url" ], optional = true }
 serde_with = "3"
 aes-gcm = { version = "0.10", optional = true }
 getrandom = { version = "0.2", optional = true, features = [ "std" ] }
-serialize-to-javascript = { version = "=0.1.1", optional = true }
+serialize-to-javascript = { version = "=0.1.2", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
-toml = { version = "0.7", optional = true }
+toml = { version = "0.8", optional = true }
 json-patch = "1.2"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.13"
+infer = "0.16"
 dunce = "1"
 log = "0.4.20"
 

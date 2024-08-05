@@ -21,9 +21,10 @@ jobs:
             flags: '--manifest-path=./Cargo.toml --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test'
           - name: bundler
             flags: '--manifest-path=./tooling/bundler/Cargo.toml'
+            toolchain: '1.71.0'
           - name: cli
             flags: '--manifest-path=./tooling/cli/Cargo.toml'
-            toolchain: '1.70.0'
+            toolchain: '1.71.0'
 
         platform:
           - {
@@ -125,7 +126,6 @@ jobs:
           cargo update -p native-tls --precise 0.2.11
           cargo update -p ppv-lite86 --precise 0.2.17
           cargo update -p xml-rs --precise 0.8.20
-          cargo update -p rayon-core --precise 1.11.0
 
       - name: Downgrade crates with MSRV conflict (bundler)
         # This is for the bundler but since cli depends on the bundler we enable it for the cli too

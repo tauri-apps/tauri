@@ -121,13 +121,13 @@ jobs:
           cargo update -p derive_more --precise 0.99.17
           cargo update -p native-tls --precise 0.2.11
           cargo update -p ppv-lite86 --precise 0.2.17
+          cargo update -p xml-rs --precise 0.8.20
 
       - name: Downgrade crates with MSRV conflict (bundler)
         # This is for the bundler but since cli depends on the bundler we enable it for the cli too
         if: ${{ matrix.project.name != 'core' }}
         # The --precise flag can only be used once per invocation.
         run: |
-          cargo update -p ravif --precise 0.11.5
           cargo update -p bitstream-io --precise 2.3.0
 
       - name: Downgrade crates with MSRV conflict (cli)

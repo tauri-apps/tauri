@@ -149,6 +149,8 @@ jobs:
           cd tooling/cli
           cargo update -p clap_complete --precise 4.4.10
           cargo update -p clap --precise 4.4.18
+          cargo update -p ravif --precise 0.11.5
+          cargo update -p bitstream-io --precise 2.3.0
 
       - name: test build
         run: cargo check --target ${{ matrix.platform.target }} ${{ matrix.project.flags }}

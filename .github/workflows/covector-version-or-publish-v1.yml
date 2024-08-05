@@ -137,6 +137,7 @@ jobs:
         if: ${{ matrix.project.name != 'core' }}
         # The --precise flag can only be used once per invocation.
         run: |
+          cd tooling/bundler
           cargo update -p ravif --precise 0.11.5
           cargo update -p bitstream-io --precise 2.3.0
 
@@ -145,6 +146,7 @@ jobs:
         if: ${{ matrix.project.name == 'cli' }}
         # The --precise flag can only be used once per invocation.
         run: |
+          cd tooling/cli
           cargo update -p clap_complete --precise 4.4.10
           cargo update -p clap --precise 4.4.18
 

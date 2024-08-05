@@ -66,7 +66,7 @@ jobs:
           cargo update -p serde_spanned --precise 0.6.1
           cargo update -p winnow --precise 0.4.1
           cargo update -p plist --precise 1.5.1
-          cargo update -p serde_with:3.8.3 --precise 3.0.0
+          cargo update -p serde_with:3.9.0 --precise 3.0.0
           cargo update -p time --precise 0.3.15
           cargo update -p ignore --precise 0.4.18
           cargo update -p raw-window-handle --precise 0.5.0

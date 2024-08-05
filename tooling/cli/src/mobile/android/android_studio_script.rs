@@ -54,7 +54,12 @@ pub fn command(options: Options) -> Result<()> {
     );
     (config, metadata, cli_options)
   };
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Android,
+  )?;
 
   let env = env()?;
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{env, get_app, get_config, read_options};
+use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   helpers::config::get as get_tauri_config,
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
@@ -82,6 +82,12 @@ pub fn command(options: Options) -> Result<()> {
     );
     (config, metadata, cli_options)
   };
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Ios,
+  )?;
 
   let env = env()?.explicit_env_vars(cli_options.vars);
 

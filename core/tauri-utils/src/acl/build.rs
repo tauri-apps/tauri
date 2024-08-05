@@ -71,10 +71,8 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
     .filter(|p| p.parent().unwrap().file_name().unwrap() != PERMISSION_SCHEMAS_FOLDER_NAME)
     .collect::<Vec<PathBuf>>();
 
-  let permission_files_path = out_dir.join(format!(
-    "{}-permission-files",
-    pkg_name.replace("tauri:", "tauri-")
-  ));
+  let permission_files_path =
+    out_dir.join(format!("{}-permission-files", pkg_name.replace(':', "-")));
   std::fs::write(
     &permission_files_path,
     serde_json::to_string(&permission_files)?,

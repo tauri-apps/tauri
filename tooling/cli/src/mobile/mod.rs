@@ -3,9 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{Config as TauriConfig, ConfigHandle},
+  },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
 };
+#[cfg(target_os = "macos")]
+use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
@@ -277,7 +282,13 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     })
 }
 
-fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
+#[allow(unused_variables)]
+fn ensure_init(
+  tauri_config: &ConfigHandle,
+  app: &App,
+  project_dir: PathBuf,
+  target: Target,
+) -> Result<()> {
   if !project_dir.exists() {
     bail!(
       "{} project directory {} doesn't exist. Please run `tauri {} init` and try again.",
@@ -286,6 +297,51 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   }
+
+  let tauri_config_guard = tauri_config.lock().unwrap();
+  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+  let mut project_outdated_reasons = Vec::new();
+
+  match target {
+    Target::Android => {
+      let java_folder = project_dir
+        .join("app/src/main/java")
+        .join(tauri_config_.identifier.replace('.', "/"));
+      if !java_folder.exists() {
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
+      }
+    }
+    #[cfg(target_os = "macos")]
+    Target::Ios => {
+      let project_yml = read_to_string(project_dir.join("project.yml"))
+        .context("missing project.yml file in the Xcode project directory")?;
+      if !project_yml.contains(&format!(
+        "PRODUCT_BUNDLE_IDENTIFIER: {}",
+        tauri_config_.identifier
+      )) {
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
+      }
+
+      println!("{}", app.lib_name());
+      if !project_yml.contains(&format!("framework: lib{}.a", app.lib_name())) {
+        project_outdated_reasons
+          .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+      }
+    }
+  }
+
+  if !project_outdated_reasons.is_empty() {
+    let reason = project_outdated_reasons.join(" and ");
+    bail!(
+        "{} project directory is outdated because {reason}. Please run `tauri {} init` and try again.",
+        target.ide_name(),
+        target.command_name(),
+      )
+  }
+
   Ok(())
 }
 

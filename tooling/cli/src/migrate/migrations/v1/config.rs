@@ -110,8 +110,8 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
         process_cli(&mut plugins, cli)?;
       }
 
-      // cli
-      process_updater(tauri_config, &mut plugins)?;
+      // updater
+      process_updater(tauri_config, &mut plugins, &mut migrated)?;
     }
 
     config.insert("plugins".into(), plugins.into());
@@ -512,6 +512,7 @@ fn process_cli(plugins: &mut Map<String, Value>, cli: Value) -> Result<()> {
 fn process_updater(
   tauri_config: &mut Map<String, Value>,
   plugins: &mut Map<String, Value>,
+  migrated: &mut MigratedConfig,
 ) -> Result<()> {
   if let Some(mut updater) = tauri_config.remove("updater") {
     if let Some(updater) = updater.as_object_mut() {
@@ -528,6 +529,7 @@ fn process_updater(
         || updater.get("pubkey").is_some()
       {
         plugins.insert("updater".into(), serde_json::to_value(updater)?);
+        migrated.plugins.insert("updater".to_string());
       }
     }
   }

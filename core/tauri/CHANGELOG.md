@@ -1,5 +1,148 @@
 # Changelog
 
+## \[1.7.1]
+
+### Bug Fixes
+
+- [`4bffa5cff`](https://www.github.com/tauri-apps/tauri/commit/4bffa5cff04a3f5da8c2493f835f560ac4a31247) ([#10174](https://www.github.com/tauri-apps/tauri/pull/10174) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fix compilation error when `shell-execute` or `shell-sidecar` features are not active
+
+## \[1.7.0]
+
+### Enhancements
+
+- [`44e3335da`](https://www.github.com/tauri-apps/tauri/commit/44e3335da8c1a811a2ebe72f2036dfad2381da24) ([#9796](https://www.github.com/tauri-apps/tauri/pull/9796)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Bug Fixes
+
+- [`8ee8f0939`](https://www.github.com/tauri-apps/tauri/commit/8ee8f093900b22c584fdf00c5efdb43ef34f6771) ([#9588](https://www.github.com/tauri-apps/tauri/pull/9588)) Fix check temporary path permission on macos.
+- [`07b02c9f9`](https://www.github.com/tauri-apps/tauri/commit/07b02c9f962312f4d90c001d21d3d72ca9daa03a) ([#9972](https://www.github.com/tauri-apps/tauri/pull/9972)) Added `test::INVOKE_KEY` to be used in `tauri::InvokePayload` when testing using `test::assert_ipc_response` and `test::get_ipc_response`.
+- [`e48157da2`](https://www.github.com/tauri-apps/tauri/commit/e48157da2f0b88d8c5df13f3287705172a684525) ([#9698](https://www.github.com/tauri-apps/tauri/pull/9698)) Fix the JS `Command` API from `shell` module, losing events for `stdout`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-runtime@0.14.4`
+- Upgraded to `tauri-runtime-wry@0.14.9`
+- Upgraded to `tauri-macros@1.4.5`
+
+## \[1.6.7]
+
+### Bug Fixes
+
+- [`50aabad1f`](https://www.github.com/tauri-apps/tauri/commit/50aabad1f602066417d815b0f2d2c5948848bb00)([#9818](https://www.github.com/tauri-apps/tauri/pull/9818)) On Windows, fix flashing PowerShell for updates for NSIS installer, and address possible "permission denied" problems.
+
+### Security fixes
+
+- [`f6d81dfe0`](https://www.github.com/tauri-apps/tauri/commit/f6d81dfe0871e0ccd012e5190d41e3767e733608) Only process IPC commands from the main frame.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.8`
+
+## \[1.6.6]
+
+### Bug Fixes
+
+- [`704260bb3`](https://www.github.com/tauri-apps/tauri/commit/704260bb3c2bc54c149f2fe508bff09535b083ad)([#9784](https://www.github.com/tauri-apps/tauri/pull/9784)) Fix dialog crash on macOS when the `default_path` value is empty.
+- [`3b69c1384`](https://www.github.com/tauri-apps/tauri/commit/3b69c1384bd089ad5dcff0c1b12fbfadeb585c6a)([#9792](https://www.github.com/tauri-apps/tauri/pull/9792)) Revert [#9706](https://github.com/tauri-apps/tauri/pull/9706) which broke compatability between `tauri` crate and the JS `@tauri-apps/api` npm package in a patch release where it should've been in a minor release.
+
+## \[1.6.5]
+
+### Bug Fixes
+
+- [`ef35a793c`](https://www.github.com/tauri-apps/tauri/commit/ef35a793c5d923d55e338b51e04e6c280f7c810d)([#9729](https://www.github.com/tauri-apps/tauri/pull/9729)) Fix compilation error when `shell-execute` or `shell-sidecar` features are not active
+
+## \[1.6.4]
+
+### Enhancements
+
+- [`7f885bd5e`](https://www.github.com/tauri-apps/tauri/commit/7f885bd5edf3e179ddf0b674c3ea7a96e26ce39e)([#9706](https://www.github.com/tauri-apps/tauri/pull/9706)) Enhance the speed of The JS `Command.execute` API from `shell` module.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.7`
+
+## \[1.6.3]
+
+### Enhancements
+
+- [`3e98145ac`](https://www.github.com/tauri-apps/tauri/commit/3e98145ac3f45d37230661e136e4afc08b072285)([#9570](https://www.github.com/tauri-apps/tauri/pull/9570)) Run each plugin initialization script on its own context so they do not interfere with each other or the Tauri init script.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-runtime@0.14.3`
+- Upgraded to `tauri-runtime-wry@0.14.6`
+- Upgraded to `tauri-macros@1.4.4`
+
+## \[1.6.2]
+
+### Bug Fixes
+
+- [`e3b6d38d2`](https://www.github.com/tauri-apps/tauri/commit/e3b6d38d26d27b292f98d6c0e8603a15265a5b43)([#9166](https://www.github.com/tauri-apps/tauri/pull/9166)) Fix `basename(path, 'ext')` JS API when removing all occurances of `ext` where it should only remove the last one.
+- [`705da977a`](https://www.github.com/tauri-apps/tauri/commit/705da977a9c941a4b2d90219b34925498f507ab2)([#9529](https://www.github.com/tauri-apps/tauri/pull/9529)) Do not use JS optional chaining to prevent script errors on older webviews such as macOS 10.14.
+
+## \[1.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.5`
+
+## \[1.6.0]
+
+### New Features
+
+- [`6e488378`](https://www.github.com/tauri-apps/tauri/commit/6e48837860203582d2ef8e59d4524f98511a14c0)([#8474](https://www.github.com/tauri-apps/tauri/pull/8474)) Re-export `Url` type.
+
+### Enhancements
+
+- [`8ce51cec`](https://www.github.com/tauri-apps/tauri/commit/8ce51cec3baf4ed88d80c59bf3bbe96fd369c7a0)([#7718](https://www.github.com/tauri-apps/tauri/pull/7718)) On Windows, retain command line args when relaunching the app after an update. Supports NSIS and WiX (without elevated update task).
+
+### Bug Fixes
+
+- [`cc3d8e77`](https://www.github.com/tauri-apps/tauri/commit/cc3d8e77313672f25520e278bbe8fae1b275a735)([#8539](https://www.github.com/tauri-apps/tauri/pull/8539)) Fixes a deadlock when reading a stdout or stderr line returns an error.
+- [`b546b42d`](https://www.github.com/tauri-apps/tauri/commit/b546b42db7e75a59232367dd6212fe3b75bb4c6d)([#8577](https://www.github.com/tauri-apps/tauri/pull/8577)) Preserve the order of JS object/map keys in IPC calls. This also fixes issues with the JS `http` module when calling to servers that required a specific order of `FormBody` contents.
+- [`8f8729d9`](https://www.github.com/tauri-apps/tauri/commit/8f8729d91843acd2bd2a24731db865d690dd9ab1)([#8312](https://www.github.com/tauri-apps/tauri/pull/8312)) On macOS, allow cancelling maximization when doubleclick happens on `data-tauri-drag-region` by simply keeping the left moust button pressed and then moving the mouse away of the starting position of the click, which is consistent with the native behavior of macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.4`
+
+## \[1.5.4]
+
+### Enhancements
+
+- [`3c371aa8`](https://www.github.com/tauri-apps/tauri/commit/3c371aa8ee4032998f859b570702e81e26e77c6c)([#8228](https://www.github.com/tauri-apps/tauri/pull/8228)) Added `test::get_ipc_response`.
+
+### Bug Fixes
+
+- [`50a3d170`](https://www.github.com/tauri-apps/tauri/commit/50a3d170f242178d41fe7e8a3adf964541f6fe9c)([#8408](https://www.github.com/tauri-apps/tauri/pull/8408)) On Windows, fix `open` dialog `defaultPath`, when invoked from JS, not working if the path uses forward slash (`/`)
+- [`645e1dcc`](https://www.github.com/tauri-apps/tauri/commit/645e1dcc6e113564e2ddaacf9cb8338aed1a0bd0)([#8404](https://www.github.com/tauri-apps/tauri/pull/8404)) Fix NSIS updater failing to launch when using `basicUi` mode.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.3`
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-runtime@0.14.2`
+- Upgraded to `tauri-macros@1.4.3`
+
+## \[1.5.3]
+
+### Enhancements
+
+- [`b3e53e72`](https://www.github.com/tauri-apps/tauri/commit/b3e53e7243311a2659b7569dddc20c56ac9f9d8e)([#8288](https://www.github.com/tauri-apps/tauri/pull/8288)) Added `AssetResolver::iter` to iterate on all embedded assets.
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
+### Bug Fixes
+
+- [`2ba88563`](https://www.github.com/tauri-apps/tauri/commit/2ba8856343e284ed022f28cff6d16db15ad4645f)([#8095](https://www.github.com/tauri-apps/tauri/pull/8095)) Fix docs.rs build for `x86_64-apple-darwin`.
+- [`4b6a602a`](https://www.github.com/tauri-apps/tauri/commit/4b6a602a89b36f24d34d6ccd8e3c9b7ce202c9eb)([#8234](https://www.github.com/tauri-apps/tauri/pull/8234)) Escape path of the updater msi to avoid crashing on installers with spaces.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@0.14.2`
+- Upgraded to `tauri-macros@1.4.2`
+
 ## \[1.5.2]
 
 ### Bug Fixes

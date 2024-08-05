@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-module.exports = {
-  singleQuote: true,
-  semi: false,
-  trailingComma: 'none'
+fn main() {
+  tauri_build::build()
 }

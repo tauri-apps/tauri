@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.4.5"
+version = "1.6.0"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,9 +17,9 @@ rust-version = "1.60"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "1.5.0", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "1.6.0", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.24.7"
-libflate = "2.0"
+flate2 = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_json = "1.0"
@@ -27,12 +27,12 @@ serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.10.0"
 tar = "0.4.40"
 walkdir = "2"
-handlebars = "4.4"
+handlebars = "4.5"
 tempfile = "3.8.1"
-log = { version = "0.4.20", features = [ "kv_unstable" ] }
+log = { version = "0.4.21", features = [ "kv" ] }
 dirs-next = "2.0"
 os_pipe = "1"
-ureq = { version = "2.8", default-features = false }
+ureq = { version = "2.9.1", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
@@ -43,7 +43,7 @@ dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
-winreg = "0.51"
+windows-registry = "0.1.1"
 glob = "0.3"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
@@ -62,9 +62,10 @@ plist = "1"
 regex = "1"
 
 [target."cfg(target_os = \"linux\")".dependencies]
-heck = "0.4"
+heck = "0.5"
 ar = "0.9.0"
 md5 = "0.7.0"
+rpm = "0.14.0"
 
 [lib]
 name = "tauri_bundler"

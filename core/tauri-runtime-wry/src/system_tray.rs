@@ -3,10 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 pub use tauri_runtime::{
-  menu::{
-    Menu, MenuEntry, MenuItem, MenuUpdate, Submenu, SystemTrayMenu, SystemTrayMenuEntry,
-    SystemTrayMenuItem, TrayHandle,
-  },
+  menu::{MenuUpdate, SystemTrayMenu, SystemTrayMenuEntry, SystemTrayMenuItem, TrayHandle},
   Icon, SystemTrayEvent,
 };
 use wry::application::event_loop::EventLoopWindowTarget;

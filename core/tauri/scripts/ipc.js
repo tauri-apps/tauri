@@ -8,6 +8,12 @@
 
 ;
 (function () {
+  // Workaround for webview2 injecting scripts into subframes, unlike webkitgtk/wkwebview.
+  const osName = __TEMPLATE_os_name__
+  if (osName === 'windows' && window.location !== window.parent.location) {
+    return
+  }
+
   /**
    * @type {string}
    */
@@ -17,6 +23,14 @@
    * @type {string}
    */
   const isolationOrigin = __TEMPLATE_isolation_origin__
+
+  /**
+   * A runtime generated key to ensure an IPC call comes from an initialized frame.
+   *
+   * This is declared outside the `window.__TAURI_INVOKE__` definition to prevent
+   * the key from being leaked by `window.__TAURI_INVOKE__.toString()`.
+   */
+  const __TAURI_INVOKE_KEY__ = __TEMPLATE_invoke_key__
 
   /**
    * @type {{queue: object[], ready: boolean, frame: HTMLElement | null}}
@@ -85,6 +99,7 @@
   Object.defineProperty(window, '__TAURI_IPC__', {
     // todo: JSDoc this function
     value: Object.freeze((message) => {
+      message.__TAURI_INVOKE_KEY__ = __TAURI_INVOKE_KEY__
       switch (pattern) {
         case 'brownfield':
           window.__TAURI_POST_MESSAGE__(message)

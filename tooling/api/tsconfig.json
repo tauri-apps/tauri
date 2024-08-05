@@ -1,14 +1,12 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "es2019",
     "module": "esnext",
-    "strict": true,
-    "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
+    "strict": true,
     "noUnusedLocals": true,
     "noImplicitAny": true,
-    "resolveJsonModule": true,
     "noEmit": true
   }
 }

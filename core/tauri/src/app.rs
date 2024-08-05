@@ -354,8 +354,54 @@ pub struct AssetResolver<R: Runtime> {
 
 impl<R: Runtime> AssetResolver<R> {
   /// Gets the app asset associated with the given path.
+  ///
+  /// Resolves to the embedded asset that is part of the app
+  /// in dev when [`devPath`](https://tauri.app/v1/api/config/#buildconfig.devpath) points to a folder in your filesystem
+  /// or in production when [`distDir`](https://tauri.app/v1/api/config/#buildconfig.distdir)
+  /// points to your frontend assets.
+  ///
+  /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
+  /// Note that the dist directory must exist so you might need to build your frontend assets first.
   pub fn get(&self, path: String) -> Option<Asset> {
+    #[cfg(dev)]
+    {
+      // on dev if the devPath is a path to a directory we have the embedded assets
+      // so we can use get_asset() directly
+      // we only fallback to reading from distDir directly if we're using an external URL (which is likely)
+      if let (
+        crate::utils::config::AppUrl::Url(crate::utils::config::WindowUrl::External(_)),
+        crate::utils::config::AppUrl::Url(crate::utils::config::WindowUrl::App(dist_path)),
+      ) = (
+        &self.manager.config().build.dev_path,
+        &self.manager.config().build.dist_dir,
+      ) {
+        let asset_path = PathBuf::from(&path)
+          .components()
+          .filter(|c| !matches!(c, std::path::Component::RootDir))
+          .collect::<PathBuf>();
+
+        let asset_path = self
+          .manager
+          .config_parent()
+          .map(|p| p.join(dist_path).join(&asset_path))
+          .unwrap_or_else(|| dist_path.join(&asset_path));
+        return std::fs::read(asset_path).ok().map(|bytes| {
+          let mime_type = crate::utils::mime_type::MimeType::parse(&bytes, &path);
+          Asset {
+            bytes,
+            mime_type,
+            csp_header: None,
+          }
+        });
+      }
+    }
+
     self.manager.get_asset(path).ok()
+  }
+
+  /// Iterate on all assets.
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    self.manager.asset_iter()
   }
 }
 
@@ -469,26 +515,14 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn plugin<P: Plugin<R> + 'static>(&self, mut plugin: P) -> crate::Result<()> {
-    plugin
-      .initialize(
-        self,
-        self
-          .config()
-          .plugins
-          .0
-          .get(plugin.name())
-          .cloned()
-          .unwrap_or_default(),
-      )
-      .map_err(|e| crate::Error::PluginInitialization(plugin.name().to_string(), e.to_string()))?;
-    self
-      .manager()
-      .inner
-      .plugins
-      .lock()
-      .unwrap()
-      .register(plugin);
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
+  pub fn plugin<P: Plugin<R> + 'static>(&self, plugin: P) -> crate::Result<()> {
+    let mut plugin = Box::new(plugin) as Box<dyn Plugin<R>>;
+
+    let mut store = self.manager().inner.plugins.lock().unwrap();
+    store.initialize(&mut plugin, self, &self.config().plugins)?;
+    store.register(plugin);
+
     Ok(())
   }
 
@@ -908,6 +942,7 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::run_iteration"))]
   pub fn run_iteration(&mut self) -> crate::runtime::RunIteration {
     let manager = self.manager.clone();
     let app_handle = self.handle();
@@ -995,6 +1030,9 @@ pub struct Builder<R: Runtime> {
   /// The script that initializes the `window.__TAURI_POST_MESSAGE__` function.
   invoke_initialization_script: String,
 
+  /// Invoke key. Used to secure IPC calls.
+  pub(crate) invoke_key: String,
+
   /// The setup hook.
   setup: SetupHook<R>,
 
@@ -1053,6 +1091,7 @@ impl<R: Runtime> Builder<R> {
       invoke_responder: Arc::new(window_invoke_responder),
       invoke_initialization_script:
         format!("Object.defineProperty(window, '__TAURI_POST_MESSAGE__', {{ value: (message) => window.ipc.postMessage({}(message)) }})", crate::manager::STRINGIFY_IPC_MESSAGE_FN),
+      invoke_key: crate::generate_invoke_key().expect("failed to generate invoke key"),
       on_page_load: Box::new(|_, _| ()),
       pending_windows: Default::default(),
       plugins: PluginStore::default(),
@@ -1201,7 +1240,7 @@ impl<R: Runtime> Builder<R> {
   /// ```
   #[must_use]
   pub fn plugin<P: Plugin<R> + 'static>(mut self, plugin: P) -> Self {
-    self.plugins.register(plugin);
+    self.plugins.register(Box::new(plugin));
     self
   }
 
@@ -1552,6 +1591,10 @@ impl<R: Runtime> Builder<R> {
 
   /// Builds the application.
   #[allow(clippy::type_complexity)]
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument(name = "app::build", skip_all)
+  )]
   pub fn build<A: Assets>(mut self, context: Context<A>) -> crate::Result<App<R>> {
     #[cfg(target_os = "macos")]
     if self.menu.is_none() && self.enable_macos_default_menu {
@@ -1571,6 +1614,7 @@ impl<R: Runtime> Builder<R> {
       self.window_event_listeners,
       (self.menu, self.menu_event_listeners),
       (self.invoke_responder, self.invoke_initialization_script),
+      self.invoke_key,
     );
 
     let http_scheme = manager.config().tauri.security.dangerous_use_http_scheme;

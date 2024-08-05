@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 name = "tauri"
 readme = "README.md"
 repository = "https://github.com/tauri-apps/tauri"
-version = "1.5.2"
+version = "1.7.1"
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -35,7 +35,7 @@ features = [
   "process-exit",
   "protocol-asset",
   "process-command-api",
-  "shell-open",
+  "shell-open"
 ]
 rustdoc-args = [ "--cfg", "doc_cfg" ]
 default-target = "x86_64-unknown-linux-gnu"
@@ -45,23 +45,27 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
+[lints.rust]
+# cfg(doc_cfg) is used for docs.rs detection. see above
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
 [package.metadata.cargo-udeps.ignore]
-normal = [ "reqwest" ]
+normal = [ "reqwest", "nix" ]
 
 [dependencies]
-serde_json = { version = "1.0", features = [ "raw_value" ] }
+serde_json = { version = "1.0", features = [ "raw_value", "preserve_order" ] }
 serde = { version = "1.0", features = [ "derive" ] }
-tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+tokio = { version = "1", features = ["time", "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
 futures-util = "0.3"
 uuid = { version = "1", features = [ "v4" ] }
 url = { version = "2" }
 anyhow = "1.0"
 thiserror = "1.0"
 once_cell = "1"
-tauri-runtime = { version = "0.14.1", path = "../tauri-runtime" }
-tauri-macros = { version = "1.4.1", path = "../tauri-macros" }
-tauri-utils = { version = "1.5.0", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "0.14.1", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime = { version = "0.14.4", path = "../tauri-runtime" }
+tauri-macros = { version = "1.4.5", path = "../tauri-macros" }
+tauri-utils = { version = "1.6.0", features = [ "resources" ], path = "../tauri-utils" }
+tauri-runtime-wry = { version = "0.14.9", path = "../tauri-runtime-wry", optional = true }
 rand = "0.8"
 semver = { version = "1", features = [ "serde" ] }
 serde_repr = "0.1"
@@ -94,6 +98,9 @@ png = { version = "0.17", optional = true }
 ico = { version = "0.3", optional = true }
 encoding_rs = "0.8"
 sys-locale = { version = "0.3", optional = true }
+tracing = { version = "0.1", optional = true }
+indexmap = { version = "1", features = [ "std", "serde" ], optional = true }
+getrandom = { version = "0.2", features = [ "std" ] }
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] } # 0.11 raised gtk version
@@ -103,19 +110,25 @@ notify-rust = { version = "4", optional = true }
 gtk = { version = "0.15", features = [ "v3_20" ] } # Do not update without consensus
 glib = "0.15" # Do not update without consensus
 webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] } # Do not update without consensus
+nix = { version = "0.26.0", default-features = false, features = [ "user", "socket", "uio" ], optional = true } # 0.27 raised msrv
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
-cocoa = "0.25"
+cocoa = "0.24" # wry still uses 0.24
 objc = "0.2" # Do not update without consensus
 
 [target."cfg(windows)".dependencies]
+dunce = "1"
 webview2-com = "0.19.1" # Do not update without consensus
 win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.39.0" # Do not update without consensus
-  features = [ "Win32_Foundation" ]
+  features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell"
+]
 
 [build-dependencies]
 heck = "0.5"
@@ -135,6 +148,11 @@ cargo_toml = "0.15"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]
+tracing = [
+  "dep:tracing",
+  "tauri-macros/tracing",
+  "tauri-runtime-wry/tracing"
+]
 test = [ ]
 compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
 wry = [ "tauri-runtime-wry" ]
@@ -150,7 +168,7 @@ updater = [
   "dialog-ask",
   "fs-extract-api"
 ]
-http-api = [ "reqwest", "bytes" ]
+http-api = [ "reqwest", "bytes", "indexmap" ]
 http-multipart = [ "reqwest/multipart" ]
 os-api = [ "sys-locale" ]
 shell-open-api = [ "open", "regex", "tauri-macros/shell-scope" ]
@@ -165,7 +183,7 @@ global-shortcut = [
 ]
 clipboard = [ "tauri-runtime/clipboard", "tauri-runtime-wry/clipboard" ]
 dialog = [ "rfd" ]
-notification = [ "notify-rust" ]
+notification = [ "notify-rust", "nix" ]
 cli = [ "clap" ]
 system-tray = [ "tauri-runtime/system-tray", "tauri-runtime-wry/system-tray" ]
 devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]

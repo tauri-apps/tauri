@@ -11,6 +11,8 @@ Unicode true
 !include x64.nsh
 !include WordFunc.nsh
 !include "StrFunc.nsh"
+!include "Win\COM.nsh"
+!include "Win\Propkey.nsh"
 ${StrCase}
 ${StrLoc}
 
@@ -40,6 +42,7 @@ ${StrLoc}
 !define UNINSTKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}"
 !define MANUPRODUCTKEY "Software\${MANUFACTURER}\${PRODUCTNAME}"
 !define UNINSTALLERSIGNCOMMAND "{{uninstaller_sign_cmd}}"
+!define ESTIMATEDSIZE "{{estimated_size}}"
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -316,9 +319,14 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 ; Show run app after installation.
-!define MUI_FINISHPAGE_RUN "$INSTDIR\${MAINBINARYNAME}.exe"
+!define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
+
+Function RunMainBinary
+  nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" ""
+FunctionEnd
 
 ; Uninstaller Pages
 ; 1. Confirm uninstall page
@@ -448,7 +456,7 @@ Section WebView2
   !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
     Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     DetailPrint "$(webview2Downloading)"
-    nsis_tauri_utils::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
+    NSISdl::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Pop $0
     ${If} $0 == 0
       DetailPrint "$(webview2DownloadSuccess)"
@@ -492,13 +500,21 @@ Section WebView2
 SectionEnd
 
 !macro CheckIfAppIsRunning
-  nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !if "${INSTALLMODE}" == "currentUser"
+    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
+  !else
+    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+  !endif
   Pop $R0
   ${If} $R0 = 0
       IfSilent kill 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
       kill:
-        nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !if "${INSTALLMODE}" == "currentUser"
+          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
+        !else
+          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+        !endif
         Pop $R0
         Sleep 500
         ${If} $R0 = 0
@@ -522,31 +538,25 @@ SectionEnd
   app_check_done:
 !macroend
 
-Var AppSize
 Section Install
   SetOutPath $INSTDIR
-  StrCpy $AppSize 0
 
   !insertmacro CheckIfAppIsRunning
 
   ; Copy main executable
   File "${MAINBINARYSRCPATH}"
-  ${GetSize} "$INSTDIR" "/M=${MAINBINARYNAME}.exe /S=0B" $0 $1 $2
-  IntOp $AppSize $AppSize + $0
 
   ; Copy resources
+  {{#each resources_dirs}}
+    CreateDirectory "$INSTDIR\\{{this}}"
+  {{/each}}
   {{#each resources}}
-    CreateDirectory "$INSTDIR\\{{this.[0]}}"
-    File /a "/oname={{this.[1]}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this.[1]}} /S=0B" $0 $1 $2
-    IntOp $AppSize $AppSize + $0
+    File /a "/oname={{this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Copy external binaries
   {{#each binaries}}
-    File /a "/oname={{this}}" "{{@key}}"
-    ${GetSize} "$INSTDIR" "/M={{this}} /S=0B" $0 $1 $2
-    IntOp $AppSize $AppSize + $0
+    File /a "/oname={{this}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
   ; Create uninstaller
@@ -570,9 +580,7 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  IntOp $AppSize $AppSize / 1000
-  IntFmt $AppSize "0x%08X" $AppSize
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "$AppSize"
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
   ; Create start menu shortcut (GUI)
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
@@ -605,7 +613,8 @@ Function .onInstSuccess
   check_r_flag:
     ${GetOptions} $CMDLINE "/R" $R0
     IfErrors run_done 0
-      Exec '"$INSTDIR\${MAINBINARYNAME}.exe"'
+      ${GetOptions} $CMDLINE "/ARGS" $R0
+      nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" "$R0"
   run_done:
 FunctionEnd
 
@@ -619,6 +628,35 @@ Function un.onInit
   !insertmacro MUI_UNGETLANGUAGE
 FunctionEnd
 
+!macro DeleteAppUserModelId
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_DestinationList} ${IID_ICustomDestinationList} r1 ""
+  ${If} $1 P<> 0
+    ${ICustomDestinationList::DeleteList} $1 '("${BUNDLEID}")'
+    ${IUnknown::Release} $1 ""
+  ${EndIf}
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ApplicationDestinations} ${IID_IApplicationDestinations} r1 ""
+  ${If} $1 P<> 0
+    ${IApplicationDestinations::SetAppID} $1 '("${BUNDLEID}")i.r0'
+    ${If} $0 >= 0
+      ${IApplicationDestinations::RemoveAllDestinations} $1 ''
+    ${EndIf}
+    ${IUnknown::Release} $1 ""
+  ${EndIf}
+!macroend
+
+; From https://stackoverflow.com/a/42816728/16993372
+!macro UnpinShortcut shortcut
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_StartMenuPin} ${IID_IStartMenuPinnedList} r0 ""
+  ${If} $0 P<> 0
+      System::Call 'SHELL32::SHCreateItemFromParsingName(ws, p0, g "${IID_IShellItem}", *p0r1)' "${shortcut}"
+      ${If} $1 P<> 0
+          ${IStartMenuPinnedList::RemoveFromList} $0 '(r1)'
+          ${IUnknown::Release} $1 ""
+      ${EndIf}
+      ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend
+
 Section Uninstall
   !insertmacro CheckIfAppIsRunning
 
@@ -629,7 +667,6 @@ Section Uninstall
   ; Delete resources
   {{#each resources}}
     Delete "$INSTDIR\\{{this.[1]}}"
-    RMDir "$INSTDIR\\{{this.[0]}}"
   {{/each}}
 
   ; Delete external binaries
@@ -640,7 +677,14 @@ Section Uninstall
   ; Delete uninstaller
   Delete "$INSTDIR\uninstall.exe"
 
+  {{#each resources_ancestors}}
+  RMDir /REBOOTOK "$INSTDIR\\{{this}}"
+  {{/each}}
   RMDir "$INSTDIR"
+
+  !insertmacro DeleteAppUserModelId
+  !insertmacro UnpinShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
+  !insertmacro UnpinShortcut "$DESKTOP\${MAINBINARYNAME}.lnk"
 
   ; Remove start menu shortcut
   !insertmacro MUI_STARTMENU_GETFOLDER Application $AppStartMenuFolder
@@ -683,13 +727,39 @@ Function SkipIfPassive
   ${IfThen} $PassiveMode == 1  ${|} Abort ${|}
 FunctionEnd
 
+!macro SetLnkAppUserModelId shortcut
+  !insertmacro ComHlpr_CreateInProcInstance ${CLSID_ShellLink} ${IID_IShellLink} r0 ""
+  ${If} $0 P<> 0
+    ${IUnknown::QueryInterface} $0 '("${IID_IPersistFile}",.r1)'
+    ${If} $1 P<> 0
+      ${IPersistFile::Load} $1 '("${shortcut}", ${STGM_READWRITE})'
+      ${IUnknown::QueryInterface} $0 '("${IID_IPropertyStore}",.r2)'
+      ${If} $2 P<> 0
+        System::Call 'Oleaut32::SysAllocString(w "${BUNDLEID}") i.r3'
+        System::Call '*${SYSSTRUCT_PROPERTYKEY}(${PKEY_AppUserModel_ID})p.r4'
+        System::Call '*${SYSSTRUCT_PROPVARIANT}(${VT_BSTR},,&i4 $3)p.r5'
+        ${IPropertyStore::SetValue} $2 '($4,$5)'
+
+        System::Call 'Oleaut32::SysFreeString($3)'
+        System::Free $4
+        System::Free $5
+        ${IPropertyStore::Commit} $2 ""
+        ${IUnknown::Release} $2 ""
+        ${IPersistFile::Save} $1 '("${shortcut}",1)'
+      ${EndIf}
+      ${IUnknown::Release} $1 ""
+    ${EndIf}
+    ${IUnknown::Release} $0 ""
+  ${EndIf}
+!macroend
+
 Function CreateDesktopShortcut
   CreateShortcut "$DESKTOP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  ApplicationID::Set "$DESKTOP\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+  !insertmacro SetLnkAppUserModelId "$DESKTOP\${MAINBINARYNAME}.lnk"
 FunctionEnd
 
 Function CreateStartMenuShortcut
   CreateDirectory "$SMPROGRAMS\$AppStartMenuFolder"
   CreateShortcut "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
-  ApplicationID::Set "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk" "${BUNDLEID}"
+  !insertmacro SetLnkAppUserModelId "$SMPROGRAMS\$AppStartMenuFolder\${MAINBINARYNAME}.lnk"
 FunctionEnd

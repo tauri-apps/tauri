@@ -52,6 +52,7 @@ pub struct DialogFilter {
 /// The options for the open dialog API.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(not(dialog_open), allow(dead_code))]
 pub struct OpenDialogOptions {
   /// The title of the dialog window.
   pub title: Option<String>,
@@ -75,6 +76,7 @@ pub struct OpenDialogOptions {
 /// The options for the save dialog API.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(not(dialog_save), allow(dead_code))]
 pub struct SaveDialogOptions {
   /// The title of the dialog window.
   pub title: Option<String>,
@@ -301,6 +303,12 @@ fn set_default_path(
   mut dialog_builder: FileDialogBuilder,
   default_path: PathBuf,
 ) -> FileDialogBuilder {
+  if default_path.as_os_str().is_empty() {
+    return dialog_builder;
+  }
+
+  // we need to adjust the separator on Windows: https://github.com/tauri-apps/tauri/issues/8074
+  let default_path: PathBuf = default_path.components().collect();
   if default_path.is_file() || !default_path.exists() {
     if let (Some(parent), Some(file_name)) = (default_path.parent(), default_path.file_name()) {
       if parent.components().count() > 0 {

@@ -10,14 +10,13 @@ use crate::bundle::{
   windows::{
     sign::try_sign,
     util::{
-      download, download_and_verify, extract_zip, HashAlgorithm, WEBVIEW2_BOOTSTRAPPER_URL,
-      WEBVIEW2_X64_OFFLINE_INSTALLER_GUID, WEBVIEW2_X86_OFFLINE_INSTALLER_GUID,
-      WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
+      extract_zip, HashAlgorithm, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
     },
   },
 };
 use anyhow::{bail, Context};
-use handlebars::{to_json, Handlebars};
+use handlebars::{html_escape, to_json, Handlebars};
 use log::info;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -33,8 +32,8 @@ use uuid::Uuid;
 
 // URLS for the WIX toolchain.  Can be used for cross-platform compilation.
 pub const WIX_URL: &str =
-  "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
-pub const WIX_SHA256: &str = "2c1888d5d1dba377fc7fa14444cf556963747ff9a0a289a3599cf09da03b9e2e";
+  "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
+pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
 
 // For Cross Platform Compilation.
 
@@ -123,7 +122,7 @@ impl ResourceDirectory {
           r#"<Component Id="{id}" Guid="{guid}" Win64="$(var.Win64)" KeyPath="yes"><File Id="PathFile_{id}" Source="{path}" /></Component>"#,
           id = file.id,
           guid = file.guid,
-          path = file.path.display()
+          path = html_escape(&file.path.display().to_string())
         ).as_str()
       );
     }
@@ -141,7 +140,7 @@ impl ResourceDirectory {
       format!(
         r#"<Directory Id="I{id}" Name="{name}">{files}{directories}</Directory>"#,
         id = Uuid::new_v4().as_simple(),
-        name = self.name,
+        name = html_escape(&self.name),
         files = files,
         directories = directories,
       )
@@ -184,6 +183,7 @@ fn app_installer_output_path(
   let arch = match settings.binary_arch() {
     "x86" => "x86",
     "x86_64" => "x64",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {}",
@@ -296,6 +296,7 @@ fn run_candle(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
@@ -390,6 +391,7 @@ pub fn build_wix_app_installer(
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
     "x86" => "x86",
+    "aarch64" => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "unsupported target: {}",
@@ -473,42 +475,15 @@ pub fn build_wix_app_installer(
       );
     }
     WebviewInstallMode::EmbedBootstrapper { silent: _ } => {
-      let webview2_bootstrapper_path = output_path.join("MicrosoftEdgeWebview2Setup.exe");
-      std::fs::write(
-        &webview2_bootstrapper_path,
-        download(WEBVIEW2_BOOTSTRAPPER_URL)?,
-      )?;
+      let webview2_bootstrapper_path = download_webview2_bootstrapper(&output_path)?;
       data.insert(
         "webview2_bootstrapper_path",
         to_json(webview2_bootstrapper_path),
       );
     }
     WebviewInstallMode::OfflineInstaller { silent: _ } => {
-      let guid = if arch == "x64" {
-        WEBVIEW2_X64_OFFLINE_INSTALLER_GUID
-      } else {
-        WEBVIEW2_X86_OFFLINE_INSTALLER_GUID
-      };
-      let offline_installer_path = dirs_next::cache_dir()
-        .unwrap()
-        .join("tauri")
-        .join("Webview2OfflineInstaller")
-        .join(guid)
-        .join(arch);
-      create_dir_all(&offline_installer_path)?;
       let webview2_installer_path =
-        offline_installer_path.join("MicrosoftEdgeWebView2RuntimeInstaller.exe");
-      if !webview2_installer_path.exists() {
-        std::fs::write(
-          &webview2_installer_path,
-          download(
-            &format!("https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/{}/MicrosoftEdgeWebView2RuntimeInstaller{}.exe",
-              guid,
-              arch.to_uppercase(),
-            ),
-          )?,
-        )?;
-      }
+        download_webview2_offline_installer(&output_path.join(arch), arch)?;
       data.insert("webview2_installer_path", to_json(webview2_installer_path));
     }
   }
@@ -598,7 +573,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(&app_exe_source));
+  data.insert("app_exe_source", to_json(app_exe_source));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
@@ -617,9 +592,9 @@ pub fn build_wix_app_installer(
     data.insert("feature_group_refs", to_json(&wix.feature_group_refs));
     data.insert("feature_refs", to_json(&wix.feature_refs));
     data.insert("merge_refs", to_json(&wix.merge_refs));
-    fragment_paths = wix.fragment_paths.clone();
+    fragment_paths.clone_from(&wix.fragment_paths);
     enable_elevated_update_task = wix.enable_elevated_update_task;
-    custom_template_path = wix.template.clone();
+    custom_template_path.clone_from(&wix.template);
 
     if let Some(banner_path) = &wix.banner_path {
       let filename = banner_path
@@ -816,7 +791,9 @@ pub fn build_wix_app_installer(
       &msi_output_path,
     )?;
     rename(&msi_output_path, &msi_path)?;
-    try_sign(&msi_path, settings)?;
+    if settings.can_sign() {
+      try_sign(&msi_path, settings)?;
+    }
     output_paths.push(msi_path);
   }
 

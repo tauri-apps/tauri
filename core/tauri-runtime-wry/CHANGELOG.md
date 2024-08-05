@@ -1,5 +1,62 @@
 # Changelog
 
+## \[0.14.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-runtime@0.14.4`
+
+## \[0.14.8]
+
+### Security fixes
+
+- [`f6d81dfe0`](https://www.github.com/tauri-apps/tauri/commit/f6d81dfe0871e0ccd012e5190d41e3767e733608) Only process IPC commands from the main frame.
+
+## \[0.14.7]
+
+### Bug Fixes
+
+- [`2eb21378a`](https://www.github.com/tauri-apps/tauri/commit/2eb21378a65107da0d4a1ab425767e99580966c2)([#9718](https://www.github.com/tauri-apps/tauri/pull/9718)) Fixes redraw tracing span not closing.
+
+## \[0.14.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-runtime@0.14.3`
+
+## \[0.14.5]
+
+### What's Changed
+
+- [`d42668ce`](https://www.github.com/tauri-apps/tauri/commit/d42668ce17494ab778f436aaa9b216d6db3f0b31)([#9003](https://www.github.com/tauri-apps/tauri/pull/9003)) Fix panic during intialization on wayland when using `clipboard` feature, instead propagate the error during API usage.
+
+## \[0.14.4]
+
+### Bug Fixes
+
+- [`24210735`](https://www.github.com/tauri-apps/tauri/commit/2421073576a6d45783176be57b0188668558aff7)([#8117](https://www.github.com/tauri-apps/tauri/pull/8117)) Fixes a crash on macOS when accessing the windows map.
+- [`510b6226`](https://www.github.com/tauri-apps/tauri/commit/510b62261c70331ce3f5bfd24137dac1bc4a0bbe)([#8822](https://www.github.com/tauri-apps/tauri/pull/8822)) Add missing `arboard` feature flag to prevent panics in wayland session.
+
+## \[0.14.3]
+
+### Bug Fixes
+
+- [`0d0501cb`](https://www.github.com/tauri-apps/tauri/commit/0d0501cb7b5e767c51a3697a148acfe84211a7ad)([#8394](https://www.github.com/tauri-apps/tauri/pull/8394)) Use `arboard` instead of `tao` clipboard implementation to prevent a crash.
+- [`b2f83f03`](https://www.github.com/tauri-apps/tauri/commit/b2f83f03a872baa91e2b6bbb22a3e7a5cd975dc0)([#8402](https://www.github.com/tauri-apps/tauri/pull/8402)) Use `Arc` instead of `Rc` to prevent crashes on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-runtime@0.14.2`
+
+## \[0.14.2]
+
+### Enhancements
+
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
 ## \[0.14.1]
 
 ### Enhancements

@@ -33,6 +33,8 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > tauri > bundle > macOS > signingIdentity`.
 - `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > tauri > bundle > macOS > providerShortName`.
 - `CI` — If set, the CLI will run in CI mode and won't require any user interaction.
+- `RPM_SIGN_KEY` — The private GPG key used to sign the RPM bundle, exported to its ASCII-armored format.
+- `RPM_SIGN_KEY_PASSPHRASE` — The GPG key passphrase for `RPM_SIGN_KEY`, if needed.
 
 ### Tauri CLI Hook Commands
 

@@ -175,7 +175,7 @@ pub fn is_configuration_file(path: &Path) -> bool {
 /// - `tauri.macos.conf.json[5]` on macOS
 /// - `tauri.linux.conf.json[5]` on Linux
 /// - `tauri.windows.conf.json[5]` on Windows
-/// Merging the configurations using [JSON Merge Patch (RFC 7396)].
+///   Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.
 pub fn read_from(root_dir: PathBuf) -> Result<Value, ConfigError> {
@@ -224,15 +224,15 @@ pub fn does_supported_file_name_exist(path: impl Into<PathBuf>) -> bool {
 ///
 /// Hierarchy:
 /// 1. Check if `tauri.conf.json` exists
-///   a. Parse it with `serde_json`
-///   b. Parse it with `json5` if `serde_json` fails
-///   c. Return original `serde_json` error if all above steps failed
+///     a. Parse it with `serde_json`
+///     b. Parse it with `json5` if `serde_json` fails
+///     c. Return original `serde_json` error if all above steps failed
 /// 2. Check if `tauri.conf.json5` exists
-///   a. Parse it with `json5`
-///   b. Return error if all above steps failed
+///     a. Parse it with `json5`
+///     b. Return error if all above steps failed
 /// 3. Check if `Tauri.json` exists
-///   a. Parse it with `toml`
-///   b. Return error if all above steps failed
+///     a. Parse it with `toml`
+///     b. Return error if all above steps failed
 /// 4. Return error if all above steps failed
 pub fn parse(path: impl Into<PathBuf>) -> Result<(Config, PathBuf), ConfigError> {
   do_parse(path.into())

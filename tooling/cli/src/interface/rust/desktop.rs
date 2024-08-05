@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{get_profile, AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
+use super::{AppSettings, DevChild, ExitReason, Options, RustAppSettings, Target};
 use crate::CommandExt;
 use tauri_utils::display_path;
 
@@ -125,7 +125,7 @@ pub fn build(
       options.target.replace(triple.into());
 
       let triple_out_dir = app_settings
-        .out_dir(Some(triple.into()), get_profile(&options))
+        .out_dir(&options)
         .with_context(|| format!("failed to get {triple} out dir"))?;
 
       build_production_app(options, available_targets, config_features.clone())
@@ -357,11 +357,12 @@ fn rename_app(
       product_name.into()
     };
 
+    let binary_extension = if target_os == "windows" { ".exe" } else { "" };
+
     let product_path = bin_path
       .parent()
       .unwrap()
-      .join(product_name)
-      .with_extension(bin_path.extension().unwrap_or_default());
+      .join(format!("{product_name}{binary_extension}"));
 
     rename(bin_path, &product_path).with_context(|| {
       format!(

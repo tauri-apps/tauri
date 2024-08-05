@@ -1,5 +1,38 @@
 # Changelog
 
+## \[1.6.0]
+
+### New Features
+
+- [`253595a22`](https://www.github.com/tauri-apps/tauri/commit/253595a22d8659a1cb199bfc423e988ea82191e6) ([#9809](https://www.github.com/tauri-apps/tauri/pull/9809)) Add RPM packaging
+- [`78fc84137`](https://www.github.com/tauri-apps/tauri/commit/78fc841370a76adf7af413bf1c9490b046b50de4) ([#9942](https://www.github.com/tauri-apps/tauri/pull/9942)) Added support for `provides`, `conflicts` and `replaces` (`obsoletes` for RPM) options for `bundler > deb` and `bundler > rpm` configs.
+- [`590966276`](https://www.github.com/tauri-apps/tauri/commit/5909662766c2fe9947a9eadf33725170c2f6fa99) ([#9902](https://www.github.com/tauri-apps/tauri/pull/9902)) Add `sign_command` in `WindowsConfig`
+- [`a301be52d`](https://www.github.com/tauri-apps/tauri/commit/a301be52d276f1e99316d23b4f0a8e458e29bc35) ([#9914](https://www.github.com/tauri-apps/tauri/pull/9914)) Add `use_local_tools_dir` option.
+
+## \[1.5.4]
+
+### Bug Fixes
+
+- [`5ee5ed4dc`](https://www.github.com/tauri-apps/tauri/commit/5ee5ed4dc668aa8b60741b57ffe616a5a7aefd88)([#9680](https://www.github.com/tauri-apps/tauri/pull/9680)) Fixes `schemars` compilation issue.
+
+## \[1.5.3]
+
+### New features
+
+- [`7aa30dec`](https://www.github.com/tauri-apps/tauri/commit/7aa30dec85a17c3d3faaf3841b93e10991b991b0)([#8620](https://www.github.com/tauri-apps/tauri/pull/8620)) Add `priority`, `section` and `changelog` options in Debian config.
+
+## \[1.5.2]
+
+### Bug Fixes
+
+- [`9b230de7`](https://www.github.com/tauri-apps/tauri/commit/9b230de7bc6690c2733f5324d50b999af1f7a6ef)([#8407](https://www.github.com/tauri-apps/tauri/pull/8407)) Fix compile error when parsing config that includes float values.
+
+## \[1.5.3]
+
+### New Features
+
+- [`b3e53e72`](https://www.github.com/tauri-apps/tauri/commit/b3e53e7243311a2659b7569dddc20c56ac9f9d8e)([#8288](https://www.github.com/tauri-apps/tauri/pull/8288)) Added `Assets::iter` to iterate on all embedded assets.
+
 ## \[1.5.0]
 
 ### New Features

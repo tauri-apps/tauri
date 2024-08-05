@@ -1,5 +1,32 @@
 # Changelog
 
+## \[1.4.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.0`
+- Upgraded to `tauri-codegen@1.4.4`
+
+## \[1.4.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.4`
+- Upgraded to `tauri-codegen@1.4.3`
+
+## \[1.4.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.5.2`
+- Upgraded to `tauri-codegen@1.4.2`
+
+## \[1.4.2]
+
+### Enhancements
+
+- [`5e05236b`](https://www.github.com/tauri-apps/tauri/commit/5e05236b4987346697c7caae0567d3c50714c198)([#8289](https://www.github.com/tauri-apps/tauri/pull/8289)) Added tracing for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers behind the `tracing` feature flag.
+
 ## \[1.4.1]
 
 ### Dependencies

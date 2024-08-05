@@ -78,6 +78,8 @@ impl Default for WindowUrl {
 pub enum BundleType {
   /// The debian bundle (.deb).
   Deb,
+  /// The RPM bundle (.rpm).
+  Rpm,
   /// The AppImage bundle (.appimage).
   AppImage,
   /// The Microsoft Installer bundle (.msi).
@@ -99,6 +101,7 @@ impl Display for BundleType {
       "{}",
       match self {
         Self::Deb => "deb",
+        Self::Rpm => "rpm",
         Self::AppImage => "appimage",
         Self::Msi => "msi",
         Self::Nsis => "nsis",
@@ -127,6 +130,7 @@ impl<'de> Deserialize<'de> for BundleType {
     let s = String::deserialize(deserializer)?;
     match s.to_lowercase().as_str() {
       "deb" => Ok(Self::Deb),
+      "rpm" => Ok(Self::Rpm),
       "appimage" => Ok(Self::AppImage),
       "msi" => Ok(Self::Msi),
       "nsis" => Ok(Self::Nsis),
@@ -166,19 +170,13 @@ impl schemars::JsonSchema for BundleTarget {
         ..Default::default()
       }
       .into(),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<Vec<BundleType>>(),
-        schemars::schema::Metadata {
-          description: Some("A list of bundle targets.".to_owned()),
-          ..Default::default()
-        },
+        "A list of bundle targets.",
       ),
-      schemars::_private::apply_metadata(
+      schemars::_private::metadata::add_description(
         gen.subschema_for::<BundleType>(),
-        schemars::schema::Metadata {
-          description: Some("A single bundle target.".to_owned()),
-          ..Default::default()
-        },
+        "A single bundle target.",
       ),
     ];
 
@@ -273,6 +271,12 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of dependencies the package provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of package conflicts.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of package replaces.
+  pub replaces: Option<Vec<String>>,
   /// The files to include on the package.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
@@ -280,6 +284,143 @@ pub struct DebConfig {
   ///
   /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
   pub desktop_template: Option<PathBuf>,
+  /// Define the section in Debian Control file. See : https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
+  pub section: Option<String>,
+  /// Change the priority of the Debian Package. By default, it is set to `optional`.
+  /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
+  pub priority: Option<String>,
+  /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
+  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  pub changelog: Option<PathBuf>,
+}
+
+/// Configuration for RPM bundles.
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct RpmConfig {
+  /// The package's license identifier. If not set, defaults to the license from
+  /// the Cargo.toml file.
+  pub license: Option<String>,
+  /// The list of RPM dependencies your application relies on.
+  pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application provides.
+  pub provides: Option<Vec<String>>,
+  /// The list of RPM dependencies your application conflicts with. They must not be present
+  /// in order for the package to be installed.
+  pub conflicts: Option<Vec<String>>,
+  /// The list of RPM dependencies your application supersedes - if this package is installed,
+  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  pub obsoletes: Option<Vec<String>>,
+  /// The RPM release tag.
+  #[serde(default = "default_release")]
+  pub release: String,
+  /// The RPM epoch.
+  #[serde(default)]
+  pub epoch: u32,
+  /// The files to include on the package.
+  #[serde(default)]
+  pub files: HashMap<PathBuf, PathBuf>,
+  /// Path to a custom desktop file Handlebars template.
+  ///
+  /// Available variables: `categories`, `comment` (optional), `exec`, `icon` and `name`.
+  pub desktop_template: Option<PathBuf>,
+}
+
+impl Default for RpmConfig {
+  fn default() -> Self {
+    Self {
+      license: None,
+      depends: None,
+      provides: None,
+      conflicts: None,
+      obsoletes: None,
+      release: default_release(),
+      epoch: 0,
+      files: Default::default(),
+      desktop_template: None,
+    }
+  }
+}
+
+fn default_release() -> String {
+  "1".into()
+}
+
+/// Position coordinates struct.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Position {
+  /// X coordinate.
+  pub x: u32,
+  /// Y coordinate.
+  pub y: u32,
+}
+
+/// Size of the window.
+#[derive(Default, Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Size {
+  /// Width of the window.
+  pub width: u32,
+  /// Height of the window.
+  pub height: u32,
+}
+
+/// Configuration for Apple Disk Image (.dmg) bundles.
+///
+/// See more: https://tauri.app/v1/api/config#dmgconfig
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DmgConfig {
+  /// Image to use as the background in dmg file. Accepted formats: `png`/`jpg`/`gif`.
+  pub background: Option<PathBuf>,
+  /// Position of volume window on screen.
+  pub window_position: Option<Position>,
+  /// Size of volume window.
+  #[serde(default = "dmg_window_size", alias = "window-size")]
+  pub window_size: Size,
+  /// Position of app file on window.
+  #[serde(default = "dmg_app_position", alias = "app-position")]
+  pub app_position: Position,
+  /// Position of application folder on window.
+  #[serde(
+    default = "dmg_application_folder_position",
+    alias = "application-folder-position"
+  )]
+  pub application_folder_position: Position,
+}
+
+impl Default for DmgConfig {
+  fn default() -> Self {
+    Self {
+      background: None,
+      window_position: None,
+      window_size: dmg_window_size(),
+      app_position: dmg_app_position(),
+      application_folder_position: dmg_application_folder_position(),
+    }
+  }
+}
+
+fn dmg_window_size() -> Size {
+  Size {
+    width: 660,
+    height: 400,
+  }
+}
+
+fn dmg_app_position() -> Position {
+  Position { x: 180, y: 170 }
+}
+
+fn dmg_application_folder_position() -> Position {
+  Position { x: 480, y: 170 }
 }
 
 fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
@@ -326,6 +467,11 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
+  /// Whether the codesign should enable [hardened runtime] (for executables) or not.
+  ///
+  /// [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>
+  #[serde(alias = "hardened-runtime", default = "default_true")]
+  pub hardened_runtime: bool,
   /// Provider short name for notarization.
   #[serde(alias = "provider-short-name")]
   pub provider_short_name: Option<String>,
@@ -341,6 +487,7 @@ impl Default for MacConfig {
       exception_domain: None,
       license: None,
       signing_identity: None,
+      hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
     }
@@ -625,6 +772,20 @@ pub struct WindowsConfig {
   pub wix: Option<WixConfig>,
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
+  /// Specify a custom command to sign the binaries.
+  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// which we will detect and replace before calling the command.
+  ///
+  /// Example:
+  /// ```text
+  /// sign-cli --arg1 --arg2 %1
+  /// ```
+  ///
+  /// By Default we use `signtool.exe` which can be found only on Windows so
+  /// if you are on another platform and want to cross-compile and sign you will
+  /// need to use another tool like `osslsigncode`.
+  #[serde(alias = "sign-command")]
+  pub sign_command: Option<String>,
 }
 
 impl Default for WindowsConfig {
@@ -639,6 +800,7 @@ impl Default for WindowsConfig {
       allow_downgrades: true,
       wix: None,
       nsis: None,
+      sign_command: None,
     }
   }
 }
@@ -679,7 +841,7 @@ pub struct BundleConfig {
   /// Whether Tauri should bundle your application or just output the executable.
   #[serde(default)]
   pub active: bool,
-  /// The bundle targets, currently supports ["deb", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
+  /// The bundle targets, currently supports ["deb", "rpm", "appimage", "nsis", "msi", "app", "dmg", "updater"] or "all".
   #[serde(default)]
   pub targets: BundleTarget,
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
@@ -711,12 +873,27 @@ pub struct BundleConfig {
   /// A longer, multi-line description of the application.
   #[serde(alias = "long-description")]
   pub long_description: Option<String>,
+  /// Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.
+  ///
+  /// If true, tools will be cached in `target\.tauri-tools`.
+  /// If false, tools will be cached in the current user's platform-specific cache directory.
+  ///
+  /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
+  /// because the Window system's app data directory is restricted.
+  #[serde(default, alias = "use-local-tools-dir")]
+  pub use_local_tools_dir: bool,
   /// Configuration for the AppImage bundle.
   #[serde(default)]
   pub appimage: AppImageConfig,
   /// Configuration for the Debian bundle.
   #[serde(default)]
   pub deb: DebConfig,
+  /// Configuration for the RPM bundle.
+  #[serde(default)]
+  pub rpm: RpmConfig,
+  /// DMG-specific settings.
+  #[serde(default)]
+  pub dmg: DmgConfig,
   /// Configuration for the macOS bundles.
   #[serde(rename = "macOS", default)]
   pub macos: MacConfig,
@@ -2578,10 +2755,13 @@ impl WindowsUpdateInstallMode {
   }
 
   /// Returns the associated nsis arguments.
+  ///
+  /// [WindowsUpdateInstallMode::Passive] will return `["/P", "/R", "/NS"]`
+  /// [WindowsUpdateInstallMode::Quiet] will return `["/S", "/R", "/NS"]`
   pub fn nsis_args(&self) -> &'static [&'static str] {
     match self {
-      Self::Passive => &["/P", "/R"],
-      Self::Quiet => &["/S", "/R"],
+      Self::Passive => &["/P", "/R", "/NS"],
+      Self::Quiet => &["/S", "/R", "/NS"],
       _ => &[],
     }
   }
@@ -3016,7 +3196,9 @@ impl PackageConfig {
 /// - [`build`](#buildconfig): The build configuration
 /// - [`plugins`](#pluginconfig): The plugins config
 ///
-/// ```json title="Example tauri.config.json file"
+/// Example tauri.config.json file:
+///
+/// ```json
 /// {
 ///   "build": {
 ///     "beforeBuildCommand": "",
@@ -3214,7 +3396,7 @@ mod build {
     } else if num.is_f64() {
       // guaranteed f64
       let num = num.as_f64().unwrap();
-      quote! { #prefix::Number(#num.into()) }
+      quote! { #prefix::Number(::serde_json::Number::from_f64(#num).unwrap(/* safe to unwrap, guaranteed f64 */)) }
     } else {
       // invalid number
       quote! { #prefix::Null }
@@ -3539,8 +3721,11 @@ mod build {
       let category = quote!(None);
       let short_description = quote!(None);
       let long_description = quote!(None);
+      let use_local_tools_dir = self.use_local_tools_dir;
       let appimage = quote!(Default::default());
       let deb = quote!(Default::default());
+      let rpm = quote!(Default::default());
+      let dmg = quote!(Default::default());
       let macos = quote!(Default::default());
       let external_bin = opt_vec_str_lit(self.external_bin.as_ref());
       let windows = &self.windows;
@@ -3558,8 +3743,11 @@ mod build {
         category,
         short_description,
         long_description,
+        use_local_tools_dir,
         appimage,
         deb,
+        rpm,
+        dmg,
         macos,
         external_bin,
         windows
@@ -4000,8 +4188,11 @@ mod test {
         category: None,
         short_description: None,
         long_description: None,
+        use_local_tools_dir: false,
         appimage: Default::default(),
         deb: Default::default(),
+        rpm: Default::default(),
+        dmg: Default::default(),
         macos: Default::default(),
         external_bin: None,
         windows: Default::default(),

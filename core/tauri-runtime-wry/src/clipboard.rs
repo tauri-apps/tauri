@@ -4,59 +4,66 @@
 
 //! Clipboard implementation.
 
-use crate::{getter, Context, Message};
-
-use std::sync::{
-  mpsc::{channel, Sender},
-  Arc, Mutex,
+use std::{
+  fmt,
+  sync::{Arc, Mutex},
 };
 
-use tauri_runtime::{ClipboardManager, Result, UserEvent};
-pub use wry::application::clipboard::Clipboard;
+pub use arboard::Clipboard;
+use tauri_runtime::{ClipboardManager, Result};
 
-#[derive(Debug, Clone)]
-pub enum ClipboardMessage {
-  WriteText(String, Sender<()>),
-  ReadText(Sender<Option<String>>),
+#[derive(Clone)]
+pub struct ClipboardManagerWrapper {
+  pub clipboard: Arc<Mutex<std::result::Result<Clipboard, arboard::Error>>>,
 }
 
-#[derive(Debug, Clone)]
-pub struct ClipboardManagerWrapper<T: UserEvent> {
-  pub context: Context<T>,
+impl fmt::Debug for ClipboardManagerWrapper {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("ClipboardManagerWrapper").finish()
+  }
 }
 
-// SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
-#[allow(clippy::non_send_fields_in_send_ty)]
-unsafe impl<T: UserEvent> Sync for ClipboardManagerWrapper<T> {}
+struct ClipboardError(String);
+impl std::error::Error for ClipboardError {}
+impl fmt::Display for ClipboardError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "ClipboardError: {}", self.0)
+  }
+}
+impl fmt::Debug for ClipboardError {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_tuple("ClipboardError").field(&self.0).finish()
+  }
+}
+impl From<ClipboardError> for crate::Error {
+  fn from(e: ClipboardError) -> crate::Error {
+    crate::Error::Clipboard(Box::new(e))
+  }
+}
 
-impl<T: UserEvent> ClipboardManager for ClipboardManagerWrapper<T> {
+impl ClipboardManager for ClipboardManagerWrapper {
   fn read_text(&self) -> Result<Option<String>> {
-    let (tx, rx) = channel();
-    getter!(self, rx, Message::Clipboard(ClipboardMessage::ReadText(tx)))
+    self
+      .clipboard
+      .lock()
+      .unwrap()
+      .as_mut()
+      .map(|c| c.get_text().map(Some))
+      .map_err(|e| ClipboardError(e.to_string()))?
+      .map_err(|e| ClipboardError(e.to_string()))
+      .map_err(Into::into)
   }
 
   fn write_text<V: Into<String>>(&mut self, text: V) -> Result<()> {
-    let (tx, rx) = channel();
-    getter!(
-      self,
-      rx,
-      Message::Clipboard(ClipboardMessage::WriteText(text.into(), tx))
-    )?;
-    Ok(())
-  }
-}
-
-pub fn handle_clipboard_message(
-  message: ClipboardMessage,
-  clipboard_manager: &Arc<Mutex<Clipboard>>,
-) {
-  match message {
-    ClipboardMessage::WriteText(text, tx) => {
-      clipboard_manager.lock().unwrap().write_text(text);
-      tx.send(()).unwrap();
-    }
-    ClipboardMessage::ReadText(tx) => tx
-      .send(clipboard_manager.lock().unwrap().read_text())
-      .unwrap(),
+    let text = text.into();
+    self
+      .clipboard
+      .lock()
+      .unwrap()
+      .as_mut()
+      .map(|c| c.set_text(text))
+      .map_err(|e| ClipboardError(e.to_string()))?
+      .map_err(|e| ClipboardError(e.to_string()))
+      .map_err(Into::into)
   }
 }

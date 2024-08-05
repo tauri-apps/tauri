@@ -250,11 +250,16 @@ pub enum FormPart {
 
 /// Form body definition.
 #[derive(Debug, Deserialize)]
-pub struct FormBody(pub(crate) HashMap<String, FormPart>);
+pub struct FormBody(pub(crate) indexmap::IndexMap<String, FormPart>);
 
 impl FormBody {
   /// Creates a new form body.
   pub fn new(data: HashMap<String, FormPart>) -> Self {
+    Self(indexmap::IndexMap::from_iter(data))
+  }
+
+  /// Creates a new form body with pre-ordered keys. Useful if the api requires a specific order.
+  pub fn new_ordered(data: indexmap::IndexMap<String, FormPart>) -> Self {
     Self(data)
   }
 }

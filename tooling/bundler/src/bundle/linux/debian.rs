@@ -23,32 +23,22 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::super::common;
+use super::{super::common, freedesktop};
 use crate::Settings;
 use anyhow::Context;
-use handlebars::Handlebars;
 use heck::AsKebabCase;
-use image::{self, codecs::png::PngDecoder, ImageDecoder};
-use libflate::gzip;
 use log::info;
-use serde::Serialize;
+use tar::HeaderMode;
 use walkdir::WalkDir;
 
 use std::{
-  collections::BTreeSet,
-  ffi::OsStr,
-  fs::{self, read_to_string, File},
+  fs::{self, File},
   io::{self, Write},
+  os::unix::fs::MetadataExt,
   path::{Path, PathBuf},
 };
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
-pub struct DebIcon {
-  pub width: u32,
-  pub height: u32,
-  pub is_high_density: bool,
-  pub path: PathBuf,
-}
+use flate2::{write::GzEncoder, Compression};
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
@@ -112,7 +102,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 pub fn generate_data(
   settings: &Settings,
   package_dir: &Path,
-) -> crate::Result<(PathBuf, BTreeSet<DebIcon>)> {
+) -> crate::Result<(PathBuf, Vec<freedesktop::Icon>)> {
   // Generate data files.
   let data_dir = package_dir.join("data");
   let bin_dir = data_dir.join("usr/bin");
@@ -129,65 +119,31 @@ pub fn generate_data(
     .copy_binaries(&bin_dir)
     .with_context(|| "Failed to copy external binaries")?;
 
-  let icons =
-    generate_icon_files(settings, &data_dir).with_context(|| "Failed to create icon files")?;
-  generate_desktop_file(settings, &data_dir).with_context(|| "Failed to create desktop file")?;
+  let icons = freedesktop::copy_icon_files(settings, &data_dir)
+    .with_context(|| "Failed to create icon files")?;
+  freedesktop::generate_desktop_file(settings, &settings.deb().desktop_template, &data_dir)
+    .with_context(|| "Failed to create desktop file")?;
+  generate_changelog_file(settings, &data_dir)
+    .with_context(|| "Failed to create changelog.gz file")?;
 
   Ok((data_dir, icons))
 }
 
-/// Generate the application desktop file and store it under the `data_dir`.
-fn generate_desktop_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let bin_name = settings.main_binary_name();
-  let desktop_file_name = format!("{}.desktop", bin_name);
-  let desktop_file_path = data_dir
-    .join("usr/share/applications")
-    .join(desktop_file_name);
+/// Generate the Changelog file by compressing, to be stored at /usr/share/doc/package-name/changelog.gz. See
+/// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
+  if let Some(changelog_src_path) = &settings.deb().changelog {
+    let mut src_file = File::open(changelog_src_path)?;
+    let bin_name = settings.main_binary_name();
+    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
 
-  // For more information about the format of this file, see
-  // https://developer.gnome.org/integration-guide/stable/desktop-files.html.en
-  let file = &mut common::create_file(&desktop_file_path)?;
+    let changelog_file = common::create_file(&dest_path)?;
+    let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
+    io::copy(&mut src_file, &mut gzip_encoder)?;
 
-  let mut handlebars = Handlebars::new();
-  handlebars.register_escape_fn(handlebars::no_escape);
-  if let Some(template) = &settings.deb().desktop_template {
-    handlebars
-      .register_template_string("main.desktop", read_to_string(template)?)
-      .with_context(|| "Failed to setup custom handlebar template")?;
-  } else {
-    handlebars
-      .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
-      .with_context(|| "Failed to setup custom handlebar template")?;
+    let mut changelog_file = gzip_encoder.finish()?;
+    changelog_file.flush()?;
   }
-
-  #[derive(Serialize)]
-  struct DesktopTemplateParams<'a> {
-    categories: &'a str,
-    comment: Option<&'a str>,
-    exec: &'a str,
-    icon: &'a str,
-    name: &'a str,
-  }
-
-  handlebars.render_to_write(
-    "main.desktop",
-    &DesktopTemplateParams {
-      categories: settings
-        .app_category()
-        .map(|app_category| app_category.gnome_desktop_categories())
-        .unwrap_or(""),
-      comment: if !settings.short_description().is_empty() {
-        Some(settings.short_description())
-      } else {
-        None
-      },
-      exec: bin_name,
-      icon: bin_name,
-      name: settings.product_name(),
-    },
-    file,
-  )?;
-
   Ok(())
 }
 
@@ -209,12 +165,47 @@ fn generate_control_file(
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
   writeln!(file, "Maintainer: {}", authors)?;
+  if let Some(section) = &settings.deb().section {
+    writeln!(file, "Section: {}", section)?;
+  }
+  if let Some(priority) = &settings.deb().priority {
+    writeln!(file, "Priority: {}", priority)?;
+  } else {
+    writeln!(file, "Priority: optional")?;
+  }
   if !settings.homepage_url().is_empty() {
     writeln!(file, "Homepage: {}", settings.homepage_url())?;
   }
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
   if !dependencies.is_empty() {
     writeln!(file, "Depends: {}", dependencies.join(", "))?;
+  }
+  let provides = settings
+    .deb()
+    .provides
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !provides.is_empty() {
+    writeln!(file, "Provides: {}", provides.join(", "))?;
+  }
+  let conflicts = settings
+    .deb()
+    .conflicts
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !conflicts.is_empty() {
+    writeln!(file, "Conflicts: {}", conflicts.join(", "))?;
+  }
+  let replaces = settings
+    .deb()
+    .replaces
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !replaces.is_empty() {
+    writeln!(file, "Replaces: {}", replaces.join(", "))?;
   }
   let mut short_description = settings.short_description().trim();
   if short_description.is_empty() {
@@ -233,7 +224,6 @@ fn generate_control_file(
       writeln!(file, " {}", line)?;
     }
   }
-  writeln!(file, "Priority: optional")?;
   file.flush()?;
   Ok(())
 }
@@ -296,46 +286,6 @@ fn copy_custom_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> 
   Ok(())
 }
 
-/// Generate the icon files and store them under the `data_dir`.
-fn generate_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<BTreeSet<DebIcon>> {
-  let base_dir = data_dir.join("usr/share/icons/hicolor");
-  let get_dest_path = |width: u32, height: u32, is_high_density: bool| {
-    base_dir.join(format!(
-      "{}x{}{}/apps/{}.png",
-      width,
-      height,
-      if is_high_density { "@2" } else { "" },
-      settings.main_binary_name()
-    ))
-  };
-  let mut icons = BTreeSet::new();
-  for icon_path in settings.icon_files() {
-    let icon_path = icon_path?;
-    if icon_path.extension() != Some(OsStr::new("png")) {
-      continue;
-    }
-    // Put file in scope so that it's closed when copying it
-    let deb_icon = {
-      let decoder = PngDecoder::new(File::open(&icon_path)?)?;
-      let width = decoder.dimensions().0;
-      let height = decoder.dimensions().1;
-      let is_high_density = common::is_retina(&icon_path);
-      let dest_path = get_dest_path(width, height, is_high_density);
-      DebIcon {
-        width,
-        height,
-        is_high_density,
-        path: dest_path,
-      }
-    };
-    if !icons.contains(&deb_icon) {
-      common::copy_file(&icon_path, &deb_icon.path)?;
-      icons.insert(deb_icon);
-    }
-  }
-  Ok(icons)
-}
-
 /// Create an empty file at the given path, creating any parent directories as
 /// needed, then write `data` into the file.
 fn create_file_with_data<P: AsRef<Path>>(path: P, data: &str) -> crate::Result<()> {
@@ -366,20 +316,15 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
       continue;
     }
     let dest_path = src_path.strip_prefix(src_dir)?;
+    let stat = fs::metadata(src_path)?;
+    let mut header = tar::Header::new_gnu();
+    header.set_metadata_in_mode(&stat, HeaderMode::Deterministic);
+    header.set_mtime(stat.mtime() as u64);
+
     if entry.file_type().is_dir() {
-      let stat = fs::metadata(src_path)?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
       tar_builder.append_data(&mut header, dest_path, &mut io::empty())?;
     } else {
       let mut src_file = fs::File::open(src_path)?;
-      let stat = src_file.metadata()?;
-      let mut header = tar::Header::new_gnu();
-      header.set_metadata(&stat);
-      header.set_uid(0);
-      header.set_gid(0);
       tar_builder.append_data(&mut header, dest_path, &mut src_file)?;
     }
   }
@@ -394,9 +339,9 @@ fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
   let dest_path = src_dir.with_extension("tar.gz");
   let dest_file = common::create_file(&dest_path)?;
-  let gzip_encoder = gzip::Encoder::new(dest_file)?;
+  let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
   let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
-  let mut dest_file = gzip_encoder.finish().into_result()?;
+  let mut dest_file = gzip_encoder.finish()?;
   dest_file.flush()?;
   Ok(dest_path)
 }

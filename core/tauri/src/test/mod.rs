@@ -27,7 +27,9 @@
 //! }
 //!
 //! fn main() {
-//!   let app = create_app(tauri::Builder::default());
+//!   // Use `tauri::Builder::default()` to use the default runtime rather than the `MockRuntime`;
+//!   // let app = create_app(tauri::Builder::default());
+//!   let app = create_app(tauri::test::mock_builder());
 //!   // app.run(|_handle, _event| {});
 //! }
 //!
@@ -48,6 +50,7 @@
 //!         callback: tauri::api::ipc::CallbackFn(0),
 //!         error: tauri::api::ipc::CallbackFn(1),
 //!         inner: serde_json::Value::Null,
+//!         invoke_key: Some(tauri::test::INVOKE_KEY.into()),
 //!       },
 //!       Ok(())
 //!     );
@@ -59,6 +62,7 @@
 
 mod mock_runtime;
 pub use mock_runtime::*;
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value as JsonValue;
 
@@ -82,9 +86,15 @@ use tauri_utils::{
   config::{CliConfig, Config, PatternKind, TauriConfig},
 };
 
+/// The invoke key used for tests.
+pub const INVOKE_KEY: &str = "__invoke-key__";
+
+/// A key for an [`Ipc`] call.
 #[derive(Eq, PartialEq)]
 struct IpcKey {
+  /// callback
   callback: CallbackFn,
+  /// error callback
   error: CallbackFn,
 }
 
@@ -95,16 +105,22 @@ impl Hash for IpcKey {
   }
 }
 
+/// Structure to retrieve result of a Tauri command
 struct Ipc(Mutex<HashMap<IpcKey, Sender<std::result::Result<JsonValue, JsonValue>>>>);
 
 /// An empty [`Assets`] implementation.
 pub struct NoopAsset {
+  assets: HashMap<&'static str, &'static [u8]>,
   csp_hashes: Vec<CspHash<'static>>,
 }
 
 impl Assets for NoopAsset {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>> {
     None
+  }
+
+  fn iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    Box::new(self.assets.iter())
   }
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {
@@ -115,6 +131,7 @@ impl Assets for NoopAsset {
 /// Creates a new empty [`Assets`] implementation.
 pub fn noop_assets() -> NoopAsset {
   NoopAsset {
+    assets: Default::default(),
     csp_hashes: Default::default(),
   }
 }
@@ -146,6 +163,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
       build: Default::default(),
       plugins: Default::default(),
     },
+    #[cfg(dev)]
+    config_parent: None,
     assets: Arc::new(assets),
     default_window_icon: None,
     app_icon: None,
@@ -184,6 +203,8 @@ pub fn mock_context<A: Assets>(assets: A) -> crate::Context<A> {
 pub fn mock_builder() -> Builder<MockRuntime> {
   let mut builder = Builder::<MockRuntime>::new().manage(Ipc(Default::default()));
 
+  builder.invoke_key = INVOKE_KEY.to_string();
+
   builder.invoke_responder = Arc::new(|window, response, callback, error| {
     let window_ = window.clone();
     let ipc = window_.state::<Ipc>();
@@ -221,35 +242,28 @@ pub fn mock_app() -> App<MockRuntime> {
 ///     .expect("failed to build app")
 /// }
 ///
+/// use tauri::Manager;
+/// use tauri::test::mock_builder;
 /// fn main() {
-///   let app = create_app(tauri::Builder::default());
-///   // app.run(|_handle, _event| {});}
-/// }
+///   // app createion with a `MockRuntime`
+///   let app = create_app(mock_builder());
+///   let window = app.get_window("main").unwrap();
 ///
-/// //#[cfg(test)]
-/// mod tests {
-///   use tauri::Manager;
-///
-///   //#[cfg(test)]
-///   fn something() {
-///     let app = super::create_app(tauri::test::mock_builder());
-///     let window = app.get_window("main").unwrap();
-///
-///     // run the `ping` command and assert it returns `pong`
-///     tauri::test::assert_ipc_response(
-///       &window,
-///       tauri::InvokePayload {
-///         cmd: "ping".into(),
-///         tauri_module: None,
-///         callback: tauri::api::ipc::CallbackFn(0),
-///         error: tauri::api::ipc::CallbackFn(1),
-///         inner: serde_json::Value::Null,
-///       },
-///       // the expected response is a success with the "pong" payload
-///       // we could also use Err("error message") here to ensure the command failed
-///       Ok("pong")
-///     );
-///   }
+///   // run the `ping` command and assert it returns `pong`
+///   tauri::test::assert_ipc_response(
+///     &window,
+///     tauri::InvokePayload {
+///       cmd: "ping".into(),
+///       tauri_module: None,
+///       callback: tauri::api::ipc::CallbackFn(0),
+///       error: tauri::api::ipc::CallbackFn(1),
+///       inner: serde_json::Value::Null,
+///       invoke_key: Some(tauri::test::INVOKE_KEY.into()),
+///     },
+///     // the expected response is a success with the "pong" payload
+///     // we could also use Err("error message") here to ensure the command failed
+///     Ok("pong")
+///   );
 /// }
 /// ```
 pub fn assert_ipc_response<T: Serialize + Debug>(
@@ -257,6 +271,55 @@ pub fn assert_ipc_response<T: Serialize + Debug>(
   payload: InvokePayload,
   expected: Result<T, T>,
 ) {
+  assert_eq!(
+    get_ipc_response(window, payload),
+    expected
+      .map(|e| serde_json::to_value(e).unwrap())
+      .map_err(|e| serde_json::to_value(e).unwrap())
+  );
+}
+
+/// The application processes the command and stops.
+///
+/// # Examples
+///
+/// ```rust
+///
+/// #[tauri::command]
+/// fn ping() -> &'static str {
+///   "pong"
+/// }
+///
+/// fn create_app<R: tauri::Runtime>(mut builder: tauri::Builder<R>) -> tauri::App<R> {
+///   builder
+///     .invoke_handler(tauri::generate_handler![ping])
+///     // remove the string argument on your app
+///     .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+///     .expect("failed to build app")
+/// }
+///
+/// use tauri::test::*;
+/// use tauri::Manager;
+/// let app = create_app(mock_builder());
+/// let window = app.get_window("main").unwrap();
+///
+/// // run the `ping` command and assert it returns `pong`
+/// let res = tauri::test::get_ipc_response::<String>(
+///   &window,
+///   tauri::InvokePayload {
+///     cmd: "ping".into(),
+///     tauri_module: None,
+///     callback: tauri::api::ipc::CallbackFn(0),
+///     error: tauri::api::ipc::CallbackFn(1),
+///     inner: serde_json::Value::Null,
+///     invoke_key: Some(tauri::test::INVOKE_KEY.into()),
+///   });
+/// assert_eq!(res, Ok("pong".into()))
+/// ```
+pub fn get_ipc_response<T: DeserializeOwned + Debug>(
+  window: &Window<MockRuntime>,
+  payload: InvokePayload,
+) -> Result<T, T> {
   let callback = payload.callback;
   let error = payload.error;
   let ipc = window.state::<Ipc>();
@@ -264,12 +327,10 @@ pub fn assert_ipc_response<T: Serialize + Debug>(
   ipc.0.lock().unwrap().insert(IpcKey { callback, error }, tx);
   window.clone().on_message(payload).unwrap();
 
-  assert_eq!(
-    rx.recv().unwrap(),
-    expected
-      .map(|e| serde_json::to_value(e).unwrap())
-      .map_err(|e| serde_json::to_value(e).unwrap())
-  );
+  let res: Result<JsonValue, JsonValue> = rx.recv().expect("Failed to receive result from command");
+  res
+    .map(|v| serde_json::from_value(v).unwrap())
+    .map_err(|e| serde_json::from_value(e).unwrap())
 }
 
 #[cfg(test)]

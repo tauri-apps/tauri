@@ -31,8 +31,8 @@ use crate::{
   sealed::ManagerBase,
   sealed::RuntimeOrDispatch,
   utils::config::{WindowConfig, WindowUrl},
-  CursorIcon, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver, Manager,
-  PageLoadPayload, Runtime, Theme, WindowEvent,
+  CursorIcon, Error, EventLoopMessage, Icon, Invoke, InvokeError, InvokeMessage, InvokeResolver,
+  Manager, Runtime, Theme, WindowEvent,
 };
 
 use serde::Serialize;
@@ -68,6 +68,8 @@ impl WindowEmitArgs {
     source_window_label: Option<&str>,
     payload: S,
   ) -> crate::Result<Self> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(WindowEmitArgs {
       event: serde_json::to_string(event)?,
       source_window_label: serde_json::to_string(&source_window_label)?,
@@ -321,6 +323,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
   }
 
   /// Creates a new webview window.
+  #[cfg_attr(feature = "tracing", tracing::instrument(name = "window::create"))]
   pub fn build(mut self) -> crate::Result<Window<R>> {
     let mut pending = PendingWindow::new(
       self.window_builder.clone(),
@@ -776,6 +779,10 @@ impl<R: Runtime> PartialEq for Window<R> {
 }
 
 impl<R: Runtime> Manager<R> for Window<R> {
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit::to", skip(self, payload))
+  )]
   fn emit_to<S: Serialize + Clone>(
     &self,
     label: &str,
@@ -787,12 +794,17 @@ impl<R: Runtime> Manager<R> for Window<R> {
       .emit_filter(event, Some(self.label()), payload, |w| label == w.label())
   }
 
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit::all", skip(self, payload))
+  )]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager()
       .emit_filter(event, Some(self.label()), payload, |_| true)
   }
 }
+
 impl<R: Runtime> ManagerBase<R> for Window<R> {
   fn manager(&self) -> &WindowManager<R> {
     &self.manager
@@ -1538,9 +1550,39 @@ impl<R: Runtime> Window<R> {
     self.current_url = url;
   }
 
+  #[cfg_attr(feature = "tracing", tracing::instrument("window::on_message"))]
   /// Handles this window receiving an [`InvokeMessage`].
   pub fn on_message(self, payload: InvokePayload) -> crate::Result<()> {
     let manager = self.manager.clone();
+
+    // ensure the passed key matches what our manager should have injected
+    let expected = manager.invoke_key();
+    match payload.invoke_key.as_deref() {
+      Some(sent) if sent == expected => { /* good */ }
+      Some(sent) => {
+        #[cfg(feature = "tracing")]
+        tracing::error!("__TAURI_INVOKE_KEY__ expected {expected} but received {sent}");
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("__TAURI_INVOKE_KEY__ expected {expected} but received {sent}");
+
+        return Err(Error::InvokeKey);
+      }
+      None => {
+        // this specific string is tested against in `core/tests/invoke-key`.
+        // if this error changes then that integration test should be updated accordingly.
+        let error = "received ipc message without a __TAURI_INVOKE_KEY__";
+
+        #[cfg(feature = "tracing")]
+        tracing::error!(error);
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("{error}");
+
+        return Err(Error::InvokeKey);
+      }
+    }
+
     let current_url = self.url();
     let config_url = manager.get_url();
     let is_local = config_url.make_relative(&current_url).is_some();
@@ -1562,54 +1604,53 @@ impl<R: Runtime> Window<R> {
         }
       }
     };
-    match payload.cmd.as_str() {
-      "__initialized" => {
-        let payload: PageLoadPayload = serde_json::from_value(payload.inner)?;
-        manager.run_on_page_load(self, payload);
-      }
-      _ => {
-        let message = InvokeMessage::new(
-          self.clone(),
-          manager.state(),
-          payload.cmd.to_string(),
-          payload.inner,
-        );
-        let resolver = InvokeResolver::new(self, payload.callback, payload.error);
-        let invoke = Invoke { message, resolver };
 
-        if !is_local && scope.is_none() {
-          invoke.resolver.reject(scope_not_found_error_message);
+    if "__initialized" == &payload.cmd {
+      let payload = serde_json::from_value(payload.inner)?;
+      manager.run_on_page_load(self, payload);
+      return Ok(());
+    }
+
+    let message = InvokeMessage::new(
+      self.clone(),
+      manager.state(),
+      payload.cmd.to_string(),
+      payload.inner,
+    );
+    let resolver = InvokeResolver::new(self, payload.callback, payload.error);
+    let invoke = Invoke { message, resolver };
+
+    if !is_local && scope.is_none() {
+      invoke.resolver.reject(scope_not_found_error_message);
+      return Ok(());
+    }
+
+    if let Some(module) = &payload.tauri_module {
+      if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
+        invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
+        return Ok(());
+      }
+      crate::endpoints::handle(
+        module.to_string(),
+        invoke,
+        manager.config(),
+        manager.package_info(),
+      );
+    } else if payload.cmd.starts_with("plugin:") {
+      if !is_local {
+        let command = invoke.message.command.replace("plugin:", "");
+        let plugin_name = command.split('|').next().unwrap().to_string();
+        if !scope
+          .map(|s| s.plugins().contains(&plugin_name))
+          .unwrap_or(true)
+        {
+          invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
           return Ok(());
         }
-
-        if let Some(module) = &payload.tauri_module {
-          if !is_local && scope.map(|s| !s.enables_tauri_api()).unwrap_or_default() {
-            invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-            return Ok(());
-          }
-          crate::endpoints::handle(
-            module.to_string(),
-            invoke,
-            manager.config(),
-            manager.package_info(),
-          );
-        } else if payload.cmd.starts_with("plugin:") {
-          if !is_local {
-            let command = invoke.message.command.replace("plugin:", "");
-            let plugin_name = command.split('|').next().unwrap().to_string();
-            if !scope
-              .map(|s| s.plugins().contains(&plugin_name))
-              .unwrap_or(true)
-            {
-              invoke.resolver.reject(IPC_SCOPE_DOES_NOT_ALLOW);
-              return Ok(());
-            }
-          }
-          manager.extend_api(invoke);
-        } else {
-          manager.run_invoke_handler(invoke);
-        }
       }
+      manager.extend_api(invoke);
+    } else {
+      manager.run_invoke_handler(invoke);
     }
 
     Ok(())
@@ -1672,7 +1713,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
@@ -1697,7 +1738,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1730,7 +1771,7 @@ impl<R: Runtime> Window<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1790,6 +1831,15 @@ impl<R: Runtime> Window<R> {
     self.emit(event, payload)
   }
 
+  #[cfg_attr(feature = "tracing", tracing::instrument(
+    "window::emit::eval",
+    skip(self, emit_args),
+    fields(
+      event = emit_args.event,
+      source_window = emit_args.source_window_label,
+      payload = emit_args.payload
+    ))
+  )]
   pub(crate) fn emit_internal(&self, emit_args: &WindowEmitArgs) -> crate::Result<()> {
     self.eval(&format!(
       "(function () {{ const fn = window['{}']; fn && fn({{event: {}, windowLabel: {}, payload: {}}}) }})()",
@@ -1816,6 +1866,10 @@ impl<R: Runtime> Window<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::emit", skip(self, payload))
+  )]
   pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
     self
       .manager
@@ -1908,6 +1962,10 @@ impl<R: Runtime> Window<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("window::trigger", skip(self))
+  )]
   pub fn trigger(&self, event: &str, data: Option<String>) {
     let label = self.window.label.clone();
     self.manager.trigger(event, Some(label), data)

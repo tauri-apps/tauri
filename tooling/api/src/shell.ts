@@ -116,38 +116,6 @@ interface ChildProcess {
 }
 
 /**
- * Spawns a process.
- *
- * @ignore
- * @param program The name of the scoped command.
- * @param onEvent Event handler.
- * @param args Program arguments.
- * @param options Configuration for the process spawn.
- * @returns A promise resolving to the process id.
- */
-async function execute(
-  onEvent: (event: CommandEvent) => void,
-  program: string,
-  args: string | string[] = [],
-  options?: InternalSpawnOptions
-): Promise<number> {
-  if (typeof args === 'object') {
-    Object.freeze(args)
-  }
-
-  return invokeTauriCommand<number>({
-    __tauriModule: 'Shell',
-    message: {
-      cmd: 'execute',
-      program,
-      args,
-      options,
-      onEventFn: transformCallback(onEvent)
-    }
-  })
-}
-
-/**
  * @since 1.0.0
  */
 class EventEmitter<E extends string> {
@@ -449,27 +417,41 @@ class Command extends EventEmitter<'close' | 'error'> {
    * @returns A promise resolving to the child process handle.
    */
   async spawn(): Promise<Child> {
-    return execute(
-      (event) => {
-        switch (event.event) {
-          case 'Error':
-            this.emit('error', event.payload)
-            break
-          case 'Terminated':
-            this.emit('close', event.payload)
-            break
-          case 'Stdout':
-            this.stdout.emit('data', event.payload)
-            break
-          case 'Stderr':
-            this.stderr.emit('data', event.payload)
-            break
-        }
-      },
-      this.program,
-      this.args,
-      this.options
-    ).then((pid) => new Child(pid))
+    const program = this.program
+    const args = this.args
+    const options = this.options
+
+    if (typeof args === 'object') {
+      Object.freeze(args)
+    }
+
+    const onEvent = (event: CommandEvent) => {
+      switch (event.event) {
+        case 'Error':
+          this.emit('error', event.payload)
+          break
+        case 'Terminated':
+          this.emit('close', event.payload)
+          break
+        case 'Stdout':
+          this.stdout.emit('data', event.payload)
+          break
+        case 'Stderr':
+          this.stderr.emit('data', event.payload)
+          break
+      }
+    }
+
+    return invokeTauriCommand<number>({
+      __tauriModule: 'Shell',
+      message: {
+        cmd: 'execute',
+        program,
+        args,
+        options,
+        onEventFn: transformCallback(onEvent)
+      }
+    }).then((pid) => new Child(pid))
   }
 
   /**
@@ -487,25 +469,22 @@ class Command extends EventEmitter<'close' | 'error'> {
    * @returns A promise resolving to the child process output.
    */
   async execute(): Promise<ChildProcess> {
-    return new Promise((resolve, reject) => {
-      this.on('error', reject)
-      const stdout: string[] = []
-      const stderr: string[] = []
-      this.stdout.on('data', (line: string) => {
-        stdout.push(line)
-      })
-      this.stderr.on('data', (line: string) => {
-        stderr.push(line)
-      })
-      this.on('close', (payload: TerminatedPayload) => {
-        resolve({
-          code: payload.code,
-          signal: payload.signal,
-          stdout: stdout.join('\n'),
-          stderr: stderr.join('\n')
-        })
-      })
-      this.spawn().catch(reject)
+    const program = this.program
+    const args = this.args
+    const options = this.options
+
+    if (typeof args === 'object') {
+      Object.freeze(args)
+    }
+
+    return invokeTauriCommand<ChildProcess>({
+      __tauriModule: 'Shell',
+      message: {
+        cmd: 'executeAndReturn',
+        program,
+        args,
+        options
+      }
     })
   }
 }

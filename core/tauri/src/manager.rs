@@ -218,6 +218,8 @@ pub struct InnerWindowManager<R: Runtime> {
   on_page_load: Box<OnPageLoad<R>>,
 
   config: Arc<Config>,
+  #[cfg(dev)]
+  config_parent: Option<std::path::PathBuf>,
   assets: Arc<dyn Assets>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
@@ -238,6 +240,8 @@ pub struct InnerWindowManager<R: Runtime> {
   invoke_initialization_script: String,
   /// Application pattern.
   pub(crate) pattern: Pattern,
+  /// A runtime generated key to ensure an IPC call comes from an initialized frame.
+  invoke_key: String,
 }
 
 impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
@@ -252,6 +256,7 @@ impl<R: Runtime> fmt::Debug for InnerWindowManager<R> {
       .field("package_info", &self.package_info)
       .field("menu", &self.menu)
       .field("pattern", &self.pattern)
+      .field("invoke_key", &self.invoke_key)
       .finish()
   }
 }
@@ -303,6 +308,7 @@ impl<R: Runtime> WindowManager<R> {
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     (menu, menu_event_listeners): (Option<Menu>, Vec<GlobalMenuEventListener<R>>),
     (invoke_responder, invoke_initialization_script): (Arc<InvokeResponder<R>>, String),
+    invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
@@ -321,6 +327,8 @@ impl<R: Runtime> WindowManager<R> {
         invoke_handler,
         on_page_load,
         config: Arc::new(context.config),
+        #[cfg(dev)]
+        config_parent: context.config_parent,
         assets: context.assets,
         default_window_icon: context.default_window_icon,
         app_icon: context.app_icon,
@@ -333,6 +341,7 @@ impl<R: Runtime> WindowManager<R> {
         window_event_listeners: Arc::new(window_event_listeners),
         invoke_responder,
         invoke_initialization_script,
+        invoke_key,
       }),
     }
   }
@@ -427,7 +436,7 @@ impl<R: Runtime> WindowManager<R> {
     app_handle: AppHandle<R>,
   ) -> crate::Result<PendingWindow<EventLoopMessage, R>> {
     let is_init_global = self.inner.config.build.with_global_tauri;
-    let plugin_init = self
+    let plugin_init_scripts = self
       .inner
       .plugins
       .lock()
@@ -449,6 +458,8 @@ impl<R: Runtime> WindowManager<R> {
         }
         _ => "".to_string(),
       },
+      invoke_key: self.invoke_key(),
+      os_name: std::env::consts::OS,
     }
     .render_default(&Default::default())?;
 
@@ -471,8 +482,11 @@ impl<R: Runtime> WindowManager<R> {
         window_labels_array = serde_json::to_string(&window_labels)?,
         current_window_label = serde_json::to_string(&label)?,
       ))
-      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),&plugin_init, is_init_global)?)
-      ;
+      .initialization_script(&self.initialization_script(&ipc_init.into_string(),&pattern_init.into_string(),is_init_global)?);
+
+    for plugin_init_script in plugin_init_scripts {
+      webview_attributes = webview_attributes.initialization_script(&plugin_init_script);
+    }
 
     #[cfg(feature = "isolation")]
     if let Pattern::Isolation { schema, .. } = self.pattern() {
@@ -593,6 +607,10 @@ impl<R: Runtime> WindowManager<R> {
   ) -> WebviewIpcHandler<EventLoopMessage, R> {
     let manager = self.clone();
     Box::new(move |window, #[allow(unused_mut)] mut request| {
+      #[cfg(feature = "tracing")]
+      let _span =
+        tracing::trace_span!("ipc::request", kind = "post-message", request = request).entered();
+
       let window = Window::new(manager.clone(), window, app_handle.clone());
 
       #[cfg(feature = "isolation")]
@@ -614,9 +632,14 @@ impl<R: Runtime> WindowManager<R> {
 
       match serde_json::from_str::<InvokePayload>(&request) {
         Ok(message) => {
+          #[cfg(feature = "tracing")]
+          let _span = tracing::trace_span!("ipc::request::handle", cmd = message.cmd).entered();
+
           let _ = window.on_message(message);
         }
         Err(e) => {
+          #[cfg(feature = "tracing")]
+          tracing::trace!("ipc::request::error {}", e);
           let error: crate::Error = e.into();
           let _ = window.eval(&format!(
             r#"console.error({})"#,
@@ -625,6 +648,10 @@ impl<R: Runtime> WindowManager<R> {
         }
       }
     })
+  }
+
+  pub fn asset_iter(&self) -> Box<dyn Iterator<Item = (&&str, &&[u8])> + '_> {
+    self.inner.assets.iter()
   }
 
   pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
@@ -768,7 +795,6 @@ impl<R: Runtime> WindowManager<R> {
     &self,
     ipc_script: &str,
     pattern_script: &str,
-    plugin_initialization_script: &str,
     with_global_tauri: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -787,8 +813,6 @@ impl<R: Runtime> WindowManager<R> {
       core_script: &'a str,
       #[raw]
       event_initialization_script: &'a str,
-      #[raw]
-      plugin_initialization_script: &'a str,
       #[raw]
       freeze_prototype: &'a str,
       #[raw]
@@ -854,7 +878,6 @@ impl<R: Runtime> WindowManager<R> {
       .render_default(&Default::default())?
       .into_string(),
       event_initialization_script: &self.event_initialization_script(),
-      plugin_initialization_script,
       freeze_prototype,
       hotkeys: &hotkeys,
     }
@@ -884,6 +907,10 @@ impl<R: Runtime> WindowManager<R> {
       listeners = self.event_listeners_object_name()
     )
   }
+
+  pub(crate) fn invoke_key(&self) -> &str {
+    &self.inner.invoke_key
+  }
 }
 
 #[cfg(test)]
@@ -905,6 +932,7 @@ mod test {
       Default::default(),
       Default::default(),
       (std::sync::Arc::new(|_, _, _, _| ()), "".into()),
+      crate::generate_invoke_key().unwrap(),
     );
 
     #[cfg(custom_protocol)]
@@ -954,7 +982,7 @@ impl<R: Runtime> WindowManager<R> {
       .plugins
       .lock()
       .expect("poisoned plugin store")
-      .initialize(app, &self.inner.config.plugins)
+      .initialize_all(app, &self.inner.config.plugins)
   }
 
   pub fn prepare_window(
@@ -1144,6 +1172,8 @@ impl<R: Runtime> WindowManager<R> {
     S: Serialize + Clone,
     F: Fn(&Window<R>) -> bool,
   {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
     let emit_args = WindowEmitArgs::from(event, source_window_label, payload)?;
     assert_event_name_is_valid(event);
     self
@@ -1167,6 +1197,11 @@ impl<R: Runtime> WindowManager<R> {
 
   pub fn config(&self) -> Arc<Config> {
     self.inner.config.clone()
+  }
+
+  #[cfg(dev)]
+  pub fn config_parent(&self) -> Option<&std::path::PathBuf> {
+    self.inner.config_parent.as_ref()
   }
 
   pub fn package_info(&self) -> &PackageInfo {

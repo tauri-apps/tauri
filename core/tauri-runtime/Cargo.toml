@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime"
-version = "0.14.1"
+version = "0.14.4"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 categories = [ "gui", "web-programming" ]
 license = "Apache-2.0 OR MIT"
@@ -22,11 +22,15 @@ targets = [
   "x86_64-apple-darwin"
 ]
 
+[lints.rust]
+# cfg(doc_cfg) is used for docs.rs detection. see above
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(doc_cfg)'] }
+
 [dependencies]
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "1.5.0", path = "../tauri-utils" }
+tauri-utils = { version = "1.6.0", path = "../tauri-utils" }
 uuid = { version = "1", features = [ "v4" ] }
 http = "0.2.4"
 http-range = "0.1.4"

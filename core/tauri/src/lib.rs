@@ -11,6 +11,7 @@
 //! The following are a list of [Cargo features](https://doc.rust-lang.org/stable/cargo/reference/manifest.html#the-features-section) that can be enabled or disabled:
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
+//! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`test`] module exposing unit test helpers.
 //! - **dox**: Internal feature to generate Rust documentation without linking on Linux.
 //! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
@@ -19,7 +20,7 @@
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
 //! - **updater**: Enables the application auto updater. Enabled by default if the `updater` config is defined on the `tauri.conf.json` file.
 //! - **devtools**: Enables the developer tools (Web inspector) and [`Window::open_devtools`]. Enabled by default on debug builds.
-//! On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
+//!   On macOS it uses private APIs, so you can't enable it if your app will be published to the App Store.
 //! - **shell-open-api**: Enables the [`api::shell`] module.
 //! - **http-api**: Enables the [`api::http`] module.
 //! - **http-multipart**: Adds support to `multipart/form-data` requests.
@@ -174,6 +175,8 @@ pub use error::Error;
 #[doc(hidden)]
 pub use regex;
 pub use tauri_macros::{command, generate_handler};
+
+pub use url::Url;
 
 pub mod api;
 pub(crate) mod app;
@@ -468,6 +471,8 @@ impl TryFrom<Icon> for runtime::Icon {
 /// Unless you know what you are doing and are prepared for this type to have breaking changes, do not create it yourself.
 pub struct Context<A: Assets> {
   pub(crate) config: Config,
+  #[cfg(dev)]
+  pub(crate) config_parent: Option<std::path::PathBuf>,
   pub(crate) assets: Arc<A>,
   pub(crate) default_window_icon: Option<Icon>,
   pub(crate) app_icon: Option<Vec<u8>>,
@@ -584,6 +589,8 @@ impl<A: Assets> Context<A> {
   ) -> Self {
     Self {
       config,
+      #[cfg(dev)]
+      config_parent: None,
       assets,
       default_window_icon,
       app_icon,
@@ -594,6 +601,14 @@ impl<A: Assets> Context<A> {
       #[cfg(shell_scope)]
       shell_scope,
     }
+  }
+
+  #[cfg(dev)]
+  #[doc(hidden)]
+  pub fn with_config_parent(&mut self, config_parent: impl AsRef<std::path::Path>) {
+    self
+      .config_parent
+      .replace(config_parent.as_ref().to_owned());
   }
 }
 
@@ -625,6 +640,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit_all("synchronized", ());
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::all", skip(self, payload))
+  )]
   fn emit_all<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
     self.manager().emit_filter(event, None, payload, |_| true)
   }
@@ -641,6 +660,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit_filter("synchronized", (), |w| w.label().starts_with("foo-"));
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
@@ -664,6 +687,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::to", skip(self, payload))
+  )]
   fn emit_to<S: Serialize + Clone>(&self, label: &str, event: &str, payload: S) -> Result<()> {
     self
       .manager()
@@ -728,6 +755,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   }
   /// }
   /// ```
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::rust", skip(self))
+  )]
   fn trigger_global(&self, event: &str, data: Option<String>) {
     self.manager().trigger(event, None, data)
   }
@@ -1071,4 +1102,53 @@ mod test_utils {
       crate::async_runtime::spawn(dummy_task);
     }
   }
+}
+
+/// Simple dependency-free string encoder using [Z85].
+mod z85 {
+  const TABLE: &[u8; 85] =
+    b"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.-:+=^!/*?&<>()[]{}@%$#";
+
+  /// Encode bytes with [Z85].
+  ///
+  /// # Panics
+  ///
+  /// Will panic if the input bytes are not a multiple of 4.
+  pub fn encode(bytes: &[u8]) -> String {
+    assert_eq!(bytes.len() % 4, 0);
+
+    let mut buf = String::with_capacity(bytes.len() * 5 / 4);
+    for chunk in bytes.chunks_exact(4) {
+      let mut chars = [0u8; 5];
+      let mut chunk = u32::from_be_bytes(chunk.try_into().unwrap()) as usize;
+      for byte in chars.iter_mut().rev() {
+        *byte = TABLE[chunk % 85];
+        chunk /= 85;
+      }
+
+      buf.push_str(std::str::from_utf8(&chars).unwrap());
+    }
+
+    buf
+  }
+
+  #[cfg(test)]
+  mod tests {
+    #[test]
+    fn encode() {
+      assert_eq!(
+        super::encode(&[0x86, 0x4F, 0xD2, 0x6F, 0xB5, 0x59, 0xF7, 0x5B]),
+        "HelloWorld"
+      );
+    }
+  }
+}
+
+/// Generate a random 128-bit [Z85] encoded [`String`].
+///
+/// [Z85]: https://rfc.zeromq.org/spec/32/
+pub(crate) fn generate_invoke_key() -> Result<String> {
+  let mut bytes = [0u8; 16];
+  getrandom::getrandom(&mut bytes)?;
+  Ok(z85::encode(&bytes))
 }

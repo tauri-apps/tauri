@@ -7,14 +7,19 @@
     return window.crypto.getRandomValues(new Uint32Array(1))[0]
   }
 
+  const osName = __TEMPLATE_os_name__
+  const protocolScheme = __TEMPLATE_protocol_scheme__
+
+  // Workaround for webview2 injecting scripts into subframes, unlike webkitgtk/wkwebview.
+  if (osName === 'windows' && window.location !== window.parent.location) {
+    return
+  }
+
   if (!window.__TAURI__) {
     Object.defineProperty(window, '__TAURI__', {
       value: {}
     })
   }
-
-  const osName = __TEMPLATE_os_name__
-  const protocolScheme = __TEMPLATE_protocol_scheme__
 
   window.__TAURI__.convertFileSrc = function convertFileSrc(filePath, protocol = 'asset') {
     const path = encodeURIComponent(filePath)
@@ -102,7 +107,8 @@
       'click',
       function (e) {
         let target = e.target
-        const baseTarget = document.querySelector('head base')?.target
+        const base = document.querySelector('head base')
+        const baseTarget = base ? base.target : null
         while (target != null) {
           if (target.matches('a')) {
             if (
@@ -142,16 +148,40 @@
     )
   }
 
-  // drag region
+  //-----------------------//
+  // data-tauri-drag-region
+  //
+  // drag on mousedown and maximize on double click on Windows and Linux
+  // while macOS macos maximization should be on mouseup and if the mouse
+  // moves after the double click, it should be cancelled (see https://github.com/tauri-apps/tauri/issues/8306)
+  //-----------------------//
+  const TAURI_DRAG_REGION_ATTR = 'data-tauri-drag-region';
+  let x = 0, y = 0;
   document.addEventListener('mousedown', (e) => {
-    if (e.target.hasAttribute('data-tauri-drag-region') && e.button === 0) {
+    if (
+      // element has the magic data attribute
+      e.target.hasAttribute(TAURI_DRAG_REGION_ATTR) &&
+      // and was left mouse button
+      e.button === 0 &&
+      // and was normal click to drag or double click to maximize
+      (e.detail === 1 || e.detail === 2)
+      ) {
+
+      // macOS maximization happens on `mouseup`,
+      // so we save needed state and early return
+      if (osName === 'macos' && e.detail == 2) {
+        x = e.clientX
+        y = e.clientY
+        return
+      }
+
       // prevents text cursor
       e.preventDefault()
+
       // fix #2549: double click on drag region edge causes content to maximize without window sizing change
       // https://github.com/tauri-apps/tauri/issues/2549#issuecomment-1250036908
       e.stopImmediatePropagation()
 
-      // start dragging if the element has a `tauri-drag-region` data attribute and maximize on double-clicking it
       window.__TAURI_INVOKE__('tauri', {
         __tauriModule: 'Window',
         message: {
@@ -165,6 +195,34 @@
       })
     }
   })
+  // on macOS we maximze on mouseup instead, to match the system behavior where maximization can be canceled
+  // if the mouse moves outside the data-tauri-drag-region
+  if (osName === "macos") {
+    document.addEventListener('mouseup', (e) => {
+      if (
+        // element has the magic data attribute
+        e.target.hasAttribute(TAURI_DRAG_REGION_ATTR) &&
+        // and was left mouse button
+        e.button === 0 &&
+        // and was double click
+        e.detail === 2 &&
+        // and the cursor hasn't moved from initial mousedown
+        e.clientX === x && e.clientY === y
+      ) {
+        window.__TAURI_INVOKE__('tauri', {
+          __tauriModule: 'Window',
+          message: {
+            cmd: 'manage',
+            data: {
+              cmd: {
+                type: '__toggleMaximize'
+              }
+            }
+          }
+        })
+      }
+    })
+  }
 
   let permissionSettable = false
   let permissionValue = 'default'

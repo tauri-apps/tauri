@@ -73,7 +73,7 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
 
   let permission_files_path = out_dir.join(format!(
     "{}-permission-files",
-    pkg_name.replace("tauri:", "tauri-")
+    pkg_name.replace(':', "-")
   ));
   std::fs::write(
     &permission_files_path,

@@ -37,7 +37,6 @@ use crate::{helpers::config::Config as TauriConfig, Result};
 mod android_studio_script;
 mod build;
 mod dev;
-mod open;
 pub(crate) mod project;
 
 #[derive(Parser)]
@@ -67,8 +66,6 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
-  /// Open project in Android Studio
-  Open,
   Dev(dev::Options),
   Build(build::Options),
   #[clap(hide(true))]
@@ -84,7 +81,6 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
       false,
       options.skip_targets_install,
     )?,
-    Commands::Open => open::command()?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,

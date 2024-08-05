@@ -110,7 +110,7 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
         process_cli(&mut plugins, cli)?;
       }
 
-      // cli
+      // updater
       process_updater(tauri_config, &mut plugins, &mut migrated)?;
     }
 

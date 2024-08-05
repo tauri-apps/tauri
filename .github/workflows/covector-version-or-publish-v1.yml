@@ -137,8 +137,8 @@ jobs:
         if: ${{ matrix.project.name != 'core' }}
         # The --precise flag can only be used once per invocation.
         run: |
-#          cargo update -p ravif --precise 0.11.5
-#          cargo update -p bitstream-io --precise 2.3.0
+          cargo update -p ravif --precise 0.11.5
+          cargo update -p bitstream-io --precise 2.3.0
 
       # Not really required since it's a binary
       - name: Downgrade crates with MSRV conflict (cli)

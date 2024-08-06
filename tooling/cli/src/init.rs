@@ -134,7 +134,7 @@ impl Options {
       if self.before_build_command.is_none() && self.before_dev_command.is_none() {
         prompts::select(
           "What package manager are you using?",
-          &["npm", "pnpm", "yarn"],
+          &["npm", "pnpm", "yarn", "bun"],
           Some(0),
         )?
         .unwrap()
@@ -150,6 +150,7 @@ impl Options {
           "npm" => Some("npm run dev".to_string()),
           "pnpm" => Some("pnpm dev".to_string()),
           "yarn" => Some("yarn dev".to_string()),
+          "bun" => Some("bun dev".to_string()),
           _ => unreachable!(),
         });
 
@@ -161,6 +162,7 @@ impl Options {
           "npm" => Some("npm run build".to_string()),
           "pnpm" => Some("pnpm build".to_string()),
           "yarn" => Some("yarn build".to_string()),
+          "bun" => Some("bun build".to_string()),
           _ => unreachable!(),
         });
 

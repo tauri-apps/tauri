@@ -2,4 +2,4 @@
 "tauri-cli": patch:enhance
 ---
 
-Fixes asset resolving when not using the `compression` feature.
+Improve the `init` command behavior to avoid duplicate interaction.

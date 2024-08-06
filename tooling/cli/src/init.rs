@@ -145,7 +145,7 @@ impl Options {
     self.before_dev_command =
       self
         .before_dev_command
-        .map(|s| Some(s))
+        .map(Some)
         .unwrap_or(match package_manager.as_str() {
           "npm" => Some("npm run dev".to_string()),
           "pnpm" => Some("pnpm dev".to_string()),
@@ -156,7 +156,7 @@ impl Options {
     self.before_build_command =
       self
         .before_build_command
-        .map(|s| Some(s))
+        .map(Some)
         .unwrap_or(match package_manager.as_str() {
           "npm" => Some("npm run build".to_string()),
           "pnpm" => Some("pnpm build".to_string()),

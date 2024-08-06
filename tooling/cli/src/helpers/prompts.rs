@@ -45,6 +45,22 @@ pub fn confirm(prompt: &str, default: Option<bool>) -> Result<bool> {
   builder.interact().map_err(Into::into)
 }
 
+pub fn select<T: ToString>(
+  prompt: &str,
+  items: &[T],
+  default: Option<usize>,
+) -> Result<Option<String>> {
+  let theme = dialoguer::theme::ColorfulTheme::default();
+  let mut builder = dialoguer::Select::with_theme(&theme)
+    .with_prompt(prompt)
+    .items(items);
+  if let Some(default) = default {
+    builder = builder.default(default);
+  }
+  let selected = builder.interact()?;
+  Ok(items.get(selected).map(ToString::to_string))
+}
+
 pub fn multiselect<T: ToString>(
   prompt: &str,
   items: &[T],

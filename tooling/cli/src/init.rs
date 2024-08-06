@@ -130,29 +130,39 @@ impl Options {
       )
     })?;
 
-    self.before_dev_command = self
-      .before_dev_command
-      .map(|s| Ok(Some(s)))
-      .unwrap_or_else(|| {
-        prompts::input(
-          "What is your frontend dev command?",
-          Some("npm run dev".to_string()),
-          self.ci,
-          true,
-        )
-      })?;
+    let package_manager =
+      if self.before_build_command.is_none() && self.before_dev_command.is_none() {
+        prompts::select(
+          "What package manager are you using?",
+          &["npm", "pnpm", "yarn"],
+          Some(0),
+        )?
+        .unwrap()
+      } else {
+        "npm".to_string()
+      };
 
-    self.before_build_command = self
-      .before_build_command
-      .map(|s| Ok(Some(s)))
-      .unwrap_or_else(|| {
-        prompts::input(
-          "What is your frontend build command?",
-          Some("npm run build".to_string()),
-          self.ci,
-          true,
-        )
-      })?;
+    self.before_dev_command =
+      self
+        .before_dev_command
+        .map(|s| Some(s))
+        .unwrap_or(match package_manager.as_str() {
+          "npm" => Some("npm run dev".to_string()),
+          "pnpm" => Some("pnpm dev".to_string()),
+          "yarn" => Some("yarn dev".to_string()),
+          _ => unreachable!(),
+        });
+
+    self.before_build_command =
+      self
+        .before_build_command
+        .map(|s| Some(s))
+        .unwrap_or(match package_manager.as_str() {
+          "npm" => Some("npm run build".to_string()),
+          "pnpm" => Some("pnpm build".to_string()),
+          "yarn" => Some("yarn build".to_string()),
+          _ => unreachable!(),
+        });
 
     Ok(self)
   }

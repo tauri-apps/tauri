@@ -57,6 +57,7 @@ jobs:
     timeout-minutes: 65
     permissions:
       contents: write # required for workflow_dispatch
+      pull-requests: write
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}

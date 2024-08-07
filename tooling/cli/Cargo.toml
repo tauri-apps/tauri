@@ -57,12 +57,12 @@ notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = [ "serde" ] }
-json-patch = "1.2"
+json-patch = "2.0"
 tauri-utils = { version = "2.0.0-rc.0", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
-handlebars = "5.1"
+handlebars = "6.0"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.22.0"

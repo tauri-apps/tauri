@@ -536,13 +536,13 @@ fn dmg_application_folder_position() -> Position {
   Position { x: 480, y: 170 }
 }
 
-fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn de_macos_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
 {
   let version = Option::<String>::deserialize(deserializer)?;
   match version {
-    Some(v) if v.is_empty() => Ok(minimum_system_version()),
+    Some(v) if v.is_empty() => Ok(macos_minimum_system_version()),
     e => Ok(e),
   }
 }
@@ -569,8 +569,8 @@ pub struct MacConfig {
   ///
   /// An empty string is considered an invalid value so the default value is used.
   #[serde(
-    deserialize_with = "de_minimum_system_version",
-    default = "minimum_system_version",
+    deserialize_with = "de_macos_minimum_system_version",
+    default = "macos_minimum_system_version",
     alias = "minimum-system-version"
   )]
   pub minimum_system_version: Option<String>,
@@ -601,7 +601,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
-      minimum_system_version: minimum_system_version(),
+      minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
       hardened_runtime: true,
@@ -612,8 +612,12 @@ impl Default for MacConfig {
   }
 }
 
-fn minimum_system_version() -> Option<String> {
+fn macos_minimum_system_version() -> Option<String> {
   Some("10.13".into())
+}
+
+fn ios_minimum_system_version() -> String {
+  "13.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -1897,6 +1901,14 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  ///
+  /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
+  #[serde(
+    alias = "minimum-system-version",
+    default = "ios_minimum_system_version"
+  )]
+  pub minimum_system_version: String,
 }
 
 /// General configuration for the iOS target.

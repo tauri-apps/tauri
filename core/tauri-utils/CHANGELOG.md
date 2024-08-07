@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### New Features
+
+- [`8dc81b6cc`](https://www.github.com/tauri-apps/tauri/commit/8dc81b6cc2b8235b11f74a971d6aa3a5df5e9f68) ([#10496](https://www.github.com/tauri-apps/tauri/pull/10496) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > template` configuration option for custom Xcode project YML Handlebars template using XcodeGen.
+- [`02c00abc6`](https://www.github.com/tauri-apps/tauri/commit/02c00abc63cf86e9bf9179cbb143d5145a9397b6) ([#10495](https://www.github.com/tauri-apps/tauri/pull/10495) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > minimumSystemVersion` configuration option.
+
+### Bug Fixes
+
+- [`7e810cb2a`](https://www.github.com/tauri-apps/tauri/commit/7e810cb2a3fd934017ae973e737864dfa4bdf64e) ([#10485](https://www.github.com/tauri-apps/tauri/pull/10485) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) Fixed an issue where permission files will be generated with ':' in the file path.
+
 ## \[2.0.0-rc.0]
 
 ### New Features

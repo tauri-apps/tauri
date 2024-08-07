@@ -2900,6 +2900,13 @@
       "description": "General configuration for the iOS target.",
       "type": "object",
       "properties": {
+        "template": {
+          "description": "A custom [XcodeGen] project.yml template to use.\n\n [XcodeGen]: <https://github.com/yonaskolb/XcodeGen>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "frameworks": {
           "description": "A list of strings indicating any iOS frameworks that need to be bundled with the application.\n\n Note that you need to recreate the iOS project for the changes to be applied.",
           "type": [

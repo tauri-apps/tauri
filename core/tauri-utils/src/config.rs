@@ -1893,6 +1893,10 @@ pub struct TrayIconConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
+  /// A custom [XcodeGen] project.yml template to use.
+  ///
+  /// [XcodeGen]: <https://github.com/yonaskolb/XcodeGen>
+  pub template: Option<PathBuf>,
   /// A list of strings indicating any iOS frameworks that need to be bundled with the application.
   ///
   /// Note that you need to recreate the iOS project for the changes to be applied.

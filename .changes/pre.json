@@ -4,17 +4,25 @@
     ".changes/android-dev-open-adb-fix.md",
     ".changes/asset-resolver-dev-fallback.md",
     ".changes/change-pr-10435.md",
+    ".changes/change-pr-10498.md",
+    ".changes/check-android-lib-symbols.md",
     ".changes/cli-desktop-port-exposure.md",
+    ".changes/cli-mobile-checks.md",
     ".changes/core-plugin-namespace.md",
     ".changes/dev-url-localhost-mobile.md",
     ".changes/fix-adb.md",
+    ".changes/fix-colon-in-file-path.md",
     ".changes/fix-conf-parsing-error-filepath.md",
     ".changes/fix-usage-without-compression.md",
+    ".changes/ios-custom-project-template.md",
     ".changes/ios-frameworks.md",
     ".changes/isolation-main-frame-origin.md",
     ".changes/linux-option-gtk-app-id.md",
+    ".changes/min-ios-version.md",
     ".changes/plugin-builder-failable.md",
     ".changes/rc-migration.md",
-    ".changes/remove-unsecure-configs.md"
+    ".changes/remove-open-command.md",
+    ".changes/remove-unsecure-configs.md",
+    ".changes/v1-migrate-updater.md"
   ]
 }

@@ -5080,7 +5080,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0-rc.0"
+version = "2.0.1-rc.0"
 dependencies = [
  "anyhow",
  "ar",
@@ -5109,7 +5109,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.0.0-rc.0",
+ "tauri-utils 2.0.0-rc.1",
  "tempfile",
  "thiserror",
  "time",
@@ -5123,7 +5123,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.2"
 dependencies = [
  "anyhow",
  "axum",
@@ -5182,7 +5182,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.5.4",
- "tauri-utils 2.0.0-rc.0",
+ "tauri-utils 2.0.0-rc.1",
  "tokio",
  "toml 0.8.10",
  "toml_edit 0.22.6",
@@ -5262,7 +5262,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-rc.0"
+version = "2.0.0-rc.1"
 dependencies = [
  "aes-gcm",
  "ctor",

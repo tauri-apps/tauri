@@ -5159,6 +5159,7 @@ dependencies = [
  "local-ip-address",
  "log",
  "magic_string",
+ "memchr",
  "minisign",
  "notify",
  "notify-debouncer-mini",

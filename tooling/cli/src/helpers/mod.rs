@@ -4,6 +4,7 @@
 
 pub mod app_paths;
 pub mod cargo;
+pub mod cargo_manifest;
 pub mod config;
 pub mod flock;
 pub mod framework;

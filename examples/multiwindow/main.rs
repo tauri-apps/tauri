@@ -4,7 +4,7 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{webview::PageLoadEvent, WebviewWindowBuilder};
+use tauri::{webview::PageLoadEvent, Listener, WebviewWindowBuilder};
 use tauri_utils::acl::ExecutionContext;
 
 fn main() {

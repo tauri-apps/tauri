@@ -1,5 +1,73 @@
 # Changelog
 
+## \[2.0.0-rc.0]
+
+### Changes
+
+- Promoted to RC!
+
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add APIs to enable setting window size constraints separately:
+
+  - Added `WindowSizeConstraints` interface in `window` and `webviewWindow` modules.
+  - Added `Window.setSizeConstraints` and `WebviewWindow.setSizeConstraints`
+
+### Bug Fixes
+
+- [`3c17fb64f`](https://www.github.com/tauri-apps/tauri/commit/3c17fb64fd822597d5cc16ee7e7b3f9e1023637b) ([#10277](https://www.github.com/tauri-apps/tauri/pull/10277) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Webview.reparent` pointing to `set_webview_focus` instead of `reparent` Rust API
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Apply `minWidth`, `minHieght`, `maxWidth` and `maxHeight` constraints separately, which fixes a long standing bug where these constraints were never applied unless width and height were constrained together.
+
+## \[2.0.0-beta.15]
+
+### New Features
+
+- [`7bc6a2a1d`](https://www.github.com/tauri-apps/tauri/commit/7bc6a2a1d6d2c5406d91cac94d33bce76443c28f) ([#9788](https://www.github.com/tauri-apps/tauri/pull/9788) by [@pewsheen](https://www.github.com/tauri-apps/tauri/../../pewsheen)) Add a new method to set title bar style dynamically on macOS.
+
+### Enhancements
+
+- [`080b6e127`](https://www.github.com/tauri-apps/tauri/commit/080b6e12720b89d839c686d7067cc94d276ed7e4) ([#10246](https://www.github.com/tauri-apps/tauri/pull/10246) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Use `EventName` on `Window`, `Webview` and `WebviewWindow`'s `once` so you can get auto complete for tauri's built-in events
+
+### Bug Fixes
+
+- [`080b6e127`](https://www.github.com/tauri-apps/tauri/commit/080b6e12720b89d839c686d7067cc94d276ed7e4) ([#10246](https://www.github.com/tauri-apps/tauri/pull/10246) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `once` doesn't detached after one callback if event handler throws
+
+### Breaking Changes
+
+- [`261c9f942`](https://www.github.com/tauri-apps/tauri/commit/261c9f942de9a598b5c6cc504de6bddd1306113b) ([#10170](https://www.github.com/tauri-apps/tauri/pull/10170) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Renamed drag and drop events in `TauriEvent` enum to better convey when they are triggered:
+
+  - `TauriEvent.DRAG` -> `TauriEvent.DRAG_ENTER`
+  - `TauriEvent.DROP_OVER` -> `TauriEvent.DRAG_OVER`
+  - `TauriEvent.DROP` -> `TauriEvent.DRAG_DROP`
+  - `TauriEvent.DROP_CANCELLED` -> `TauriEvent::DRAG_LEAVE`
+
+  Also the `type` field values in `Window/Webview/WebviewWindow.onDropEvent` and `DragDropEvent` have changed:
+
+  - `dragged` -> `enter`
+  - `dragOver` -> `over`
+  - `dropped` -> `drop`
+  - `cancelled` -> `leave`
+- [`2b1ceb40d`](https://www.github.com/tauri-apps/tauri/commit/2b1ceb40d345aef42dd79438fa69ca7989ee0194) ([#10229](https://www.github.com/tauri-apps/tauri/pull/10229) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Renamed the JS `getCurrent` and `getAll` functions to a clearer name to avoid ambiguity:
+
+  - `getCurrent` in `window` module has been renamed to `getCurrentWindow`
+  - `getCurrent` in `webview` module has been renamed to `getCurrentWebview`
+  - `getCurrent` in `webviewWindow` module has been renamed to `getCurrentWebviewWindow`
+  - `getAll` in `window` module has been renamed to `getAllWindows`
+  - `getAll` in `webview` module has been renamed to `getAllWebviews`
+  - `getAll` in `webviewWindow` module has been renamed to `getAllWebviewWindows`
+
+## \[2.0.0-beta.14]
+
+### New Features
+
+- [`148f04887`](https://www.github.com/tauri-apps/tauri/commit/148f048871caee21498b236c058b8890f2b66cc7) ([#9979](https://www.github.com/tauri-apps/tauri/pull/9979)) Add `defaultWindowIcon` to the JS `app` module to retrieve the default window icon in JS.
+
+### Bug Fixes
+
+- [`c98f385cb`](https://www.github.com/tauri-apps/tauri/commit/c98f385cb5da4d72968df24b1fc0b58212d59653) ([#10044](https://www.github.com/tauri-apps/tauri/pull/10044)) Export `mocks` module in `@tauri-apps/api` npm package.
+
 ## \[2.0.0-beta.13]
 
 ### Breaking Changes

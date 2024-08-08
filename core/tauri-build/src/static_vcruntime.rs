@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-// taken from https://github.com/ChrisDenton/static_vcruntime/
+// taken from <https://github.com/ChrisDenton/static_vcruntime/>
 // we're not using static_vcruntime directly because we want this for debug builds too
 
 use std::{env, fs, io::Write, path::Path};

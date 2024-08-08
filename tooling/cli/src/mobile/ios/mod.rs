@@ -16,7 +16,7 @@ use cargo_mobile2::{
   env::Env,
   opts::NoiseLevel,
   os,
-  util::prompt,
+  util::{prompt, relativize_path},
 };
 use clap::{Parser, Subcommand};
 use sublime_fuzzy::best_match;
@@ -24,13 +24,16 @@ use sublime_fuzzy::best_match;
 use super::{
   ensure_init, env, get_app,
   init::{command as init_command, configure_cargo},
-  log_finished, read_options, setup_dev_config, CliOptions, OptionsHandle, Target as MobileTarget,
+  log_finished, read_options, CliOptions, OptionsHandle, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{helpers::config::Config as TauriConfig, Result};
+use crate::{
+  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  Result,
+};
 
 use std::{
-  env::set_var,
+  env::{set_var, var_os},
   fs::create_dir_all,
   path::{Path, PathBuf},
   thread::sleep,
@@ -39,12 +42,10 @@ use std::{
 
 mod build;
 mod dev;
-mod open;
 pub(crate) mod project;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "APPLE_DEVELOPMENT_TEAM";
-const TARGET_IOS_VERSION: &str = "13.0";
 
 #[derive(Parser)]
 #[clap(
@@ -76,8 +77,6 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
-  /// Open project in Xcode
-  Open,
   Dev(dev::Options),
   Build(build::Options),
   #[clap(hide(true))]
@@ -93,7 +92,6 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
       options.reinstall_deps,
       options.skip_targets_install,
     )?,
-    Commands::Open => open::command()?,
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
@@ -104,7 +102,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
 
 pub fn get_config(
   app: &App,
-  config: &TauriConfig,
+  tauri_config: &TauriConfig,
   features: Option<&Vec<String>>,
   cli_options: &CliOptions,
 ) -> (AppleConfig, AppleMetadata) {
@@ -119,7 +117,7 @@ pub fn get_config(
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
         .ok()
-        .or_else(|| config.bundle.ios.development_team.clone())
+        .or_else(|| tauri_config.bundle.ios.development_team.clone())
         .or_else(|| {
           let teams = find_development_teams().unwrap_or_default();
           match teams.len() {
@@ -135,18 +133,52 @@ pub fn get_config(
           }
         }),
     ios_features: ios_options.features.clone(),
-    bundle_version: config.version.clone(),
-    bundle_version_short: config.version.clone(),
-    ios_version: Some(TARGET_IOS_VERSION.into()),
+    bundle_version: tauri_config.version.clone(),
+    bundle_version_short: tauri_config.version.clone(),
+    ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
   let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
+
+  let tauri_dir = tauri_dir();
+
+  let mut vendor_frameworks = Vec::new();
+  let mut frameworks = Vec::new();
+  for framework in tauri_config
+    .bundle
+    .ios
+    .frameworks
+    .clone()
+    .unwrap_or_default()
+  {
+    let framework_path = PathBuf::from(&framework);
+    let ext = framework_path.extension().unwrap_or_default();
+    if ext.is_empty() {
+      frameworks.push(framework);
+    } else if ext == "framework" {
+      frameworks.push(
+        framework_path
+          .file_stem()
+          .unwrap()
+          .to_string_lossy()
+          .to_string(),
+      );
+    } else {
+      vendor_frameworks.push(
+        relativize_path(tauri_dir.join(framework_path), config.project_dir())
+          .to_string_lossy()
+          .to_string(),
+      );
+    }
+  }
 
   let metadata = AppleMetadata {
     supported: true,
     ios: ApplePlatform {
       cargo_args: Some(ios_options.args),
       features: ios_options.features,
+      frameworks: Some(frameworks),
+      vendor_frameworks: Some(vendor_frameworks),
       ..Default::default()
     },
     macos: Default::default(),
@@ -275,16 +307,36 @@ fn inject_assets(config: &AppleConfig) -> Result<()> {
   Ok(())
 }
 
-fn merge_plist(src: &[PathBuf], dest: &Path) -> Result<()> {
+enum PlistKind {
+  Path(PathBuf),
+  Plist(plist::Value),
+}
+
+impl From<PathBuf> for PlistKind {
+  fn from(p: PathBuf) -> Self {
+    Self::Path(p)
+  }
+}
+impl From<plist::Value> for PlistKind {
+  fn from(p: plist::Value) -> Self {
+    Self::Plist(p)
+  }
+}
+
+fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
   let mut dest_plist = None;
 
-  for src_path in src {
-    if let Ok(src_plist) = plist::Value::from_file(src_path) {
+  for plist_kind in src {
+    let plist = match plist_kind {
+      PlistKind::Path(p) => plist::Value::from_file(p),
+      PlistKind::Plist(v) => Ok(v),
+    };
+    if let Ok(src_plist) = plist {
       if dest_plist.is_none() {
         dest_plist.replace(plist::Value::from_file(dest)?);
       }
 
-      let plist = dest_plist.as_mut().expect("Info.plist not loaded");
+      let plist = dest_plist.as_mut().expect("plist not loaded");
       if let Some(plist) = plist.as_dictionary_mut() {
         if let Some(dict) = src_plist.into_dictionary() {
           for (key, value) in dict {
@@ -300,4 +352,41 @@ fn merge_plist(src: &[PathBuf], dest: &Path) -> Result<()> {
   }
 
   Ok(())
+}
+
+pub fn signing_from_env() -> Result<(
+  Option<tauri_macos_sign::Keychain>,
+  Option<tauri_macos_sign::ProvisioningProfile>,
+)> {
+  let keychain = if let (Some(certificate), Some(certificate_password)) = (
+    var_os("IOS_CERTIFICATE"),
+    var_os("IOS_CERTIFICATE_PASSWORD"),
+  ) {
+    tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password).map(Some)?
+  } else {
+    None
+  };
+  let provisioning_profile = if let Some(provisioning_profile) = var_os("IOS_MOBILE_PROVISION") {
+    tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile).map(Some)?
+  } else {
+    None
+  };
+
+  Ok((keychain, provisioning_profile))
+}
+
+pub fn init_config(
+  keychain: Option<&tauri_macos_sign::Keychain>,
+  provisioning_profile: Option<&tauri_macos_sign::ProvisioningProfile>,
+) -> Result<super::init::IosInitConfig> {
+  Ok(super::init::IosInitConfig {
+    code_sign_style: if keychain.is_some() && provisioning_profile.is_some() {
+      super::init::CodeSignStyle::Manual
+    } else {
+      super::init::CodeSignStyle::Automatic
+    },
+    code_sign_identity: keychain.map(|k| k.signing_identity()),
+    team_id: keychain.and_then(|k| k.team_id().map(ToString::to_string)),
+    provisioning_profile_uuid: provisioning_profile.and_then(|p| p.uuid().ok()),
+  })
 }

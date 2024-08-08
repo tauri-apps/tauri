@@ -9,7 +9,7 @@ use std::process::Command;
 /// Helper for generic catch-all errors.
 type Result = std::result::Result<(), Box<dyn std::error::Error>>;
 
-/// https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--1300-1699-
+/// <https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--1300-1699->
 #[cfg(windows)]
 const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
 

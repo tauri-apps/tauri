@@ -332,6 +332,13 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn inner_size_constraints(
+    self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
+    self
+  }
+
   fn prevent_overflow(self, margin: Option<Size>) -> Self {
     self
   }
@@ -935,6 +942,17 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   }
 
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_size_constraints(
+    &self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Result<()> {
     Ok(())
   }
 }

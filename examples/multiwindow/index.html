@@ -15,7 +15,7 @@
 
     <script>
       const WebviewWindow = window.__TAURI__.webviewWindow.WebviewWindow
-      const appWindow = window.__TAURI__.window.getCurrent()
+      const appWindow = window.__TAURI__.window.getCurrentWindow()
       const windowLabel = appWindow.label
       const windowLabelContainer = document.getElementById('window-label')
       windowLabelContainer.innerText = 'This is the ' + windowLabel + ' window.'
@@ -75,7 +75,7 @@
       })
       container.appendChild(globalMessageButton)
 
-      const allWindows = window.__TAURI__.window.getAll()
+      const allWindows = window.__TAURI__.window.getAllWindows()
       for (const index in allWindows) {
         const label = allWindows[index].label
         if (label === windowLabel) {

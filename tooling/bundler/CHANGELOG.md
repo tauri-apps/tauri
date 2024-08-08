@@ -1,5 +1,84 @@
 # Changelog
 
+## \[2.0.1-rc.0]
+
+### Bug Fixes
+
+- [`a440a3f9d`](https://www.github.com/tauri-apps/tauri/commit/a440a3f9d85376d994f2ba904b1ae0828c5a0fbb) ([#10498](https://www.github.com/tauri-apps/tauri/pull/10498) by [@catalinsh](https://www.github.com/tauri-apps/tauri/../../catalinsh)) Correct nsis pre-uninstall hook to post-uninstall
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.1-beta.19]
+
+### Bug Fixes
+
+- [`d1df6be70`](https://www.github.com/tauri-apps/tauri/commit/d1df6be701fc1cd64fd227d68041a1096386d3b5) ([#10270](https://www.github.com/tauri-apps/tauri/pull/10270) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix bundler warns about no updater-enabled targets were built for self contained updaters like app image, nsis, msi
+
+### What's Changed
+
+- [`9f0a5fcea`](https://www.github.com/tauri-apps/tauri/commit/9f0a5fceaced7862c8a57beba6616c21ff3b17f8) ([#10271](https://www.github.com/tauri-apps/tauri/pull/10271) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `NSIS_HOOK_PREINSTALL` and `NSIS_HOOK_PREUNINSTALL` run before `CheckIfAppIsRunning` (which checks if the app is running and asks the user if they want to kill the app)
+
+## \[2.0.1-beta.18]
+
+### New Features
+
+- [`c734b9e3c`](https://www.github.com/tauri-apps/tauri/commit/c734b9e3cd6e5a22dfd84ec8a779c2ee9591751b) ([#10072](https://www.github.com/tauri-apps/tauri/pull/10072) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Upgraded the WiX version to 3.14 which fixes vulnerability issues and adds support for Arm targets.
+
+### Bug Fixes
+
+- [`96f65fef3`](https://www.github.com/tauri-apps/tauri/commit/96f65fef3659e83bbee4426e94da4472c962e391) ([#10188](https://www.github.com/tauri-apps/tauri/pull/10188) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) On macOS, the bundler will now correctly print a warning when the updater is enabled while the `.app` bundle is disabled.
+- [`5998a90f3`](https://www.github.com/tauri-apps/tauri/commit/5998a90f3f0dda124eff1ce3c59e96d329e8b435) ([#10184](https://www.github.com/tauri-apps/tauri/pull/10184) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix NSIS installer failing to launch apps that contain spaces after installation.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@0.1.0-beta.0`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
+### Breaking Changes
+
+- [`11aa7743e`](https://www.github.com/tauri-apps/tauri/commit/11aa7743e7a277ed9ec3e92040dc484afe77d261) ([#10177](https://www.github.com/tauri-apps/tauri/pull/10177) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Changed NSIS installer hooks from `!define` to `!macro`
+
+## \[2.0.1-beta.17]
+
+### New Features
+
+- [`fafc238f7`](https://www.github.com/tauri-apps/tauri/commit/fafc238f7288548975ca7d3e5207b925c0295c91) ([#9977](https://www.github.com/tauri-apps/tauri/pull/9977)) Add `bundle > homepage` option, if unset, it will fallback to `homepage` defined in `Cargo.toml`.
+- [`656a64974`](https://www.github.com/tauri-apps/tauri/commit/656a64974468bc207bf39537e02ae179bdee9b83) ([#9318](https://www.github.com/tauri-apps/tauri/pull/9318)) Added a configuration option to disable hardened runtime on macOS codesign.
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Add an option to disable NSIS compression `bundle > nsis > compression: "none"`
+- [`f21029b1b`](https://www.github.com/tauri-apps/tauri/commit/f21029b1bc25f5cb987e1a25de94c2d364e3e462) ([#9994](https://www.github.com/tauri-apps/tauri/pull/9994)) Add `bundle > nsis > startMenuFolder` option to customize start menu folder for NSIS installer
+
+### Enhancements
+
+- [`61bbd8373`](https://www.github.com/tauri-apps/tauri/commit/61bbd8373fc5fc7ada835aecc6d92610d214174a) ([#10117](https://www.github.com/tauri-apps/tauri/pull/10117)) Added a public property to the msi to tell the installer to launch the app after installation. This was added for the updater plugin.
+- [`ea78bf555`](https://www.github.com/tauri-apps/tauri/commit/ea78bf55587e5a8891e918bb9b560b3b2d75f445) ([#9915](https://www.github.com/tauri-apps/tauri/pull/9915)) For NSIS installer, migrate old shortcuts by setting the path only instead of re-creating a new one
+
+### Bug Fixes
+
+- [`b9e11a8b9`](https://www.github.com/tauri-apps/tauri/commit/b9e11a8b971f149d9b2a4262eed41670716c910c) ([#10036](https://www.github.com/tauri-apps/tauri/pull/10036)) Fixed an issue that caused the AppImage to segfault on start due to an incorrect .desktop file.
+- [`3fd84cb3c`](https://www.github.com/tauri-apps/tauri/commit/3fd84cb3c9aca7560ad6db8dbebda564308a3bfa) ([#10049](https://www.github.com/tauri-apps/tauri/pull/10049)) Fix encoding of NSIS license page when using a license file without a BOM.
+- [`de7da04a6`](https://www.github.com/tauri-apps/tauri/commit/de7da04a62dfd247633a03563afbc6f387cc0b82) ([#9974](https://www.github.com/tauri-apps/tauri/pull/9974)) Use the `productName` for `rpm` package name instead of main binary name, to be consistent with other bundle types.
+- [`faf282ca6`](https://www.github.com/tauri-apps/tauri/commit/faf282ca6ccf76c706db46f85aa207018dcf1ced) ([#10103](https://www.github.com/tauri-apps/tauri/pull/10103)) Fix NSIS uninstaller failing to clean up deep links
+- [`58821fc0e`](https://www.github.com/tauri-apps/tauri/commit/58821fc0e5bcca01f3702f4d31edf91d696f323d) ([#10086](https://www.github.com/tauri-apps/tauri/pull/10086)) Fix NSIS esitmated size unit being in kB (1000 bytes) not KB (1024 bytes)
+- [`6f469534b`](https://www.github.com/tauri-apps/tauri/commit/6f469534b075d901d978c940873f9480f0d10ee0) ([#9944](https://www.github.com/tauri-apps/tauri/pull/9944)) Fix NSIS installer runs the app as admin when using `perMachine` install mode
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+
+### Breaking Changes
+
+- [`f21029b1b`](https://www.github.com/tauri-apps/tauri/commit/f21029b1bc25f5cb987e1a25de94c2d364e3e462) ([#9994](https://www.github.com/tauri-apps/tauri/pull/9994)) Changed NSIS start menu shortcut to be placed directly inside `%AppData%\Microsoft\Windows\Start Menu\Programs` without an additional folder. You can get the old behavior by setting `bundle > nsis > startMenuFolder` to the same value as your `productName`
+- [`911242f09`](https://www.github.com/tauri-apps/tauri/commit/911242f0928e0a2add3595fa9de27850fb875fa6) ([#9883](https://www.github.com/tauri-apps/tauri/pull/9883)) Move updater target from `bundle > targets` to a separate field `bundle > createUpdaterArtifacts`
+
 ## \[2.0.1-beta.16]
 
 ### Bug Fixes

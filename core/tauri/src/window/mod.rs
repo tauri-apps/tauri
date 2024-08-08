@@ -9,6 +9,7 @@ pub(crate) mod plugin;
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
+  window::WindowSizeConstraints,
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
@@ -28,7 +29,8 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  EventLoopMessage, Manager, ResourceTable, Runtime, Theme, Webview, WindowEvent,
+  Emitter, EventLoopMessage, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
+  WindowEvent,
 };
 #[cfg(desktop)]
 use crate::{
@@ -491,6 +493,13 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Window inner size constraints.
+  #[must_use]
+  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.window_builder = self.window_builder.inner_size_constraints(constraints);
+    self
+  }
+
   /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation
   #[must_use]
   pub fn prevent_overflow(mut self, margin: Option<Size>) -> Self {
@@ -678,7 +687,7 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
   ///   - `true` will make undecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
   pub fn shadow(mut self, enable: bool) -> Self {
@@ -1155,7 +1164,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  ///   window, if you need to set it, use [`AppHandle::set_menu`] instead.
   #[cfg_attr(target_os = "macos", allow(unused_variables))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.remove_menu()?;
@@ -1201,7 +1210,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  ///   window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     let prev_menu = self.menu_lock().take().map(|m| m.menu);
 
@@ -1741,7 +1750,7 @@ impl<R: Runtime> Window<R> {
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
   ///   - `true` will make undecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
     self
@@ -1858,6 +1867,15 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_max_size(size.map(|s| s.into()))
+      .map_err(Into::into)
+  }
+
+  /// Sets this window's minimum inner width.
+  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_size_constraints(constriants)
       .map_err(Into::into)
   }
 
@@ -2002,6 +2020,14 @@ tauri::Builder::default()
       })
       .map_err(Into::into)
   }
+  /// Sets the title bar style. **macOS only**.
+  pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_title_bar_style(style)
+      .map_err(Into::into)
+  }
 }
 
 /// Progress bar state.
@@ -2018,8 +2044,7 @@ pub struct ProgressBarState {
   pub progress: Option<u64>,
 }
 
-/// Event system APIs.
-impl<R: Runtime> Window<R> {
+impl<R: Runtime> Listener<R> for Window<R> {
   /// Listen to an event on this window.
   ///
   /// # Examples
@@ -2027,7 +2052,7 @@ impl<R: Runtime> Window<R> {
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Manager;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {
@@ -2041,11 +2066,27 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
     self.manager.listen(
+      event.into(),
+      EventTarget::Window {
+        label: self.label().to_string(),
+      },
+      handler,
+    )
+  }
+
+  /// Listen to an event on this window only once.
+  ///
+  /// See [`Self::listen`] for more information.
+  fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  where
+    F: FnOnce(Event) + Send + 'static,
+  {
+    self.manager.once(
       event.into(),
       EventTarget::Window {
         label: self.label().to_string(),
@@ -2061,7 +2102,7 @@ tauri::Builder::default()
     feature = "unstable",
     doc = r####"
 ```
-use tauri::Manager;
+use tauri::{Manager, Listener};
 
 tauri::Builder::default()
   .setup(|app| {
@@ -2083,24 +2124,97 @@ tauri::Builder::default()
 ```
   "####
   )]
-  pub fn unlisten(&self, id: EventId) {
+  fn unlisten(&self, id: EventId) {
     self.manager.unlisten(id)
   }
+}
 
-  /// Listen to an event on this window only once.
+impl<R: Runtime> Emitter<R> for Window<R> {
+  /// Emits an event to all [targets](EventTarget).
   ///
-  /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::Emitter;
+
+#[tauri::command]
+fn synchronize(window: tauri::Window) {
+  // emits the synchronized event to all webviews
+  window.emit("synchronized", ());
+}
+  ```
+  "####
+  )]
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.manager.emit(event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) matching the given target.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{Emitter, EventTarget};
+
+#[tauri::command]
+fn download(window: tauri::Window) {
+  for i in 1..100 {
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // emit a download progress event to all listeners
+    window.emit_to(EventTarget::any(), "download-progress", i);
+    // emit an event to listeners that used App::listen or AppHandle::listen
+    window.emit_to(EventTarget::app(), "download-progress", i);
+    // emit an event to any webview/window/webviewWindow matching the given label
+    window.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
+    window.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+    // emit an event to listeners that used WebviewWindow::listen
+    window.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
+  }
+}
+```
+"####
+  )]
+  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
   where
-    F: FnOnce(Event) + Send + 'static,
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
   {
-    self.manager.once(
-      event.into(),
-      EventTarget::Window {
-        label: self.label().to_string(),
-      },
-      handler,
-    )
+    self.manager.emit_to(target, event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) based on the given filter.
+  ///
+  /// # Examples
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```
+use tauri::{Emitter, EventTarget};
+
+#[tauri::command]
+fn download(window: tauri::Window) {
+  for i in 1..100 {
+    std::thread::sleep(std::time::Duration::from_millis(150));
+    // emit a download progress event to the updater window
+    window.emit_filter("download-progress", i, |t| match t {
+      EventTarget::WebviewWindow { label } => label == "main",
+      _ => false,
+    });
+  }
+}
+  ```
+  "####
+  )]
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&EventTarget) -> bool,
+  {
+    self.manager.emit_filter(event, payload, filter)
   }
 }
 

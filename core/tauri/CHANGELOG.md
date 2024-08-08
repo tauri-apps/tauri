@@ -1,5 +1,169 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+- Upgraded to `tauri-runtime@2.0.0-rc.1`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.1`
+- Upgraded to `tauri-macros@2.0.0-rc.1`
+- Upgraded to `tauri-build@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Bug Fixes
+
+- [`6755af230`](https://www.github.com/tauri-apps/tauri/commit/6755af23021a254cff98c07aa7711545771097a6)([#10435](https://www.github.com/tauri-apps/tauri/pull/10435)) Fix Specta remote implementation target for `Channel`.
+- [`24445d71d`](https://www.github.com/tauri-apps/tauri/commit/24445d71de92d526d0ccaecb54f13003ddc6f6b4)([#10432](https://www.github.com/tauri-apps/tauri/pull/10432)) Fixes asset resolving when not using the `compression` feature.
+
+### Enhancements
+
+- [`1e0793b68`](https://www.github.com/tauri-apps/tauri/commit/1e0793b6821799829e380c88066b3415cc9006df) ([#10357](https://www.github.com/tauri-apps/tauri/pull/10357)) Enhance `AssetResolver::get` in development mode by reading distDir directly as a fallback to the embedded assets.
+- [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.
+- [`cf994a6bb`](https://www.github.com/tauri-apps/tauri/commit/cf994a6bb064a50d3e5aef67e9a25903ee17a1e2) ([#10405](https://www.github.com/tauri-apps/tauri/pull/10405)) Add `tauri::plugin::Builder::try_build` to allow plugins to check if their `TauriPlugin` initialization is valid.
+
+### Security fixes
+
+- [`426d14bb4`](https://www.github.com/tauri-apps/tauri/commit/426d14bb4164290d93b5a0f61e925cb2dfc4aafa) ([#10423](https://www.github.com/tauri-apps/tauri/pull/10423)) Explicitly check that the main frame's origin is the sender of Isolation Payloads
+- [`289ae5555`](https://www.github.com/tauri-apps/tauri/commit/289ae5555da3802741018015bfe4927729a2eb33) ([#10386](https://www.github.com/tauri-apps/tauri/pull/10386)) Re-enable TLS checks that were previously disabled to support an insecure HTTPS custom protocol on Android which is no longer used.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+- Upgraded to `tauri-macros@2.0.0-rc.0`
+- Upgraded to `tauri-build@2.0.0-rc.0`
+- Upgraded to `tauri-runtime@2.0.0-rc.0`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.0`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+
+## \[2.0.0-beta.25]
+
+### New Features
+
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add APIs to enable setting window size constraints separately:
+
+  - Added `WindowBuilder::inner_size_constraints` and `WebviewWindowBuilder::inner_size_constraints` which can be used for setting granular constraints.
+  - Added `WindowSizeConstraints` struct
+  - Added `Window::set_size_constraints` and `WebviewWindow::set_size_constraints`
+
+### Bug Fixes
+
+- [`e1776946a`](https://www.github.com/tauri-apps/tauri/commit/e1776946ad034d7a6e005834a754773671d9f7ef) ([#10362](https://www.github.com/tauri-apps/tauri/pull/10362) by [@Brendonovich](https://www.github.com/tauri-apps/tauri/../../Brendonovich)) Use ` specta rc.15's  `derive\` feature which fixes build issues in docs.rs.
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Apply `minWidth`, `minHieght`, `maxWidth` and `maxHeight` constraints separately, which fixes a long standing bug where these constraints were never applied unless width and height were constrained together.
+
+### What's Changed
+
+- [`9546548ec`](https://www.github.com/tauri-apps/tauri/commit/9546548ec0c83ba620b1bc9d1d424a7009d0b423) ([#10297](https://www.github.com/tauri-apps/tauri/pull/10297) by [@pewsheen](https://www.github.com/tauri-apps/tauri/../../pewsheen)) On macOS, set default titlebar style to `Visible` to prevent webview move out of the view.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.21`
+- Upgraded to `tauri-runtime@2.0.0-beta.21`
+
+## \[2.0.0-beta.24]
+
+### New Features
+
+- [`7bc6a2a1d`](https://www.github.com/tauri-apps/tauri/commit/7bc6a2a1d6d2c5406d91cac94d33bce76443c28f) ([#9788](https://www.github.com/tauri-apps/tauri/pull/9788) by [@pewsheen](https://www.github.com/tauri-apps/tauri/../../pewsheen)) Add a new method to set title bar style dynamically on macOS.
+
+### Enhancements
+
+- [`a7354f9a8`](https://www.github.com/tauri-apps/tauri/commit/a7354f9a81d4db83ff3d34b29617717117ad64d2) ([#10171](https://www.github.com/tauri-apps/tauri/pull/10171) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Mark `AppHandle::restart` and `process::restart` as [diverging functions](https://doc.rust-lang.org/rust-by-example/fn/diverging.html).
+
+### Bug Fixes
+
+- [`4c239729c`](https://www.github.com/tauri-apps/tauri/commit/4c239729c3e1b899ecbc6793c3682848e8de1729) ([#10167](https://www.github.com/tauri-apps/tauri/pull/10167) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix deserialization of raw invoke requests when using `isolation` pattern.
+- [`55733aba9`](https://www.github.com/tauri-apps/tauri/commit/55733aba9c5a5c8d664afea0c83d9337bc99387d) ([#10176](https://www.github.com/tauri-apps/tauri/pull/10176) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Move `PluginApi::register_ios_plugin` behind the `wry` Cargo feature as `Webview::with_webview` is only available when that feature is enabled.
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.0.0-beta.19`
+- Upgraded to `tauri-build@2.0.0-beta.19`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.20`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+- Upgraded to `tauri-runtime@2.0.0-beta.20`
+
+### Breaking Changes
+
+- [`ba9590aa9`](https://www.github.com/tauri-apps/tauri/commit/ba9590aa92a67a11fa1e559e506d87b7e643cc24) ([#9640](https://www.github.com/tauri-apps/tauri/pull/9640) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `Emitter` and `Listener` traits that defines what an emitter or a listener can do, this however comes with a few breaking changes:
+
+  - Removed `Manager::listen_any`, use `Listener::listen_any` instead.
+  - Removed `Manager::once_any`, use `Listener::once_any` instead.
+  - Removed `Manager::unlisten`, use `Listener::unlisten` instead.
+  - Removed `Manager::emit`, use `Emitter::emit` instead.
+  - Removed `Manager::emit_to`, use `Emitter::emit_to` instead.
+  - Removed `Manager::emit_filter`, use `Emitter::emit_filter` instead.
+  - Removed `App/AppHandle::listen`, `WebviewWindow::listen`, `Window::listen` and `Webview::listen`, use `Listener::listen` instead.
+  - Removed `App/AppHandle::once`, `WebviewWindow::once`, `Window::once` and `Webview::once`, use `Listener::once` instead.
+  - Removed `App/AppHandle::unlisten`, `WebviewWindow::unlisten`, `Window::unlisten` and `Webview::unlisten`, use `Listener::unlisten` instead.
+- [`261c9f942`](https://www.github.com/tauri-apps/tauri/commit/261c9f942de9a598b5c6cc504de6bddd1306113b) ([#10170](https://www.github.com/tauri-apps/tauri/pull/10170) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Renamed `DragDropEvent` enum variants to better convey when they are triggered:
+
+  - `DragDropEvent::Dragged` -> `DragDropEvent::Enter`
+  - `DragDropEvent::DragOver` -> `DragDropEvent::Over`
+  - `DragDropEvent::Dropped` -> `DragDropEvent::Drop`
+  - `DragDropEvent::Cancelled` -> `DragDropEvent::Leave`
+
+  This also comes with a change in the events being emitted to JS and Rust event listeners:
+
+  - `tauri://drag` -> `tauri://drag-enter`
+  - `tauri://drop-over` -> `tauri://drag-over`
+  - `tauri://drop` -> `tauri://drag-drop`
+  - `tauri://drag-cancelled` -> `tauri://drag-leave`
+- [`2b1ceb40d`](https://www.github.com/tauri-apps/tauri/commit/2b1ceb40d345aef42dd79438fa69ca7989ee0194) ([#10229](https://www.github.com/tauri-apps/tauri/pull/10229) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Renamed the JS `getCurrent` and `getAll` functions to a clearer name to avoid ambiguity:
+
+  - `getCurrent` in `window` module has been renamed to `getCurrentWindow`
+  - `getCurrent` in `webview` module has been renamed to `getCurrentWebview`
+  - `getCurrent` in `webviewWindow` module has been renamed to `getCurrentWebviewWindow`
+  - `getAll` in `window` module has been renamed to `getAllWindows`
+  - `getAll` in `webview` module has been renamed to `getAllWebviews`
+  - `getAll` in `webviewWindow` module has been renamed to `getAllWebviewWindows`
+- [`57612ab24`](https://www.github.com/tauri-apps/tauri/commit/57612ab24963b02d769ce408b0283ef552fb7b0d) ([#10139](https://www.github.com/tauri-apps/tauri/pull/10139) by [@Brendonovich](https://www.github.com/tauri-apps/tauri/../../Brendonovich)) Add `TSend` generic to `ipc::Channel` for typesafe `send` calls and type inspection in `tauri-specta`
+
+## \[2.0.0-beta.23]
+
+### New Features
+
+- [`148f04887`](https://www.github.com/tauri-apps/tauri/commit/148f048871caee21498b236c058b8890f2b66cc7) ([#9979](https://www.github.com/tauri-apps/tauri/pull/9979)) Add `defaultWindowIcon` to the JS `app` module to retrieve the default window icon in JS.
+- [`5b769948a`](https://www.github.com/tauri-apps/tauri/commit/5b769948a81cac333f64c870a470ba6525bd5cd3) ([#9959](https://www.github.com/tauri-apps/tauri/pull/9959)) Add `include_image` macro to help embedding instances of `Image` struct at compile-time in rust to be used with window, menu or tray icons.
+- [`ddaabda36`](https://www.github.com/tauri-apps/tauri/commit/ddaabda365ed5dc0780925049473989cbd1d7ea3) ([#9922](https://www.github.com/tauri-apps/tauri/pull/9922)) Add `WebviewWindowBuilder::on_download`.
+
+### Enhancements
+
+- [`cee0bfcd6`](https://www.github.com/tauri-apps/tauri/commit/cee0bfcd6c03c2a6794abca8f4fde700f3f818ba) ([#10092](https://www.github.com/tauri-apps/tauri/pull/10092)) Make `tray:default` and `menu:default` include all tray and menu permissions
+
+### Bug Fixes
+
+- [`e93ca1df3`](https://www.github.com/tauri-apps/tauri/commit/e93ca1df3b3948647f501f9f958e894ade6a27fb) ([#10138](https://www.github.com/tauri-apps/tauri/pull/10138)) Fix `InvokeBody::deserialize` method deserialization for `InvokeBody::Raw` variant
+- [`e6e17ad1c`](https://www.github.com/tauri-apps/tauri/commit/e6e17ad1c8a6b53463946c407a354c250bd7e701) ([#9954](https://www.github.com/tauri-apps/tauri/pull/9954)) Add `std` feature to `raw-window-handle` crate so that using `default-features = false` on `tauri` crate can work
+- [`f29b78811`](https://www.github.com/tauri-apps/tauri/commit/f29b78811080bc8313459f34545152d939c62bf6) ([#9862](https://www.github.com/tauri-apps/tauri/pull/9862)) On Windows, handle resizing undecorated windows natively which improves performance and fixes a couple of annoyances with previous JS implementation:
+
+  - No more cursor flickering when moving the cursor across an edge.
+  - Can resize from top even when `data-tauri-drag-region` element exists there.
+  - Upon starting rezing, clicks don't go through elements behind it so no longer accidental clicks.
+
+### What's Changed
+
+- [`669b9c6b5`](https://www.github.com/tauri-apps/tauri/commit/669b9c6b5af791129b77ee440dacaa98288c906b) ([#9621](https://www.github.com/tauri-apps/tauri/pull/9621)) Set the gtk application to the identifier defined in `tauri.conf.json` to ensure the app uniqueness.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- Upgraded to `tauri-build@2.0.0-beta.18`
+- Upgraded to `tauri-macros@2.0.0-beta.18`
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.19`
+- Upgraded to `tauri-runtime@2.0.0-beta.19`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+- [`d4c908cfb`](https://www.github.com/tauri-apps/tauri/commit/d4c908cfb8c567abdaf99b85f65f482ea81967e5) ([#10048](https://www.github.com/tauri-apps/tauri/pull/10048)) Update `windows` crate to version `0.57` and `webview2-com` crate to version `0.31`
+
+### Breaking Changes
+
+- [`3afe82894`](https://www.github.com/tauri-apps/tauri/commit/3afe8289407b53791e761764964a42207a7f7881) ([#10134](https://www.github.com/tauri-apps/tauri/pull/10134)) Changed `WebviewWindow::navigate` and `Webview::navigate` method signature to return a `Result`
+
 ## \[2.0.0-beta.22]
 
 ### Bug Fixes

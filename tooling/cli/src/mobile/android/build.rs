@@ -26,7 +26,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::{set_current_dir, set_var};
+use std::env::set_current_dir;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -122,9 +122,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, app, config, metadata)
   };
 
-  set_var("WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION", "");
-  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", "");
-
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -134,7 +131,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Android,
+  )?;
 
   let mut env = env()?;
   configure_cargo(&app, Some((&mut env, &config)))?;
@@ -192,6 +194,7 @@ fn run_build(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let cli_options = CliOptions {
+    dev: false,
     features: build_options.features.clone(),
     args: build_options.args.clone(),
     noise_level,

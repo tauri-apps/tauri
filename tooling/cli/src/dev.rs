@@ -75,9 +75,6 @@ pub struct Options {
   /// Disable the file watcher.
   #[clap(long)]
   pub no_watch: bool,
-  /// Force prompting for an IP to use to connect to the dev server on mobile.
-  #[clap(long)]
-  pub force_ip_prompt: bool,
 
   /// Disable the built-in dev server for static files.
   #[clap(long)]
@@ -85,6 +82,9 @@ pub struct Options {
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,
+
+  #[clap(skip)]
+  pub host: Option<IpAddr>,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -109,7 +109,7 @@ fn command_internal(mut options: Options) -> Result<()> {
     options.target.clone(),
   )?;
 
-  setup(&interface, &mut options, config, false)?;
+  setup(&interface, &mut options, config)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
@@ -118,66 +118,9 @@ fn command_internal(mut options: Options) -> Result<()> {
   })
 }
 
-pub fn local_ip_address(force: bool) -> &'static IpAddr {
-  static LOCAL_IP: OnceLock<IpAddr> = OnceLock::new();
-  LOCAL_IP.get_or_init(|| {
-    let prompt_for_ip = || {
-      let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
-        .expect("failed to list networks")
-        .into_iter()
-        .map(|(_, ipaddr)| ipaddr)
-        .filter(|ipaddr| match ipaddr {
-          IpAddr::V4(i) => i != &Ipv4Addr::LOCALHOST,
-          _ => false,
-        })
-        .collect();
-      match addresses.len() {
-        0 => panic!("No external IP detected."),
-        1 => {
-          let ipaddr = addresses.first().unwrap();
-          *ipaddr
-        }
-        _ => {
-          let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-            .with_prompt(
-              "Failed to detect external IP, What IP should we use to access your development server?",
-            )
-            .items(&addresses)
-            .default(0)
-            .interact()
-            .expect("failed to select external IP");
-          *addresses.get(selected).unwrap()
-        }
-      }
-    };
-
-    let ip = if force {
-      prompt_for_ip()
-    } else {
-      local_ip_address::local_ip().unwrap_or_else(|_| prompt_for_ip())
-    };
-    log::info!("Using {ip} to access the development server.");
-    ip
-  })
-}
-
-pub fn setup(
-  interface: &AppInterface,
-  options: &mut Options,
-  config: ConfigHandle,
-  mobile: bool,
-) -> Result<()> {
+pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHandle) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
-
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
 
   if let Some(before_dev) = config
     .lock()
@@ -196,25 +139,7 @@ pub fn setup(
       }
     };
     let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
-    if let Some(mut before_dev) = script {
-      if before_dev.contains("$HOST") {
-        if mobile {
-          let local_ip_address = local_ip_address(options.force_ip_prompt).to_string();
-          before_dev = before_dev.replace("$HOST", &local_ip_address);
-          if let Some(url) = &mut dev_url {
-            url.set_host(Some(&local_ip_address))?;
-          }
-        } else {
-          before_dev = before_dev.replace(
-            "$HOST",
-            if let Some(url) = &dev_url {
-              url.host_str().unwrap_or("0.0.0.0")
-            } else {
-              "0.0.0.0"
-            },
-          );
-        }
-      }
+    if let Some(before_dev) = script {
       log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
       env.extend(interface.env());
@@ -326,11 +251,11 @@ pub fn setup(
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
         let path = path.canonicalize()?;
-        let ip = if mobile {
-          *local_ip_address(options.force_ip_prompt)
-        } else {
-          Ipv4Addr::new(127, 0, 0, 1).into()
-        };
+
+        let ip = options
+          .host
+          .unwrap_or_else(|| Ipv4Addr::new(127, 0, 0, 1).into());
+
         let server_url = builtin_dev_server::start(path, ip, options.port)?;
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());

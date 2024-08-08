@@ -34,6 +34,7 @@ switch (bump) {
     index = 2
     break
   case 'prerelease':
+  case 'prepatch':
     index = 3
     break
   default:

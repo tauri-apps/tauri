@@ -1,5 +1,62 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### New Features
+
+- [`8dc81b6cc`](https://www.github.com/tauri-apps/tauri/commit/8dc81b6cc2b8235b11f74a971d6aa3a5df5e9f68) ([#10496](https://www.github.com/tauri-apps/tauri/pull/10496) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > template` configuration option for custom Xcode project YML Handlebars template using XcodeGen.
+- [`02c00abc6`](https://www.github.com/tauri-apps/tauri/commit/02c00abc63cf86e9bf9179cbb143d5145a9397b6) ([#10495](https://www.github.com/tauri-apps/tauri/pull/10495) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > minimumSystemVersion` configuration option.
+
+### Bug Fixes
+
+- [`7e810cb2a`](https://www.github.com/tauri-apps/tauri/commit/7e810cb2a3fd934017ae973e737864dfa4bdf64e) ([#10485](https://www.github.com/tauri-apps/tauri/pull/10485) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) Fixed an issue where permission files will be generated with ':' in the file path.
+
+## \[2.0.0-rc.0]
+
+### New Features
+
+- [`a5bfbaa62`](https://www.github.com/tauri-apps/tauri/commit/a5bfbaa62b8cd0aacbb33f730d4e30b43c461fe1)([#9962](https://www.github.com/tauri-apps/tauri/pull/9962)) Added `bundle > iOS > frameworks` configuration to define a list of frameworks that are linked to the Xcode project when it is generated.
+
+### Enhancements
+
+- [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.
+
+### Bug Fixes
+
+- [`498f405ca`](https://www.github.com/tauri-apps/tauri/commit/498f405ca80440447823dd3c9cd53c0f79d655b5) ([#10404](https://www.github.com/tauri-apps/tauri/pull/10404)) Fixed an issue where configuration parsing errors always displayed 'tauri.conf.json' as the file path, even when using 'Tauri.toml' or 'tauri.conf.json5'.
+
+  The error messages now correctly shows the actual config file being used.
+
+### Security fixes
+
+- [`426d14bb4`](https://www.github.com/tauri-apps/tauri/commit/426d14bb4164290d93b5a0f61e925cb2dfc4aafa) ([#10423](https://www.github.com/tauri-apps/tauri/pull/10423)) Explicitly check that the main frame's origin is the sender of Isolation Payloads
+
+## \[2.0.0-beta.19]
+
+### New Features
+
+- [`4c239729c`](https://www.github.com/tauri-apps/tauri/commit/4c239729c3e1b899ecbc6793c3682848e8de1729) ([#10167](https://www.github.com/tauri-apps/tauri/pull/10167) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `RawIsolationPayload::content_type` method.
+
+## \[2.0.0-beta.18]
+
+### New Features
+
+- [`fafc238f7`](https://www.github.com/tauri-apps/tauri/commit/fafc238f7288548975ca7d3e5207b925c0295c91) ([#9977](https://www.github.com/tauri-apps/tauri/pull/9977)) Add `bundle > homepage` option, if unset, it will fallback to `homepage` defined in `Cargo.toml`.
+- [`656a64974`](https://www.github.com/tauri-apps/tauri/commit/656a64974468bc207bf39537e02ae179bdee9b83) ([#9318](https://www.github.com/tauri-apps/tauri/pull/9318)) Added a configuration option to disable hardened runtime on macOS codesign.
+- [`5b769948a`](https://www.github.com/tauri-apps/tauri/commit/5b769948a81cac333f64c870a470ba6525bd5cd3) ([#9959](https://www.github.com/tauri-apps/tauri/pull/9959)) Add `include_image` macro to help embedding instances of `Image` struct at compile-time in rust to be used with window, menu or tray icons.
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Add an option to disable NSIS compression `bundle > nsis > compression: "none"`
+- [`f21029b1b`](https://www.github.com/tauri-apps/tauri/commit/f21029b1bc25f5cb987e1a25de94c2d364e3e462) ([#9994](https://www.github.com/tauri-apps/tauri/pull/9994)) Add `bundle > nsis > startMenuFolder` option to customize start menu folder for NSIS installer
+
+### Enhancements
+
+- [`878198777`](https://www.github.com/tauri-apps/tauri/commit/878198777ef693efdbd394cb4be4b234e8a7ed3d) ([#9999](https://www.github.com/tauri-apps/tauri/pull/9999)) Mark ACL `permissions` array with unique items
+
+### Breaking Changes
+
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Changed `NsisSettings::compression` field from `Option<NsisCompression>` to just `NsisCompression`
+- [`911242f09`](https://www.github.com/tauri-apps/tauri/commit/911242f0928e0a2add3595fa9de27850fb875fa6) ([#9883](https://www.github.com/tauri-apps/tauri/pull/9883)) Move updater target from `bundle > targets` to a separate field `bundle > createUpdaterArtifacts`
+- [`3ab170917`](https://www.github.com/tauri-apps/tauri/commit/3ab170917ed535fc9013f0a9255631fb34493e18) ([#9932](https://www.github.com/tauri-apps/tauri/pull/9932)) Changed `NsisConfig::compression` field from `Option<NsisCompression>` to just `NsisCompression`
+
 ## \[2.0.0-beta.17]
 
 ### New Features

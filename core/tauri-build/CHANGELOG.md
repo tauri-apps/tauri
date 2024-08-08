@@ -1,5 +1,42 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+- Upgraded to `tauri-codegen@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-rc.0`
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.0-beta.19]
+
+### Bug Fixes
+
+- [`69dcfdfe0`](https://www.github.com/tauri-apps/tauri/commit/69dcfdfe0f3b0570fcf5997267a7200087d5341b) ([#10267](https://www.github.com/tauri-apps/tauri/pull/10267) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix build script rerun-if-changed instruction if Info.plist do not exist next to tauri.conf.json.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.19`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
+## \[2.0.0-beta.18]
+
+### Enhancements
+
+- [`35110dba2`](https://www.github.com/tauri-apps/tauri/commit/35110dba21d7db0f155c45da58b41c9ca4d5853c) ([#10106](https://www.github.com/tauri-apps/tauri/pull/10106)) Fix delete app data button gone on higher scaling (>= 1.5)
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.18`
+- Upgraded to `tauri-codegen@2.0.0-beta.18`
+- [`f955f7b49`](https://www.github.com/tauri-apps/tauri/commit/f955f7b4903bcea376c0a8b430736f66c8cebf56) ([#9929](https://www.github.com/tauri-apps/tauri/pull/9929)) Switch from `dirs_next` to `dirs` as `dirs_next` is now unmaintained while `dirs` is
+
 ## \[2.0.0-beta.17]
 
 ### Enhancements
@@ -374,7 +411,7 @@
 
 - [`52474e47`](https://www.github.com/tauri-apps/tauri/commit/52474e479d695865299d8c8d868fb98b99731020)([#7141](https://www.github.com/tauri-apps/tauri/pull/7141)) Enhance Cargo features check.
 - [`af937290`](https://www.github.com/tauri-apps/tauri/commit/af93729031565a69d1fde6cf16bea3b9b6e43a65)([#6676](https://www.github.com/tauri-apps/tauri/pull/6676)) On Windows, set `LegalCopyright` and `FileDescription` file properties on the executable from `tauri.bundle.copyright` and `tauri.bundle.shortDescription`,
-- [`d2710e9d`](https://www.github.com/tauri-apps/tauri/commit/d2710e9d2e8fd93975ef6494512370faa8cb3b7e)([#6944](https://www.github.com/tauri-apps/tauri/pull/6944)) Unpin `time`, `ignore`, and `winnow` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85.
+- [`d2710e9d`](https://www.github.com/tauri-apps/tauri/commit/d2710e9d2e8fd93975ef6494512370faa8cb3b7e)([#6944](https://www.github.com/tauri-apps/tauri/pull/6944)) Unpin `time`, `ignore`, and `winnow` crate versions. Developers now have to pin crates if needed themselves. A list of crates that need pinning to adhere to Tauri's MSRV will be visible in Tauri's GitHub workflow: <https://github.com/tauri-apps/tauri/blob/dev/.github/workflows/test-core.yml#L85>.
 
 ## \[1.3.0]
 

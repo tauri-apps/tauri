@@ -29,7 +29,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
   let tauri_tools_path = settings
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| dirs_next::cache_dir().unwrap().join("tauri"));
+    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
 
   let wix_path = tauri_tools_path.join("WixTools314");
 

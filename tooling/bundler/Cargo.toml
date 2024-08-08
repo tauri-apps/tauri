@@ -13,41 +13,41 @@ keywords = [ "bundle", "cargo", "tauri" ]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.60"
+rust-version = "1.71"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
 tauri-utils = { version = "1.6.0", path = "../../core/tauri-utils", features = [ "resources" ] }
-image = "0.24.7"
+image = "0.25"
 flate2 = "1.0"
 anyhow = "1.0"
 thiserror = "1.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = [ "derive" ] }
-strsim = "0.10.0"
-tar = "0.4.40"
+strsim = "0.11"
+tar = "0.4"
 walkdir = "2"
-handlebars = "4.5"
-tempfile = "3.8.1"
-log = { version = "0.4.21", features = [ "kv" ] }
-dirs-next = "2.0"
+handlebars = "4" # v5 raised msrv
+tempfile = "3"
+log = { version = "0.4.21", features = [ "kv" ] } # Force min version due to breaking changes
+dirs = "5"
 os_pipe = "1"
-ureq = { version = "2.9.1", default-features = false, features = [ "socks-proxy" ] }
+ureq = { version = "2", default-features = false, features = [ "socks-proxy" ] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = "0.6"
+zip = "0.6" # v2 raised msrv, v1 looks off
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = [ "v4", "v5" ] }
-windows-registry = "0.1.1"
+windows-registry = "0.2"
 glob = "0.3"
 
   [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
-  version = "0.48"
+  version = "0.48" # Other crates still use this version
   features = [
   "Win32_System_SystemInformation",
   "Win32_System_Diagnostics_Debug"
@@ -63,9 +63,9 @@ regex = "1"
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"
-ar = "0.9.0"
-md5 = "0.7.0"
-rpm = "0.14.0"
+ar = "0.9"
+md5 = "0.7"
+rpm = "0.14" # 0.15 raised msrv
 
 [lib]
 name = "tauri_bundler"

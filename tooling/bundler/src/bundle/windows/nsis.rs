@@ -66,7 +66,7 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
   let tauri_tools_path = settings
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
-    .unwrap_or_else(|| dirs_next::cache_dir().unwrap().join("tauri"));
+    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
 
   if !tauri_tools_path.exists() {
     create_dir_all(&tauri_tools_path)?;
@@ -184,7 +184,7 @@ fn build_nsis_app_installer(
 
   #[cfg(not(target_os = "windows"))]
   {
-    let mut dir = dirs_next::cache_dir().unwrap();
+    let mut dir = dirs::cache_dir().unwrap();
     dir.extend(["tauri", "NSIS", "Plugins", "x86-unicode"]);
     data.insert("additional_plugins_path", to_json(dir));
   }

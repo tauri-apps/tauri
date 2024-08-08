@@ -1,4 +1,5 @@
 ---
+'tauri-utils': 'patch:bug'
 'tauri-cli': 'patch:bug'
 '@tauri-apps/cli': 'patch:bug'
 ---

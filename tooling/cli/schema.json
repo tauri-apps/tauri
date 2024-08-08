@@ -75,7 +75,7 @@
         },
         "createUpdaterArtifacts": false,
         "iOS": {
-          "minimumSystemVersion": ""
+          "minimumSystemVersion": "13.0"
         },
         "icon": [],
         "linux": {
@@ -1715,7 +1715,7 @@
         "iOS": {
           "description": "iOS configuration.",
           "default": {
-            "minimumSystemVersion": ""
+            "minimumSystemVersion": "13.0"
           },
           "allOf": [
             {

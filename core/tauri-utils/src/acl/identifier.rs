@@ -10,8 +10,9 @@ use thiserror::Error;
 
 const IDENTIFIER_SEPARATOR: u8 = b':';
 const PLUGIN_PREFIX: &str = "tauri-plugin-";
+const CORE_PLUGIN_IDENTIFIER_PREFIX: &str = "core:";
 
-// https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field
+// <https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field>
 const MAX_LEN_PREFIX: usize = 64 - PLUGIN_PREFIX.len();
 const MAX_LEN_BASE: usize = 64;
 const MAX_LEN_IDENTIFIER: usize = MAX_LEN_PREFIX + 1 + MAX_LEN_BASE;
@@ -156,10 +157,13 @@ impl TryFrom<String> for Identifier {
       return Err(Self::Error::Empty);
     }
 
-    let mut bytes = value.bytes();
-    if bytes.len() > MAX_LEN_IDENTIFIER {
-      return Err(Self::Error::Humongous(bytes.len()));
+    if value.len() > MAX_LEN_IDENTIFIER {
+      return Err(Self::Error::Humongous(value.len()));
     }
+
+    let is_core_identifier = value.starts_with(CORE_PLUGIN_IDENTIFIER_PREFIX);
+
+    let mut bytes = value.bytes();
 
     // grab the first byte only before parsing the rest
     let mut prev = bytes
@@ -175,7 +179,7 @@ impl TryFrom<String> for Identifier {
         None => return Err(Self::Error::InvalidFormat),
         Some(next @ ValidByte::Byte(_)) => prev = next,
         Some(ValidByte::Separator) => {
-          if separator.is_none() {
+          if separator.is_none() || is_core_identifier {
             // safe to unwrap because idx starts at 1 and cannot go over MAX_IDENTIFIER_LEN
             separator = Some(idx.try_into().unwrap());
             prev = ValidByte::Separator

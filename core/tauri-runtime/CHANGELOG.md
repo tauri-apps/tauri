@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.0-beta.21]
+
+### What's Changed
+
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `inner_size_constraints` method on `WindowBuilder` trait and `set_size_constraints` method on `WindowDispatch` trait.
+
+## \[2.0.0-beta.20]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
 ## \[2.0.0-beta.19]
 
 ### Dependencies

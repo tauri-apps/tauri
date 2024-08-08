@@ -15,6 +15,13 @@ settingGroups:
       {{#if apple.development-team}}
       DEVELOPMENT_TEAM: {{apple.development-team}}
       {{/if}}
+      CODE_SIGN_STYLE: {{tauri.ios.code-sign-style}}
+      {{#if tauri.ios.code-sign-identity}}
+      CODE_SIGN_IDENTITY: "{{tauri.ios.code-sign-identity}}"
+      {{/if}}
+      {{#if tauri.ios.provisioning-profile-uuid}}
+      PROVISIONING_PROFILE_SPECIFIER: "{{tauri.ios.provisioning-profile-uuid}}"
+      {{/if}}
 targetTemplates:
   app:
     type: application
@@ -90,19 +97,16 @@ targets:
         embed: false
       {{~#each ios-libraries}}
       - framework: {{this}}
-        embed: false{{/each}}
-      {{~#each ios-vendor-frameworks}}
-      - framework: {{prefix-path this}}{{/each}}
-      {{~#each ios-vendor-sdks}}
-      - sdk: {{prefix-path this}}{{/each}}
+        embed: false{{/each}}{{#if ios-vendor-frameworks}}{{~#each ios-vendor-frameworks}}
+      - framework: {{this}}{{/each}}{{/if}}{{#if ios-vendor-sdks}}{{~#each ios-vendor-sdks}}
+      - sdk: {{prefix-path this}}{{/each}}{{/if}}
       - sdk: CoreGraphics.framework
       - sdk: Metal.framework
       - sdk: MetalKit.framework
       - sdk: QuartzCore.framework
       - sdk: Security.framework
-      - sdk: UIKit.framework
-      {{~#each ios-frameworks}}
-      - sdk: {{this}}.framework{{/each}}
+      - sdk: UIKit.framework{{#if this.ios-frameworks}}{{~#each ios-frameworks}}
+      - sdk: {{this}}.framework{{/each}}{{/if}}
       - sdk: WebKit.framework
     preBuildScripts:
       {{~#each ios-pre-build-scripts}}{{#if this.path}}

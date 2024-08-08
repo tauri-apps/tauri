@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+- Upgraded to `tauri-codegen@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-rc.0`
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.0-beta.19]
+
+### What's Changed
+
+- [`4c239729c`](https://www.github.com/tauri-apps/tauri/commit/4c239729c3e1b899ecbc6793c3682848e8de1729) ([#10167](https://www.github.com/tauri-apps/tauri/pull/10167) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add support for `test = true` in `generate_context!` macro to skip some code generation that could affect some tests, for now it only skips empedding a plist on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-beta.19`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
 ## \[2.0.0-beta.18]
 
 ### New Features
@@ -416,7 +441,7 @@
 
 - `ring` -> `getrandom`
 
-See https://github.com/tauri-apps/tauri/pull/3773 for more information about
+See <https://github.com/tauri-apps/tauri/pull/3773> for more information about
 these specific choices.
 
 - [8661e3e2](https://www.github.com/tauri-apps/tauri/commit/8661e3e24d96c399bfbcdee5d8e9d6beba2265a7) replace dependencies with long build times when used together (closes [#3571](https://www.github.com/tauri-apps/tauri/pull/3571)) ([#3773](https://www.github.com/tauri-apps/tauri/pull/3773)) on 2022-03-27

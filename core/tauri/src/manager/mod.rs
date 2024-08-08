@@ -102,7 +102,7 @@ pub(crate) fn set_csp<R: Runtime>(
   csp
 }
 
-// inspired by https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297
+// inspired by <https://github.com/rust-lang/rust/blob/1be5c8f90912c446ecbdc405cbc4a89f9acd20fd/library/alloc/src/str.rs#L260-L297>
 fn replace_with_callback<F: FnMut() -> String>(
   original: &str,
   pattern: &str,
@@ -156,6 +156,7 @@ fn replace_csp_nonce(
 }
 
 /// A resolved asset.
+#[non_exhaustive]
 pub struct Asset {
   /// The asset bytes.
   pub bytes: Vec<u8>,
@@ -163,6 +164,23 @@ pub struct Asset {
   pub mime_type: String,
   /// The `Content-Security-Policy` header value.
   pub csp_header: Option<String>,
+}
+
+impl Asset {
+  /// The asset bytes.
+  pub fn bytes(&self) -> &[u8] {
+    &self.bytes
+  }
+
+  /// The asset's mime type.
+  pub fn mime_type(&self) -> &str {
+    &self.mime_type
+  }
+
+  /// The `Content-Security-Policy` header value.
+  pub fn csp_header(&self) -> Option<&str> {
+    self.csp_header.as_deref()
+  }
 }
 
 #[default_runtime(crate::Wry, wry)]
@@ -179,6 +197,8 @@ pub struct AppManager<R: Runtime> {
   pub listeners: Listeners,
   pub state: Arc<StateManager>,
   pub config: Config,
+  #[cfg(dev)]
+  pub config_parent: Option<std::path::PathBuf>,
   pub assets: Box<dyn Assets<R>>,
 
   pub app_icon: Option<Vec<u8>>,
@@ -278,6 +298,8 @@ impl<R: Runtime> AppManager<R> {
       listeners: Listeners::default(),
       state: Arc::new(state),
       config: context.config,
+      #[cfg(dev)]
+      config_parent: context.config_parent,
       assets: context.assets,
       app_icon: context.app_icon,
       package_info: context.package_info,
@@ -458,6 +480,11 @@ impl<R: Runtime> AppManager<R> {
     &self.config
   }
 
+  #[cfg(dev)]
+  pub fn config_parent(&self) -> Option<&std::path::PathBuf> {
+    self.config_parent.as_ref()
+  }
+
   pub fn package_info(&self) -> &PackageInfo {
     &self.package_info
   }
@@ -472,10 +499,6 @@ impl<R: Runtime> AppManager<R> {
     self.listeners().listen(event, target, handler)
   }
 
-  pub fn unlisten(&self, id: EventId) {
-    self.listeners().unlisten(id)
-  }
-
   pub fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
     event: String,
@@ -486,6 +509,33 @@ impl<R: Runtime> AppManager<R> {
     self.listeners().once(event, target, handler)
   }
 
+  pub fn unlisten(&self, id: EventId) {
+    self.listeners().unlisten(id)
+  }
+
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit", skip(self, payload))
+  )]
+  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    assert_event_name_is_valid(event);
+
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("emit::run").entered();
+    let emit_args = EmitArgs::new(event, payload)?;
+
+    let listeners = self.listeners();
+
+    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
+    listeners.emit(emit_args)?;
+
+    Ok(())
+  }
+
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::filter", skip(self, payload, filter))
+  )]
   pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
   where
     S: Serialize + Clone,
@@ -511,19 +561,36 @@ impl<R: Runtime> AppManager<R> {
     Ok(())
   }
 
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    assert_event_name_is_valid(event);
-
+  #[cfg_attr(
+    feature = "tracing",
+    tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
+  )]
+  pub fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
+  where
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
+  {
+    let target = target.into();
     #[cfg(feature = "tracing")]
-    let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
+    tracing::Span::current().record("target", format!("{target:?}"));
 
-    let listeners = self.listeners();
+    match target {
+      // if targeting all, emit to all using emit without filter
+      EventTarget::Any => self.emit(event, payload),
 
-    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
-    listeners.emit(emit_args)?;
+      // if targeting any label, emit using emit_filter and filter labels
+      EventTarget::AnyLabel {
+        label: target_label,
+      } => self.emit_filter(event, payload, |t| match t {
+        EventTarget::Window { label }
+        | EventTarget::Webview { label }
+        | EventTarget::WebviewWindow { label } => label == &target_label,
+        _ => false,
+      }),
 
-    Ok(())
+      // otherwise match same target
+      _ => self.emit_filter(event, payload, |t| t == &target),
+    }
   }
 
   pub fn get_window(&self, label: &str) -> Option<Window<R>> {
@@ -634,7 +701,8 @@ mod test {
     test::{mock_app, MockRuntime},
     webview::WebviewBuilder,
     window::WindowBuilder,
-    App, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder, Window, Wry,
+    App, Emitter, Listener, Manager, StateManager, Webview, WebviewWindow, WebviewWindowBuilder,
+    Window, Wry,
   };
 
   use super::AppManager;
@@ -651,7 +719,7 @@ mod test {
 
   #[test]
   fn check_get_url() {
-    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate);
+    let context = generate_context!("test/fixture/src-tauri/tauri.conf.json", crate, test = true);
     let manager: AppManager<Wry> = AppManager::with_handlers(
       context,
       PluginStore::default(),
@@ -759,9 +827,7 @@ mod test {
     assert_eq!(
       received.len(),
       expected.len(),
-      "received {:?} `{kind}` events but expected {:?}",
-      received,
-      expected
+      "received {received:?} `{kind}` events but expected {expected:?}"
     );
   }
 
@@ -782,7 +848,11 @@ mod test {
     run_emit_test("emit (webview_window)", webview_window, &rx);
   }
 
-  fn run_emit_test<M: Manager<MockRuntime>>(kind: &str, m: M, rx: &Receiver<(&str, String)>) {
+  fn run_emit_test<M: Manager<MockRuntime> + Emitter<MockRuntime>>(
+    kind: &str,
+    m: M,
+    rx: &Receiver<(&str, String)>,
+  ) {
     let mut received = Vec::new();
     let payload = "global-payload";
     m.emit(TEST_EVENT_NAME, payload).unwrap();
@@ -855,7 +925,7 @@ mod test {
     );
   }
 
-  fn run_emit_to_test<M: Manager<MockRuntime>>(
+  fn run_emit_to_test<M: Manager<MockRuntime> + Emitter<MockRuntime>>(
     kind: &str,
     m: &M,
     window: &Window<MockRuntime>,

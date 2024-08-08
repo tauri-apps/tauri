@@ -145,7 +145,7 @@ impl AppCategory {
   /// Map an AppCategory to the closest set of Freedesktop registered
   /// categories that matches that category.
   ///
-  /// Cf https://specifications.freedesktop.org/menu-spec/latest/
+  /// Cf <https://specifications.freedesktop.org/menu-spec/latest/>
   pub fn freedesktop_categories(self) -> &'static str {
     match &self {
       AppCategory::Business => "Office;",

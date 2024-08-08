@@ -11,7 +11,7 @@ use crate::{
 
 #[cfg(desktop)]
 mod desktop_commands {
-  use tauri_runtime::ResizeDirection;
+  use tauri_runtime::{window::WindowSizeConstraints, ResizeDirection};
   use tauri_utils::TitleBarStyle;
 
   use super::*;
@@ -132,6 +132,7 @@ mod desktop_commands {
   setter!(set_progress_bar, ProgressBarState);
   setter!(set_visible_on_all_workspaces, bool);
   setter!(set_title_bar_style, TitleBarStyle);
+  setter!(set_size_constraints, WindowSizeConstraints);
   setter!(set_theme, Option<Theme>);
 
   #[command(root = "crate")]
@@ -265,6 +266,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_size,
             desktop_commands::set_min_size,
             desktop_commands::set_max_size,
+            desktop_commands::set_size_constraints,
             desktop_commands::set_position,
             desktop_commands::set_fullscreen,
             desktop_commands::set_focus,

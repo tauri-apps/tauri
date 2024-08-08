@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{env, get_app, get_config, read_options};
+use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   helpers::config::get as get_tauri_config,
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
@@ -16,7 +16,8 @@ use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, var_os},
   ffi::OsStr,
-  path::PathBuf,
+  path::{Path, PathBuf},
+  process::Command,
 };
 
 #[derive(Debug, Parser)]
@@ -82,6 +83,12 @@ pub fn command(options: Options) -> Result<()> {
     );
     (config, metadata, cli_options)
   };
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Ios,
+  )?;
 
   let env = env()?.explicit_env_vars(cli_options.vars);
 
@@ -202,8 +209,10 @@ pub fn command(options: Options) -> Result<()> {
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
-      return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"rlib\"]`", lib_path.display()));
+      return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
     }
+
+    validate_lib(&lib_path)?;
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
@@ -212,6 +221,20 @@ pub fn command(options: Options) -> Result<()> {
       lib_path,
       externals_lib_dir.join(format!("lib{}.a", config.app().lib_name())),
     )?;
+  }
+  Ok(())
+}
+
+fn validate_lib(path: &Path) -> Result<()> {
+  // we ignore `nm` errors
+  if let Ok(output) = Command::new("nm").arg(path).output() {
+    let symbols = String::from_utf8_lossy(&output.stdout);
+    if !symbols.contains("start_app") {
+      anyhow::bail!(
+      "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
+      path.display()
+    );
+    }
   }
   Ok(())
 }

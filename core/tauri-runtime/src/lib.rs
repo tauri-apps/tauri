@@ -5,6 +5,9 @@
 //! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
 //!
 //! Internal runtime between Tauri and the underlying webview runtime.
+//!
+//! None of the exposed API of this crate is stable, and it may break semver
+//! compatibility in the future. The major version only signifies the intended Tauri version.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
@@ -26,7 +29,10 @@ pub mod window;
 
 use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
 use monitor::Monitor;
-use window::{CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent};
+use window::{
+  CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
+  WindowSizeConstraints,
+};
 use window::{WindowBuilder, WindowId};
 
 use http::{
@@ -734,6 +740,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window max inner size.
   fn set_max_size(&self, size: Option<Size>) -> Result<()>;
+
+  /// Sets this window's minimum inner width.
+  fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()>;
 
   /// Updates the window position.
   fn set_position(&self, position: Position) -> Result<()>;

@@ -18,6 +18,11 @@
   }
 
   /**
+   * @type {string} - The main frame origin.
+   */
+  const origin = __TEMPLATE_origin__
+
+  /**
    * @type {Uint8Array} - Injected by Tauri during runtime
    */
   const aesGcmKeyRaw = new Uint8Array(__TEMPLATE_runtime_aes_gcm_key__)
@@ -37,20 +42,27 @@
    * @param {object} data
    * @return {Promise<{nonce: number[], payload: number[]}>}
    */
-  async function encrypt(data) {
+  async function encrypt(payload) {
     const algorithm = Object.create(null)
     algorithm.name = 'AES-GCM'
     algorithm.iv = window.crypto.getRandomValues(new Uint8Array(12))
 
-    const encoder = new TextEncoder()
-    const encoded = encoder.encode(__RAW_process_ipc_message_fn__(data).data)
+    const {contentType, data} = __RAW_process_ipc_message_fn__(payload)
+
+    const message =
+      typeof data === 'string'
+        ? new TextEncoder().encode(data)
+        : ArrayBuffer.isView(data) || data instanceof ArrayBuffer
+          ? data
+          : new Uint8Array(data)
 
     return window.crypto.subtle
-      .encrypt(algorithm, aesGcmKey, encoded)
+      .encrypt(algorithm, aesGcmKey, message)
       .then((payload) => {
         const result = Object.create(null)
         result.nonce = Array.from(new Uint8Array(algorithm.iv))
         result.payload = Array.from(new Uint8Array(payload))
+        result.contentType = contentType
         return result
       })
   }
@@ -66,7 +78,9 @@
       const keys = data.payload ? Object.keys(data.payload) : []
       return (
         keys.length > 0 &&
-        keys.every((key) => key === 'nonce' || key === 'payload')
+        keys.every(
+          (key) => key === 'nonce' || key === 'payload' || key === 'contentType'
+        )
       )
     }
     return false
@@ -92,7 +106,7 @@
    * @param {MessageEvent<any>} event
    */
   async function payloadHandler(event) {
-    if (!isIsolationPayload(event.data)) {
+    if (event.origin !== origin || !isIsolationPayload(event.data)) {
       return
     }
 

@@ -12,7 +12,7 @@ use serde::Serialize;
 use tauri::{
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
+  App, AppHandle, Emitter, Listener, Manager, RunEvent, Runtime, WebviewUrl,
 };
 use tauri_plugin_sample::{PingRequest, SampleExt};
 
@@ -141,6 +141,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
+      cmd::echo
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

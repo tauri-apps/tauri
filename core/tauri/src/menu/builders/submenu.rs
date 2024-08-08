@@ -48,7 +48,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   /// Create a new submenu builder.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
-  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn new<S: AsRef<str>>(manager: &'m M, text: S) -> Self {
     Self {
       id: None,
@@ -62,7 +62,7 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   /// Create a new submenu builder with the specified id.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
-  /// for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
+  ///   for this menu item. To display a `&` without assigning a mnemenonic, use `&&`.
   pub fn with_id<I: Into<MenuId>, S: AsRef<str>>(manager: &'m M, id: I, text: S) -> Self {
     Self {
       id: Some(id.into()),

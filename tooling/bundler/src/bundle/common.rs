@@ -15,7 +15,7 @@ use std::{
 /// Returns true if the path has a filename indicating that it is a high-density
 /// "retina" icon.  Specifically, returns true the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
-/// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
+/// <https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html>)).
 #[allow(dead_code)]
 pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
   path

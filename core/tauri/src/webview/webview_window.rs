@@ -14,7 +14,7 @@ use crate::{
   event::EventTarget,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
-  ResourceTable,
+  Emitter, Listener, ResourceTable,
 };
 #[cfg(desktop)]
 use crate::{
@@ -26,6 +26,8 @@ use crate::{
     UserAttentionType,
   },
 };
+use serde::Serialize;
+use tauri_runtime::window::WindowSizeConstraints;
 use tauri_utils::{
   config::{WebviewUrl, WindowConfig},
   Theme,
@@ -192,40 +194,34 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// but it might be implemented in the future. **Always** check the request URL.
   ///
   /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust,no_run
-use tauri::{
-  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  window::WindowBuilder,
-  webview::WebviewWindowBuilder,
-};
-use http::header::HeaderValue;
-use std::collections::HashMap;
-tauri::Builder::default()
-  .setup(|app| {
-    let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
-      .on_web_resource_request(|request, response| {
-        if request.uri().scheme_str() == Some("tauri") {
-          // if we have a CSP header, Tauri is loading an HTML file
-          //  for this example, let's dynamically change the CSP
-          if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
-            // use the tauri helper to parse the CSP policy to a map
-            let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
-            csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
-            // use the tauri helper to get a CSP string from the map
-            let csp_string = Csp::from(csp_map).to_string();
-            *csp = HeaderValue::from_str(&csp_string).unwrap();
-          }
-        }
-      })
-      .build()?;
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  ///   webview::WebviewWindowBuilder,
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
+  ///       .on_web_resource_request(|request, response| {
+  ///         if request.uri().scheme_str() == Some("tauri") {
+  ///           // if we have a CSP header, Tauri is loading an HTML file
+  ///           //  for this example, let's dynamically change the CSP
+  ///           if let Some(csp) = response.headers_mut().get_mut("Content-Security-Policy") {
+  ///             // use the tauri helper to parse the CSP policy to a map
+  ///             let mut csp_map: HashMap<String, CspDirectiveSources> = Csp::Policy(csp.to_str().unwrap().to_string()).into();
+  ///             csp_map.entry("script-src".to_string()).or_insert_with(Default::default).push("'unsafe-inline'");
+  ///             // use the tauri helper to get a CSP string from the map
+  ///             let csp_string = Csp::from(csp_map).to_string();
+  ///             *csp = HeaderValue::from_str(&csp_string).unwrap();
+  ///           }
+  ///         }
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn on_web_resource_request<
     F: Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync + 'static,
   >(
@@ -239,30 +235,24 @@ tauri::Builder::default()
   /// Defines a closure to be executed when the webview navigates to a URL. Returning `false` cancels the navigation.
   ///
   /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust,no_run
-use tauri::{
-  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  window::WindowBuilder,
-  webview::WebviewWindowBuilder,
-};
-use http::header::HeaderValue;
-use std::collections::HashMap;
-tauri::Builder::default()
-  .setup(|app| {
-    let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
-      .on_navigation(|url| {
-        // allow the production URL or localhost on dev
-        url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
-      })
-      .build()?;
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  ///   webview::WebviewWindowBuilder,
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
+  ///       .on_navigation(|url| {
+  ///         // allow the production URL or localhost on dev
+  ///         url.scheme() == "tauri" || (cfg!(dev) && url.host_str() == Some("localhost"))
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.webview_builder = self.webview_builder.on_navigation(f);
     self
@@ -321,36 +311,30 @@ tauri::Builder::default()
   /// or [`tauri_runtime::webview::PageLoadEvent::Finished`] when the page finishes loading.
   ///
   /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust,no_run
-use tauri::{
-  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
-  window::WindowBuilder,
-  webview::{PageLoadEvent, WebviewWindowBuilder},
-};
-use http::header::HeaderValue;
-use std::collections::HashMap;
-tauri::Builder::default()
-  .setup(|app| {
-    let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
-      .on_page_load(|window, payload| {
-        match payload.event() {
-          PageLoadEvent::Started => {
-            println!("{} finished loading", payload.url());
-          }
-          PageLoadEvent::Finished => {
-            println!("{} finished loading", payload.url());
-          }
-        }
-      })
-      .build()?;
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  ///   webview::{PageLoadEvent, WebviewWindowBuilder},
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
+  ///       .on_page_load(|window, payload| {
+  ///         match payload.event() {
+  ///           PageLoadEvent::Started => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///           PageLoadEvent::Finished => {
+  ///             println!("{} finished loading", payload.url());
+  ///           }
+  ///         }
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn on_page_load<F: Fn(WebviewWindow<R>, PageLoadPayload<'_>) + Send + Sync + 'static>(
     mut self,
     f: F,
@@ -423,6 +407,13 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Window inner size constraints.
+  #[must_use]
+  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
 
@@ -603,7 +594,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
   ///   - `true` will make ndecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
   pub fn shadow(mut self, enable: bool) -> Self {
@@ -779,32 +770,27 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Examples
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust
-use tauri::{WindowBuilder, Runtime};
-
-const INIT_SCRIPT: &str = r#"
-  if (window.location.origin === 'https://tauri.app') {
-    console.log("hello world from js init script");
-
-    window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
-  }
-"#;
-
-fn main() {
-  tauri::Builder::default()
-    .setup(|app| {
-      let webview = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script(INIT_SCRIPT)
-        .build()?;
-      Ok(())
-    });
-}
-```
-  "####
-  )]
+  /// ```rust
+  /// use tauri::{WebviewWindowBuilder, Runtime};
+  ///
+  /// const INIT_SCRIPT: &str = r#"
+  ///   if (window.location.origin === 'https://tauri.app') {
+  ///     console.log("hello world from js init script");
+  ///
+  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  ///   }
+  /// "#;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let webview = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()))
+  ///         .initialization_script(INIT_SCRIPT)
+  ///         .build()?;
+  ///       Ok(())
+  ///     });
+  /// }
+  /// ```
   #[must_use]
   pub fn initialization_script(mut self, script: &str) -> Self {
     self.webview_builder = self.webview_builder.initialization_script(script);
@@ -893,7 +879,7 @@ fn main() {
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
   /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
-  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///   20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
   #[must_use]
@@ -957,9 +943,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
     if webview.window().is_webview_window() {
       Ok(Self { webview })
     } else {
-      Err(InvokeError::from_anyhow(anyhow::anyhow!(
-        "current webview is not a WebviewWindow"
-      )))
+      Err(InvokeError::from("current webview is not a WebviewWindow"))
     }
   }
 }
@@ -1006,36 +990,33 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// # Examples
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::menu::{Menu, Submenu, MenuItem};
-tauri::Builder::default()
-  .setup(|app| {
-    let handle = app.handle();
-    let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
-    let menu = Menu::with_items(handle, &[
-      &Submenu::with_items(handle, "File", true, &[
-        &save_menu_item,
-      ])?,
-    ])?;
-    let webview_window = tauri::window::WindowBuilder::new(app, "editor")
-      .menu(menu)
-      .build()
-      .unwrap();
-
-    webview_window.on_menu_event(move |window, event| {
-      if event.id == save_menu_item.id() {
-          // save menu item
-      }
-    });
-
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```
+  /// use tauri::menu::{Menu, Submenu, MenuItem};
+  /// use tauri::{WebviewWindowBuilder, WebviewUrl};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let handle = app.handle();
+  ///     let save_menu_item = MenuItem::new(handle, "Save", true, None::<&str>)?;
+  ///     let menu = Menu::with_items(handle, &[
+  ///       &Submenu::with_items(handle, "File", true, &[
+  ///         &save_menu_item,
+  ///       ])?,
+  ///     ])?;
+  ///     let webview_window = WebviewWindowBuilder::new(app, "editor", WebviewUrl::default())
+  ///       .menu(menu)
+  ///       .build()
+  ///       .unwrap();
+  ///
+  ///     webview_window.on_menu_event(move |window, event| {
+  ///       if event.id == save_menu_item.id() {
+  ///           // save menu item
+  ///       }
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
   pub fn on_menu_event<F: Fn(&crate::Window<R>, crate::menu::MenuEvent) + Send + Sync + 'static>(
     &self,
     f: F,
@@ -1053,7 +1034,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  ///   window, if you need to set it, use [`AppHandle::set_menu`] instead.
   #[cfg_attr(target_os = "macos", allow(unused_variables))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     self.webview.window().set_menu(menu)
@@ -1064,7 +1045,7 @@ tauri::Builder::default()
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  ///   window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     self.webview.window().remove_menu()
   }
@@ -1417,7 +1398,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
   ///   - `true` will make ndecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
     self.webview.window().set_shadow(enable)
@@ -1497,6 +1478,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_max_size(size.map(|s| s.into()))
+  }
+
+  /// Sets this window's minimum inner width.
+  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+    self.webview.window().set_size_constraints(constriants)
   }
 
   /// Sets this window's position.
@@ -1631,15 +1617,15 @@ impl<R: Runtime> WebviewWindow<R> {
   ///       main_webview.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+  ///           // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
+  ///           // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
   ///           use webkit2gtk::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see <https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html>
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
@@ -1702,24 +1688,19 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust,no_run
-use tauri::Manager;
-tauri::Builder::default()
-  .setup(|app| {
-    #[cfg(debug_assertions)]
-    app.get_webview("main").unwrap().open_devtools();
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     app.get_webview_window("main").unwrap().open_devtools();
+  ///     Ok(())
+  ///   });
+  /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn open_devtools(&self) {
@@ -1732,32 +1713,27 @@ tauri::Builder::default()
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust,no_run
-use tauri::Manager;
-tauri::Builder::default()
-  .setup(|app| {
-    #[cfg(debug_assertions)]
-    {
-      let webview = app.get_webview("main").unwrap();
-      webview.open_devtools();
-      std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_secs(10));
-        webview.close_devtools();
-      });
-    }
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     {
+  ///       let webview = app.get_webview_window("main").unwrap();
+  ///       webview.open_devtools();
+  ///       std::thread::spawn(move || {
+  ///         std::thread::sleep(std::time::Duration::from_secs(10));
+  ///         webview.close_devtools();
+  ///       });
+  ///     }
+  ///     Ok(())
+  ///   });
+  /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn close_devtools(&self) {
@@ -1770,30 +1746,25 @@ tauri::Builder::default()
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```rust,no_run
-use tauri::Manager;
-tauri::Builder::default()
-  .setup(|app| {
-    #[cfg(debug_assertions)]
-    {
-      let webview = app.get_webview("main").unwrap();
-      if !webview.is_devtools_open() {
-        webview.open_devtools();
-      }
-    }
-    Ok(())
-  });
-```
-  "####
-  )]
+  /// ```rust,no_run
+  /// use tauri::Manager;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     #[cfg(debug_assertions)]
+  ///     {
+  ///       let webview = app.get_webview_window("main").unwrap();
+  ///       if !webview.is_devtools_open() {
+  ///         webview.open_devtools();
+  ///       }
+  ///     }
+  ///     Ok(())
+  ///   });
+  /// ```
   #[cfg(any(debug_assertions, feature = "devtools"))]
   #[cfg_attr(docsrs, doc(cfg(any(debug_assertions, feature = "devtools"))))]
   pub fn is_devtools_open(&self) -> bool {
@@ -1812,31 +1783,25 @@ tauri::Builder::default()
   }
 }
 
-/// Event system APIs.
-impl<R: Runtime> WebviewWindow<R> {
+impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   /// Listen to an event on this webview window.
   ///
   /// # Examples
   ///
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::Manager;
-
-tauri::Builder::default()
-  .setup(|app| {
-    let webview = app.get_webview("main").unwrap();
-    webview.listen("component-loaded", move |event| {
-      println!("window just loaded a component");
-    });
-
-    Ok(())
-  });
-```
-  "####
-  )]
-  pub fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  /// ```
+  /// use tauri::{Manager, Listener};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview_window = app.get_webview_window("main").unwrap();
+  ///     webview_window.listen("component-loaded", move |event| {
+  ///       println!("window just loaded a component");
+  ///     });
+  ///
+  ///     Ok(())
+  ///   });
+  /// ```
+  fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
@@ -1849,43 +1814,10 @@ tauri::Builder::default()
     )
   }
 
-  /// Unlisten to an event on this webview window.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::Manager;
-
-tauri::Builder::default()
-  .setup(|app| {
-    let webview = app.get_webview("main").unwrap();
-    let webview_ = webview.clone();
-    let handler = webview.listen("component-loaded", move |event| {
-      println!("webview just loaded a component");
-
-      // we no longer need to listen to the event
-      // we also could have used `webview.once` instead
-      webview_.unlisten(event.id());
-    });
-
-    // stop listening to the event when you do not need it anymore
-    webview.unlisten(handler);
-
-    Ok(())
-  });
-```
-  "####
-  )]
-  pub fn unlisten(&self, id: EventId) {
-    self.manager().unlisten(id)
-  }
-
   /// Listen to an event on this window webview only once.
   ///
   /// See [`Self::listen`] for more information.
-  pub fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
+  fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {
@@ -1896,6 +1828,108 @@ tauri::Builder::default()
       },
       handler,
     )
+  }
+
+  /// Unlisten to an event on this webview window.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{Manager, Listener};
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview_window = app.get_webview_window("main").unwrap();
+  ///     let webview_window_ = webview_window.clone();
+  ///     let handler = webview_window.listen("component-loaded", move |event| {
+  ///       println!("webview_window just loaded a component");
+  ///
+  ///       // we no longer need to listen to the event
+  ///       // we also could have used `webview_window.once` instead
+  ///       webview_window_.unlisten(event.id());
+  ///     });
+  ///
+  ///     // stop listening to the event when you do not need it anymore
+  ///     webview_window.unlisten(handler);
+  ///
+  ///     Ok(())
+  /// });
+  /// ```
+  fn unlisten(&self, id: EventId) {
+    self.manager().unlisten(id)
+  }
+}
+
+impl<R: Runtime> Emitter<R> for WebviewWindow<R> {
+  /// Emits an event to all [targets](EventTarget).
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Emitter;
+  ///
+  /// #[tauri::command]
+  /// fn synchronize(window: tauri::WebviewWindow) {
+  ///   // emits the synchronized event to all webviews
+  ///   window.emit("synchronized", ());
+  /// }
+  ///   ```
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+    self.manager().emit(event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) matching the given target.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{Emitter, EventTarget};
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::WebviewWindow) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to all listeners
+  ///     window.emit_to(EventTarget::any(), "download-progress", i);
+  ///     // emit an event to listeners that used App::listen or AppHandle::listen
+  ///     window.emit_to(EventTarget::app(), "download-progress", i);
+  ///     // emit an event to any webview/window/webviewWindow matching the given label
+  ///     window.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
+  ///     window.emit_to(EventTarget::labeled("updater"), "download-progress", i);
+  ///     // emit an event to listeners that used WebviewWindow::listen
+  ///     window.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
+  ///   }
+  /// }
+  /// ```
+  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
+  where
+    I: Into<EventTarget>,
+    S: Serialize + Clone,
+  {
+    self.manager().emit_to(target, event, payload)
+  }
+
+  /// Emits an event to all [targets](EventTarget) based on the given filter.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::{Emitter, EventTarget};
+  ///
+  /// #[tauri::command]
+  /// fn download(window: tauri::WebviewWindow) {
+  ///   for i in 1..100 {
+  ///     std::thread::sleep(std::time::Duration::from_millis(150));
+  ///     // emit a download progress event to the updater window
+  ///     window.emit_filter("download-progress", i, |t| match t {
+  ///       EventTarget::WebviewWindow { label } => label == "main",
+  ///       _ => false,
+  ///     });
+  ///   }
+  /// }
+  ///   ```
+  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  where
+    S: Serialize + Clone,
+    F: Fn(&EventTarget) -> bool,
+  {
+    self.manager().emit_filter(event, payload, filter)
   }
 }
 

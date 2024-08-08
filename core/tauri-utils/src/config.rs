@@ -7,8 +7,21 @@
 //! It is pulled from a `tauri.conf.json` file and the [`Config`] struct is generated at compile time.
 //!
 //! # Stability
+//!
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
+//!
+//! These items are intended to be non-breaking from a de/serialization standpoint only.
+//! Using and modifying existing config values will try to avoid breaking changes, but they are
+//! free to add fields in the future - causing breaking changes for creating and full destructuring.
+//!
+//! To avoid this, [ignore unknown fields when destructuring] with the `{my, config, ..}` pattern.
+//! If you need to create the Rust config directly without deserializing, then create the struct
+//! the [Struct Update Syntax] with `..Default::default()`, which may need a
+//! `#[allow(clippy::needless_update)]` attribute if you are declaring all fields.
+//!
+//! [ignore unknown fields when destructuring]: https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#ignoring-remaining-parts-of-a-value-with-
+//! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
@@ -333,7 +346,7 @@ pub struct DebConfig {
   /// Recognized Priorities as of now are :  `required`, `important`, `standard`, `optional`, `extra`
   pub priority: Option<String>,
   /// Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See
-  /// https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes
+  /// <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>
   pub changelog: Option<PathBuf>,
   /// Path to a custom desktop file Handlebars template.
   ///
@@ -341,19 +354,19 @@ pub struct DebConfig {
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "pre-install-script")]
   pub pre_install_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is unpacked. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-install-script")]
   pub post_install_script: Option<PathBuf>,
   /// Path to script that will be executed before the package is removed. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "pre-remove-script")]
   pub pre_remove_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is removed. See
-  /// https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html
+  /// <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
 }
@@ -408,19 +421,19 @@ pub struct RpmConfig {
   #[serde(alias = "desktop-template")]
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "pre-install-script")]
   pub pre_install_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is unpacked. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "post-install-script")]
   pub post_install_script: Option<PathBuf>,
   /// Path to script that will be executed before the package is removed. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "pre-remove-script")]
   pub pre_remove_script: Option<PathBuf>,
   /// Path to script that will be executed after the package is removed. See
-  /// http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html
+  /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
 }
@@ -523,13 +536,13 @@ fn dmg_application_folder_position() -> Position {
   Position { x: 480, y: 170 }
 }
 
-fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn de_macos_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
 {
   let version = Option::<String>::deserialize(deserializer)?;
   match version {
-    Some(v) if v.is_empty() => Ok(minimum_system_version()),
+    Some(v) if v.is_empty() => Ok(macos_minimum_system_version()),
     e => Ok(e),
   }
 }
@@ -556,8 +569,8 @@ pub struct MacConfig {
   ///
   /// An empty string is considered an invalid value so the default value is used.
   #[serde(
-    deserialize_with = "de_minimum_system_version",
-    default = "minimum_system_version",
+    deserialize_with = "de_macos_minimum_system_version",
+    default = "macos_minimum_system_version",
     alias = "minimum-system-version"
   )]
   pub minimum_system_version: Option<String>,
@@ -588,7 +601,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
-      minimum_system_version: minimum_system_version(),
+      minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
       hardened_runtime: true,
@@ -599,8 +612,12 @@ impl Default for MacConfig {
   }
 }
 
-fn minimum_system_version() -> Option<String> {
+fn macos_minimum_system_version() -> Option<String> {
   Some("10.13".into())
+}
+
+fn ios_minimum_system_version() -> String {
+  "13.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -1803,6 +1820,9 @@ pub struct AppConfig {
   /// Whether we should inject the Tauri API on `window.__TAURI__` or not.
   #[serde(default, alias = "with-global-tauri")]
   pub with_global_tauri: bool,
+  /// If set to true "identifier" will be set as GTK app ID (on systems that use GTK).
+  #[serde(rename = "enableGTKAppId", alias = "enable-gtk-app-id", default)]
+  pub enable_gtk_app_id: bool,
 }
 
 impl AppConfig {
@@ -1873,10 +1893,26 @@ pub struct TrayIconConfig {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
+  /// A custom [XcodeGen] project.yml template to use.
+  ///
+  /// [XcodeGen]: <https://github.com/yonaskolb/XcodeGen>
+  pub template: Option<PathBuf>,
+  /// A list of strings indicating any iOS frameworks that need to be bundled with the application.
+  ///
+  /// Note that you need to recreate the iOS project for the changes to be applied.
+  pub frameworks: Option<Vec<String>>,
   /// The development team. This value is required for iOS development because code signing is enforced.
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  ///
+  /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
+  #[serde(
+    alias = "minimum-system-version",
+    default = "ios_minimum_system_version"
+  )]
+  pub minimum_system_version: String,
 }
 
 /// General configuration for the iOS target.
@@ -2126,7 +2162,7 @@ where
 /// ```json title="Example tauri.config.json file"
 /// {
 ///   "productName": "tauri-app",
-///   "version": "0.1.0"
+///   "version": "0.1.0",
 ///   "build": {
 ///     "beforeBuildCommand": "",
 ///     "beforeDevCommand": "",
@@ -2732,6 +2768,7 @@ mod build {
       let tray_icon = opt_lit(self.tray_icon.as_ref());
       let macos_private_api = self.macos_private_api;
       let with_global_tauri = self.with_global_tauri;
+      let enable_gtk_app_id = self.enable_gtk_app_id;
 
       literal_struct!(
         tokens,
@@ -2740,7 +2777,8 @@ mod build {
         security,
         tray_icon,
         macos_private_api,
-        with_global_tauri
+        with_global_tauri,
+        enable_gtk_app_id
       );
     }
   }
@@ -2817,6 +2855,7 @@ mod test {
       tray_icon: None,
       macos_private_api: false,
       with_global_tauri: false,
+      enable_gtk_app_id: false,
     };
 
     // create a build config

@@ -5,6 +5,9 @@
 //! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
 //!
 //! The [`wry`] Tauri [`Runtime`].
+//!
+//! None of the exposed API of this crate is stable, and it may break semver
+//! compatibility in the future. The major version only signifies the intended Tauri version.
 
 #![doc(
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
@@ -20,7 +23,7 @@ use tauri_runtime::{
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
     CursorIcon, DetachedWindow, DragDropEvent, PendingWindow, RawWindow, WebviewEvent,
-    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId,
+    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
   ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType,
@@ -43,8 +46,8 @@ use wry::WebViewBuilderExtWindows;
 use tao::{
   dpi::{
     LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
-    PhysicalPosition as TaoPhysicalPosition, PhysicalSize as TaoPhysicalSize,
-    Position as TaoPosition, Size as TaoSize,
+    LogicalUnit as ToaLogicalUnit, PhysicalPosition as TaoPhysicalPosition,
+    PhysicalSize as TaoPhysicalSize, Position as TaoPosition, Size as TaoSize,
   },
   event::{Event, StartCause, WindowEvent as TaoWindowEvent},
   event_loop::{
@@ -715,7 +718,20 @@ unsafe impl Send for WindowBuilderWrapper {}
 impl WindowBuilderBase for WindowBuilderWrapper {}
 impl WindowBuilder for WindowBuilderWrapper {
   fn new() -> Self {
-    Self::default().focused(true)
+    #[allow(unused_mut)]
+    let mut builder = Self::default().focused(true);
+
+    #[cfg(target_os = "macos")]
+    {
+      // TODO: find a proper way to prevent webview being pushed out of the window.
+      // Workround for issue: https://github.com/tauri-apps/tauri/issues/10225
+      // The window requies `NSFullSizeContentViewWindowMask` flag to prevent devtools
+      // pushing the content view out of the window.
+      // By setting the default style to `TitleBarStyle::Visible` should fix the issue for most of the users.
+      builder = builder.title_bar_style(TitleBarStyle::Visible);
+    }
+
+    builder
   }
 
   fn with_config(config: &WindowConfig) -> Self {
@@ -774,12 +790,22 @@ impl WindowBuilder for WindowBuilderWrapper {
         .minimizable(config.minimizable)
         .shadow(config.shadow);
 
-      if let (Some(min_width), Some(min_height)) = (config.min_width, config.min_height) {
-        window = window.min_inner_size(min_width, min_height);
+      let mut constraints = WindowSizeConstraints::default();
+
+      if let Some(min_width) = config.min_width {
+        constraints.min_width = Some(ToaLogicalUnit::new(min_width).into());
       }
-      if let (Some(max_width), Some(max_height)) = (config.max_width, config.max_height) {
-        window = window.max_inner_size(max_width, max_height);
+      if let Some(min_height) = config.min_height {
+        constraints.min_height = Some(ToaLogicalUnit::new(min_height).into());
       }
+      if let Some(max_width) = config.max_width {
+        constraints.max_width = Some(ToaLogicalUnit::new(max_width).into());
+      }
+      if let Some(max_height) = config.max_height {
+        constraints.max_height = Some(ToaLogicalUnit::new(max_height).into());
+      }
+      window = window.inner_size_constraints(constraints);
+
       if let (Some(x), Some(y)) = (config.x, config.y) {
         window = window.position(x, y);
       }
@@ -820,6 +846,16 @@ impl WindowBuilder for WindowBuilderWrapper {
     self.inner = self
       .inner
       .with_max_inner_size(TaoLogicalSize::new(max_width, max_height));
+    self
+  }
+
+  fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+    self.inner.window.inner_size_constraints = tao::window::WindowSizeConstraints {
+      min_width: constraints.min_width,
+      min_height: constraints.min_height,
+      max_width: constraints.max_width,
+      max_height: constraints.max_height,
+    };
     self
   }
 
@@ -970,6 +1006,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       TitleBarStyle::Overlay => {
         self.inner = self.inner.with_titlebar_transparent(true);
         self.inner = self.inner.with_fullsize_content_view(true);
+      }
+      unknown => {
+        #[cfg(feature = "tracing")]
+        tracing::warn!("unknown title bar style applied: {unknown}");
+
+        #[cfg(not(feature = "tracing"))]
+        eprintln!("unknown title bar style applied: {unknown}");
       }
     }
     self
@@ -1144,6 +1187,7 @@ pub enum WindowMessage {
   SetSize(Size),
   SetMinSize(Option<Size>),
   SetMaxSize(Option<Size>),
+  SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
   SetFocus,
@@ -1848,6 +1892,16 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetMaxSize(size)),
+    )
+  }
+
+  fn set_size_constraints(&self, constraints: WindowSizeConstraints) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetSizeConstraints(constraints),
+      ),
     )
   }
 
@@ -2782,7 +2836,15 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::RequestUserAttention(request_type) => {
             window.request_user_attention(request_type.map(|r| r.0));
           }
-          WindowMessage::SetResizable(resizable) => window.set_resizable(resizable),
+          WindowMessage::SetResizable(resizable) => {
+            window.set_resizable(resizable);
+            #[cfg(windows)]
+            if !resizable {
+              undecorated_resizing::detach_resize_handler(window.hwnd());
+            } else if !window.is_decorated() {
+              undecorated_resizing::attach_resize_handler(window.hwnd());
+            }
+          }
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
           WindowMessage::SetMinimizable(minimizable) => window.set_minimizable(minimizable),
           WindowMessage::SetClosable(closable) => window.set_closable(closable),
@@ -2804,7 +2866,7 @@ fn handle_user_message<T: UserEvent>(
             #[cfg(windows)]
             if decorations {
               undecorated_resizing::detach_resize_handler(window.hwnd());
-            } else {
+            } else if window.is_resizable() {
               undecorated_resizing::attach_resize_handler(window.hwnd());
             }
           }
@@ -2830,6 +2892,14 @@ fn handle_user_message<T: UserEvent>(
           }
           WindowMessage::SetMaxSize(size) => {
             window.set_max_inner_size(size.map(|s| SizeWrapper::from(s).0));
+          }
+          WindowMessage::SetSizeConstraints(constraints) => {
+            window.set_inner_size_constraints(tao::window::WindowSizeConstraints {
+              min_width: constraints.min_width,
+              min_height: constraints.min_height,
+              max_width: constraints.max_width,
+              max_height: constraints.max_height,
+            });
           }
           WindowMessage::SetPosition(position) => {
             window.set_outer_position(PositionWrapper::from(position).0)
@@ -2902,6 +2972,13 @@ fn handle_user_message<T: UserEvent>(
               TitleBarStyle::Overlay => {
                 window.set_titlebar_transparent(true);
                 window.set_fullsize_content_view(true);
+              }
+              unknown => {
+                #[cfg(feature = "tracing")]
+                tracing::warn!("unknown title bar style applied: {unknown}");
+
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("unknown title bar style applied: {unknown}");
               }
             };
           }
@@ -3868,21 +3945,21 @@ fn create_webview<T: UserEvent>(
         WryDragDropEvent::Enter {
           paths,
           position: (x, y),
-        } => DragDropEvent::Dragged {
+        } => DragDropEvent::Enter {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::DragOver {
+        WryDragDropEvent::Over { position: (x, y) } => DragDropEvent::Over {
           position: PhysicalPosition::new(x as _, y as _),
         },
         WryDragDropEvent::Drop {
           paths,
           position: (x, y),
-        } => DragDropEvent::Dropped {
+        } => DragDropEvent::Drop {
           paths,
           position: PhysicalPosition::new(x as _, y as _),
         },
-        WryDragDropEvent::Leave => DragDropEvent::Cancelled,
+        WryDragDropEvent::Leave => DragDropEvent::Leave,
         _ => unimplemented!(),
       };
 

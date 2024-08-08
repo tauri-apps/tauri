@@ -57,10 +57,10 @@ enum TauriEvent {
   WINDOW_THEME_CHANGED = 'tauri://theme-changed',
   WINDOW_CREATED = 'tauri://window-created',
   WEBVIEW_CREATED = 'tauri://webview-created',
-  DRAG = 'tauri://drag',
-  DROP = 'tauri://drop',
-  DROP_OVER = 'tauri://drop-over',
-  DROP_CANCELLED = 'tauri://drag-cancelled'
+  DRAG_ENTER = 'tauri://drag-enter',
+  DRAG_OVER = 'tauri://drag-over',
+  DRAG_DROP = 'tauri://drag-drop',
+  DRAG_LEAVE = 'tauri://drag-leave'
 }
 
 /**
@@ -152,8 +152,9 @@ async function once<T>(
   return listen<T>(
     event,
     (eventData) => {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      _unlisten(event, eventData.id)
       handler(eventData)
-      _unlisten(event, eventData.id).catch(() => {})
     },
     options
   )

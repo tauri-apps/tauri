@@ -350,7 +350,7 @@ fn new<R: Runtime>(
   kind: ItemKind,
   options: Option<NewOptions>,
   channels: State<'_, MenuChannels>,
-  handler: Channel,
+  handler: Channel<MenuId>,
 ) -> crate::Result<(ResourceId, MenuId)> {
   let options = options.unwrap_or_default();
   let mut resources_table = app.resources_table();
@@ -866,7 +866,7 @@ fn set_icon<R: Runtime>(
   }
 }
 
-struct MenuChannels(Mutex<HashMap<MenuId, Channel>>);
+struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("menu")
@@ -877,7 +877,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
     .on_event(|app, e| {
       if let RunEvent::MenuEvent(e) = e {
         if let Some(channel) = app.state::<MenuChannels>().0.lock().unwrap().get(&e.id) {
-          let _ = channel.send(&e.id);
+          let _ = channel.send(e.id.clone());
         }
       }
     })

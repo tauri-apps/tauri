@@ -1,5 +1,51 @@
 # Changelog
 
+## \[2.0.1-rc.0]
+
+### Bug Fixes
+
+- [`a440a3f9d`](https://www.github.com/tauri-apps/tauri/commit/a440a3f9d85376d994f2ba904b1ae0828c5a0fbb) ([#10498](https://www.github.com/tauri-apps/tauri/pull/10498) by [@catalinsh](https://www.github.com/tauri-apps/tauri/../../catalinsh)) Correct nsis pre-uninstall hook to post-uninstall
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.1-beta.19]
+
+### Bug Fixes
+
+- [`d1df6be70`](https://www.github.com/tauri-apps/tauri/commit/d1df6be701fc1cd64fd227d68041a1096386d3b5) ([#10270](https://www.github.com/tauri-apps/tauri/pull/10270) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix bundler warns about no updater-enabled targets were built for self contained updaters like app image, nsis, msi
+
+### What's Changed
+
+- [`9f0a5fcea`](https://www.github.com/tauri-apps/tauri/commit/9f0a5fceaced7862c8a57beba6616c21ff3b17f8) ([#10271](https://www.github.com/tauri-apps/tauri/pull/10271) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `NSIS_HOOK_PREINSTALL` and `NSIS_HOOK_PREUNINSTALL` run before `CheckIfAppIsRunning` (which checks if the app is running and asks the user if they want to kill the app)
+
+## \[2.0.1-beta.18]
+
+### New Features
+
+- [`c734b9e3c`](https://www.github.com/tauri-apps/tauri/commit/c734b9e3cd6e5a22dfd84ec8a779c2ee9591751b) ([#10072](https://www.github.com/tauri-apps/tauri/pull/10072) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Upgraded the WiX version to 3.14 which fixes vulnerability issues and adds support for Arm targets.
+
+### Bug Fixes
+
+- [`96f65fef3`](https://www.github.com/tauri-apps/tauri/commit/96f65fef3659e83bbee4426e94da4472c962e391) ([#10188](https://www.github.com/tauri-apps/tauri/pull/10188) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) On macOS, the bundler will now correctly print a warning when the updater is enabled while the `.app` bundle is disabled.
+- [`5998a90f3`](https://www.github.com/tauri-apps/tauri/commit/5998a90f3f0dda124eff1ce3c59e96d329e8b435) ([#10184](https://www.github.com/tauri-apps/tauri/pull/10184) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix NSIS installer failing to launch apps that contain spaces after installation.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@0.1.0-beta.0`
+- Upgraded to `tauri-utils@2.0.0-beta.19`
+
+### Breaking Changes
+
+- [`11aa7743e`](https://www.github.com/tauri-apps/tauri/commit/11aa7743e7a277ed9ec3e92040dc484afe77d261) ([#10177](https://www.github.com/tauri-apps/tauri/pull/10177) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Changed NSIS installer hooks from `!define` to `!macro`
+
 ## \[2.0.1-beta.17]
 
 ### New Features

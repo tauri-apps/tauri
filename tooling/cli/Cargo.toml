@@ -50,15 +50,15 @@ serde_json = "1.0"
 notify = "6.1"
 notify-debouncer-mini = "0.4"
 shared_child = "1.0"
-toml_edit = "0.21"
+toml_edit = "0.22"
 json-patch = "2"
 tauri-utils = { version = "1.6.0", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
-jsonschema = "0.17"
+jsonschema = "0.18"
 handlebars = "4.4"
 include_dir = "0.7"
 minisign = "=0.7.3"
-base64 = "0.21.5"
+base64 = "0.22.0"
 ureq = { version = "2.9.1", default-features = false, features = [ "gzip" ] }
 os_info = "3"
 semver = "1.0"
@@ -72,16 +72,16 @@ os_pipe = "1"
 ignore = "0.4"
 ctrlc = "3.4"
 log = { version = "0.4.21", features = [ "kv", "kv_std" ] }
-env_logger = "0.10.0"
+env_logger = "0.11.0"
 icns = { package = "tauri-icns", version = "0.1" }
-image = { version = "0.24", default-features = false, features = [ "ico" ] }
-axum = { version = "0.6.20", features = [ "ws" ] }
-html5ever = "0.26"
+image = { version = "0.25", default-features = false, features = [ "ico" ] }
+axum = { version = "0.7.0", features = [ "ws" ] }
+html5ever = "0.28"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
-itertools = "0.11"
+itertools = "0.13"
 glob = "0.3"
 
 [target."cfg(windows)".dependencies]

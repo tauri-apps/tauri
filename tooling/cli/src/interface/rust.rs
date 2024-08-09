@@ -860,7 +860,12 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let bin_name = self.cargo_package_settings().name.clone();
+    let binaries = self.get_binaries(&self.target_triple)?;
+    let bin_name = binaries
+      .iter()
+      .find(|x| x.main())
+      .expect("failed to find main binary")
+      .name();
 
     let out_dir = self
       .out_dir(options)

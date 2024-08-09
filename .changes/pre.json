@@ -2,6 +2,7 @@
   "tag": "rc",
   "changes": [
     ".changes/android-dev-open-adb-fix.md",
+    ".changes/android-gradle-8-9.md",
     ".changes/asset-resolver-dev-fallback.md",
     ".changes/change-pr-10435.md",
     ".changes/change-pr-10498.md",
@@ -15,6 +16,7 @@
     ".changes/fix-conf-parsing-error-filepath.md",
     ".changes/fix-usage-without-compression.md",
     ".changes/ios-custom-project-template.md",
+    ".changes/ios-default-minversion.md",
     ".changes/ios-frameworks.md",
     ".changes/isolation-main-frame-origin.md",
     ".changes/linux-option-gtk-app-id.md",

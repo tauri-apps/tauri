@@ -8,7 +8,7 @@ Default permissions for the plugin.
 - `allow-rgba`
 - `allow-size`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

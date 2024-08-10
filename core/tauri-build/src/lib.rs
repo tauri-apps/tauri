@@ -373,6 +373,14 @@ impl Attributes {
     self
   }
 
+  /// Adds multiple given plugin to the list of inlined plugins (a plugin that is part of your application).
+  ///
+  /// See [`InlinedPlugin`] for more information.
+  pub fn plugins(mut self, plugins: HashMap<&'static str, InlinedPlugin>) -> Self {
+    self.inlined_plugins.extend(plugins);
+    self
+  }
+
   /// Sets the application manifest for the Access Control List.
   ///
   /// See [`AppManifest`] for more information.

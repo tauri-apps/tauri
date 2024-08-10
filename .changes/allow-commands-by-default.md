@@ -1,5 +1,5 @@
 ---
-"tauri": patch:feat
+"tauri-build": patch:feat
 ---
 
-Add option to allow all commands by default
+Added `InlinedPlugin::default_permission` to autogenerate the default permission of an inlined plugin.

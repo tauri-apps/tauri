@@ -340,7 +340,6 @@ fn define_permissions(out_dir: &Path) {
       &commands.iter().map(|(cmd, _)| *cmd).collect::<Vec<_>>(),
       license_header,
       false,
-      false,
     );
     let default_permissions = commands
       .iter()

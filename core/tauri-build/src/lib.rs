@@ -373,10 +373,13 @@ impl Attributes {
     self
   }
 
-  /// Adds multiple given plugin to the list of inlined plugins (a plugin that is part of your application).
+  /// Adds the given list of plugins to the list of inlined plugins (a plugin that is part of your application).
   ///
   /// See [`InlinedPlugin`] for more information.
-  pub fn plugins(mut self, plugins: HashMap<&'static str, InlinedPlugin>) -> Self {
+  pub fn plugins<I>(mut self, plugins: I) -> Self
+  where
+    I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
+  {
     self.inlined_plugins.extend(plugins);
     self
   }

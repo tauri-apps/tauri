@@ -2,4 +2,4 @@
 "tauri": patch:refactor
 ---
 
-Remove targetSdk for gradle files
+Remove targetSdk from gradle files

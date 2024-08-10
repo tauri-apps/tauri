@@ -310,7 +310,7 @@ fn use_network_address_for_dev_url(
       .host
       .unwrap_or_default()
       .unwrap_or_else(|| *local_ip_address(options.force_ip_prompt));
-    dev_options.host.replace(ip.clone());
+    dev_options.host.replace(ip);
     Some(ip)
   } else {
     None

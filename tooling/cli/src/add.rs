@@ -229,4 +229,3 @@ pub fn command(options: Options) -> Result<()> {
 
   Ok(())
 }
-

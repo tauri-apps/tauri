@@ -38,7 +38,7 @@ hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = { version = "0.6", default-features = false, features = [ "deflate" ] }
+zip = { version = "2.0", default-features = false, features = [ "deflate" ] }
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]

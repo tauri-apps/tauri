@@ -74,7 +74,9 @@
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
-        "iOS": {},
+        "iOS": {
+          "minimumSystemVersion": "13.0"
+        },
         "icon": [],
         "linux": {
           "appimage": {
@@ -425,7 +427,7 @@
           ]
         },
         "shadow": {
-          "description": "Whether or not the window has shadow.\n\n ## Platform-specific\n\n - **Windows:**\n   - `false` has no effect on decorated window, shadow are always ON.\n   - `true` will make ndecorated window have a 1px white border,\n and on Windows 11, it will have a rounded corners.\n - **Linux:** Unsupported.",
+          "description": "Whether or not the window has shadow.\n\n ## Platform-specific\n\n - **Windows:**\n   - `false` has no effect on decorated window, shadow are always ON.\n   - `true` will make undecorated window have a 1px white border,\n and on Windows 11, it will have a rounded corners.\n - **Linux:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
@@ -1712,7 +1714,9 @@
         },
         "iOS": {
           "description": "iOS configuration.",
-          "default": {},
+          "default": {
+            "minimumSystemVersion": "13.0"
+          },
           "allOf": [
             {
               "$ref": "#/definitions/IosConfig"
@@ -2896,6 +2900,13 @@
       "description": "General configuration for the iOS target.",
       "type": "object",
       "properties": {
+        "template": {
+          "description": "A custom [XcodeGen] project.yml template to use.\n\n [XcodeGen]: <https://github.com/yonaskolb/XcodeGen>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "frameworks": {
           "description": "A list of strings indicating any iOS frameworks that need to be bundled with the application.\n\n Note that you need to recreate the iOS project for the changes to be applied.",
           "type": [
@@ -2912,6 +2923,11 @@
             "string",
             "null"
           ]
+        },
+        "minimumSystemVersion": {
+          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
+          "default": "13.0",
+          "type": "string"
         }
       },
       "additionalProperties": false

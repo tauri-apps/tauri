@@ -75,7 +75,7 @@
         },
         "createUpdaterArtifacts": false,
         "iOS": {
-          "minimumSystemVersion": ""
+          "minimumSystemVersion": "13.0"
         },
         "icon": [],
         "linux": {
@@ -427,7 +427,7 @@
           ]
         },
         "shadow": {
-          "description": "Whether or not the window has shadow.\n\n ## Platform-specific\n\n - **Windows:**\n   - `false` has no effect on decorated window, shadow are always ON.\n   - `true` will make ndecorated window have a 1px white border,\n and on Windows 11, it will have a rounded corners.\n - **Linux:** Unsupported.",
+          "description": "Whether or not the window has shadow.\n\n ## Platform-specific\n\n - **Windows:**\n   - `false` has no effect on decorated window, shadow are always ON.\n   - `true` will make undecorated window have a 1px white border,\n and on Windows 11, it will have a rounded corners.\n - **Linux:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
@@ -1715,7 +1715,7 @@
         "iOS": {
           "description": "iOS configuration.",
           "default": {
-            "minimumSystemVersion": ""
+            "minimumSystemVersion": "13.0"
           },
           "allOf": [
             {

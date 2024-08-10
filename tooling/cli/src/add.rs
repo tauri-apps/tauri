@@ -86,6 +86,9 @@ pub struct Options {
   /// Git branch to use.
   #[clap(short, long)]
   pub branch: Option<String>,
+  /// Don't format code with rustfmt
+  #[clap(long)]
+  pub no_fmt: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -185,12 +188,15 @@ pub fn command(options: Options) -> Result<()> {
       log::info!("Adding plugin to {}", file.display());
       std::fs::write(file, out.as_bytes())?;
 
-      // run cargo fmt
-      log::info!("Running `cargo fmt`...");
-      let _ = Command::new("cargo")
-        .arg("fmt")
-        .current_dir(&tauri_dir)
-        .status();
+      if !options.no_fmt {
+        // reformat code with rustfmt
+        log::info!("Running `cargo fmt`...");
+        let _ = Command::new("cargo")
+          .arg("fmt")
+          .current_dir(&tauri_dir)
+          .status();
+      }
+
       return Ok(());
     }
   }

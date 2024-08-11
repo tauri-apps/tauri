@@ -31,6 +31,7 @@ pub fn run() -> Result<()> {
       branch: None,
       tag: None,
       rev: None,
+      no_fmt: false,
     })
     .with_context(|| format!("Could not migrate plugin '{plugin}'"))?;
   }

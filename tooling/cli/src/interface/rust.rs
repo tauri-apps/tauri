@@ -863,7 +863,12 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let bin_name = self.cargo_package_settings().name.clone();
+    let binaries = self.get_binaries(&self.target_triple)?;
+    let bin_name = binaries
+      .iter()
+      .find(|x| x.main())
+      .expect("failed to find main binary")
+      .name();
 
     let out_dir = self
       .out_dir(options)
@@ -1083,10 +1088,6 @@ impl RustAppSettings {
       target_triple,
       target,
     })
-  }
-
-  pub fn cargo_package_settings(&self) -> &CargoPackageSettings {
-    &self.cargo_package_settings
   }
 
   fn target<'a>(&'a self, options: &'a Options) -> Option<&'a str> {

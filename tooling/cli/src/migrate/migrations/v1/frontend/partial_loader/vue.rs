@@ -25,7 +25,7 @@ impl<'a> VuePartialLoader<'a> {
   /// Each *.vue file can contain at most
   ///  * one `<script>` block (excluding `<script setup>`).
   ///  * one `<script setup>` block (excluding normal `<script>`).
-  /// <https://vuejs.org/api/sfc-spec.html#script>
+  ///     <https://vuejs.org/api/sfc-spec.html#script>
   fn parse_scripts(&self) -> Vec<JavaScriptSource<'a>> {
     let mut pointer = 0;
     let Some(result1) = self.parse_script(&mut pointer) else {

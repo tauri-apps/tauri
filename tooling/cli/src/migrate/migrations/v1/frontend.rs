@@ -172,8 +172,8 @@ fn migrate_imports<'a>(
           // +1 and -1, to skip modifying the import quotes
           magic_js_source
             .overwrite(
-              script_start as i64 + stmt.source.span.start as i64 + 1,
-              script_start as i64 + stmt.source.span.end as i64 - 1,
+              script_start + stmt.source.span.start as i64 + 1,
+              script_start + stmt.source.span.end as i64 - 1,
               module,
               Default::default(),
             )
@@ -293,7 +293,7 @@ fn migrate_imports<'a>(
     if !imports_to_add.is_empty() {
       for import in imports_to_add {
         magic_js_source
-          .append_right(script_start as u32 + start as u32, &import)
+          .append_right(script_start as u32 + start, &import)
           .map_err(|e| anyhow::anyhow!("{e}"))
           .context("failed to add import")?;
       }
@@ -302,7 +302,7 @@ fn migrate_imports<'a>(
     if !stmts_to_add.is_empty() {
       for stmt in stmts_to_add {
         magic_js_source
-          .append_right(script_start as u32 + start as u32, stmt)
+          .append_right(script_start as u32 + start, stmt)
           .map_err(|e| anyhow::anyhow!("{e}"))
           .context("failed to add statement")?;
       }

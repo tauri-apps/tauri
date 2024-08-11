@@ -268,7 +268,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
   };
 
   let app_settings = interface.app_settings();
-  App::from_raw(tauri_dir(), raw)
+  App::from_raw(tauri_dir().to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       let bin_path = app_settings

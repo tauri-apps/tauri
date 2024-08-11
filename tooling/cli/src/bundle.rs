@@ -94,6 +94,8 @@ impl From<crate::build::Options> for Options {
 }
 
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let ci = options.ci;
 
   let target = options
@@ -133,6 +135,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn bundle<A: AppSettings>(
   options: &Options,
   verbosity: u8,

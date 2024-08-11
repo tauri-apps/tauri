@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function() {
+;(function () {
   /**
    * A runtime generated key to ensure an IPC call comes from an initialized frame.
    *

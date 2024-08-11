@@ -66,6 +66,8 @@ pub fn command(options: Options) -> Result<()> {
     set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }
 
+  crate::helpers::app_paths::resolve();
+
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 

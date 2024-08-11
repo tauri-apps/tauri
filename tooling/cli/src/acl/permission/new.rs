@@ -8,7 +8,7 @@ use clap::Parser;
 
 use crate::{
   acl::FileFormat,
-  helpers::{app_paths::tauri_dir_opt, prompts},
+  helpers::{app_paths::resolve_tauri_dir, prompts},
   Result,
 };
 
@@ -69,7 +69,7 @@ pub fn command(options: Options) -> Result<()> {
   let path = match options.out {
     Some(o) => o.canonicalize()?,
     None => {
-      let dir = match tauri_dir_opt() {
+      let dir = match resolve_tauri_dir() {
         Some(t) => t,
         None => std::env::current_dir()?,
       };

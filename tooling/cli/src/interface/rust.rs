@@ -1582,6 +1582,7 @@ mod tests {
 
   #[test]
   fn parse_target_dir_from_opts() {
+    crate::helpers::app_paths::resolve();
     let current_dir = std::env::current_dir().unwrap();
 
     let options = Options {

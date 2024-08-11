@@ -87,26 +87,6 @@ impl PackageManager {
     }
   }
 
-  pub fn default_dev_command(&self) -> String {
-    match self {
-      PackageManager::Yarn => String::from("yarn dev"),
-      PackageManager::YarnBerry => String::from("yarn dev"),
-      PackageManager::Npm => String::from("npm run dev"),
-      PackageManager::Pnpm => String::from("pnpm dev"),
-      PackageManager::Bun => String::from("bun dev"),
-    }
-  }
-
-  pub fn default_build_command(&self) -> String {
-    match self {
-      PackageManager::Yarn => String::from("yarn build"),
-      PackageManager::YarnBerry => String::from("yarn build"),
-      PackageManager::Npm => String::from("npm run build"),
-      PackageManager::Pnpm => String::from("pnpm build"),
-      PackageManager::Bun => String::from("bun build"),
-    }
-  }
-
   pub fn install<P: AsRef<Path>>(&self, dependencies: &[String], app_dir: P) -> crate::Result<()> {
     let dependencies_str = if dependencies.len() > 1 {
       "dependencies"

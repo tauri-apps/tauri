@@ -142,7 +142,7 @@ impl Options {
       .unwrap_or_else(|| {
         prompts::input(
           "What is your frontend dev command?",
-          Some(detected_package_manager.default_dev_command()),
+          Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
         )
@@ -154,13 +154,33 @@ impl Options {
       .unwrap_or_else(|| {
         prompts::input(
           "What is your frontend build command?",
-          Some(detected_package_manager.default_build_command()),
+          Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,
         )
       })?;
 
     Ok(self)
+  }
+}
+
+fn default_dev_command(pm: PackageManager) -> &'static str {
+  match pm {
+    PackageManager::Yarn => "yarn dev",
+    PackageManager::YarnBerry => "yarn dev",
+    PackageManager::Npm => "npm run dev",
+    PackageManager::Pnpm => "pnpm dev",
+    PackageManager::Bun => "bun dev",
+  }
+}
+
+fn default_build_command(pm: PackageManager) -> &'static str {
+  match pm {
+    PackageManager::Yarn => "yarn build",
+    PackageManager::YarnBerry => "yarn build",
+    PackageManager::Npm => "npm run build",
+    PackageManager::Pnpm => "pnpm build",
+    PackageManager::Bun => "bun build",
   }
 }
 

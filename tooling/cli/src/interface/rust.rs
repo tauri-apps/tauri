@@ -1087,10 +1087,6 @@ impl RustAppSettings {
     })
   }
 
-  pub fn cargo_package_settings(&self) -> &CargoPackageSettings {
-    &self.cargo_package_settings
-  }
-
   fn target<'a>(&'a self, options: &'a Options) -> Option<&'a str> {
     options
       .target

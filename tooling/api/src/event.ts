@@ -108,7 +108,7 @@ async function listen<T>(
   const target: EventTarget =
     typeof options?.target === 'string'
       ? { kind: 'AnyLabel', label: options.target }
-      : options?.target ?? { kind: 'Any' }
+      : (options?.target ?? { kind: 'Any' })
   return invoke<number>('plugin:event|listen', {
     event,
     target,

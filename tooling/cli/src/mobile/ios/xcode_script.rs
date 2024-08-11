@@ -49,6 +49,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   fn macos_from_platform(platform: &str) -> bool {
     platform == "macOS"
   }

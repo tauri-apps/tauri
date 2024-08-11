@@ -86,13 +86,11 @@ pub trait Interface: Sized {
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,
-    invocation_dir: &Path,
     on_exit: F,
   ) -> crate::Result<()>;
   fn mobile_dev<R: Fn(MobileOptions) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
     options: MobileOptions,
-    invocation_dir: &Path,
     runner: R,
   ) -> crate::Result<()>;
 }

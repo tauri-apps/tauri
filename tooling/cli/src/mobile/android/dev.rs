@@ -32,10 +32,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::{
-  env::{current_dir, set_current_dir},
-  path::Path,
-};
+use std::env::set_current_dir;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -94,6 +91,8 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let result = run_command(options, noise_level);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
@@ -145,7 +144,6 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, app, config, metadata)
   };
 
-  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -166,7 +164,6 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &metadata,
     noise_level,
-    &invocation_dir,
   )
 }
 
@@ -182,14 +179,8 @@ fn run_dev(
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
-  invocation_dir: &Path,
 ) -> Result<()> {
-  crate::dev::setup(
-    &interface,
-    &mut dev_options,
-    tauri_config.clone(),
-    invocation_dir,
-  )?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -234,7 +225,6 @@ fn run_dev(
       config: options.config,
       no_watch: options.no_watch,
     },
-    invocation_dir,
     |options| {
       let cli_options = CliOptions {
         dev: true,

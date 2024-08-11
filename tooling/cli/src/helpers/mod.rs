@@ -69,7 +69,6 @@ pub fn run_hook(
   name: &str,
   hook: HookCommand,
   interface: &AppInterface,
-  invocation_dir: &Path,
   debug: bool,
 ) -> crate::Result<()> {
   let (script, script_cwd) = match hook {
@@ -77,7 +76,7 @@ pub fn run_hook(
     HookCommand::Script(s) => (Some(s), None),
     HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
   };
-  let cwd = script_cwd.unwrap_or_else(|| app_dir(invocation_dir).clone());
+  let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
   if let Some(script) = script {
     log::info!(action = "Running"; "{} `{}`", name, script);
 

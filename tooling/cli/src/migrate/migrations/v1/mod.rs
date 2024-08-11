@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::env::current_dir;
-
 use crate::{
   helpers::app_paths::{app_dir, tauri_dir},
   Result,
@@ -16,13 +14,12 @@ mod frontend;
 mod manifest;
 
 pub fn run() -> Result<()> {
-  let current_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_dir = tauri_dir();
-  let app_dir = app_dir(&current_dir);
+  let app_dir = app_dir();
 
-  let migrated = config::migrate(&tauri_dir).context("Could not migrate config")?;
-  manifest::migrate(&tauri_dir).context("Could not migrate manifest")?;
-  frontend::migrate(app_dir, &tauri_dir)?;
+  let migrated = config::migrate(tauri_dir).context("Could not migrate config")?;
+  manifest::migrate(tauri_dir).context("Could not migrate manifest")?;
+  frontend::migrate(app_dir, tauri_dir)?;
 
   // Add plugins
   for plugin in migrated.plugins {

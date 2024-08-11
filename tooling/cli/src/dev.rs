@@ -20,9 +20,8 @@ use shared_child::SharedChild;
 use tauri_utils::platform::Target;
 
 use std::{
-  env::{current_dir, set_current_dir},
+  env::set_current_dir,
   net::{IpAddr, Ipv4Addr},
-  path::Path,
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -89,6 +88,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();
@@ -110,22 +111,16 @@ fn command_internal(mut options: Options) -> Result<()> {
     options.target.clone(),
   )?;
 
-  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
-  setup(&interface, &mut options, config, &invocation_dir)?;
+  setup(&interface, &mut options, config)?;
 
   let exit_on_panic = options.exit_on_panic;
   let no_watch = options.no_watch;
-  interface.dev(options.into(), &invocation_dir, move |status, reason| {
+  interface.dev(options.into(), move |status, reason| {
     on_app_exit(status, reason, exit_on_panic, no_watch)
   })
 }
 
-pub fn setup(
-  interface: &AppInterface,
-  options: &mut Options,
-  config: ConfigHandle,
-  invocation_dir: &Path,
-) -> Result<()> {
+pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHandle) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -145,7 +140,7 @@ pub fn setup(
         (Some(script), cwd.map(Into::into), wait)
       }
     };
-    let cwd = script_cwd.unwrap_or_else(|| app_dir(invocation_dir).clone());
+    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
     if let Some(before_dev) = script {
       log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);

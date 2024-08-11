@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  env::current_dir,
   path::{Path, PathBuf},
   str::FromStr,
   sync::OnceLock,
@@ -95,6 +94,8 @@ impl From<crate::build::Options> for Options {
 }
 
 pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let ci = options.ci;
 
   let target = options
@@ -110,7 +111,6 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     options.target.clone(),
   )?;
 
-  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_path = tauri_dir();
   std::env::set_current_dir(tauri_path)
     .with_context(|| "failed to change current working directory")?;
@@ -131,7 +131,6 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     &interface,
     &app_settings,
     config_,
-    &invocation_dir,
     out_dir,
   )
 }
@@ -144,7 +143,6 @@ pub fn bundle<A: AppSettings>(
   interface: &AppInterface,
   app_settings: &std::sync::Arc<A>,
   config: &ConfigMetadata,
-  invocation_dir: &Path,
   out_dir: &Path,
 ) -> crate::Result<()> {
   let package_types: Vec<PackageType> = if let Some(bundles) = &options.bundles {
@@ -170,7 +168,6 @@ pub fn bundle<A: AppSettings>(
         "beforeBundleCommand",
         before_bundle,
         interface,
-        invocation_dir,
         options.debug,
       )?;
     }

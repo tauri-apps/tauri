@@ -27,11 +27,7 @@ use cargo_mobile2::{
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
 
-use std::{
-  env::{current_dir, set_current_dir},
-  fs,
-  path::Path,
-};
+use std::{env::set_current_dir, fs};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -121,6 +117,8 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -157,9 +155,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, app, config)
   };
 
-  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(
     &tauri_config,
@@ -209,7 +206,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &config,
     &mut env,
     noise_level,
-    &invocation_dir,
   )?;
 
   if open {
@@ -263,7 +259,6 @@ fn run_build(
   config: &AppleConfig,
   env: &mut Env,
   noise_level: NoiseLevel,
-  invocation_dir: &Path,
 ) -> Result<OptionsHandle> {
   let profile = if options.debug {
     Profile::Debug
@@ -271,13 +266,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(
-    &interface,
-    &mut build_options,
-    tauri_config.clone(),
-    invocation_dir,
-    true,
-  )?;
+  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   let app_settings = interface.app_settings();
   let bin_path = app_settings.app_binary_path(&InterfaceOptions {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use clap::Parser;
 use colored::Colorize;
 use regex::Regex;
@@ -10,14 +9,14 @@ use regex::Regex;
 use crate::{
   acl,
   helpers::{
-    app_paths::{app_dir, tauri_dir},
+    app_paths::{resolve_app_dir, tauri_dir},
     cargo,
     npm::PackageManager,
   },
   Result,
 };
 
-use std::{collections::HashMap, env::current_dir, process::Command};
+use std::{collections::HashMap, process::Command};
 
 #[derive(Default)]
 struct PluginMetadata {
@@ -93,6 +92,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let (plugin, version) = options
     .plugin
     .split_once('@')
@@ -106,7 +107,7 @@ pub fn command(options: Options) -> Result<()> {
   let mut plugins = plugins();
   let metadata = plugins.remove(plugin).unwrap_or_default();
 
-  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
+  let app_dir = resolve_app_dir();
   let tauri_dir = tauri_dir();
 
   let target_str = metadata
@@ -124,14 +125,12 @@ pub fn command(options: Options) -> Result<()> {
     branch: options.branch.as_deref(),
     rev: options.rev.as_deref(),
     tag: options.tag.as_deref(),
-    cwd: Some(&tauri_dir),
+    cwd: Some(tauri_dir),
     target: target_str,
   })?;
 
   if !metadata.rust_only {
-    if let Some(manager) = std::panic::catch_unwind(|| app_dir(&invocation_dir))
-      .map(Some)
-      .unwrap_or_default()
+    if let Some(manager) = app_dir
       .map(PackageManager::from_project)
       .and_then(|managers| managers.into_iter().next())
     {
@@ -151,7 +150,7 @@ pub fn command(options: Options) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec], &tauri_dir)?;
+      manager.install(&[npm_spec], tauri_dir)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {
@@ -195,7 +194,7 @@ pub fn command(options: Options) -> Result<()> {
         log::info!("Running `cargo fmt`...");
         let _ = Command::new("cargo")
           .arg("fmt")
-          .current_dir(&tauri_dir)
+          .current_dir(tauri_dir)
           .status();
       }
 

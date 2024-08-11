@@ -3,16 +3,11 @@
 // SPDX-License-Identifier: MIT
 
 use crate::Result;
-use anyhow::Context;
 use clap::Parser;
 use colored::{ColoredString, Colorize};
 use dialoguer::{theme::ColorfulTheme, Confirm};
 use serde::Deserialize;
-use std::{
-  env::current_dir,
-  fmt::{self, Display, Formatter},
-  panic,
-};
+use std::fmt::{self, Display, Formatter};
 
 mod app;
 mod env_nodejs;
@@ -261,19 +256,15 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   let Options { interactive } = options;
-  let hook = panic::take_hook();
-  panic::set_hook(Box::new(|_info| {
-    // do nothing
-  }));
 
-  let invocation_dir = current_dir().with_context(|| "failed to get current working directory")?;
-  let app_dir = panic::catch_unwind(|| crate::helpers::app_paths::app_dir(&invocation_dir))
-    .map(Some)
-    .unwrap_or_default();
-  let tauri_dir = panic::catch_unwind(crate::helpers::app_paths::tauri_dir)
-    .map(Some)
-    .unwrap_or_default();
-  panic::set_hook(hook);
+  let app_dir = crate::helpers::app_paths::resolve_app_dir();
+  let tauri_dir = crate::helpers::app_paths::resolve_tauri_dir();
+
+  if tauri_dir.is_some() {
+    // safe to initialize
+    crate::helpers::app_paths::resolve();
+  }
+
   let metadata = version_metadata()?;
 
   let mut environment = Section {
@@ -293,17 +284,19 @@ pub fn command(options: Options) -> Result<()> {
   };
   packages
     .items
-    .extend(packages_rust::items(app_dir, tauri_dir.as_deref()));
+    .extend(packages_rust::items(app_dir.as_ref(), tauri_dir.as_deref()));
   packages
     .items
-    .extend(packages_nodejs::items(app_dir, &metadata));
+    .extend(packages_nodejs::items(app_dir.as_ref(), &metadata));
 
   let mut app = Section {
     label: "App",
     interactive,
     items: Vec::new(),
   };
-  app.items.extend(app::items(app_dir, tauri_dir.as_deref()));
+  app
+    .items
+    .extend(app::items(app_dir.as_ref(), tauri_dir.as_deref()));
 
   environment.display();
   packages.display();

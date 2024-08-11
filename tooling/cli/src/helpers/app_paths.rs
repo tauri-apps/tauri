@@ -18,6 +18,8 @@ use tauri_utils::{
 };
 
 const TAURI_GITIGNORE: &[u8] = include_bytes!("../../tauri.gitignore");
+static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
+static TAURI_DIR: OnceLock<PathBuf> = OnceLock::new();
 
 pub fn walk_builder(path: &Path) -> WalkBuilder {
   let mut default_gitignore = std::env::temp_dir();
@@ -66,7 +68,7 @@ fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
   None
 }
 
-pub fn tauri_dir_opt() -> Option<PathBuf> {
+pub fn resolve_tauri_dir() -> Option<PathBuf> {
   let Ok(cwd) = current_dir() else {
     return None;
   };
@@ -100,22 +102,32 @@ pub fn tauri_dir_opt() -> Option<PathBuf> {
   })
 }
 
-pub fn tauri_dir() -> PathBuf {
-  tauri_dir_opt().unwrap_or_else(||
+pub fn resolve() {
+  TAURI_DIR.set( resolve_tauri_dir().unwrap_or_else(||
     panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
       ConfigFormat::Json.into_file_name(),
       ConfigFormat::Json5.into_file_name(),
       ConfigFormat::Toml.into_file_name()
     )
-  )
+  )).expect("tauri dir already resolved");
+  APP_DIR
+    .set(resolve_app_dir().unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf()))
+    .expect("app dir already resolved");
 }
 
-fn get_app_dir(base_dir: &Path) -> Option<PathBuf> {
-  if base_dir.join("package.json").exists() {
-    return Some(base_dir.into());
+pub fn tauri_dir() -> &'static PathBuf {
+  TAURI_DIR
+    .get()
+    .expect("app paths not initialized, this is a Tauri CLI bug")
+}
+
+pub fn resolve_app_dir() -> Option<PathBuf> {
+  let cwd = current_dir().expect("failed to read cwd");
+  if cwd.join("package.json").exists() {
+    return Some(cwd);
   }
 
-  lookup(base_dir, |path| {
+  lookup(&cwd, |path| {
     if let Some(file_name) = path.file_name() {
       file_name == OsStr::new("package.json")
     } else {
@@ -125,9 +137,8 @@ fn get_app_dir(base_dir: &Path) -> Option<PathBuf> {
   .map(|p| p.parent().unwrap().to_path_buf())
 }
 
-pub fn app_dir(base_dir: &Path) -> &'static PathBuf {
-  static APP_DIR: OnceLock<PathBuf> = OnceLock::new();
-  APP_DIR.get_or_init(|| {
-    get_app_dir(base_dir).unwrap_or_else(|| tauri_dir().parent().unwrap().to_path_buf())
-  })
+pub fn app_dir() -> &'static PathBuf {
+  APP_DIR
+    .get()
+    .expect("app paths not initialized, this is a Tauri CLI bug")
 }

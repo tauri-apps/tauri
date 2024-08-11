@@ -5,6 +5,7 @@
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
+    npm::PackageManager,
     prompts, resolve_tauri_path, template,
   },
   VersionMetadata,
@@ -130,41 +131,34 @@ impl Options {
       )
     })?;
 
-    let package_manager =
-      if self.before_build_command.is_none() && self.before_dev_command.is_none() {
-        prompts::select(
-          "What package manager are you using?",
-          &["npm", "pnpm", "yarn", "bun"],
-          Some(0),
-        )?
-        .unwrap()
-      } else {
-        "npm".to_string()
-      };
+    let detected_package_manager = match PackageManager::from_project(&self.directory).first() {
+      Some(&package_manager) => package_manager,
+      None => PackageManager::Npm,
+    };
 
-    self.before_dev_command =
-      self
-        .before_dev_command
-        .map(Some)
-        .unwrap_or(match package_manager.as_str() {
-          "npm" => Some("npm run dev".to_string()),
-          "pnpm" => Some("pnpm dev".to_string()),
-          "yarn" => Some("yarn dev".to_string()),
-          "bun" => Some("bun dev".to_string()),
-          _ => unreachable!(),
-        });
+    self.before_dev_command = self
+      .before_dev_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        prompts::input(
+          "What is your frontend dev command?",
+          Some(detected_package_manager.default_dev_command()),
+          self.ci,
+          true,
+        )
+      })?;
 
-    self.before_build_command =
-      self
-        .before_build_command
-        .map(Some)
-        .unwrap_or(match package_manager.as_str() {
-          "npm" => Some("npm run build".to_string()),
-          "pnpm" => Some("pnpm build".to_string()),
-          "yarn" => Some("yarn build".to_string()),
-          "bun" => Some("bun build".to_string()),
-          _ => unreachable!(),
-        });
+    self.before_build_command = self
+      .before_build_command
+      .map(|s| Ok(Some(s)))
+      .unwrap_or_else(|| {
+        prompts::input(
+          "What is your frontend build command?",
+          Some(detected_package_manager.default_build_command()),
+          self.ci,
+          true,
+        )
+      })?;
 
     Ok(self)
   }

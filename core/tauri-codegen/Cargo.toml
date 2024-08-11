@@ -29,7 +29,7 @@ uuid = { version = "1", features = [ "v4" ] }
 semver = "1"
 ico = "0.3"
 png = "0.17"
-json-patch = "1.2"
+json-patch = "2.0"
 url = "2"
 
 [target."cfg(target_os = \"macos\")".dependencies]

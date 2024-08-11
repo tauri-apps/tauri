@@ -27,7 +27,7 @@ serde = { version = "1.0", features = [ "derive" ] }
 strsim = "0.11.0"
 tar = "0.4.40"
 walkdir = "2"
-handlebars = "5.1"
+handlebars = "6"
 tempfile = "3.10.1"
 log = { version = "0.4.21", features = [ "kv" ] }
 dirs = "5"
@@ -38,7 +38,7 @@ hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = { version = "0.6", default-features = false, features = [ "deflate" ] }
+zip = { version = "2.0", default-features = false, features = [ "deflate" ] }
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]

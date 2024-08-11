@@ -49,8 +49,6 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  crate::helpers::app_paths::resolve();
-
   fn macos_from_platform(platform: &str) -> bool {
     platform == "macOS"
   }
@@ -67,6 +65,8 @@ pub fn command(options: Options) -> Result<()> {
   if var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none() {
     set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }
+
+  crate::helpers::app_paths::resolve();
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);

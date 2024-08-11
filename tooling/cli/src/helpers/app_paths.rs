@@ -103,7 +103,7 @@ pub fn resolve_tauri_dir() -> Option<PathBuf> {
 }
 
 pub fn resolve() {
-  TAURI_DIR.set( resolve_tauri_dir().unwrap_or_else(||
+  TAURI_DIR.set(resolve_tauri_dir().unwrap_or_else(||
     panic!("Couldn't recognize the current folder as a Tauri project. It must contain a `{}`, `{}` or `{}` file in any subfolder.",
       ConfigFormat::Json.into_file_name(),
       ConfigFormat::Json5.into_file_name(),

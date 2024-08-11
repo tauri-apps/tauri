@@ -91,6 +91,8 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let result = run_command(options, noise_level);
   if result.is_err() {
     crate::dev::kill_before_dev_process();

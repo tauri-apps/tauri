@@ -5340,7 +5340,7 @@ dependencies = [
  "glob",
  "html5ever",
  "infer 0.15.0",
- "json-patch 1.2.0",
+ "json-patch 2.0.0",
  "json5",
  "kuchikiki",
  "log",

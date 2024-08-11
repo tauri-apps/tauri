@@ -100,7 +100,10 @@ impl Source {
 
 pub fn command(options: Options) -> Result<()> {
   let input = options.input;
-  let out_dir = options.output.unwrap_or_else(|| tauri_dir().join("icons"));
+  let out_dir = options.output.unwrap_or_else(|| {
+    crate::helpers::app_paths::resolve();
+    tauri_dir().join("icons")
+  });
   let png_icon_sizes = options.png.unwrap_or_default();
   let ios_color = css_color::Srgb::from_str(&options.ios_color)
     .map(|color| {

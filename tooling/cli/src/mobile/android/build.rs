@@ -86,6 +86,8 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   delete_codegen_vars();
 
   let mut build_options: BuildOptions = options.clone().into();

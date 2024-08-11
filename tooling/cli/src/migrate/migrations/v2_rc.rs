@@ -24,7 +24,7 @@ pub fn run() -> Result<()> {
   let (mut manifest, _) = read_manifest(&manifest_path)?;
   migrate_manifest(&mut manifest)?;
 
-  migrate_permissions(&tauri_dir)?;
+  migrate_permissions(tauri_dir)?;
 
   migrate_npm_dependencies(app_dir)?;
 

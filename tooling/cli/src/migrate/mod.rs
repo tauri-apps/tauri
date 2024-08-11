@@ -18,6 +18,8 @@ use anyhow::Context;
 mod migrations;
 
 pub fn command() -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let tauri_dir = tauri_dir();
 
   let manifest_contents =
@@ -36,7 +38,7 @@ pub fn command() -> Result<()> {
     None
   };
 
-  let tauri_version = crate_version(&tauri_dir, Some(&manifest), lock.as_ref(), "tauri").version;
+  let tauri_version = crate_version(tauri_dir, Some(&manifest), lock.as_ref(), "tauri").version;
   let tauri_version = semver::Version::from_str(&tauri_version)?;
 
   if tauri_version.major == 1 {

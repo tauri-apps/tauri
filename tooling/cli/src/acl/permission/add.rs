@@ -7,7 +7,7 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
-  helpers::{app_paths::tauri_dir_opt, prompts},
+  helpers::{app_paths::resolve_tauri_dir, prompts},
   Result,
 };
 
@@ -87,7 +87,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let dir = match tauri_dir_opt() {
+  let dir = match resolve_tauri_dir() {
     Some(t) => t,
     None => std::env::current_dir()?,
   };

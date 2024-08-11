@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-rc.3]
+
+### Enhancements
+
+- [`5f56cb0a8`](https://www.github.com/tauri-apps/tauri/commit/5f56cb0a8b9c6f695bc6439a8db997c98b3a3997) ([#10507](https://www.github.com/tauri-apps/tauri/pull/10507) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Update gradle to 8.9 and the gradle android plugin to 8.5.1 in the android templates (requires latest Android Studio). This should add support for Java 21 but Java 17 keeps being the recommended version.
+
+### Bug Fixes
+
+- [`f5dfc0280`](https://www.github.com/tauri-apps/tauri/commit/f5dfc02800dbd3bdee671b032454c49ac7102fb4) ([#10533](https://www.github.com/tauri-apps/tauri/pull/10533) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue causing `tauri ios init` to fail if `iOS.minimumSystemVersion` was not configured explicitly.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.3`
+
 ## \[2.0.0-rc.2]
 
 ### New Features

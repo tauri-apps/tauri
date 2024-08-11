@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.2]
+
+### Bug Fixes
+
+- [`f5dfc0280`](https://www.github.com/tauri-apps/tauri/commit/f5dfc02800dbd3bdee671b032454c49ac7102fb4) ([#10533](https://www.github.com/tauri-apps/tauri/pull/10533) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue causing `tauri ios init` to fail if `iOS.minimumSystemVersion` was not configured explicitly.
+
 ## \[2.0.0-rc.1]
 
 ### New Features

@@ -1889,7 +1889,7 @@ pub struct TrayIconConfig {
 
 /// General configuration for the iOS target.
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
@@ -1913,6 +1913,17 @@ pub struct IosConfig {
     default = "ios_minimum_system_version"
   )]
   pub minimum_system_version: String,
+}
+
+impl Default for IosConfig {
+  fn default() -> Self {
+    Self {
+      template: None,
+      frameworks: None,
+      development_team: None,
+      minimum_system_version: ios_minimum_system_version(),
+    }
+  }
 }
 
 /// General configuration for the iOS target.

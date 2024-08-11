@@ -14,12 +14,29 @@ pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) ->
 
   // we need to run in a separate thread so Node.js consumers
   // can do work while `tauri dev` is running.
-  std::thread::spawn(move || match tauri_cli::try_run(args, bin_name) {
-    Ok(_) => function.call(Ok(true), ThreadsafeFunctionCallMode::Blocking),
-    Err(e) => function.call(
-      Err(Error::new(Status::GenericFailure, format!("{:#}", e))),
-      ThreadsafeFunctionCallMode::Blocking,
-    ),
+  std::thread::spawn(move || {
+    let res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+      tauri_cli::try_run(args, bin_name)
+    })) {
+      Ok(t) => t,
+      Err(e) => {
+        return function.call(
+          Err(Error::new(
+            Status::GenericFailure,
+            "Tauri CLI unexpected panic",
+          )),
+          ThreadsafeFunctionCallMode::Blocking,
+        );
+      }
+    };
+
+    match res {
+      Ok(_) => function.call(Ok(true), ThreadsafeFunctionCallMode::Blocking),
+      Err(e) => function.call(
+        Err(Error::new(Status::GenericFailure, format!("{:#}", e))),
+        ThreadsafeFunctionCallMode::Blocking,
+      ),
+    }
   });
 
   Ok(())

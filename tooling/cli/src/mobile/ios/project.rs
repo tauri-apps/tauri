@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::template, Result};
+use crate::{
+  helpers::{config::Config as TauriConfig, template},
+  Result,
+};
 use anyhow::Context;
 use cargo_mobile2::{
   apple::{
@@ -27,6 +30,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile
 // unprefixed app_root seems pretty dangerous!!
 // TODO: figure out what cargo-mobile meant by that
 pub fn gen(
+  tauri_config: &TauriConfig,
   config: &Config,
   metadata: &Metadata,
   (handlebars, mut map): (Handlebars, template::JsonMap),
@@ -163,6 +167,15 @@ pub fn gen(
     },
   )
   .with_context(|| "failed to process template")?;
+
+  if let Some(template_path) = tauri_config.bundle.ios.template.as_ref() {
+    let template = std::fs::read_to_string(template_path)
+      .context("failed to read custom Xcode project template")?;
+    let mut output_file = std::fs::File::create(dest.join("project.yml"))?;
+    handlebars
+      .render_template_to_write(&template, map.inner(), &mut output_file)
+      .expect("Failed to render template");
+  }
 
   let mut dirs_to_create = asset_catalogs.to_vec();
   dirs_to_create.push(dest.join(DEFAULT_ASSET_DIR));

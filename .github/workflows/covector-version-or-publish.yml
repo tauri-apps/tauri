@@ -56,7 +56,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 65
     permissions:
-      contents: write # required for workflow_dispatch
+      actions: write # required for workflow_dispatch
+      contents: write # required to create new releases
+      pull-requests: write # required to open version update pr
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}

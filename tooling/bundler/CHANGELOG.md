@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.1-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+
+## \[2.0.1-rc.0]
+
+### Bug Fixes
+
+- [`a440a3f9d`](https://www.github.com/tauri-apps/tauri/commit/a440a3f9d85376d994f2ba904b1ae0828c5a0fbb) ([#10498](https://www.github.com/tauri-apps/tauri/pull/10498) by [@catalinsh](https://www.github.com/tauri-apps/tauri/../../catalinsh)) Correct nsis pre-uninstall hook to post-uninstall
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
 ## \[2.0.0-rc.0]
 
 ### Dependencies

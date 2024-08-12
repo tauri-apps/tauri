@@ -37,6 +37,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let profile = if options.release {
     Profile::Release
   } else {

@@ -75,12 +75,15 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Android,
-      options.ci,
-      false,
-      options.skip_targets_install,
-    )?,
+    Commands::Init(options) => {
+      crate::helpers::app_paths::resolve();
+      init_command(
+        MobileTarget::Android,
+        options.ci,
+        false,
+        options.skip_targets_install,
+      )?
+    }
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,

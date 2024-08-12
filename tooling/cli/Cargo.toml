@@ -40,10 +40,10 @@ path = "src/main.rs"
 
 [dependencies]
 cargo-mobile2 = { version = "0.13.1", default-features = false }
-jsonrpsee = { version = "0.22", features = [ "server" ] }
-jsonrpsee-core = "0.22"
-jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
-jsonrpsee-ws-client = { version = "0.22", default-features = false }
+jsonrpsee = { version = "0.24", features = [ "server" ] }
+jsonrpsee-core = "0.24"
+jsonrpsee-client-transport = { version = "0.24", features = [ "ws" ] }
+jsonrpsee-ws-client = { version = "0.24", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = [ "derive", "env" ] }
@@ -61,7 +61,7 @@ json-patch = "2.0"
 tauri-utils = { version = "2.0.0-rc.2", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
-jsonschema = "0.17"
+jsonschema = "0.18"
 handlebars = "6.0"
 include_dir = "0.7"
 minisign = "=0.7.3"
@@ -79,23 +79,23 @@ ctrlc = "3.4"
 log = { version = "0.4.21", features = [ "kv", "kv_std" ] }
 env_logger = "0.11.3"
 icns = { package = "tauri-icns", version = "0.1" }
-image = { version = "0.24", default-features = false, features = [ "ico" ] }
+image = { version = "0.25", default-features = false, features = [ "ico" ] }
 axum = { version = "0.7.4", features = [ "ws" ] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = [ "macros", "sync" ] }
 common-path = "1"
 serde-value = "0.7.0"
-itertools = "0.12"
+itertools = "0.13"
 local-ip-address = "0.6"
 css-color = "0.2"
 resvg = "0.42.0"
 dunce = "1"
 glob = "0.3"
-oxc_parser = "0.16"
-oxc_span = "0.16"
-oxc_allocator = "0.16"
-oxc_ast = "0.16"
+oxc_parser = "0.20"
+oxc_span = "0.20"
+oxc_allocator = "0.20"
+oxc_ast = "0.20"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"

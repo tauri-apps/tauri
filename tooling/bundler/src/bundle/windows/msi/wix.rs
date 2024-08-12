@@ -178,7 +178,8 @@ fn app_installer_output_path(
   language: &str,
   updater: bool,
 ) -> crate::Result<PathBuf> {
-  let msi_name = crate::bundle::bundle_name_with_suffix(settings, language, "msi");
+  let msi_name =
+    crate::bundle::bundle_name_with_suffix(settings, language.replace('-', "_"), "msi");
 
   Ok(settings.project_out_directory().to_path_buf().join(format!(
     "bundle/{}/{msi_name}",

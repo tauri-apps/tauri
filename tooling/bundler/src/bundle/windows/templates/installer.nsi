@@ -777,7 +777,7 @@ Section Uninstall
   ${EndIf}
 
   !ifmacrodef NSIS_HOOK_POSTUNINSTALL
-    !insertmacro NSIS_HOOK_PREUNINSTALL
+    !insertmacro NSIS_HOOK_POSTUNINSTALL
   !endif
 
   ; Auto close if passive mode

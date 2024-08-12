@@ -22,7 +22,7 @@ use std::{
   collections::BTreeSet,
   ffi::OsStr,
   fs::{self, File},
-  io::Write,
+  io::{BufReader, Write},
   path::{Path, PathBuf},
 };
 
@@ -61,7 +61,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, &app_bundle_path.join(bin.name()))
+    common::copy_file(&bin_path, app_bundle_path.join(bin.name()))
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
   }
 
@@ -90,7 +90,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
       if icon_path.extension() != Some(OsStr::new("png")) {
         continue;
       }
-      let decoder = PngDecoder::new(File::open(&icon_path)?)?;
+      let decoder = PngDecoder::new(BufReader::new(File::open(&icon_path)?))?;
       let width = decoder.dimensions().0;
       let height = decoder.dimensions().1;
       let is_retina = common::is_retina(&icon_path);
@@ -127,7 +127,7 @@ fn generate_icon_files(bundle_dir: &Path, settings: &Settings) -> crate::Result<
           let dest_path = get_dest_path(width, height, is_retina);
           icon.write_to(
             &mut common::create_file(&dest_path)?,
-            image::ImageOutputFormat::Png,
+            image::ImageFormat::Png,
           )?;
         }
       }

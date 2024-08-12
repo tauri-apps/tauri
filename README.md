@@ -35,7 +35,7 @@ The list of Tauri's features includes, but is not limited to:
 - Built-in self updater (desktop only)
 - System tray icons
 - Native notifications
-- Localhost free (🔥)
+- [Localhost free (🔥)](https://github.com/tauri-apps/tauri/issues/10510)
 - GitHub action for streamlined CI
 - VS Code extension
 
@@ -61,7 +61,7 @@ Thank you to everyone contributing to Tauri!
 
 ### Documentation
 
-Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: https://github.com/tauri-apps/tauri-docs
+Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: <https://github.com/tauri-apps/tauri-docs>
 
 ## Partners
 

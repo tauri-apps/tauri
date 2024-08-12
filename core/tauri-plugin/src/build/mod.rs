@@ -13,6 +13,8 @@ use serde::de::DeserializeOwned;
 
 use std::{env::var, io::Cursor};
 
+const RESERVED_PLUGIN_NAMES: &[&str] = &["core", "tauri"];
+
 pub fn plugin_config<T: DeserializeOwned>(name: &str) -> Option<T> {
   let config_env_var_name = format!(
     "TAURI_{}_PLUGIN_CONFIG",
@@ -92,6 +94,9 @@ impl<'a> Builder<'a> {
     let name = build_var("CARGO_PKG_NAME")?;
     if name.contains('_') {
       anyhow::bail!("plugin names cannot contain underscores");
+    }
+    if RESERVED_PLUGIN_NAMES.contains(&name.as_str()) {
+      anyhow::bail!("plugin name `{name}` is reserved");
     }
 
     let out_dir = PathBuf::from(build_var("OUT_DIR")?);

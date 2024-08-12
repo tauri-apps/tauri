@@ -16,7 +16,7 @@ Default permissions for the plugin.
 <tr>
 <td>
 
-`resources:allow-close`
+`core:resources:allow-close`
 
 </td>
 <td>
@@ -29,7 +29,7 @@ Enables the close command without any pre-configured scope.
 <tr>
 <td>
 
-`resources:deny-close`
+`core:resources:deny-close`
 
 </td>
 <td>

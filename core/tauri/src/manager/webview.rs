@@ -336,6 +336,7 @@ impl<R: Runtime> WebviewManager<R> {
         schema,
         assets.clone(),
         *crypto_keys.aes_gcm().raw(),
+        window_origin,
       );
       pending.register_uri_scheme_protocol(schema, move |request, responder| {
         protocol(request, UriSchemeResponder(responder))

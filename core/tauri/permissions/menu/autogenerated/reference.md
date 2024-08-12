@@ -37,7 +37,7 @@ Default permissions for the plugin.
 <tr>
 <td>
 
-`menu:allow-append`
+`core:menu:allow-append`
 
 </td>
 <td>
@@ -50,7 +50,7 @@ Enables the append command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-append`
+`core:menu:deny-append`
 
 </td>
 <td>
@@ -63,7 +63,7 @@ Denies the append command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-create-default`
+`core:menu:allow-create-default`
 
 </td>
 <td>
@@ -76,7 +76,7 @@ Enables the create_default command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-create-default`
+`core:menu:deny-create-default`
 
 </td>
 <td>
@@ -89,7 +89,7 @@ Denies the create_default command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-get`
+`core:menu:allow-get`
 
 </td>
 <td>
@@ -102,7 +102,7 @@ Enables the get command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-get`
+`core:menu:deny-get`
 
 </td>
 <td>
@@ -115,7 +115,7 @@ Denies the get command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-insert`
+`core:menu:allow-insert`
 
 </td>
 <td>
@@ -128,7 +128,7 @@ Enables the insert command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-insert`
+`core:menu:deny-insert`
 
 </td>
 <td>
@@ -141,7 +141,7 @@ Denies the insert command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-is-checked`
+`core:menu:allow-is-checked`
 
 </td>
 <td>
@@ -154,7 +154,7 @@ Enables the is_checked command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-is-checked`
+`core:menu:deny-is-checked`
 
 </td>
 <td>
@@ -167,7 +167,7 @@ Denies the is_checked command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-is-enabled`
+`core:menu:allow-is-enabled`
 
 </td>
 <td>
@@ -180,7 +180,7 @@ Enables the is_enabled command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-is-enabled`
+`core:menu:deny-is-enabled`
 
 </td>
 <td>
@@ -193,7 +193,7 @@ Denies the is_enabled command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-items`
+`core:menu:allow-items`
 
 </td>
 <td>
@@ -206,7 +206,7 @@ Enables the items command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-items`
+`core:menu:deny-items`
 
 </td>
 <td>
@@ -219,7 +219,7 @@ Denies the items command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-new`
+`core:menu:allow-new`
 
 </td>
 <td>
@@ -232,7 +232,7 @@ Enables the new command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-new`
+`core:menu:deny-new`
 
 </td>
 <td>
@@ -245,7 +245,7 @@ Denies the new command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-popup`
+`core:menu:allow-popup`
 
 </td>
 <td>
@@ -258,7 +258,7 @@ Enables the popup command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-popup`
+`core:menu:deny-popup`
 
 </td>
 <td>
@@ -271,7 +271,7 @@ Denies the popup command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-prepend`
+`core:menu:allow-prepend`
 
 </td>
 <td>
@@ -284,7 +284,7 @@ Enables the prepend command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-prepend`
+`core:menu:deny-prepend`
 
 </td>
 <td>
@@ -297,7 +297,7 @@ Denies the prepend command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-remove`
+`core:menu:allow-remove`
 
 </td>
 <td>
@@ -310,7 +310,7 @@ Enables the remove command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-remove`
+`core:menu:deny-remove`
 
 </td>
 <td>
@@ -323,7 +323,7 @@ Denies the remove command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-remove-at`
+`core:menu:allow-remove-at`
 
 </td>
 <td>
@@ -336,7 +336,7 @@ Enables the remove_at command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-remove-at`
+`core:menu:deny-remove-at`
 
 </td>
 <td>
@@ -349,7 +349,7 @@ Denies the remove_at command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-accelerator`
+`core:menu:allow-set-accelerator`
 
 </td>
 <td>
@@ -362,7 +362,7 @@ Enables the set_accelerator command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-accelerator`
+`core:menu:deny-set-accelerator`
 
 </td>
 <td>
@@ -375,7 +375,7 @@ Denies the set_accelerator command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-as-app-menu`
+`core:menu:allow-set-as-app-menu`
 
 </td>
 <td>
@@ -388,7 +388,7 @@ Enables the set_as_app_menu command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-as-app-menu`
+`core:menu:deny-set-as-app-menu`
 
 </td>
 <td>
@@ -401,7 +401,7 @@ Denies the set_as_app_menu command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-as-help-menu-for-nsapp`
+`core:menu:allow-set-as-help-menu-for-nsapp`
 
 </td>
 <td>
@@ -414,7 +414,7 @@ Enables the set_as_help_menu_for_nsapp command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-as-help-menu-for-nsapp`
+`core:menu:deny-set-as-help-menu-for-nsapp`
 
 </td>
 <td>
@@ -427,7 +427,7 @@ Denies the set_as_help_menu_for_nsapp command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-as-window-menu`
+`core:menu:allow-set-as-window-menu`
 
 </td>
 <td>
@@ -440,7 +440,7 @@ Enables the set_as_window_menu command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-as-window-menu`
+`core:menu:deny-set-as-window-menu`
 
 </td>
 <td>
@@ -453,7 +453,7 @@ Denies the set_as_window_menu command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-as-windows-menu-for-nsapp`
+`core:menu:allow-set-as-windows-menu-for-nsapp`
 
 </td>
 <td>
@@ -466,7 +466,7 @@ Enables the set_as_windows_menu_for_nsapp command without any pre-configured sco
 <tr>
 <td>
 
-`menu:deny-set-as-windows-menu-for-nsapp`
+`core:menu:deny-set-as-windows-menu-for-nsapp`
 
 </td>
 <td>
@@ -479,7 +479,7 @@ Denies the set_as_windows_menu_for_nsapp command without any pre-configured scop
 <tr>
 <td>
 
-`menu:allow-set-checked`
+`core:menu:allow-set-checked`
 
 </td>
 <td>
@@ -492,7 +492,7 @@ Enables the set_checked command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-checked`
+`core:menu:deny-set-checked`
 
 </td>
 <td>
@@ -505,7 +505,7 @@ Denies the set_checked command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-enabled`
+`core:menu:allow-set-enabled`
 
 </td>
 <td>
@@ -518,7 +518,7 @@ Enables the set_enabled command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-enabled`
+`core:menu:deny-set-enabled`
 
 </td>
 <td>
@@ -531,7 +531,7 @@ Denies the set_enabled command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-icon`
+`core:menu:allow-set-icon`
 
 </td>
 <td>
@@ -544,7 +544,7 @@ Enables the set_icon command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-icon`
+`core:menu:deny-set-icon`
 
 </td>
 <td>
@@ -557,7 +557,7 @@ Denies the set_icon command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-set-text`
+`core:menu:allow-set-text`
 
 </td>
 <td>
@@ -570,7 +570,7 @@ Enables the set_text command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-set-text`
+`core:menu:deny-set-text`
 
 </td>
 <td>
@@ -583,7 +583,7 @@ Denies the set_text command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:allow-text`
+`core:menu:allow-text`
 
 </td>
 <td>
@@ -596,7 +596,7 @@ Enables the text command without any pre-configured scope.
 <tr>
 <td>
 
-`menu:deny-text`
+`core:menu:deny-text`
 
 </td>
 <td>

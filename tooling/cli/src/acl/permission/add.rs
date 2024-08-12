@@ -7,7 +7,7 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
-  helpers::{app_paths::tauri_dir_opt, prompts},
+  helpers::{app_paths::resolve_tauri_dir, prompts},
   Result,
 };
 
@@ -87,7 +87,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let dir = match tauri_dir_opt() {
+  let dir = match resolve_tauri_dir() {
     Some(t) => t,
     None => std::env::current_dir()?,
   };
@@ -142,7 +142,7 @@ pub fn command(options: Options) -> Result<()> {
 
   for (capability, path) in &mut capabilities {
     capability.insert_permission(options.identifier.clone());
-    std::fs::write(&path, capability.to_string()?)?;
+    std::fs::write(&*path, capability.to_string()?)?;
     log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
   }
 

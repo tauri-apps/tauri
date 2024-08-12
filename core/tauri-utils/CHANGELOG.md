@@ -1,5 +1,42 @@
 # Changelog
 
+## \[2.0.0-rc.2]
+
+### Bug Fixes
+
+- [`f5dfc0280`](https://www.github.com/tauri-apps/tauri/commit/f5dfc02800dbd3bdee671b032454c49ac7102fb4) ([#10533](https://www.github.com/tauri-apps/tauri/pull/10533) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue causing `tauri ios init` to fail if `iOS.minimumSystemVersion` was not configured explicitly.
+
+## \[2.0.0-rc.1]
+
+### New Features
+
+- [`8dc81b6cc`](https://www.github.com/tauri-apps/tauri/commit/8dc81b6cc2b8235b11f74a971d6aa3a5df5e9f68) ([#10496](https://www.github.com/tauri-apps/tauri/pull/10496) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > template` configuration option for custom Xcode project YML Handlebars template using XcodeGen.
+- [`02c00abc6`](https://www.github.com/tauri-apps/tauri/commit/02c00abc63cf86e9bf9179cbb143d5145a9397b6) ([#10495](https://www.github.com/tauri-apps/tauri/pull/10495) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > minimumSystemVersion` configuration option.
+
+### Bug Fixes
+
+- [`7e810cb2a`](https://www.github.com/tauri-apps/tauri/commit/7e810cb2a3fd934017ae973e737864dfa4bdf64e) ([#10485](https://www.github.com/tauri-apps/tauri/pull/10485) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) Fixed an issue where permission files will be generated with ':' in the file path.
+
+## \[2.0.0-rc.0]
+
+### New Features
+
+- [`a5bfbaa62`](https://www.github.com/tauri-apps/tauri/commit/a5bfbaa62b8cd0aacbb33f730d4e30b43c461fe1)([#9962](https://www.github.com/tauri-apps/tauri/pull/9962)) Added `bundle > iOS > frameworks` configuration to define a list of frameworks that are linked to the Xcode project when it is generated.
+
+### Enhancements
+
+- [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.
+
+### Bug Fixes
+
+- [`498f405ca`](https://www.github.com/tauri-apps/tauri/commit/498f405ca80440447823dd3c9cd53c0f79d655b5) ([#10404](https://www.github.com/tauri-apps/tauri/pull/10404)) Fixed an issue where configuration parsing errors always displayed 'tauri.conf.json' as the file path, even when using 'Tauri.toml' or 'tauri.conf.json5'.
+
+  The error messages now correctly shows the actual config file being used.
+
+### Security fixes
+
+- [`426d14bb4`](https://www.github.com/tauri-apps/tauri/commit/426d14bb4164290d93b5a0f61e925cb2dfc4aafa) ([#10423](https://www.github.com/tauri-apps/tauri/pull/10423)) Explicitly check that the main frame's origin is the sender of Isolation Payloads
+
 ## \[2.0.0-beta.19]
 
 ### New Features

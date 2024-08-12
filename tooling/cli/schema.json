@@ -34,6 +34,7 @@
     "app": {
       "description": "The App configuration.",
       "default": {
+        "enableGTKAppId": false,
         "macOSPrivateApi": false,
         "security": {
           "assetProtocol": {
@@ -73,7 +74,9 @@
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
-        "iOS": {},
+        "iOS": {
+          "minimumSystemVersion": "13.0"
+        },
         "icon": [],
         "linux": {
           "appimage": {
@@ -193,6 +196,11 @@
         },
         "withGlobalTauri": {
           "description": "Whether we should inject the Tauri API on `window.__TAURI__` or not.",
+          "default": false,
+          "type": "boolean"
+        },
+        "enableGTKAppId": {
+          "description": "If set to true \"identifier\" will be set as GTK app ID (on systems that use GTK).",
           "default": false,
           "type": "boolean"
         }
@@ -419,7 +427,7 @@
           ]
         },
         "shadow": {
-          "description": "Whether or not the window has shadow.\n\n ## Platform-specific\n\n - **Windows:**\n   - `false` has no effect on decorated window, shadow are always ON.\n   - `true` will make ndecorated window have a 1px white border,\n and on Windows 11, it will have a rounded corners.\n - **Linux:** Unsupported.",
+          "description": "Whether or not the window has shadow.\n\n ## Platform-specific\n\n - **Windows:**\n   - `false` has no effect on decorated window, shadow are always ON.\n   - `true` will make undecorated window have a 1px white border,\n and on Windows 11, it will have a rounded corners.\n - **Linux:** Unsupported.",
           "default": true,
           "type": "boolean"
         },
@@ -1076,7 +1084,7 @@
       ]
     },
     "Capability": {
-      "description": "A grouping and boundary mechanism developers can use to isolate access to the IPC layer.\n\n It controls application windows fine grained access to the Tauri core, application, or plugin commands.\n If a window is not matching any capability then it has no access to the IPC layer at all.\n\n This can be done to create groups of windows, based on their required system access, which can reduce\n impact of frontend vulnerabilities in less privileged windows.\n Windows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`.\n A Window can have none, one, or multiple associated capabilities.\n\n ## Example\n\n ```json\n {\n   \"identifier\": \"main-user-files-write\",\n   \"description\": \"This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programatic access to files selected by the user.\",\n   \"windows\": [\n     \"main\"\n   ],\n  \"permissions\": [\n   \"path:default\",\n   \"dialog:open\",\n   {\n     \"identifier\": \"fs:allow-write-text-file\",\n     \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n   },\n  \"platforms\": [\"macOS\",\"windows\"]\n }\n ```",
+      "description": "A grouping and boundary mechanism developers can use to isolate access to the IPC layer.\n\n It controls application windows fine grained access to the Tauri core, application, or plugin commands.\n If a window is not matching any capability then it has no access to the IPC layer at all.\n\n This can be done to create groups of windows, based on their required system access, which can reduce\n impact of frontend vulnerabilities in less privileged windows.\n Windows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`.\n A Window can have none, one, or multiple associated capabilities.\n\n ## Example\n\n ```json\n {\n   \"identifier\": \"main-user-files-write\",\n   \"description\": \"This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programatic access to files selected by the user.\",\n   \"windows\": [\n     \"main\"\n   ],\n  \"permissions\": [\n   \"core:default\",\n   \"dialog:open\",\n   {\n     \"identifier\": \"fs:allow-write-text-file\",\n     \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n   },\n  \"platforms\": [\"macOS\",\"windows\"]\n }\n ```",
       "type": "object",
       "required": [
         "identifier",
@@ -1123,7 +1131,7 @@
           }
         },
         "permissions": {
-          "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n\n ## Example\n\n ```json\n [\n  \"path:default\",\n  \"event:default\",\n  \"window:default\",\n  \"app:default\",\n  \"image:default\",\n  \"resources:default\",\n  \"menu:default\",\n  \"tray:default\",\n  \"shell:allow-open\",\n  \"dialog:open\",\n  {\n    \"identifier\": \"fs:allow-write-text-file\",\n    \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n  }\n ```",
+          "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n\n ## Example\n\n ```json\n [\n  \"core:default\",\n  \"shell:allow-open\",\n  \"dialog:open\",\n  {\n    \"identifier\": \"fs:allow-write-text-file\",\n    \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n  }\n ```",
           "type": "array",
           "items": {
             "$ref": "#/definitions/PermissionEntry"
@@ -1706,7 +1714,9 @@
         },
         "iOS": {
           "description": "iOS configuration.",
-          "default": {},
+          "default": {
+            "minimumSystemVersion": "13.0"
+          },
           "allOf": [
             {
               "$ref": "#/definitions/IosConfig"
@@ -2545,7 +2555,7 @@
           ]
         },
         "changelog": {
-          "description": "Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See\n https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes",
+          "description": "Path of the uncompressed Changelog file, to be stored at /usr/share/doc/package-name/changelog.gz. See\n <https://www.debian.org/doc/debian-policy/ch-docs.html#changelog-files-and-release-notes>",
           "type": [
             "string",
             "null"
@@ -2559,28 +2569,28 @@
           ]
         },
         "preInstallScript": {
-          "description": "Path to script that will be executed before the package is unpacked. See\n https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "description": "Path to script that will be executed before the package is unpacked. See\n <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>",
           "type": [
             "string",
             "null"
           ]
         },
         "postInstallScript": {
-          "description": "Path to script that will be executed after the package is unpacked. See\n https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "description": "Path to script that will be executed after the package is unpacked. See\n <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>",
           "type": [
             "string",
             "null"
           ]
         },
         "preRemoveScript": {
-          "description": "Path to script that will be executed before the package is removed. See\n https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "description": "Path to script that will be executed before the package is removed. See\n <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>",
           "type": [
             "string",
             "null"
           ]
         },
         "postRemoveScript": {
-          "description": "Path to script that will be executed after the package is removed. See\n https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html",
+          "description": "Path to script that will be executed after the package is removed. See\n <https://www.debian.org/doc/debian-policy/ch-maintainerscripts.html>",
           "type": [
             "string",
             "null"
@@ -2661,28 +2671,28 @@
           ]
         },
         "preInstallScript": {
-          "description": "Path to script that will be executed before the package is unpacked. See\n http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "description": "Path to script that will be executed before the package is unpacked. See\n <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>",
           "type": [
             "string",
             "null"
           ]
         },
         "postInstallScript": {
-          "description": "Path to script that will be executed after the package is unpacked. See\n http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "description": "Path to script that will be executed after the package is unpacked. See\n <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>",
           "type": [
             "string",
             "null"
           ]
         },
         "preRemoveScript": {
-          "description": "Path to script that will be executed before the package is removed. See\n http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "description": "Path to script that will be executed before the package is removed. See\n <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>",
           "type": [
             "string",
             "null"
           ]
         },
         "postRemoveScript": {
-          "description": "Path to script that will be executed after the package is removed. See\n http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html",
+          "description": "Path to script that will be executed after the package is removed. See\n <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>",
           "type": [
             "string",
             "null"
@@ -2890,12 +2900,34 @@
       "description": "General configuration for the iOS target.",
       "type": "object",
       "properties": {
+        "template": {
+          "description": "A custom [XcodeGen] project.yml template to use.\n\n [XcodeGen]: <https://github.com/yonaskolb/XcodeGen>",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "frameworks": {
+          "description": "A list of strings indicating any iOS frameworks that need to be bundled with the application.\n\n Note that you need to recreate the iOS project for the changes to be applied.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "developmentTeam": {
           "description": "The development team. This value is required for iOS development because code signing is enforced.\n The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "minimumSystemVersion": {
+          "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
+          "default": "13.0",
+          "type": "string"
         }
       },
       "additionalProperties": false

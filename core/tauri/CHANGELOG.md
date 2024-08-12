@@ -1,5 +1,80 @@
 # Changelog
 
+## \[2.0.0-rc.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+- Upgraded to `tauri-runtime@2.0.0-rc.2`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.2`
+- Upgraded to `tauri-macros@2.0.0-rc.2`
+- Upgraded to `tauri-build@2.0.0-rc.2`
+
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+- Upgraded to `tauri-runtime@2.0.0-rc.1`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.1`
+- Upgraded to `tauri-macros@2.0.0-rc.1`
+- Upgraded to `tauri-build@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Bug Fixes
+
+- [`6755af230`](https://www.github.com/tauri-apps/tauri/commit/6755af23021a254cff98c07aa7711545771097a6)([#10435](https://www.github.com/tauri-apps/tauri/pull/10435)) Fix Specta remote implementation target for `Channel`.
+- [`24445d71d`](https://www.github.com/tauri-apps/tauri/commit/24445d71de92d526d0ccaecb54f13003ddc6f6b4)([#10432](https://www.github.com/tauri-apps/tauri/pull/10432)) Fixes asset resolving when not using the `compression` feature.
+
+### Enhancements
+
+- [`1e0793b68`](https://www.github.com/tauri-apps/tauri/commit/1e0793b6821799829e380c88066b3415cc9006df) ([#10357](https://www.github.com/tauri-apps/tauri/pull/10357)) Enhance `AssetResolver::get` in development mode by reading distDir directly as a fallback to the embedded assets.
+- [`7aeac39e7`](https://www.github.com/tauri-apps/tauri/commit/7aeac39e7fb97dc57ca278f1c097058275c20aa2) ([#10397](https://www.github.com/tauri-apps/tauri/pull/10397)) Make the set of gtk application id optional, to allow more then one instance of the app running at the same time.
+- [`cf994a6bb`](https://www.github.com/tauri-apps/tauri/commit/cf994a6bb064a50d3e5aef67e9a25903ee17a1e2) ([#10405](https://www.github.com/tauri-apps/tauri/pull/10405)) Add `tauri::plugin::Builder::try_build` to allow plugins to check if their `TauriPlugin` initialization is valid.
+
+### Security fixes
+
+- [`426d14bb4`](https://www.github.com/tauri-apps/tauri/commit/426d14bb4164290d93b5a0f61e925cb2dfc4aafa) ([#10423](https://www.github.com/tauri-apps/tauri/pull/10423)) Explicitly check that the main frame's origin is the sender of Isolation Payloads
+- [`289ae5555`](https://www.github.com/tauri-apps/tauri/commit/289ae5555da3802741018015bfe4927729a2eb33) ([#10386](https://www.github.com/tauri-apps/tauri/pull/10386)) Re-enable TLS checks that were previously disabled to support an insecure HTTPS custom protocol on Android which is no longer used.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+- Upgraded to `tauri-macros@2.0.0-rc.0`
+- Upgraded to `tauri-build@2.0.0-rc.0`
+- Upgraded to `tauri-runtime@2.0.0-rc.0`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.0`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+
+## \[2.0.0-beta.25]
+
+### New Features
+
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add APIs to enable setting window size constraints separately:
+
+  - Added `WindowBuilder::inner_size_constraints` and `WebviewWindowBuilder::inner_size_constraints` which can be used for setting granular constraints.
+  - Added `WindowSizeConstraints` struct
+  - Added `Window::set_size_constraints` and `WebviewWindow::set_size_constraints`
+
+### Bug Fixes
+
+- [`e1776946a`](https://www.github.com/tauri-apps/tauri/commit/e1776946ad034d7a6e005834a754773671d9f7ef) ([#10362](https://www.github.com/tauri-apps/tauri/pull/10362) by [@Brendonovich](https://www.github.com/tauri-apps/tauri/../../Brendonovich)) Use ` specta rc.15's  `derive\` feature which fixes build issues in docs.rs.
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Apply `minWidth`, `minHieght`, `maxWidth` and `maxHeight` constraints separately, which fixes a long standing bug where these constraints were never applied unless width and height were constrained together.
+
+### What's Changed
+
+- [`9546548ec`](https://www.github.com/tauri-apps/tauri/commit/9546548ec0c83ba620b1bc9d1d424a7009d0b423) ([#10297](https://www.github.com/tauri-apps/tauri/pull/10297) by [@pewsheen](https://www.github.com/tauri-apps/tauri/../../pewsheen)) On macOS, set default titlebar style to `Visible` to prevent webview move out of the view.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-beta.21`
+- Upgraded to `tauri-runtime@2.0.0-beta.21`
+
 ## \[2.0.0-beta.24]
 
 ### New Features

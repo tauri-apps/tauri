@@ -84,7 +84,7 @@ pub enum DownloadEvent<'a> {
     /// ## Platform-specific:
     ///
     /// - **macOS**: The second parameter indicating the path the file was saved to is always empty, due to API
-    /// limitations.
+    ///   limitations.
     path: Option<PathBuf>,
     /// Indicates if the download succeeded or not.
     success: bool,
@@ -111,7 +111,14 @@ impl<'a> PageLoadPayload<'a> {
 }
 
 /// The IPC invoke request.
+///
+/// # Stability
+///
+/// This struct is **NOT** part of the public stable API and is only meant to be used
+/// by internal code and external testing/fuzzing tools. If not used with feature `unstable`, this
+/// struct is marked `#[non_exhaustive]` and is non-constructable externally.
 #[derive(Debug)]
+#[cfg_attr(not(feature = "unstable"), non_exhaustive)]
 pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,
@@ -785,7 +792,7 @@ fn main() {
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
   /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
-  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///   20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
   #[must_use]
@@ -1028,8 +1035,8 @@ fn main() {
       main_webview.with_webview(|webview| {
         #[cfg(target_os = "linux")]
         {
-          // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
-          // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+          // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
+          // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
           use webkit2gtk::WebViewExt;
           webview.inner().set_zoom_level(4.);
         }
@@ -1367,7 +1374,7 @@ fn main() {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
@@ -1397,7 +1404,7 @@ tauri::Builder::default()
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1435,7 +1442,7 @@ tauri::Builder::default()
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples

@@ -214,19 +214,22 @@ fn migrate_imports<'a>(
               // ```
               // to:
               // ```
-              // import dialog from "@tauri-apps/plugin-dialog"
-              // import cli as superCli from "@tauri-apps/plugin-cli"
+              // import * as dialog from "@tauri-apps/plugin-dialog"
+              // import * as cli as superCli from "@tauri-apps/plugin-cli"
               // ```
               import if PLUGINIFIED_MODULES.contains(&import) && module == "@tauri-apps/api" => {
                 let js_plugin: &str = MODULES_MAP[&format!("@tauri-apps/api/{import}")];
                 let (_, plugin_name) = js_plugin.split_once("plugin-").unwrap();
+
                 new_plugins.push(plugin_name.to_string());
 
                 if specifier.local.name.as_str() != import {
                   let local = &specifier.local.name;
-                  imports_to_add.push(format!("\nimport {import} as {local} from \"{js_plugin}\""));
+                  imports_to_add.push(format!(
+                    "\nimport * as {import} as {local} from \"{js_plugin}\""
+                  ));
                 } else {
-                  imports_to_add.push(format!("\nimport {import} from \"{js_plugin}\""));
+                  imports_to_add.push(format!("\nimport * as {import} from \"{js_plugin}\""));
                 };
                 None
               }
@@ -361,8 +364,8 @@ mod tests {
   import clipboard from "@tauri-apps/plugin-clipboard-manager";
   import * as fs from "@tauri-apps/plugin-fs";
   import "./App.css";
-import dialog from "@tauri-apps/plugin-dialog"
-import cli as superCli from "@tauri-apps/plugin-cli"
+import * as dialog from "@tauri-apps/plugin-dialog"
+import * as cli as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 </script>
 
@@ -428,8 +431,8 @@ const appWindow = getCurrentWebviewWindow()
   import clipboard from "@tauri-apps/plugin-clipboard-manager";
   import * as fs from "@tauri-apps/plugin-fs";
   import "./App.css";
-import dialog from "@tauri-apps/plugin-dialog"
-import cli as superCli from "@tauri-apps/plugin-cli"
+import * as dialog from "@tauri-apps/plugin-dialog"
+import * as cli as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 </script>
 "#;
@@ -535,8 +538,8 @@ import { register } from "@tauri-apps/plugin-global-shortcut";
 import clipboard from "@tauri-apps/plugin-clipboard-manager";
 import * as fs from "@tauri-apps/plugin-fs";
 import "./App.css";
-import dialog from "@tauri-apps/plugin-dialog"
-import cli as superCli from "@tauri-apps/plugin-cli"
+import * as dialog from "@tauri-apps/plugin-dialog"
+import * as cli as superCli from "@tauri-apps/plugin-cli"
 const appWindow = getCurrentWebviewWindow()
 
 function App() {

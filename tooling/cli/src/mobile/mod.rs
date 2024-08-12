@@ -191,7 +191,7 @@ pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result
     let addr = server.local_addr()?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _| Some(options.clone()))?;
+    module.register_method("options", move |_, _, _| Some(options.clone()))?;
 
     let handle = server.start(module);
 

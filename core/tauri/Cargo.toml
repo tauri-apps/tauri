@@ -68,7 +68,7 @@ glob = "0.3"
 urlpattern = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
-serialize-to-javascript = "=0.1.2"
+serialize-to-javascript = "=0.1.1"
 image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }

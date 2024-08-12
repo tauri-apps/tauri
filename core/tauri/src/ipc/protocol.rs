@@ -174,6 +174,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
 
     use serde::{Deserialize, Deserializer};
 
+    #[derive(Default)]
     pub(crate) struct HeaderMap(http::HeaderMap);
 
     impl<'de> Deserialize<'de> for HeaderMap {
@@ -199,9 +200,13 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       }
     }
 
-    #[derive(Deserialize)]
+    #[derive(Deserialize, Default)]
+    #[serde(rename_all = "camelCase")]
     struct RequestOptions {
+      #[serde(default)]
       headers: HeaderMap,
+      #[serde(default)]
+      custom_protocol_ipc_blocked: bool,
     }
 
     #[derive(Deserialize)]
@@ -260,13 +265,15 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
 
     match message {
       Ok(message) => {
+        let options = message.options.unwrap_or_default();
+
         let request = InvokeRequest {
           cmd: message.cmd,
           callback: message.callback,
           error: message.error,
           url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
           body: message.payload.into(),
-          headers: message.options.map(|o| o.headers.0).unwrap_or_default(),
+          headers: options.headers.0,
           invoke_key: message.invoke_key,
         };
 
@@ -293,9 +300,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
             .entered();
 
             // the channel data command is the only command that uses a custom protocol on Linux
-            if webview.manager().webview.invoke_responder.is_none()
-              && cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-            {
+            if webview.manager().webview.invoke_responder.is_none() {
               fn responder_eval<R: Runtime>(
                 webview: &crate::Webview<R>,
                 js: crate::Result<String>,
@@ -309,6 +314,10 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
 
                 let _ = webview.eval(&eval_js);
               }
+
+              let can_use_channel_for_response = cmd
+                != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+                && !options.custom_protocol_ipc_blocked;
 
               #[cfg(feature = "tracing")]
               let _response_span = tracing::trace_span!(
@@ -327,6 +336,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                 InvokeResponse::Ok(InvokeBody::Json(v)) => {
                   if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
                     && matches!(v, JsonValue::Object(_) | JsonValue::Array(_))
+                    && can_use_channel_for_response
                   {
                     let _ = Channel::from_callback_fn(webview, callback).send(v);
                   } else {
@@ -338,7 +348,10 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                   }
                 }
                 InvokeResponse::Ok(InvokeBody::Raw(v)) => {
-                  if cfg!(target_os = "macos") || cfg!(target_os = "ios") {
+                  if cfg!(target_os = "macos")
+                    || cfg!(target_os = "ios")
+                    || !can_use_channel_for_response
+                  {
                     responder_eval(
                       &webview,
                       format_callback_result(Result::<_, ()>::Ok(v), callback, error),

@@ -23,12 +23,6 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the deb binary name
-  let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    other => other,
-  };
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   // generate deb_folder structure
@@ -43,20 +37,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   }
   std::fs::create_dir_all(output_path.clone())?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
-  let appimage_filename = format!(
-    "{}_{}_{}.AppImage",
-    settings.product_name(),
-    settings.version_string(),
-    arch
-  );
-  let appimage_path = output_path.join(&appimage_filename);
+  let appimage_name = crate::bundle::bundle_name(settings, "AppImage");
+  let appimage_path = output_path.join(&appimage_name);
   path_utils::create(app_dir_path, true)?;
 
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
   sh_map.insert("arch", settings.target().split('-').next().unwrap());
   sh_map.insert("crate_name", settings.main_binary_name());
-  sh_map.insert("appimage_filename", &appimage_filename);
+  sh_map.insert("appimage_filename", &appimage_name);
   let tauri_tools_path = dirs::cache_dir().map_or_else(
     || output_path.to_path_buf(),
     |mut p| {
@@ -91,7 +80,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // create the shell script file in the target/ folder.
   let sh_file = output_path.join("build_appimage.sh");
 
-  log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
+  log::info!(action = "Bundling"; "{} ({})", appimage_name, appimage_path.display());
 
   write(&sh_file, temp)?;
 

@@ -18,7 +18,7 @@
 //         usr/share/icons/hicolor/...               # Icon files (for apps)
 //         usr/lib/foobar/...                        # Other resource files
 //
-// For cargo-bundle, we put bundle resource files under /usr/lib/package_name/,
+// We put bundle resource files under /usr/lib/package_name/,
 // and then generate the desktop file and control file from the bundle
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
@@ -40,6 +40,17 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+  let deb_name = crate::bundle::bundle_name(settings, "deb");
+
+  let base_dir = settings.project_out_directory().join("bundle/deb");
+  let package_dir = base_dir.join(Path::new(&deb_name).file_stem().unwrap());
+  if package_dir.exists() {
+    fs::remove_dir_all(&package_dir).with_context(|| format!("Failed to remove old {deb_name}"))?;
+  }
+  let package_path = base_dir.join(&deb_name);
+
+  log::info!(action = "Bundling"; "{} ({})", deb_name, package_path.display());
+
   let arch = match settings.binary_arch() {
     "x86" => "i386",
     "x86_64" => "amd64",
@@ -48,23 +59,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     "aarch64" => "arm64",
     other => other,
   };
-  let package_base_name = format!(
-    "{}_{}_{}",
-    settings.product_name(),
-    settings.version_string(),
-    arch
-  );
-  let package_name = format!("{package_base_name}.deb");
-
-  let base_dir = settings.project_out_directory().join("bundle/deb");
-  let package_dir = base_dir.join(&package_base_name);
-  if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
-  }
-  let package_path = base_dir.join(&package_name);
-
-  log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;

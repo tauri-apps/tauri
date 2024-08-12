@@ -159,7 +159,7 @@ fn build_nsis_app_installer(
     }
   };
 
-  log::info!("Target: {}", arch);
+  log::info!("Target: {arch}");
 
   let output_path = settings.project_out_directory().join("nsis").join(arch);
   if output_path.exists() {
@@ -508,22 +508,17 @@ fn build_nsis_app_installer(
     handlebars.render("installer.nsi", &data)?,
   )?;
 
-  let package_base_name = format!(
-    "{}_{}_{}-setup",
-    settings.product_name(),
-    settings.version_string(),
-    arch,
-  );
+  let nsis_name = crate::bundle::bundle_name_with_suffix(settings, "setup", "exe");
 
   let nsis_output_path = output_path.join(out_file);
+
   let nsis_installer_path = settings.project_out_directory().to_path_buf().join(format!(
-    "bundle/{}/{}.exe",
+    "bundle/{}/{nsis_name}",
     if updater {
       NSIS_UPDATER_OUTPUT_FOLDER_NAME
     } else {
       NSIS_OUTPUT_FOLDER_NAME
     },
-    package_base_name
   ));
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 

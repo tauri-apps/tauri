@@ -249,3 +249,21 @@ pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
     Ok(true)
   }
 }
+
+pub(crate) fn bundle_name(settings: &Settings, ext: &str) -> String {
+  format!(
+    "{}-{}-{}.{ext}",
+    settings.product_name(),
+    settings.version_string(),
+    settings.binary_arch()
+  )
+}
+
+pub(crate) fn bundle_name_with_suffix(settings: &Settings, suffix: &str, ext: &str) -> String {
+  format!(
+    "{}-{}-{}-{suffix}.{ext}",
+    settings.product_name(),
+    settings.version_string(),
+    settings.binary_arch()
+  )
+}

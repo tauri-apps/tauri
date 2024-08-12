@@ -176,37 +176,17 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 fn app_installer_output_path(
   settings: &Settings,
   language: &str,
-  version: &str,
   updater: bool,
 ) -> crate::Result<PathBuf> {
-  let arch = match settings.binary_arch() {
-    "x86" => "x86",
-    "x86_64" => "x64",
-    "aarch64" => "arm64",
-    target => {
-      return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {}",
-        target
-      )))
-    }
-  };
-
-  let package_base_name = format!(
-    "{}_{}_{}_{}",
-    settings.product_name(),
-    version,
-    arch,
-    language,
-  );
+  let msi_name = crate::bundle::bundle_name_with_suffix(settings, language, "msi");
 
   Ok(settings.project_out_directory().to_path_buf().join(format!(
-    "bundle/{}/{}.msi",
+    "bundle/{}/{msi_name}",
     if updater {
       WIX_UPDATER_OUTPUT_FOLDER_NAME
     } else {
       WIX_OUTPUT_FOLDER_NAME
     },
-    package_base_name
   )))
 }
 
@@ -292,17 +272,7 @@ fn run_candle(
   wxs_file_path: PathBuf,
   extensions: Vec<PathBuf>,
 ) -> crate::Result<()> {
-  let arch = match settings.binary_arch() {
-    "x86_64" => "x64",
-    "x86" => "x86",
-    "aarch64" => "arm64",
-    target => {
-      return Err(crate::Error::ArchError(format!(
-        "unsupported target: {}",
-        target
-      )))
-    }
-  };
+  let arch = wix_arch(settings)?;
 
   let main_binary = settings
     .binaries()
@@ -377,6 +347,18 @@ fn run_light(
   Ok(())
 }
 
+fn wix_arch(settings: &Settings) -> crate::Result<&'static str> {
+  match settings.binary_arch() {
+    "x86_64" => Ok("x64"),
+    "x86" => Ok("x86"),
+    "aarch64" => Ok("arm64"),
+    target => Err(crate::Error::ArchError(format!(
+      "unsupported target: {}",
+      target
+    ))),
+  }
+}
+
 // fn get_icon_data() -> crate::Result<()> {
 //   Ok(())
 // }
@@ -387,17 +369,7 @@ pub fn build_wix_app_installer(
   wix_toolset_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
-  let arch = match settings.binary_arch() {
-    "x86_64" => "x64",
-    "x86" => "x86",
-    "aarch64" => "arm64",
-    target => {
-      return Err(crate::Error::ArchError(format!(
-        "unsupported target: {}",
-        target
-      )))
-    }
-  };
+  let arch = wix_arch(settings)?;
 
   let app_version = convert_version(settings.version_string())?;
 
@@ -788,8 +760,7 @@ pub fn build_wix_app_installer(
       "*.wixobj".into(),
     ];
     let msi_output_path = output_path.join("output.msi");
-    let msi_path =
-      app_installer_output_path(settings, &language, settings.version_string(), updater)?;
+    let msi_path = app_installer_output_path(settings, &language, updater)?;
     fs::create_dir_all(msi_path.parent().unwrap())?;
 
     log::info!(action = "Running"; "light to produce {}", display_path(&msi_path));

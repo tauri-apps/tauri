@@ -265,7 +265,7 @@ pub fn inline_isolation(document: &mut NodeRef, dir: &Path) {
     let src = {
       let attributes = script.attributes.borrow();
       attributes
-        .get(LocalName::from("src"))
+        .get("src")
         .expect("script with src attribute has no src value")
         .to_string()
     };
@@ -282,7 +282,7 @@ pub fn inline_isolation(document: &mut NodeRef, dir: &Path) {
     script.as_node().append(NodeRef::new_text(file));
 
     let mut attributes = script.attributes.borrow_mut();
-    attributes.remove(LocalName::from("src"));
+    attributes.remove("src");
   }
 }
 

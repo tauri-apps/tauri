@@ -3,126 +3,82 @@
 // SPDX-License-Identifier: MIT
 
 use axum::{
-  extract::{ws::WebSocket, WebSocketUpgrade},
-  http::{header::CONTENT_TYPE, StatusCode},
-  response::IntoResponse,
-  routing::get,
-  Router, Server,
+  extract::{ws, State, WebSocketUpgrade},
+  http::{header, StatusCode, Uri},
+  response::{IntoResponse, Response},
 };
 use html5ever::{namespace_url, ns, LocalName, QualName};
 use kuchiki::{traits::TendrilSink, NodeRef};
-use notify::RecursiveMode;
-use notify_debouncer_mini::new_debouncer;
 use std::{
   net::{Ipv4Addr, SocketAddr},
   path::{Path, PathBuf},
-  sync::{mpsc::sync_channel, Arc},
   thread,
   time::Duration,
 };
 use tauri_utils::mime_type::MimeType;
 use tokio::sync::broadcast::{channel, Sender};
 
-const AUTO_RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
+const RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
 
-struct State {
-  serve_dir: PathBuf,
+#[derive(Clone)]
+struct ServerState {
+  dir: PathBuf,
+  address: SocketAddr,
   tx: Sender<()>,
 }
 
-pub fn start_dev_server<P: AsRef<Path>>(path: P, port: Option<u16>) -> crate::Result<SocketAddr> {
-  let serve_dir = path.as_ref().to_path_buf();
+pub fn start_dev_server<P: AsRef<Path>>(dir: P, port: Option<u16>) -> crate::Result<SocketAddr> {
+  let dir = dir.as_ref();
+  let dir = dunce::canonicalize(dir)?;
 
-  let (server_url_tx, server_url_rx) = std::sync::mpsc::channel();
+  // bind port and tcp listener
+  let auto_port = port.is_none();
+  let mut port = port.unwrap_or(1430);
+  let (tcp_listener, address) = loop {
+    let address = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
+    if let Ok(tcp) = std::net::TcpListener::bind(address) {
+      tcp.set_nonblocking(true)?;
+      break (tcp, address);
+    }
 
+    if !auto_port {
+      anyhow::bail!("Couldn't bind to {port} on localhost");
+    }
+
+    port += 1;
+  };
+
+  let (tx, _) = channel(1);
+
+  // watch dir for changes
+  let tx_c = tx.clone();
+  watch(dir.clone(), move || {
+    let _ = tx_c.send(());
+  });
+
+  let state = ServerState { dir, tx, address };
+
+  // start router thread
   std::thread::spawn(move || {
     tokio::runtime::Builder::new_current_thread()
       .enable_io()
       .build()
-      .unwrap()
+      .expect("failed to start tokio runtime for builtin dev server")
       .block_on(async move {
-        let (tx, _) = channel(1);
+        let router = axum::Router::new()
+          .fallback(handler)
+          .route("/__tauri_cli", axum::routing::get(ws_handler))
+          .with_state(state);
 
-        let tokio_tx = tx.clone();
-        let serve_dir_ = serve_dir.clone();
-        thread::spawn(move || {
-          let (tx, rx) = sync_channel(1);
-          let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
-            if let Ok(events) = r {
-              tx.send(events).unwrap()
-            }
-          })
-          .unwrap();
-
-          watcher
-            .watcher()
-            .watch(&serve_dir_, RecursiveMode::Recursive)
-            .unwrap();
-
-          loop {
-            if rx.recv().is_ok() {
-              let _ = tokio_tx.send(());
-            }
-          }
-        });
-
-        let state = Arc::new(State { serve_dir, tx });
-        let state_ = state.clone();
-        let router = Router::new()
-          .fallback(move |uri| handler(uri, state_))
-          .route(
-            "/_tauri-cli/ws",
-            get(move |ws: WebSocketUpgrade| async move {
-              ws.on_upgrade(|socket| async move { ws_handler(socket, state).await })
-            }),
-          );
-
-        let mut auto_port = false;
-        let mut port = port.unwrap_or_else(|| {
-          std::env::var("TAURI_DEV_SERVER_PORT")
-            .unwrap_or_else(|_| {
-              auto_port = true;
-              "1430".to_string()
-            })
-            .parse()
-            .unwrap()
-        });
-
-        let (server, server_url) = loop {
-          let server_url = SocketAddr::new(Ipv4Addr::new(127, 0, 0, 1).into(), port);
-          let server = Server::try_bind(&server_url);
-
-          if !auto_port {
-            break (server, server_url);
-          }
-
-          if server.is_ok() {
-            break (server, server_url);
-          }
-
-          port += 1;
-        };
-
-        match server {
-          Ok(server) => {
-            server_url_tx.send(Ok(server_url)).unwrap();
-            server.serve(router.into_make_service()).await.unwrap();
-          }
-          Err(e) => {
-            server_url_tx
-              .send(Err(anyhow::anyhow!(
-                "failed to start development server on {server_url}: {e}"
-              )))
-              .unwrap();
-          }
-        }
+        axum::serve(tokio::net::TcpListener::from_std(tcp_listener)?, router).await
       })
+      .expect("builtin server errored");
   });
 
-  server_url_rx.recv().unwrap()
+  Ok(address)
 }
 
-async fn handler(uri: axum::http::Uri, state: Arc<State>) -> impl IntoResponse {
+async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
   // Frontend files should not contain query parameters. This seems to be how vite handles it.
   let uri = uri.path();
 
@@ -132,61 +88,92 @@ async fn handler(uri: axum::http::Uri, state: Arc<State>) -> impl IntoResponse {
     uri.strip_prefix('/').unwrap_or(uri)
   };
 
-  let file = std::fs::read(state.serve_dir.join(uri))
-    .or_else(|_| std::fs::read(state.serve_dir.join(format!("{}.html", &uri))))
-    .or_else(|_| std::fs::read(state.serve_dir.join(format!("{}/index.html", &uri))))
-    .or_else(|_| std::fs::read(state.serve_dir.join("index.html")));
+  let bytes = fs_read_scoped(state.dir.join(uri), &state.dir)
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}.html", &uri)), &state.dir))
+    .or_else(|_| fs_read_scoped(state.dir.join(format!("{}/index.html", &uri)), &state.dir))
+    .or_else(|_| std::fs::read(state.dir.join("index.html")));
 
-  file
-    .map(|mut f| {
-      let mime_type = MimeType::parse_with_fallback(&f, uri, MimeType::OctetStream);
+  match bytes {
+    Ok(mut bytes) => {
+      let mime_type = MimeType::parse_with_fallback(&bytes, uri, MimeType::OctetStream);
       if mime_type == MimeType::Html.to_string() {
-        let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&f).into_owned());
-        fn with_html_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
-          if let Ok(ref node) = document.select_first("head") {
-            f(node.as_node())
-          } else {
-            let node = NodeRef::new_element(
-              QualName::new(None, ns!(html), LocalName::from("head")),
-              None,
-            );
-            f(&node);
-            document.prepend(node)
-          }
-        }
-
-        with_html_head(&mut document, |head| {
-          let script_el =
-            NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
-          script_el.append(NodeRef::new_text(AUTO_RELOAD_SCRIPT));
-          head.prepend(script_el);
-        });
-
-        f = tauri_utils::html::serialize_node(&document);
+        bytes = inject_address(bytes, &state.address);
       }
-
-      (StatusCode::OK, [(CONTENT_TYPE, mime_type)], f)
-    })
-    .unwrap_or_else(|_| {
-      (
-        StatusCode::NOT_FOUND,
-        [(CONTENT_TYPE, "text/plain".into())],
-        vec![],
-      )
-    })
+      (StatusCode::OK, [(header::CONTENT_TYPE, mime_type)], bytes)
+    }
+    Err(_) => (
+      StatusCode::NOT_FOUND,
+      [(header::CONTENT_TYPE, "text/plain".into())],
+      vec![],
+    ),
+  }
 }
 
-async fn ws_handler(mut ws: WebSocket, state: Arc<State>) {
-  let mut rx = state.tx.subscribe();
-  while tokio::select! {
-      _ = ws.recv() => return,
-      fs_reload_event = rx.recv() => fs_reload_event.is_ok(),
-  } {
-    let ws_send = ws.send(axum::extract::ws::Message::Text(
-      r#"{"reload": true}"#.to_owned(),
-    ));
-    if ws_send.await.is_err() {
-      break;
+async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response {
+  ws.on_upgrade(move |mut ws| async move {
+    let mut rx = state.tx.subscribe();
+    while tokio::select! {
+        _ = ws.recv() => return,
+        fs_reload_event = rx.recv() => fs_reload_event.is_ok(),
+    } {
+      let msg = ws::Message::Text(r#"{"reload": true}"#.to_owned());
+      if ws.send(msg).await.is_err() {
+        break;
+      }
+    }
+  })
+}
+
+fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
+  fn with_html_head<F: FnOnce(&NodeRef)>(document: &mut NodeRef, f: F) {
+    if let Ok(ref node) = document.select_first("head") {
+      f(node.as_node())
+    } else {
+      let node = NodeRef::new_element(
+        QualName::new(None, ns!(html), LocalName::from("head")),
+        None,
+      );
+      f(&node);
+      document.prepend(node)
     }
   }
+
+  let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&html_bytes).into_owned());
+  with_html_head(&mut document, |head| {
+    let script = RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli"));
+    let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);
+    script_el.append(NodeRef::new_text(script));
+    head.prepend(script_el);
+  });
+
+  tauri_utils::html::serialize_node(&document)
+}
+
+fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
+  let path = dunce::canonicalize(path)?;
+  if path.starts_with(scope) {
+    std::fs::read(path).map_err(Into::into)
+  } else {
+    anyhow::bail!("forbidden path")
+  }
+}
+
+fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
+  thread::spawn(move || {
+    let (tx, rx) = std::sync::mpsc::channel();
+
+    let mut watcher = notify_debouncer_mini::new_debouncer(Duration::from_secs(1), tx)
+      .expect("failed to start builtin server fs watcher");
+
+    watcher
+      .watcher()
+      .watch(&dir, notify::RecursiveMode::Recursive)
+      .expect("builtin server failed to watch dir");
+
+    loop {
+      if rx.recv().is_ok() {
+        handler();
+      }
+    }
+  });
 }

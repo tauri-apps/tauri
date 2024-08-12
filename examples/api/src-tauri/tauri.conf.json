@@ -2,7 +2,7 @@
   "$schema": "../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": "../dist",
-    "devPath": "http://localhost:5173",
+    "devPath": "../dist",
     "beforeDevCommand": "yarn dev",
     "beforeBuildCommand": "yarn build"
   },

@@ -16,7 +16,7 @@ mod plugin;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand};
-use env_logger::fmt::Color;
+use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
 use log::{debug, log_enabled, Level};
 use serde::Deserialize;
@@ -132,27 +132,23 @@ where
         let action = action.to_cow_str().unwrap();
         is_command_output = action == "stdout" || action == "stderr";
         if !is_command_output {
-          let mut action_style = f.style();
-          action_style.set_color(Color::Green).set_bold(true);
+          let style = Style::new().fg_color(Some(AnsiColor::Green.into())).bold();
 
-          write!(f, "{:>12} ", action_style.value(action))?;
+          write!(f, "    {style}{}{style:#} ", action)?;
         }
       } else {
-        let mut level_style = f.default_level_style(record.level());
-        level_style.set_bold(true);
-
+        let style = f.default_level_style(record.level()).bold();
         write!(
           f,
-          "{:>12} ",
-          level_style.value(prettyprint_level(record.level()))
+          "    {style}{}{style:#} ",
+          prettyprint_level(record.level())
         )?;
       }
 
       if !is_command_output && log_enabled!(Level::Debug) {
-        let mut target_style = f.style();
-        target_style.set_color(Color::Black);
+        let style = Style::new().fg_color(Some(AnsiColor::Black.into()));
 
-        write!(f, "[{}] ", target_style.value(record.target()))?;
+        write!(f, "[{style}{}{style:#}] ", record.target())?;
       }
 
       writeln!(f, "{}", record.args())

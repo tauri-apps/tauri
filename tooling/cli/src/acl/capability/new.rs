@@ -36,6 +36,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let identifier = match options.identifier {
     Some(i) => i,
     None => prompts::input("What's the capability identifier?", None, false, false)?.unwrap(),

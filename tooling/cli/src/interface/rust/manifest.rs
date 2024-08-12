@@ -335,7 +335,9 @@ mod tests {
   use std::collections::{HashMap, HashSet};
 
   fn inject_features(toml: &str, mut dependencies: Vec<DependencyAllowlist>) {
-    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+    let mut manifest = toml
+      .parse::<toml_edit::DocumentMut>()
+      .expect("invalid toml");
 
     let mut expected = HashMap::new();
     for dep in &dependencies {

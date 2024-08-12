@@ -10,7 +10,7 @@ use crate::helpers::{
 use anyhow::Context;
 use itertools::Itertools;
 use log::info;
-use toml_edit::{Array, Document, InlineTable, Item, TableLike, Value};
+use toml_edit::{Array, DocumentMut, InlineTable, Item, TableLike, Value};
 
 use std::{
   collections::{HashMap, HashSet},
@@ -22,7 +22,7 @@ use std::{
 
 #[derive(Default)]
 pub struct Manifest {
-  pub inner: Document,
+  pub inner: DocumentMut,
   pub tauri_features: HashSet<String>,
 }
 
@@ -84,15 +84,15 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
   f
 }
 
-pub fn read_manifest(manifest_path: &Path) -> crate::Result<Document> {
+pub fn read_manifest(manifest_path: &Path) -> crate::Result<DocumentMut> {
   let mut manifest_str = String::new();
 
   let mut manifest_file = File::open(manifest_path)
     .with_context(|| format!("failed to open `{manifest_path:?}` file"))?;
   manifest_file.read_to_string(&mut manifest_str)?;
 
-  let manifest: Document = manifest_str
-    .parse::<Document>()
+  let manifest: DocumentMut = manifest_str
+    .parse::<DocumentMut>()
     .with_context(|| "failed to parse Cargo.toml")?;
 
   Ok(manifest)
@@ -109,7 +109,7 @@ fn toml_array(features: &HashSet<String>) -> Array {
 }
 
 fn find_dependency<'a>(
-  manifest: &'a mut Document,
+  manifest: &'a mut DocumentMut,
   name: &'a str,
   kind: DependencyKind,
 ) -> Vec<&'a mut Item> {
@@ -231,7 +231,7 @@ fn inject_features_table<D: TableLike, F: Fn(&str) -> bool>(
 }
 
 fn inject_features(
-  manifest: &mut Document,
+  manifest: &mut DocumentMut,
   dependencies: &mut Vec<DependencyAllowlist>,
 ) -> crate::Result<bool> {
   let mut persist = false;
@@ -335,7 +335,9 @@ mod tests {
   use std::collections::{HashMap, HashSet};
 
   fn inject_features(toml: &str, mut dependencies: Vec<DependencyAllowlist>) {
-    let mut manifest = toml.parse::<toml_edit::Document>().expect("invalid toml");
+    let mut manifest = toml
+      .parse::<toml_edit::DocumentMut>()
+      .expect("invalid toml");
 
     let mut expected = HashMap::new();
     for dep in &dependencies {

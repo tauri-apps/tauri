@@ -17,7 +17,7 @@ serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
 thiserror = "1"
 phf = { version = "0.11", features = [ "macros" ] }
-brotli = { version = "3", optional = true, default-features = false, features = [ "std" ] }
+brotli = { version = "6", optional = true, default-features = false, features = [ "std" ] }
 url = { version = "2", features = [ "serde" ] }
 html5ever = "0.26"
 kuchiki = { package = "kuchikiki", version = "0.8" }
@@ -31,7 +31,7 @@ serialize-to-javascript = { version = "=0.1.1", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
 toml = { version = "0.8", features = [ "parse" ] }
-json-patch = "1.2"
+json-patch = "2.0"
 glob = "0.3"
 urlpattern = "0.2"
 regex = "1"

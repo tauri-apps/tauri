@@ -24,7 +24,7 @@ use std::{
 };
 
 use anyhow::Context;
-use zip::write::FileOptions;
+use zip::write::SimpleFileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
@@ -217,7 +217,7 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
     .expect("Can't extract file name from path");
 
   let mut zip = zip::ZipWriter::new(writer);
-  let options = FileOptions::default()
+  let options = SimpleFileOptions::default()
     .compression_method(zip::CompressionMethod::Stored)
     .unix_permissions(0o755);
 

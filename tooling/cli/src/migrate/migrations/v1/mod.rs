@@ -17,9 +17,11 @@ pub fn run() -> Result<()> {
   let tauri_dir = tauri_dir();
   let app_dir = app_dir();
 
-  let migrated = config::migrate(&tauri_dir).context("Could not migrate config")?;
-  manifest::migrate(&tauri_dir).context("Could not migrate manifest")?;
-  frontend::migrate(app_dir, &tauri_dir)?;
+  let mut migrated = config::migrate(tauri_dir).context("Could not migrate config")?;
+  manifest::migrate(tauri_dir).context("Could not migrate manifest")?;
+  let plugins = frontend::migrate(app_dir)?;
+
+  migrated.plugins.extend(plugins);
 
   // Add plugins
   for plugin in migrated.plugins {
@@ -28,6 +30,7 @@ pub fn run() -> Result<()> {
       branch: None,
       tag: None,
       rev: None,
+      no_fmt: false,
     })
     .with_context(|| format!("Could not migrate plugin '{plugin}'"))?;
   }

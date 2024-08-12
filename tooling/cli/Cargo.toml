@@ -3,7 +3,7 @@ members = [ "node" ]
 
 [package]
 name = "tauri-cli"
-version = "2.0.0-rc.1"
+version = "2.0.0-rc.3"
 authors = [ "Tauri Programme within The Commons Conservancy" ]
 edition = "2021"
 rust-version = "1.70"
@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.13", default-features = false }
+cargo-mobile2 = { version = "0.13.1", default-features = false }
 jsonrpsee = { version = "0.22", features = [ "server" ] }
 jsonrpsee-core = "0.22"
 jsonrpsee-client-transport = { version = "0.22", features = [ "ws" ] }
@@ -48,7 +48,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = [ "derive", "env" ] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.0-rc.0", default-features = false, path = "../bundler" }
+tauri-bundler = { version = "2.0.1-rc.1", default-features = false, path = "../bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = [ "derive" ] }
 serde_json = { version = "1.0", features = [ "preserve_order" ] }
@@ -57,12 +57,12 @@ notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = [ "serde" ] }
-json-patch = "1.2"
-tauri-utils = { version = "2.0.0-rc.0", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
+json-patch = "2.0"
+tauri-utils = { version = "2.0.0-rc.2", path = "../../core/tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [ "isolation", "schema", "config-json5", "config-toml" ] }
 toml = "0.8"
 jsonschema = "0.17"
-handlebars = "5.1"
+handlebars = "6.0"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.22.0"
@@ -100,6 +100,7 @@ magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"
 elf = "0.7"
+memchr = "2"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.52"

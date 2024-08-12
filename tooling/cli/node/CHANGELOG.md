@@ -1,5 +1,43 @@
 # Changelog
 
+## \[2.0.0-rc.3]
+
+### Enhancements
+
+- [`5f56cb0a8`](https://www.github.com/tauri-apps/tauri/commit/5f56cb0a8b9c6f695bc6439a8db997c98b3a3997) ([#10507](https://www.github.com/tauri-apps/tauri/pull/10507) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Update gradle to 8.9 and the gradle android plugin to 8.5.1 in the android templates (requires latest Android Studio). This should add support for Java 21 but Java 17 keeps being the recommended version.
+
+### Bug Fixes
+
+- [`f5dfc0280`](https://www.github.com/tauri-apps/tauri/commit/f5dfc02800dbd3bdee671b032454c49ac7102fb4) ([#10533](https://www.github.com/tauri-apps/tauri/pull/10533) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue causing `tauri ios init` to fail if `iOS.minimumSystemVersion` was not configured explicitly.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.3`
+
+## \[2.0.0-rc.2]
+
+### New Features
+
+- [`8dc81b6cc`](https://www.github.com/tauri-apps/tauri/commit/8dc81b6cc2b8235b11f74a971d6aa3a5df5e9f68) ([#10496](https://www.github.com/tauri-apps/tauri/pull/10496) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > template` configuration option for custom Xcode project YML Handlebars template using XcodeGen.
+- [`02c00abc6`](https://www.github.com/tauri-apps/tauri/commit/02c00abc63cf86e9bf9179cbb143d5145a9397b6) ([#10495](https://www.github.com/tauri-apps/tauri/pull/10495) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > minimumSystemVersion` configuration option.
+
+### Enhancements
+
+- [`8e1e15304`](https://www.github.com/tauri-apps/tauri/commit/8e1e15304e9dc98d7f875fc8dceb7d4ce19adc47) ([#10483](https://www.github.com/tauri-apps/tauri/pull/10483) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Check if the Rust library contains the symbols required at runtime for Android and iOS apps.
+- [`ca6868956`](https://www.github.com/tauri-apps/tauri/commit/ca68689564cbc8dfa9a5220d3daf81a44ef81fcc) ([#10479](https://www.github.com/tauri-apps/tauri/pull/10479) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Check if identifier or lib name changed when running mobile commands.
+
+### Bug Fixes
+
+- [`2e8ab7bac`](https://www.github.com/tauri-apps/tauri/commit/2e8ab7bac12046d734fb07a1b4fe5e03004b305e) ([#10481](https://www.github.com/tauri-apps/tauri/pull/10481) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Migration from v1 to v2 now adds the updater plugin when it is active.
+
+### What's Changed
+
+- [`a3cd9779a`](https://www.github.com/tauri-apps/tauri/commit/a3cd9779a47428e306a628d658740669faf69ccd) ([#10480](https://www.github.com/tauri-apps/tauri/pull/10480) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Removed the `[android|ios] open` command. It is recommended to use `[android|ios] dev --open` or `[android|ios] build --open` instead.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.2`
+
 ## \[2.0.0-rc.1]
 
 ### Bug Fixes

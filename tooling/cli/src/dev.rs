@@ -88,6 +88,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let r = command_internal(options);
   if r.is_err() {
     kill_before_dev_process();

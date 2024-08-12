@@ -117,6 +117,8 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -154,7 +156,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   ensure_init(
     &tauri_config,
@@ -248,6 +250,7 @@ fn create_export_options(
   (!plist.is_empty()).then(|| plist.into())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_build(
   interface: AppInterface,
   options: Options,

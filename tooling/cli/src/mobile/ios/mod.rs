@@ -46,7 +46,6 @@ pub(crate) mod project;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "APPLE_DEVELOPMENT_TEAM";
-const TARGET_IOS_VERSION: &str = "13.0";
 
 #[derive(Parser)]
 #[clap(
@@ -87,12 +86,15 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Ios,
-      options.ci,
-      options.reinstall_deps,
-      options.skip_targets_install,
-    )?,
+    Commands::Init(options) => {
+      crate::helpers::app_paths::resolve();
+      init_command(
+        MobileTarget::Ios,
+        options.ci,
+        options.reinstall_deps,
+        options.skip_targets_install,
+      )?
+    }
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
@@ -136,7 +138,7 @@ pub fn get_config(
     ios_features: ios_options.features.clone(),
     bundle_version: tauri_config.version.clone(),
     bundle_version_short: tauri_config.version.clone(),
-    ios_version: Some(TARGET_IOS_VERSION.into()),
+    ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
   let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();

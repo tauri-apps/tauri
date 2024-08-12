@@ -221,6 +221,7 @@ pub fn exec(
         super::ios::get_config(&app, tauri_config_, None, &Default::default());
       map.insert("apple", &config);
       super::ios::project::gen(
+        tauri_config_,
         &config,
         &metadata,
         (handlebars, map),

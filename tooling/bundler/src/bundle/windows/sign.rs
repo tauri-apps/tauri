@@ -59,7 +59,7 @@ fn signtool() -> Option<PathBuf> {
   static SIGN_TOOL: OnceLock<crate::Result<PathBuf>> = OnceLock::new();
   SIGN_TOOL
     .get_or_init(|| {
-      if let Some(signtool) = std::env::var_os("TAUIRI_SIGNTOOL_PATH") {
+      if let Some(signtool) = std::env::var_os("TAURI_SIGNTOOL_PATH") {
         return Ok(PathBuf::from(signtool));
       }
 

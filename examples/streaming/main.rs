@@ -42,7 +42,7 @@ fn main() {
         Ok(http_response) => responder.respond(http_response),
         Err(e) => responder.respond(
           ResponseBuilder::new()
-            .status(StatusCode::BAD_REQUEST)
+            .status(StatusCode::INTERNAL_SERVER_ERROR)
             .header(CONTENT_TYPE, "text/plain")
             .body(e.to_string().as_bytes().to_vec())
             .unwrap(),

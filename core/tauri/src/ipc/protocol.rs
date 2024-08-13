@@ -10,7 +10,10 @@ use crate::{
   Runtime,
 };
 use http::{
-  header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, CONTENT_TYPE},
+  header::{
+    ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_ORIGIN, ACCESS_CONTROL_EXPOSE_HEADERS,
+    CONTENT_TYPE,
+  },
   HeaderValue, Method, Request, StatusCode,
 };
 use url::Url;
@@ -20,6 +23,10 @@ use super::{CallbackFn, InvokeBody, InvokeResponse};
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 const TAURI_INVOKE_KEY_HEADER_NAME: &str = "Tauri-Invoke-Key";
+
+const TAURI_RESPONSE_HEADER_NAME: &str = "Tauri-Response";
+const TAURI_RESPONSE_HEADER_ERROR: &str = "error";
+const TAURI_RESPONSE_HEADER_OK: &str = "ok";
 
 pub fn message_handler<R: Runtime>(
   manager: Arc<AppManager<R>>,
@@ -44,6 +51,10 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
       response
         .headers_mut()
         .insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+      response.headers_mut().insert(
+        ACCESS_CONTROL_EXPOSE_HEADERS,
+        HeaderValue::from_static(TAURI_RESPONSE_HEADER_NAME),
+      );
       responder.respond(response);
     };
 
@@ -81,6 +92,11 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                   )
                   .entered();
 
+                  let response_header = match &response {
+                    InvokeResponse::Ok(_) => TAURI_RESPONSE_HEADER_OK,
+                    InvokeResponse::Err(_) => TAURI_RESPONSE_HEADER_ERROR,
+                  };
+
                   let (mut response, mime_type) = match response {
                     InvokeResponse::Ok(InvokeBody::Json(v)) => (
                       http::Response::new(serde_json::to_vec(&v).unwrap().into()),
@@ -90,13 +106,15 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
                       http::Response::new(v.into()),
                       mime::APPLICATION_OCTET_STREAM,
                     ),
-                    InvokeResponse::Err(e) => {
-                      let mut response =
-                        http::Response::new(serde_json::to_vec(&e.0).unwrap().into());
-                      *response.status_mut() = StatusCode::BAD_REQUEST;
-                      (response, mime::APPLICATION_JSON)
-                    }
+                    InvokeResponse::Err(e) => (
+                      http::Response::new(serde_json::to_vec(&e.0).unwrap().into()),
+                      mime::APPLICATION_JSON,
+                    ),
                   };
+
+                  response
+                    .headers_mut()
+                    .insert(TAURI_RESPONSE_HEADER_NAME, response_header.parse().unwrap());
 
                   #[cfg(feature = "tracing")]
                   response_span.record("mime_type", mime_type.essence_str());
@@ -113,7 +131,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
             Err(e) => {
               respond(
                 http::Response::builder()
-                  .status(StatusCode::BAD_REQUEST)
+                  .status(StatusCode::INTERNAL_SERVER_ERROR)
                   .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
                   .body(e.as_bytes().to_vec().into())
                   .unwrap(),
@@ -123,7 +141,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
         } else {
           respond(
             http::Response::builder()
-              .status(StatusCode::BAD_REQUEST)
+              .status(StatusCode::INTERNAL_SERVER_ERROR)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
               .body(
                 "failed to acquire webview reference"
@@ -140,6 +158,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
         let mut r = http::Response::new(Vec::new().into());
         r.headers_mut()
           .insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
+
         respond(r);
       }
 

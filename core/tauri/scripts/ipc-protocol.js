@@ -42,7 +42,8 @@
         }
       })
         .then((response) => {
-          const cb = response.ok ? callback : error
+          const cb =
+            response.headers.get('Tauri-Response') === 'ok' ? callback : error
           // we need to split here because on Android the content-type gets duplicated
           switch ((response.headers.get('content-type') || '').split(',')[0]) {
             case 'application/json':

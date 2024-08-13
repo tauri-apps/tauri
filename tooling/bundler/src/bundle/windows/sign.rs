@@ -59,6 +59,10 @@ fn signtool() -> Option<PathBuf> {
   static SIGN_TOOL: OnceLock<crate::Result<PathBuf>> = OnceLock::new();
   SIGN_TOOL
     .get_or_init(|| {
+      if let Some(signtool) = std::env::var_os("TAUIRI_SIGNTOOL_PATH") {
+        return Ok(PathBuf::from(signtool));
+      }
+
       const INSTALLED_ROOTS_REGKEY_PATH: &str = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots";
       const KITS_ROOT_REGVALUE_NAME: &str = r"KitsRoot10";
 

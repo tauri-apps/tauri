@@ -347,6 +347,7 @@ fn run_light(
   Ok(())
 }
 
+#[inline]
 fn wix_arch(settings: &Settings) -> crate::Result<&'static str> {
   match settings.binary_arch() {
     "x86_64" => Ok("x64"),

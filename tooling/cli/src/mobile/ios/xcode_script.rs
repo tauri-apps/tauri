@@ -14,7 +14,7 @@ use clap::Parser;
 
 use std::{
   collections::HashMap,
-  env::{current_dir, set_current_dir, var_os},
+  env::{current_dir, set_current_dir, var, var_os},
   ffi::OsStr,
   path::{Path, PathBuf},
   process::Command,
@@ -62,7 +62,10 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
-  if var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none() {
+  // so we must change working directory to the src-tauri folder to resolve the tauri dir
+  if (var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none())
+    || var("npm_config_user_agent").map_or(false, |agent| agent.starts_with("bun"))
+  {
     set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }
 

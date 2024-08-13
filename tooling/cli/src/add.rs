@@ -16,61 +16,7 @@ use crate::{
   Result,
 };
 
-use std::{collections::HashMap, process::Command};
-
-#[derive(Default)]
-struct PluginMetadata {
-  desktop_only: bool,
-  mobile_only: bool,
-  rust_only: bool,
-  builder: bool,
-}
-
-// known plugins with particular cases
-fn plugins() -> HashMap<&'static str, PluginMetadata> {
-  let mut plugins: HashMap<&'static str, PluginMetadata> = HashMap::new();
-
-  // desktop-only
-  for p in [
-    "authenticator",
-    "autostart",
-    "cli",
-    "global-shortcut",
-    "positioner",
-    "single-instance",
-    "updater",
-    "window-state",
-  ] {
-    plugins.entry(p).or_default().desktop_only = true;
-  }
-
-  // mobile-only
-  for p in ["barcode-scanner", "biometric", "nfc"] {
-    plugins.entry(p).or_default().mobile_only = true;
-  }
-
-  // uses builder pattern
-  for p in [
-    "global-shortcut",
-    "localhost",
-    "log",
-    "sql",
-    "store",
-    "stronghold",
-    "updater",
-    "window-state",
-  ] {
-    plugins.entry(p).or_default().builder = true;
-  }
-
-  // rust-only
-  #[allow(clippy::single_element_loop)]
-  for p in ["localhost", "persisted-scope", "single-instance"] {
-    plugins.entry(p).or_default().rust_only = true;
-  }
-
-  plugins
-}
+use std::process::Command;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Add a tauri plugin to the project")]
@@ -104,7 +50,7 @@ pub fn command(options: Options) -> Result<()> {
   let crate_name = format!("tauri-plugin-{plugin}");
   let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
-  let mut plugins = plugins();
+  let mut plugins = crate::helpers::plugins::known_plugins();
   let metadata = plugins.remove(plugin).unwrap_or_default();
 
   let app_dir = resolve_app_dir();

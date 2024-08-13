@@ -132,10 +132,95 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
   Ok(cmd.status()?.success())
 }
 
+fn parse_custom_sign_command(command: &str) -> crate::Result<Vec<String>> {
+  let mut result = Vec::<String>::new();
+
+  let mut buffer = String::new();
+
+  #[derive(Copy, Clone)]
+  enum State {
+    Idle,
+    // Parsing unquoted element
+    Unquoted,
+    // Parsing quoted element
+    Quoted,
+    // just after '"' parsing quoted element
+    // expecting '"' or whitespace and error otherwise
+    // Example: "foo"bar is error
+    // We accept '""' as a way to escape a quote
+    QuotedJustAfterQuote,
+  }
+
+  let mut state = State::Idle;
+
+  for c in command.chars() {
+    match (state, c) {
+      (State::Idle, c) if c.is_ascii_whitespace() => {
+        // skip whitespace
+      }
+      (State::Idle, '"') => {
+        state = State::Quoted;
+      }
+      (State::Idle, c) => {
+        buffer.push(c);
+        state = State::Unquoted;
+      }
+
+      (State::Unquoted, c) if c.is_ascii_whitespace() => {
+        result.push(buffer.clone());
+        buffer.clear();
+        state = State::Idle;
+      }
+      (State::Unquoted, '"') => {
+        return Err(anyhow::anyhow!("custom signing command contains an unclosed quote").into());
+      }
+      (State::Unquoted, c) => {
+        buffer.push(c);
+      }
+
+      (State::Quoted, '"') => {
+        state = State::QuotedJustAfterQuote;
+      }
+      (State::Quoted, c) => {
+        buffer.push(c);
+      }
+
+      (State::QuotedJustAfterQuote, '"') => {
+        buffer.push('"');
+        state = State::Quoted;
+      }
+      (State::QuotedJustAfterQuote, c) if c.is_ascii_whitespace() => {
+        result.push(buffer.clone());
+        buffer.clear();
+        state = State::Idle;
+      }
+      (State::QuotedJustAfterQuote, _) => {
+        return Err(anyhow::anyhow!("custom signing command contains an unclosed quote").into());
+      }
+    }
+  }
+
+  match state {
+    State::Idle => {}
+    State::Unquoted => {
+      result.push(buffer);
+    }
+    State::Quoted => {
+      return Err(anyhow::anyhow!("custom signing command contains an unclosed quote").into());
+    }
+    State::QuotedJustAfterQuote => {
+      result.push(buffer);
+    }
+  }
+
+  Ok(result)
+}
+
 pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &str) -> crate::Result<Command> {
   let path = path.as_ref();
+  let args = parse_custom_sign_command(command)?;
+  let mut args = args.iter();
 
-  let mut args = command.trim().split(' ');
   let bin = args
     .next()
     .context("custom signing command doesn't contain a bin?")?;
@@ -242,4 +327,32 @@ pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::R
     sign(file_path, &settings.sign_params())?;
   }
   Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_parse_custom_sign_command() {
+    // basic cases
+    assert!(parse_custom_sign_command("").unwrap().is_empty());
+    assert_eq!(parse_custom_sign_command("foo").unwrap(), vec!["foo".to_string()]);
+    assert_eq!(parse_custom_sign_command("foo bar").unwrap(), vec!["foo".to_string(), "bar".to_string()]);
+    assert_eq!(parse_custom_sign_command("foo bar baz").unwrap(), vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]);
+    assert_eq!(parse_custom_sign_command("foo \"bar baz\"").unwrap(), vec!["foo".to_string(), "bar baz".to_string()]);
+    assert_eq!(parse_custom_sign_command("foo \"bar baz\" qux").unwrap(), vec!["foo".to_string(), "bar baz".to_string(), "qux".to_string()]);
+    assert_eq!(parse_custom_sign_command("foo \"bar baz\"\"qux\"").unwrap(), vec!["foo".to_string(), "bar baz\"qux".to_string()]);
+    assert_eq!(parse_custom_sign_command("\"foo bar\" baz").unwrap(), vec!["foo bar".to_string(), "baz".to_string()]);
+
+    // non-trimmed command specified
+    assert_eq!(parse_custom_sign_command("\t foo ").unwrap(), vec!["foo".to_string()]);
+    assert_eq!(parse_custom_sign_command("\t foo \"bar baz\"\"qux\" \t").unwrap(), vec!["foo".to_string(), "bar baz\"qux".to_string()]);
+
+    // unclosed quote
+    assert!(parse_custom_sign_command("foo \"bar baz").is_err());
+    assert!(parse_custom_sign_command("foo \"bar baz\" qux \"").is_err());
+    assert!(parse_custom_sign_command("foo\"bar baz\" qux").is_err());
+    assert!(parse_custom_sign_command("foo \"bar baz\"qux").is_err());
+  }
 }

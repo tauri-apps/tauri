@@ -62,7 +62,11 @@
             )
           }
         })
-        .catch(() => {
+        .catch((e) => {
+          console.warn(
+            'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
+            e
+          )
           // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
           // so we need to fallback to the postMessage interface
           customProtocolIpcFailed = true
@@ -74,7 +78,10 @@
         cmd,
         callback,
         error,
-        options,
+        options: {
+          ...options,
+          customProtocolIpcBlocked: customProtocolIpcFailed
+        },
         payload,
         __TAURI_INVOKE_KEY__
       })

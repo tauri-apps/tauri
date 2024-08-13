@@ -21,7 +21,6 @@ Change bundle file names to a consistent `productName-version-arch.ext` format.
   - macOS
     - still keeps the productName.app format as that is the name of the file that is actually installed on user machines.
   - MSI
-    - The $language suffix now uses `_` as separator instead of `-` (e.g. `en_US` instead of `en-US`).
     - productName_version_x86_$language.msi => productName-version-x86-$language.msi
     - productName_version_x64_$language.msi => productName-version-x86_64-$language.msi
     - productName_version_arm64_$language.msi => productName-version-aarch64-$language.msi

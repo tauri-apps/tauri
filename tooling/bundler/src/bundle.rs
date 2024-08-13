@@ -250,6 +250,7 @@ pub fn check_icons(settings: &Settings) -> crate::Result<bool> {
   }
 }
 
+#[inline]
 pub(crate) fn bundle_name(settings: &Settings, ext: &str) -> String {
   format!(
     "{}-{}-{}.{ext}",

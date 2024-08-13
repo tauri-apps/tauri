@@ -85,12 +85,16 @@ pub fn command(options: Options) -> Result<()> {
 
     if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
       let forward = format!("tcp:{port}");
+      log::info!("Forwarding port {port} with adb");
       // ignore errors in case we do not have a device available
-      let _ = adb::adb(&env, ["reverse", &forward, &forward])
+      let result = adb::adb(&env, ["reverse", &forward, &forward])
         .stdin_file(os_pipe::dup_stdin().unwrap())
         .stdout_file(os_pipe::dup_stdout().unwrap())
         .stderr_capture()
         .run();
+      if let Err(e) = result {
+        log::error!("Failed to forward port {port}: {e}");
+      }
     }
   }
 

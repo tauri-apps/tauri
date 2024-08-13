@@ -337,17 +337,44 @@ mod tests {
   fn test_parse_custom_sign_command() {
     // basic cases
     assert!(parse_custom_sign_command("").unwrap().is_empty());
-    assert_eq!(parse_custom_sign_command("foo").unwrap(), vec!["foo".to_string()]);
-    assert_eq!(parse_custom_sign_command("foo bar").unwrap(), vec!["foo".to_string(), "bar".to_string()]);
-    assert_eq!(parse_custom_sign_command("foo bar baz").unwrap(), vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]);
-    assert_eq!(parse_custom_sign_command("foo \"bar baz\"").unwrap(), vec!["foo".to_string(), "bar baz".to_string()]);
-    assert_eq!(parse_custom_sign_command("foo \"bar baz\" qux").unwrap(), vec!["foo".to_string(), "bar baz".to_string(), "qux".to_string()]);
-    assert_eq!(parse_custom_sign_command("foo \"bar baz\"\"qux\"").unwrap(), vec!["foo".to_string(), "bar baz\"qux".to_string()]);
-    assert_eq!(parse_custom_sign_command("\"foo bar\" baz").unwrap(), vec!["foo bar".to_string(), "baz".to_string()]);
+    assert_eq!(
+      parse_custom_sign_command("foo").unwrap(),
+      vec!["foo".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("foo bar").unwrap(),
+      vec!["foo".to_string(), "bar".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("foo bar baz").unwrap(),
+      vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("foo \"bar baz\"").unwrap(),
+      vec!["foo".to_string(), "bar baz".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("foo \"bar baz\" qux").unwrap(),
+      vec!["foo".to_string(), "bar baz".to_string(), "qux".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("foo \"bar baz\"\"qux\"").unwrap(),
+      vec!["foo".to_string(), "bar baz\"qux".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("\"foo bar\" baz").unwrap(),
+      vec!["foo bar".to_string(), "baz".to_string()]
+    );
 
     // non-trimmed command specified
-    assert_eq!(parse_custom_sign_command("\t foo ").unwrap(), vec!["foo".to_string()]);
-    assert_eq!(parse_custom_sign_command("\t foo \"bar baz\"\"qux\" \t").unwrap(), vec!["foo".to_string(), "bar baz\"qux".to_string()]);
+    assert_eq!(
+      parse_custom_sign_command("\t foo ").unwrap(),
+      vec!["foo".to_string()]
+    );
+    assert_eq!(
+      parse_custom_sign_command("\t foo \"bar baz\"\"qux\" \t").unwrap(),
+      vec!["foo".to_string(), "bar baz\"qux".to_string()]
+    );
 
     // unclosed quote
     assert!(parse_custom_sign_command("foo \"bar baz").is_err());

@@ -6,7 +6,7 @@ Default permissions for the plugin.
 - `allow-name`
 - `allow-tauri-version`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

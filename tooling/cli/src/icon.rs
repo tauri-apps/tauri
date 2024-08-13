@@ -22,7 +22,7 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, ColorType, DynamicImage, ImageBuffer, ImageEncoder, Rgba,
+  open, DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder, Rgba,
 };
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
@@ -243,13 +243,18 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
 
       write_png(image.as_bytes(), &mut buf, size)?;
 
-      frames.push(IcoFrame::with_encoded(buf, size, size, ColorType::Rgba8)?)
+      frames.push(IcoFrame::with_encoded(
+        buf,
+        size,
+        size,
+        ExtendedColorType::Rgba8,
+      )?)
     } else {
       frames.push(IcoFrame::as_png(
         image.as_bytes(),
         size,
         size,
-        ColorType::Rgba8,
+        ExtendedColorType::Rgba8,
       )?);
     }
   }
@@ -485,6 +490,6 @@ fn resize_and_save_png(
 // Encode image data as png with compression.
 fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> Result<()> {
   let encoder = PngEncoder::new_with_quality(w, CompressionType::Best, PngFilterType::Adaptive);
-  encoder.write_image(image_data, size, size, ColorType::Rgba8)?;
+  encoder.write_image(image_data, size, size, ExtendedColorType::Rgba8)?;
   Ok(())
 }

@@ -14,7 +14,7 @@ Default permissions for the plugin.
 - `allow-set-icon-as-template`
 - `allow-set-show-menu-on-left-click`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

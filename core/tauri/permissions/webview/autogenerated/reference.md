@@ -6,7 +6,7 @@ Default permissions for the plugin.
 - `allow-webview-size`
 - `allow-internal-toggle-devtools`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

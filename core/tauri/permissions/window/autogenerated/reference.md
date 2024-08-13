@@ -26,7 +26,7 @@ Default permissions for the plugin.
 - `allow-theme`
 - `allow-internal-toggle-maximize`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

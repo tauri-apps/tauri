@@ -242,7 +242,7 @@ pub fn generate_docs(
 ) -> Result<(), Error> {
   let mut permission_table = "".to_string();
   let permission_table_header =
-    "### Permission Table \n\n<table>\n<tr>\n<th>Identifier</th>\n<th>Description</th>\n</tr>\n"
+    "## Permission Table \n\n<table>\n<tr>\n<th>Identifier</th>\n<th>Description</th>\n</tr>\n"
       .to_string();
 
   let mut default_permission = "## Default Permission\n\n".to_string();

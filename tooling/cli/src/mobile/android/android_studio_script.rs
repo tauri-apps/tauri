@@ -89,7 +89,7 @@ pub fn command(options: Options) -> Result<()> {
       let _ = adb::adb(&env, ["reverse", &forward, &forward])
         .stdin_file(os_pipe::dup_stdin().unwrap())
         .stdout_file(os_pipe::dup_stdout().unwrap())
-        .stderr_file(os_pipe::dup_stdout().unwrap())
+        .stderr_capture()
         .run();
     }
   }

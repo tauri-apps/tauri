@@ -222,7 +222,7 @@ fn run_dev(
       debug: !options.release_mode,
       features: options.features,
       args: Vec::new(),
-      config: options.config,
+      config: dev_options.config.clone(),
       no_watch: options.no_watch,
     },
     |options| {
@@ -232,6 +232,7 @@ fn run_dev(
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
+        config: dev_options.config.clone(),
       };
 
       let _handle = write_options(

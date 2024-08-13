@@ -32,7 +32,6 @@ use std::{
   cell::RefCell,
   collections::HashMap,
   fmt,
-  rc::Rc,
   sync::{Arc, Mutex},
 };
 
@@ -40,12 +39,45 @@ pub type GlobalSystemTrayEventHandler = Box<dyn Fn(TrayId, &SystemTrayEvent) + S
 pub type GlobalSystemTrayEventListeners = Arc<Mutex<Vec<Arc<GlobalSystemTrayEventHandler>>>>;
 
 pub type SystemTrayEventHandler = Box<dyn Fn(&SystemTrayEvent) + Send>;
-pub type SystemTrayEventListeners = Rc<RefCell<Vec<Rc<SystemTrayEventHandler>>>>;
-pub type SystemTrayItems = Rc<RefCell<HashMap<u16, WryCustomMenuItem>>>;
+pub type SystemTrayEventListeners = Arc<TrayListenersCell>;
+pub type SystemTrayItems = Arc<TrayItemsCell>;
+
+#[derive(Debug, Default)]
+pub struct TrayItemsCell(pub RefCell<HashMap<u16, WryCustomMenuItem>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for TrayItemsCell {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for TrayItemsCell {}
+
+#[derive(Default)]
+pub struct TrayCell(pub RefCell<Option<WrySystemTray>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for TrayCell {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for TrayCell {}
+
+#[derive(Default)]
+pub struct TrayListenersCell(pub RefCell<Vec<Arc<SystemTrayEventHandler>>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for TrayListenersCell {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for TrayListenersCell {}
 
 #[derive(Clone, Default)]
 pub struct TrayContext {
-  pub tray: Rc<RefCell<Option<WrySystemTray>>>,
+  pub tray: Arc<TrayCell>,
   pub listeners: SystemTrayEventListeners,
   pub items: SystemTrayItems,
 }
@@ -126,7 +158,7 @@ pub fn create_tray<T>(
 
 #[derive(Debug, Clone)]
 pub struct SystemTrayHandle<T: UserEvent> {
-  pub(crate) context: Context<T>,
+  pub(crate) context: Arc<Context<T>>,
   pub(crate) id: TrayId,
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }

@@ -8,7 +8,6 @@ use std::{
   collections::HashMap,
   error::Error as StdError,
   fmt,
-  rc::Rc,
   sync::{
     mpsc::{channel, Sender},
     Arc, Mutex,
@@ -18,13 +17,33 @@ use std::{
 use crate::{getter, Context, Message};
 
 use tauri_runtime::{Error, GlobalShortcutManager, Result, UserEvent};
-#[cfg(desktop)]
+
 pub use wry::application::{
   accelerator::{Accelerator, AcceleratorId, AcceleratorParseError},
-  global_shortcut::{GlobalShortcut, ShortcutManager as WryShortcutManager},
+  event_loop::EventLoopWindowTarget,
+  global_shortcut::GlobalShortcut,
 };
 
 pub type GlobalShortcutListeners = Arc<Mutex<HashMap<AcceleratorId, Box<dyn Fn() + Send>>>>;
+
+#[derive(Debug)]
+pub struct WryShortcutManager(pub wry::application::global_shortcut::ShortcutManager);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for WryShortcutManager {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for WryShortcutManager {}
+
+impl WryShortcutManager {
+  pub fn new<T: 'static>(event_loop: &EventLoopWindowTarget<T>) -> Self {
+    Self(wry::application::global_shortcut::ShortcutManager::new(
+      event_loop,
+    ))
+  }
+}
 
 #[derive(Debug, Clone)]
 pub enum GlobalShortcutMessage {
@@ -53,7 +72,7 @@ impl StdError for AcceleratorParseErrorWrapper {}
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
 pub struct GlobalShortcutManagerHandle<T: UserEvent> {
-  pub context: Context<T>,
+  pub context: Arc<Context<T>>,
   pub shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   pub listeners: GlobalShortcutListeners,
 }
@@ -139,7 +158,7 @@ impl<T: UserEvent> GlobalShortcutManager for GlobalShortcutManagerHandle<T> {
 
 pub fn handle_global_shortcut_message(
   message: GlobalShortcutMessage,
-  global_shortcut_manager: &Rc<Mutex<WryShortcutManager>>,
+  global_shortcut_manager: &Mutex<WryShortcutManager>,
 ) {
   match message {
     GlobalShortcutMessage::IsRegistered(accelerator, tx) => tx
@@ -147,6 +166,7 @@ pub fn handle_global_shortcut_message(
         global_shortcut_manager
           .lock()
           .unwrap()
+          .0
           .is_registered(&accelerator),
       )
       .unwrap(),
@@ -155,6 +175,7 @@ pub fn handle_global_shortcut_message(
         global_shortcut_manager
           .lock()
           .unwrap()
+          .0
           .register(accelerator)
           .map(GlobalShortcutWrapper)
           .map_err(|e| Error::GlobalShortcut(Box::new(e))),
@@ -165,6 +186,7 @@ pub fn handle_global_shortcut_message(
         global_shortcut_manager
           .lock()
           .unwrap()
+          .0
           .unregister(shortcut.0)
           .map_err(|e| Error::GlobalShortcut(Box::new(e))),
       )
@@ -174,6 +196,7 @@ pub fn handle_global_shortcut_message(
         global_shortcut_manager
           .lock()
           .unwrap()
+          .0
           .unregister_all()
           .map_err(|e| Error::GlobalShortcut(Box::new(e))),
       )

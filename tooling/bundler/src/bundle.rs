@@ -260,6 +260,7 @@ pub(crate) fn bundle_name(settings: &Settings, ext: &str) -> String {
   )
 }
 
+#[inline]
 pub(crate) fn bundle_name_with_suffix(settings: &Settings, suffix: &str, ext: &str) -> String {
   format!(
     "{}-{}-{}-{suffix}.{ext}",

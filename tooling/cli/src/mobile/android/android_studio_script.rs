@@ -90,7 +90,7 @@ pub fn command(options: Options) -> Result<()> {
       let result = adb::adb(&env, ["reverse", &forward, &forward])
         .stdin_file(os_pipe::dup_stdin().unwrap())
         .stdout_file(os_pipe::dup_stdout().unwrap())
-        .stderr_capture()
+        .stderr_file(os_pipe::dup_stdout().unwrap())
         .run();
       if let Err(e) = result {
         log::error!("Failed to forward port {port}: {e}");

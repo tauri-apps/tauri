@@ -190,6 +190,7 @@ pub(crate) fn send_user_message<T: UserEvent>(
   }
 }
 
+#[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub webview_id_map: WebviewIdStore,
   main_thread_id: ThreadId,
@@ -211,7 +212,7 @@ impl<T: UserEvent> Context<T> {
 }
 
 fn context_create_webview<T: UserEvent>(
-  context: Arc<Context<T>>,
+  context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
 ) -> Result<DetachedWindow<T, Wry<T>>> {
   let label = pending.label.clone();
@@ -1240,7 +1241,7 @@ impl<T: UserEvent> Clone for Message<T> {
 #[derive(Debug, Clone)]
 pub struct WryDispatcher<T: UserEvent> {
   window_id: WebviewId,
-  context: Arc<Context<T>>,
+  context: Context<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
@@ -1806,7 +1807,7 @@ impl<T: UserEvent> EventLoopProxy<T> for EventProxy<T> {
 
 pub trait PluginBuilder<T: UserEvent> {
   type Plugin: Plugin<T>;
-  fn build(self, context: Arc<Context<T>>) -> Self::Plugin;
+  fn build(self, context: Context<T>) -> Self::Plugin;
 }
 
 pub trait Plugin<T: UserEvent> {
@@ -1823,7 +1824,7 @@ pub trait Plugin<T: UserEvent> {
 
 /// A Tauri [`Runtime`] wrapper around wry.
 pub struct Wry<T: UserEvent> {
-  context: Arc<Context<T>>,
+  context: Context<T>,
 
   plugins: Vec<Box<dyn Plugin<T>>>,
 
@@ -1871,7 +1872,7 @@ impl<T: UserEvent> fmt::Debug for Wry<T> {
 /// A handle to the Wry runtime.
 #[derive(Debug, Clone)]
 pub struct WryHandle<T: UserEvent> {
-  context: Arc<Context<T>>,
+  context: Context<T>,
 }
 
 // SAFETY: this is safe since the `Context` usage is guarded on `send_user_message`.
@@ -1990,7 +1991,7 @@ impl<T: UserEvent> Wry<T> {
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = Default::default();
 
-    let context = Arc::new(Context {
+    let context = Context {
       webview_id_map,
       main_thread_id,
       proxy: event_loop.create_proxy(),
@@ -2005,7 +2006,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(feature = "tracing")]
         active_tracing_spans: Default::default(),
       },
-    });
+    };
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
     let global_shortcut_manager_handle = GlobalShortcutManagerHandle {
@@ -3166,7 +3167,7 @@ fn create_webview<T: UserEvent>(
   window_id: WebviewId,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   web_context_store: &WebContextStore,
-  context: Arc<Context<T>>,
+  context: Context<T>,
   pending: PendingWindow<T, Wry<T>>,
 ) -> Result<WindowWrapper> {
   #[allow(unused_mut)]
@@ -3398,7 +3399,7 @@ fn create_webview<T: UserEvent>(
 
 /// Create a wry ipc handler from a tauri ipc handler.
 fn create_ipc_handler<T: UserEvent>(
-  context: Arc<Context<T>>,
+  context: Context<T>,
   label: String,
   menu_ids: Arc<Mutex<HashMap<MenuHash, MenuId>>>,
   js_event_listeners: Arc<Mutex<HashMap<JsEventListenerKey, HashSet<u32>>>>,

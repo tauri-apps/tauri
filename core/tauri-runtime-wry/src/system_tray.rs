@@ -158,7 +158,7 @@ pub fn create_tray<T>(
 
 #[derive(Debug, Clone)]
 pub struct SystemTrayHandle<T: UserEvent> {
-  pub(crate) context: Arc<Context<T>>,
+  pub(crate) context: Context<T>,
   pub(crate) id: TrayId,
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
 }

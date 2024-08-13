@@ -72,7 +72,7 @@ impl StdError for AcceleratorParseErrorWrapper {}
 /// Wrapper around [`WryShortcutManager`].
 #[derive(Clone)]
 pub struct GlobalShortcutManagerHandle<T: UserEvent> {
-  pub context: Arc<Context<T>>,
+  pub context: Context<T>,
   pub shortcuts: Arc<Mutex<HashMap<String, (AcceleratorId, GlobalShortcutWrapper)>>>,
   pub listeners: GlobalShortcutListeners,
 }

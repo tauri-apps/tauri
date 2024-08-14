@@ -195,8 +195,31 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
 
   fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
     if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
-      if let Some(_pending) = &mut *self.pending.0.borrow_mut() {
-        // do nothing - menu items not available yet
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        if let Some(menu) = &mut pending.menu {
+          for item in &mut menu.items {
+            if let SystemTrayMenuEntry::CustomItem(item) = item {
+              if item.id == id {
+                match update {
+                  MenuUpdate::SetEnabled(enabled) => {
+                    item.enabled = enabled;
+                  }
+                  MenuUpdate::SetTitle(title) => {
+                    item.title = title;
+                  }
+                  MenuUpdate::SetSelected(selected) => {
+                    item.selected = selected;
+                  }
+                  #[cfg(target_os = "macos")]
+                  MenuUpdate::SetNativeImage(img) => {
+                    item.native_image.replace(img);
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
         return Ok(());
       }
     }

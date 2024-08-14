@@ -19,7 +19,7 @@ Tauri is a polyglot and generic system that is very composable and allows engine
 
 Tauri apps can have custom menus and have tray-type interfaces. They can be updated, and are managed by the user's operating system as expected. They are very small, because they use the system's webview. They do not ship a runtime, since the final binary is compiled from rust. This makes the reversing of Tauri apps not a trivial task.
 ## This module
-Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, `yarn`, and `bun`, this library provides a node.js runner for common tasks when using Tauri, like `yarn tauri dev`. For the most part it is a wrapper around [tauri-cli](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli).
+Written in Typescript and packaged such that it can be used with `npm`, `pnpm`, `yarn`, and `bun`, this library provides a node.js runner for common tasks when using Tauri, like `pnpm tauri dev`. For the most part it is a wrapper around [tauri-cli](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli).
 
 To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 
@@ -28,8 +28,9 @@ To learn more about the details of how all of these pieces fit together, please 
 
 The preferred method is to install this module locally as a development dependency:
 ```
-$ npm install --save-dev @tauri-apps/cli
-$ yarn add --dev @tauri-apps/cli
+$ pnpm add -D @tauri-apps/cli
+$ yarn add -D @tauri-apps/cli
+$ npm add -D @tauri-apps/cli
 ```
 
 ## Semver

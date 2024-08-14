@@ -1,0 +1,6 @@
+packages:
+  - tooling/api
+  - tooling/cli/node
+  - examples/api
+  - examples/resources
+  - examples/file-associations

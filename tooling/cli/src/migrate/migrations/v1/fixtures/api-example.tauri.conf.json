@@ -3,8 +3,8 @@
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:5173",
-    "beforeDevCommand": "yarn dev",
-    "beforeBuildCommand": "yarn build"
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
   },
   "package": {
     "productName": "Tauri API",

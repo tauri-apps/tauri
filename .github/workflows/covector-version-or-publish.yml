@@ -48,9 +48,9 @@ jobs:
         timeout-minutes: 30
         run: |
           cd ./tooling/cli/node
-          yarn
-          yarn build
-          yarn test
+          pnpm i
+          pnpm build
+          pnpm test
 
   version-or-publish:
     runs-on: ubuntu-latest
@@ -74,8 +74,7 @@ jobs:
         with:
           node-version: 18
           registry-url: 'https://registry.npmjs.org'
-          cache: yarn
-          cache-dependency-path: tooling/*/yarn.lock
+          cache: pnpm
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}

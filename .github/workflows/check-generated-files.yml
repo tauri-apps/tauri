@@ -49,7 +49,7 @@ jobs:
 
       - name: build api
         working-directory: tooling/api
-        run: yarn && yarn build
+        run: pnpm i && pnpm build
       - name: check api
         run: ./.scripts/ci/has-diff.sh
 

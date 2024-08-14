@@ -112,9 +112,9 @@ jobs:
       - name: Test
         run: |
           cd tooling/api
-          yarn && yarn build
+          pnpm i && pnpm build
           cd ../../examples/api
-          yarn
+          pnpm i
           . .setup-cross.sh
           chmod +x cargo-tauri
           chmod +x $HOME/.cargo/bin/cross

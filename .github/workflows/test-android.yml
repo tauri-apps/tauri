@@ -46,10 +46,7 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 18
-          cache: yarn
-          cache-dependency-path: |
-            tooling/api/yarn.lock
-            examples/api/yarn.lock
+          cache: pnpm
 
       - uses: actions/setup-java@v3
         with:
@@ -95,11 +92,11 @@ jobs:
 
       - name: build Tauri API
         working-directory: ./tooling/api
-        run: yarn && yarn build
+        run: pnpm i && pnpm build
 
       - name: install API example dependencies
         working-directory: ./examples/api
-        run: yarn
+        run: pnpm i
 
       - name: init Android Studio project
         working-directory: ./examples/api

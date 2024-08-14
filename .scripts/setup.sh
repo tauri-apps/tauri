@@ -6,7 +6,7 @@
 
 echo "Building API definitions..."
 cd tooling/api
-yarn && yarn build
+pnpm i && pnpm build
 cd ../..
 
 echo "Building the Tauri Rust CLI..."
@@ -20,9 +20,9 @@ select yn in "Yes" "No"; do
     case $yn in
         Yes )
             cd tooling/cli/node
-            yarn && yarn build && yarn link
+            pnpm i && pnpm build && pnpm link
             cd ../../..
-            echo "Tauri Node.js CLI installed. use `yarn link @tauri-apps/cli` and run it with '$ yarn tauri [COMMAND]'."
+            echo "Tauri Node.js CLI installed. use `pnpm link @tauri-apps/cli` and run it with '$ pnpm tauri [COMMAND]'."
             break;;
         No ) break;;
     esac

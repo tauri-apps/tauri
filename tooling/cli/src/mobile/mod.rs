@@ -135,12 +135,19 @@ impl Target {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TargetDevice {
+  id: String,
+  name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+  pub target_device: Option<TargetDevice>,
 }
 
 impl Default for CliOptions {
@@ -151,6 +158,7 @@ impl Default for CliOptions {
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),
+      target_device: None,
     }
   }
 }

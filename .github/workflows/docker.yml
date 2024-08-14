@@ -113,9 +113,9 @@ jobs:
       - name: Test
         run: |
           cd tooling/api
-          pnpm i && pnpm build
+          pnpm i --frozen-lockfile && pnpm build
           cd ../../examples/api
-          pnpm i
+          pnpm i --frozen-lockfile
           . .setup-cross.sh
           chmod +x cargo-tauri
           chmod +x $HOME/.cargo/bin/cross

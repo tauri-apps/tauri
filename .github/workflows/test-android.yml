@@ -93,11 +93,11 @@ jobs:
 
       - name: build Tauri API
         working-directory: ./tooling/api
-        run: pnpm i && pnpm build
+        run: pnpm i --frozen-lockfile && pnpm build
 
       - name: install API example dependencies
         working-directory: ./examples/api
-        run: pnpm i
+        run: pnpm i --frozen-lockfile
 
       - name: init Android Studio project
         working-directory: ./examples/api

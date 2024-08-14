@@ -48,7 +48,7 @@ jobs:
         timeout-minutes: 30
         run: |
           cd ./tooling/cli/node
-          pnpm i
+          pnpm i --frozen-lockfile
           pnpm build
           pnpm test
 

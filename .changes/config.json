@@ -81,7 +81,7 @@
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
         {
-          "command": "pnpm i",
+          "command": "pnpm i --frozen-lockfile",
           "dryRunCommand": true
         },
         {

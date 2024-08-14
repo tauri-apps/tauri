@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'pnpm'
-      - run: pnpm i
+      - run: pnpm i --frozen-lockfile
       - run: pnpm format:check
 
   eslint:
@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'pnpm'
-      - run: pnpm i
+      - run: pnpm i --frozen-lockfile
       - run: pnpm eslint:check
 
   typescript:
@@ -49,5 +49,5 @@ jobs:
         with:
           node-version: '18'
           cache: 'pnpm'
-      - run: pnpm i
+      - run: pnpm i --frozen-lockfile
       - run: pnpm ts:check

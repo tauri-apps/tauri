@@ -59,12 +59,17 @@ pub fn command(options: Options) -> Result<()> {
     );
     (config, metadata, cli_options)
   };
+
   ensure_init(
     &tauri_config,
     config.app(),
     config.project_dir(),
     MobileTarget::Android,
   )?;
+
+  if let Some(config) = &cli_options.config {
+    crate::helpers::config::merge_with(&config.0)?;
+  }
 
   let env = env()?;
 
@@ -77,6 +82,7 @@ pub fn command(options: Options) -> Result<()> {
       .build
       .dev_url
       .clone();
+
     if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
       let forward = format!("tcp:{port}");
       // ignore errors in case we do not have a device available

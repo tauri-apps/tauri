@@ -34,7 +34,7 @@ use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueE
 use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
 use log::Level;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
@@ -48,7 +48,7 @@ use std::{
 };
 
 /// Tauri configuration argument option.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigValue(pub(crate) serde_json::Value);
 
 impl FromStr for ConfigValue {

@@ -27,7 +27,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
     "x86" => "i386",
     "x86_64" => "amd64",
-    "armv7" => "armhf"
+    "armv7" => "armhf",
     other => other,
   };
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");

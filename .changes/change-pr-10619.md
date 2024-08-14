@@ -1,18 +1,5 @@
 ---
-"@tauri-apps/api": patch
-"tauri-utils": patch
-"tauri-macos-sign": patch
-"tauri-bundler": patch
-"tauri-runtime": patch
-"tauri-runtime-wry": patch
-"tauri-codegen": patch
-"tauri-macros": patch
-"tauri-plugin": patch
-"tauri-build": patch
-"tauri": patch
-"@tauri-apps/cli": patch
-"tauri-cli": patch
-"tauri-driver": patch
+"tauri-bundler": "patch:bug"
 ---
 
-fix(bundler): armv7 
+Fixed an issue that caused the bundler to not be able to download the AppImage tooling when building for ARM 32bit.

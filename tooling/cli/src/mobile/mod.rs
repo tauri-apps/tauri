@@ -8,6 +8,7 @@ use crate::{
     config::{Config as TauriConfig, ConfigHandle},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
+  ConfigValue,
 };
 #[cfg(target_os = "macos")]
 use anyhow::Context;
@@ -147,6 +148,7 @@ pub struct CliOptions {
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+  pub config: Option<ConfigValue>,
   pub target_device: Option<TargetDevice>,
 }
 
@@ -158,6 +160,7 @@ impl Default for CliOptions {
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),
+      config: None,
       target_device: None,
     }
   }

@@ -36,6 +36,8 @@ use std::{
   sync::OnceLock,
 };
 
+const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
+
 #[derive(Debug, Clone, Parser)]
 #[clap(
   about = "Run your app in development mode on iOS",
@@ -367,6 +369,8 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
+  let set_host = options.host.is_some();
+
   configure_cargo(app, None)?;
 
   let open = options.open;
@@ -377,7 +381,7 @@ fn run_dev(
       debug: true,
       features: options.features,
       args: Vec::new(),
-      config: options.config,
+      config: dev_options.config.clone(),
       no_watch: options.no_watch,
     },
     |options| {
@@ -387,6 +391,7 @@ fn run_dev(
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
+        config: dev_options.config.clone(),
         target_device: None,
       };
       let _handle = write_options(
@@ -395,6 +400,9 @@ fn run_dev(
       )?;
 
       if open {
+        if !set_host {
+          log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
+        }
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
         match run(device, options, config, &env) {
@@ -410,6 +418,9 @@ fn run_dev(
           }
         }
       } else {
+        if !set_host {
+          log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
+        }
         open_and_wait(config, &env)
       }
     },

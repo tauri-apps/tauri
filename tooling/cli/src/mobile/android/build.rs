@@ -202,6 +202,7 @@ fn run_build(
     noise_level,
     vars: Default::default(),
     config: build_options.config.clone(),
+    target_device: None,
   };
   let handle = write_options(
     &tauri_config.lock().unwrap().as_ref().unwrap().identifier,

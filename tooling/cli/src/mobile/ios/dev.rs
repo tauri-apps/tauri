@@ -392,6 +392,7 @@ fn run_dev(
         noise_level,
         vars: Default::default(),
         config: dev_options.config.clone(),
+        target_device: None,
       };
       let _handle = write_options(
         &tauri_config.lock().unwrap().as_ref().unwrap().identifier,

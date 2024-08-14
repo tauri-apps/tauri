@@ -32,7 +32,7 @@ use std::{
   cell::RefCell,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex},
+  sync::{atomic::Ordering, Arc, Mutex},
 };
 
 pub type GlobalSystemTrayEventHandler = Box<dyn Fn(TrayId, &SystemTrayEvent) + Send>;
@@ -166,90 +166,103 @@ pub struct SystemTrayHandle<T: UserEvent> {
 
 impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   fn set_icon(&self, icon: Icon) -> Result<()> {
-    if let Some(pending) = &mut *self.pending.0.borrow_mut() {
-      pending.icon.replace(icon);
-      Ok(())
-    } else {
-      self
-        .proxy
-        .send_event(Message::Tray(self.id, TrayMessage::UpdateIcon(icon)))
-        .map_err(|_| Error::FailedToSendMessage)
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.icon.replace(icon);
+        return Ok(());
+      }
     }
+
+    self
+      .proxy
+      .send_event(Message::Tray(self.id, TrayMessage::UpdateIcon(icon)))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   fn set_menu(&self, menu: SystemTrayMenu) -> Result<()> {
-    if let Some(pending) = &mut *self.pending.0.borrow_mut() {
-      pending.menu.replace(menu);
-      Ok(())
-    } else {
-      self
-        .proxy
-        .send_event(Message::Tray(self.id, TrayMessage::UpdateMenu(menu)))
-        .map_err(|_| Error::FailedToSendMessage)
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.menu.replace(menu);
+        return Ok(());
+      }
     }
+
+    self
+      .proxy
+      .send_event(Message::Tray(self.id, TrayMessage::UpdateMenu(menu)))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
-    if let Some(_pending) = &mut *self.pending.0.borrow_mut() {
-      // do nothing
-      Ok(())
-    } else {
-      self
-        .proxy
-        .send_event(Message::Tray(self.id, TrayMessage::UpdateItem(id, update)))
-        .map_err(|_| Error::FailedToSendMessage)
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(_pending) = &mut *self.pending.0.borrow_mut() {
+        // do nothing - menu items not available yet
+        return Ok(());
+      }
     }
+    self
+      .proxy
+      .send_event(Message::Tray(self.id, TrayMessage::UpdateItem(id, update)))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> tauri_runtime::Result<()> {
-    if let Some(pending) = &mut *self.pending.0.borrow_mut() {
-      pending.icon_as_template = is_template;
-      Ok(())
-    } else {
-      self
-        .proxy
-        .send_event(Message::Tray(
-          self.id,
-          TrayMessage::UpdateIconAsTemplate(is_template),
-        ))
-        .map_err(|_| Error::FailedToSendMessage)
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.icon_as_template = is_template;
+        return Ok(());
+      }
     }
+
+    self
+      .proxy
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateIconAsTemplate(is_template),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   #[cfg(target_os = "macos")]
   fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
-    if let Some(pending) = &mut *self.pending.0.borrow_mut() {
-      pending.title.replace(title.to_string());
-      Ok(())
-    } else {
-      self
-        .proxy
-        .send_event(Message::Tray(
-          self.id,
-          TrayMessage::UpdateTitle(title.to_owned()),
-        ))
-        .map_err(|_| Error::FailedToSendMessage)
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.title.replace(title.to_string());
+        return Ok(());
+      }
     }
+
+    self
+      .proxy
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateTitle(title.to_owned()),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   fn set_tooltip(&self, tooltip: &str) -> Result<()> {
-    if let Some(pending) = &mut *self.pending.0.borrow_mut() {
-      pending.tooltip.replace(tooltip.to_string());
-      Ok(())
-    } else {
-      self
-        .proxy
-        .send_event(Message::Tray(
-          self.id,
-          TrayMessage::UpdateTooltip(tooltip.to_owned()),
-        ))
-        .map_err(|_| Error::FailedToSendMessage)
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.tooltip.replace(tooltip.to_string());
+        return Ok(());
+      }
     }
+
+    self
+      .proxy
+      .send_event(Message::Tray(
+        self.id,
+        TrayMessage::UpdateTooltip(tooltip.to_owned()),
+      ))
+      .map_err(|_| Error::FailedToSendMessage)
   }
 
   fn destroy(&self) -> Result<()> {
-    if self.pending.0.borrow_mut().take().is_none() {
+    if self.context.is_event_loop_ready.load(Ordering::Relaxed)
+      && self.pending.0.borrow_mut().take().is_none()
+    {
       let (tx, rx) = std::sync::mpsc::channel();
       send_user_message(
         &self.context,

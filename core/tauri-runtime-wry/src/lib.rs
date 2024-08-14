@@ -5,7 +5,11 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::{collections::BTreeMap, rc::Rc};
+use std::{
+  collections::BTreeMap,
+  rc::Rc,
+  sync::atomic::{AtomicBool, Ordering},
+};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
@@ -196,6 +200,7 @@ pub struct Context<T: UserEvent> {
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
+  pub is_event_loop_ready: Arc<AtomicBool>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -2012,6 +2017,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(feature = "tracing")]
         active_tracing_spans: Default::default(),
       },
+      is_event_loop_ready: Arc::new(AtomicBool::new(false)),
     };
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -2224,6 +2230,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
+    use std::sync::atomic::Ordering;
+
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
@@ -2231,6 +2239,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let plugins = &mut self.plugins;
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
+
+    let is_event_loop_ready = self.context.is_event_loop_ready.clone();
+    is_event_loop_ready.store(false, Ordering::Relaxed);
 
     let pending_ready_tasks = &self.pending_ready_tasks;
 
@@ -2273,6 +2284,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               #[cfg(feature = "tracing")]
               active_tracing_spans: active_tracing_spans.clone(),
               pending_ready_tasks,
+              is_event_loop_ready: is_event_loop_ready.clone(),
             },
             web_context,
           );
@@ -2298,6 +2310,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
             pending_ready_tasks,
+            is_event_loop_ready: is_event_loop_ready.clone(),
           },
           web_context,
         );
@@ -2310,6 +2323,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context.clone();
+    let is_event_loop_ready = self.context.is_event_loop_ready.clone();
     let pending_ready_tasks = self.pending_ready_tasks;
     let mut plugins = self.plugins;
 
@@ -2346,6 +2360,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
             pending_ready_tasks: &pending_ready_tasks,
+            is_event_loop_ready: is_event_loop_ready.clone(),
           },
           &web_context,
         );
@@ -2370,6 +2385,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           #[cfg(feature = "tracing")]
           active_tracing_spans: active_tracing_spans.clone(),
           pending_ready_tasks: &pending_ready_tasks,
+          is_event_loop_ready: is_event_loop_ready.clone(),
         },
         &web_context,
       );
@@ -2389,6 +2405,7 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub system_tray_manager: SystemTrayManager,
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
+  pub is_event_loop_ready: Arc<AtomicBool>,
   pub pending_ready_tasks: &'a RefCell<Vec<PendingReadyTask<T>>>,
 }
 
@@ -2847,6 +2864,7 @@ fn handle_event_loop<T: UserEvent>(
     system_tray_manager,
     #[cfg(feature = "tracing")]
     active_tracing_spans,
+    is_event_loop_ready,
     pending_ready_tasks,
   } = context;
   if *control_flow != ControlFlow::Exit {
@@ -2855,6 +2873,7 @@ fn handle_event_loop<T: UserEvent>(
 
   match event {
     Event::NewEvents(StartCause::Init) => {
+      is_event_loop_ready.store(true, Ordering::Relaxed);
       for task in pending_ready_tasks.replace(Vec::new()) {
         task(event_loop);
       }

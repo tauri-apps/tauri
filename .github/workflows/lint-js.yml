@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: pnpm
+          cache: 'pnpm'
       - run: pnpm i
       - run: pnpm format:check
 
@@ -36,7 +36,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: pnpm
+          cache: 'pnpm'
       - run: pnpm i
       - run: pnpm eslint:check
 
@@ -48,6 +48,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: pnpm
+          cache: 'pnpm'
       - run: pnpm i
       - run: pnpm ts:check

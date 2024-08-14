@@ -168,7 +168,7 @@ jobs:
         with:
           node-version: 14
           registry-url: 'https://registry.npmjs.org'
-          cache: yarn
+          cache: 'yarn'
           cache-dependency-path: tooling/*/yarn.lock
 
       - name: cargo login

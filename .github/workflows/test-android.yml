@@ -47,13 +47,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: pnpm
+          cache: 'pnpm'
 
       - uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
+          cache: 'gradle'
 
       - name: Setup NDK
         uses: nttld/setup-ndk@v1

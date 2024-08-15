@@ -893,6 +893,8 @@ impl Default for WebviewInstallMode {
 
 /// Custom Signing Command configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct CustomSignCommandConfig {
   /// The command to run to sign the binary.
   pub cmd: String,

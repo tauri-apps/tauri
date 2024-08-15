@@ -2033,10 +2033,14 @@
           ]
         },
         "signCommand": {
-          "description": "Specify a custom command to sign the binaries.\n This command needs to have a `%1` in it which is just a placeholder for the binary path,\n which we will detect and replace before calling the command.\n\n Example:\n ```text\n sign-cli --arg1 --arg2 %1\n ```\n\n By Default we use `signtool.exe` which can be found only on Windows so\n if you are on another platform and want to cross-compile and sign you will\n need to use another tool like `osslsigncode`.",
-          "type": [
-            "string",
-            "null"
+          "description": "Specify a custom command to sign the binaries.\n This command needs to have a `%1` in args which is just a placeholder for the binary path,\n which we will detect and replace before calling the command.\n\n By Default we use `signtool.exe` which can be found only on Windows so\n if you are on another platform and want to cross-compile and sign you will\n need to use another tool like `osslsigncode`.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CustomSignCommandConfig"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -2424,6 +2428,39 @@
           ]
         }
       ]
+    },
+    "CustomSignCommandConfig": {
+      "description": "Custom Signing Command configuration.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/CustomSignCommandObjectConfig"
+        }
+      ]
+    },
+    "CustomSignCommandObjectConfig": {
+      "description": "Custom Signing Command configuration in object form.\n\n This allows you to use whitespace in the command and arguments.",
+      "type": "object",
+      "required": [
+        "args",
+        "cmd"
+      ],
+      "properties": {
+        "cmd": {
+          "description": "The command to run to sign the binary.",
+          "type": "string"
+        },
+        "args": {
+          "description": "The arguments to pass to the command.\n\n \"%1\" will be replaced with the path to the binary to be signed.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
     },
     "LinuxConfig": {
       "description": "Configuration for Linux bundles.\n\n See more: <https://tauri.app/v1/api/config#linuxconfig>",

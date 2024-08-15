@@ -1,6 +1,6 @@
 ---
-"tauri-bundler": patch:breaking
-"tauri-utils": patch:breaking
+"tauri-bundler": patch:feat
+"tauri-utils": patch:feat
 ---
 
-Custom sign command for windows executables is now with object instead of string to support whitespaces in the command path and arguments.
+Custom sign command with object notation for whitespaces in the command path and arguments.

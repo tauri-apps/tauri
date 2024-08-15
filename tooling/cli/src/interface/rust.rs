@@ -40,9 +40,9 @@ mod cargo_config;
 mod desktop;
 pub mod installation;
 pub mod manifest;
+use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
-use crate::helpers::config::custom_sign_settings;
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {

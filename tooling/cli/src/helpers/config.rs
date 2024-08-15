@@ -110,10 +110,21 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
   }
 }
 
-pub fn custom_sign_settings(config: CustomSignCommandConfig) -> tauri_bundler::CustomSignCommandSettings {
-  tauri_bundler::CustomSignCommandSettings {
-    cmd: config.cmd,
-    args: config.args,
+pub fn custom_sign_settings(
+  config: CustomSignCommandConfig,
+) -> tauri_bundler::CustomSignCommandSettings {
+  match config {
+    CustomSignCommandConfig::String(string) => {
+      let mut args = string.split(' ');
+      tauri_bundler::CustomSignCommandSettings {
+        cmd: args.next().unwrap().to_string(), // split always has at least one element
+        args: args.map(String::from).collect(),
+      }
+    }
+    CustomSignCommandConfig::Object(config) => tauri_bundler::CustomSignCommandSettings {
+      cmd: config.cmd,
+      args: config.args,
+    },
   }
 }
 

@@ -217,7 +217,10 @@ pub fn command(options: Options) -> Result<()> {
       return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
     }
 
-    validate_lib(&lib_path)?;
+    // for some reason the app works on release, but `nm <path>` does not print the start_app symbol
+    if profile == Profile::Debug {
+      validate_lib(&lib_path)?;
+    }
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));

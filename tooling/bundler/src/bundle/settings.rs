@@ -465,7 +465,7 @@ pub struct CustomSignCommandSettings {
   /// The command to run to sign the binary.
   pub cmd: String,
   /// The arguments to pass to the command.
-  /// 
+  ///
   /// "%1" will be replaced with the path to the binary to be signed.
   pub args: Vec<String>,
 }

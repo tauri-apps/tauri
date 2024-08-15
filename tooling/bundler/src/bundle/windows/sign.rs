@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::bundle::settings::CustomSignCommandSettings;
 #[cfg(windows)]
 use crate::bundle::windows::util;
 use crate::{bundle::common::CommandExt, Settings};
@@ -11,7 +12,6 @@ use std::path::PathBuf;
 #[cfg(windows)]
 use std::sync::OnceLock;
 use std::{path::Path, process::Command};
-use crate::bundle::settings::CustomSignCommandSettings;
 
 impl Settings {
   pub(crate) fn can_sign(&self) -> bool {
@@ -136,7 +136,10 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
   Ok(cmd.status()?.success())
 }
 
-pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &CustomSignCommandSettings) -> crate::Result<Command> {
+pub fn sign_command_custom<P: AsRef<Path>>(
+  path: P,
+  command: &CustomSignCommandSettings,
+) -> crate::Result<Command> {
   let path = path.as_ref();
 
   let mut cmd = Command::new(&command.cmd);
@@ -189,7 +192,10 @@ pub fn sign_command<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
   }
 }
 
-pub fn sign_custom<P: AsRef<Path>>(path: P, custom_command: &CustomSignCommandSettings) -> crate::Result<()> {
+pub fn sign_custom<P: AsRef<Path>>(
+  path: P,
+  custom_command: &CustomSignCommandSettings,
+) -> crate::Result<()> {
   let path = path.as_ref();
 
   log::info!(action = "Signing";"{} with a custom signing command", tauri_utils::display_path(path));

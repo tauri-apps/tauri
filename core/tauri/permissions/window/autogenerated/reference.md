@@ -220,6 +220,32 @@ Denies the destroy command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-get-all-windows`
+
+</td>
+<td>
+
+Enables the get_all_windows command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-get-all-windows`
+
+</td>
+<td>
+
+Denies the get_all_windows command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-hide`
 
 </td>

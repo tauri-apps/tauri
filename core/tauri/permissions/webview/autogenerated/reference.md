@@ -70,6 +70,32 @@ Denies the create_webview_window command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-get-all-webviews`
+
+</td>
+<td>
+
+Enables the get_all_webviews command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-get-all-webviews`
+
+</td>
+<td>
+
+Denies the get_all_webviews command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-internal-toggle-devtools`
 
 </td>

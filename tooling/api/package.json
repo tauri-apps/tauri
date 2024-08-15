@@ -49,7 +49,7 @@
     "@eslint/js": "^9.4.0",
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "11.1.6",
-    "@types/eslint": "^8.56.10",
+    "@types/eslint": "^9.0.0",
     "@types/node": "20.14.12",
     "eslint": "^9.4.0",
     "eslint-config-prettier": "9.1.0",

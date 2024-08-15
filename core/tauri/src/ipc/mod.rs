@@ -73,6 +73,7 @@ impl From<Vec<u8>> for InvokeBody {
 }
 
 impl InvokeBody {
+  #[cfg(mobile)]
   pub(crate) fn into_json(self) -> JsonValue {
     match self {
       Self::Json(v) => v,

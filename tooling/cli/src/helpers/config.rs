@@ -110,6 +110,13 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
   }
 }
 
+pub fn custom_sign_settings(config: CustomSignCommandConfig) -> tauri_bundler::CustomSignCommandSettings {
+  tauri_bundler::CustomSignCommandSettings {
+    cmd: config.cmd,
+    args: config.args,
+  }
+}
+
 fn config_handle() -> &'static ConfigHandle {
   static CONFIG_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
   CONFIG_HANDLE.get_or_init(Default::default)

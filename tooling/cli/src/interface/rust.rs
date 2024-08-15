@@ -42,6 +42,7 @@ pub mod installation;
 pub mod manifest;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
+use crate::helpers::config::custom_sign_settings;
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
@@ -1424,7 +1425,7 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
-      sign_command: config.windows.sign_command,
+      sign_command: config.windows.sign_command.map(custom_sign_settings),
     },
     license: config.license.or_else(|| {
       settings

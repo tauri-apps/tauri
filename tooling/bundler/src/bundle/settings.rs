@@ -459,6 +459,17 @@ pub struct NsisSettings {
   pub installer_hooks: Option<PathBuf>,
 }
 
+/// The Custom Signing Command Settings for Windows exe
+#[derive(Clone, Debug)]
+pub struct CustomSignCommandSettings {
+  /// The command to run to sign the binary.
+  pub cmd: String,
+  /// The arguments to pass to the command.
+  /// 
+  /// "%1" will be replaced with the path to the binary to be signed.
+  pub args: Vec<String>,
+}
+
 /// The Windows bundle settings.
 #[derive(Clone, Debug)]
 pub struct WindowsSettings {
@@ -504,7 +515,7 @@ pub struct WindowsSettings {
   /// By Default we use `signtool.exe` which can be found only on Windows so
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
-  pub sign_command: Option<String>,
+  pub sign_command: Option<CustomSignCommandSettings>,
 }
 
 impl Default for WindowsSettings {

@@ -32,7 +32,7 @@ use crate::{
     CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
     InvokeResolver, Origin, OwnedInvokeResponder,
   },
-  manager::{webview::WebviewLabelDef, AppManager},
+  manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   AppHandle, Emitter, Event, EventId, EventLoopMessage, Listener, Manager, ResourceTable, Runtime,
   Window,
@@ -548,8 +548,6 @@ tauri::Builder::default()
     mut self,
     manager: &M,
     window_label: &str,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
@@ -589,13 +587,10 @@ tauri::Builder::default()
         }
       }));
 
-    manager.manager().webview.prepare_webview(
-      manager,
-      pending,
-      window_label,
-      window_labels,
-      webview_labels,
-    )
+    manager
+      .manager()
+      .webview
+      .prepare_webview(manager, pending, window_label)
   }
 
   /// Creates a new webview on the given window.
@@ -606,27 +601,9 @@ tauri::Builder::default()
     position: Position,
     size: Size,
   ) -> crate::Result<Webview<R>> {
-    let window_labels = window
-      .manager()
-      .window
-      .labels()
-      .into_iter()
-      .collect::<Vec<_>>();
-    let webview_labels = window
-      .manager()
-      .webview
-      .webviews_lock()
-      .values()
-      .map(|w| WebviewLabelDef {
-        window_label: w.window().label().to_string(),
-        label: w.label().to_string(),
-      })
-      .collect::<Vec<_>>();
-
     let app_manager = window.manager();
 
-    let mut pending =
-      self.into_pending_webview(&window, window.label(), &window_labels, &webview_labels)?;
+    let mut pending = self.into_pending_webview(&window, window.label())?;
 
     pending.webview_attributes.bounds = Some(Rect { size, position });
 

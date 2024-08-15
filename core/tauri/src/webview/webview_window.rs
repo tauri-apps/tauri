@@ -33,7 +33,7 @@ use url::Url;
 
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
-  manager::{webview::WebviewLabelDef, AppManager},
+  manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
   webview::WebviewBuilder,
@@ -345,19 +345,6 @@ tauri::Builder::default()
   /// Creates a new window.
   pub fn build(self) -> crate::Result<WebviewWindow<R>> {
     let (_window, webview) = self.window_builder.with_webview(self.webview_builder)?;
-    Ok(WebviewWindow { webview })
-  }
-
-  pub(crate) fn build_internal(
-    self,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
-  ) -> crate::Result<WebviewWindow<R>> {
-    let (_window, webview) = self.window_builder.with_webview_internal(
-      self.webview_builder,
-      window_labels,
-      webview_labels,
-    )?;
     Ok(WebviewWindow { webview })
   }
 }

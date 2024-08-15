@@ -98,7 +98,10 @@ pub fn notarize(
     .context("failed to upload app to Apple's notarization servers.")?;
 
   if !output.status.success() {
-    return Err(anyhow::anyhow!("failed to notarize app"));
+    return Err(
+      anyhow::anyhow!("failed to notarize app")
+        .context(String::from_utf8_lossy(&output.stderr).into_owned()),
+    );
   }
 
   let output_str = String::from_utf8_lossy(&output.stdout);

@@ -32,7 +32,7 @@ use std::{
   cell::RefCell,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex},
+  sync::{atomic::Ordering, Arc, Mutex},
 };
 
 pub type GlobalSystemTrayEventHandler = Box<dyn Fn(TrayId, &SystemTrayEvent) + Send>;
@@ -161,10 +161,18 @@ pub struct SystemTrayHandle<T: UserEvent> {
   pub(crate) context: Context<T>,
   pub(crate) id: TrayId,
   pub(crate) proxy: EventLoopProxy<super::Message<T>>,
+  pub(crate) pending: PendingSystemTray,
 }
 
 impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   fn set_icon(&self, icon: Icon) -> Result<()> {
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.icon.replace(icon);
+        return Ok(());
+      }
+    }
+
     self
       .proxy
       .send_event(Message::Tray(self.id, TrayMessage::UpdateIcon(icon)))
@@ -172,6 +180,13 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   }
 
   fn set_menu(&self, menu: SystemTrayMenu) -> Result<()> {
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.menu.replace(menu);
+        return Ok(());
+      }
+    }
+
     self
       .proxy
       .send_event(Message::Tray(self.id, TrayMessage::UpdateMenu(menu)))
@@ -179,6 +194,35 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   }
 
   fn update_item(&self, id: u16, update: MenuUpdate) -> Result<()> {
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        if let Some(menu) = &mut pending.menu {
+          for item in &mut menu.items {
+            if let SystemTrayMenuEntry::CustomItem(item) = item {
+              if item.id == id {
+                match update {
+                  MenuUpdate::SetEnabled(enabled) => {
+                    item.enabled = enabled;
+                  }
+                  MenuUpdate::SetTitle(title) => {
+                    item.title = title;
+                  }
+                  MenuUpdate::SetSelected(selected) => {
+                    item.selected = selected;
+                  }
+                  #[cfg(target_os = "macos")]
+                  MenuUpdate::SetNativeImage(img) => {
+                    item.native_image.replace(img);
+                  }
+                }
+                break;
+              }
+            }
+          }
+        }
+        return Ok(());
+      }
+    }
     self
       .proxy
       .send_event(Message::Tray(self.id, TrayMessage::UpdateItem(id, update)))
@@ -187,6 +231,13 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
 
   #[cfg(target_os = "macos")]
   fn set_icon_as_template(&self, is_template: bool) -> tauri_runtime::Result<()> {
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.icon_as_template = is_template;
+        return Ok(());
+      }
+    }
+
     self
       .proxy
       .send_event(Message::Tray(
@@ -198,6 +249,13 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
 
   #[cfg(target_os = "macos")]
   fn set_title(&self, title: &str) -> tauri_runtime::Result<()> {
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.title.replace(title.to_string());
+        return Ok(());
+      }
+    }
+
     self
       .proxy
       .send_event(Message::Tray(
@@ -208,6 +266,13 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   }
 
   fn set_tooltip(&self, tooltip: &str) -> Result<()> {
+    if !self.context.is_event_loop_ready.load(Ordering::Relaxed) {
+      if let Some(pending) = &mut *self.pending.0.borrow_mut() {
+        pending.tooltip.replace(tooltip.to_string());
+        return Ok(());
+      }
+    }
+
     self
       .proxy
       .send_event(Message::Tray(
@@ -218,12 +283,16 @@ impl<T: UserEvent> TrayHandle for SystemTrayHandle<T> {
   }
 
   fn destroy(&self) -> Result<()> {
-    let (tx, rx) = std::sync::mpsc::channel();
-    send_user_message(
-      &self.context,
-      Message::Tray(self.id, TrayMessage::Destroy(tx)),
-    )?;
-    rx.recv().unwrap()?;
+    if self.context.is_event_loop_ready.load(Ordering::Relaxed)
+      && self.pending.0.borrow_mut().take().is_none()
+    {
+      let (tx, rx) = std::sync::mpsc::channel();
+      send_user_message(
+        &self.context,
+        Message::Tray(self.id, TrayMessage::Destroy(tx)),
+      )?;
+      rx.recv().unwrap()?;
+    }
     Ok(())
   }
 }
@@ -267,3 +336,14 @@ pub fn to_wry_context_menu(
   }
   tray_menu
 }
+
+#[derive(Debug, Clone)]
+pub struct PendingSystemTray(pub Arc<RefCell<Option<SystemTray>>>);
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Send for PendingSystemTray {}
+
+// SAFETY: we ensure this type is only used on the main thread.
+#[allow(clippy::non_send_fields_in_send_ty)]
+unsafe impl Sync for PendingSystemTray {}

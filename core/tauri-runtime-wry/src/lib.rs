@@ -5,7 +5,11 @@
 //! The [`wry`] Tauri [`Runtime`].
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
-use std::{collections::BTreeMap, rc::Rc};
+use std::{
+  collections::BTreeMap,
+  rc::Rc,
+  sync::atomic::{AtomicBool, Ordering},
+};
 use tauri_runtime::{
   http::{header::CONTENT_TYPE, Request as HttpRequest, RequestParts, Response as HttpResponse},
   menu::{AboutMetadata, CustomMenuItem, Menu, MenuEntry, MenuHash, MenuId, MenuItem, MenuUpdate},
@@ -196,6 +200,7 @@ pub struct Context<T: UserEvent> {
   main_thread_id: ThreadId,
   pub proxy: WryEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
+  pub is_event_loop_ready: Arc<AtomicBool>,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -1835,7 +1840,11 @@ pub struct Wry<T: UserEvent> {
   clipboard_manager_handle: ClipboardManagerWrapper,
 
   event_loop: EventLoop<Message<T>>,
+
+  pending_ready_tasks: RefCell<Vec<PendingReadyTask<T>>>,
 }
+
+type PendingReadyTask<T> = Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>)>;
 
 impl<T: UserEvent> fmt::Debug for Wry<T> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -1952,6 +1961,8 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       context: self.context.clone(),
       id,
       proxy: self.context.proxy.clone(),
+      #[allow(clippy::arc_with_non_send_sync)]
+      pending: PendingSystemTray(Arc::new(RefCell::new(None))),
     })
   }
 
@@ -2006,6 +2017,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(feature = "tracing")]
         active_tracing_spans: Default::default(),
       },
+      is_event_loop_ready: Arc::new(AtomicBool::new(false)),
     };
 
     #[cfg(all(desktop, feature = "global-shortcut"))]
@@ -2033,6 +2045,8 @@ impl<T: UserEvent> Wry<T> {
       clipboard_manager_handle,
 
       event_loop,
+
+      pending_ready_tasks: RefCell::new(Vec::new()),
     })
   }
 
@@ -2129,34 +2143,48 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(all(desktop, feature = "system-tray"))]
-  fn system_tray(&self, mut system_tray: SystemTray) -> Result<Self::TrayHandler> {
+  fn system_tray(&self, system_tray: SystemTray) -> Result<Self::TrayHandler> {
+    let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
+
     let id = system_tray.id;
-    let mut listeners = Vec::new();
-    if let Some(l) = system_tray.on_event.take() {
-      #[allow(clippy::arc_with_non_send_sync)]
-      listeners.push(Arc::new(l));
-    }
-    let (tray, items) = create_tray(WryTrayId(id), system_tray, &self.event_loop)?;
+    #[allow(clippy::arc_with_non_send_sync)]
+    let pending = PendingSystemTray(Arc::new(RefCell::new(Some(system_tray))));
+
+    let pending_ = pending.clone();
     self
-      .context
-      .main_thread
-      .system_tray_manager
-      .trays
-      .lock()
-      .unwrap()
-      .insert(
-        id,
-        TrayContext {
-          tray: Arc::new(TrayCell(RefCell::new(Some(tray)))),
-          listeners: Arc::new(TrayListenersCell(RefCell::new(listeners))),
-          items: Arc::new(TrayItemsCell(RefCell::new(items))),
-        },
-      );
+      .pending_ready_tasks
+      .borrow_mut()
+      .push(Box::new(move |event_loop| {
+        if let Some(mut system_tray) = pending_.0.borrow_mut().take() {
+          let mut listeners = Vec::new();
+          if let Some(l) = system_tray.on_event.take() {
+            #[allow(clippy::arc_with_non_send_sync)]
+            listeners.push(Arc::new(l));
+          }
+
+          match create_tray(WryTrayId(id), system_tray, event_loop) {
+            Ok((tray, items)) => {
+              system_tray_manager.trays.lock().unwrap().insert(
+                id,
+                TrayContext {
+                  tray: Arc::new(TrayCell(RefCell::new(Some(tray)))),
+                  listeners: Arc::new(TrayListenersCell(RefCell::new(listeners))),
+                  items: Arc::new(TrayItemsCell(RefCell::new(items))),
+                },
+              );
+            }
+            Err(e) => {
+              eprintln!("failed to build tray: {e}");
+            }
+          }
+        }
+      }));
 
     Ok(SystemTrayHandle {
       context: self.context.clone(),
       id,
-      proxy: self.event_loop.create_proxy(),
+      proxy: self.context.proxy.clone(),
+      pending,
     })
   }
 
@@ -2202,6 +2230,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
+    use std::sync::atomic::Ordering;
+
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
@@ -2209,6 +2239,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let plugins = &mut self.plugins;
     #[cfg(all(desktop, feature = "system-tray"))]
     let system_tray_manager = self.context.main_thread.system_tray_manager.clone();
+
+    let is_event_loop_ready = self.context.is_event_loop_ready.clone();
+    is_event_loop_ready.store(false, Ordering::Relaxed);
+
+    let pending_ready_tasks = &self.pending_ready_tasks;
 
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
@@ -2248,6 +2283,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
               system_tray_manager: system_tray_manager.clone(),
               #[cfg(feature = "tracing")]
               active_tracing_spans: active_tracing_spans.clone(),
+              pending_ready_tasks,
+              is_event_loop_ready: is_event_loop_ready.clone(),
             },
             web_context,
           );
@@ -2272,6 +2309,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             system_tray_manager: system_tray_manager.clone(),
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
+            pending_ready_tasks,
+            is_event_loop_ready: is_event_loop_ready.clone(),
           },
           web_context,
         );
@@ -2284,6 +2323,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();
     let web_context = self.context.main_thread.web_context.clone();
+    let is_event_loop_ready = self.context.is_event_loop_ready.clone();
+    let pending_ready_tasks = self.pending_ready_tasks;
     let mut plugins = self.plugins;
 
     #[cfg(feature = "tracing")]
@@ -2318,6 +2359,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             system_tray_manager: system_tray_manager.clone(),
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
+            pending_ready_tasks: &pending_ready_tasks,
+            is_event_loop_ready: is_event_loop_ready.clone(),
           },
           &web_context,
         );
@@ -2341,6 +2384,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           system_tray_manager: system_tray_manager.clone(),
           #[cfg(feature = "tracing")]
           active_tracing_spans: active_tracing_spans.clone(),
+          pending_ready_tasks: &pending_ready_tasks,
+          is_event_loop_ready: is_event_loop_ready.clone(),
         },
         &web_context,
       );
@@ -2360,6 +2405,8 @@ pub struct EventLoopIterationContext<'a, T: UserEvent> {
   pub system_tray_manager: SystemTrayManager,
   #[cfg(feature = "tracing")]
   pub active_tracing_spans: ActiveTraceSpanStore,
+  pub is_event_loop_ready: Arc<AtomicBool>,
+  pub pending_ready_tasks: &'a RefCell<Vec<PendingReadyTask<T>>>,
 }
 
 struct UserMessageContext {
@@ -2817,6 +2864,8 @@ fn handle_event_loop<T: UserEvent>(
     system_tray_manager,
     #[cfg(feature = "tracing")]
     active_tracing_spans,
+    is_event_loop_ready,
+    pending_ready_tasks,
   } = context;
   if *control_flow != ControlFlow::Exit {
     *control_flow = ControlFlow::Wait;
@@ -2824,6 +2873,11 @@ fn handle_event_loop<T: UserEvent>(
 
   match event {
     Event::NewEvents(StartCause::Init) => {
+      is_event_loop_ready.store(true, Ordering::Relaxed);
+      for task in pending_ready_tasks.replace(Vec::new()) {
+        task(event_loop);
+      }
+
       callback(RunEvent::Ready);
     }
 

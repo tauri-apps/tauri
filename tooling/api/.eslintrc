@@ -15,7 +15,7 @@
     "prettier"
   ],
 
-  "plugins": ["@typescript-eslint", "node", "security"],
+  "plugins": ["@typescript-eslint", "n", "security"],
 
   "parserOptions": {
     "project": "./tsconfig.json"

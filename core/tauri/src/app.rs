@@ -1741,6 +1741,13 @@ tauri::Builder::default()
       self.invoke_key,
     ));
 
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     let app_id = if manager.config.app.enable_gtk_app_id {
       Some(manager.config.identifier.clone())
     } else {

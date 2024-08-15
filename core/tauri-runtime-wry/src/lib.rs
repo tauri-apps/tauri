@@ -46,8 +46,8 @@ use wry::WebViewBuilderExtWindows;
 use tao::{
   dpi::{
     LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
-    LogicalUnit as ToaLogicalUnit, PhysicalPosition as TaoPhysicalPosition,
-    PhysicalSize as TaoPhysicalSize, Position as TaoPosition, Size as TaoSize,
+    PhysicalPosition as TaoPhysicalPosition, PhysicalSize as TaoPhysicalSize,
+    Position as TaoPosition, Size as TaoSize,
   },
   event::{Event, StartCause, WindowEvent as TaoWindowEvent},
   event_loop::{
@@ -793,16 +793,16 @@ impl WindowBuilder for WindowBuilderWrapper {
       let mut constraints = WindowSizeConstraints::default();
 
       if let Some(min_width) = config.min_width {
-        constraints.min_width = Some(ToaLogicalUnit::new(min_width).into());
+        constraints.min_width = Some(tao::dpi::LogicalUnit::new(min_width).into());
       }
       if let Some(min_height) = config.min_height {
-        constraints.min_height = Some(ToaLogicalUnit::new(min_height).into());
+        constraints.min_height = Some(tao::dpi::LogicalUnit::new(min_height).into());
       }
       if let Some(max_width) = config.max_width {
-        constraints.max_width = Some(ToaLogicalUnit::new(max_width).into());
+        constraints.max_width = Some(tao::dpi::LogicalUnit::new(max_width).into());
       }
       if let Some(max_height) = config.max_height {
-        constraints.max_height = Some(ToaLogicalUnit::new(max_height).into());
+        constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
       }
       window = window.inner_size_constraints(constraints);
 

@@ -72,6 +72,17 @@ impl From<Vec<u8>> for InvokeBody {
   }
 }
 
+impl InvokeBody {
+  pub(crate) fn into_json(self) -> JsonValue {
+    match self {
+      Self::Json(v) => v,
+      Self::Raw(v) => {
+        JsonValue::Array(v.into_iter().map(|n| JsonValue::Number(n.into())).collect())
+      }
+    }
+  }
+}
+
 /// Possible values of an IPC response.
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]

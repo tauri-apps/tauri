@@ -20,7 +20,7 @@ use crate::{
   Manager, Runtime, State, Webview,
 };
 
-use super::{CallbackFn, InvokeBody, InvokeError, IpcResponse, Request, Response};
+use super::{CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response};
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
@@ -33,13 +33,13 @@ static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeBody>>>);
+pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
 
 /// An IPC channel.
 #[derive(Clone)]
-pub struct Channel<TSend = InvokeBody> {
+pub struct Channel<TSend = InvokeResponseBody> {
   id: u32,
-  on_message: Arc<dyn Fn(InvokeBody) -> crate::Result<()> + Send + Sync>,
+  on_message: Arc<dyn Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync>,
   phantom: std::marker::PhantomData<TSend>,
 }
 
@@ -138,13 +138,13 @@ impl<'de> Deserialize<'de> for JavaScriptChannelId {
 
 impl<TSend> Channel<TSend> {
   /// Creates a new channel with the given message handler.
-  pub fn new<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
+  pub fn new<F: Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync + 'static>(
     on_message: F,
   ) -> Self {
     Self::new_with_id(CHANNEL_COUNTER.fetch_add(1, Ordering::Relaxed), on_message)
   }
 
-  fn new_with_id<F: Fn(InvokeBody) -> crate::Result<()> + Send + Sync + 'static>(
+  fn new_with_id<F: Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync + 'static>(
     id: u32,
     on_message: F,
   ) -> Self {
@@ -195,8 +195,7 @@ impl<TSend> Channel<TSend> {
   where
     TSend: IpcResponse,
   {
-    let body = data.body()?;
-    (self.on_message)(body)
+    (self.on_message)(data.body()?)
   }
 }
 

@@ -20,7 +20,7 @@ use tauri_runtime::{
 };
 use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
-  Rect, WebviewDispatch,
+  WebviewDispatch,
 };
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
@@ -605,7 +605,7 @@ tauri::Builder::default()
 
     let mut pending = self.into_pending_webview(&window, window.label())?;
 
-    pending.webview_attributes.bounds = Some(Rect { size, position });
+    pending.webview_attributes.bounds = Some(tauri_runtime::Rect { size, position });
 
     let webview = match &mut window.runtime() {
       RuntimeOrDispatch::Dispatch(dispatcher) => dispatcher.create_webview(pending),
@@ -902,7 +902,7 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Resizes this webview.
-  pub fn set_bounds(&self, bounds: Rect) -> crate::Result<()> {
+  pub fn set_bounds(&self, bounds: tauri_runtime::Rect) -> crate::Result<()> {
     self
       .webview
       .dispatcher
@@ -958,7 +958,7 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Returns the bounds of the webviews's client area.
-  pub fn bounds(&self) -> crate::Result<Rect> {
+  pub fn bounds(&self) -> crate::Result<tauri_runtime::Rect> {
     self.webview.dispatcher.bounds().map_err(Into::into)
   }
 

@@ -2170,7 +2170,9 @@ where
 /// - [`bundle`](#bundleconfig): The bundle configurations
 /// - [`plugins`](#pluginconfig): The plugins configuration
 ///
-/// ```json title="Example tauri.config.json file"
+/// Example tauri.config.json file:
+///
+/// ```json
 /// {
 ///   "productName": "tauri-app",
 ///   "version": "0.1.0",

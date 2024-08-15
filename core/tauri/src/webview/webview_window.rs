@@ -27,7 +27,6 @@ use crate::{
   },
 };
 use serde::Serialize;
-use tauri_runtime::window::WindowSizeConstraints;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
@@ -396,7 +395,10 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Window inner size constraints.
   #[must_use]
-  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+  pub fn inner_size_constraints(
+    mut self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
     self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
@@ -1465,7 +1467,10 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Sets this window's minimum inner width.
-  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+  pub fn set_size_constraints(
+    &self,
+    constriants: tauri_runtime::window::WindowSizeConstraints,
+  ) -> crate::Result<()> {
     self.webview.window().set_size_constraints(constriants)
   }
 

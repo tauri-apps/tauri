@@ -183,7 +183,7 @@ impl<'de, R: Runtime> Deserializer<'de> for CommandItem<'de, R> {
 #[doc(hidden)]
 pub mod private {
   use crate::{
-    ipc::{InvokeBody, InvokeError, InvokeResolver, IpcResponse},
+    ipc::{InvokeError, InvokeResolver, InvokeResponseBody, IpcResponse},
     Runtime,
   };
   use futures_util::{FutureExt, TryFutureExt};
@@ -220,7 +220,10 @@ pub mod private {
     }
 
     #[inline(always)]
-    pub fn future<T>(self, value: T) -> impl Future<Output = Result<InvokeBody, InvokeError>>
+    pub fn future<T>(
+      self,
+      value: T,
+    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
     where
       T: IpcResponse,
     {
@@ -261,7 +264,7 @@ pub mod private {
     pub fn future<T, E>(
       self,
       value: Result<T, E>,
-    ) -> impl Future<Output = Result<InvokeBody, InvokeError>>
+    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
     where
       T: IpcResponse,
       E: Into<InvokeError>,
@@ -288,7 +291,10 @@ pub mod private {
 
   impl FutureTag {
     #[inline(always)]
-    pub fn future<T, F>(self, value: F) -> impl Future<Output = Result<InvokeBody, InvokeError>>
+    pub fn future<T, F>(
+      self,
+      value: F,
+    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
     where
       T: IpcResponse,
       F: Future<Output = T> + Send + 'static,
@@ -315,7 +321,10 @@ pub mod private {
 
   impl ResultFutureTag {
     #[inline(always)]
-    pub fn future<T, E, F>(self, value: F) -> impl Future<Output = Result<InvokeBody, InvokeError>>
+    pub fn future<T, E, F>(
+      self,
+      value: F,
+    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
     where
       T: IpcResponse,
       E: Into<InvokeError>,

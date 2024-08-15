@@ -2433,10 +2433,16 @@
       "description": "Custom Signing Command configuration.",
       "anyOf": [
         {
+          "description": "A string notation of the command.\n \n This is a simpler notation for the command.\n \n Tauri will split the string with `' '` and use the first element as the command and the rest as arguments.\n If you need to use whitespace in the command or arguments, use the object notation.",
           "type": "string"
         },
         {
-          "$ref": "#/definitions/CustomSignCommandObjectConfig"
+          "description": "An object notation of the command.\n \n This is more complex notation for the command but \n this allows you to use whitespace in the command and arguments.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/CustomSignCommandObjectConfig"
+            }
+          ]
         }
       ]
     },

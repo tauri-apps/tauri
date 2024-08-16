@@ -957,13 +957,13 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   #[cfg(windows)]
   fn owner(mut self, owner: HWND) -> Self {
-    self.inner = self.inner.with_owner_window(owner.0);
+    self.inner = self.inner.with_owner_window(owner.0 as _);
     self
   }
 
   #[cfg(windows)]
   fn parent(mut self, parent: HWND) -> Self {
-    self.inner = self.inner.with_parent_window(parent.0);
+    self.inner = self.inner.with_parent_window(parent.0 as _);
     self
   }
 
@@ -2805,7 +2805,7 @@ fn handle_user_message<T: UserEvent>(
                 let mut rect = RECT::default();
                 let result = unsafe {
                   DwmGetWindowAttribute(
-                    HWND(window.hwnd()),
+                    HWND(window.hwnd() as _),
                     DWMWA_EXTENDED_FRAME_BOUNDS,
                     &mut rect as *mut _ as *mut _,
                     std::mem::size_of::<RECT>() as u32,
@@ -4289,7 +4289,8 @@ fn calculate_window_center_position(
       cbSize: std::mem::size_of::<MONITORINFO>() as u32,
       ..Default::default()
     };
-    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    let status =
+      unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor() as _), &mut monitor_info) };
     if status.into() {
       let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
       let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;

@@ -106,9 +106,12 @@ mod windows {
   const WINDOW_NAME: PCWSTR = w!("TAURI_DRAG_RESIZE_WINDOW");
 
   pub fn attach_resize_handler(hwnd: isize) {
-    let parent = HWND(hwnd);
+    let parent = HWND(hwnd as _);
 
-    let child = unsafe { FindWindowExW(parent, HWND::default(), CLASS_NAME, WINDOW_NAME) };
+    let Ok(child) = (unsafe { FindWindowExW(parent, HWND::default(), CLASS_NAME, WINDOW_NAME) })
+    else {
+      return;
+    };
     if child != HWND::default() {
       return;
     }
@@ -135,7 +138,7 @@ mod windows {
     let width = rect.right - rect.left;
     let height = rect.bottom - rect.top;
 
-    let drag_window = unsafe {
+    let Ok(drag_window) = (unsafe {
       CreateWindowExW(
         WINDOW_EX_STYLE::default(),
         CLASS_NAME,
@@ -150,6 +153,8 @@ mod windows {
         GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
         None,
       )
+    }) else {
+      return;
     };
 
     unsafe {
@@ -227,7 +232,9 @@ mod windows {
   ) -> LRESULT {
     match msg {
       WM_NCHITTEST => {
-        let parent = GetParent(child);
+        let Ok(parent) = GetParent(child) else {
+          return LRESULT(0);
+        };
         let style = GetWindowLongPtrW(parent, GWL_STYLE);
         let style = WINDOW_STYLE(style as u32);
 
@@ -262,7 +269,9 @@ mod windows {
       }
 
       WM_NCLBUTTONDOWN => {
-        let parent = GetParent(child);
+        let Ok(parent) = GetParent(child) else {
+          return LRESULT(0);
+        };
         let style = GetWindowLongPtrW(parent, GWL_STYLE);
         let style = WINDOW_STYLE(style as u32);
 
@@ -317,9 +326,13 @@ mod windows {
   }
 
   pub fn detach_resize_handler(hwnd: isize) {
-    let hwnd = HWND(hwnd);
+    let hwnd = HWND(hwnd as _);
 
-    let child = unsafe { FindWindowExW(hwnd, HWND::default(), CLASS_NAME, WINDOW_NAME) };
+    let Ok(child) = (unsafe { FindWindowExW(hwnd, HWND::default(), CLASS_NAME, WINDOW_NAME) })
+    else {
+      return;
+    };
+
     if child == HWND::default() {
       return;
     }

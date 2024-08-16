@@ -1142,7 +1142,7 @@ tauri::Builder::default()
           .map(crate::menu::map_to_menu_theme)
           .unwrap_or(muda::MenuTheme::Auto);
 
-        let _ = menu_.inner().init_for_hwnd_with_theme(hwnd.0, theme);
+        let _ = menu_.inner().init_for_hwnd_with_theme(hwnd.0 as _, theme);
       }
       #[cfg(any(
         target_os = "linux",
@@ -1183,7 +1183,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu.inner().remove_for_hwnd(hwnd.0);
+          let _ = menu.inner().remove_for_hwnd(hwnd.0 as _);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1215,7 +1215,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().hide_for_hwnd(hwnd.0);
+          let _ = menu_.inner().hide_for_hwnd(hwnd.0 as _);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1243,7 +1243,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().show_for_hwnd(hwnd.0);
+          let _ = menu_.inner().show_for_hwnd(hwnd.0 as _);
         }
         #[cfg(any(
           target_os = "linux",
@@ -1272,7 +1272,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0));
+          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0 as _));
         }
         #[cfg(any(
           target_os = "linux",
@@ -1500,7 +1500,7 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::Win32(h) = handle.as_raw() {
-          Ok(HWND(h.hwnd.get()))
+          Ok(HWND(h.hwnd.get() as _))
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }

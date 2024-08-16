@@ -1773,7 +1773,7 @@ tauri::Builder::default()
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
               let translated =
-                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel()), msg);
+                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel() as _), msg);
               if translated == 1 {
                 return true;
               }

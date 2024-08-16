@@ -391,11 +391,14 @@ mod terminal {
 mod terminal {
   use std::{cmp, mem, ptr};
 
-  use windows_sys::Win32::{
-    Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
-    Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
-    System::Console::{
-      GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+  use windows_sys::{
+    core::PCSTR,
+    Win32::{
+      Foundation::{CloseHandle, GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE},
+      Storage::FileSystem::{CreateFileA, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
+      System::Console::{
+        GetConsoleScreenBufferInfo, GetStdHandle, CONSOLE_SCREEN_BUFFER_INFO, STD_ERROR_HANDLE,
+      },
     },
   };
 
@@ -411,13 +414,13 @@ mod terminal {
       // INVALID_HANDLE_VALUE. Use an alternate method which works
       // in that case as well.
       let h = CreateFileA(
-        "CONOUT$\0".as_ptr(),
+        "CONOUT$\0".as_ptr() as PCSTR,
         GENERIC_READ | GENERIC_WRITE,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         ptr::null_mut(),
         OPEN_EXISTING,
         0,
-        0,
+        std::ptr::null_mut(),
       );
       if h == INVALID_HANDLE_VALUE {
         return None;

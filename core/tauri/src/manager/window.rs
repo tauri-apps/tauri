@@ -162,13 +162,6 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
     }
     WindowEvent::Destroyed => {
       window.emit_to_window(WINDOW_DESTROYED_EVENT, ())?;
-      let label = window.label();
-
-      if let Ok(webview_labels_array) = serde_json::to_string(&window.manager().webview.labels()) {
-        let _ = window.manager().webview.eval_script_all(format!(
-          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.windows = window.__TAURI_INTERNALS__.metadata.windows.filter(w => w.label !== "{label}"); metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }}) }} }})()"#,
-        ));
-      }
     }
     WindowEvent::Focused(focused) => window.emit_to_window(
       if *focused {

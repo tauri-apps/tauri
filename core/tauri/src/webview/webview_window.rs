@@ -27,13 +27,12 @@ use crate::{
   },
 };
 use serde::Serialize;
-use tauri_runtime::window::WindowSizeConstraints;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
-  manager::{webview::WebviewLabelDef, AppManager},
+  manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
   webview::WebviewBuilder,
@@ -347,19 +346,6 @@ tauri::Builder::default()
     let (_window, webview) = self.window_builder.with_webview(self.webview_builder)?;
     Ok(WebviewWindow { webview })
   }
-
-  pub(crate) fn build_internal(
-    self,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
-  ) -> crate::Result<WebviewWindow<R>> {
-    let (_window, webview) = self.window_builder.with_webview_internal(
-      self.webview_builder,
-      window_labels,
-      webview_labels,
-    )?;
-    Ok(WebviewWindow { webview })
-  }
 }
 
 /// Desktop APIs.
@@ -409,7 +395,10 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Window inner size constraints.
   #[must_use]
-  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+  pub fn inner_size_constraints(
+    mut self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
     self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
@@ -1478,7 +1467,10 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Sets this window's minimum inner width.
-  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+  pub fn set_size_constraints(
+    &self,
+    constriants: tauri_runtime::window::WindowSizeConstraints,
+  ) -> crate::Result<()> {
     self.webview.window().set_size_constraints(constriants)
   }
 

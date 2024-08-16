@@ -2,6 +2,7 @@
 
 Default permissions for the plugin.
 
+- `allow-get-all-webviews`
 - `allow-webview-position`
 - `allow-webview-size`
 - `allow-internal-toggle-devtools`
@@ -63,6 +64,32 @@ Enables the create_webview_window command without any pre-configured scope.
 <td>
 
 Denies the create_webview_window command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:allow-get-all-webviews`
+
+</td>
+<td>
+
+Enables the get_all_webviews command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-get-all-webviews`
+
+</td>
+<td>
+
+Denies the get_all_webviews command without any pre-configured scope.
 
 </td>
 </tr>

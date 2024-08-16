@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.13.1", default-features = false }
+cargo-mobile2 = { version = "0.13.2", default-features = false }
 jsonrpsee = { version = "0.24", features = [ "server" ] }
 jsonrpsee-core = "0.24"
 jsonrpsee-client-transport = { version = "0.24", features = [ "ws" ] }
@@ -89,13 +89,13 @@ serde-value = "0.7.0"
 itertools = "0.13"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.42.0"
+resvg = "0.43.0"
 dunce = "1"
 glob = "0.3"
-oxc_parser = "0.20"
-oxc_span = "0.20"
-oxc_allocator = "0.20"
-oxc_ast = "0.20"
+oxc_parser = "0.24"
+oxc_span = "0.24"
+oxc_allocator = "0.24"
+oxc_ast = "0.24"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"
@@ -103,7 +103,7 @@ elf = "0.7"
 memchr = "2"
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.52"
+version = "0.59"
 features = [
   "Win32_Storage_FileSystem",
   "Win32_System_IO",

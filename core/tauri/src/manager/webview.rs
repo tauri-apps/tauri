@@ -64,13 +64,6 @@ pub struct UriSchemeProtocol<R: Runtime> {
     Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct WebviewLabelDef {
-  pub window_label: String,
-  pub label: String,
-}
-
 pub struct WebviewManager<R: Runtime> {
   pub webviews: Mutex<HashMap<String, Webview<R>>>,
   /// The JS message handler.
@@ -127,8 +120,6 @@ impl<R: Runtime> WebviewManager<R> {
     mut pending: PendingWebview<EventLoopMessage, R>,
     label: &str,
     window_label: &str,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
     manager: &M,
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let app_manager = manager.manager();
@@ -156,13 +147,6 @@ impl<R: Runtime> WebviewManager<R> {
     }
     .render_default(&Default::default())?;
 
-    let mut webview_labels = webview_labels.to_vec();
-    if !webview_labels.iter().any(|w| w.label == label) {
-      webview_labels.push(WebviewLabelDef {
-        window_label: window_label.to_string(),
-        label: label.to_string(),
-      });
-    }
     webview_attributes = webview_attributes
       .initialization_script(
         r"
@@ -184,15 +168,11 @@ impl<R: Runtime> WebviewManager<R> {
         r#"
           Object.defineProperty(window.__TAURI_INTERNALS__, 'metadata', {{
             value: {{
-              windows: {window_labels_array}.map(function (label) {{ return {{ label: label }} }}),
-              webviews: {webview_labels_array},
               currentWindow: {{ label: {current_window_label} }},
               currentWebview: {{ label: {current_webview_label} }}
             }}
           }})
         "#,
-        window_labels_array = serde_json::to_string(&window_labels)?,
-        webview_labels_array = serde_json::to_string(&webview_labels)?,
         current_window_label = serde_json::to_string(window_label)?,
         current_webview_label = serde_json::to_string(&label)?,
       ))
@@ -415,8 +395,6 @@ impl<R: Runtime> WebviewManager<R> {
     manager: &M,
     mut pending: PendingWebview<EventLoopMessage, R>,
     window_label: &str,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     if self.webviews_lock().contains_key(&pending.label) {
       return Err(crate::Error::WebviewLabelAlreadyExists(pending.label));
@@ -509,14 +487,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     let label = pending.label.clone();
-    pending = self.prepare_pending_webview(
-      pending,
-      &label,
-      window_label,
-      window_labels,
-      webview_labels,
-      manager,
-    )?;
+    pending = self.prepare_pending_webview(pending, &label, window_label, manager)?;
 
     pending.ipc_handler = Some(crate::ipc::protocol::message_handler(
       manager.manager_owned(),
@@ -636,12 +607,6 @@ impl<R: Runtime> WebviewManager<R> {
           unsafe { crate::ios::on_webview_created(w.inner() as _, w.view_controller() as _) };
         })
         .expect("failed to run on_webview_created hook");
-    }
-
-    if let Ok(webview_labels_array) = serde_json::to_string(&webview.manager.webview.labels()) {
-      let _ = webview.manager.webview.eval_script_all(format!(
-      "window.__TAURI_INTERNALS__.metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-    ));
     }
 
     let _ = webview.manager.emit(

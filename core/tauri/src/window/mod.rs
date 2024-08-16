@@ -9,7 +9,6 @@ pub(crate) mod plugin;
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
-  window::WindowSizeConstraints,
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
@@ -20,7 +19,7 @@ use crate::{
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
-  manager::{webview::WebviewLabelDef, AppManager},
+  manager::AppManager,
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
@@ -324,36 +323,7 @@ tauri::Builder::default()
     self,
     webview: WebviewBuilder<R>,
   ) -> crate::Result<(Window<R>, Webview<R>)> {
-    let window_labels = self
-      .manager
-      .manager()
-      .window
-      .labels()
-      .into_iter()
-      .collect::<Vec<_>>();
-    let webview_labels = self
-      .manager
-      .manager()
-      .webview
-      .webviews_lock()
-      .values()
-      .map(|w| WebviewLabelDef {
-        window_label: w.window().label().to_string(),
-        label: w.label().to_string(),
-      })
-      .collect::<Vec<_>>();
-
-    self.with_webview_internal(webview, &window_labels, &webview_labels)
-  }
-
-  pub(crate) fn with_webview_internal(
-    self,
-    webview: WebviewBuilder<R>,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
-  ) -> crate::Result<(Window<R>, Webview<R>)> {
-    let pending_webview =
-      webview.into_pending_webview(self.manager, &self.label, window_labels, webview_labels)?;
+    let pending_webview = webview.into_pending_webview(self.manager, &self.label)?;
     let window = self.build_internal(Some(pending_webview))?;
 
     let webview = window.webviews().first().unwrap().clone();
@@ -430,11 +400,6 @@ tauri::Builder::default()
     let window_label = window.label().to_string();
     // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
     let _ = window.run_on_main_thread(move || {
-      let _ = app_manager.webview.eval_script_all(format!(
-        "window.__TAURI_INTERNALS__.metadata.windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-        window_labels_array = serde_json::to_string(&app_manager.window.labels()).unwrap(),
-      ));
-
       let _ = app_manager.emit(
         "tauri://window-created",
         Some(crate::webview::CreatedEvent {
@@ -495,7 +460,10 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
   /// Window inner size constraints.
   #[must_use]
-  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+  pub fn inner_size_constraints(
+    mut self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
     self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
@@ -1864,7 +1832,10 @@ tauri::Builder::default()
   }
 
   /// Sets this window's minimum inner width.
-  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+  pub fn set_size_constraints(
+    &self,
+    constriants: tauri_runtime::window::WindowSizeConstraints,
+  ) -> crate::Result<()> {
     self
       .window
       .dispatcher

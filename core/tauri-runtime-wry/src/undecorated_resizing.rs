@@ -108,11 +108,8 @@ mod windows {
   pub fn attach_resize_handler(hwnd: isize) {
     let parent = HWND(hwnd as _);
 
-    let Ok(child) = (unsafe { FindWindowExW(parent, HWND::default(), CLASS_NAME, WINDOW_NAME) })
-    else {
-      return;
-    };
-    if child != HWND::default() {
+    // return early if we already attached
+    if unsafe { FindWindowExW(parent, HWND::default(), CLASS_NAME, WINDOW_NAME) }.is_ok() {
       return;
     }
 
@@ -233,7 +230,7 @@ mod windows {
     match msg {
       WM_NCHITTEST => {
         let Ok(parent) = GetParent(child) else {
-          return LRESULT(0);
+          return DefWindowProcW(child, msg, wparam, lparam);
         };
         let style = GetWindowLongPtrW(parent, GWL_STYLE);
         let style = WINDOW_STYLE(style as u32);
@@ -270,7 +267,7 @@ mod windows {
 
       WM_NCLBUTTONDOWN => {
         let Ok(parent) = GetParent(child) else {
-          return LRESULT(0);
+          return DefWindowProcW(child, msg, wparam, lparam);
         };
         let style = GetWindowLongPtrW(parent, GWL_STYLE);
         let style = WINDOW_STYLE(style as u32);
@@ -332,10 +329,6 @@ mod windows {
     else {
       return;
     };
-
-    if child == HWND::default() {
-      return;
-    }
 
     let _ = unsafe { DestroyWindow(child) };
   }

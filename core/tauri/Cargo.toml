@@ -65,11 +65,11 @@ reqwest = { version = "0.12", default-features = false, features = [ "json", "st
 bytes = { version = "1", features = [ "serde" ] }
 raw-window-handle = { version = "0.6", features = [ "std" ]}
 glob = "0.3"
-urlpattern = "0.2"
+urlpattern = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-image = { version = "0.24", default-features = false, optional = true }
+image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.5"
@@ -87,16 +87,16 @@ webkit2gtk = { version = "=2.0.1", features = [ "v2_38" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
-cocoa = "0.25"
+cocoa = "0.26"
 objc = "0.2"
 window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.31"
+webview2-com = "0.32"
 window-vibrancy = "0.5"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.57"
+  version = "0.58"
   features = ["Win32_Foundation"]
 
 [target."cfg(target_os = \"android\")".dependencies]
@@ -105,7 +105,7 @@ jni = "0.21"
 [target."cfg(target_os = \"ios\")".dependencies]
 libc = "0.2"
 objc = "0.2"
-cocoa = "0.25"
+cocoa = "0.26"
 swift-rs = "1.0.6"
 
 [build-dependencies]

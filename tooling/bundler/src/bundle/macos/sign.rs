@@ -16,25 +16,36 @@ pub struct SignTarget {
   pub is_an_executable: bool,
 }
 
-pub fn sign(
-  targets: Vec<SignTarget>,
-  identity: &str,
-  settings: &Settings,
-) -> crate::Result<tauri_macos_sign::Keychain> {
-  log::info!(action = "Signing"; "with identity \"{}\"", identity);
-
-  let keychain = if let (Some(certificate_encoded), Some(certificate_password)) = (
+pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign::Keychain>> {
+  if let (Some(certificate_encoded), Some(certificate_password)) = (
     var_os("APPLE_CERTIFICATE"),
     var_os("APPLE_CERTIFICATE_PASSWORD"),
   ) {
-    // setup keychain allow you to import your certificate
-    // for CI build
-    tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)?
+    // import user certificate - useful for for CI build
+    let keychain =
+      tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)?;
+    if let Some(identity) = identity {
+      let certificate_identity = keychain.signing_identity();
+      if !certificate_identity.contains(identity) {
+        return Err(anyhow::anyhow!("certificate from APPLE_CERTIFICATE \"{certificate_identity}\" environment variable does not match provided identity \"{identity}\"").into());
+      }
+    }
+    Ok(Some(keychain))
+  } else if let Some(identity) = identity {
+    Ok(Some(tauri_macos_sign::Keychain::with_signing_identity(
+      identity,
+    )))
   } else {
-    tauri_macos_sign::Keychain::with_signing_identity(identity)
-  };
+    Ok(None)
+  }
+}
 
-  log::info!("Signing app bundle...");
+pub fn sign(
+  keychain: &tauri_macos_sign::Keychain,
+  targets: Vec<SignTarget>,
+  settings: &Settings,
+) -> crate::Result<()> {
+  log::info!(action = "Signing"; "with identity \"{}\"", keychain.signing_identity());
 
   for target in targets {
     keychain.sign(
@@ -44,7 +55,7 @@ pub fn sign(
     )?;
   }
 
-  Ok(keychain)
+  Ok(())
 }
 
 pub fn notarize(

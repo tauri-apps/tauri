@@ -31,9 +31,9 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `API_PRIVATE_KEYS_DIR` — Specify the directory where your AuthKey file is located. See `APPLE_API_KEY`.
 - `APPLE_API_ISSUER` — Issuer ID. Required if `APPLE_API_KEY` is specified.
 - `APPLE_API_KEY_PATH` - path to the API key `.p8` file. If not specified, the bundler searches the following directories in sequence for a private key file with the name of 'AuthKey\_<api_key>.p8': './private_keys', '~/private_keys', '~/.private_keys', and '~/.appstoreconnect/private_keys'.
-- `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > bundle > macOS > signingIdentity`.
+- `APPLE_SIGNING_IDENTITY` — The identity used to code sign. Overwrites `tauri.conf.json > bundle > macOS > signingIdentity`. If neither are set, it is inferred from `APPLE_CERTIFICATE` when provided.
 - `APPLE_PROVIDER_SHORT_NAME` — If your Apple ID is connected to multiple teams, you have to specify the provider short name of the team you want to use to notarize your app. Overwrites `tauri.conf.json > bundle > macOS > providerShortName`.
-- `APPLE_DEVELOPMENT_TEAM` — TODO
+- `APPLE_DEVELOPMENT_TEAM` — The team ID used to code sign on iOS. Overwrites `tauri.conf.json > bundle > iOS > developmentTeam`. Can be found in https://developer.apple.com/account#MembershipDetailsCard.
 - `TAURI_WEBVIEW_AUTOMATION` — Enables webview automation (Linux Only).
 - `TAURI_ANDROID_PROJECT_PATH` — Path of the tauri android project, usually will be `<project>/src-tauri/gen/android`.
 - `TAURI_IOS_PROJECT_PATH` — Path of the tauri iOS project, usually will be `<project>/src-tauri/gen/ios`.

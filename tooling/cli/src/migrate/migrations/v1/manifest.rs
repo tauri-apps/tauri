@@ -45,6 +45,22 @@ fn migrate_manifest(manifest: &mut Document) -> Result<()> {
     ("tauri-codegen", "dependencies"),
     ("tauri-macros", "dependencies"),
     ("tauri-runtime-wry", "dependencies"),
+    // normal deps - plugins
+    ("tauri-plugin-authenticator", "dependencies"),
+    ("tauri-plugin-autostart", "dependencies"),
+    ("tauri-plugin-fs-extra", "dependencies"),
+    ("tauri-plugin-fs-watch", "dependencies"),
+    ("tauri-plugin-localhost", "dependencies"),
+    ("tauri-plugin-log", "dependencies"),
+    ("tauri-plugin-persisted-scope", "dependencies"),
+    ("tauri-plugin-positioner", "dependencies"),
+    ("tauri-plugin-single-instance", "dependencies"),
+    ("tauri-plugin-sql", "dependencies"),
+    ("tauri-plugin-store", "dependencies"),
+    ("tauri-plugin-stronghold", "dependencies"),
+    ("tauri-plugin-upload", "dependencies"),
+    ("tauri-plugin-websocket", "dependencies"),
+    ("tauri-plugin-window-state", "dependencies"),
     // dev
     ("tauri", "dev-dependencies"),
     ("tauri-utils", "dev-dependencies"),
@@ -207,6 +223,10 @@ fn migrate_dependency_table<D: TableLike>(
   remove: &[&str],
   rename: &[(&str, &str)],
 ) {
+  dep.remove("rev");
+  dep.remove("git");
+  dep.remove("branch");
+  dep.remove("tag");
   *dep.entry("version").or_insert(Item::None) = Item::Value(version.into());
   let manifest_features = dep.entry("features").or_insert(Item::None);
   if let Some(features_array) = manifest_features.as_array_mut() {

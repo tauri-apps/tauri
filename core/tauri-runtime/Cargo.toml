@@ -36,7 +36,7 @@ url = { version = "2" }
 dpi = { version = "0.1", features = [ "serde" ] }
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.57"
+version = "0.58"
 features = [ "Win32_Foundation" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

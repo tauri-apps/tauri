@@ -39,7 +39,10 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   crate::helpers::app_paths::resolve();
+  run(options)
+}
 
+pub fn run(options: Options) -> Result<()> {
   let (plugin, version) = options
     .plugin
     .split_once('@')

@@ -25,7 +25,7 @@ pub fn run() -> Result<()> {
 
   // Add plugins
   for plugin in migrated.plugins {
-    crate::add::command(crate::add::Options {
+    crate::add::run(crate::add::Options {
       plugin: plugin.clone(),
       branch: None,
       tag: None,

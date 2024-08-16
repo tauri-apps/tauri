@@ -386,13 +386,16 @@ fn allowlist_to_permissions(
   allowlist: tauri_utils_v1::config::AllowlistConfig,
 ) -> Vec<PermissionEntry> {
   macro_rules! permissions {
-    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {
+    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {{
       if $allowlist.all || $allowlist.$object.all || $allowlist.$object.$field {
         $permissions_list.push(PermissionEntry::PermissionRef(
           $associated_permission.to_string().try_into().unwrap(),
         ));
+        true
+      } else {
+        false
       }
-    };
+    }};
   }
 
   let mut permissions = Vec::new();
@@ -474,8 +477,11 @@ fn allowlist_to_permissions(
 
   // shell
   if allowlist.shell.scope.0.is_empty() {
-    permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
-    permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+    let added = permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
+    // prevent duplicated permission
+    if !added {
+      permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+    }
   } else {
     let allowed = allowlist
       .shell

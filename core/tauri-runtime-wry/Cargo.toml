@@ -13,8 +13,8 @@ edition = { workspace = true }
 rust-version = { workspace = true }
 
 [dependencies]
-wry = { version = "0.41", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
-tao = { version = "0.28.1", default-features = false, features = [ "rwh_06" ] }
+wry = { version = "0.42", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
+tao = { version = "0.29", default-features = false, features = [ "rwh_06" ] }
 tauri-runtime = { version = "2.0.0-rc.2", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-rc.2", path = "../tauri-utils" }
 raw-window-handle = "0.6"
@@ -24,11 +24,11 @@ tracing = { version = "0.1", optional = true }
 log = "0.4"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.31"
+webview2-com = "0.33"
 softbuffer = { version = "0.4", default-features = false }
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.57"
+  version = "0.58"
   features = [ "Win32_Foundation", "Win32_Graphics_Dwm" ]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
@@ -37,7 +37,7 @@ webkit2gtk = { version = "=2.0", features = [ "v2_38" ] }
 percent-encoding = "2.1"
 
 [target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-cocoa = "0.25"
+cocoa = "0.26"
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"

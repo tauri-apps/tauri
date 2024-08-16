@@ -78,8 +78,8 @@ dunce = "1"
 specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [ "function", "derive" ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.13.4", default-features = false, features = [ "serde" ] }
-tray-icon = { version = "0.14", default-features = false, features = [ "serde" ], optional = true }
+muda = { version = "0.14", default-features = false, features = [ "serde" ] }
+tray-icon = { version = "0.15", default-features = false, features = [ "serde" ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = [ "v3_24" ] }
@@ -87,16 +87,16 @@ webkit2gtk = { version = "=2.0.1", features = [ "v2_38" ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
-cocoa = "0.25"
+cocoa = "0.26"
 objc = "0.2"
 window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.31"
+webview2-com = "0.33"
 window-vibrancy = "0.5"
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.57"
+  version = "0.58"
   features = ["Win32_Foundation"]
 
 [target."cfg(target_os = \"android\")".dependencies]
@@ -105,7 +105,7 @@ jni = "0.21"
 [target."cfg(target_os = \"ios\")".dependencies]
 libc = "0.2"
 objc = "0.2"
-cocoa = "0.25"
+cocoa = "0.26"
 swift-rs = "1.0.6"
 
 [build-dependencies]

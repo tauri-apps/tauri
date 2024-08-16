@@ -110,7 +110,7 @@ pub fn command(options: Options) -> Result<()> {
             device.name(),
           )
         })?;
-      } else {
+      } else if devices.len() > 1 {
         anyhow::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
       devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
       }

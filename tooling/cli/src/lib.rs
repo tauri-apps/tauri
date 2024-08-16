@@ -301,6 +301,7 @@ pub trait CommandExt {
 
 impl CommandExt for Command {
   fn piped(&mut self) -> std::io::Result<ExitStatus> {
+    self.stdin(os_pipe::dup_stdin()?);
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();

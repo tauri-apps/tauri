@@ -5479,6 +5479,7 @@ version = "0.1.0-beta.0"
 dependencies = [
  "anyhow",
  "dirs-next",
+ "log",
  "once-cell-regex",
  "os_pipe",
  "plist",

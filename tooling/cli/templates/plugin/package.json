@@ -1,6 +1,6 @@
 {
   "name": "tauri-plugin-{{ plugin_name }}-api",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "author": "{{ author }}",
   "description": "",
   "type": "module",

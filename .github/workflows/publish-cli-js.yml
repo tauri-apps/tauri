@@ -357,6 +357,9 @@ jobs:
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
+    permissions:
+      contents: write # update release
+      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable

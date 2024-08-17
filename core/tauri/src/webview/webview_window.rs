@@ -27,7 +27,6 @@ use crate::{
   },
 };
 use serde::Serialize;
-use tauri_runtime::window::WindowSizeConstraints;
 use tauri_utils::{
   config::{WebviewUrl, WindowConfig},
   Theme,

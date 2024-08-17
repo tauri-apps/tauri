@@ -343,7 +343,7 @@ impl RuntimeAuthority {
     webview: &str,
     origin: &Origin,
   ) -> String {
-    fn print_references(resolved: Vec<&ResolvedCommand>) -> String {
+    fn print_references(resolved: &[ResolvedCommand]) -> String {
       resolved
         .iter()
         .map(|r| {
@@ -354,6 +354,53 @@ impl RuntimeAuthority {
         })
         .collect::<Vec<_>>()
         .join(" || ")
+    }
+
+    fn print_allowed_on(resolved: &[ResolvedCommand]) -> String {
+      if resolved.is_empty() {
+        "command not allowed on any window/webview/URL context".to_string()
+      } else {
+        let mut s = "allowed on: ".to_string();
+
+        let last_index = resolved.len() - 1;
+        for (index, cmd) in resolved.iter().enumerate() {
+          let windows = cmd
+            .windows
+            .iter()
+            .map(|w| format!("\"{}\"", w.as_str()))
+            .collect::<Vec<_>>()
+            .join(", ");
+          let webviews = cmd
+            .webviews
+            .iter()
+            .map(|w| format!("\"{}\"", w.as_str()))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+          s.push('[');
+
+          if !windows.is_empty() {
+            s.push_str(&format!("windows: {windows}, "));
+          }
+
+          if !webviews.is_empty() {
+            s.push_str(&format!("webviews: {webviews}, "));
+          }
+
+          match &cmd.context {
+            ExecutionContext::Local => s.push_str("URL: local"),
+            ExecutionContext::Remote { url } => s.push_str(&format!("URL: {}", url.as_str())),
+          }
+
+          s.push(']');
+
+          if index != last_index {
+            s.push_str(", ");
+          }
+        }
+
+        s
+      }
     }
 
     fn has_permissions_allowing_command(
@@ -393,35 +440,34 @@ impl RuntimeAuthority {
       format!("{key}.{command_name}")
     };
 
-    if let Some(resolved) = self.denied_commands.get(&command).map(|r| {
-      r.iter()
-        .filter(|cmd| origin.matches(&cmd.context))
-        .collect()
-    }) {
+    if let Some(resolved) = self.denied_commands.get(&command) {
       format!(
-        "{command_pretty_name} denied on origin {origin}, referenced by: {}",
-        print_references(resolved)
+        "{command_pretty_name} explicitly denied on origin {origin}\n\nreferenced by: {}",
+        print_references(&resolved)
       )
     } else {
       let command_matches = self.allowed_commands.get(&command);
 
-      if let Some(resolved) = self.allowed_commands.get(&command).map(|r| {
-        r.iter()
+      if let Some(resolved) = self.allowed_commands.get(&command) {
+        let resolved_matching_origin = resolved
+          .iter()
           .filter(|cmd| origin.matches(&cmd.context))
-          .collect::<Vec<&ResolvedCommand>>()
-      }) {
-        if resolved
+          .collect::<Vec<&ResolvedCommand>>();
+        if resolved_matching_origin
           .iter()
           .any(|cmd| cmd.webviews.iter().any(|w| w.matches(webview)))
-          || resolved
+          || resolved_matching_origin
             .iter()
             .any(|cmd| cmd.windows.iter().any(|w| w.matches(window)))
         {
           "allowed".to_string()
         } else {
-          format!("{command_pretty_name} not allowed on window {window}, webview {webview}, allowed windows: {}, allowed webviews: {}, referenced by {}",
-            resolved.iter().flat_map(|cmd| cmd.windows.iter().map(|w| w.as_str())).collect::<Vec<_>>().join(", "),
-            resolved.iter().flat_map(|cmd| cmd.webviews.iter().map(|w| w.as_str())).collect::<Vec<_>>().join(", "),
+          format!("{command_pretty_name} not allowed on window \"{window}\", webview \"{webview}\", URL: {}\n\n{}\n\nreferenced by: {}",
+            match origin {
+              Origin::Local => "local",
+              Origin::Remote { url } => url.as_str()
+            },
+            print_allowed_on(resolved),
             print_references(resolved)
           )
         }
@@ -464,7 +510,7 @@ impl RuntimeAuthority {
               .join(", ")
           )
         } else {
-          "Plugin did not define its manifest".to_string()
+          "Plugin not found".to_string()
         };
 
         if let Some(resolved_cmds) = command_matches {
@@ -984,5 +1030,118 @@ mod tests {
     assert!(authority
       .resolve_access(command, window, webview, &Origin::Local)
       .is_none());
+  }
+
+  #[cfg(debug_assertions)]
+  #[test]
+  fn resolve_access_message() {
+    let plugin_name = "myplugin";
+    let command_allowed_on_window = "my-command-window";
+    let command_allowed_on_webview_window = "my-command-webview-window";
+    let window = "main-*";
+    let webview = "webview-*";
+    let remote_url = "http://localhost:8080";
+
+    let referenced_by = tauri_utils::acl::resolved::ResolvedCommandReference {
+      capability: "maincap".to_string(),
+      permission: "allow-command".to_string(),
+    };
+
+    let resolved_window_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      referenced_by: referenced_by.clone(),
+      ..Default::default()
+    };
+    let resolved_webview_window_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      webviews: vec![Pattern::new(webview).unwrap()],
+      referenced_by: referenced_by.clone(),
+      ..Default::default()
+    };
+    let resolved_webview_window_remote_cmd = ResolvedCommand {
+      windows: vec![Pattern::new(window).unwrap()],
+      webviews: vec![Pattern::new(webview).unwrap()],
+      referenced_by: referenced_by.clone(),
+      context: ExecutionContext::Remote {
+        url: remote_url.parse().unwrap(),
+      },
+      ..Default::default()
+    };
+
+    let allowed_commands = [
+      (
+        format!("plugin:{plugin_name}|{command_allowed_on_window}"),
+        vec![resolved_window_cmd],
+      ),
+      (
+        format!("plugin:{plugin_name}|{command_allowed_on_webview_window}"),
+        vec![
+          resolved_webview_window_cmd,
+          resolved_webview_window_remote_cmd,
+        ],
+      ),
+    ]
+    .into_iter()
+    .collect();
+
+    let authority = RuntimeAuthority::new(
+      Default::default(),
+      Resolved {
+        allowed_commands,
+        ..Default::default()
+      },
+    );
+
+    // window/webview do not match
+    assert_eq!(
+      authority.resolve_access_message(
+        plugin_name,
+        command_allowed_on_window,
+        "other-window",
+        "any-webview",
+        &Origin::Local
+      ),
+      "myplugin.my-command-window not allowed on window \"other-window\", webview \"any-webview\", URL: local\n\nallowed on: [windows: \"main-*\", URL: local]\n\nreferenced by: capability: maincap, permission: allow-command"
+    );
+
+    // window matches, but not origin
+    assert_eq!(
+      authority.resolve_access_message(
+        plugin_name,
+        command_allowed_on_window,
+        window,
+        "any-webview",
+        &Origin::Remote {
+          url: "http://localhst".parse().unwrap()
+        }
+      ),
+      "myplugin.my-command-window not allowed on window \"main-*\", webview \"any-webview\", URL: http://localhst/\n\nallowed on: [windows: \"main-*\", URL: local]\n\nreferenced by: capability: maincap, permission: allow-command"
+    );
+
+    // window/webview do not match
+    assert_eq!(
+      authority.resolve_access_message(
+        plugin_name,
+        command_allowed_on_webview_window,
+        "other-window",
+        "other-webview",
+        &Origin::Local
+      ),
+      "myplugin.my-command-webview-window not allowed on window \"other-window\", webview \"other-webview\", URL: local\n\nallowed on: [windows: \"main-*\", webviews: \"webview-*\", URL: local], [windows: \"main-*\", webviews: \"webview-*\", URL: http://localhost:8080]\n\nreferenced by: capability: maincap, permission: allow-command || capability: maincap, permission: allow-command"
+    );
+
+    // window/webview matches, but not origin
+    assert_eq!(
+      authority.resolve_access_message(
+        plugin_name,
+        command_allowed_on_webview_window,
+        window,
+        webview,
+        &Origin::Remote {
+          url: "http://localhost:123".parse().unwrap()
+        }
+      ),
+      "myplugin.my-command-webview-window not allowed on window \"main-*\", webview \"webview-*\", URL: http://localhost:123/\n\nallowed on: [windows: \"main-*\", webviews: \"webview-*\", URL: local], [windows: \"main-*\", webviews: \"webview-*\", URL: http://localhost:8080]\n\nreferenced by: capability: maincap, permission: allow-command || capability: maincap, permission: allow-command"
+    );
   }
 }

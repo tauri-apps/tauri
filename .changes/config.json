@@ -142,7 +142,7 @@
       ],
       "prepublish": [
         {
-          "command": "pnpm",
+          "command": "pnpm i --frozen-lockfile",
           "dryRunCommand": true
         },
         {

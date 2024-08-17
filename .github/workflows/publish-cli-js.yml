@@ -116,7 +116,7 @@ jobs:
         if: ${{ matrix.settings.setup }}
         shell: bash
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -175,7 +175,7 @@ jobs:
   #            env
   #            freebsd-version
   #            cd ./tooling/cli/node/
-  #            pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+  #            pnpm i --frozen-lockfile --ignore-scripts
   #            pnpm build:release
   #            strip -x *.node
   #            rm -rf node_modules
@@ -213,7 +213,7 @@ jobs:
           check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -246,7 +246,7 @@ jobs:
           check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -285,7 +285,7 @@ jobs:
           check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -327,7 +327,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --frozen-lockfile
       - name: Download aarch64-gnu artifacts
         uses: actions/download-artifact@v3
         with:
@@ -377,7 +377,7 @@ jobs:
           check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download all artifacts
         uses: actions/download-artifact@v3
         with:

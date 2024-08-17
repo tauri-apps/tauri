@@ -14,7 +14,12 @@
   "pkgManagers": {
     "rust": {
       "version": true,
-      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkgFile.pkg.package.name }/${ pkg.pkgFile.version }"
+        }
+      },
       "prepublish": [
         "sudo apt-get update",
         "sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev",
@@ -43,11 +48,6 @@
         }
       ],
       "publish": [
-        "sleep 15s",
-        {
-          "command": "cargo package --no-verify",
-          "dryRunCommand": true
-        },
         {
           "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
@@ -64,21 +64,22 @@
           "pipe": true
         }
       ],
-      "postpublish": [
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
-        "git push --tags -f"
-      ],
-      "assets": [
-        {
-          "path": "./target/package/${ pkg.pkg }-${ pkgFile.version }.crate",
-          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
-        }
-      ]
+      "postpublish": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkgFile.pkg.package.name }/${ pkg.pkgFile.version }"
+        },
+        "retries": [5000, 5000, 5000]
+      }
     },
     "javascript": {
       "version": true,
-      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://registry.npmjs.com/${ pkg.pkgFile.pkg.name }/${ pkg.pkgFile.version }"
+        }
+      },
       "prepublish": [
         {
           "command": "pnpm i --frozen-lockfile",
@@ -99,14 +100,9 @@
           "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
-        },
-        {
-          "command": "npm pack",
-          "dryRunCommand": true
         }
       ],
       "publish": [
-        "sleep 15s",
         {
           "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
@@ -123,11 +119,13 @@
           "pipe": true
         }
       ],
-      "postpublish": [
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
-        "git push --tags -f"
-      ]
+      "postpublish": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://registry.npmjs.com/${ pkg.pkgFile.pkg.name }/${ pkg.pkgFile.version }"
+        },
+        "retries": [5000, 5000, 5000]
+      }
     }
   },
   "packages": {

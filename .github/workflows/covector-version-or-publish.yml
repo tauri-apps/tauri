@@ -92,6 +92,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+          NPM_CONFIG_PROVENANCE: true
         with:
           command: 'version-or-publish'
           token: ${{ secrets.GITHUB_TOKEN }}

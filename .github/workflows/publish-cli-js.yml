@@ -390,8 +390,9 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          npm publish --tag next --provenance
+          npm publish --tag next
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           RELEASE_ID: ${{ github.event.client_payload.releaseId || inputs.releaseId }}
+          NPM_CONFIG_PROVENANCE: true

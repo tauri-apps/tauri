@@ -97,8 +97,7 @@ jobs:
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 16
-          check-latest: true
+          node-version: 18
           cache: 'pnpm'
           architecture: ${{ matrix.settings.architecture }}
       - name: Install Rust
@@ -116,7 +115,7 @@ jobs:
         if: ${{ matrix.settings.setup }}
         shell: bash
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -175,7 +174,7 @@ jobs:
   #            env
   #            freebsd-version
   #            cd ./tooling/cli/node/
-  #            pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+  #            pnpm i --frozen-lockfile --ignore-scripts
   #            pnpm build:release
   #            strip -x *.node
   #            rm -rf node_modules
@@ -199,7 +198,6 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
-          - '16'
           - '18'
           - '20'
     runs-on: ${{ matrix.settings.host }}
@@ -210,10 +208,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -232,7 +229,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '16'
           - '18'
           - '20'
     runs-on: ubuntu-latest
@@ -243,10 +239,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -269,7 +264,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '16'
           - '18'
           - '20'
     runs-on: ubuntu-latest
@@ -282,10 +276,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-          check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -312,7 +305,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '16'
           - '18'
           - '20'
         image:
@@ -326,8 +318,6 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
-      - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download aarch64-gnu artifacts
         uses: actions/download-artifact@v3
         with:
@@ -356,7 +346,7 @@ jobs:
             fnm install ${{ matrix.node }}
             fnm use ${{ matrix.node }}
             cd tooling/cli/node
-            pnpm tauri --help
+            node tauri.js --help
             ls -la
   publish:
     name: Publish
@@ -367,6 +357,9 @@ jobs:
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
+    permissions:
+      contents: write # update release
+      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
       - run: corepack enable
@@ -374,10 +367,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          check-latest: true
           cache: 'pnpm'
       - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts
       - name: Download all artifacts
         uses: actions/download-artifact@v3
         with:

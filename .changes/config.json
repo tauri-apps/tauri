@@ -265,12 +265,6 @@
       "postversion": [
         "cargo check",
         "cargo build --manifest-path ../../core/tauri-config-schema/Cargo.toml"
-      ],
-      "assets": [
-        {
-          "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",
-          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
-        }
       ]
     },
     "tauri-driver": {

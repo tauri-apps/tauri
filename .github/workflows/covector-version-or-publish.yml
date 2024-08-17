@@ -61,6 +61,7 @@ jobs:
       actions: write # required for workflow_dispatch
       contents: write # required to create new releases
       pull-requests: write # required to open version update pr
+      id-token: write # pnpm provenance
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.2"
+version = "2.0.0-rc.3"
 description = "Wry bindings to the Tauri runtime"
 exclude = [ "CHANGELOG.md", "/target" ]
 readme = "README.md"
@@ -15,8 +15,8 @@ rust-version = { workspace = true }
 [dependencies]
 wry = { version = "0.42", default-features = false, features = [ "drag-drop", "protocol", "os-webview" ] }
 tao = { version = "0.29", default-features = false, features = [ "rwh_06" ] }
-tauri-runtime = { version = "2.0.0-rc.2", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-rc.2", path = "../tauri-utils" }
+tauri-runtime = { version = "2.0.0-rc.3", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-rc.3", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1.1"
 url = "2"

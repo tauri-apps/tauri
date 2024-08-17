@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.3]
+
+### New Features
+
+- [`0bb7b0f35`](https://www.github.com/tauri-apps/tauri/commit/0bb7b0f352960fb5111a40157c0953d19e76f1fd) ([#10559](https://www.github.com/tauri-apps/tauri/pull/10559) by [@Norbiros](https://www.github.com/tauri-apps/tauri/../../Norbiros)) Added `InlinedPlugin::default_permission` to autogenerate the default permission of an inlined plugin.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-rc.3`
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+
 ## \[2.0.0-rc.2]
 
 ### Dependencies

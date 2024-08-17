@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-rc.3]
+
+### Bug Fixes
+
+- [`b1d9ffa1a`](https://www.github.com/tauri-apps/tauri/commit/b1d9ffa1abc9eff65acf16792b4fb33d9c45ba8a) ([#10582](https://www.github.com/tauri-apps/tauri/pull/10582) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix IPC fallback (postMessage implementation when custom protocol fails) hanging when sending responses.
+
+### What's Changed
+
+- [`bfc49cc7a`](https://www.github.com/tauri-apps/tauri/commit/bfc49cc7a1d43e3378e93865b9b37ce4bddfa6e6) ([#10558](https://www.github.com/tauri-apps/tauri/pull/10558) by [@ahqsoftwares](https://www.github.com/tauri-apps/tauri/../../ahqsoftwares)) Remove targetSdk from gradle files
+- [`fedf93eb7`](https://www.github.com/tauri-apps/tauri/commit/fedf93eb7e09c161997f6ba96a17fc29e727af69) ([#10585](https://www.github.com/tauri-apps/tauri/pull/10585) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Change how IPC handles errors to simplify what's logged in the console.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-rc.3`
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+- Upgraded to `tauri-runtime@2.0.0-rc.3`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.3`
+- Upgraded to `tauri-macros@2.0.0-rc.3`
+- [`d39c392b7`](https://www.github.com/tauri-apps/tauri/commit/d39c392b7cec746da423211f9c74632abe4b6af5) ([#10655](https://www.github.com/tauri-apps/tauri/pull/10655) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update `tao` to 0.29 and `wry` to 0.42.
+
+### Breaking Changes
+
+- [`d0510f52e`](https://www.github.com/tauri-apps/tauri/commit/d0510f52eb7efeabe00df5030cf10be16f99e178) ([#10641](https://www.github.com/tauri-apps/tauri/pull/10641) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added a dedicated type for IPC response body `InvokeResponseBody` for performance reasons.
+  This is only a breaking change if you are directly using types from `tauri::ipc`.
+
 ## \[2.0.0-rc.2]
 
 ### Dependencies

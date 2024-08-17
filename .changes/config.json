@@ -113,8 +113,8 @@
           "pipe": true
         },
         {
-          "command": "pnpm publish --access public --loglevel silly --tag next --provenance",
-          "dryRunCommand": "npm publish --dry-run --access public --provenance",
+          "command": "pnpm publish --access public --loglevel silly --tag next --provenance --no-git-checks",
+          "dryRunCommand": "npm publish --dry-run --access public --provenance --no-git-checks",
           "pipe": true
         },
         {

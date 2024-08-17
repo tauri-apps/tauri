@@ -249,7 +249,6 @@
     "@tauri-apps/cli": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
-      "getPublishedVersion": "node ../../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "dependencies": ["tauri-cli"],
       "postversion": [
         "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",

@@ -228,7 +228,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
       ))
     });
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-    return unimplemented!();
+    unimplemented!();
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -725,7 +725,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
       ))
     };
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-    return unimplemented!();
+    unimplemented!();
   }
 
   fn center(&self) -> Result<()> {

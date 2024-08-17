@@ -7,7 +7,7 @@ Default permissions for the plugin.
 - `allow-emit`
 - `allow-emit-to`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

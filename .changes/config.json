@@ -81,16 +81,16 @@
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "prepublish": [
         {
-          "command": "yarn",
+          "command": "pnpm i --frozen-lockfile",
           "dryRunCommand": true
         },
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn audit",
+          "command": "pnpm audit",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true
@@ -108,13 +108,13 @@
       "publish": [
         "sleep 15s",
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn publish --access public --loglevel silly --tag next",
-          "dryRunCommand": "npm publish --dry-run --access public",
+          "command": "pnpm publish --access public --loglevel silly --tag next --no-git-checks",
+          "dryRunCommand": "npm publish --dry-run --access public --no-git-checks",
           "pipe": true
         },
         {
@@ -142,16 +142,16 @@
       ],
       "prepublish": [
         {
-          "command": "yarn",
+          "command": "pnpm i --frozen-lockfile",
           "dryRunCommand": true
         },
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn audit",
+          "command": "pnpm audit",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true
@@ -162,18 +162,18 @@
           "pipe": true
         },
         {
-          "command": "yarn npm-pack",
+          "command": "pnpm npm-pack",
           "dryRunCommand": true
         }
       ],
       "publish": [
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn npm-publish",
+          "command": "pnpm npm-publish",
           "dryRunCommand": true,
           "pipe": true
         },

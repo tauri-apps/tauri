@@ -21,7 +21,11 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
     let migrated = migrate_config(&mut config)?;
-    fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
+    if config_path.extension().map_or(false, |ext| ext == "toml") {
+      fs::write(&config_path, toml::to_string_pretty(&config)?)?;
+    } else {
+      fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
+    }
 
     let mut permissions: Vec<PermissionEntry> = vec!["core:default"]
       .into_iter()
@@ -101,8 +105,12 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       }
 
       // system tray
-      if let Some(tray) = tauri_config.remove("systemTray") {
-        tauri_config.insert("trayIcon".into(), tray);
+      if let Some((tray, key)) = tauri_config
+        .remove("systemTray")
+        .map(|v| (v, "trayIcon"))
+        .or_else(|| tauri_config.remove("system-tray").map(|v| (v, "tray-icon")))
+      {
+        tauri_config.insert(key.into(), tray);
       }
 
       // cli
@@ -114,9 +122,21 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
       process_updater(tauri_config, &mut plugins, &mut migrated)?;
     }
 
-    config.insert("plugins".into(), plugins.into());
+    process_bundle(config, &migrated);
 
-    process_bundle(config);
+    // if we have migrated the updater config, let's ensure createUpdaterArtifacts is set
+    if plugins.contains_key("updater") {
+      let bundle_config = config
+        .entry("bundle")
+        .or_insert_with(|| Value::Object(Default::default()))
+        .as_object_mut()
+        .unwrap();
+      if !bundle_config.contains_key("createUpdaterArtifacts") {
+        bundle_config.insert("createUpdaterArtifacts".to_owned(), "v1Compatible".into());
+      }
+    }
+
+    config.insert("plugins".into(), plugins.into());
 
     if let Some(tauri_config) = config.remove("tauri") {
       config.insert("app".into(), tauri_config);
@@ -129,8 +149,16 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
 fn process_package_metadata(config: &mut Map<String, Value>) {
   if let Some(mut package_config) = config.remove("package") {
     if let Some(package_config) = package_config.as_object_mut() {
-      if let Some(product_name) = package_config.remove("productName") {
-        config.insert("productName".into(), product_name);
+      if let Some((product_name, key)) = package_config
+        .remove("productName")
+        .map(|v| (v, "productName"))
+        .or_else(|| {
+          package_config
+            .remove("product-name")
+            .map(|v| (v, "product-name"))
+        })
+      {
+        config.insert(key.into(), product_name);
       }
 
       if let Some(version) = package_config.remove("version") {
@@ -152,25 +180,45 @@ fn process_package_metadata(config: &mut Map<String, Value>) {
 
 fn process_build(config: &mut Map<String, Value>) {
   if let Some(build_config) = config.get_mut("build").and_then(|b| b.as_object_mut()) {
-    if let Some(dist_dir) = build_config.remove("distDir") {
-      build_config.insert("frontendDist".into(), dist_dir);
+    if let Some((dist_dir, key)) = build_config
+      .remove("distDir")
+      .map(|v| (v, "frontendDist"))
+      .or_else(|| {
+        build_config
+          .remove("dist-dir")
+          .map(|v| (v, "frontend-dist"))
+      })
+    {
+      build_config.insert(key.into(), dist_dir);
     }
-    if let Some(dev_path) = build_config.remove("devPath") {
+    if let Some((dev_path, key)) = build_config
+      .remove("devPath")
+      .map(|v| (v, "devUrl"))
+      .or_else(|| build_config.remove("dev-path").map(|v| (v, "dev-url")))
+    {
       let is_url = url::Url::parse(dev_path.as_str().unwrap_or_default()).is_ok();
       if is_url {
-        build_config.insert("devUrl".into(), dev_path);
+        build_config.insert(key.into(), dev_path);
       }
     }
-    if let Some(with_global_tauri) = build_config.remove("withGlobalTauri") {
+    if let Some((with_global_tauri, key)) = build_config
+      .remove("withGlobalTauri")
+      .map(|v| (v, "withGlobalTauri"))
+      .or_else(|| {
+        build_config
+          .remove("with-global-tauri")
+          .map(|v| (v, "with-global-tauri"))
+      })
+    {
       config
         .get_mut("tauri")
         .and_then(|t| t.as_object_mut())
-        .map(|t| t.insert("withGlobalTauri".into(), with_global_tauri));
+        .map(|t| t.insert(key.into(), with_global_tauri));
     }
   }
 }
 
-fn process_bundle(config: &mut Map<String, Value>) {
+fn process_bundle(config: &mut Map<String, Value>, migrated: &MigratedConfig) {
   let mut license_file = None;
 
   if let Some(mut bundle_config) = config
@@ -196,19 +244,22 @@ fn process_bundle(config: &mut Map<String, Value>) {
       }
 
       // license file
-      if let Some(macos) = bundle_config.get_mut("macOS") {
-        if let Some(license) = macos.as_object_mut().unwrap().remove("license") {
+      if let Some(macos) = bundle_config
+        .get_mut("macOS")
+        .and_then(|v| v.as_object_mut())
+      {
+        if let Some(license) = macos.remove("license") {
           license_file = Some(license);
         }
       }
       if let Some(windows) = bundle_config.get_mut("windows") {
-        if let Some(wix) = windows.get_mut("wix") {
-          if let Some(license_path) = wix.as_object_mut().unwrap().remove("license") {
+        if let Some(wix) = windows.get_mut("wix").and_then(|v| v.as_object_mut()) {
+          if let Some(license_path) = wix.remove("license") {
             license_file = Some(license_path);
           }
         }
-        if let Some(nsis) = windows.get_mut("nsis") {
-          if let Some(license_path) = nsis.as_object_mut().unwrap().remove("license") {
+        if let Some(nsis) = windows.get_mut("nsis").and_then(|v| v.as_object_mut()) {
+          if let Some(license_path) = nsis.remove("license") {
             license_file = Some(license_path);
           }
         }
@@ -219,7 +270,7 @@ fn process_bundle(config: &mut Map<String, Value>) {
 
       // Migrate updater from targets to update field
       if let Some(targets) = bundle_config.get_mut("targets") {
-        let shuold_migrate = if let Some(targets) = targets.as_array_mut() {
+        let should_migrate = if let Some(targets) = targets.as_array_mut() {
           // targets: ["updater", ...]
           if let Some(index) = targets
             .iter()
@@ -232,17 +283,19 @@ fn process_bundle(config: &mut Map<String, Value>) {
           }
         } else if let Some(target) = targets.as_str() {
           // targets: "updater"
-          // targets: "all"
           if target == "updater" {
             bundle_config.remove("targets");
             true
           } else {
-            target == "all"
+            // note that target == "all" is the default from the v1 tauri CLI
+            // so we shouldn't bindly force updater bundles to be created
+            // instead we only migrate if the updater has been migrated
+            target == "all" && migrated.plugins.contains("updater")
           }
         } else {
           false
         };
-        if shuold_migrate {
+        if should_migrate {
           bundle_config.insert("createUpdaterArtifacts".to_owned(), "v1Compatible".into());
         }
       }
@@ -287,6 +340,18 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
 
     security.insert("csp".into(), csp);
   }
+
+  // dangerous_remote_domain_ipc_access no longer exists
+  if let Some(dangerous_remote_domain_ipc_access) = security
+    .remove("dangerousRemoteDomainIpcAccess")
+    .or_else(|| security.remove("dangerous-remote-domain-ipc-access"))
+  {
+    println!("dangerous remote domain IPC access config ({dangerous_remote_domain_ipc_access:?}) no longer exists, see documentation for capabilities and remote access: https://v2.tauri.app/security/capabilities/#remote-api-access")
+  }
+  security
+    .remove("dangerousUseHttpScheme")
+    .or_else(|| security.remove("dangerous-use-http-scheme"));
+
   Ok(())
 }
 
@@ -321,13 +386,16 @@ fn allowlist_to_permissions(
   allowlist: tauri_utils_v1::config::AllowlistConfig,
 ) -> Vec<PermissionEntry> {
   macro_rules! permissions {
-    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {
+    ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {{
       if $allowlist.all || $allowlist.$object.all || $allowlist.$object.$field {
         $permissions_list.push(PermissionEntry::PermissionRef(
           $associated_permission.to_string().try_into().unwrap(),
         ));
+        true
+      } else {
+        false
       }
-    };
+    }};
   }
 
   let mut permissions = Vec::new();
@@ -409,8 +477,11 @@ fn allowlist_to_permissions(
 
   // shell
   if allowlist.shell.scope.0.is_empty() {
-    permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
-    permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+    let added = permissions!(allowlist, permissions, shell, execute => "shell:allow-execute");
+    // prevent duplicated permission
+    if !added {
+      permissions!(allowlist, permissions, shell, sidecar => "shell:allow-execute");
+    }
   } else {
     let allowed = allowlist
       .shell
@@ -798,7 +869,46 @@ mod test {
   }
 
   #[test]
+  fn can_migrate_default_config() {
+    let original = serde_json::to_value(tauri_utils_v1::config::Config::default()).unwrap();
+    migrate(&original);
+  }
+
+  #[test]
+  fn can_migrate_api_example_config() {
+    let original =
+      serde_json::from_str(include_str!("./fixtures/api-example.tauri.conf.json")).unwrap();
+    migrate(&original);
+  }
+
+  #[test]
+  fn can_migrate_cli_template_config() {
+    let original =
+      serde_json::from_str(include_str!("./fixtures/cli-template.tauri.conf.json")).unwrap();
+    migrate(&original);
+  }
+
+  #[test]
   fn migrate_updater_target() {
+    let original = serde_json::json!({});
+
+    let migrated = migrate(&original);
+    assert_eq!(
+      migrated["bundle"]["createUpdaterArtifacts"],
+      serde_json::Value::Null
+    );
+
+    let original = serde_json::json!({
+      "tauri": {
+        "updater": {
+          "active": true
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(migrated["bundle"]["createUpdaterArtifacts"], "v1Compatible");
+
     let original = serde_json::json!({
       "tauri": {
         "bundle": {
@@ -814,10 +924,36 @@ mod test {
       Some(&vec!["nsis".into()])
     );
 
+    let original =
+      serde_json::from_str(include_str!("./fixtures/cli-template.tauri.conf.json")).unwrap();
+    let migrated = migrate(&original);
+    assert_eq!(
+      migrated["bundle"]["createUpdaterArtifacts"],
+      serde_json::Value::Null
+    );
+
     let original = serde_json::json!({
       "tauri": {
         "bundle": {
           "targets": "all"
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(
+      migrated["bundle"]["createUpdaterArtifacts"],
+      serde_json::Value::Null
+    );
+    assert_eq!(migrated["bundle"]["targets"], "all");
+
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "targets": "all"
+        },
+        "updater": {
+          "active": true
         }
       }
     });

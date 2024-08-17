@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-rc.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+- Upgraded to `tauri-runtime@2.0.0-rc.3`
+- [`d39c392b7`](https://www.github.com/tauri-apps/tauri/commit/d39c392b7cec746da423211f9c74632abe4b6af5) ([#10655](https://www.github.com/tauri-apps/tauri/pull/10655) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update `tao` to 0.29 and `wry` to 0.42.
+
+## \[2.0.0-rc.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+- Upgraded to `tauri-runtime@2.0.0-rc.2`
+
 ## \[2.0.0-rc.1]
 
 ### Dependencies

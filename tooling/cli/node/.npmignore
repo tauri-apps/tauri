@@ -7,5 +7,4 @@ test
 .eslintrc
 .prettierignore
 rustfmt.toml
-yarn.lock
 *.node

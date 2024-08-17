@@ -218,13 +218,15 @@ function getCurrentWindow(): Window {
  *
  * @since 1.0.0
  */
-function getAllWindows(): Window[] {
-  return window.__TAURI_INTERNALS__.metadata.windows.map(
-    (w) =>
-      new Window(w.label, {
-        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-        skip: true
-      })
+async function getAllWindows(): Promise<Window[]> {
+  return invoke<string[]>('plugin:window|get_all_windows').then((windows) =>
+    windows.map(
+      (w) =>
+        new Window(w, {
+          // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+          skip: true
+        })
+    )
   )
 }
 
@@ -319,8 +321,8 @@ class Window {
    * @param label The window label.
    * @returns The Window instance to communicate with the window or null if the window doesn't exist.
    */
-  static getByLabel(label: string): Window | null {
-    return getAllWindows().find((w) => w.label === label) ?? null
+  static async getByLabel(label: string): Promise<Window | null> {
+    return (await getAllWindows()).find((w) => w.label === label) ?? null
   }
 
   /**
@@ -333,7 +335,7 @@ class Window {
   /**
    * Gets a list of instances of `Window` for all available windows.
    */
-  static getAll(): Window[] {
+  static async getAll(): Promise<Window[]> {
     return getAllWindows()
   }
 
@@ -348,7 +350,7 @@ class Window {
    * @returns The Window instance or `undefined` if there is not any focused window.
    */
   static async getFocusedWindow(): Promise<Window | null> {
-    for (const w of getAllWindows()) {
+    for (const w of await getAllWindows()) {
       if (await w.isFocused()) {
         return w
       }
@@ -1126,7 +1128,7 @@ class Window {
    *
    * - **Windows:**
    *   - `false` has no effect on decorated window, shadows are always ON.
-   *   - `true` will make ndecorated window have a 1px white border,
+   *   - `true` will make undecorated window have a 1px white border,
    * and on Windows 11, it will have a rounded corners.
    * - **Linux:** Unsupported.
    *
@@ -2182,7 +2184,7 @@ interface WindowOptions {
    *
    * - **Windows:**
    *   - `false` has no effect on decorated window, shadows are always ON.
-   *   - `true` will make ndecorated window have a 1px white border,
+   *   - `true` will make undecorated window have a 1px white border,
    * and on Windows 11, it will have a rounded corners.
    * - **Linux:** Unsupported.
    *

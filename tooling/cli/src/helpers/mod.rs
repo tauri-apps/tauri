@@ -9,6 +9,7 @@ pub mod config;
 pub mod flock;
 pub mod framework;
 pub mod npm;
+pub mod plugins;
 pub mod prompts;
 pub mod template;
 pub mod updater_signature;

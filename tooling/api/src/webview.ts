@@ -60,13 +60,24 @@ function getCurrentWebview(): Webview {
  *
  * @since 2.0.0
  */
-function getAllWebviews(): Webview[] {
-  return window.__TAURI_INTERNALS__.metadata.webviews.map(
-    (w) =>
-      new Webview(Window.getByLabel(w.windowLabel)!, w.label, {
-        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-        skip: true
-      })
+async function getAllWebviews(): Promise<Webview[]> {
+  return invoke<Array<{ windowLabel: string; label: string }>>(
+    'plugin:webview|get_all_webviews'
+  ).then((webviews) =>
+    webviews.map(
+      (w) =>
+        new Webview(
+          new Window(w.windowLabel, {
+            // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+            skip: true
+          }),
+          w.label,
+          {
+            // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+            skip: true
+          }
+        )
+    )
   )
 }
 
@@ -174,8 +185,8 @@ class Webview {
    * @param label The webview label.
    * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
    */
-  static getByLabel(label: string): Webview | null {
-    return getAllWebviews().find((w) => w.label === label) ?? null
+  static async getByLabel(label: string): Promise<Webview | null> {
+    return (await getAllWebviews()).find((w) => w.label === label) ?? null
   }
 
   /**
@@ -188,7 +199,7 @@ class Webview {
   /**
    * Gets a list of instances of `Webview` for all available webviews.
    */
-  static getAll(): Webview[] {
+  static async getAll(): Promise<Webview[]> {
     return getAllWebviews()
   }
 

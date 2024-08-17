@@ -37,6 +37,7 @@ impl PackageManager {
     let mut use_npm = false;
     let mut use_pnpm = false;
     let mut use_yarn = false;
+    let mut use_bun = false;
 
     if let Ok(entries) = std::fs::read_dir(path) {
       for entry in entries.flatten() {
@@ -48,11 +49,13 @@ impl PackageManager {
           use_pnpm = true;
         } else if name.as_ref() == "yarn.lock" {
           use_yarn = true;
+        } else if name.as_ref() == "bun.lockb" {
+          use_bun = true;
         }
       }
     }
 
-    if !use_npm && !use_pnpm && !use_yarn {
+    if !use_npm && !use_pnpm && !use_yarn && !use_bun {
       return Vec::new();
     }
 
@@ -66,6 +69,9 @@ impl PackageManager {
     }
     if use_yarn {
       found.push(PackageManager::Yarn);
+    }
+    if use_bun {
+      found.push(PackageManager::Bun);
     }
 
     found

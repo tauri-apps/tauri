@@ -128,7 +128,7 @@ Because of the many ways to build front-ends, we will stick with a common node.j
 The easiest way to do this is to run the following:
 
 ```
-npx create-tauri-app
+npm create tauri-app
 ```
 
 Which will ask you a bunch of questions about the framework you want to install and then create everything you need in a single folder - some via the placement of template files and some through normal installation procedures of your framework.
@@ -138,6 +138,8 @@ Which will ask you a bunch of questions about the framework you want to install 
 Once everything is installed, you can run:
 
 ```
+pnpm tauri dev
+-or-
 yarn tauri dev
 -or-
 npm run tauri dev
@@ -157,7 +159,7 @@ If you modify your rust code or anything in the Cargo.toml, the window will clos
 If you need to get deeper insight into your current project, or triage requires investigation of installed components, just run:
 
 ```
-yarn tauri info
+pnpm tauri info
 ```
 
 ## What does the Release flow look like?
@@ -169,7 +171,7 @@ Depending upon the operating system that the developer (or CI) is building the a
 To kick off this process, just:
 
 ```
-yarn tauri build
+pnpm tauri build
 ```
 
 After some time, the process will end and you can see the results in the `./src-tauri/target/release` folder.

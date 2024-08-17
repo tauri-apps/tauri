@@ -8,10 +8,7 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
     InvokeHandler, InvokeResponder, InvokeResponse,
   },
-  manager::{
-    webview::{UriSchemeProtocol, WebviewLabelDef},
-    AppManager, Asset,
-  },
+  manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
@@ -1744,6 +1741,13 @@ tauri::Builder::default()
       self.invoke_key,
     ));
 
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
     let app_id = if manager.config.app.enable_gtk_app_id {
       Some(manager.config.identifier.clone())
     } else {
@@ -1769,7 +1773,7 @@ tauri::Builder::default()
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
               let translated =
-                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel()), msg);
+                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel() as _), msg);
               if translated == 1 {
                 return true;
               }
@@ -1961,24 +1965,8 @@ impl<R: Runtime> HasDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   app.ran_setup = true;
 
-  let window_labels = app
-    .config()
-    .app
-    .windows
-    .iter()
-    .map(|p| p.label.clone())
-    .collect::<Vec<_>>();
-  let webview_labels = window_labels
-    .iter()
-    .map(|label| WebviewLabelDef {
-      window_label: label.clone(),
-      label: label.clone(),
-    })
-    .collect::<Vec<_>>();
-
   for window_config in app.config().app.windows.clone() {
-    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
-      .build_internal(&window_labels, &webview_labels)?;
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?.build()?;
   }
 
   app.manager.assets.setup(app);

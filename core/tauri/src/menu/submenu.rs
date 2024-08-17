@@ -56,7 +56,9 @@ impl<R: Runtime> ContextMenuBase for Submenu<R> {
 
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        self_.inner().show_context_menu_for_hwnd(hwnd.0, position)
+        self_
+          .inner()
+          .show_context_menu_for_hwnd(hwnd.0 as _, position)
       }
     })
   }

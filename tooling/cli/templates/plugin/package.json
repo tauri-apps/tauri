@@ -1,6 +1,6 @@
 {
   "name": "tauri-plugin-{{ plugin_name }}-api",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "author": "{{ author }}",
   "description": "",
   "type": "module",
@@ -18,8 +18,8 @@
   ],
   "scripts": {
     "build": "rollup -c",
-    "prepublishOnly": "yarn build",
-    "pretest": "yarn build"
+    "prepublishOnly": "pnpm build",
+    "pretest": "pnpm build"
   },
   "dependencies": {
     "@tauri-apps/api": ">=2.0.0-beta.6"

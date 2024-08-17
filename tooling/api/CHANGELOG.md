@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.1]
+
+### Breaking Changes
+
+- [`b6dca99ff`](https://www.github.com/tauri-apps/tauri/commit/b6dca99fff73816a39380b288c299b47b493cfdb) ([#10630](https://www.github.com/tauri-apps/tauri/pull/10630) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changed `WebviewWindow.getAll`, `WebviewWindow.getByLabel`, `getAllWebviewWindows`,
+  `Window.getAll`, `Window.getByLabel`, `getAllWindows`,
+  `Webview.getAll`, `Webview.getByLabel`, `getAllWebviews`
+  to be async so their return value are synchronized with the state from the Rust side,
+  meaning new and destroyed windows are reflected.
+
 ## \[2.0.0-rc.0]
 
 ### Changes

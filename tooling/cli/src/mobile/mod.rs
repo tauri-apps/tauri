@@ -8,6 +8,7 @@ use crate::{
     config::{Config as TauriConfig, ConfigHandle},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
+  ConfigValue,
 };
 #[cfg(target_os = "macos")]
 use anyhow::Context;
@@ -135,12 +136,20 @@ impl Target {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TargetDevice {
+  id: String,
+  name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+  pub config: Option<ConfigValue>,
+  pub target_device: Option<TargetDevice>,
 }
 
 impl Default for CliOptions {
@@ -151,6 +160,8 @@ impl Default for CliOptions {
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),
+      config: None,
+      target_device: None,
     }
   }
 }
@@ -191,7 +202,7 @@ pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result
     let addr = server.local_addr()?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _| Some(options.clone()))?;
+    module.register_method("options", move |_, _, _| Some(options.clone()))?;
 
     let handle = server.start(module);
 
@@ -268,7 +279,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
   };
 
   let app_settings = interface.app_settings();
-  App::from_raw(tauri_dir(), raw)
+  App::from_raw(tauri_dir().to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       let bin_path = app_settings

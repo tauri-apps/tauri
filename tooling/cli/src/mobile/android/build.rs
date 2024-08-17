@@ -86,6 +86,8 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   delete_codegen_vars();
 
   let mut build_options: BuildOptions = options.clone().into();
@@ -199,6 +201,8 @@ fn run_build(
     args: build_options.args.clone(),
     noise_level,
     vars: Default::default(),
+    config: build_options.config.clone(),
+    target_device: None,
   };
   let handle = write_options(
     &tauri_config.lock().unwrap().as_ref().unwrap().identifier,

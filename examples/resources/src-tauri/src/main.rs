@@ -8,7 +8,7 @@ use std::{
   io::{BufRead, BufReader},
   process::{Command, Stdio},
 };
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 fn main() {
   tauri::Builder::default()

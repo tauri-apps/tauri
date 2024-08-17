@@ -11,7 +11,7 @@ Default permissions for the plugin.
 - `allow-basename`
 - `allow-is-absolute`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

@@ -1,5 +1,18 @@
 # Changelog
 
+## \[2.0.0-rc.3]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+- [`0afee5ed8`](https://www.github.com/tauri-apps/tauri/commit/0afee5ed80265c95c4581e173c4886677cfed593) ([#10436](https://www.github.com/tauri-apps/tauri/pull/10436) by [@nyurik](https://www.github.com/tauri-apps/tauri/../../nyurik)) Updated brotli to v6.
+
+## \[2.0.0-rc.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+
 ## \[2.0.0-rc.1]
 
 ### Dependencies

@@ -46,6 +46,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     &[
       ("create", false),
       // getters
+      ("get_all_windows", true),
       ("scale_factor", true),
       ("inner_position", true),
       ("outer_position", true),
@@ -121,6 +122,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("create_webview", false),
       ("create_webview_window", false),
       // getters
+      ("get_all_webviews", true),
       ("webview_position", true),
       ("webview_size", true),
       // setters

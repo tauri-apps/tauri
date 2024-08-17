@@ -25,6 +25,11 @@ mod desktop_commands {
   };
 
   #[command(root = "crate")]
+  pub async fn get_all_windows<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
+    app.manager().windows().keys().cloned().collect()
+  }
+
+  #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
     WindowBuilder::from_config(&app, &options)?.build()?;
     Ok(())
@@ -219,6 +224,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
           Box::new(crate::generate_handler![
             desktop_commands::create,
             // getters
+            desktop_commands::get_all_windows,
             desktop_commands::scale_factor,
             desktop_commands::inner_position,
             desktop_commands::outer_position,

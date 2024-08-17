@@ -77,7 +77,7 @@ pub fn get<R: Runtime>(
     } else {
       responder.respond(
         http::Response::builder()
-          .status(http::StatusCode::BAD_REQUEST)
+          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
           .body("failed to get response".as_bytes().to_vec())
           .unwrap(),
       );

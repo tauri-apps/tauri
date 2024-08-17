@@ -37,6 +37,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let profile = if options.release {
     Profile::Release
   } else {
@@ -57,12 +59,17 @@ pub fn command(options: Options) -> Result<()> {
     );
     (config, metadata, cli_options)
   };
+
   ensure_init(
     &tauri_config,
     config.app(),
     config.project_dir(),
     MobileTarget::Android,
   )?;
+
+  if let Some(config) = &cli_options.config {
+    crate::helpers::config::merge_with(&config.0)?;
+  }
 
   let env = env()?;
 
@@ -75,14 +82,38 @@ pub fn command(options: Options) -> Result<()> {
       .build
       .dev_url
       .clone();
+
     if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
       let forward = format!("tcp:{port}");
-      // ignore errors in case we do not have a device available
-      let _ = adb::adb(&env, ["reverse", &forward, &forward])
-        .stdin_file(os_pipe::dup_stdin().unwrap())
-        .stdout_file(os_pipe::dup_stdout().unwrap())
-        .stderr_capture()
-        .run();
+      log::info!("Forwarding port {port} with adb");
+
+      let devices = adb::device_list(&env).unwrap_or_default();
+
+      // clear port forwarding for all devices
+      for device in &devices {
+        remove_adb_reverse(&env, device.serial_no(), &forward);
+      }
+
+      // if there's a known target, we should force use it
+      if let Some(target_device) = &cli_options.target_device {
+        run_adb_reverse(&env, &target_device.id, &forward, &forward).with_context(|| {
+          format!(
+            "failed to forward port with adb, is the {} device connected?",
+            target_device.name,
+          )
+        })?;
+      } else if devices.len() == 1 {
+        let device = devices.first().unwrap();
+        run_adb_reverse(&env, device.serial_no(), &forward, &forward).with_context(|| {
+          format!(
+            "failed to forward port with adb, is the {} device connected?",
+            device.name(),
+          )
+        })?;
+      } else if devices.len() > 1 {
+        anyhow::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
+      }
     }
   }
 
@@ -143,4 +174,30 @@ fn validate_lib(path: &Path) -> Result<()> {
   }
 
   Ok(())
+}
+
+fn run_adb_reverse(
+  env: &cargo_mobile2::android::env::Env,
+  device_serial_no: &str,
+  remote: &str,
+  local: &str,
+) -> std::io::Result<std::process::Output> {
+  adb::adb(env, ["-s", device_serial_no, "reverse", remote, local])
+    .stdin_file(os_pipe::dup_stdin().unwrap())
+    .stdout_file(os_pipe::dup_stdout().unwrap())
+    .stderr_file(os_pipe::dup_stdout().unwrap())
+    .run()
+}
+
+fn remove_adb_reverse(
+  env: &cargo_mobile2::android::env::Env,
+  device_serial_no: &str,
+  remote: &str,
+) {
+  // ignore errors in case the port is not forwarded
+  let _ = adb::adb(env, ["-s", device_serial_no, "reverse", "--remove", remote])
+    .stdin_file(os_pipe::dup_stdin().unwrap())
+    .stdout_file(os_pipe::dup_stdout().unwrap())
+    .stderr_file(os_pipe::dup_stdout().unwrap())
+    .run();
 }

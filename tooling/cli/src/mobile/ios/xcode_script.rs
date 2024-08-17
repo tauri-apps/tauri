@@ -14,7 +14,7 @@ use clap::Parser;
 
 use std::{
   collections::HashMap,
-  env::{current_dir, set_current_dir, var_os},
+  env::{current_dir, set_current_dir, var, var_os},
   ffi::OsStr,
   path::{Path, PathBuf},
   process::Command,
@@ -62,9 +62,14 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
-  if var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none() {
+  // so we must change working directory to the src-tauri folder to resolve the tauri dir
+  if (var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none())
+    || var("npm_config_user_agent").map_or(false, |agent| agent.starts_with("bun"))
+  {
     set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }
+
+  crate::helpers::app_paths::resolve();
 
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
@@ -89,6 +94,10 @@ pub fn command(options: Options) -> Result<()> {
     config.project_dir(),
     MobileTarget::Ios,
   )?;
+
+  if let Some(config) = &cli_options.config {
+    crate::helpers::config::merge_with(&config.0)?;
+  }
 
   let env = env()?.explicit_env_vars(cli_options.vars);
 
@@ -212,7 +221,10 @@ pub fn command(options: Options) -> Result<()> {
       return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
     }
 
-    validate_lib(&lib_path)?;
+    // for some reason the app works on release, but `nm <path>` does not print the start_app symbol
+    if profile == Profile::Debug {
+      validate_lib(&lib_path)?;
+    }
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));

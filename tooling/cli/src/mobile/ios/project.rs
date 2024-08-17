@@ -29,6 +29,7 @@ const TEMPLATE_DIR: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/templates/mobile
 
 // unprefixed app_root seems pretty dangerous!!
 // TODO: figure out what cargo-mobile meant by that
+#[allow(clippy::too_many_arguments)]
 pub fn gen(
   tauri_config: &TauriConfig,
   config: &Config,

@@ -30,45 +30,45 @@ jobs:
             target: x86_64-apple-darwin
             architecture: x64
             build: |
-              yarn build:release --target=x86_64-apple-darwin
+              pnpm build:release --target=x86_64-apple-darwin
               strip -x *.node
           - host: windows-latest
-            build: yarn build:release
+            build: pnpm build:release
             target: x86_64-pc-windows-msvc
             architecture: x64
           - host: windows-latest
-            build: yarn build:release --target i686-pc-windows-msvc
+            build: pnpm build:release --target i686-pc-windows-msvc
             target: i686-pc-windows-msvc
             architecture: x64
           - host: windows-latest
             architecture: x64
             target: aarch64-pc-windows-msvc
-            build: yarn build:release --target aarch64-pc-windows-msvc --features native-tls-vendored --cargo-flags="--no-default-features"
+            build: pnpm build:release --target aarch64-pc-windows-msvc --features native-tls-vendored --cargo-flags="--no-default-features"
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
               cd tooling/cli/node
-              yarn build:release --target x86_64-unknown-linux-gnu
+              pnpm build:release --target x86_64-unknown-linux-gnu
               strip *.node
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
               cd tooling/cli/node
-              yarn build:release
+              pnpm build:release
               strip *.node
           - host: macos-latest
             target: aarch64-apple-darwin
             build: |
-              yarn build:release --features native-tls-vendored --target=aarch64-apple-darwin
+              pnpm build:release --features native-tls-vendored --target=aarch64-apple-darwin
               strip -x *.node
           - host: ubuntu-20.04
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
               cd tooling/cli/node
-              yarn build:release --target aarch64-unknown-linux-gnu
+              pnpm build:release --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-20.04
             architecture: x64
@@ -77,7 +77,7 @@ jobs:
               sudo apt-get update
               sudo apt-get install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf -y
             build: |
-              yarn build:release --target=armv7-unknown-linux-gnueabihf
+              pnpm build:release --target=armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip *.node
           - host: ubuntu-20.04
             architecture: x64
@@ -86,20 +86,20 @@ jobs:
             build: |
               cd tooling/cli/node
               rustup target add aarch64-unknown-linux-musl
-              yarn build:release --target aarch64-unknown-linux-musl
+              pnpm build:release --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
           node-version: 16
           check-latest: true
-          cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache: 'pnpm'
           architecture: ${{ matrix.settings.architecture }}
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -116,7 +116,7 @@ jobs:
         if: ${{ matrix.settings.setup }}
         shell: bash
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
 
       - name: Build in docker
         uses: addnab/docker-run-action@v3
@@ -157,7 +157,7 @@ jobs:
   #          prepare: |
   #            pkg install -y curl node14 python2
   #            curl -qL https://www.npmjs.com/install.sh | sh
-  #            npm install -g yarn
+  #            npm install -g pnpm
   #            curl https://sh.rustup.rs -sSf --output rustup.sh
   #            sh rustup.sh -y --profile minimal --default-toolchain stable
   #            export PATH="/usr/local/cargo/bin:$PATH"
@@ -165,8 +165,8 @@ jobs:
   #            rustc --version
   #            echo "~~~~ node -v ~~~~"
   #            node -v
-  #            echo "~~~~ yarn --version ~~~~"
-  #            yarn --version
+  #            echo "~~~~ pnpm --version ~~~~"
+  #            pnpm --version
   #          run: |
   #            export PATH="/usr/local/cargo/bin:$PATH"
   #            pwd
@@ -175,8 +175,8 @@ jobs:
   #            env
   #            freebsd-version
   #            cd ./tooling/cli/node/
-  #            yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
-  #            yarn build:release
+  #            pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
+  #            pnpm build:release
   #            strip -x *.node
   #            rm -rf node_modules
   #            rm -rf ../target
@@ -205,15 +205,15 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
-          cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -223,7 +223,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Test bindings
-        run: yarn test
+        run: pnpm test
   test-linux-x64-gnu-binding:
     name: Test bindings on Linux-x64-gnu - node@${{ matrix.node }}
     needs:
@@ -238,15 +238,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
-          cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -260,7 +260,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
       - name: Test bindings
-        run: yarn test
+        run: pnpm test
   test-linux-x64-musl-binding:
     name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
     needs:
@@ -277,15 +277,15 @@ jobs:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
-          cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
@@ -296,13 +296,13 @@ jobs:
         shell: bash
       - name: Setup and run tests
         run: |
-          yarn tauri --help
+          pnpm tauri --help
           ls -la
       #- name: Setup and run tests
       #  run: |
       #    rustup install stable
       #    rustup default stable
-      #    yarn test
+      #    pnpm test
       #    ls -la
   test-linux-arm-bindings:
     name: Test bindings on ${{ matrix.image }} - node@${{ matrix.node }}
@@ -327,7 +327,7 @@ jobs:
         run: ls -R .
         shell: bash
       - name: Install dependencies
-        run: yarn install --ignore-scripts --ignore-platform --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download aarch64-gnu artifacts
         uses: actions/download-artifact@v3
         with:
@@ -356,7 +356,7 @@ jobs:
             fnm install ${{ matrix.node }}
             fnm use ${{ matrix.node }}
             cd tooling/cli/node
-            yarn tauri --help
+            pnpm tauri --help
             ls -la
   publish:
     name: Publish
@@ -369,21 +369,21 @@ jobs:
       #- test-linux-arm-bindings
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           check-latest: true
-          cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
+        run: pnpm i --frozen-lockfile --ignore-scripts --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts
         uses: actions/download-artifact@v3
         with:
           path: tooling/cli/node/artifacts
       - name: Move artifacts
-        run: yarn artifacts
+        run: pnpm artifacts
       - name: List packages
         run: ls -R ./npm
         shell: bash

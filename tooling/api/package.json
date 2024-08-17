@@ -37,13 +37,11 @@
   },
   "scripts": {
     "build": "rollup -c --configPlugin typescript",
-    "npm-pack": "yarn build && cd ./dist && npm pack",
-    "npm-publish": "yarn build && cd ./dist && yarn publish --access public --loglevel silly --tag next",
+    "npm-pack": "pnpm build && cd ./dist && npm pack",
+    "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel silly --tag next",
     "ts:check": "tsc --noEmit",
-    "lint": "eslint src/**.ts",
-    "lint:fix": "eslint src/**.ts --fix",
-    "format": "prettier --write . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore",
-    "format:check": "prettier --check . --config ../../.prettierrc --ignore-path .gitignore --ignore-path ../../.prettierignore"
+    "eslint:check": "eslint src/**.ts",
+    "eslint:fix": "eslint src/**.ts --fix"
   },
   "devDependencies": {
     "@eslint/js": "^9.4.0",
@@ -60,11 +58,6 @@
     "rollup": "4.20.0",
     "tslib": "^2.6.3",
     "typescript": "^5.4.5",
-    "typescript-eslint": "rc-v8"
-  },
-  "engines": {
-    "node": ">= 18.18",
-    "npm": ">= 6.6.0",
-    "yarn": ">= 1.19.1"
+    "typescript-eslint": "^8.1.0"
   }
 }

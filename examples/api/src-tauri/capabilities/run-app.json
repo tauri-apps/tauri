@@ -2,10 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "run-app",
   "description": "permissions to run the app",
-  "windows": [
-    "main",
-    "main-*"
-  ],
+  "windows": ["main", "main-*"],
   "permissions": [
     {
       "identifier": "allow-log-operation",

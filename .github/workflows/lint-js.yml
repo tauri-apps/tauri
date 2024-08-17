@@ -23,7 +23,7 @@ jobs:
       - run: corepack enable
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 'lts/*'
           cache: 'pnpm'
       - run: pnpm i --frozen-lockfile
       - run: pnpm format:check
@@ -35,7 +35,7 @@ jobs:
       - run: corepack enable
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 'lts/*'
           cache: 'pnpm'
       - run: pnpm i --frozen-lockfile
       - run: pnpm eslint:check
@@ -47,7 +47,7 @@ jobs:
       - run: corepack enable
       - uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: 'lts/*'
           cache: 'pnpm'
       - run: pnpm i --frozen-lockfile
       - run: pnpm ts:check

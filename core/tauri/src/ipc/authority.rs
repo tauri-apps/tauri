@@ -497,18 +497,23 @@ impl RuntimeAuthority {
 
           permissions_referencing_command.sort();
 
-          format!(
-            "Permissions associated with this command: {}",
-            permissions_referencing_command
-              .iter()
-              .map(|p| if key == APP_ACL_KEY {
+          let associated_permissions = permissions_referencing_command
+            .iter()
+            .map(|p| {
+              if key == APP_ACL_KEY {
                 p.to_string()
               } else {
                 format!("{key}:{p}")
-              })
-              .collect::<Vec<_>>()
-              .join(", ")
-          )
+              }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+
+          if associated_permissions.is_empty() {
+            "Command not found".to_string()
+          } else {
+            format!("Permissions associated with this command: {associated_permissions}")
+          }
         } else {
           "Plugin not found".to_string()
         };
@@ -1035,6 +1040,8 @@ mod tests {
   #[cfg(debug_assertions)]
   #[test]
   fn resolve_access_message() {
+    use tauri_utils::acl::manifest::Manifest;
+
     let plugin_name = "myplugin";
     let command_allowed_on_window = "my-command-window";
     let command_allowed_on_webview_window = "my-command-webview-window";
@@ -1085,11 +1092,45 @@ mod tests {
     .collect();
 
     let authority = RuntimeAuthority::new(
-      Default::default(),
+      [(
+        plugin_name.to_string(),
+        Manifest {
+          default_permission: None,
+          permissions: Default::default(),
+          permission_sets: Default::default(),
+          global_scope_schema: None,
+        },
+      )]
+      .into_iter()
+      .collect(),
       Resolved {
         allowed_commands,
         ..Default::default()
       },
+    );
+
+    // unknown plugin
+    assert_eq!(
+      authority.resolve_access_message(
+        "unknown-plugin",
+        command_allowed_on_window,
+        window,
+        webview,
+        &Origin::Local
+      ),
+      "unknown-plugin.my-command-window not allowed. Plugin not found"
+    );
+
+    // unknown command
+    assert_eq!(
+      authority.resolve_access_message(
+        plugin_name,
+        "unknown-command",
+        window,
+        webview,
+        &Origin::Local
+      ),
+      "myplugin.unknown-command not allowed. Command not found"
     );
 
     // window/webview do not match

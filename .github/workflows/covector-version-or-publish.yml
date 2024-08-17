@@ -23,6 +23,8 @@ jobs:
         with:
           fetch-depth: 0
 
+      - run: corepack enable
+
       - name: install stable
         uses: dtolnay/rust-toolchain@stable
 

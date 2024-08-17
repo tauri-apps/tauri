@@ -318,8 +318,6 @@ jobs:
       - name: List packages
         run: ls -R .
         shell: bash
-      - name: Install dependencies
-        run: pnpm i --frozen-lockfile --ignore-scripts --frozen-lockfile
       - name: Download aarch64-gnu artifacts
         uses: actions/download-artifact@v3
         with:

@@ -346,7 +346,7 @@ jobs:
             fnm install ${{ matrix.node }}
             fnm use ${{ matrix.node }}
             cd tooling/cli/node
-            pnpm tauri --help
+            node tauri.js --help
             ls -la
   publish:
     name: Publish

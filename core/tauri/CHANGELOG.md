@@ -13,10 +13,10 @@
 
 ### Dependencies
 
-- Upgraded to `tauri-build@2.0.1-rc.0`
+- Upgraded to `tauri-build@2.0.0-rc.3`
 - Upgraded to `tauri-utils@2.0.0-rc.3`
-- Upgraded to `tauri-runtime@2.0.1-rc.0`
-- Upgraded to `tauri-runtime-wry@2.0.1-rc.0`
+- Upgraded to `tauri-runtime@2.0.0-rc.3`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.3`
 - Upgraded to `tauri-macros@2.0.0-rc.3`
 - [`d39c392b7`](https://www.github.com/tauri-apps/tauri/commit/d39c392b7cec746da423211f9c74632abe4b6af5) ([#10655](https://www.github.com/tauri-apps/tauri/pull/10655) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update `tao` to 0.29 and `wry` to 0.42.
 

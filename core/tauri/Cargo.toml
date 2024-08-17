@@ -51,10 +51,10 @@ uuid = { version = "1", features = [ "v4" ], optional = true }
 url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "2.0.1-rc.0", path = "../tauri-runtime" }
+tauri-runtime = { version = "2.0.0-rc.3", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-rc.3", path = "../tauri-macros" }
 tauri-utils = { version = "2.0.0-rc.3", features = [ "resources" ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.0.1-rc.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.0.0-rc.3", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -110,7 +110,7 @@ swift-rs = "1.0.6"
 
 [build-dependencies]
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.1-rc.0" }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.3" }
 tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.3", features = [ "build" ] }
 
 [dev-dependencies]

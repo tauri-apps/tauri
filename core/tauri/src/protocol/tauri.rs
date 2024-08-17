@@ -54,7 +54,7 @@ pub fn get<R: Runtime>(
       Ok(response) => responder.respond(response),
       Err(e) => responder.respond(
         HttpResponse::builder()
-          .status(StatusCode::BAD_REQUEST)
+          .status(StatusCode::INTERNAL_SERVER_ERROR)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
           .header("Access-Control-Allow-Origin", &window_origin)
           .body(e.to_string().as_bytes().to_vec())
@@ -103,13 +103,8 @@ fn get_response<R: Runtime>(
       .decode_utf8_lossy()
       .to_string();
     let url = format!("{url}{decoded_path}");
-    #[allow(unused_mut)]
-    let mut client_builder = reqwest::ClientBuilder::new();
-    #[cfg(any(feature = "native-tls", feature = "rustls-tls"))]
-    {
-      client_builder = client_builder.danger_accept_invalid_certs(true);
-    }
-    let mut proxy_builder = client_builder
+
+    let mut proxy_builder = reqwest::ClientBuilder::new()
       .build()
       .unwrap()
       .request(request.method().clone(), &url);

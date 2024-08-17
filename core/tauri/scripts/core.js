@@ -60,15 +60,13 @@
         ) {
           resolve(r)
           delete window[`_${error}`]
-        },
-        true)
+        }, true)
         const error = window.__TAURI_INTERNALS__.transformCallback(function (
           e
         ) {
           reject(e)
           delete window[`_${callback}`]
-        },
-        true)
+        }, true)
 
         const action = () => {
           window.__TAURI_INTERNALS__.ipc({

@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.0-rc.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+- Upgraded to `tauri-runtime@2.0.0-rc.2`
+
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+- Upgraded to `tauri-runtime@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+- Upgraded to `tauri-runtime@2.0.0-rc.0`
+
+## \[2.0.0-beta.21]
+
+### What's Changed
+
+- [`9546548ec`](https://www.github.com/tauri-apps/tauri/commit/9546548ec0c83ba620b1bc9d1d424a7009d0b423) ([#10297](https://www.github.com/tauri-apps/tauri/pull/10297) by [@pewsheen](https://www.github.com/tauri-apps/tauri/../../pewsheen)) On macOS, set default titlebar style to `Visible` to prevent webview move out of the view.
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `inner_size_constraints` method on `WindowBuilder` trait and `set_size_constraints` method on `WindowDispatch` trait.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-beta.21`
+
 ## \[2.0.0-beta.20]
 
 ### Bug Fixes

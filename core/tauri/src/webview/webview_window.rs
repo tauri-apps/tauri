@@ -32,7 +32,7 @@ use url::Url;
 
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
-  manager::{webview::WebviewLabelDef, AppManager},
+  manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
   webview::WebviewBuilder,
@@ -346,19 +346,6 @@ tauri::Builder::default()
     let (_window, webview) = self.window_builder.with_webview(self.webview_builder)?;
     Ok(WebviewWindow { webview })
   }
-
-  pub(crate) fn build_internal(
-    self,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
-  ) -> crate::Result<WebviewWindow<R>> {
-    let (_window, webview) = self.window_builder.with_webview_internal(
-      self.webview_builder,
-      window_labels,
-      webview_labels,
-    )?;
-    Ok(WebviewWindow { webview })
-  }
 }
 
 /// Desktop APIs.
@@ -403,6 +390,16 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn max_inner_size(mut self, max_width: f64, max_height: f64) -> Self {
     self.window_builder = self.window_builder.max_inner_size(max_width, max_height);
+    self
+  }
+
+  /// Window inner size constraints.
+  #[must_use]
+  pub fn inner_size_constraints(
+    mut self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
+    self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
 
@@ -582,8 +579,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///   - `true` will make undecorated window have a 1px white border,
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
   pub fn shadow(mut self, enable: bool) -> Self {
@@ -868,7 +865,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
   /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
-  /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  ///   20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
   #[must_use]
@@ -1023,7 +1020,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to set it, use [`AppHandle::set_menu`] instead.
+  ///   window, if you need to set it, use [`AppHandle::set_menu`] instead.
   #[cfg_attr(target_os = "macos", allow(unused_variables))]
   pub fn set_menu(&self, menu: Menu<R>) -> crate::Result<Option<Menu<R>>> {
     self.webview.window().set_menu(menu)
@@ -1034,7 +1031,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ## Platform-specific:
   ///
   /// - **macOS:** Unsupported. The menu on macOS is app-wide and not specific to one
-  /// window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
+  ///   window, if you need to remove it, use [`AppHandle::remove_menu`] instead.
   pub fn remove_menu(&self) -> crate::Result<Option<Menu<R>>> {
     self.webview.window().remove_menu()
   }
@@ -1386,8 +1383,8 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///   - `true` will make undecorated window have a 1px white border,
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
     self.webview.window().set_shadow(enable)
@@ -1467,6 +1464,14 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets this window's maximum inner size.
   pub fn set_max_size<S: Into<Size>>(&self, size: Option<S>) -> crate::Result<()> {
     self.webview.window().set_max_size(size.map(|s| s.into()))
+  }
+
+  /// Sets this window's minimum inner width.
+  pub fn set_size_constraints(
+    &self,
+    constriants: tauri_runtime::window::WindowSizeConstraints,
+  ) -> crate::Result<()> {
+    self.webview.window().set_size_constraints(constriants)
   }
 
   /// Sets this window's position.
@@ -1596,15 +1601,15 @@ impl<R: Runtime> WebviewWindow<R> {
   ///       main_webview.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+  ///           // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
+  ///           // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
   ///           use webkit2gtk::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see <https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html>
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///
@@ -1667,7 +1672,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   ///
   /// # Examples
   ///
@@ -1692,7 +1697,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples
@@ -1725,7 +1730,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// ## Platform-specific
   ///
   /// - **macOS:** Only supported on macOS 10.15+.
-  /// This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
+  ///   This is a private API on macOS, so you cannot use this if your application will be published on the App Store.
   /// - **Windows:** Unsupported.
   ///
   /// # Examples

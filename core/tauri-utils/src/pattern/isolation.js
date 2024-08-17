@@ -18,6 +18,11 @@
   }
 
   /**
+   * @type {string} - The main frame origin.
+   */
+  const origin = __TEMPLATE_origin__
+
+  /**
    * @type {Uint8Array} - Injected by Tauri during runtime
    */
   const aesGcmKeyRaw = new Uint8Array(__TEMPLATE_runtime_aes_gcm_key__)
@@ -48,8 +53,8 @@
       typeof data === 'string'
         ? new TextEncoder().encode(data)
         : ArrayBuffer.isView(data) || data instanceof ArrayBuffer
-        ? data
-        : new Uint8Array(data)
+          ? data
+          : new Uint8Array(data)
 
     return window.crypto.subtle
       .encrypt(algorithm, aesGcmKey, message)
@@ -101,7 +106,7 @@
    * @param {MessageEvent<any>} event
    */
   async function payloadHandler(event) {
-    if (!isIsolationPayload(event.data)) {
+    if (event.origin !== origin || !isIsolationPayload(event.data)) {
       return
     }
 

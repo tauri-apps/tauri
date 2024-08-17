@@ -11,7 +11,7 @@ use crate::{
 
 #[cfg(desktop)]
 mod desktop_commands {
-  use tauri_runtime::ResizeDirection;
+  use tauri_runtime::{window::WindowSizeConstraints, ResizeDirection};
   use tauri_utils::TitleBarStyle;
 
   use super::*;
@@ -23,6 +23,11 @@ mod desktop_commands {
     AppHandle, CursorIcon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Webview, Window,
   };
+
+  #[command(root = "crate")]
+  pub async fn get_all_windows<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
+    app.manager().windows().keys().cloned().collect()
+  }
 
   #[command(root = "crate")]
   pub async fn create<R: Runtime>(app: AppHandle<R>, options: WindowConfig) -> crate::Result<()> {
@@ -132,6 +137,7 @@ mod desktop_commands {
   setter!(set_progress_bar, ProgressBarState);
   setter!(set_visible_on_all_workspaces, bool);
   setter!(set_title_bar_style, TitleBarStyle);
+  setter!(set_size_constraints, WindowSizeConstraints);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -217,6 +223,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
           Box::new(crate::generate_handler![
             desktop_commands::create,
             // getters
+            desktop_commands::get_all_windows,
             desktop_commands::scale_factor,
             desktop_commands::inner_position,
             desktop_commands::outer_position,
@@ -264,6 +271,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_size,
             desktop_commands::set_min_size,
             desktop_commands::set_max_size,
+            desktop_commands::set_size_constraints,
             desktop_commands::set_position,
             desktop_commands::set_fullscreen,
             desktop_commands::set_focus,

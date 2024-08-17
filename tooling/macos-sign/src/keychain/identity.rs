@@ -16,6 +16,7 @@ fn get_pem_list(keychain_path: &Path, name_substr: &str) -> std::io::Result<std:
     .arg("-c")
     .arg(name_substr)
     .arg(keychain_path)
+    .stdin(os_pipe::dup_stdin().unwrap())
     .stderr(os_pipe::dup_stderr().unwrap())
     .output()
 }

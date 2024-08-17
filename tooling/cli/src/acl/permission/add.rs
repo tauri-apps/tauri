@@ -7,7 +7,7 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
-  helpers::{app_paths::tauri_dir_opt, prompts},
+  helpers::{app_paths::resolve_tauri_dir, prompts},
   Result,
 };
 
@@ -31,14 +31,36 @@ impl TomlOrJson {
     }
   }
 
-  fn insert_permission(&mut self, idenitifer: String) {
+  fn platforms(&self) -> Option<Vec<&str>> {
+    match self {
+      TomlOrJson::Toml(t) => t.get("platforms").and_then(|k| {
+        k.as_array()
+          .and_then(|array| array.iter().map(|v| v.as_str()).collect())
+      }),
+      TomlOrJson::Json(j) => j.get("platforms").and_then(|k| {
+        if let Some(array) = k.as_array() {
+          let mut items = Vec::new();
+          for item in array {
+            if let Some(s) = item.as_str() {
+              items.push(s);
+            }
+          }
+          Some(items)
+        } else {
+          None
+        }
+      }),
+    }
+  }
+
+  fn insert_permission(&mut self, identifier: String) {
     match self {
       TomlOrJson::Toml(t) => {
         let permissions = t.entry("permissions").or_insert_with(|| {
           toml_edit::Item::Value(toml_edit::Value::Array(toml_edit::Array::new()))
         });
         if let Some(permissions) = permissions.as_array_mut() {
-          permissions.push(idenitifer)
+          permissions.push(identifier)
         };
       }
 
@@ -48,7 +70,7 @@ impl TomlOrJson {
             .entry("permissions")
             .or_insert_with(|| serde_json::Value::Array(Vec::new()));
           if let Some(permissions) = permissions.as_array_mut() {
-            permissions.push(serde_json::Value::String(idenitifer))
+            permissions.push(serde_json::Value::String(identifier))
           };
         }
       }
@@ -87,7 +109,7 @@ pub struct Options {
 }
 
 pub fn command(options: Options) -> Result<()> {
-  let dir = match tauri_dir_opt() {
+  let dir = match resolve_tauri_dir() {
     Some(t) => t,
     None => std::env::current_dir()?,
   };
@@ -100,7 +122,13 @@ pub fn command(options: Options) -> Result<()> {
     );
   }
 
-  let capabilities = std::fs::read_dir(&capabilities_dir)?
+  let known_plugins = crate::helpers::plugins::known_plugins();
+  let known_plugin = options
+    .identifier
+    .split_once(':')
+    .and_then(|(plugin, _permission)| known_plugins.get(&plugin));
+
+  let capabilities_iter = std::fs::read_dir(&capabilities_dir)?
     .flatten()
     .filter(|e| e.file_type().map(|e| e.is_file()).unwrap_or_default())
     .filter_map(|e| {
@@ -109,8 +137,66 @@ pub fn command(options: Options) -> Result<()> {
         Some(c) => (c == capability.identifier()).then_some((capability, path)),
         None => Some((capability, path)),
       })
-    })
-    .collect::<Vec<_>>();
+    });
+
+  let (desktop_only, mobile_only) = known_plugin
+    .map(|p| (p.desktop_only, p.mobile_only))
+    .unwrap_or_default();
+
+  let expected_capability_config = if desktop_only {
+    Some((
+      vec![
+        tauri_utils::platform::Target::MacOS.to_string(),
+        tauri_utils::platform::Target::Windows.to_string(),
+        tauri_utils::platform::Target::Linux.to_string(),
+      ],
+      "desktop",
+    ))
+  } else if mobile_only {
+    Some((
+      vec![
+        tauri_utils::platform::Target::Android.to_string(),
+        tauri_utils::platform::Target::Ios.to_string(),
+      ],
+      "mobile",
+    ))
+  } else {
+    None
+  };
+
+  let capabilities = if let Some((expected_platforms, target_name)) = expected_capability_config {
+    let mut capabilities = capabilities_iter
+        .filter(|(capability, _path)| {
+          capability.platforms().map_or(
+            false, /* allows any target, so we should skip it since we're adding a target-specific plugin */
+            |platforms| {
+              // all platforms must be in the expected platforms list
+              platforms.iter().all(|p| expected_platforms.contains(&p.to_string()))
+            },
+          )
+        })
+        .collect::<Vec<_>>();
+
+    if capabilities.is_empty() {
+      let identifier = format!("{target_name}-capability");
+      let capability_path = capabilities_dir.join(target_name).with_extension("json");
+      log::info!(
+        "Capability matching platforms {expected_platforms:?} not found, creating {}",
+        capability_path.display()
+      );
+      capabilities.push((
+        TomlOrJson::Json(serde_json::json!({
+          "identifier": identifier,
+          "platforms": expected_platforms
+        })),
+        capability_path,
+      ));
+    }
+
+    capabilities
+  } else {
+    capabilities_iter.collect::<Vec<_>>()
+  };
 
   let mut capabilities = if capabilities.len() > 1 {
     let selections = prompts::multiselect(
@@ -132,6 +218,11 @@ pub fn command(options: Options) -> Result<()> {
         .as_slice(),
       None,
     )?;
+
+    if selections.is_empty() {
+      anyhow::bail!("You did not select any capabilities to update");
+    }
+
     selections
       .into_iter()
       .map(|idx| capabilities[idx].clone())
@@ -140,9 +231,13 @@ pub fn command(options: Options) -> Result<()> {
     capabilities
   };
 
+  if capabilities.is_empty() {
+    anyhow::bail!("Could not find a capability to update");
+  }
+
   for (capability, path) in &mut capabilities {
     capability.insert_permission(options.identifier.clone());
-    std::fs::write(&path, capability.to_string()?)?;
+    std::fs::write(&*path, capability.to_string()?)?;
     log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
   }
 

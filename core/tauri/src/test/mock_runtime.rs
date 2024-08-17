@@ -228,7 +228,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
       ))
     });
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-    return unimplemented!();
+    unimplemented!();
   }
 
   fn primary_monitor(&self) -> Option<Monitor> {
@@ -329,6 +329,13 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self {
+    self
+  }
+
+  fn inner_size_constraints(
+    self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
     self
   }
 
@@ -718,7 +725,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
       ))
     };
     #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-    return unimplemented!();
+    unimplemented!();
   }
 
   fn center(&self) -> Result<()> {
@@ -935,6 +942,13 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   }
 
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_size_constraints(
+    &self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Result<()> {
     Ok(())
   }
 }

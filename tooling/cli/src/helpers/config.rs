@@ -132,7 +132,7 @@ fn get_internal(
   let mut extensions = HashMap::new();
 
   if let Some((platform_config, config_path)) =
-    tauri_utils::config::parse::read_platform(target, tauri_dir)?
+    tauri_utils::config::parse::read_platform(target, tauri_dir.to_path_buf())?
   {
     merge(&mut config, &platform_config);
     extensions.insert(
@@ -211,6 +211,23 @@ pub fn reload(merge_config: Option<&serde_json::Value>) -> crate::Result<ConfigH
     .map(|conf| conf.target);
   if let Some(target) = target {
     get_internal(merge_config, true, target)
+  } else {
+    Err(anyhow::anyhow!("config not loaded"))
+  }
+}
+
+/// merges the loaded config with the given value
+pub fn merge_with(merge_config: &serde_json::Value) -> crate::Result<ConfigHandle> {
+  let handle = config_handle();
+  if let Some(config_metadata) = &mut *handle.lock().unwrap() {
+    let merge_config_str = serde_json::to_string(merge_config).unwrap();
+    set_var("TAURI_CONFIG", merge_config_str);
+
+    let mut value = serde_json::to_value(config_metadata.inner.clone())?;
+    merge(&mut value, merge_config);
+    config_metadata.inner = serde_json::from_value(value)?;
+
+    Ok(handle.clone())
   } else {
     Err(anyhow::anyhow!("config not loaded"))
   }

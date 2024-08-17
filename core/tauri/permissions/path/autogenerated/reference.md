@@ -11,7 +11,7 @@ Default permissions for the plugin.
 - `allow-basename`
 - `allow-is-absolute`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>
@@ -23,7 +23,7 @@ Default permissions for the plugin.
 <tr>
 <td>
 
-`path:allow-basename`
+`core:path:allow-basename`
 
 </td>
 <td>
@@ -36,7 +36,7 @@ Enables the basename command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-basename`
+`core:path:deny-basename`
 
 </td>
 <td>
@@ -49,7 +49,7 @@ Denies the basename command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-dirname`
+`core:path:allow-dirname`
 
 </td>
 <td>
@@ -62,7 +62,7 @@ Enables the dirname command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-dirname`
+`core:path:deny-dirname`
 
 </td>
 <td>
@@ -75,7 +75,7 @@ Denies the dirname command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-extname`
+`core:path:allow-extname`
 
 </td>
 <td>
@@ -88,7 +88,7 @@ Enables the extname command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-extname`
+`core:path:deny-extname`
 
 </td>
 <td>
@@ -101,7 +101,7 @@ Denies the extname command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-is-absolute`
+`core:path:allow-is-absolute`
 
 </td>
 <td>
@@ -114,7 +114,7 @@ Enables the is_absolute command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-is-absolute`
+`core:path:deny-is-absolute`
 
 </td>
 <td>
@@ -127,7 +127,7 @@ Denies the is_absolute command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-join`
+`core:path:allow-join`
 
 </td>
 <td>
@@ -140,7 +140,7 @@ Enables the join command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-join`
+`core:path:deny-join`
 
 </td>
 <td>
@@ -153,7 +153,7 @@ Denies the join command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-normalize`
+`core:path:allow-normalize`
 
 </td>
 <td>
@@ -166,7 +166,7 @@ Enables the normalize command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-normalize`
+`core:path:deny-normalize`
 
 </td>
 <td>
@@ -179,7 +179,7 @@ Denies the normalize command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-resolve`
+`core:path:allow-resolve`
 
 </td>
 <td>
@@ -192,7 +192,7 @@ Enables the resolve command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-resolve`
+`core:path:deny-resolve`
 
 </td>
 <td>
@@ -205,7 +205,7 @@ Denies the resolve command without any pre-configured scope.
 <tr>
 <td>
 
-`path:allow-resolve-directory`
+`core:path:allow-resolve-directory`
 
 </td>
 <td>
@@ -218,7 +218,7 @@ Enables the resolve_directory command without any pre-configured scope.
 <tr>
 <td>
 
-`path:deny-resolve-directory`
+`core:path:deny-resolve-directory`
 
 </td>
 <td>

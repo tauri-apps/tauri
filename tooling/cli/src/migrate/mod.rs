@@ -3,32 +3,52 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::app_paths::{app_dir, tauri_dir},
+  helpers::{
+    app_paths::tauri_dir,
+    cargo_manifest::{crate_version, CargoLock, CargoManifest},
+  },
+  interface::rust::get_workspace_dir,
   Result,
 };
+
+use std::{fs::read_to_string, str::FromStr};
+
 use anyhow::Context;
 
-mod config;
-mod frontend;
-mod manifest;
+mod migrations;
 
 pub fn command() -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let tauri_dir = tauri_dir();
-  let app_dir = app_dir();
 
-  let migrated = config::migrate(&tauri_dir).context("Could not migrate config")?;
-  manifest::migrate(&tauri_dir).context("Could not migrate manifest")?;
-  frontend::migrate(app_dir, &tauri_dir)?;
+  let manifest_contents =
+    read_to_string(tauri_dir.join("Cargo.toml")).context("failed to read Cargo manifest")?;
+  let manifest = toml::from_str::<CargoManifest>(&manifest_contents)
+    .context("failed to parse Cargo manifest")?;
 
-  // Add plugins
-  for plugin in migrated.plugins {
-    crate::add::command(crate::add::Options {
-      plugin: plugin.clone(),
-      branch: None,
-      tag: None,
-      rev: None,
-    })
-    .with_context(|| format!("Could not migrate plugin '{plugin}'"))?
+  let workspace_dir = get_workspace_dir()?;
+  let lock_path = workspace_dir.join("Cargo.lock");
+  let lock = if lock_path.exists() {
+    let lockfile_contents = read_to_string(lock_path).context("failed to read Cargo lockfile")?;
+    let lock =
+      toml::from_str::<CargoLock>(&lockfile_contents).context("failed to parse Cargo lockfile")?;
+    Some(lock)
+  } else {
+    None
+  };
+
+  let tauri_version = crate_version(tauri_dir, Some(&manifest), lock.as_ref(), "tauri").version;
+  let tauri_version = semver::Version::from_str(&tauri_version)?;
+
+  if tauri_version.major == 1 {
+    migrations::v1::run().context("failed to migrate from v1")?;
+  } else if tauri_version.major == 2 {
+    if let Some((pre, _number)) = tauri_version.pre.as_str().split_once('.') {
+      if pre == "beta" {
+        migrations::v2_rc::run().context("failed to migrate from v2 beta to rc")?;
+      }
+    }
   }
 
   Ok(())

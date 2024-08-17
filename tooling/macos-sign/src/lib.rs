@@ -5,7 +5,7 @@
 use std::{
   ffi::{OsStr, OsString},
   path::{Path, PathBuf},
-  process::Command,
+  process::{Command, ExitStatus},
 };
 
 use anyhow::{Context, Result};
@@ -16,6 +16,24 @@ mod provisioning_profile;
 
 pub use keychain::{Keychain, Team};
 pub use provisioning_profile::ProvisioningProfile;
+
+trait CommandExt {
+  // The `pipe` function sets the stdout and stderr to properly
+  // show the command output in the Node.js wrapper.
+  fn piped(&mut self) -> std::io::Result<ExitStatus>;
+}
+
+impl CommandExt for Command {
+  fn piped(&mut self) -> std::io::Result<ExitStatus> {
+    self.stdin(os_pipe::dup_stdin()?);
+    self.stdout(os_pipe::dup_stdout()?);
+    self.stderr(os_pipe::dup_stderr()?);
+    let program = self.get_program().to_string_lossy().into_owned();
+    log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
+
+    self.status().map_err(Into::into)
+  }
+}
 
 pub enum ApiKey {
   Path(PathBuf),
@@ -71,7 +89,7 @@ pub fn notarize(
   // use ditto to create a PKZip almost identical to Finder
   // this remove almost 99% of false alarm in notarization
   assert_command(
-    Command::new("ditto").args(zip_args).status(),
+    Command::new("ditto").args(zip_args).piped(),
     "failed to zip app with ditto",
   )?;
 
@@ -98,7 +116,10 @@ pub fn notarize(
     .context("failed to upload app to Apple's notarization servers.")?;
 
   if !output.status.success() {
-    return Err(anyhow::anyhow!("failed to notarize app"));
+    return Err(
+      anyhow::anyhow!("failed to notarize app")
+        .context(String::from_utf8_lossy(&output.stderr).into_owned()),
+    );
   }
 
   let output_str = String::from_utf8_lossy(&output.stdout);
@@ -227,7 +248,7 @@ fn decode_base64(base64: &OsStr, out_path: &Path) -> Result<()> {
       .arg(&src_path)
       .arg("-o")
       .arg(out_path)
-      .status(),
+      .piped(),
     "failed to decode certificate",
   )?;
 

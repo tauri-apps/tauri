@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_assets, open_and_wait, setup_dev_config, MobileTarget,
+  inject_assets, open_and_wait, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -14,7 +14,7 @@ use crate::{
     flock,
   },
   interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
-  mobile::{write_options, CliOptions, DevChild, DevProcess},
+  mobile::{write_options, CliOptions, DevChild, DevProcess, TargetDevice},
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
@@ -32,16 +32,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::{set_current_dir, set_var};
-
-const WEBVIEW_CLIENT_CLASS_EXTENSION: &str = "
-    @android.annotation.SuppressLint(\"WebViewClientOnReceivedSslError\")
-    override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler, error: android.net.http.SslError) {
-        handler.proceed()
-    }
-";
-const WEBVIEW_CLASS_INIT: &str =
-  "this.settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW";
+use std::env::set_current_dir;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -72,9 +63,6 @@ pub struct Options {
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
-  /// Force prompting for an IP to use to connect to the dev server on mobile.
-  #[clap(long)]
-  pub force_ip_prompt: bool,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -96,13 +84,15 @@ impl From<Options> for DevOptions {
       no_dev_server_wait: options.no_dev_server_wait,
       no_dev_server: options.no_dev_server,
       port: options.port,
-      force_ip_prompt: options.force_ip_prompt,
       release_mode: options.release_mode,
+      host: None,
     }
   }
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let result = run_command(options, noise_level);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
@@ -154,16 +144,15 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     (interface, app, config, metadata)
   };
 
-  set_var(
-    "WRY_RUSTWEBVIEWCLIENT_CLASS_EXTENSION",
-    WEBVIEW_CLIENT_CLASS_EXTENSION,
-  );
-  set_var("WRY_RUSTWEBVIEW_CLASS_INIT", WEBVIEW_CLASS_INIT);
-
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Android,
+  )?;
   run_dev(
     interface,
     options,
@@ -181,7 +170,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn run_dev(
   mut interface: AppInterface,
-  mut options: Options,
+  options: Options,
   mut dev_options: DevOptions,
   tauri_config: ConfigHandle,
   device: Option<Device>,
@@ -191,13 +180,7 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  setup_dev_config(
-    MobileTarget::Android,
-    &mut options.config,
-    options.force_ip_prompt,
-  )?;
-
-  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone(), true)?;
+  crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let interface_options = InterfaceOptions {
     debug: !dev_options.release_mode,
@@ -239,15 +222,21 @@ fn run_dev(
       debug: !options.release_mode,
       features: options.features,
       args: Vec::new(),
-      config: options.config,
+      config: dev_options.config.clone(),
       no_watch: options.no_watch,
     },
     |options| {
       let cli_options = CliOptions {
+        dev: true,
         features: options.features.clone(),
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
+        config: dev_options.config.clone(),
+        target_device: device.as_ref().map(|d| TargetDevice {
+          id: d.serial_no().to_string(),
+          name: d.name().to_string(),
+        }),
       };
 
       let _handle = write_options(

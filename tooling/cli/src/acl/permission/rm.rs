@@ -7,7 +7,7 @@ use std::path::Path;
 use clap::Parser;
 use tauri_utils::acl::{manifest::PermissionFile, PERMISSION_SCHEMA_FILE_NAME};
 
-use crate::{acl::FileFormat, helpers::app_paths::tauri_dir_opt, Result};
+use crate::{acl::FileFormat, helpers::app_paths::resolve_tauri_dir, Result};
 
 fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
   for entry in std::fs::read_dir(dir)?.flatten() {
@@ -126,7 +126,7 @@ pub fn command(options: Options) -> Result<()> {
     rm_permission_files(&options.identifier, &permissions_dir)?;
   }
 
-  if let Some(tauri_dir) = tauri_dir_opt() {
+  if let Some(tauri_dir) = resolve_tauri_dir() {
     let capabilities_dir = tauri_dir.join("capabilities");
     if capabilities_dir.exists() {
       rm_permission_from_capabilities(&options.identifier, &capabilities_dir)?;

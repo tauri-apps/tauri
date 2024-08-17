@@ -105,7 +105,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
-  if let Some(identity) = &settings.macos().signing_identity {
+  if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
     sign_paths.push(SignTarget {
@@ -118,7 +118,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     remove_extra_attr(&app_bundle_path)?;
 
     // sign application
-    let keychain = sign(sign_paths, identity, settings)?;
+    sign(&keychain, sign_paths, settings)?;
 
     // notarization is required for distribution
     match notarize_auth() {

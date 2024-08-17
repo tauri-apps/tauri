@@ -72,14 +72,8 @@ impl From<Vec<u8>> for InvokeBody {
   }
 }
 
-impl IpcResponse for InvokeBody {
-  fn body(self) -> crate::Result<InvokeBody> {
-    Ok(self)
-  }
-}
-
 impl InvokeBody {
-  #[allow(dead_code)]
+  #[cfg(mobile)]
   pub(crate) fn into_json(self) -> JsonValue {
     match self {
       Self::Json(v) => v,
@@ -88,12 +82,51 @@ impl InvokeBody {
       }
     }
   }
+}
 
-  /// Attempts to deserialize the invoke body.
+/// Possible values of an IPC response.
+#[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+pub enum InvokeResponseBody {
+  /// Json payload.
+  Json(String),
+  /// Bytes payload.
+  Raw(Vec<u8>),
+}
+
+impl From<String> for InvokeResponseBody {
+  fn from(value: String) -> Self {
+    Self::Json(value)
+  }
+}
+
+impl From<Vec<u8>> for InvokeResponseBody {
+  fn from(value: Vec<u8>) -> Self {
+    Self::Raw(value)
+  }
+}
+
+impl From<InvokeBody> for InvokeResponseBody {
+  fn from(value: InvokeBody) -> Self {
+    match value {
+      InvokeBody::Json(v) => Self::Json(serde_json::to_string(&v).unwrap()),
+      InvokeBody::Raw(v) => Self::Raw(v),
+    }
+  }
+}
+
+impl IpcResponse for InvokeResponseBody {
+  fn body(self) -> crate::Result<InvokeResponseBody> {
+    Ok(self)
+  }
+}
+
+impl InvokeResponseBody {
+  /// Attempts to deserialize the response.
   pub fn deserialize<T: DeserializeOwned>(self) -> serde_json::Result<T> {
     match self {
-      InvokeBody::Json(v) => serde_json::from_value(v),
-      InvokeBody::Raw(v) => T::deserialize(v.into_deserializer()),
+      Self::Json(v) => serde_json::from_str(&v),
+      Self::Raw(v) => T::deserialize(v.into_deserializer()),
     }
   }
 }
@@ -130,12 +163,12 @@ impl<'a, R: Runtime> CommandArg<'a, R> for Request<'a> {
 /// Marks a type as a response to an IPC call.
 pub trait IpcResponse {
   /// Resolve the IPC response body.
-  fn body(self) -> crate::Result<InvokeBody>;
+  fn body(self) -> crate::Result<InvokeResponseBody>;
 }
 
 impl<T: Serialize> IpcResponse for T {
-  fn body(self) -> crate::Result<InvokeBody> {
-    serde_json::to_value(self)
+  fn body(self) -> crate::Result<InvokeResponseBody> {
+    serde_json::to_string(&self)
       .map(Into::into)
       .map_err(Into::into)
   }
@@ -143,23 +176,26 @@ impl<T: Serialize> IpcResponse for T {
 
 /// The IPC request.
 pub struct Response {
-  body: InvokeBody,
+  body: InvokeResponseBody,
 }
 
 impl IpcResponse for Response {
-  fn body(self) -> crate::Result<InvokeBody> {
+  fn body(self) -> crate::Result<InvokeResponseBody> {
     Ok(self.body)
   }
 }
 
 impl Response {
   /// Defines a response with the given body.
-  pub fn new(body: impl Into<InvokeBody>) -> Self {
+  pub fn new(body: impl Into<InvokeResponseBody>) -> Self {
     Self { body: body.into() }
   }
 }
 
 /// The message and resolver given to a custom command.
+///
+/// This struct is used internally by macros and is explicitly **NOT** stable.
+#[doc(hidden)]
 #[default_runtime(crate::Wry, wry)]
 pub struct Invoke<R: Runtime> {
   /// The message passed.
@@ -174,19 +210,19 @@ pub struct Invoke<R: Runtime> {
 
 /// Error response from an [`InvokeMessage`].
 #[derive(Debug)]
-pub struct InvokeError(pub JsonValue);
+pub struct InvokeError(pub serde_json::Value);
 
 impl InvokeError {
   /// Create an [`InvokeError`] as a string of the [`std::error::Error`] message.
   #[inline(always)]
   pub fn from_error<E: std::error::Error>(error: E) -> Self {
-    Self(JsonValue::String(error.to_string()))
+    Self(serde_json::Value::String(error.to_string()))
   }
 
   /// Create an [`InvokeError`] as a string of the [`anyhow::Error`] message.
   #[inline(always)]
   pub fn from_anyhow(error: anyhow::Error) -> Self {
-    Self(JsonValue::String(format!("{error:#}")))
+    Self(serde_json::Value::String(format!("{error:#}")))
   }
 }
 
@@ -202,7 +238,7 @@ impl<T: Serialize> From<T> for InvokeError {
 impl From<crate::Error> for InvokeError {
   #[inline(always)]
   fn from(error: crate::Error) -> Self {
-    Self(JsonValue::String(error.to_string()))
+    Self(serde_json::Value::String(error.to_string()))
   }
 }
 
@@ -210,22 +246,9 @@ impl From<crate::Error> for InvokeError {
 #[derive(Debug)]
 pub enum InvokeResponse {
   /// Resolve the promise.
-  Ok(InvokeBody),
+  Ok(InvokeResponseBody),
   /// Reject the promise.
   Err(InvokeError),
-}
-
-impl Serialize for InvokeResponse {
-  fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-  where
-    S: serde::Serializer,
-  {
-    match self {
-      Self::Ok(InvokeBody::Json(j)) => j.serialize(serializer),
-      Self::Ok(InvokeBody::Raw(b)) => b.serialize(serializer),
-      Self::Err(e) => e.0.serialize(serializer),
-    }
-  }
 }
 
 impl<T: IpcResponse, E: Into<InvokeError>> From<Result<T, E>> for InvokeResponse {
@@ -308,7 +331,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reply to the invoke promise with an async task which is already serialized.
   pub fn respond_async_serialized<F>(self, task: F)
   where
-    F: Future<Output = Result<InvokeBody, InvokeError>> + Send + 'static,
+    F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
   {
     crate::async_runtime::spawn(async move {
       let response = match task.await {
@@ -528,22 +551,18 @@ mod tests {
   use super::*;
 
   #[test]
-  fn deserialize_invoke_body() {
-    let json = InvokeBody::Json(serde_json::Value::Array(vec![
-      serde_json::Value::Number(1.into()),
-      serde_json::Value::Number(123.into()),
-      serde_json::Value::Number(1231.into()),
-    ]));
+  fn deserialize_invoke_response_body() {
+    let json = InvokeResponseBody::Json("[1, 123, 1231]".to_string());
     assert_eq!(json.deserialize::<Vec<u16>>().unwrap(), vec![1, 123, 1231]);
 
-    let json = InvokeBody::Json(serde_json::Value::String("string value".into()));
+    let json = InvokeResponseBody::Json("\"string value\"".to_string());
     assert_eq!(json.deserialize::<String>().unwrap(), "string value");
 
-    let json = InvokeBody::Json(serde_json::Value::String("string value".into()));
+    let json = InvokeResponseBody::Json("\"string value\"".to_string());
     assert!(json.deserialize::<Vec<u16>>().is_err());
 
     let values = vec![1, 2, 3, 4, 5, 6, 1];
-    let raw = InvokeBody::Raw(values.clone());
+    let raw = InvokeResponseBody::Raw(values.clone());
     assert_eq!(raw.deserialize::<Vec<u8>>().unwrap(), values);
   }
 }

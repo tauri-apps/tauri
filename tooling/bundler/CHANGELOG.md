@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.1-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+
+## \[2.0.1-rc.0]
+
+### Bug Fixes
+
+- [`a440a3f9d`](https://www.github.com/tauri-apps/tauri/commit/a440a3f9d85376d994f2ba904b1ae0828c5a0fbb) ([#10498](https://www.github.com/tauri-apps/tauri/pull/10498) by [@catalinsh](https://www.github.com/tauri-apps/tauri/../../catalinsh)) Correct nsis pre-uninstall hook to post-uninstall
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.1-beta.19]
+
+### Bug Fixes
+
+- [`d1df6be70`](https://www.github.com/tauri-apps/tauri/commit/d1df6be701fc1cd64fd227d68041a1096386d3b5) ([#10270](https://www.github.com/tauri-apps/tauri/pull/10270) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix bundler warns about no updater-enabled targets were built for self contained updaters like app image, nsis, msi
+
+### What's Changed
+
+- [`9f0a5fcea`](https://www.github.com/tauri-apps/tauri/commit/9f0a5fceaced7862c8a57beba6616c21ff3b17f8) ([#10271](https://www.github.com/tauri-apps/tauri/pull/10271) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `NSIS_HOOK_PREINSTALL` and `NSIS_HOOK_PREUNINSTALL` run before `CheckIfAppIsRunning` (which checks if the app is running and asks the user if they want to kill the app)
+
 ## \[2.0.1-beta.18]
 
 ### New Features

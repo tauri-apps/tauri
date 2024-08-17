@@ -117,6 +117,8 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let mut build_options: BuildOptions = options.clone().into();
   build_options.target = Some(
     Target::all()
@@ -154,9 +156,14 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  ensure_init(config.project_dir(), MobileTarget::Ios)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Ios,
+  )?;
   inject_assets(&config)?;
 
   let info_plist_path = config
@@ -243,6 +250,7 @@ fn create_export_options(
   (!plist.is_empty()).then(|| plist.into())
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_build(
   interface: AppInterface,
   options: Options,
@@ -270,10 +278,13 @@ fn run_build(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
+    dev: false,
     features: build_options.features.clone(),
     args: build_options.args.clone(),
     noise_level,
     vars: Default::default(),
+    config: build_options.config.clone(),
+    target_device: None,
   };
   let handle = write_options(
     &tauri_config.lock().unwrap().as_ref().unwrap().identifier,

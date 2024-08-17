@@ -426,7 +426,11 @@ impl RuntimeAuthority {
           )
         }
       } else {
-        let permission_error_detail = if let Some(manifest) = self.acl.get(key) {
+        let permission_error_detail = if let Some(manifest) = self
+          .acl
+          .get(key)
+          .or_else(|| self.acl.get(&format!("core:{key}")))
+        {
           let mut permissions_referencing_command = Vec::new();
 
           if let Some(default) = &manifest.default_permission {

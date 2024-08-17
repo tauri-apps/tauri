@@ -159,6 +159,7 @@ pub use window_effects::{WindowEffect, WindowEffectState};
 /// How the window title bar should be displayed on macOS.
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[non_exhaustive]
 pub enum TitleBarStyle {
   /// A normal title bar.
   Visible,
@@ -294,7 +295,7 @@ impl Default for Env {
       if env.appimage.is_some() || env.appdir.is_some() {
         // validate that we're actually running on an AppImage
         // an AppImage is mounted to `/$TEMPDIR/.mount_${appPrefix}${hash}`
-        // see https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501
+        // see <https://github.com/AppImage/AppImageKit/blob/1681fd84dbe09c7d9b22e13cdb16ea601aa0ec47/src/runtime.c#L501>
         // note that it is safe to use `std::env::current_exe` here since we just loaded an AppImage.
         let is_temp = std::env::current_exe()
           .map(|p| {
@@ -382,4 +383,21 @@ pub fn display_path<P: AsRef<Path>>(p: P) -> String {
   dunce::simplified(&p.as_ref().components().collect::<PathBuf>())
     .display()
     .to_string()
+}
+
+/// Write the file only if the content of the existing file (if any) is different.
+///
+/// This will always write unless the file exists with identical content.
+pub fn write_if_changed<P, C>(path: P, content: C) -> std::io::Result<()>
+where
+  P: AsRef<Path>,
+  C: AsRef<[u8]>,
+{
+  if let Ok(existing) = std::fs::read(&path) {
+    if existing == content.as_ref() {
+      return Ok(());
+    }
+  }
+
+  std::fs::write(path, content)
 }

@@ -19,6 +19,7 @@ mod starting_binary;
 #[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub enum Target {
   /// MacOS.
   #[serde(rename = "macOS")]

@@ -9,7 +9,8 @@ use crate::{
   Icon, Runtime, UserEvent, WindowDispatch,
 };
 
-use serde::{Deserialize, Deserializer};
+use dpi::PixelUnit;
+use serde::{Deserialize, Deserializer, Serialize};
 use tauri_utils::{config::WindowConfig, Theme};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
@@ -201,6 +202,28 @@ impl<'de> Deserialize<'de> for CursorIcon {
   }
 }
 
+/// Window size constraints
+#[derive(Clone, Copy, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WindowSizeConstraints {
+  /// The minimum width a window can be, If this is `None`, the window will have no minimum width.
+  ///
+  /// The default is `None`.
+  pub min_width: Option<PixelUnit>,
+  /// The minimum height a window can be, If this is `None`, the window will have no minimum height.
+  ///
+  /// The default is `None`.
+  pub min_height: Option<PixelUnit>,
+  /// The maximum width a window can be, If this is `None`, the window will have no maximum width.
+  ///
+  /// The default is `None`.
+  pub max_width: Option<PixelUnit>,
+  /// The maximum height a window can be, If this is `None`, the window will have no maximum height.
+  ///
+  /// The default is `None`.
+  pub max_height: Option<PixelUnit>,
+}
+
 /// Do **NOT** implement this trait except for use in a custom [`Runtime`]
 ///
 /// This trait is separate from [`WindowBuilder`] to prevent "accidental" implementation.
@@ -236,6 +259,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Window max inner size.
   #[must_use]
   fn max_inner_size(self, max_width: f64, max_height: f64) -> Self;
+
+  /// Window inner size constraints.
+  #[must_use]
+  fn inner_size_constraints(self, constraints: WindowSizeConstraints) -> Self;
 
   /// Whether the window is resizable or not.
   /// When resizable is set to false, native window's maximize button is automatically disabled.
@@ -333,8 +360,8 @@ pub trait WindowBuilder: WindowBuilderBase {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
-  /// and on Windows 11, it will have a rounded corners.
+  ///   - `true` will make undecorated window have a 1px white border,
+  ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
   fn shadow(self, enable: bool) -> Self;

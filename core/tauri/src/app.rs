@@ -8,10 +8,7 @@ use crate::{
     channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
     InvokeHandler, InvokeResponder, InvokeResponse,
   },
-  manager::{
-    webview::{UriSchemeProtocol, WebviewLabelDef},
-    AppManager, Asset,
-  },
+  manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
   resources::ResourceTable,
   runtime::{
@@ -269,7 +266,45 @@ pub struct AssetResolver<R: Runtime> {
 
 impl<R: Runtime> AssetResolver<R> {
   /// Gets the app asset associated with the given path.
+  ///
+  /// Resolves to the embedded asset that is part of the app
+  /// in dev when [`devPath`](https://tauri.app/v1/api/config/#buildconfig.devpath) points to a folder in your filesystem
+  /// or in production when [`distDir`](https://tauri.app/v1/api/config/#buildconfig.distdir)
+  /// points to your frontend assets.
+  ///
+  /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
+  /// Note that the dist directory must exist so you might need to build your frontend assets first.
   pub fn get(&self, path: String) -> Option<Asset> {
+    #[cfg(dev)]
+    {
+      // on dev if the devPath is a path to a directory we have the embedded assets
+      // so we can use get_asset() directly
+      // we only fallback to reading from distDir directly if we're using an external URL (which is likely)
+      if let (Some(_), Some(crate::utils::config::FrontendDist::Directory(dist_path))) = (
+        &self.manager.config().build.dev_url,
+        &self.manager.config().build.frontend_dist,
+      ) {
+        let asset_path = std::path::PathBuf::from(&path)
+          .components()
+          .filter(|c| !matches!(c, std::path::Component::RootDir))
+          .collect::<std::path::PathBuf>();
+
+        let asset_path = self
+          .manager
+          .config_parent()
+          .map(|p| p.join(dist_path).join(&asset_path))
+          .unwrap_or_else(|| dist_path.join(&asset_path));
+        return std::fs::read(asset_path).ok().map(|bytes| {
+          let mime_type = crate::utils::mime_type::MimeType::parse(&bytes, &path);
+          Asset {
+            bytes,
+            mime_type,
+            csp_header: None,
+          }
+        });
+      }
+    }
+
     self.manager.get_asset(path).ok()
   }
 
@@ -1304,7 +1339,7 @@ use tauri::Manager;
 tauri::Builder::default()
   .setup(|app| {
     let main_window = app.get_window("main").unwrap();
-    main_window.set_title("Tauri!");
+    main_window.set_title("Tauri!")?;
     Ok(())
   });
 ```
@@ -1706,6 +1741,19 @@ tauri::Builder::default()
       self.invoke_key,
     ));
 
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    let app_id = if manager.config.app.enable_gtk_app_id {
+      Some(manager.config.identifier.clone())
+    } else {
+      None
+    };
+
     let runtime_args = RuntimeInitArgs {
       #[cfg(any(
         target_os = "linux",
@@ -1714,7 +1762,7 @@ tauri::Builder::default()
         target_os = "netbsd",
         target_os = "openbsd"
       ))]
-      app_id: Some(manager.config.identifier.clone()),
+      app_id,
 
       #[cfg(windows)]
       msg_hook: {
@@ -1725,7 +1773,7 @@ tauri::Builder::default()
             let msg = msg as *const MSG;
             for menu in menus.lock().unwrap().values() {
               let translated =
-                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel()), msg);
+                TranslateAcceleratorW((*msg).hwnd, HACCEL(menu.inner().haccel() as _), msg);
               if translated == 1 {
                 return true;
               }
@@ -1917,24 +1965,8 @@ impl<R: Runtime> HasDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   app.ran_setup = true;
 
-  let window_labels = app
-    .config()
-    .app
-    .windows
-    .iter()
-    .map(|p| p.label.clone())
-    .collect::<Vec<_>>();
-  let webview_labels = window_labels
-    .iter()
-    .map(|label| WebviewLabelDef {
-      window_label: label.clone(),
-      label: label.clone(),
-    })
-    .collect::<Vec<_>>();
-
   for window_config in app.config().app.windows.clone() {
-    WebviewWindowBuilder::from_config(app.handle(), &window_config)?
-      .build_internal(&window_labels, &webview_labels)?;
+    WebviewWindowBuilder::from_config(app.handle(), &window_config)?.build()?;
   }
 
   app.manager.assets.setup(app);

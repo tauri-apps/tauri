@@ -47,6 +47,10 @@ serde-untagged = "0.1"
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1.0.6", optional = true, features = [ "build" ] }
 
+[dev-dependencies]
+getrandom = { version = "0.2", features = [ "std" ] }
+serial_test = "3.1"
+
 [features]
 build = [
   "proc-macro2",

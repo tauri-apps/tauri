@@ -372,6 +372,10 @@ pub enum Error {
   #[cfg(feature = "resources")]
   #[error("could not walk directory `{0}`, try changing `allow_walk` to true on the `ResourcePaths` constructor.")]
   NotAllowedToWalkDir(std::path::PathBuf),
+  /// Resourece path doesn't exist
+  #[cfg(feature = "resources")]
+  #[error("resource path `{0}` doesn't exist")]
+  ResourcePathNotFound(std::path::PathBuf),
 }
 
 /// Reconstructs a path from its components using the platform separator then converts it to String and removes UNC prefixes on Windows if it exists.

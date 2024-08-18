@@ -130,38 +130,6 @@
     "@tauri-apps/api": {
       "path": "./tooling/api",
       "manager": "javascript",
-      "assets": [
-        {
-          "path": "./tooling/api/dist/tauri-apps-api-${ pkgFile.version }.tgz",
-          "name": "tauri-apps-api-${ pkgFile.version }.tgz"
-        }
-      ],
-      "prepublish": [
-        {
-          "command": "pnpm i --frozen-lockfile",
-          "dryRunCommand": true
-        },
-        {
-          "command": "echo '<details>\n<summary><em><h4>PNPM Audit</h4></em></summary>\n\n```'",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "pnpm audit",
-          "dryRunCommand": true,
-          "runFromRoot": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```\n\n</details>\n'",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "pnpm npm-pack",
-          "dryRunCommand": true
-        }
-      ],
       "publish": [
         {
           "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",

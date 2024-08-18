@@ -130,12 +130,18 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
           if token == ");" {
             state = State::XCConfigurationListObject { id: id.clone() };
           } else {
+            let Some((build_configuration_id, comments)) = token.split_once(' ') else {
+              continue;
+            };
             proj
               .xc_configuration_list
               .get_mut(id)
               .unwrap()
               .build_configurations
-              .push(token.chars().take_while(|c| !c.is_whitespace()).collect());
+              .push(BuildConfigurationRef {
+                id: build_configuration_id.to_string(),
+                comments: comments.trim_end_matches(',').to_string(),
+              });
           }
         }
       }
@@ -170,8 +176,8 @@ pub struct Pbxproj {
   pub xc_build_configuration: HashMap<String, XCBuildConfiguration>,
   pub xc_configuration_list: HashMap<String, XCConfigurationList>,
 
-  // maps the line number to the content to add
-  additions: HashMap<usize, Vec<String>>,
+  // maps the line number to the line to add
+  additions: HashMap<usize, String>,
 
   has_changes: bool,
 }
@@ -186,7 +192,7 @@ impl Pbxproj {
     let last_line_number = self.raw_lines.len() - 1;
     for (number, line) in self.raw_lines.iter().enumerate() {
       if let Some(new) = self.additions.get(&number) {
-        proj.push_str(&new.join("\n"));
+        proj.push_str(new);
         proj.push('\n');
       }
 
@@ -217,34 +223,50 @@ impl Pbxproj {
       *line = format!("{}{key} = {value};", build_setting.identation);
       self.has_changes = true;
     } else {
-      let Some(last_build_setting) = build_configuration.build_settings.last() else {
+      let Some(last_build_setting) = build_configuration.build_settings.last().cloned() else {
         return;
       };
-      self
-        .additions
-        .entry(last_build_setting.line_number + 1)
-        .or_default()
-        .push(format!("{}{key} = {value};", last_build_setting.identation));
+      build_configuration.build_settings.push(BuildSettings {
+        identation: last_build_setting.identation.clone(),
+        line_number: last_build_setting.line_number + 1,
+        key: key.to_string(),
+        value: value.to_string(),
+      });
+      self.additions.insert(
+        last_build_setting.line_number + 1,
+        format!("{}{key} = {value};", last_build_setting.identation),
+      );
     }
   }
 }
 
 #[derive(Debug)]
 pub struct XCBuildConfiguration {
-  pub build_settings: Vec<BuildSettings>,
+  build_settings: Vec<BuildSettings>,
 }
 
-#[derive(Debug)]
+impl XCBuildConfiguration {
+  pub fn get_build_setting(&self, key: &str) -> Option<&BuildSettings> {
+    self.build_settings.iter().find(|s| s.key == key)
+  }
+}
+
+#[derive(Debug, Clone)]
 pub struct BuildSettings {
   identation: String,
   line_number: usize,
   pub key: String,
-  #[allow(dead_code)]
   pub value: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct XCConfigurationList {
   pub comment: String,
-  pub build_configurations: Vec<String>,
+  pub build_configurations: Vec<BuildConfigurationRef>,
+}
+
+#[derive(Debug, Clone)]
+pub struct BuildConfigurationRef {
+  pub id: String,
+  pub comments: String,
 }

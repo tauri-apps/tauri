@@ -197,6 +197,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     &mut pbxproj,
     &mut export_options_plist,
     &project_config,
+    options.debug,
   )?;
   if pbxproj.has_changes() {
     pbxproj.save()?;

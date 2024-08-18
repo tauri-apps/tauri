@@ -4,7 +4,8 @@
 
 use super::{
   configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
-  log_finished, merge_plist, open_and_wait, MobileTarget, OptionsHandle,
+  load_pbxproj, log_finished, merge_plist, open_and_wait, project_config,
+  synchronize_project_config, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -181,17 +182,34 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut env = env()?;
   configure_cargo(&app, None)?;
 
+  let mut export_options_plist = plist::Dictionary::new();
+  if let Some(method) = options.export_method {
+    export_options_plist.insert("method".to_string(), method.to_string().into());
+  }
+
   let (keychain, provisioning_profile) = super::signing_from_env()?;
-  let init_config = super::init_config(keychain.as_ref(), provisioning_profile.as_ref())?;
-  if let Some(export_options_plist) =
-    create_export_options(&app, &init_config, options.export_method)
-  {
+  let project_config = project_config(keychain.as_ref(), provisioning_profile.as_ref())?;
+  let mut pbxproj = load_pbxproj(&config)?;
+
+  // synchronize pbxproj and exportoptions
+  synchronize_project_config(
+    &app,
+    &mut pbxproj,
+    &mut export_options_plist,
+    &project_config,
+  )?;
+  if pbxproj.has_changes() {
+    pbxproj.save()?;
+  }
+
+  // merge export options and write to disk
+  if !export_options_plist.is_empty() {
     let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
 
     merge_plist(
       vec![
         export_options_plist_path.clone().into(),
-        export_options_plist.into(),
+        plist::Value::from(export_options_plist).into(),
       ],
       &export_options_plist_path,
     )?;
@@ -213,41 +231,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   }
 
   Ok(())
-}
-
-fn create_export_options(
-  app: &cargo_mobile2::config::app::App,
-  config: &super::super::init::IosInitConfig,
-  export_method: Option<ExportMethod>,
-) -> Option<plist::Value> {
-  let mut plist = plist::Dictionary::new();
-
-  if let Some(method) = export_method {
-    plist.insert("method".to_string(), method.to_string().into());
-  }
-
-  if config.code_sign_identity.is_some() || config.provisioning_profile_uuid.is_some() {
-    plist.insert("signingStyle".to_string(), "manual".into());
-  }
-
-  if let Some(identity) = &config.code_sign_identity {
-    plist.insert("signingCertificate".to_string(), identity.clone().into());
-  }
-
-  if let Some(id) = &config.team_id {
-    plist.insert("teamID".to_string(), id.clone().into());
-  }
-
-  if let Some(profile_uuid) = &config.provisioning_profile_uuid {
-    let mut provisioning_profiles = plist::Dictionary::new();
-    provisioning_profiles.insert(app.reverse_identifier(), profile_uuid.clone().into());
-    plist.insert(
-      "provisioningProfiles".to_string(),
-      provisioning_profiles.into(),
-    );
-  }
-
-  (!plist.is_empty()).then(|| plist.into())
 }
 
 #[allow(clippy::too_many_arguments)]

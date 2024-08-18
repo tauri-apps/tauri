@@ -15,13 +15,6 @@ settingGroups:
       {{#if apple.development-team}}
       DEVELOPMENT_TEAM: {{apple.development-team}}
       {{/if}}
-      CODE_SIGN_STYLE: {{tauri.ios.code-sign-style}}
-      {{#if tauri.ios.code-sign-identity}}
-      CODE_SIGN_IDENTITY: "{{tauri.ios.code-sign-identity}}"
-      {{/if}}
-      {{#if tauri.ios.provisioning-profile-uuid}}
-      PROVISIONING_PROFILE_SPECIFIER: "{{tauri.ios.provisioning-profile-uuid}}"
-      {{/if}}
 targetTemplates:
   app:
     type: application

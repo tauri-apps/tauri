@@ -270,3 +270,21 @@ pub struct BuildConfigurationRef {
   pub id: String,
   pub comments: String,
 }
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn parse() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixtures_path = manifest_dir.join("tests").join("fixtures").join("pbxproj");
+
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(fixtures_path.join("snapshots"));
+    let _guard = settings.bind_to_scope();
+
+    insta::assert_debug_snapshot!(
+      "project.pbxproj",
+      super::parse(fixtures_path.join("project.pbxproj")).expect("failed to parse pbxproj")
+    );
+  }
+}

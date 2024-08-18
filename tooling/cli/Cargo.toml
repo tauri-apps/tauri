@@ -102,6 +102,9 @@ walkdir = "2"
 elf = "0.7"
 memchr = "2"
 
+[dev-dependencies]
+insta = "1"
+
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.59"
 features = [

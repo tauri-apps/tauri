@@ -166,6 +166,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       dev_options.features.as_ref(),
       &Default::default(),
     );
+
     (interface, app, config)
   };
 

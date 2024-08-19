@@ -1328,12 +1328,8 @@ impl<R: Runtime> Builder<R> {
   ///   }
   ///   "#;
   ///
-  ///   let app = tauri::Builder::default()
-  ///       .append_invoke_initialization_script(custom_script)
-  ///       .build(tauri::generate_context!())
-  ///       .expect("failed to launch");
-  ///
-  ///   app.run(|_, _| {});
+  ///   tauri::Builder::default()
+  ///       .append_invoke_initialization_script(custom_script);
   /// }
   /// ```
   pub fn append_invoke_initialization_script(

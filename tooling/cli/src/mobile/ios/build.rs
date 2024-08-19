@@ -139,7 +139,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_utils::platform::Target::Ios,
     options.config.as_ref().map(|c| &c.0),
   )?;
-  let (interface, app, config) = {
+  let (interface, app, mut config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
@@ -171,13 +171,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
-  merge_plist(
-    vec![
-      tauri_path.join("Info.plist").into(),
-      tauri_path.join("Info.ios.plist").into(),
-    ],
-    &info_plist_path,
-  )?;
+  let merged_info_plist = merge_plist(vec![
+    info_plist_path.clone().into(),
+    tauri_path.join("Info.plist").into(),
+    tauri_path.join("Info.ios.plist").into(),
+  ])?;
+  merged_info_plist.to_file_xml(&info_plist_path)?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;
@@ -203,18 +202,24 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     pbxproj.save()?;
   }
 
-  // merge export options and write to disk
-  if !export_options_plist.is_empty() {
+  // merge export options and write to temp file
+  let _export_options_tmp = if !export_options_plist.is_empty() {
     let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+    let export_options = tempfile::NamedTempFile::new()?;
 
-    merge_plist(
-      vec![
-        export_options_plist_path.clone().into(),
-        plist::Value::from(export_options_plist).into(),
-      ],
-      &export_options_plist_path,
-    )?;
-  }
+    let merged_plist = merge_plist(vec![
+      export_options.path().to_owned().into(),
+      export_options_plist_path.clone().into(),
+      plist::Value::from(export_options_plist).into(),
+    ])?;
+    merged_plist.to_file_xml(export_options.path())?;
+
+    config.set_export_options_plist_path(export_options.path());
+
+    Some(export_options)
+  } else {
+    None
+  };
 
   let open = options.open;
   let _handle = run_build(

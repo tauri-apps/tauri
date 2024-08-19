@@ -35,7 +35,7 @@ use crate::{
 use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
-  path::{Path, PathBuf},
+  path::PathBuf,
   thread::sleep,
   time::Duration,
 };
@@ -326,8 +326,8 @@ impl From<plist::Value> for PlistKind {
   }
 }
 
-fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
-  let mut dest_plist = None;
+fn merge_plist(src: Vec<PlistKind>) -> Result<plist::Value> {
+  let mut merged_plist = plist::Dictionary::new();
 
   for plist_kind in src {
     let plist = match plist_kind {
@@ -335,26 +335,15 @@ fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
       PlistKind::Plist(v) => Ok(v),
     };
     if let Ok(src_plist) = plist {
-      if dest_plist.is_none() {
-        dest_plist.replace(plist::Value::from_file(dest)?);
-      }
-
-      let plist = dest_plist.as_mut().expect("plist not loaded");
-      if let Some(plist) = plist.as_dictionary_mut() {
-        if let Some(dict) = src_plist.into_dictionary() {
-          for (key, value) in dict {
-            plist.insert(key, value);
-          }
+      if let Some(dict) = src_plist.into_dictionary() {
+        for (key, value) in dict {
+          merged_plist.insert(key, value);
         }
       }
     }
   }
 
-  if let Some(dest_plist) = dest_plist {
-    dest_plist.to_file_xml(dest)?;
-  }
-
-  Ok(())
+  Ok(plist::Value::Dictionary(merged_plist))
 }
 
 pub fn signing_from_env() -> Result<(

@@ -187,9 +187,10 @@ impl Pbxproj {
     !self.additions.is_empty() || self.has_changes
   }
 
-  pub fn save(&self) -> std::io::Result<()> {
+  fn serialize(&self) -> String {
     let mut proj = String::new();
     let last_line_number = self.raw_lines.len() - 1;
+
     for (number, line) in self.raw_lines.iter().enumerate() {
       if let Some(new) = self.additions.get(&number) {
         proj.push_str(new);
@@ -202,7 +203,11 @@ impl Pbxproj {
       }
     }
 
-    std::fs::write(&self.path, proj)
+    proj
+  }
+
+  pub fn save(&self) -> std::io::Result<()> {
+    std::fs::write(&self.path, self.serialize())
   }
 
   pub fn set_build_settings(&mut self, build_configuration_id: &str, key: &str, value: &str) {
@@ -286,5 +291,23 @@ mod tests {
       "project.pbxproj",
       super::parse(fixtures_path.join("project.pbxproj")).expect("failed to parse pbxproj")
     );
+  }
+
+  #[test]
+  fn modify() {
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixtures_path = manifest_dir.join("tests").join("fixtures").join("pbxproj");
+
+    let mut settings = insta::Settings::clone_current();
+    settings.set_snapshot_path(fixtures_path.join("snapshots"));
+    let _guard = settings.bind_to_scope();
+
+    let mut pbxproj =
+      super::parse(fixtures_path.join("project.pbxproj")).expect("failed to parse pbxproj");
+
+    pbxproj.set_build_settings("DB0E254D0FD84970B57F6410", "PRODUCT_NAME", "\"Tauri Test\"");
+    pbxproj.set_build_settings("DB0E254D0FD84970B57F6410", "UNKNOWN", "9283j49238h");
+
+    insta::assert_snapshot!("project-modified.pbxproj", pbxproj.serialize());
   }
 }

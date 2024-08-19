@@ -1,5 +1,5 @@
 ---
-"tauri-build": patch:fix
+"tauri-build": patch:bug
 ---
 
 Correctly export `DefaultPermissionsRule`

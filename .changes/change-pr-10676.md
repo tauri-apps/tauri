@@ -3,4 +3,4 @@
 "tauri-cli": 'patch:bug'
 ---
 
-fix(cli): change "register_ios_plugin" params to snake case
+Change plugin template call to `register_ios_plugin` params to snake case

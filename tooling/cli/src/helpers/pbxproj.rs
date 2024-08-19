@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  collections::HashMap,
+  collections::BTreeMap,
   path::{Path, PathBuf},
 };
 
@@ -14,9 +14,9 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
   let mut proj = Pbxproj {
     path: path.to_owned(),
     raw_lines: pbxproj.split('\n').map(ToOwned::to_owned).collect(),
-    xc_build_configuration: HashMap::new(),
-    xc_configuration_list: HashMap::new(),
-    additions: HashMap::new(),
+    xc_build_configuration: BTreeMap::new(),
+    xc_configuration_list: BTreeMap::new(),
+    additions: BTreeMap::new(),
     has_changes: false,
   };
 
@@ -173,11 +173,11 @@ enum State {
 pub struct Pbxproj {
   path: PathBuf,
   raw_lines: Vec<String>,
-  pub xc_build_configuration: HashMap<String, XCBuildConfiguration>,
-  pub xc_configuration_list: HashMap<String, XCConfigurationList>,
+  pub xc_build_configuration: BTreeMap<String, XCBuildConfiguration>,
+  pub xc_configuration_list: BTreeMap<String, XCConfigurationList>,
 
   // maps the line number to the line to add
-  additions: HashMap<usize, String>,
+  additions: BTreeMap<usize, String>,
 
   has_changes: bool,
 }

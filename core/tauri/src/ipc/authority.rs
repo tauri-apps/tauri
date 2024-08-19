@@ -443,7 +443,7 @@ impl RuntimeAuthority {
     if let Some(resolved) = self.denied_commands.get(&command) {
       format!(
         "{command_pretty_name} explicitly denied on origin {origin}\n\nreferenced by: {}",
-        print_references(&resolved)
+        print_references(resolved)
       )
     } else {
       let command_matches = self.allowed_commands.get(&command);

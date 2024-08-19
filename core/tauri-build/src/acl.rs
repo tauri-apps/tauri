@@ -23,6 +23,7 @@ use tauri_utils::{
     manifest::Manifest,
     APP_ACL_KEY,
   },
+  io::write_if_changed,
   platform::Target,
 };
 
@@ -384,7 +385,8 @@ permissions = [{default_permissions}]
 
         let default_permission_toml_path = plugin_out_dir.join("default.toml");
 
-        write_if_changed(&default_permission_toml, &default_permission_toml_path);
+        write_if_changed(&default_permission_toml, &default_permission_toml_path)
+          .unwrap_or_else(|_| panic!("unable to autogenerate {default_permission_toml_path:?}"));
       }
 
       tauri_utils::acl::build::define_permissions(
@@ -426,12 +428,6 @@ permissions = [{default_permissions}]
   }
 
   Ok(acl_manifests)
-}
-
-fn write_if_changed(content: &str, path: &Path) {
-  if content != read_to_string(path).unwrap_or_default() {
-    std::fs::write(path, content).unwrap_or_else(|_| panic!("unable to autogenerate {path:?}"));
-  }
 }
 
 pub fn app_manifest_permissions(

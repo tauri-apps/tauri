@@ -6,7 +6,7 @@ use std::{fs::write, path::PathBuf};
 
 use anyhow::{Context, Result};
 use semver::Version;
-use tauri_utils::config::Config;
+use tauri_utils::{config::Config, io::write_if_changed};
 
 use crate::is_dev;
 
@@ -81,21 +81,11 @@ dependencies {"
   }
 
   // Overwrite only if changed to not trigger rebuilds
-  if std::fs::read_to_string(&gradle_settings_path)
-    .map(|o| o != gradle_settings)
-    .unwrap_or(true)
-  {
-    write(&gradle_settings_path, gradle_settings)
-      .context("failed to write tauri.settings.gradle")?;
-  }
+  write_if_changed(&gradle_settings, &gradle_settings_path)
+    .context("failed to write tauri.settings.gradle")?;
 
-  if std::fs::read_to_string(&app_build_gradle_path)
-    .map(|o| o != app_build_gradle)
-    .unwrap_or(true)
-  {
-    write(&app_build_gradle_path, app_build_gradle)
-      .context("failed to write tauri.build.gradle.kts")?;
-  }
+  write_if_changed(&app_build_gradle, &app_build_gradle_path)
+    .context("failed to write tauri.build.gradle.kts")?;
 
   if !app_tauri_properties.is_empty() {
     let app_tauri_properties_content = format!(

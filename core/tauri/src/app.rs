@@ -1336,8 +1336,13 @@ impl<R: Runtime> Builder<R> {
   ///   app.run(|_, _| {});
   /// }
   /// ```
-  pub fn append_invoke_initialization_script(mut self, initialization_script: &String) -> Self {
-    self.invoke_initialization_script.push_str(initialization_script);
+  pub fn append_invoke_initialization_script(
+    mut self,
+    initialization_script: impl AsRef<str>,
+  ) -> Self {
+    self
+      .invoke_initialization_script
+      .push_str(initialization_script.as_ref());
     self
   }
 

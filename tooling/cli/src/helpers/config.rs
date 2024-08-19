@@ -114,17 +114,16 @@ pub fn custom_sign_settings(
   config: CustomSignCommandConfig,
 ) -> tauri_bundler::CustomSignCommandSettings {
   match config {
-    CustomSignCommandConfig::String(string) => {
-      let mut args = string.split(' ');
+    CustomSignCommandConfig::Command(command) => {
+      let mut tokens = command.split(' ');
       tauri_bundler::CustomSignCommandSettings {
-        cmd: args.next().unwrap().to_string(), // split always has at least one element
-        args: args.map(String::from).collect(),
+        cmd: tokens.next().unwrap().to_string(), // split always has at least one element
+        args: tokens.map(String::from).collect(),
       }
     }
-    CustomSignCommandConfig::Object(config) => tauri_bundler::CustomSignCommandSettings {
-      cmd: config.cmd,
-      args: config.args,
-    },
+    CustomSignCommandConfig::CommandWithOptions { cmd, args } => {
+      tauri_bundler::CustomSignCommandSettings { cmd, args }
+    }
   }
 }
 

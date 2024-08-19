@@ -2433,40 +2433,32 @@
       "description": "Custom Signing Command configuration.",
       "anyOf": [
         {
-          "description": "A string notation of the command.\n \n This is a simpler notation for the command.\n \n Tauri will split the string with `' '` and use the first element as the command and the rest as arguments.\n If you need to use whitespace in the command or arguments, use the object notation.",
+          "description": "A string notation of the script to execute.\n\n \"%1\" will be replaced with the path to the binary to be signed.\n\n This is a simpler notation for the command.\n Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.\n\n If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].",
           "type": "string"
         },
         {
-          "description": "An object notation of the command.\n \n This is more complex notation for the command but \n this allows you to use whitespace in the command and arguments.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/CustomSignCommandObjectConfig"
+          "description": "An object notation of the command.\n\n This is more complex notation for the command but\n this allows you to use whitespace in the command and arguments.",
+          "type": "object",
+          "required": [
+            "args",
+            "cmd"
+          ],
+          "properties": {
+            "cmd": {
+              "description": "The command to run to sign the binary.",
+              "type": "string"
+            },
+            "args": {
+              "description": "The arguments to pass to the command.\n\n \"%1\" will be replaced with the path to the binary to be signed.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
-          ]
+          },
+          "additionalProperties": false
         }
       ]
-    },
-    "CustomSignCommandObjectConfig": {
-      "description": "Custom Signing Command configuration in object form.\n\n This allows you to use whitespace in the command and arguments.",
-      "type": "object",
-      "required": [
-        "args",
-        "cmd"
-      ],
-      "properties": {
-        "cmd": {
-          "description": "The command to run to sign the binary.",
-          "type": "string"
-        },
-        "args": {
-          "description": "The arguments to pass to the command.\n\n \"%1\" will be replaced with the path to the binary to be signed.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "additionalProperties": false
     },
     "LinuxConfig": {
       "description": "Configuration for Linux bundles.\n\n See more: <https://tauri.app/v1/api/config#linuxconfig>",

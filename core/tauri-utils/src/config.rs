@@ -896,33 +896,27 @@ impl Default for WebviewInstallMode {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
 pub enum CustomSignCommandConfig {
-  /// A string notation of the command.
+  /// A string notation of the script to execute.
+  ///
+  /// "%1" will be replaced with the path to the binary to be signed.
   ///
   /// This is a simpler notation for the command.
+  /// Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.
   ///
-  /// Tauri will split the string with `' '` and use the first element as the command and the rest as arguments.
-  /// If you need to use whitespace in the command or arguments, use the object notation.
-  String(String),
+  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].
+  Command(String),
   /// An object notation of the command.
   ///
   /// This is more complex notation for the command but
   /// this allows you to use whitespace in the command and arguments.
-  Object(CustomSignCommandObjectConfig),
-}
-
-/// Custom Signing Command configuration in object form.
-///
-/// This allows you to use whitespace in the command and arguments.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct CustomSignCommandObjectConfig {
-  /// The command to run to sign the binary.
-  pub cmd: String,
-  /// The arguments to pass to the command.
-  ///
-  /// "%1" will be replaced with the path to the binary to be signed.
-  pub args: Vec<String>,
+  CommandWithOptions {
+    /// The command to run to sign the binary.
+    cmd: String,
+    /// The arguments to pass to the command.
+    ///
+    /// "%1" will be replaced with the path to the binary to be signed.
+    args: Vec<String>,
+  },
 }
 
 /// Windows bundler configuration.

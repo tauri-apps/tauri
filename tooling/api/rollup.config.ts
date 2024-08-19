@@ -6,7 +6,7 @@ import { defineConfig, Plugin, RollupLog } from 'rollup'
 import typescript from '@rollup/plugin-typescript'
 import terser from '@rollup/plugin-terser'
 import fg from 'fast-glob'
-import { basename, join } from 'path'
+import { basename, dirname, join } from 'path'
 import { copyFileSync, opendirSync, rmSync, Dir } from 'fs'
 import { fileURLToPath } from 'url'
 
@@ -27,7 +27,7 @@ export default defineConfig([
         preserveModulesRoot: 'src',
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name.includes('node_modules')) {
-            return chunkInfo.name.replace('node_modules', 'external') + '.js'
+            return externalLibPath(chunkInfo.name) + '.js'
           }
 
           return '[name].js'
@@ -40,7 +40,7 @@ export default defineConfig([
         preserveModulesRoot: 'src',
         entryFileNames: (chunkInfo) => {
           if (chunkInfo.name.includes('node_modules')) {
-            return chunkInfo.name.replace('node_modules', 'external') + '.cjs'
+            return externalLibPath(chunkInfo.name) + '.cjs'
           }
 
           return '[name].cjs'
@@ -70,6 +70,10 @@ export default defineConfig([
     onwarn
   }
 ])
+
+function externalLibPath(path: string) {
+  return `external/${basename(dirname(path))}/${basename(path)}`
+}
 
 function onwarn(warning: RollupLog) {
   // deny warnings by default

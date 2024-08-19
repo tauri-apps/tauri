@@ -1300,37 +1300,35 @@ impl<R: Runtime> Builder<R> {
   /// # Examples
   ///
   /// ```
-  /// fn main() {
-  ///   let custom_script = r#"
-  ///   // A custom call system bridge build on top of tauri invoke system.
-  ///   async function invoke(cmd, args = {}) {
-  ///       if (!args) args = {};
+  /// let custom_script = r#"
+  /// // A custom call system bridge build on top of tauri invoke system.
+  /// async function invoke(cmd, args = {}) {
+  ///   if (!args) args = {};
   ///
-  ///       let prefix = "";
+  ///   let prefix = "";
   ///
-  ///       if (args?.__module) {
-  ///           prefix = `plugin:hybridcall.${args.__module}|`;
-  ///       }
-  ///
-  ///       const command = `${prefix}tauri_${cmd}`;
-  ///
-  ///       const invoke = window.__TAURI_INTERNALS__.invoke;
-  ///
-  ///       return invoke(command, args).then(result => {
-  ///           if (window.build.debug) {
-  ///               console.log(`call: ${command}`);
-  ///               console.log(`args: ${JSON.stringify(args)}`);
-  ///               console.log(`return: ${JSON.stringify(result)}`);
-  ///           }
-  ///
-  ///           return result;
-  ///       });
+  ///   if (args?.__module) {
+  ///     prefix = `plugin:hybridcall.${args.__module}|`;
   ///   }
-  ///   "#;
   ///
-  ///   tauri::Builder::default()
-  ///       .append_invoke_initialization_script(custom_script);
+  ///   const command = `${prefix}tauri_${cmd}`;
+  ///
+  ///   const invoke = window.__TAURI_INTERNALS__.invoke;
+  ///
+  ///   return invoke(command, args).then(result => {
+  ///     if (window.build.debug) {
+  ///       console.log(`call: ${command}`);
+  ///       console.log(`args: ${JSON.stringify(args)}`);
+  ///       console.log(`return: ${JSON.stringify(result)}`);
+  ///     }
+  ///
+  ///     return result;
+  ///   });
   /// }
+  /// "#;
+  ///
+  /// tauri::Builder::default()
+  ///   .append_invoke_initialization_script(custom_script);
   /// ```
   pub fn append_invoke_initialization_script(
     mut self,

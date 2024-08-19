@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.2]
+
+### Bug Fixes
+
+- [`c689521a7`](https://www.github.com/tauri-apps/tauri/commit/c689521a7674b6562b5dfd4f5cacd12138d99d85) ([#10681](https://www.github.com/tauri-apps/tauri/pull/10681) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix tslib path in dist.
+
 ## \[2.0.0-rc.1]
 
 ### Breaking Changes

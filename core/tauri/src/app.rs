@@ -1314,7 +1314,7 @@ impl<R: Runtime> Builder<R> {
   ///
   ///       const command = `${prefix}tauri_${cmd}`;
   ///
-  ///       const invoke = window.__TAURI_INVOKE__ || (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
+  ///       const invoke = window.__TAURI_INTERNALS__.invoke;
   ///
   ///       return invoke(command, args).then(result => {
   ///           if (window.build.debug) {

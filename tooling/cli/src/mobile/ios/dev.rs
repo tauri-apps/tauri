@@ -97,9 +97,6 @@ pub struct Options {
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,
-  /// Build using architectures setup for each target within the Xcode project
-  #[clap(long)]
-  pub use_project_archs: bool,
 }
 
 impl From<Options> for DevOptions {
@@ -163,13 +160,12 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
 
     let app = get_app(tauri_config_, &interface);
-    let (mut config, _metadata) = get_config(
+    let (config, _metadata) = get_config(
       &app,
       tauri_config_,
       dev_options.features.as_ref(),
       &Default::default(),
     );
-    config.set_use_project_archs(options.use_project_archs);
 
     (interface, app, config)
   };

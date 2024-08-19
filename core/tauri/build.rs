@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use heck::AsShoutySnakeCase;
-use tauri_utils::io::write_if_changed;
+use tauri_utils::write_if_changed;
 
 use std::env::var_os;
 use std::fs::create_dir_all;
@@ -290,7 +290,7 @@ fn main() {
 
         let out_path = kotlin_out_dir.join(file.file_name());
         // Overwrite only if changed to not trigger rebuilds
-        write_if_changed(&content, &out_path).expect("Failed to write kotlin file");
+        write_if_changed(&out_path, &content).expect("Failed to write kotlin file");
 
         println!("cargo:rerun-if-changed={}", out_path.display());
       }

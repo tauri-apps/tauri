@@ -4,16 +4,7 @@
 
 //! IO helpers.
 
-use std::{fs::read_to_string, io::BufRead, path::Path};
-
-/// Write to the given file if the content is different.
-pub fn write_if_changed(content: &str, path: &Path) -> std::io::Result<()> {
-  if content != read_to_string(path).unwrap_or_default() {
-    std::fs::write(path, content)
-  } else {
-    Ok(())
-  }
-}
+use std::io::BufRead;
 
 /// Read all bytes until a newline (the `0xA` byte) or a carriage return (`\r`) is reached, and append them to the provided buffer.
 ///

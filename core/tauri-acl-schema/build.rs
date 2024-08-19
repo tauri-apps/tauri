@@ -7,7 +7,7 @@ use std::{error::Error, path::PathBuf};
 use schemars::schema_for;
 use tauri_utils::{
   acl::{capability::Capability, Permission, Scopes},
-  io::write_if_changed,
+  write_if_changed,
 };
 
 macro_rules! schema {
@@ -26,7 +26,7 @@ pub fn main() -> Result<(), Box<dyn Error>> {
   let out = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR")?);
   for (filename, schema) in schemas {
     let schema = serde_json::to_string_pretty(&schema)?;
-    write_if_changed(&schema, &out.join(filename))?;
+    write_if_changed(out.join(filename), schema)?;
   }
 
   Ok(())

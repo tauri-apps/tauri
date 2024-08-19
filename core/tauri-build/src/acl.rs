@@ -23,8 +23,8 @@ use tauri_utils::{
     manifest::Manifest,
     APP_ACL_KEY,
   },
-  io::write_if_changed,
   platform::Target,
+  write_if_changed,
 };
 
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
@@ -385,7 +385,7 @@ permissions = [{default_permissions}]
 
         let default_permission_toml_path = plugin_out_dir.join("default.toml");
 
-        write_if_changed(&default_permission_toml, &default_permission_toml_path)
+        write_if_changed(&default_permission_toml_path, default_permission_toml)
           .unwrap_or_else(|_| panic!("unable to autogenerate {default_permission_toml_path:?}"));
       }
 

@@ -4,6 +4,7 @@
 
 use std::{
   collections::BTreeMap,
+  fmt,
   path::{Path, PathBuf},
 };
 
@@ -169,7 +170,6 @@ enum State {
   XCConfigurationListObjectBuildConfigurations { id: String },
 }
 
-#[derive(Debug)]
 pub struct Pbxproj {
   path: PathBuf,
   raw_lines: Vec<String>,
@@ -180,6 +180,15 @@ pub struct Pbxproj {
   additions: BTreeMap<usize, String>,
 
   has_changes: bool,
+}
+
+impl fmt::Debug for Pbxproj {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    f.debug_struct("Pbxproj")
+      .field("xc_build_configuration", &self.xc_build_configuration)
+      .field("xc_configuration_list", &self.xc_configuration_list)
+      .finish()
+  }
 }
 
 impl Pbxproj {

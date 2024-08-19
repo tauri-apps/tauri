@@ -6,6 +6,7 @@ import PackageDescription
 let package = Package(
     name: "tauri-plugin-{{ plugin_name }}",
     platforms: [
+        .macOS(.v10_13),
         .iOS(.v13),
     ],
     products: [

@@ -1,6 +1,6 @@
 ---
-'tauri-cli': 'patch:fix'
-'@tauri-apps/cli': 'patch:fix'
+'tauri-cli': 'patch:bug'
+'@tauri-apps/cli': 'patch:bug'
 ---
 
 Do not include the target arch when building and archiving the iOS application,

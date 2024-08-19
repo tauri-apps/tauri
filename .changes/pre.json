@@ -32,6 +32,7 @@
     ".changes/fix-ipc-fallback.md",
     ".changes/fix-manifest-migration.md",
     ".changes/fix-missing-codesign-error-macos.md",
+    ".changes/fix-tslib-path.md",
     ".changes/fix-usage-without-compression.md",
     ".changes/fix-v1-frontend-migration.md",
     ".changes/get-window-async.md",

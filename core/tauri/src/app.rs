@@ -1318,9 +1318,9 @@ impl<R: Runtime> Builder<R> {
   ///
   ///       return invoke(command, args).then(result => {
   ///           if (window.build.debug) {
-  ///               window["console"]["log"](`call: ${command}`);
-  ///               window["console"]["log"](`args: ${JSON.stringify(args)}`);
-  ///               window["console"]["log"](`return: ${JSON.stringify(result)}`);
+  ///               console.log(`call: ${command}`);
+  ///               console.log(`args: ${JSON.stringify(args)}`);
+  ///               console.log(`return: ${JSON.stringify(result)}`);
   ///           }
   ///
   ///           return result;

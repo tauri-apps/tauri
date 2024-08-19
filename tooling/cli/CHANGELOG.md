@@ -1,5 +1,129 @@
 # Changelog
 
+## \[2.0.0-rc.4]
+
+### New Features
+
+- [`78e22bedc`](https://www.github.com/tauri-apps/tauri/commit/78e22bedcab5096f1a4e667321fc8b2817b79214) ([#10602](https://www.github.com/tauri-apps/tauri/pull/10602) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add necessary options to `AndroidManifest.xml` in android template to support AndroidTV.
+- [`3bec7b159`](https://www.github.com/tauri-apps/tauri/commit/3bec7b1595e28630a22b9fb16540beafd5eb7969) ([#10544](https://www.github.com/tauri-apps/tauri/pull/10544) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) v1 migrate script now migrates Svelte and Vue.js code.
+
+### Enhancements
+
+- [`bba1a4419`](https://www.github.com/tauri-apps/tauri/commit/bba1a441917defcdf9e88221e9b0e1cdd744e77a) ([#10457](https://www.github.com/tauri-apps/tauri/pull/10457) by [@mmvanheusden](https://www.github.com/tauri-apps/tauri/../../mmvanheusden)) Added `--no-fmt` option to the `add` command to skip formatting the code after applying changes.
+- [`71d00646a`](https://www.github.com/tauri-apps/tauri/commit/71d00646a9b7c52311ba087820e52fd19861b3d8) ([#10504](https://www.github.com/tauri-apps/tauri/pull/10504) by [@fu050409](https://www.github.com/tauri-apps/tauri/../../fu050409)) Improve the `init` command behavior by detecting the project NPM package manager.
+- [`8deb1966a`](https://www.github.com/tauri-apps/tauri/commit/8deb1966ace93d1350f271d525a878ba4b0879ce) ([#10652](https://www.github.com/tauri-apps/tauri/pull/10652) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Infer macOS codesign identity from the `APPLE_CERTIFICATE` environment variable when provided, meaning the identity no longer needs to be provided when signing on CI using that option. If the imported certificate name does not match a provided signingIdentity configuration, an error is returned.
+- [`f35bcda28`](https://www.github.com/tauri-apps/tauri/commit/f35bcda2895a1350df31853da76a051783b9fd3f) ([#10598](https://www.github.com/tauri-apps/tauri/pull/10598) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) `permission add` and `add` commands now check if the plugin is known and if it is either desktop or mobile only
+  we add the permission to a target-specific capability.
+
+### Bug Fixes
+
+- [`f712f31d1`](https://www.github.com/tauri-apps/tauri/commit/f712f31d1d21e85fab99194530702c70e45c63fc) ([#10639](https://www.github.com/tauri-apps/tauri/pull/10639) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Include notarization error output in the error message if it fails.
+- [`9f75d0622`](https://www.github.com/tauri-apps/tauri/commit/9f75d06228fcb7036cf7a4e215abc7bc8d1a0a56) ([#10604](https://www.github.com/tauri-apps/tauri/pull/10604) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `android dev` port forward failing under some conditions, add better logging and error handling.
+- [`2d47352a0`](https://www.github.com/tauri-apps/tauri/commit/2d47352a07a7d742e62291a5e6810aed79fc8b50) ([#10418](https://www.github.com/tauri-apps/tauri/pull/10418) by [@samkearney](https://www.github.com/tauri-apps/tauri/../../samkearney)) CLI commands will now consistently search for the `app_dir` (the directory containing `package.json`) from the current working directory of the command invocation.
+- [`f4cd68f04`](https://www.github.com/tauri-apps/tauri/commit/f4cd68f040635f019ff989667289cfe9061c7dfb) ([#10600](https://www.github.com/tauri-apps/tauri/pull/10600) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `android dev` not working when using the builtin dev server.
+- [`9089d9763`](https://www.github.com/tauri-apps/tauri/commit/9089d97637e49bebbe7dba8adc6351e04b53a44d) ([#10605](https://www.github.com/tauri-apps/tauri/pull/10605) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `[android|ios] build --config <config>` failing to resolve.
+- [`712f1049f`](https://www.github.com/tauri-apps/tauri/commit/712f1049fae74bfda5f360adcee7210cea92fe63) ([#10569](https://www.github.com/tauri-apps/tauri/pull/10569) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes running `ios dev` and `ios build` using `bun`.
+- [`3998570fd`](https://www.github.com/tauri-apps/tauri/commit/3998570fd3d03c1bb282bd060a4aafb4ab5437f9) ([#10540](https://www.github.com/tauri-apps/tauri/pull/10540) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes v1 migration of Cargo.toml dependencies and features.
+- [`3beba92b5`](https://www.github.com/tauri-apps/tauri/commit/3beba92b5bdc62ed00c9f6a9b8f8c05cfa78f8dc) ([#10542](https://www.github.com/tauri-apps/tauri/pull/10542) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes v1 frontend code migration when using plugin default imports.
+- [`10fb027b7`](https://www.github.com/tauri-apps/tauri/commit/10fb027b7590cf2c020b5c220328b9051c05adca) ([#10656](https://www.github.com/tauri-apps/tauri/pull/10656) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Migrate v1 plugins to their v2 releases.
+- [`10fb027b7`](https://www.github.com/tauri-apps/tauri/commit/10fb027b7590cf2c020b5c220328b9051c05adca) ([#10656](https://www.github.com/tauri-apps/tauri/pull/10656) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Prevent duplicate permissions on v1 migration.
+- [`b160f9359`](https://www.github.com/tauri-apps/tauri/commit/b160f9359d6f661d280185d2a2a4bdf280b8e72c) ([#10638](https://www.github.com/tauri-apps/tauri/pull/10638) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Only validate the output iOS library on debug builds.
+- [`4bfe4880f`](https://www.github.com/tauri-apps/tauri/commit/4bfe4880fbef42d1a115f840e712d4a2f59c8ab3) ([#10550](https://www.github.com/tauri-apps/tauri/pull/10550) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) fails to build universal fat binary if main bin is renamed to another name in `Cargo.toml`
+- [`f3837d5b9`](https://www.github.com/tauri-apps/tauri/commit/f3837d5b98f0caebc3337f9a9e8127e7b96c3fc5) ([#10539](https://www.github.com/tauri-apps/tauri/pull/10539) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Improve migration tooling by supporting TOML configs, handle nulls and properly check for updater migration.
+
+### What's Changed
+
+- [`794cf8234`](https://www.github.com/tauri-apps/tauri/commit/794cf8234f8b620c74cbd23cc4b81be9b2edc386) ([#10571](https://www.github.com/tauri-apps/tauri/pull/10571) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Change iOS template default export method from deprecated `development` to `debugging`.
+- [`bfc49cc7a`](https://www.github.com/tauri-apps/tauri/commit/bfc49cc7a1d43e3378e93865b9b37ce4bddfa6e6) ([#10558](https://www.github.com/tauri-apps/tauri/pull/10558) by [@ahqsoftwares](https://www.github.com/tauri-apps/tauri/../../ahqsoftwares)) Remove targetSdk from gradle files
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+- Upgraded to `tauri-bundler@2.0.1-rc.2`
+- Upgraded to `tauri-macos-sign@0.1.1-rc.0`
+
+## \[2.0.0-rc.3]
+
+### Enhancements
+
+- [`5f56cb0a8`](https://www.github.com/tauri-apps/tauri/commit/5f56cb0a8b9c6f695bc6439a8db997c98b3a3997) ([#10507](https://www.github.com/tauri-apps/tauri/pull/10507) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Update gradle to 8.9 and the gradle android plugin to 8.5.1 in the android templates (requires latest Android Studio). This should add support for Java 21 but Java 17 keeps being the recommended version.
+
+### Bug Fixes
+
+- [`f5dfc0280`](https://www.github.com/tauri-apps/tauri/commit/f5dfc02800dbd3bdee671b032454c49ac7102fb4) ([#10533](https://www.github.com/tauri-apps/tauri/pull/10533) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue causing `tauri ios init` to fail if `iOS.minimumSystemVersion` was not configured explicitly.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+- Upgraded to `tauri-bundler@2.0.1-rc.1`
+
+## \[2.0.0-rc.2]
+
+### New Features
+
+- [`8dc81b6cc`](https://www.github.com/tauri-apps/tauri/commit/8dc81b6cc2b8235b11f74a971d6aa3a5df5e9f68) ([#10496](https://www.github.com/tauri-apps/tauri/pull/10496) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > template` configuration option for custom Xcode project YML Handlebars template using XcodeGen.
+- [`02c00abc6`](https://www.github.com/tauri-apps/tauri/commit/02c00abc63cf86e9bf9179cbb143d5145a9397b6) ([#10495](https://www.github.com/tauri-apps/tauri/pull/10495) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `bundle > ios > minimumSystemVersion` configuration option.
+
+### Enhancements
+
+- [`8e1e15304`](https://www.github.com/tauri-apps/tauri/commit/8e1e15304e9dc98d7f875fc8dceb7d4ce19adc47) ([#10483](https://www.github.com/tauri-apps/tauri/pull/10483) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Check if the Rust library contains the symbols required at runtime for Android and iOS apps.
+- [`ca6868956`](https://www.github.com/tauri-apps/tauri/commit/ca68689564cbc8dfa9a5220d3daf81a44ef81fcc) ([#10479](https://www.github.com/tauri-apps/tauri/pull/10479) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Check if identifier or lib name changed when running mobile commands.
+
+### Bug Fixes
+
+- [`2e8ab7bac`](https://www.github.com/tauri-apps/tauri/commit/2e8ab7bac12046d734fb07a1b4fe5e03004b305e) ([#10481](https://www.github.com/tauri-apps/tauri/pull/10481) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Migration from v1 to v2 now adds the updater plugin when it is active.
+
+### What's Changed
+
+- [`a3cd9779a`](https://www.github.com/tauri-apps/tauri/commit/a3cd9779a47428e306a628d658740669faf69ccd) ([#10480](https://www.github.com/tauri-apps/tauri/pull/10480) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Removed the `[android|ios] open` command. It is recommended to use `[android|ios] dev --open` or `[android|ios] build --open` instead.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-rc.0`
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
+## \[2.0.0-rc.1]
+
+### Bug Fixes
+
+- [`fb1933f17`](https://www.github.com/tauri-apps/tauri/commit/fb1933f17442674e53374578e57a8cad241ac3c6) ([#10467](https://www.github.com/tauri-apps/tauri/pull/10467) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes running `android dev --open`.
+- [`206914fe8`](https://www.github.com/tauri-apps/tauri/commit/206914fe8d97eb61a2ff2a80e94e65e7a42bcea5) ([#10466](https://www.github.com/tauri-apps/tauri/pull/10466) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes running `adb reverse` in Node.js context.
+
+## \[2.0.0-rc.0]
+
+### New Features
+
+- [`d5511c311`](https://www.github.com/tauri-apps/tauri/commit/d5511c3117b1a117cb0b7359c5fa09aa4795122b) ([#10395](https://www.github.com/tauri-apps/tauri/pull/10395)) Added migration from `2.0.0-beta` to `2.0.0-rc`.
+- [`a5bfbaa62`](https://www.github.com/tauri-apps/tauri/commit/a5bfbaa62b8cd0aacbb33f730d4e30b43c461fe1)([#9962](https://www.github.com/tauri-apps/tauri/pull/9962)) Added `bundle > iOS > frameworks` configuration to define a list of frameworks that are linked to the Xcode project when it is generated.
+
+### Enhancements
+
+- [`a0841d509`](https://www.github.com/tauri-apps/tauri/commit/a0841d509abc43b62bb7c755e8727f3f461862d1) ([#10421](https://www.github.com/tauri-apps/tauri/pull/10421)) Changes the default behavior of the `dev` command to only expose to localhost (`127.0.0.1`) instead of the default system interface.
+
+### Security fixes
+
+- [`289ae5555`](https://www.github.com/tauri-apps/tauri/commit/289ae5555da3802741018015bfe4927729a2eb33) ([#10386](https://www.github.com/tauri-apps/tauri/pull/10386)) Re-enable TLS checks that were previously disabled to support an insecure HTTPS custom protocol on Android which is no longer used.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+- Upgraded to `tauri-bundler@2.0.0-rc.0`
+
+### Breaking Changes
+
+- [`758d28c8a`](https://www.github.com/tauri-apps/tauri/commit/758d28c8a2d5c9567158e339326b765f72da983e) ([#10390](https://www.github.com/tauri-apps/tauri/pull/10390)) Core plugin permissions are now prefixed with `core:`, the `core:default` permission set can now be used and the `core` plugin name is reserved.
+  The `tauri migrate` tool will automate the migration process, which involves prefixing all `app`, `event`, `image`, `menu`, `path`, `resources`, `tray`, `webview` and `window` permissions with `core:`.
+- [`7ba67b4ac`](https://www.github.com/tauri-apps/tauri/commit/7ba67b4aca8d3f3b1aa5ad08819605029d36e6b4)([#10437](https://www.github.com/tauri-apps/tauri/pull/10437)) `ios dev` and `android dev` now uses localhost for the development server unless running on an iOS device,
+  which still requires connecting to the public network address. To conditionally check this on your frontend
+  framework's configuration you can check for the existence of the `TAURI_DEV_HOST`
+  environment variable instead of checking if the target is iOS or Android (previous recommendation).
+
+## \[2.0.0-beta.23]
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-beta.19`
+
 ## \[2.0.0-beta.22]
 
 ### New Features

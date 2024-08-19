@@ -9,68 +9,14 @@ use regex::Regex;
 use crate::{
   acl,
   helpers::{
-    app_paths::{app_dir, tauri_dir},
+    app_paths::{resolve_app_dir, tauri_dir},
     cargo,
     npm::PackageManager,
   },
   Result,
 };
 
-use std::{collections::HashMap, process::Command};
-
-#[derive(Default)]
-struct PluginMetadata {
-  desktop_only: bool,
-  mobile_only: bool,
-  rust_only: bool,
-  builder: bool,
-}
-
-// known plugins with particular cases
-fn plugins() -> HashMap<&'static str, PluginMetadata> {
-  let mut plugins: HashMap<&'static str, PluginMetadata> = HashMap::new();
-
-  // desktop-only
-  for p in [
-    "authenticator",
-    "autostart",
-    "cli",
-    "global-shortcut",
-    "positioner",
-    "single-instance",
-    "updater",
-    "window-state",
-  ] {
-    plugins.entry(p).or_default().desktop_only = true;
-  }
-
-  // mobile-only
-  for p in ["barcode-scanner", "biometric", "nfc"] {
-    plugins.entry(p).or_default().mobile_only = true;
-  }
-
-  // uses builder pattern
-  for p in [
-    "global-shortcut",
-    "localhost",
-    "log",
-    "sql",
-    "store",
-    "stronghold",
-    "updater",
-    "window-state",
-  ] {
-    plugins.entry(p).or_default().builder = true;
-  }
-
-  // rust-only
-  #[allow(clippy::single_element_loop)]
-  for p in ["localhost", "persisted-scope", "single-instance"] {
-    plugins.entry(p).or_default().rust_only = true;
-  }
-
-  plugins
-}
+use std::process::Command;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Add a tauri plugin to the project")]
@@ -86,9 +32,17 @@ pub struct Options {
   /// Git branch to use.
   #[clap(short, long)]
   pub branch: Option<String>,
+  /// Don't format code with rustfmt
+  #[clap(long)]
+  pub no_fmt: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+  run(options)
+}
+
+pub fn run(options: Options) -> Result<()> {
   let (plugin, version) = options
     .plugin
     .split_once('@')
@@ -99,9 +53,10 @@ pub fn command(options: Options) -> Result<()> {
   let crate_name = format!("tauri-plugin-{plugin}");
   let npm_name = format!("@tauri-apps/plugin-{plugin}");
 
-  let mut plugins = plugins();
+  let mut plugins = crate::helpers::plugins::known_plugins();
   let metadata = plugins.remove(plugin).unwrap_or_default();
 
+  let app_dir = resolve_app_dir();
   let tauri_dir = tauri_dir();
 
   let target_str = metadata
@@ -119,14 +74,12 @@ pub fn command(options: Options) -> Result<()> {
     branch: options.branch.as_deref(),
     rev: options.rev.as_deref(),
     tag: options.tag.as_deref(),
-    cwd: Some(&tauri_dir),
+    cwd: Some(tauri_dir),
     target: target_str,
   })?;
 
   if !metadata.rust_only {
-    if let Some(manager) = std::panic::catch_unwind(app_dir)
-      .map(Some)
-      .unwrap_or_default()
+    if let Some(manager) = app_dir
       .map(PackageManager::from_project)
       .and_then(|managers| managers.into_iter().next())
     {
@@ -146,7 +99,7 @@ pub fn command(options: Options) -> Result<()> {
         (None, None, None, None) => npm_name,
         _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
-      manager.install(&[npm_spec])?;
+      manager.install(&[npm_spec], tauri_dir)?;
     }
 
     let _ = acl::permission::add::command(acl::permission::add::Options {
@@ -185,12 +138,15 @@ pub fn command(options: Options) -> Result<()> {
       log::info!("Adding plugin to {}", file.display());
       std::fs::write(file, out.as_bytes())?;
 
-      // run cargo fmt
-      log::info!("Running `cargo fmt`...");
-      let _ = Command::new("cargo")
-        .arg("fmt")
-        .current_dir(&tauri_dir)
-        .status();
+      if !options.no_fmt {
+        // reformat code with rustfmt
+        log::info!("Running `cargo fmt`...");
+        let _ = Command::new("cargo")
+          .arg("fmt")
+          .current_dir(tauri_dir)
+          .status();
+      }
+
       return Ok(());
     }
   }

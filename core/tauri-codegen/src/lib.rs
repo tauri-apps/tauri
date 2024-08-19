@@ -13,17 +13,21 @@
 )]
 
 pub use self::context::{context_codegen, ContextData};
-pub use self::image::include_image_codegen;
+use crate::embedded_assets::{ensure_out_dir, EmbeddedAssetsError};
+use proc_macro2::TokenStream;
+use quote::{quote, ToTokens, TokenStreamExt};
 use std::{
   borrow::Cow,
+  fmt::{self, Write},
   path::{Path, PathBuf},
 };
 pub use tauri_utils::config::{parse::ConfigError, Config};
 use tauri_utils::platform::Target;
+use tauri_utils::write_if_changed;
 
 mod context;
 pub mod embedded_assets;
-mod image;
+pub mod image;
 #[doc(hidden)]
 pub mod vendor;
 
@@ -96,4 +100,55 @@ pub fn get_config(path: &Path) -> Result<(Config, PathBuf), CodegenConfigError> 
   std::env::set_current_dir(old_cwd).map_err(CodegenConfigError::CurrentDir)?;
 
   Ok((config, parent))
+}
+
+/// Create a blake3 checksum of the passed bytes.
+fn checksum(bytes: &[u8]) -> Result<String, fmt::Error> {
+  let mut hasher = vendor::blake3_reference::Hasher::default();
+  hasher.update(bytes);
+
+  let mut bytes = [0u8; 32];
+  hasher.finalize(&mut bytes);
+
+  let mut hex = String::with_capacity(2 * bytes.len());
+  for b in bytes {
+    write!(hex, "{b:02x}")?;
+  }
+  Ok(hex)
+}
+
+/// Cache the data to `$OUT_DIR`, only if it does not already exist.
+///
+/// Due to using a checksum as the filename, an existing file should be the exact same content
+/// as the data being checked.
+struct Cached {
+  checksum: String,
+}
+
+impl TryFrom<String> for Cached {
+  type Error = EmbeddedAssetsError;
+
+  fn try_from(value: String) -> Result<Self, Self::Error> {
+    Self::try_from(Vec::from(value))
+  }
+}
+
+impl TryFrom<Vec<u8>> for Cached {
+  type Error = EmbeddedAssetsError;
+
+  fn try_from(content: Vec<u8>) -> Result<Self, Self::Error> {
+    let checksum = checksum(content.as_ref()).map_err(EmbeddedAssetsError::Hex)?;
+    let path = ensure_out_dir()?.join(&checksum);
+
+    write_if_changed(&path, &content)
+      .map(|_| Self { checksum })
+      .map_err(|error| EmbeddedAssetsError::AssetWrite { path, error })
+  }
+}
+
+impl ToTokens for Cached {
+  fn to_tokens(&self, tokens: &mut TokenStream) {
+    let path = &self.checksum;
+    tokens.append_all(quote!(::std::concat!(::std::env!("OUT_DIR"), "/", #path)))
+  }
 }

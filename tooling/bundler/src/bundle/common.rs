@@ -15,7 +15,7 @@ use std::{
 /// Returns true if the path has a filename indicating that it is a high-density
 /// "retina" icon.  Specifically, returns true the file stem ends with
 /// "@2x" (a convention specified by the [Apple developer docs](
-/// https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html)).
+/// <https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html>)).
 #[allow(dead_code)]
 pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
   path
@@ -168,6 +168,7 @@ pub trait CommandExt {
 
 impl CommandExt for Command {
   fn piped(&mut self) -> std::io::Result<ExitStatus> {
+    self.stdin(os_pipe::dup_stdin()?);
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();

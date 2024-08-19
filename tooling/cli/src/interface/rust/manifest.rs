@@ -96,6 +96,18 @@ pub fn read_manifest(manifest_path: &Path) -> crate::Result<(Document, String)> 
   Ok((manifest, manifest_str))
 }
 
+pub fn serialize_manifest(manifest: &Document) -> String {
+  manifest
+    .to_string()
+    // apply some formatting fixes
+    .replace(r#"" ,features =["#, r#"", features = ["#)
+    .replace(r#"" , features"#, r#"", features"#)
+    .replace("]}", "] }")
+    .replace("={", "= {")
+    .replace("=[", "= [")
+    .replace(r#"",""#, r#"", ""#)
+}
+
 pub fn toml_array(features: &HashSet<String>) -> Array {
   let mut f = Array::default();
   let mut features: Vec<String> = features.iter().map(|f| f.to_string()).collect();
@@ -301,15 +313,7 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
     .unwrap()
     .features;
 
-  let new_manifest_str = manifest
-    .to_string()
-    // apply some formatting fixes
-    .replace(r#"" ,features =["#, r#"", features = ["#)
-    .replace(r#"" , features"#, r#"", features"#)
-    .replace("]}", "] }")
-    .replace("={", "= {")
-    .replace("=[", "= [")
-    .replace(r#"",""#, r#"", ""#);
+  let new_manifest_str = serialize_manifest(&manifest);
 
   if persist && original_manifest_str != new_manifest_str {
     let mut manifest_file =

@@ -171,7 +171,7 @@ impl Scope {
       next_event_id: Default::default(),
       match_options: glob::MatchOptions {
         // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
-        // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
+        // see: <https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5>
         require_literal_separator: true,
         require_literal_leading_dot,
         ..Default::default()
@@ -362,7 +362,7 @@ mod tests {
       next_event_id: Default::default(),
       match_options: glob::MatchOptions {
         // this is needed so `/dir/*` doesn't match files within subdirectories such as `/dir/subdir/file.txt`
-        // see: https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5
+        // see: <https://github.com/tauri-apps/tauri/security/advisories/GHSA-6mv3-wm7j-h4w5>
         require_literal_separator: true,
         // dotfiles are not supposed to be exposed by default on unix
         #[cfg(unix)]

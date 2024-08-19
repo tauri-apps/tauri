@@ -20,6 +20,7 @@ pub fn get<R: Runtime>(
   schema: &str,
   assets: Arc<EmbeddedAssets>,
   aes_gcm_key: [u8; 32],
+  window_origin: String,
 ) -> UriSchemeProtocolHandler {
   let frame_src = if cfg!(any(windows, target_os = "android")) {
     format!("http://{schema}.localhost")
@@ -45,6 +46,7 @@ pub fn get<R: Runtime>(
 
           let template = tauri_utils::pattern::isolation::IsolationJavascriptRuntime {
             runtime_aes_gcm_key: &aes_gcm_key,
+            origin: window_origin.clone(),
             process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
           };
           match template.render(asset.as_ref(), &Default::default()) {
@@ -75,7 +77,7 @@ pub fn get<R: Runtime>(
     } else {
       responder.respond(
         http::Response::builder()
-          .status(http::StatusCode::BAD_REQUEST)
+          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
           .body("failed to get response".as_bytes().to_vec())
           .unwrap(),
       );

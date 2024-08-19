@@ -48,7 +48,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know that you want to contribute. This way we can point you in the right direction and help ensure your contribution will be as helpful as possible.
 
-To set up your machine for development, follow the [Tauri setup guide](https://tauri.app/v1/guides/getting-started/prerequisites/) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [Yarn](https://yarnpkg.com/), it is only required if you are developing the Node CLI or API packages (`tooling/cli/node` and `tooling/api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
+To set up your machine for development, follow the [Tauri setup guide](https://tauri.app/v1/guides/getting-started/prerequisites/) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [PNPM](https://pnpm.io/), it is only required if you are developing the Node CLI or API packages (`tooling/cli/node` and `tooling/api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
 
 Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To build these automatically, run the `.scripts/setup.sh` (Linux and macOS) or `.scripts/setup.ps1` (Windows) script. This will install the Rust and Node.js CLI and build the JS API. After that, you should be able to run all the examples. Note that the setup script should be executed from the root folder of the repository in order to run correctly.
 
@@ -78,7 +78,7 @@ $ RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open
 
 ### Developing the JS API
 
-The JS API provides bindings between the developer's JS in the Webview and the builtin Tauri APIs, written in Rust. Its code is located in `[Tauri repo root]/tooling/api`. After making changes to the code, run `yarn build` to build it. To test your changes, we recommend using the API example app, located in `[Tauri repo root]/examples/api`. It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.
+The JS API provides bindings between the developer's JS in the Webview and the builtin Tauri APIs, written in Rust. Its code is located in `[Tauri repo root]/tooling/api`. After making changes to the code, run `pnpm build` to build it. To test your changes, we recommend using the API example app, located in `[Tauri repo root]/examples/api`. It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.
 
 ## Financial Contribution
 

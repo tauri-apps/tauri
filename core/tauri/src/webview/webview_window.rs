@@ -27,13 +27,12 @@ use crate::{
   },
 };
 use serde::Serialize;
-use tauri_runtime::window::WindowSizeConstraints;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
-  manager::{webview::WebviewLabelDef, AppManager},
+  manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
   webview::PageLoadPayload,
   webview::WebviewBuilder,
@@ -347,19 +346,6 @@ tauri::Builder::default()
     let (_window, webview) = self.window_builder.with_webview(self.webview_builder)?;
     Ok(WebviewWindow { webview })
   }
-
-  pub(crate) fn build_internal(
-    self,
-    window_labels: &[String],
-    webview_labels: &[WebviewLabelDef],
-  ) -> crate::Result<WebviewWindow<R>> {
-    let (_window, webview) = self.window_builder.with_webview_internal(
-      self.webview_builder,
-      window_labels,
-      webview_labels,
-    )?;
-    Ok(WebviewWindow { webview })
-  }
 }
 
 /// Desktop APIs.
@@ -409,7 +395,10 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Window inner size constraints.
   #[must_use]
-  pub fn inner_size_constraints(mut self, constraints: WindowSizeConstraints) -> Self {
+  pub fn inner_size_constraints(
+    mut self,
+    constraints: tauri_runtime::window::WindowSizeConstraints,
+  ) -> Self {
     self.window_builder = self.window_builder.inner_size_constraints(constraints);
     self
   }
@@ -590,7 +579,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadows are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[must_use]
@@ -1394,7 +1383,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   ///     and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   pub fn set_shadow(&self, enable: bool) -> crate::Result<()> {
@@ -1478,7 +1467,10 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Sets this window's minimum inner width.
-  pub fn set_size_constraints(&self, constriants: WindowSizeConstraints) -> crate::Result<()> {
+  pub fn set_size_constraints(
+    &self,
+    constriants: tauri_runtime::window::WindowSizeConstraints,
+  ) -> crate::Result<()> {
     self.webview.window().set_size_constraints(constriants)
   }
 
@@ -1609,15 +1601,15 @@ impl<R: Runtime> WebviewWindow<R> {
   ///       main_webview.with_webview(|webview| {
   ///         #[cfg(target_os = "linux")]
   ///         {
-  ///           // see https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html
-  ///           // and https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html
+  ///           // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
+  ///           // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
   ///           use webkit2gtk::WebViewExt;
   ///           webview.inner().set_zoom_level(4.);
   ///         }
   ///
   ///         #[cfg(windows)]
   ///         unsafe {
-  ///           // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+  ///           // see <https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html>
   ///           webview.controller().SetZoomFactor(4.).unwrap();
   ///         }
   ///

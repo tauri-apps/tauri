@@ -147,6 +147,7 @@ macro_rules! android_binding {
       ::tauri::tao
     );
 
+    // be careful when renaming this, the `Java_app_tauri_plugin_PluginManager_handlePluginResponse` symbol is checked by the CLI
     ::tauri::tao::platform::android::prelude::android_fn!(
       app_tauri,
       plugin,
@@ -379,6 +380,8 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
 #[tauri_macros::default_runtime(Wry, wry)]
 pub struct Context<R: Runtime> {
   pub(crate) config: Config,
+  #[cfg(dev)]
+  pub(crate) config_parent: Option<std::path::PathBuf>,
   /// Asset provider.
   pub assets: Box<dyn Assets<R>>,
   pub(crate) default_window_icon: Option<image::Image<'static>>,
@@ -507,6 +510,8 @@ impl<R: Runtime> Context<R> {
   ) -> Self {
     Self {
       config,
+      #[cfg(dev)]
+      config_parent: None,
       assets,
       default_window_icon,
       app_icon,
@@ -518,6 +523,14 @@ impl<R: Runtime> Context<R> {
       runtime_authority,
       plugin_global_api_scripts,
     }
+  }
+
+  #[cfg(dev)]
+  #[doc(hidden)]
+  pub fn with_config_parent(&mut self, config_parent: impl AsRef<std::path::Path>) {
+    self
+      .config_parent
+      .replace(config_parent.as_ref().to_owned());
   }
 }
 
@@ -980,7 +993,7 @@ pub mod test;
 
 #[cfg(feature = "specta")]
 const _: () = {
-  use specta::{function::FunctionArg, DataType, TypeMap};
+  use specta::{datatype::DataType, function::FunctionArg, TypeMap};
 
   impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {

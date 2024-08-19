@@ -16,7 +16,7 @@ pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolH
       Ok(response) => responder.respond(response),
       Err(e) => responder.respond(
         http::Response::builder()
-          .status(http::StatusCode::BAD_REQUEST)
+          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
           .header("Access-Control-Allow-Origin", &window_origin)
           .body(e.to_string().as_bytes().to_vec())

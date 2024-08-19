@@ -76,6 +76,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         stop_unwind(#function_name);
       }
 
+      // be careful when renaming this, the `start_app` symbol is checked by the CLI
       #[cfg(not(target_os = "android"))]
       #[no_mangle]
       #[inline(never)]

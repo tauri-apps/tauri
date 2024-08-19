@@ -8,7 +8,7 @@ Default permissions for the plugin.
 - `allow-rgba`
 - `allow-size`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>
@@ -20,7 +20,7 @@ Default permissions for the plugin.
 <tr>
 <td>
 
-`image:allow-from-bytes`
+`core:image:allow-from-bytes`
 
 </td>
 <td>
@@ -33,7 +33,7 @@ Enables the from_bytes command without any pre-configured scope.
 <tr>
 <td>
 
-`image:deny-from-bytes`
+`core:image:deny-from-bytes`
 
 </td>
 <td>
@@ -46,7 +46,7 @@ Denies the from_bytes command without any pre-configured scope.
 <tr>
 <td>
 
-`image:allow-from-path`
+`core:image:allow-from-path`
 
 </td>
 <td>
@@ -59,7 +59,7 @@ Enables the from_path command without any pre-configured scope.
 <tr>
 <td>
 
-`image:deny-from-path`
+`core:image:deny-from-path`
 
 </td>
 <td>
@@ -72,7 +72,7 @@ Denies the from_path command without any pre-configured scope.
 <tr>
 <td>
 
-`image:allow-new`
+`core:image:allow-new`
 
 </td>
 <td>
@@ -85,7 +85,7 @@ Enables the new command without any pre-configured scope.
 <tr>
 <td>
 
-`image:deny-new`
+`core:image:deny-new`
 
 </td>
 <td>
@@ -98,7 +98,7 @@ Denies the new command without any pre-configured scope.
 <tr>
 <td>
 
-`image:allow-rgba`
+`core:image:allow-rgba`
 
 </td>
 <td>
@@ -111,7 +111,7 @@ Enables the rgba command without any pre-configured scope.
 <tr>
 <td>
 
-`image:deny-rgba`
+`core:image:deny-rgba`
 
 </td>
 <td>
@@ -124,7 +124,7 @@ Denies the rgba command without any pre-configured scope.
 <tr>
 <td>
 
-`image:allow-size`
+`core:image:allow-size`
 
 </td>
 <td>
@@ -137,7 +137,7 @@ Enables the size command without any pre-configured scope.
 <tr>
 <td>
 
-`image:deny-size`
+`core:image:deny-size`
 
 </td>
 <td>

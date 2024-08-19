@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "2.0.0-beta.22",
+  "version": "2.0.0-rc.4",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/tauri-apps/tauri.git"
   },
   "contributors": [
-    "Tauri Team <team@tauri-apps.org> (https://tauri.app)"
+    "Tauri Programme within The Commons Conservancy"
   ],
   "license": "Apache-2.0 OR MIT",
   "bugs": {
@@ -46,9 +46,6 @@
     "jest-transform-toml": "1.0.0",
     "prettier": "3.3.2"
   },
-  "resolutions": {
-    "json5": "2.2.3"
-  },
   "engines": {
     "node": ">= 10"
   },
@@ -63,8 +60,6 @@
     "prepack": "cp ../schema.json .",
     "test": "jest --runInBand --forceExit --no-cache",
     "version": "napi version",
-    "tauri": "node ./tauri.js",
-    "format": "prettier --write ./package.json ./tauri.js",
-    "format:check": "prettier --check ./package.json ./tauri.js"
+    "tauri": "node ./tauri.js"
   }
 }

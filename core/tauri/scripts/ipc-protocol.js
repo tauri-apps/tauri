@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-;(function() {
+;(function () {
   /**
    * A runtime generated key to ensure an IPC call comes from an initialized frame.
    *
@@ -42,7 +42,8 @@
         }
       })
         .then((response) => {
-          const cb = response.ok ? callback : error
+          const cb =
+            response.headers.get('Tauri-Response') === 'ok' ? callback : error
           // we need to split here because on Android the content-type gets duplicated
           switch ((response.headers.get('content-type') || '').split(',')[0]) {
             case 'application/json':
@@ -62,7 +63,11 @@
             )
           }
         })
-        .catch(() => {
+        .catch((e) => {
+          console.warn(
+            'IPC custom protocol failed, Tauri will now use the postMessage interface instead',
+            e
+          )
           // failed to use the custom protocol IPC (either the webview blocked a custom protocol or it was a CSP error)
           // so we need to fallback to the postMessage interface
           customProtocolIpcFailed = true
@@ -74,7 +79,10 @@
         cmd,
         callback,
         error,
-        options,
+        options: {
+          ...options,
+          customProtocolIpcBlocked: customProtocolIpcFailed
+        },
         payload,
         __TAURI_INVOKE_KEY__
       })

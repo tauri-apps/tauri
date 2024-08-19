@@ -29,7 +29,7 @@ use sublime_fuzzy::best_match;
 use super::{
   ensure_init, get_app,
   init::{command as init_command, configure_cargo},
-  log_finished, read_options, setup_dev_config, CliOptions, OptionsHandle, Target as MobileTarget,
+  log_finished, read_options, CliOptions, OptionsHandle, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{helpers::config::Config as TauriConfig, Result};
@@ -37,7 +37,6 @@ use crate::{helpers::config::Config as TauriConfig, Result};
 mod android_studio_script;
 mod build;
 mod dev;
-mod open;
 pub(crate) mod project;
 
 #[derive(Parser)]
@@ -67,8 +66,6 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
-  /// Open project in Android Studio
-  Open,
   Dev(dev::Options),
   Build(build::Options),
   #[clap(hide(true))]
@@ -78,13 +75,15 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Android,
-      options.ci,
-      false,
-      options.skip_targets_install,
-    )?,
-    Commands::Open => open::command()?,
+    Commands::Init(options) => {
+      crate::helpers::app_paths::resolve();
+      init_command(
+        MobileTarget::Android,
+        options.ci,
+        false,
+        options.skip_targets_install,
+      )?
+    }
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,

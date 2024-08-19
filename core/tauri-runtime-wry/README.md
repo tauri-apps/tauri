@@ -24,6 +24,8 @@ Tauri apps can have custom menus and have tray-type interfaces. They can be upda
 ## This module
 
 This crate opens up direct systems-level interactions specifically for WRY, such as printing, monitor detection, and other windowing related tasks. `tauri-runtime` implementation for WRY.
+None of the exposed API of this crate is stable, and it may break semver
+compatibility in the future. The major version only signifies the intended Tauri version.
 
 To learn more about the details of how all of these pieces fit together, please consult this [ARCHITECTURE.md](https://github.com/tauri-apps/tauri/blob/dev/ARCHITECTURE.md) document.
 

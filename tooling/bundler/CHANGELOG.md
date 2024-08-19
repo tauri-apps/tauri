@@ -1,5 +1,56 @@
 # Changelog
 
+## \[2.0.1-rc.2]
+
+### New Features
+
+- [`f8d658ea1`](https://www.github.com/tauri-apps/tauri/commit/f8d658ea1b99236e00cd5d3010e9ef7b427e400f) ([#10588](https://www.github.com/tauri-apps/tauri/pull/10588) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) `TAURI_WINDOWS_SIGNTOOL_PATH` environment variable for specifying the path to signtool.exe.
+
+### Enhancements
+
+- [`8deb1966a`](https://www.github.com/tauri-apps/tauri/commit/8deb1966ace93d1350f271d525a878ba4b0879ce) ([#10652](https://www.github.com/tauri-apps/tauri/pull/10652) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Infer macOS codesign identity from the `APPLE_CERTIFICATE` environment variable when provided, meaning the identity no longer needs to be provided when signing on CI using that option. If the imported certificate name does not match a provided signingIdentity configuration, an error is returned.
+
+### Bug Fixes
+
+- [`521d1d5cd`](https://www.github.com/tauri-apps/tauri/commit/521d1d5cdb052df554c022659f527ca7914dc65f) ([#10619](https://www.github.com/tauri-apps/tauri/pull/10619) by [@Broken-Deer](https://www.github.com/tauri-apps/tauri/../../Broken-Deer)) Fixed an issue that caused the bundler to not be able to download the AppImage tooling when building for ARM 32bit.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+- Upgraded to `tauri-macos-sign@0.1.1-rc.0`
+
+## \[2.0.1-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+
+## \[2.0.1-rc.0]
+
+### Bug Fixes
+
+- [`a440a3f9d`](https://www.github.com/tauri-apps/tauri/commit/a440a3f9d85376d994f2ba904b1ae0828c5a0fbb) ([#10498](https://www.github.com/tauri-apps/tauri/pull/10498) by [@catalinsh](https://www.github.com/tauri-apps/tauri/../../catalinsh)) Correct nsis pre-uninstall hook to post-uninstall
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+
+## \[2.0.0-rc.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.0`
+
+## \[2.0.1-beta.19]
+
+### Bug Fixes
+
+- [`d1df6be70`](https://www.github.com/tauri-apps/tauri/commit/d1df6be701fc1cd64fd227d68041a1096386d3b5) ([#10270](https://www.github.com/tauri-apps/tauri/pull/10270) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix bundler warns about no updater-enabled targets were built for self contained updaters like app image, nsis, msi
+
+### What's Changed
+
+- [`9f0a5fcea`](https://www.github.com/tauri-apps/tauri/commit/9f0a5fceaced7862c8a57beba6616c21ff3b17f8) ([#10271](https://www.github.com/tauri-apps/tauri/pull/10271) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `NSIS_HOOK_PREINSTALL` and `NSIS_HOOK_PREUNINSTALL` run before `CheckIfAppIsRunning` (which checks if the app is running and asks the user if they want to kill the app)
+
 ## \[2.0.1-beta.18]
 
 ### New Features

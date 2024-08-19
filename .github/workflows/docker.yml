@@ -66,8 +66,9 @@ jobs:
         with:
           targets: ${{ matrix.target.name }}
 
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
@@ -112,9 +113,9 @@ jobs:
       - name: Test
         run: |
           cd tooling/api
-          yarn && yarn build
+          pnpm i --frozen-lockfile && pnpm build
           cd ../../examples/api
-          yarn
+          pnpm i --frozen-lockfile
           . .setup-cross.sh
           chmod +x cargo-tauri
           chmod +x $HOME/.cargo/bin/cross

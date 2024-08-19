@@ -12,7 +12,7 @@ use crate::{
 #[cfg(desktop)]
 mod desktop_commands {
 
-  use serde::Deserialize;
+  use serde::{Deserialize, Serialize};
   use tauri_runtime::dpi::{Position, Size};
   use tauri_utils::config::{WebviewUrl, WindowConfig};
 
@@ -42,6 +42,25 @@ mod desktop_commands {
     incognito: bool,
     #[serde(default)]
     zoom_hotkeys_enabled: bool,
+  }
+
+  #[derive(Serialize)]
+  pub struct WebviewRef {
+    window_label: String,
+    label: String,
+  }
+
+  #[command(root = "crate")]
+  pub async fn get_all_webviews<R: Runtime>(app: AppHandle<R>) -> Vec<WebviewRef> {
+    app
+      .manager()
+      .webviews()
+      .values()
+      .map(|webview| WebviewRef {
+        window_label: webview.window().label().into(),
+        label: webview.label().into(),
+      })
+      .collect()
   }
 
   #[command(root = "crate")]
@@ -232,6 +251,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::create_webview,
             desktop_commands::create_webview_window,
             // getters
+            desktop_commands::get_all_webviews,
             desktop_commands::webview_position,
             desktop_commands::webview_size,
             // setters

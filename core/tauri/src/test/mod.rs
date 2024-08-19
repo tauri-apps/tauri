@@ -58,7 +58,7 @@ use serialize_to_javascript::DefaultTemplate;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
-  ipc::{InvokeBody, InvokeError, InvokeResponse, RuntimeAuthority},
+  ipc::{InvokeError, InvokeResponse, InvokeResponseBody, RuntimeAuthority},
   webview::InvokeRequest,
   App, Assets, Builder, Context, Pattern, Runtime, Webview,
 };
@@ -113,6 +113,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
         security: Default::default(),
         tray_icon: None,
         macos_private_api: false,
+        enable_gtk_app_id: false,
       },
       bundle: Default::default(),
       build: Default::default(),
@@ -134,6 +135,9 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
     pattern: Pattern::Brownfield,
     runtime_authority: RuntimeAuthority::new(Default::default(), Resolved::default()),
     plugin_global_api_scripts: None,
+
+    #[cfg(dev)]
+    config_parent: None,
   }
 }
 
@@ -278,7 +282,7 @@ pub fn assert_ipc_response<
 pub fn get_ipc_response<W: AsRef<Webview<MockRuntime>>>(
   webview: &W,
   request: InvokeRequest,
-) -> Result<InvokeBody, serde_json::Value> {
+) -> Result<InvokeResponseBody, serde_json::Value> {
   let (tx, rx) = std::sync::mpsc::sync_channel(1);
   webview.as_ref().clone().on_message(
     request,

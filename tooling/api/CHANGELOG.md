@@ -1,5 +1,41 @@
 # Changelog
 
+## \[2.0.0-rc.2]
+
+### Bug Fixes
+
+- [`c689521a7`](https://www.github.com/tauri-apps/tauri/commit/c689521a7674b6562b5dfd4f5cacd12138d99d85) ([#10681](https://www.github.com/tauri-apps/tauri/pull/10681) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix tslib path in dist.
+
+## \[2.0.0-rc.1]
+
+### Breaking Changes
+
+- [`b6dca99ff`](https://www.github.com/tauri-apps/tauri/commit/b6dca99fff73816a39380b288c299b47b493cfdb) ([#10630](https://www.github.com/tauri-apps/tauri/pull/10630) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changed `WebviewWindow.getAll`, `WebviewWindow.getByLabel`, `getAllWebviewWindows`,
+  `Window.getAll`, `Window.getByLabel`, `getAllWindows`,
+  `Webview.getAll`, `Webview.getByLabel`, `getAllWebviews`
+  to be async so their return value are synchronized with the state from the Rust side,
+  meaning new and destroyed windows are reflected.
+
+## \[2.0.0-rc.0]
+
+### Changes
+
+- Promoted to RC!
+
+## \[2.0.0-beta.16]
+
+### New Features
+
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add APIs to enable setting window size constraints separately:
+
+  - Added `WindowSizeConstraints` interface in `window` and `webviewWindow` modules.
+  - Added `Window.setSizeConstraints` and `WebviewWindow.setSizeConstraints`
+
+### Bug Fixes
+
+- [`3c17fb64f`](https://www.github.com/tauri-apps/tauri/commit/3c17fb64fd822597d5cc16ee7e7b3f9e1023637b) ([#10277](https://www.github.com/tauri-apps/tauri/pull/10277) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Webview.reparent` pointing to `set_webview_focus` instead of `reparent` Rust API
+- [`da25f7353`](https://www.github.com/tauri-apps/tauri/commit/da25f7353070477ba969851e974379d7666d6806) ([#10242](https://www.github.com/tauri-apps/tauri/pull/10242) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Apply `minWidth`, `minHieght`, `maxWidth` and `maxHeight` constraints separately, which fixes a long standing bug where these constraints were never applied unless width and height were constrained together.
+
 ## \[2.0.0-beta.15]
 
 ### New Features

@@ -42,20 +42,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
 
+      - run: corepack enable
       - name: setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: yarn
-          cache-dependency-path: |
-            tooling/api/yarn.lock
-            examples/api/yarn.lock
+          cache: 'pnpm'
 
       - uses: actions/setup-java@v3
         with:
           distribution: temurin
           java-version: 17
-          cache: gradle
+          cache: 'gradle'
 
       - name: Setup NDK
         uses: nttld/setup-ndk@v1
@@ -95,11 +93,11 @@ jobs:
 
       - name: build Tauri API
         working-directory: ./tooling/api
-        run: yarn && yarn build
+        run: pnpm i --frozen-lockfile && pnpm build
 
       - name: install API example dependencies
         working-directory: ./examples/api
-        run: yarn
+        run: pnpm i --frozen-lockfile
 
       - name: init Android Studio project
         working-directory: ./examples/api

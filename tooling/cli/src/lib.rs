@@ -34,7 +34,7 @@ use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueE
 use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
 use log::Level;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
 use std::process::{exit, Command, ExitStatus, Output, Stdio};
 use std::{
@@ -48,7 +48,7 @@ use std::{
 };
 
 /// Tauri configuration argument option.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigValue(pub(crate) serde_json::Value);
 
 impl FromStr for ConfigValue {
@@ -301,6 +301,7 @@ pub trait CommandExt {
 
 impl CommandExt for Command {
   fn piped(&mut self) -> std::io::Result<ExitStatus> {
+    self.stdin(os_pipe::dup_stdin()?);
     self.stdout(os_pipe::dup_stdout()?);
     self.stderr(os_pipe::dup_stderr()?);
     let program = self.get_program().to_string_lossy().into_owned();

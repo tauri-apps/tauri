@@ -164,11 +164,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v2
+      - uses: actions/setup-node@v4
         with:
           node-version: 14
           registry-url: 'https://registry.npmjs.org'
-          cache: yarn
+          cache: 'yarn'
           cache-dependency-path: tooling/*/yarn.lock
 
       - name: cargo login

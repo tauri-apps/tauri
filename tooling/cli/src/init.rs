@@ -5,6 +5,7 @@
 use crate::{
   helpers::{
     framework::{infer_from_package_json as infer_framework, Framework},
+    npm::PackageManager,
     prompts, resolve_tauri_path, template,
   },
   VersionMetadata,
@@ -130,13 +131,18 @@ impl Options {
       )
     })?;
 
+    let detected_package_manager = match PackageManager::from_project(&self.directory).first() {
+      Some(&package_manager) => package_manager,
+      None => PackageManager::Npm,
+    };
+
     self.before_dev_command = self
       .before_dev_command
       .map(|s| Ok(Some(s)))
       .unwrap_or_else(|| {
         prompts::input(
           "What is your frontend dev command?",
-          Some("npm run dev".to_string()),
+          Some(default_dev_command(detected_package_manager).into()),
           self.ci,
           true,
         )
@@ -148,13 +154,33 @@ impl Options {
       .unwrap_or_else(|| {
         prompts::input(
           "What is your frontend build command?",
-          Some("npm run build".to_string()),
+          Some(default_build_command(detected_package_manager).into()),
           self.ci,
           true,
         )
       })?;
 
     Ok(self)
+  }
+}
+
+fn default_dev_command(pm: PackageManager) -> &'static str {
+  match pm {
+    PackageManager::Yarn => "yarn dev",
+    PackageManager::YarnBerry => "yarn dev",
+    PackageManager::Npm => "npm run dev",
+    PackageManager::Pnpm => "pnpm dev",
+    PackageManager::Bun => "bun dev",
+  }
+}
+
+fn default_build_command(pm: PackageManager) -> &'static str {
+  match pm {
+    PackageManager::Yarn => "yarn build",
+    PackageManager::YarnBerry => "yarn build",
+    PackageManager::Npm => "npm run build",
+    PackageManager::Pnpm => "pnpm build",
+    PackageManager::Bun => "bun build",
   }
 }
 

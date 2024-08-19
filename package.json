@@ -13,14 +13,13 @@
   "scripts": {
     "format": "prettier --write . --config .prettierrc --ignore-path .prettierignore",
     "format:check": "prettier --check . --config .prettierrc --ignore-path .prettierignore",
-    "postinstall": "husky install"
+    "eslint:check": "pnpm run -r eslint:check",
+    "ts:check": "pnpm run -r ts:check",
+    "postinstall": "husky"
   },
   "devDependencies": {
-    "covector": "^0.9.0",
-    "husky": "^6.0.0",
+    "husky": "^9.1.4",
     "prettier": "^3.3.2"
   },
-  "dependencies": {
-    "typescript": "^5.4.5"
-  }
+  "packageManager": "pnpm@9.7.0"
 }

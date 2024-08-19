@@ -2,9 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "secondary-window",
   "description": "capability for secondary window",
-  "windows": [
-    "main-*"
-  ],
+  "windows": ["main-*"],
   "permissions": [
     {
       "identifier": "sample:allow-ping",

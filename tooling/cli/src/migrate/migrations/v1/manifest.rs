@@ -198,10 +198,8 @@ fn dependency_version() -> String {
     env!("CARGO_PKG_VERSION_MAJOR").to_string()
   } else {
     format!(
-      "{}.{}.{}-{}",
+      "{}.0.0-{}",
       env!("CARGO_PKG_VERSION_MAJOR"),
-      env!("CARGO_PKG_VERSION_MINOR"),
-      env!("CARGO_PKG_VERSION_PATCH"),
       pre.split('.').next().unwrap()
     )
   }

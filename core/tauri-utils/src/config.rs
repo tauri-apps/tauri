@@ -891,6 +891,34 @@ impl Default for WebviewInstallMode {
   }
 }
 
+/// Custom Signing Command configuration.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum CustomSignCommandConfig {
+  /// A string notation of the script to execute.
+  ///
+  /// "%1" will be replaced with the path to the binary to be signed.
+  ///
+  /// This is a simpler notation for the command.
+  /// Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.
+  ///
+  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].
+  Command(String),
+  /// An object notation of the command.
+  ///
+  /// This is more complex notation for the command but
+  /// this allows you to use whitespace in the command and arguments.
+  CommandWithOptions {
+    /// The command to run to sign the binary.
+    cmd: String,
+    /// The arguments to pass to the command.
+    ///
+    /// "%1" will be replaced with the path to the binary to be signed.
+    args: Vec<String>,
+  },
+}
+
 /// Windows bundler configuration.
 ///
 /// See more: <https://tauri.app/v1/api/config#windowsconfig>
@@ -935,19 +963,14 @@ pub struct WindowsConfig {
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
   /// Specify a custom command to sign the binaries.
-  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// This command needs to have a `%1` in args which is just a placeholder for the binary path,
   /// which we will detect and replace before calling the command.
-  ///
-  /// Example:
-  /// ```text
-  /// sign-cli --arg1 --arg2 %1
-  /// ```
   ///
   /// By Default we use `signtool.exe` which can be found only on Windows so
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   #[serde(alias = "sign-command")]
-  pub sign_command: Option<String>,
+  pub sign_command: Option<CustomSignCommandConfig>,
 }
 
 impl Default for WindowsConfig {

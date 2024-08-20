@@ -110,6 +110,23 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
   }
 }
 
+pub fn custom_sign_settings(
+  config: CustomSignCommandConfig,
+) -> tauri_bundler::CustomSignCommandSettings {
+  match config {
+    CustomSignCommandConfig::Command(command) => {
+      let mut tokens = command.split(' ');
+      tauri_bundler::CustomSignCommandSettings {
+        cmd: tokens.next().unwrap().to_string(), // split always has at least one element
+        args: tokens.map(String::from).collect(),
+      }
+    }
+    CustomSignCommandConfig::CommandWithOptions { cmd, args } => {
+      tauri_bundler::CustomSignCommandSettings { cmd, args }
+    }
+  }
+}
+
 fn config_handle() -> &'static ConfigHandle {
   static CONFIG_HANDLE: OnceLock<ConfigHandle> = OnceLock::new();
   CONFIG_HANDLE.get_or_init(Default::default)

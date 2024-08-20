@@ -40,7 +40,7 @@ mod static_vcruntime;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
-pub use acl::{AppManifest, InlinedPlugin};
+pub use acl::{AppManifest, DefaultPermissionRule, InlinedPlugin};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";

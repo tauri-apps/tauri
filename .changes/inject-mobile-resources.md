@@ -3,4 +3,4 @@
 "@tauri-apps/cli": patch:feat
 ---
 
-Inject configured resources on mobil apps.
+Inject configured resources on mobile apps.

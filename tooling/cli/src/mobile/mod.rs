@@ -257,6 +257,7 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
 
   let identifier = match target {
     Target::Android => identifier.replace('-', "_"),
+    #[cfg(target_os = "macos")]
     Target::Ios => identifier.replace('_', "-"),
   };
 

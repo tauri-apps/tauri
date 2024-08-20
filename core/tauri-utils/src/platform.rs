@@ -320,6 +320,11 @@ fn resource_dir_from<P: AsRef<Path>>(
       .map_err(Into::into);
   }
 
+  #[cfg(target_os = "ios")]
+  {
+    res = exe_dir.join("assets").canonicalize().map_err(Into::into);
+  }
+
   res
 }
 

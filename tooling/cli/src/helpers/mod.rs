@@ -8,6 +8,7 @@ pub mod cargo_manifest;
 pub mod config;
 pub mod flock;
 pub mod framework;
+pub mod fs;
 pub mod npm;
 pub mod plugins;
 pub mod prompts;

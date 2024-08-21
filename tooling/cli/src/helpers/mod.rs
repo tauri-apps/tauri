@@ -10,6 +10,8 @@ pub mod flock;
 pub mod framework;
 pub mod fs;
 pub mod npm;
+#[cfg(target_os = "macos")]
+pub mod pbxproj;
 pub mod plugins;
 pub mod prompts;
 pub mod template;

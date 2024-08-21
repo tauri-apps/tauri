@@ -101,6 +101,10 @@ phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"
 elf = "0.7"
 memchr = "2"
+tempfile = "3"
+
+[dev-dependencies]
+insta = "1"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.59"

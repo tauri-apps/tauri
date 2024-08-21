@@ -478,7 +478,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if i == last {
       println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={w}");
     } else {
-      android_package_prefix.push_str(&w.replace('_', "_1").replace('-', "_1"));
+      android_package_prefix.push_str(&w.replace(['_', '-'], "_1"));
       android_package_prefix.push('_');
     }
   }

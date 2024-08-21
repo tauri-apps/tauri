@@ -45,7 +45,7 @@
   "devDependencies": {
     "@rollup/plugin-terser": "0.4.4",
     "@rollup/plugin-typescript": "11.1.6",
-    "@types/node": "20.14.15",
+    "@types/node": "20.16.1",
     "@typescript-eslint/eslint-plugin": "5.62.0",
     "@typescript-eslint/parser": "5.62.0",
     "eslint": "8.57.0",

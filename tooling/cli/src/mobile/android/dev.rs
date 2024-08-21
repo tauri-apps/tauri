@@ -4,7 +4,7 @@
 
 use super::{
   configure_cargo, delete_codegen_vars, device_prompt, ensure_init, env, get_app, get_config,
-  inject_assets, open_and_wait, MobileTarget,
+  inject_resources, open_and_wait, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -244,7 +244,7 @@ fn run_dev(
         cli_options,
       )?;
 
-      inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+      inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
       if open {
         open_and_wait(config, &env)

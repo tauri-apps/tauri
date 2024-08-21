@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-rc.6]
+
+### New Features
+
+- [`da381e07f`](https://www.github.com/tauri-apps/tauri/commit/da381e07f3770988fe6d0859a02331b87cc6723f) ([#10696](https://www.github.com/tauri-apps/tauri/pull/10696) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Inject configured resources on mobile apps.
+
+### Bug Fixes
+
+- [`1a60822a4`](https://www.github.com/tauri-apps/tauri/commit/1a60822a4220b6dbb1ad7295a2e37d6c3004edad) ([#10699](https://www.github.com/tauri-apps/tauri/pull/10699) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changed the `add` command to use a version requirement that matches the CLI's stable and prerelease numbers.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.6`
+
 ## \[2.0.0-rc.5]
 
 ### New Features

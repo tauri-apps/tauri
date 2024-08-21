@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_assets,
+  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_resources,
   load_pbxproj, log_finished, merge_plist, open_and_wait, project_config,
   synchronize_project_config, MobileTarget, OptionsHandle,
 };
@@ -165,7 +165,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     config.project_dir(),
     MobileTarget::Ios,
   )?;
-  inject_assets(&config)?;
+  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let info_plist_path = config
     .project_dir()

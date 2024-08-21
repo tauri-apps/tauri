@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### Bug Fixes
+
+- [`da381e07f`](https://www.github.com/tauri-apps/tauri/commit/da381e07f3770988fe6d0859a02331b87cc6723f) ([#10696](https://www.github.com/tauri-apps/tauri/pull/10696) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Implemented `resource_dir` on Android, which returns a URI that needs to be resolved using [AssetManager::open](https://developer.android.com/reference/android/content/res/AssetManager#open\(java.lang.String,%20int\)). This will be handled by the file system plugin.
+- [`da381e07f`](https://www.github.com/tauri-apps/tauri/commit/da381e07f3770988fe6d0859a02331b87cc6723f) ([#10696](https://www.github.com/tauri-apps/tauri/pull/10696) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `resource_dir` on iOS.
+
 ## \[2.0.0-rc.4]
 
 ### New Features

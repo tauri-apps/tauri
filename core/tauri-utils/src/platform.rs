@@ -15,6 +15,9 @@ use crate::{Env, PackageInfo};
 
 mod starting_binary;
 
+#[cfg(target_os = "android")]
+pub const ANDROID_ASSET_PROTOCOL_URI_PREFIX: &str = "asset://localhost/";
+
 /// Platform target.
 #[derive(PartialEq, Eq, Copy, Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
@@ -256,7 +259,13 @@ fn is_cargo_output_directory(path: &Path) -> bool {
 /// `${exe_dir}/../lib/${exe_name}`.
 ///
 /// On MacOS, it's `${exe_dir}../Resources` (inside .app).
+///
+/// On iOS, it's `${exe_dir}/assets`.
+///
+/// Android uses a special URI prefix that is resolved by the Tauri file system plugin `asset://localhost/`
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
+  #[cfg(target_os = "android")]
+  return Ok(PathBuf::from(ANDROID_ASSET_PROTOCOL_URI_PREFIX));
   let exe = current_exe()?;
   resource_dir_from(exe, package_info, env)
 }
@@ -318,6 +327,11 @@ fn resource_dir_from<P: AsRef<Path>>(
       .join("../Resources")
       .canonicalize()
       .map_err(Into::into);
+  }
+
+  #[cfg(target_os = "ios")]
+  {
+    res = exe_dir.join("assets").canonicalize().map_err(Into::into);
   }
 
   res

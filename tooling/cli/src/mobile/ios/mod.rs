@@ -20,6 +20,7 @@ use cargo_mobile2::{
 };
 use clap::{Parser, Subcommand};
 use sublime_fuzzy::best_match;
+use tauri_utils::resources::ResourcePaths;
 
 use super::{
   ensure_init, env, get_app,
@@ -28,7 +29,11 @@ use super::{
   MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
-  helpers::{app_paths::tauri_dir, config::Config as TauriConfig, pbxproj},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{BundleResources, Config as TauriConfig},
+    pbxproj,
+  },
   Result,
 };
 
@@ -304,9 +309,23 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
   }
 }
 
-fn inject_assets(config: &AppleConfig) -> Result<()> {
+fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
-  create_dir_all(asset_dir)?;
+  create_dir_all(&asset_dir)?;
+
+  let resources = match &tauri_config.bundle.resources {
+    Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),
+    Some(BundleResources::Map(map)) => Some(ResourcePaths::from_map(map, true)),
+    None => None,
+  };
+  if let Some(resources) = resources {
+    for resource in resources.iter() {
+      let resource = resource?;
+      let dest = asset_dir.join(resource.target());
+      crate::helpers::fs::copy_file(resource.path(), dest)?;
+    }
+  }
+
   Ok(())
 }
 

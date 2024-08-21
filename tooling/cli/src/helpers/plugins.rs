@@ -10,6 +10,7 @@ pub struct PluginMetadata {
   pub mobile_only: bool,
   pub rust_only: bool,
   pub builder: bool,
+  pub version_req: Option<String>,
 }
 
 // known plugins with particular cases
@@ -55,5 +56,40 @@ pub fn known_plugins() -> HashMap<&'static str, PluginMetadata> {
     plugins.entry(p).or_default().rust_only = true;
   }
 
+  // known, but no particular config
+  for p in [
+    "geolocation",
+    "deep-link",
+    "dialog",
+    "fs",
+    "http",
+    "notification",
+    "os",
+    "process",
+    "shell",
+    "upload",
+    "websocket",
+  ] {
+    plugins.entry(p).or_default();
+  }
+
+  let version_req = version_req();
+  for plugin in plugins.values_mut() {
+    plugin.version_req.replace(version_req.clone());
+  }
+
   plugins
+}
+
+fn version_req() -> String {
+  let pre = env!("CARGO_PKG_VERSION_PRE");
+  if pre.is_empty() {
+    env!("CARGO_PKG_VERSION_MAJOR").to_string()
+  } else {
+    format!(
+      "{}.0.0-{}",
+      env!("CARGO_PKG_VERSION_MAJOR"),
+      pre.split('.').next().unwrap()
+    )
+  }
 }

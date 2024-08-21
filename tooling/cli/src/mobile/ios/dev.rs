@@ -185,13 +185,12 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
-  merge_plist(
-    vec![
-      tauri_path.join("Info.plist").into(),
-      tauri_path.join("Info.ios.plist").into(),
-    ],
-    &info_plist_path,
-  )?;
+  let merged_info_plist = merge_plist(vec![
+    info_plist_path.clone().into(),
+    tauri_path.join("Info.plist").into(),
+    tauri_path.join("Info.ios.plist").into(),
+  ])?;
+  merged_info_plist.to_file_xml(&info_plist_path)?;
 
   run_dev(
     interface,

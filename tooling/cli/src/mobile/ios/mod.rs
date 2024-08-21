@@ -32,6 +32,7 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{BundleResources, Config as TauriConfig},
+    pbxproj,
   },
   Result,
 };
@@ -39,7 +40,7 @@ use crate::{
 use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
-  path::{Path, PathBuf},
+  path::PathBuf,
   thread::sleep,
   time::Duration,
 };
@@ -344,8 +345,8 @@ impl From<plist::Value> for PlistKind {
   }
 }
 
-fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
-  let mut dest_plist = None;
+fn merge_plist(src: Vec<PlistKind>) -> Result<plist::Value> {
+  let mut merged_plist = plist::Dictionary::new();
 
   for plist_kind in src {
     let plist = match plist_kind {
@@ -353,61 +354,197 @@ fn merge_plist(src: Vec<PlistKind>, dest: &Path) -> Result<()> {
       PlistKind::Plist(v) => Ok(v),
     };
     if let Ok(src_plist) = plist {
-      if dest_plist.is_none() {
-        dest_plist.replace(plist::Value::from_file(dest)?);
-      }
-
-      let plist = dest_plist.as_mut().expect("plist not loaded");
-      if let Some(plist) = plist.as_dictionary_mut() {
-        if let Some(dict) = src_plist.into_dictionary() {
-          for (key, value) in dict {
-            plist.insert(key, value);
-          }
+      if let Some(dict) = src_plist.into_dictionary() {
+        for (key, value) in dict {
+          merged_plist.insert(key, value);
         }
       }
     }
   }
 
-  if let Some(dest_plist) = dest_plist {
-    dest_plist.to_file_xml(dest)?;
-  }
-
-  Ok(())
+  Ok(plist::Value::Dictionary(merged_plist))
 }
 
 pub fn signing_from_env() -> Result<(
   Option<tauri_macos_sign::Keychain>,
   Option<tauri_macos_sign::ProvisioningProfile>,
 )> {
-  let keychain = if let (Some(certificate), Some(certificate_password)) = (
+  let keychain = match (
     var_os("IOS_CERTIFICATE"),
     var_os("IOS_CERTIFICATE_PASSWORD"),
   ) {
-    tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password).map(Some)?
-  } else {
-    None
+    (Some(certificate), Some(certificate_password)) => {
+      log::info!("Reading iOS certificates from ");
+      tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password).map(Some)?
+    }
+    (Some(_), None) => {
+      log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
+      None
+    }
+    _ => None,
   };
+
   let provisioning_profile = if let Some(provisioning_profile) = var_os("IOS_MOBILE_PROVISION") {
     tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile).map(Some)?
   } else {
+    if keychain.is_some() {
+      log::warn!("You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project.");
+    }
     None
   };
 
   Ok((keychain, provisioning_profile))
 }
 
-pub fn init_config(
+pub struct ProjectConfig {
+  pub code_sign_identity: Option<String>,
+  pub team_id: Option<String>,
+  pub provisioning_profile_uuid: Option<String>,
+}
+
+pub fn project_config(
   keychain: Option<&tauri_macos_sign::Keychain>,
   provisioning_profile: Option<&tauri_macos_sign::ProvisioningProfile>,
-) -> Result<super::init::IosInitConfig> {
-  Ok(super::init::IosInitConfig {
-    code_sign_style: if keychain.is_some() && provisioning_profile.is_some() {
-      super::init::CodeSignStyle::Manual
-    } else {
-      super::init::CodeSignStyle::Automatic
-    },
+) -> Result<ProjectConfig> {
+  Ok(ProjectConfig {
     code_sign_identity: keychain.map(|k| k.signing_identity()),
     team_id: keychain.and_then(|k| k.team_id().map(ToString::to_string)),
     provisioning_profile_uuid: provisioning_profile.and_then(|p| p.uuid().ok()),
   })
+}
+
+pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
+  pbxproj::parse(
+    config
+      .project_dir()
+      .join(format!("{}.xcodeproj", config.app().name()))
+      .join("project.pbxproj"),
+  )
+}
+
+pub fn synchronize_project_config(
+  app: &App,
+  pbxproj: &mut pbxproj::Pbxproj,
+  export_options_list: &mut plist::Dictionary,
+  project_config: &ProjectConfig,
+  debug: bool,
+) -> Result<()> {
+  let manual_signing = project_config.code_sign_identity.is_some()
+    || project_config.provisioning_profile_uuid.is_some();
+
+  if let Some(xc_configuration_list) = pbxproj
+    .xc_configuration_list
+    .clone()
+    .into_values()
+    .find(|l| l.comment.contains("_iOS"))
+  {
+    for build_configuration_ref in xc_configuration_list.build_configurations {
+      if manual_signing {
+        pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_STYLE", "Manual");
+      }
+
+      if let Some(identity) = &project_config.code_sign_identity {
+        let identity = format!("\"{identity}\"");
+        pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_IDENTITY", &identity);
+        pbxproj.set_build_settings(
+          &build_configuration_ref.id,
+          "\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"",
+          &identity,
+        );
+      }
+
+      if let Some(id) = &project_config.team_id {
+        pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", id);
+        pbxproj.set_build_settings(
+          &build_configuration_ref.id,
+          "\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"",
+          id,
+        );
+      }
+
+      if let Some(profile_uuid) = &project_config.provisioning_profile_uuid {
+        let profile_uuid = format!("\"{profile_uuid}\"");
+        pbxproj.set_build_settings(
+          &build_configuration_ref.id,
+          "PROVISIONING_PROFILE_SPECIFIER",
+          &profile_uuid,
+        );
+        pbxproj.set_build_settings(
+          &build_configuration_ref.id,
+          "\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"",
+          &profile_uuid,
+        );
+      }
+    }
+  }
+
+  let build_configuration = {
+    if let Some(xc_configuration_list) = pbxproj
+      .xc_configuration_list
+      .clone()
+      .into_values()
+      .find(|l| l.comment.contains("_iOS"))
+    {
+      let mut configuration = None;
+      let target = if debug { "debug" } else { "release" };
+      for build_configuration_ref in xc_configuration_list.build_configurations {
+        if build_configuration_ref.comments.contains(target) {
+          configuration = pbxproj
+            .xc_build_configuration
+            .get(&build_configuration_ref.id);
+          break;
+        }
+      }
+
+      configuration
+    } else {
+      None
+    }
+  };
+
+  if let Some(build_configuration) = build_configuration {
+    if let Some(style) = build_configuration.get_build_setting("CODE_SIGN_STYLE") {
+      export_options_list.insert(
+        "signingStyle".to_string(),
+        style.value.to_lowercase().into(),
+      );
+    }
+
+    if let Some(identity) = build_configuration
+      .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
+      .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
+    {
+      export_options_list.insert(
+        "signingCertificate".to_string(),
+        identity.value.trim_matches('"').into(),
+      );
+    }
+
+    if let Some(id) = build_configuration
+      .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
+      .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
+    {
+      export_options_list.insert("teamID".to_string(), id.value.trim_matches('"').into());
+    }
+
+    let profile_uuid = project_config
+      .provisioning_profile_uuid
+      .clone()
+      .or_else(|| {
+        build_configuration
+          .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
+          .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
+          .map(|setting| setting.value.trim_matches('"').to_string())
+      });
+    if let Some(profile_uuid) = profile_uuid {
+      let mut provisioning_profiles = plist::Dictionary::new();
+      provisioning_profiles.insert(app.reverse_identifier(), profile_uuid.into());
+      export_options_list.insert(
+        "provisioningProfiles".to_string(),
+        provisioning_profiles.into(),
+      );
+    }
+  }
+
+  Ok(())
 }

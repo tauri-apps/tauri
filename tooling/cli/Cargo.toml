@@ -39,7 +39,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.13.4", default-features = false }
+cargo-mobile2 = { version = "0.13.5", default-features = false }
 jsonrpsee = { version = "0.24", features = [ "server" ] }
 jsonrpsee-core = "0.24"
 jsonrpsee-client-transport = { version = "0.24", features = [ "ws" ] }

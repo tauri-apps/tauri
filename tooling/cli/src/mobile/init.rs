@@ -89,7 +89,11 @@ pub fn exec(
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
-  let app = get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?);
+  let app = get_app(
+    target,
+    tauri_config_,
+    &AppInterface::new(tauri_config_, None)?,
+  );
 
   let (handlebars, mut map) = handlebars(&app);
 

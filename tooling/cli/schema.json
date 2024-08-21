@@ -2033,10 +2033,14 @@
           ]
         },
         "signCommand": {
-          "description": "Specify a custom command to sign the binaries.\n This command needs to have a `%1` in it which is just a placeholder for the binary path,\n which we will detect and replace before calling the command.\n\n Example:\n ```text\n sign-cli --arg1 --arg2 %1\n ```\n\n By Default we use `signtool.exe` which can be found only on Windows so\n if you are on another platform and want to cross-compile and sign you will\n need to use another tool like `osslsigncode`.",
-          "type": [
-            "string",
-            "null"
+          "description": "Specify a custom command to sign the binaries.\n This command needs to have a `%1` in args which is just a placeholder for the binary path,\n which we will detect and replace before calling the command.\n\n By Default we use `signtool.exe` which can be found only on Windows so\n if you are on another platform and want to cross-compile and sign you will\n need to use another tool like `osslsigncode`.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/CustomSignCommandConfig"
+            },
+            {
+              "type": "null"
+            }
           ]
         }
       },
@@ -2422,6 +2426,37 @@
           "enum": [
             "none"
           ]
+        }
+      ]
+    },
+    "CustomSignCommandConfig": {
+      "description": "Custom Signing Command configuration.",
+      "anyOf": [
+        {
+          "description": "A string notation of the script to execute.\n\n \"%1\" will be replaced with the path to the binary to be signed.\n\n This is a simpler notation for the command.\n Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.\n\n If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].",
+          "type": "string"
+        },
+        {
+          "description": "An object notation of the command.\n\n This is more complex notation for the command but\n this allows you to use whitespace in the command and arguments.",
+          "type": "object",
+          "required": [
+            "args",
+            "cmd"
+          ],
+          "properties": {
+            "cmd": {
+              "description": "The command to run to sign the binary.",
+              "type": "string"
+            },
+            "args": {
+              "description": "The arguments to pass to the command.\n\n \"%1\" will be replaced with the path to the binary to be signed.",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false
         }
       ]
     },

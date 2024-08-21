@@ -1,5 +1,22 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### Bug Fixes
+
+- [`da381e07f`](https://www.github.com/tauri-apps/tauri/commit/da381e07f3770988fe6d0859a02331b87cc6723f) ([#10696](https://www.github.com/tauri-apps/tauri/pull/10696) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Implemented `resource_dir` on Android, which returns a URI that needs to be resolved using [AssetManager::open](https://developer.android.com/reference/android/content/res/AssetManager#open\(java.lang.String,%20int\)). This will be handled by the file system plugin.
+- [`da381e07f`](https://www.github.com/tauri-apps/tauri/commit/da381e07f3770988fe6d0859a02331b87cc6723f) ([#10696](https://www.github.com/tauri-apps/tauri/pull/10696) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `resource_dir` on iOS.
+
+## \[2.0.0-rc.4]
+
+### New Features
+
+- [`8d148a9e2`](https://www.github.com/tauri-apps/tauri/commit/8d148a9e2566edebfea2d75f32df7c9396d765a4) ([#10634](https://www.github.com/tauri-apps/tauri/pull/10634) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) Custom sign command with object notation for whitespaces in the command path and arguments.
+
+### Bug Fixes
+
+- [`5c335ae9a`](https://www.github.com/tauri-apps/tauri/commit/5c335ae9ad88e46c2135a557390f6e808c9a6088) ([#10648](https://www.github.com/tauri-apps/tauri/pull/10648) by [@Flakebi](https://www.github.com/tauri-apps/tauri/../../Flakebi)) Prevent build script from rerunning unnecessarily by only writing files when the content changes.
+
 ## \[2.0.0-rc.3]
 
 ### Enhancements

@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "2.0.0-rc.4",
+  "version": "2.0.0-rc.6",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/tauri-apps/tauri.git"
   },
   "contributors": [
-    "Tauri Team <team@tauri-apps.org> (https://tauri.app)"
+    "Tauri Programme within The Commons Conservancy"
   ],
   "license": "Apache-2.0 OR MIT",
   "bugs": {

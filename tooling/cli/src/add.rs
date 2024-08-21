@@ -68,6 +68,8 @@ pub fn run(options: Options) -> Result<()> {
         .then_some(r#"cfg(any(target_os = "android", target_os = "ios"))"#)
     });
 
+  let version = version.or(metadata.version_req.as_deref());
+
   cargo::install_one(cargo::CargoInstallOptions {
     name: &crate_name,
     version,

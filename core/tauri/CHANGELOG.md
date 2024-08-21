@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.5`
+- Upgraded to `tauri-runtime@2.0.0-rc.5`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.5`
+- Upgraded to `tauri-macros@2.0.0-rc.5`
+- Upgraded to `tauri-build@2.0.0-rc.5`
+
+## \[2.0.0-rc.4]
+
+### Enhancements
+
+- [`30c7685eb`](https://www.github.com/tauri-apps/tauri/commit/30c7685eb82c7a1a9af53abdca7d75b1a886cc6e) ([#10295](https://www.github.com/tauri-apps/tauri/pull/10295) by [@liesauer](https://www.github.com/tauri-apps/tauri/../../liesauer)) Added `Builder::append_invoke_initialization_script`.
+- [`ed04cc3d3`](https://www.github.com/tauri-apps/tauri/commit/ed04cc3d36205b277517d052dfd997b6c3cb673d) ([#10664](https://www.github.com/tauri-apps/tauri/pull/10664) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Include more information in the IPC permission error message.
+
+### Bug Fixes
+
+- [`5c335ae9a`](https://www.github.com/tauri-apps/tauri/commit/5c335ae9ad88e46c2135a557390f6e808c9a6088) ([#10648](https://www.github.com/tauri-apps/tauri/pull/10648) by [@Flakebi](https://www.github.com/tauri-apps/tauri/../../Flakebi)) Prevent build script from rerunning unnecessarily by only writing files when the content changes.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-rc.4`
+- Upgraded to `tauri-utils@2.0.0-rc.4`
+- Upgraded to `tauri-runtime@2.0.0-rc.4`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.4`
+- Upgraded to `tauri-macros@2.0.0-rc.4`
+
 ## \[2.0.0-rc.3]
 
 ### Bug Fixes

@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.5`
+- Upgraded to `tauri-codegen@2.0.0-rc.5`
+
+## \[2.0.0-rc.4]
+
+### Bug Fixes
+
+- [`5c335ae9a`](https://www.github.com/tauri-apps/tauri/commit/5c335ae9ad88e46c2135a557390f6e808c9a6088) ([#10648](https://www.github.com/tauri-apps/tauri/pull/10648) by [@Flakebi](https://www.github.com/tauri-apps/tauri/../../Flakebi)) Prevent build script from rerunning unnecessarily by only writing files when the content changes.
+- [`77844529f`](https://www.github.com/tauri-apps/tauri/commit/77844529f323434919ad6581d54cb2d97500cf4d) ([#10678](https://www.github.com/tauri-apps/tauri/pull/10678) by [@Norbiros](https://www.github.com/tauri-apps/tauri/../../Norbiros)) Correctly export `DefaultPermissionsRule`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.4`
+- Upgraded to `tauri-codegen@2.0.0-rc.4`
+
 ## \[2.0.0-rc.3]
 
 ### New Features

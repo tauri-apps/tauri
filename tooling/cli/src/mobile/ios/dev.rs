@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
+  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_resources,
   merge_plist, open_and_wait, MobileTarget,
 };
 use crate::{
@@ -166,6 +166,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       dev_options.features.as_ref(),
       &Default::default(),
     );
+
     (interface, app, config)
   };
 
@@ -178,7 +179,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     config.project_dir(),
     MobileTarget::Ios,
   )?;
-  inject_assets(&config)?;
+  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let info_plist_path = config
     .project_dir()

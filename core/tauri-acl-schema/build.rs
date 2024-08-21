@@ -6,8 +6,7 @@ use std::{error::Error, path::PathBuf};
 
 use schemars::schema_for;
 use tauri_utils::{
-  acl::capability::Capability,
-  acl::{Permission, Scopes},
+  acl::{capability::Capability, Permission, Scopes},
   write_if_changed,
 };
 

@@ -17,6 +17,7 @@ mod env_system;
 mod ios;
 mod packages_nodejs;
 mod packages_rust;
+mod plugins;
 
 #[derive(Deserialize)]
 struct JsCliVersionMetadata {
@@ -289,6 +290,12 @@ pub fn command(options: Options) -> Result<()> {
     .items
     .extend(packages_nodejs::items(app_dir.as_ref(), &metadata));
 
+  let mut plugins = Section {
+    label: "Plugins",
+    interactive,
+    items: plugins::items(app_dir.as_ref(), tauri_dir.as_deref()),
+  };
+
   let mut app = Section {
     label: "App",
     interactive,
@@ -300,6 +307,7 @@ pub fn command(options: Options) -> Result<()> {
 
   environment.display();
   packages.display();
+  plugins.display();
   app.display();
 
   // iOS

@@ -15,7 +15,7 @@ struct YarnVersionInfo {
   data: Vec<String>,
 }
 
-fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
+pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<String>> {
   match pm {
     PackageManager::Yarn => {
       let mut cmd = cross_command("yarn");
@@ -87,21 +87,22 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
   }
 }
 
-fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
+pub fn package_manager(app_dir: &PathBuf) -> PackageManager {
   let mut use_npm = false;
   let mut use_pnpm = false;
   let mut use_yarn = false;
   let mut use_bun = false;
 
-  for name in app_dir_entries {
-    if name.as_ref() == "package-lock.json" {
-      use_npm = true;
-    } else if name.as_ref() == "pnpm-lock.yaml" {
-      use_pnpm = true;
-    } else if name.as_ref() == "yarn.lock" {
-      use_yarn = true;
-    } else if name.as_ref() == "bun.lockb" {
-      use_bun = true;
+  for entry in std::fs::read_dir(app_dir)
+    .unwrap()
+    .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+  {
+    match entry.as_str() {
+      "pnpm-lock.yaml" => use_pnpm = true,
+      "package-lock.json" => use_npm = true,
+      "yarn.lock" => use_yarn = true,
+      "bun.lockb" => use_bun = true,
+      _ => {}
     }
   }
 
@@ -131,11 +132,11 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
   if found.len() > 1 {
     let pkg_manger = found[0];
     println!(
-      "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
-      "WARNING".yellow(),
-      found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
-      pkg_manger
-    );
+          "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
+          "WARNING".yellow(),
+          found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
+          pkg_manger
+        );
     return pkg_manger;
   }
 
@@ -145,28 +146,18 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
     PackageManager::Pnpm
   } else if use_bun {
     PackageManager::Bun
+  } else if manager_version("yarn")
+    .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
+    .unwrap_or(false)
+  {
+    PackageManager::YarnBerry
   } else {
     PackageManager::Yarn
   }
 }
 
 pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<SectionItem> {
-  let mut package_manager = PackageManager::Npm;
-  if let Some(app_dir) = &app_dir {
-    let app_dir_entries = std::fs::read_dir(app_dir)
-      .unwrap()
-      .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-      .collect::<Vec<String>>();
-    package_manager = get_package_manager(&app_dir_entries);
-  }
-
-  if package_manager == PackageManager::Yarn
-    && manager_version("yarn")
-      .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
-      .unwrap_or(false)
-  {
-    package_manager = PackageManager::YarnBerry;
-  }
+  let package_manager = app_dir.map(package_manager).unwrap_or(PackageManager::Npm);
 
   let mut items = Vec::new();
   if let Some(app_dir) = app_dir {
@@ -175,45 +166,54 @@ pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<Secti
       ("@tauri-apps/cli", Some(metadata.js_cli.version.clone())),
     ] {
       let app_dir = app_dir.clone();
-      let item = SectionItem::new().action(move || {
-        let version = version.clone().unwrap_or_else(|| {
-          package_manager
-            .current_package_version(package, &app_dir)
-            .unwrap_or_default()
-            .unwrap_or_default()
-        });
-        let latest_ver = npm_latest_version(&package_manager, package)
-          .unwrap_or_default()
-          .unwrap_or_default();
-
-        if version.is_empty() {
-          format!("{} {}: not installed!", package, "".green())
-        } else {
-          format!(
-            "{} {}: {}{}",
-            package,
-            "[NPM]".dimmed(),
-            version,
-            if !(version.is_empty() || latest_ver.is_empty()) {
-              let version = semver::Version::parse(version.as_str()).unwrap();
-              let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
-
-              if version < target_version {
-                format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
-              } else {
-                "".into()
-              }
-            } else {
-              "".into()
-            }
-          )
-        }
-        .into()
-      });
-
+      let item = nodejs_section_item(package.into(), version, app_dir, package_manager);
       items.push(item);
     }
   }
 
   items
+}
+
+pub fn nodejs_section_item(
+  package: String,
+  version: Option<String>,
+  app_dir: PathBuf,
+  package_manager: PackageManager,
+) -> SectionItem {
+  SectionItem::new().action(move || {
+    let version = version.clone().unwrap_or_else(|| {
+      package_manager
+        .current_package_version(&package, &app_dir)
+        .unwrap_or_default()
+        .unwrap_or_default()
+    });
+
+    let latest_ver = super::packages_nodejs::npm_latest_version(&package_manager, &package)
+      .unwrap_or_default()
+      .unwrap_or_default();
+
+    if version.is_empty() {
+      format!("{} {}: not installed!", package, "".green())
+    } else {
+      format!(
+        "{} {}: {}{}",
+        package,
+        "".dimmed(),
+        version,
+        if !(version.is_empty() || latest_ver.is_empty()) {
+          let version = semver::Version::parse(version.as_str()).unwrap();
+          let target_version = semver::Version::parse(latest_ver.as_str()).unwrap();
+
+          if version < target_version {
+            format!(" ({}, latest: {})", "outdated".yellow(), latest_ver.green())
+          } else {
+            "".into()
+          }
+        } else {
+          "".into()
+        }
+      )
+    }
+    .into()
+  })
 }

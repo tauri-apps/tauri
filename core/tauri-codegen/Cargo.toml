@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 sha2 = "0.10"
-base64 = "0.21"
+base64 = "0.22"
 proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = [ "derive" ] }

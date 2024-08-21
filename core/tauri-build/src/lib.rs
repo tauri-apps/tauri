@@ -476,7 +476,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
     if i == last {
-      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={w}");
+      println!(
+        "cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}",
+        w.replace('-', "_")
+      );
     } else {
       android_package_prefix.push_str(&w.replace(['_', '-'], "_1"));
       android_package_prefix.push('_');

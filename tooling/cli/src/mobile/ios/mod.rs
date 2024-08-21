@@ -362,11 +362,7 @@ pub fn signing_from_env() -> Result<(
       log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
       None
     }
-    (None, Some(_)) => {
-      log::warn!("The IOS_CERTIFICATE_PASSWORD environment variable is set but not IOS_CERTIFICATE. Ignoring the certificate...");
-      None
-    }
-    (None, None) => None,
+    _ => None,
   };
 
   let provisioning_profile = if let Some(provisioning_profile) = var_os("IOS_MOBILE_PROVISION") {

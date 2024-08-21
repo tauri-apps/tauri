@@ -7,8 +7,8 @@
 //! Interface for building Tauri plugins.
 
 #![doc(
-  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
-  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 

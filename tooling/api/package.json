@@ -54,7 +54,6 @@
     "eslint-plugin-security": "3.0.1",
     "fast-glob": "3.3.2",
     "globals": "^15.4.0",
-    "prettier": "3.3.3",
     "rollup": "4.20.0",
     "tslib": "^2.6.3",
     "typescript": "^5.4.5",

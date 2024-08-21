@@ -248,12 +248,18 @@ fn read_options(identifier: &str) -> CliOptions {
   options
 }
 
-pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
+pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
   let identifier = config
     .identifier
     .rsplit('.')
     .collect::<Vec<&str>>()
     .join(".");
+
+  let identifier = match target {
+    Target::Android => identifier.replace('-', "_"),
+    #[cfg(target_os = "macos")]
+    Target::Ios => identifier.replace('_', "-"),
+  };
 
   if identifier.is_empty() {
     log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
@@ -318,7 +324,7 @@ fn ensure_init(
     Target::Android => {
       let java_folder = project_dir
         .join("app/src/main/java")
-        .join(tauri_config_.identifier.replace('.', "/"));
+        .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
       if !java_folder.exists() {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
@@ -330,7 +336,7 @@ fn ensure_init(
         .context("missing project.yml file in the Xcode project directory")?;
       if !project_yml.contains(&format!(
         "PRODUCT_BUNDLE_IDENTIFIER: {}",
-        tauri_config_.identifier
+        tauri_config_.identifier.replace('_', "-")
       )) {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");

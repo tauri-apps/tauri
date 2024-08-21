@@ -81,7 +81,11 @@ pub fn command(options: Options) -> Result<()> {
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
     let cli_options = read_options(&tauri_config_.identifier);
     let (config, metadata) = get_config(
-      &get_app(tauri_config_, &AppInterface::new(tauri_config_, None)?),
+      &get_app(
+        MobileTarget::Ios,
+        tauri_config_,
+        &AppInterface::new(tauri_config_, None)?,
+      ),
       tauri_config_,
       None,
       &cli_options,

@@ -266,6 +266,11 @@ pub fn command(options: Options) -> Result<()> {
     crate::helpers::app_paths::resolve();
   }
 
+  let package_manager = app_dir
+    .as_ref()
+    .map(packages_nodejs::package_manager)
+    .unwrap_or(crate::helpers::npm::PackageManager::Npm);
+
   let metadata = version_metadata()?;
 
   let mut environment = Section {
@@ -286,14 +291,16 @@ pub fn command(options: Options) -> Result<()> {
   packages
     .items
     .extend(packages_rust::items(app_dir.as_ref(), tauri_dir.as_deref()));
-  packages
-    .items
-    .extend(packages_nodejs::items(app_dir.as_ref(), &metadata));
+  packages.items.extend(packages_nodejs::items(
+    app_dir.as_ref(),
+    package_manager,
+    &metadata,
+  ));
 
   let mut plugins = Section {
     label: "Plugins",
     interactive,
-    items: plugins::items(app_dir.as_ref(), tauri_dir.as_deref()),
+    items: plugins::items(app_dir.as_ref(), tauri_dir.as_deref(), package_manager),
   };
 
   let mut app = Section {

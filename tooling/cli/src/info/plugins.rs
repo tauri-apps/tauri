@@ -11,13 +11,18 @@ use crate::{
   helpers::{
     self,
     cargo_manifest::{crate_version, CargoLock, CargoManifest},
+    npm::PackageManager,
   },
   interface::rust::get_workspace_dir,
 };
 
 use super::{packages_nodejs, packages_rust, SectionItem};
 
-pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
+pub fn items(
+  app_dir: Option<&PathBuf>,
+  tauri_dir: Option<&Path>,
+  package_manager: PackageManager,
+) -> Vec<SectionItem> {
   let mut items = Vec::new();
 
   if tauri_dir.is_some() || app_dir.is_some() {
@@ -43,12 +48,14 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
         let item = packages_rust::rust_section_item(&dep, crate_version);
         items.push(item);
 
-        let Some(app_dir) = app_dir else { continue };
-        let app_dir = app_dir.clone();
+        let Some(app_dir) = app_dir else {
+          continue;
+        };
 
         let package = format!("@tauri-apps/plugin-{p}");
-        let package_manager = packages_nodejs::package_manager(&app_dir);
-        let item = packages_nodejs::nodejs_section_item(package, None, app_dir, package_manager);
+
+        let item =
+          packages_nodejs::nodejs_section_item(package, None, app_dir.clone(), package_manager);
         items.push(item);
       }
     }

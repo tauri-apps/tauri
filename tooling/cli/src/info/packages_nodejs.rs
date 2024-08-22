@@ -156,9 +156,11 @@ pub fn package_manager(app_dir: &PathBuf) -> PackageManager {
   }
 }
 
-pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<SectionItem> {
-  let package_manager = app_dir.map(package_manager).unwrap_or(PackageManager::Npm);
-
+pub fn items(
+  app_dir: Option<&PathBuf>,
+  package_manager: PackageManager,
+  metadata: &VersionMetadata,
+) -> Vec<SectionItem> {
   let mut items = Vec::new();
   if let Some(app_dir) = app_dir {
     for (package, version) in [

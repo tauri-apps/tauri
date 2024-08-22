@@ -19,5 +19,12 @@
   "devDependencies": {
     "prettier": "^3.3.2"
   },
-  "packageManager": "pnpm@9.7.1"
+  "packageManager": "pnpm@9.7.1",
+  "pnpm": {
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2024-4067"
+      ]
+    }
+  }
 }

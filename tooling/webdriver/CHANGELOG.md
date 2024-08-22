@@ -1,5 +1,15 @@
 # Changelog
 
+## \[0.1.5]
+
+### Bug Fixes
+
+- [`5f64ed2b7`](https://www.github.com/tauri-apps/tauri/commit/5f64ed2b78201b7e379b6234f7a799d9695b11d7) ([#10738](https://www.github.com/tauri-apps/tauri/pull/10738) by [@chippers](https://www.github.com/tauri-apps/tauri/../../chippers)) support both 1.x and 2.x automation env vars in `tauri-driver`
+
+### What's Changed
+
+- [`f4d5241b3`](https://www.github.com/tauri-apps/tauri/commit/f4d5241b377d0f7a1b58100ee19f7843384634ac) ([#10731](https://www.github.com/tauri-apps/tauri/pull/10731) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Update documentation icon path.
+
 ## \[0.1.4]
 
 ### New Features

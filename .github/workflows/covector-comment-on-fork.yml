@@ -27,4 +27,4 @@ jobs:
         uses: jbolda/covector/packages/action@covector-v0
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          command: "status"
+          command: 'status'

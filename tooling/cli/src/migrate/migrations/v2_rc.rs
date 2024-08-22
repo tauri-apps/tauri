@@ -24,7 +24,7 @@ pub fn run() -> Result<()> {
   let (mut manifest, _) = read_manifest(&manifest_path)?;
   migrate_manifest(&mut manifest)?;
 
-  migrate_permissions(&tauri_dir)?;
+  migrate_permissions(tauri_dir)?;
 
   migrate_npm_dependencies(app_dir)?;
 
@@ -74,7 +74,7 @@ fn migrate_npm_dependencies(app_dir: &Path) -> Result<()> {
       .current_package_version(pkg, app_dir)
       .unwrap_or_default()
       .unwrap_or_default();
-    if version.starts_with("1") {
+    if version.starts_with('1') {
       install_deps.push(format!("{pkg}@^2.0.0-rc.0"));
     }
   }

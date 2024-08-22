@@ -8,7 +8,7 @@ use std::{
   process::Command,
 };
 
-use crate::assert_command;
+use crate::{assert_command, CommandExt};
 use anyhow::Result;
 use rand::distributions::{Alphanumeric, DistString};
 
@@ -33,7 +33,7 @@ impl Drop for Keychain {
       let _ = Command::new("security")
         .arg("delete-keychain")
         .arg(path)
-        .status();
+        .piped();
     }
   }
 }
@@ -77,7 +77,7 @@ impl Keychain {
       Command::new("security")
         .args(["create-keychain", "-p", &keychain_password])
         .arg(&keychain_path)
-        .status(),
+        .piped(),
       "failed to create keychain",
     )?;
 
@@ -85,7 +85,7 @@ impl Keychain {
       Command::new("security")
         .args(["unlock-keychain", "-p", &keychain_password])
         .arg(&keychain_path)
-        .status(),
+        .piped(),
       "failed to set unlock keychain",
     )?;
 
@@ -105,7 +105,7 @@ impl Keychain {
         ])
         .arg("-k")
         .arg(&keychain_path)
-        .status(),
+        .piped(),
       "failed to import keychain certificate",
     )?;
 
@@ -113,7 +113,7 @@ impl Keychain {
       Command::new("security")
         .args(["set-keychain-settings", "-t", "3600", "-u"])
         .arg(&keychain_path)
-        .status(),
+        .piped(),
       "failed to set keychain settings",
     )?;
 
@@ -128,7 +128,7 @@ impl Keychain {
           &keychain_password,
         ])
         .arg(&keychain_path)
-        .status(),
+        .piped(),
       "failed to set keychain settings",
     )?;
 
@@ -147,7 +147,7 @@ impl Keychain {
         .args(["list-keychain", "-d", "user", "-s"])
         .args(current_keychains)
         .arg(&keychain_path)
-        .status(),
+        .piped(),
       "failed to list keychain",
     )?;
 
@@ -209,7 +209,7 @@ impl Keychain {
 
     codesign.arg(path);
 
-    assert_command(codesign.status(), "failed to sign app")?;
+    assert_command(codesign.piped(), "failed to sign app")?;
 
     Ok(())
   }

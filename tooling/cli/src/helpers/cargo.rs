@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{path::Path, process::Command};
+use std::process::Command;
 
 use anyhow::Context;
 
@@ -15,37 +15,6 @@ pub struct CargoInstallOptions<'a> {
   pub branch: Option<&'a str>,
   pub cwd: Option<&'a std::path::Path>,
   pub target: Option<&'a str>,
-}
-
-pub fn install(dependencies: &[String], cwd: Option<&Path>) -> crate::Result<()> {
-  let dependencies_str = if dependencies.len() > 1 {
-    "dependencies"
-  } else {
-    "dependency"
-  };
-  log::info!(
-    "Installing Cargo {dependencies_str} {}...",
-    dependencies
-      .iter()
-      .map(|d| format!("\"{d}\""))
-      .collect::<Vec<_>>()
-      .join(", ")
-  );
-
-  let mut cmd = Command::new("cargo");
-  cmd.arg("add").args(dependencies);
-
-  if let Some(cwd) = cwd {
-    cmd.current_dir(cwd);
-  }
-
-  let status = cmd.status().with_context(|| "failed to run cargo")?;
-
-  if !status.success() {
-    anyhow::bail!("Failed to install Cargo {dependencies_str}");
-  }
-
-  Ok(())
 }
 
 pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {

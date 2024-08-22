@@ -1,5 +1,49 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.5`
+- Upgraded to `tauri-codegen@2.0.0-rc.5`
+
+## \[2.0.0-rc.4]
+
+### Bug Fixes
+
+- [`5c335ae9a`](https://www.github.com/tauri-apps/tauri/commit/5c335ae9ad88e46c2135a557390f6e808c9a6088) ([#10648](https://www.github.com/tauri-apps/tauri/pull/10648) by [@Flakebi](https://www.github.com/tauri-apps/tauri/../../Flakebi)) Prevent build script from rerunning unnecessarily by only writing files when the content changes.
+- [`77844529f`](https://www.github.com/tauri-apps/tauri/commit/77844529f323434919ad6581d54cb2d97500cf4d) ([#10678](https://www.github.com/tauri-apps/tauri/pull/10678) by [@Norbiros](https://www.github.com/tauri-apps/tauri/../../Norbiros)) Correctly export `DefaultPermissionsRule`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.4`
+- Upgraded to `tauri-codegen@2.0.0-rc.4`
+
+## \[2.0.0-rc.3]
+
+### New Features
+
+- [`0bb7b0f35`](https://www.github.com/tauri-apps/tauri/commit/0bb7b0f352960fb5111a40157c0953d19e76f1fd) ([#10559](https://www.github.com/tauri-apps/tauri/pull/10559) by [@Norbiros](https://www.github.com/tauri-apps/tauri/../../Norbiros)) Added `InlinedPlugin::default_permission` to autogenerate the default permission of an inlined plugin.
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@2.0.0-rc.3`
+- Upgraded to `tauri-utils@2.0.0-rc.3`
+
+## \[2.0.0-rc.2]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.2`
+- Upgraded to `tauri-codegen@2.0.0-rc.2`
+
+## \[2.0.0-rc.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.1`
+- Upgraded to `tauri-codegen@2.0.0-rc.1`
+
 ## \[2.0.0-rc.0]
 
 ### Dependencies

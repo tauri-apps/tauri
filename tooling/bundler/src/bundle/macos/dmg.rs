@@ -186,13 +186,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   fs::rename(bundle_dir.join(dmg_name), dmg_path.clone())?;
 
   // Sign DMG if needed
-  if let Some(identity) = &settings.macos().signing_identity {
+
+  if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
     super::sign::sign(
+      &keychain,
       vec![super::sign::SignTarget {
         path: dmg_path.clone(),
         is_an_executable: false,
       }],
-      identity,
       settings,
     )?;
   }

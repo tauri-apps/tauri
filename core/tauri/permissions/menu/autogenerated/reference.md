@@ -25,7 +25,7 @@ Default permissions for the plugin.
 - `allow-set-checked`
 - `allow-set-icon`
 
-### Permission Table 
+## Permission Table 
 
 <table>
 <tr>

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_assets,
+  configure_cargo, delete_codegen_vars, ensure_init, env, get_app, get_config, inject_resources,
   log_finished, open_and_wait, MobileTarget, OptionsHandle,
 };
 use crate::{
@@ -86,6 +86,8 @@ impl From<Options> for BuildOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   delete_codegen_vars();
 
   let mut build_options: BuildOptions = options.clone().into();
@@ -112,7 +114,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(tauri_config_, &interface);
+    let app = get_app(MobileTarget::Android, tauri_config_, &interface);
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
@@ -131,7 +133,12 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let tauri_path = tauri_dir();
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  ensure_init(config.project_dir(), MobileTarget::Android)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Android,
+  )?;
 
   let mut env = env()?;
   configure_cargo(&app, Some((&mut env, &config)))?;
@@ -194,13 +201,15 @@ fn run_build(
     args: build_options.args.clone(),
     noise_level,
     vars: Default::default(),
+    config: build_options.config.clone(),
+    target_device: None,
   };
   let handle = write_options(
     &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
     cli_options,
   )?;
 
-  inject_assets(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
+  inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let apk_outputs = if options.apk {
     apk::build(

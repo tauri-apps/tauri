@@ -58,6 +58,8 @@ pub struct Options {
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let ci = options.ci;
 
   let target = options

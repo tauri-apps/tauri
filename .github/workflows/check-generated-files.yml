@@ -39,7 +39,6 @@ jobs:
               - 'core/tauri-config-schema/schema.json'
               - 'core/tauri-acl-schema/*.json'
 
-
   api:
     runs-on: ubuntu-latest
     needs: changes
@@ -49,7 +48,7 @@ jobs:
 
       - name: build api
         working-directory: tooling/api
-        run: yarn && yarn build
+        run: pnpm i --frozen-lockfile && pnpm build
       - name: check api
         run: ./.scripts/ci/has-diff.sh
 

@@ -23,6 +23,8 @@ jobs:
         with:
           fetch-depth: 0
 
+      - run: corepack enable
+
       - name: install stable
         uses: dtolnay/rust-toolchain@stable
 
@@ -48,13 +50,18 @@ jobs:
         timeout-minutes: 30
         run: |
           cd ./tooling/cli/node
-          yarn
-          yarn build
-          yarn test
+          pnpm i --frozen-lockfile
+          pnpm build
+          pnpm test
 
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
+    permissions:
+      actions: write # required for workflow_dispatch
+      contents: write # required to create new releases
+      pull-requests: write # required to open version update pr
+      id-token: write # pnpm provenance
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -66,12 +73,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v3
+      - run: corepack enable
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
           registry-url: 'https://registry.npmjs.org'
-          cache: yarn
-          cache-dependency-path: tooling/*/yarn.lock
+          cache: 'pnpm'
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
@@ -80,12 +87,18 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
 
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+          NPM_CONFIG_PROVENANCE: true
         with:
           command: 'version-or-publish'
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -119,7 +132,7 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
         run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
         env:
-          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
@@ -127,4 +140,4 @@ jobs:
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
         run: gh workflow run 31554139 -r dev
         env:
-          GH_TOKEN: ${{ secrets.ORG_TAURI_BOT_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

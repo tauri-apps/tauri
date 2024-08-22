@@ -3,9 +3,15 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  helpers::{app_paths::tauri_dir, config::Config as TauriConfig},
+  helpers::{
+    app_paths::tauri_dir,
+    config::{Config as TauriConfig, ConfigHandle},
+  },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
+  ConfigValue,
 };
+#[cfg(target_os = "macos")]
+use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
@@ -130,12 +136,20 @@ impl Target {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TargetDevice {
+  id: String,
+  name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliOptions {
   pub dev: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
+  pub config: Option<ConfigValue>,
+  pub target_device: Option<TargetDevice>,
 }
 
 impl Default for CliOptions {
@@ -146,6 +160,8 @@ impl Default for CliOptions {
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),
+      config: None,
+      target_device: None,
     }
   }
 }
@@ -186,7 +202,7 @@ pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result
     let addr = server.local_addr()?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _| Some(options.clone()))?;
+    module.register_method("options", move |_, _, _| Some(options.clone()))?;
 
     let handle = server.start(module);
 
@@ -232,12 +248,18 @@ fn read_options(identifier: &str) -> CliOptions {
   options
 }
 
-pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
+pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
   let identifier = config
     .identifier
     .rsplit('.')
     .collect::<Vec<&str>>()
     .join(".");
+
+  let identifier = match target {
+    Target::Android => identifier.replace('-', "_"),
+    #[cfg(target_os = "macos")]
+    Target::Ios => identifier.replace('_', "-"),
+  };
 
   if identifier.is_empty() {
     log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
@@ -263,7 +285,7 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
   };
 
   let app_settings = interface.app_settings();
-  App::from_raw(tauri_dir(), raw)
+  App::from_raw(tauri_dir().to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
       let bin_path = app_settings
@@ -277,7 +299,13 @@ pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
     })
 }
 
-fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
+#[allow(unused_variables)]
+fn ensure_init(
+  tauri_config: &ConfigHandle,
+  app: &App,
+  project_dir: PathBuf,
+  target: Target,
+) -> Result<()> {
   if !project_dir.exists() {
     bail!(
       "{} project directory {} doesn't exist. Please run `tauri {} init` and try again.",
@@ -286,6 +314,51 @@ fn ensure_init(project_dir: PathBuf, target: Target) -> Result<()> {
       target.command_name(),
     )
   }
+
+  let tauri_config_guard = tauri_config.lock().unwrap();
+  let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+
+  let mut project_outdated_reasons = Vec::new();
+
+  match target {
+    Target::Android => {
+      let java_folder = project_dir
+        .join("app/src/main/java")
+        .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
+      if !java_folder.exists() {
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
+      }
+    }
+    #[cfg(target_os = "macos")]
+    Target::Ios => {
+      let project_yml = read_to_string(project_dir.join("project.yml"))
+        .context("missing project.yml file in the Xcode project directory")?;
+      if !project_yml.contains(&format!(
+        "PRODUCT_BUNDLE_IDENTIFIER: {}",
+        tauri_config_.identifier.replace('_', "-")
+      )) {
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
+      }
+
+      println!("{}", app.lib_name());
+      if !project_yml.contains(&format!("framework: lib{}.a", app.lib_name())) {
+        project_outdated_reasons
+          .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
+      }
+    }
+  }
+
+  if !project_outdated_reasons.is_empty() {
+    let reason = project_outdated_reasons.join(" and ");
+    bail!(
+        "{} project directory is outdated because {reason}. Please run `tauri {} init` and try again.",
+        target.ide_name(),
+        target.command_name(),
+      )
+  }
+
   Ok(())
 }
 

@@ -47,7 +47,7 @@
     algorithm.name = 'AES-GCM'
     algorithm.iv = window.crypto.getRandomValues(new Uint8Array(12))
 
-    const {contentType, data} = __RAW_process_ipc_message_fn__(payload)
+    const { contentType, data } = __RAW_process_ipc_message_fn__(payload)
 
     const message =
       typeof data === 'string'
@@ -149,6 +149,6 @@
   }
 
   setTimeout(waitUntilReady, readyIntervalMs)
-
-  document.currentScript.remove()
 })()
+
+document.currentScript?.remove()

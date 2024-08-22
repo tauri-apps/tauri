@@ -21,7 +21,10 @@ function isMusl() {
   // For Node 10
   if (!process.report || typeof process.report.getReport !== 'function') {
     try {
-      const lddPath = require('child_process').execSync('which ldd').toString().trim()
+      const lddPath = require('child_process')
+        .execSync('which ldd')
+        .toString()
+        .trim()
       return readFileSync(lddPath, 'utf8').includes('musl')
     } catch (e) {
       return true
@@ -48,7 +51,9 @@ switch (platform) {
         }
         break
       case 'arm':
-        localFileExisted = existsSync(join(__dirname, 'cli.android-arm-eabi.node'))
+        localFileExisted = existsSync(
+          join(__dirname, 'cli.android-arm-eabi.node')
+        )
         try {
           if (localFileExisted) {
             nativeBinding = require('./cli.android-arm-eabi.node')
@@ -135,9 +140,7 @@ switch (platform) {
         }
         break
       case 'arm64':
-        localFileExisted = existsSync(
-          join(__dirname, 'cli.darwin-arm64.node')
-        )
+        localFileExisted = existsSync(join(__dirname, 'cli.darwin-arm64.node'))
         try {
           if (localFileExisted) {
             nativeBinding = require('./cli.darwin-arm64.node')

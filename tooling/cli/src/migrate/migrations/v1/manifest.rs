@@ -8,9 +8,8 @@ use crate::{
 };
 
 use anyhow::Context;
-use itertools::Itertools;
 use tauri_utils_v1::config::Allowlist;
-use toml_edit::{Document, Entry, Item, Table, TableLike, Value};
+use toml_edit::{Document, Entry, Item, TableLike, Value};
 
 use std::path::Path;
 
@@ -30,23 +29,63 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
 fn migrate_manifest(manifest: &mut Document) -> Result<()> {
   let version = dependency_version();
 
-  let dependencies = manifest
-    .as_table_mut()
-    .entry("dependencies")
-    .or_insert(Item::Table(Table::new()))
-    .as_table_mut()
-    .context("manifest dependencies isn't a table")?;
+  let remove_features = features_to_remove();
+  let rename_features = features_to_rename();
+  let rename_message = rename_features
+    .iter()
+    .map(|(from, to)| format!("{from} to {to}"))
+    .collect::<Vec<_>>()
+    .join(", ");
 
-  migrate_dependency(dependencies, "tauri", &version, &features_to_remove());
+  for (dependency, table) in [
+    // normal deps
+    ("tauri", "dependencies"),
+    ("tauri-utils", "dependencies"),
+    ("tauri-runtime", "dependencies"),
+    ("tauri-codegen", "dependencies"),
+    ("tauri-macros", "dependencies"),
+    ("tauri-runtime-wry", "dependencies"),
+    // normal deps - plugins
+    ("tauri-plugin-authenticator", "dependencies"),
+    ("tauri-plugin-autostart", "dependencies"),
+    ("tauri-plugin-fs-extra", "dependencies"),
+    ("tauri-plugin-fs-watch", "dependencies"),
+    ("tauri-plugin-localhost", "dependencies"),
+    ("tauri-plugin-log", "dependencies"),
+    ("tauri-plugin-persisted-scope", "dependencies"),
+    ("tauri-plugin-positioner", "dependencies"),
+    ("tauri-plugin-single-instance", "dependencies"),
+    ("tauri-plugin-sql", "dependencies"),
+    ("tauri-plugin-store", "dependencies"),
+    ("tauri-plugin-stronghold", "dependencies"),
+    ("tauri-plugin-upload", "dependencies"),
+    ("tauri-plugin-websocket", "dependencies"),
+    ("tauri-plugin-window-state", "dependencies"),
+    // dev
+    ("tauri", "dev-dependencies"),
+    ("tauri-utils", "dev-dependencies"),
+    ("tauri-runtime", "dev-dependencies"),
+    ("tauri-codegen", "dev-dependencies"),
+    ("tauri-macros", "dev-dependencies"),
+    ("tauri-runtime-wry", "dev-dependencies"),
+    // build
+    ("tauri-build", "build-dependencies"),
+  ] {
+    let items = find_dependency(manifest, dependency, table);
 
-  let build_dependencies = manifest
-    .as_table_mut()
-    .entry("build-dependencies")
-    .or_insert(Item::Table(Table::new()))
-    .as_table_mut()
-    .context("manifest build-dependencies isn't a table")?;
-
-  migrate_dependency(build_dependencies, "tauri-build", &version, &[]);
+    for item in items {
+      // do not rewrite if dependency uses workspace inheritance
+      if item
+        .get("workspace")
+        .and_then(|v| v.as_bool())
+        .unwrap_or_default()
+      {
+        log::warn!("`{dependency}` dependency has workspace inheritance enabled. This migration must be manually migrated to v2 by changing its version to {version}, removing any of the {remove_features:?} and renaming [{}] Cargo features.", rename_message);
+      } else {
+        migrate_dependency(item, &version, &remove_features, &rename_features);
+      }
+    }
+  }
 
   if let Some(lib) = manifest
     .as_table_mut()
@@ -82,15 +121,66 @@ fn migrate_manifest(manifest: &mut Document) -> Result<()> {
   Ok(())
 }
 
+fn find_dependency<'a>(
+  manifest: &'a mut Document,
+  name: &'a str,
+  table: &'a str,
+) -> Vec<&'a mut Item> {
+  let m = manifest.as_table_mut();
+  for (k, v) in m.iter_mut() {
+    if let Some(t) = v.as_table_mut() {
+      if k == table {
+        if let Some(item) = t.get_mut(name) {
+          return vec![item];
+        }
+      } else if k == "target" {
+        let mut matching_deps = Vec::new();
+        for (_, target_value) in t.iter_mut() {
+          if let Some(target_table) = target_value.as_table_mut() {
+            if let Some(deps) = target_table.get_mut(table) {
+              if let Some(item) = deps.as_table_mut().and_then(|t| t.get_mut(name)) {
+                matching_deps.push(item);
+              }
+            }
+          }
+        }
+        return matching_deps;
+      }
+    }
+  }
+
+  Vec::new()
+}
+
+fn features_to_rename() -> Vec<(&'static str, &'static str)> {
+  vec![
+    ("window-data-url", "webview-data-url"),
+    ("reqwest-native-tls-vendored", "native-tls-vendored"),
+    ("system-tray", "tray-icon"),
+    ("icon-ico", "image-ico"),
+    ("icon-png", "image-png"),
+  ]
+}
+
 fn features_to_remove() -> Vec<&'static str> {
   let mut features_to_remove = tauri_utils_v1::config::AllowlistConfig::all_features();
-  features_to_remove.push("reqwest-client");
-  features_to_remove.push("reqwest-native-tls-vendored");
-  features_to_remove.push("process-command-api");
-  features_to_remove.push("shell-open-api");
-  features_to_remove.push("windows7-compat");
-  features_to_remove.push("updater");
-  features_to_remove.push("system-tray");
+  features_to_remove.extend(&[
+    "reqwest-client",
+    "http-multipart",
+    "process-command-api",
+    "shell-open-api",
+    "os-api",
+    "global-shortcut",
+    "clipboard",
+    "dialog",
+    "notification",
+    "fs-extract-api",
+    "windows7-compat",
+    "updater",
+    "cli",
+    "linux-protocol-headers",
+    "dox",
+  ]);
 
   // this allowlist feature was not removed
   let index = features_to_remove
@@ -108,38 +198,33 @@ fn dependency_version() -> String {
     env!("CARGO_PKG_VERSION_MAJOR").to_string()
   } else {
     format!(
-      "{}.{}.{}-{}",
+      "{}.0.0-{}",
       env!("CARGO_PKG_VERSION_MAJOR"),
-      env!("CARGO_PKG_VERSION_MINOR"),
-      env!("CARGO_PKG_VERSION_PATCH"),
       pre.split('.').next().unwrap()
     )
   }
 }
 
-fn migrate_dependency(dependencies: &mut Table, name: &str, version: &str, remove: &[&str]) {
-  let item = dependencies.entry(name).or_insert(Item::None);
-
-  // do not rewrite if dependency uses workspace inheritance
-  if item
-    .get("workspace")
-    .and_then(|v| v.as_bool())
-    .unwrap_or_default()
-  {
-    log::info!("`{name}` dependency has workspace inheritance enabled. The features array won't be automatically rewritten. Remove features: [{}]", remove.iter().join(", "));
-    return;
-  }
-
+fn migrate_dependency(item: &mut Item, version: &str, remove: &[&str], rename: &[(&str, &str)]) {
   if let Some(dep) = item.as_table_mut() {
-    migrate_dependency_table(dep, version, remove);
+    migrate_dependency_table(dep, version, remove, rename);
   } else if let Some(Value::InlineTable(table)) = item.as_value_mut() {
-    migrate_dependency_table(table, version, remove);
+    migrate_dependency_table(table, version, remove, rename);
   } else if item.as_str().is_some() {
     *item = Item::Value(version.into());
   }
 }
 
-fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: &str, remove: &[&str]) {
+fn migrate_dependency_table<D: TableLike>(
+  dep: &mut D,
+  version: &str,
+  remove: &[&str],
+  rename: &[(&str, &str)],
+) {
+  dep.remove("rev");
+  dep.remove("git");
+  dep.remove("branch");
+  dep.remove("tag");
   *dep.entry("version").or_insert(Item::None) = Item::Value(version.into());
   let manifest_features = dep.entry("features").or_insert(Item::None);
   if let Some(features_array) = manifest_features.as_array_mut() {
@@ -150,19 +235,17 @@ fn migrate_dependency_table<D: TableLike>(dep: &mut D, version: &str, remove: &[
       let index = i - 1;
       if let Some(f) = features_array.get(index).and_then(|f| f.as_str()) {
         if remove.contains(&f) {
-          let f = f.to_string();
           features_array.remove(index);
-          if f == "reqwest-native-tls-vendored" {
-            add_features.push("native-tls-vendored");
-          } else if f == "system-tray" {
-            add_features.push("tray-icon");
-          }
+        } else if let Some((_from, rename_to)) = rename.iter().find(|(from, _to)| *from == f) {
+          features_array.remove(index);
+          add_features.push(rename_to);
         }
       }
       i -= 1;
     }
+
     for f in add_features {
-      features_array.push(f);
+      features_array.push(f.to_string());
     }
   }
 }

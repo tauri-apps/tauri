@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::bundle::settings::CustomSignCommandSettings;
 #[cfg(windows)]
 use crate::bundle::windows::util;
 use crate::{bundle::common::CommandExt, Settings};
-use anyhow::Context;
 #[cfg(windows)]
 use std::path::PathBuf;
 #[cfg(windows)]
@@ -50,7 +50,7 @@ pub struct SignParams {
   pub certificate_thumbprint: String,
   pub timestamp_url: Option<String>,
   pub tsp: bool,
-  pub sign_command: Option<String>,
+  pub sign_command: Option<CustomSignCommandSettings>,
 }
 
 #[cfg(windows)]
@@ -59,6 +59,10 @@ fn signtool() -> Option<PathBuf> {
   static SIGN_TOOL: OnceLock<crate::Result<PathBuf>> = OnceLock::new();
   SIGN_TOOL
     .get_or_init(|| {
+      if let Some(signtool) = std::env::var_os("TAURI_WINDOWS_SIGNTOOL_PATH") {
+        return Ok(PathBuf::from(signtool));
+      }
+
       const INSTALLED_ROOTS_REGKEY_PATH: &str = r"SOFTWARE\Microsoft\Windows Kits\Installed Roots";
       const KITS_ROOT_REGVALUE_NAME: &str = r"KitsRoot10";
 
@@ -132,16 +136,14 @@ pub fn verify(path: &Path) -> crate::Result<bool> {
   Ok(cmd.status()?.success())
 }
 
-pub fn sign_command_custom<P: AsRef<Path>>(path: P, command: &str) -> crate::Result<Command> {
+pub fn sign_command_custom<P: AsRef<Path>>(
+  path: P,
+  command: &CustomSignCommandSettings,
+) -> crate::Result<Command> {
   let path = path.as_ref();
 
-  let mut args = command.trim().split(' ');
-  let bin = args
-    .next()
-    .context("custom signing command doesn't contain a bin?")?;
-
-  let mut cmd = Command::new(bin);
-  for arg in args {
+  let mut cmd = Command::new(&command.cmd);
+  for arg in &command.args {
     if arg == "%1" {
       cmd.arg(path);
     } else {
@@ -190,7 +192,10 @@ pub fn sign_command<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
   }
 }
 
-pub fn sign_custom<P: AsRef<Path>>(path: P, custom_command: &str) -> crate::Result<()> {
+pub fn sign_custom<P: AsRef<Path>>(
+  path: P,
+  custom_command: &CustomSignCommandSettings,
+) -> crate::Result<()> {
   let path = path.as_ref();
 
   log::info!(action = "Signing";"{} with a custom signing command", tauri_utils::display_path(path));

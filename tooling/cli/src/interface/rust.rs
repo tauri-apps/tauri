@@ -40,6 +40,7 @@ mod cargo_config;
 mod desktop;
 pub mod installation;
 pub mod manifest;
+use crate::helpers::config::custom_sign_settings;
 use cargo_config::Config as CargoConfig;
 use manifest::{rewrite_manifest, Manifest};
 
@@ -148,6 +149,11 @@ impl Interface for Rust {
     if let Some(minimum_system_version) = &config.bundle.macos.minimum_system_version {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
+
+    std::env::set_var(
+      "IPHONEOS_DEPLOYMENT_TARGET",
+      &config.bundle.ios.minimum_system_version,
+    );
 
     let app_settings = RustAppSettings::new(config, manifest, target)?;
 
@@ -855,7 +861,12 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let bin_name = self.cargo_package_settings().name.clone();
+    let binaries = self.get_binaries(&self.target_triple)?;
+    let bin_name = binaries
+      .iter()
+      .find(|x| x.main())
+      .expect("failed to find main binary")
+      .name();
 
     let out_dir = self
       .out_dir(options)
@@ -895,7 +906,7 @@ impl AppSettings for RustAppSettings {
       }
     }
 
-    let mut bins_path = tauri_dir();
+    let mut bins_path = tauri_dir().to_path_buf();
     bins_path.push("src/bin");
     if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
       for entry in fs_bins {
@@ -967,7 +978,7 @@ impl AppSettings for RustAppSettings {
 impl RustAppSettings {
   pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let cargo_settings =
-      CargoSettings::load(&tauri_dir()).with_context(|| "failed to load cargo settings")?;
+      CargoSettings::load(tauri_dir()).with_context(|| "failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
@@ -1041,7 +1052,7 @@ impl RustAppSettings {
       default_run: cargo_package_settings.default_run.clone(),
     };
 
-    let cargo_config = CargoConfig::load(&tauri_dir())?;
+    let cargo_config = CargoConfig::load(tauri_dir())?;
 
     let target_triple = target.unwrap_or_else(|| {
       cargo_config
@@ -1075,10 +1086,6 @@ impl RustAppSettings {
       target_triple,
       target,
     })
-  }
-
-  pub fn cargo_package_settings(&self) -> &CargoPackageSettings {
-    &self.cargo_package_settings
   }
 
   fn target<'a>(&'a self, options: &'a Options) -> Option<&'a str> {
@@ -1418,7 +1425,7 @@ fn tauri_config_to_bundle_settings(
       webview_install_mode: config.windows.webview_install_mode,
       webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
-      sign_command: config.windows.sign_command,
+      sign_command: config.windows.sign_command.map(custom_sign_settings),
     },
     license: config.license.or_else(|| {
       settings
@@ -1576,6 +1583,7 @@ mod tests {
 
   #[test]
   fn parse_target_dir_from_opts() {
+    crate::helpers::app_paths::resolve();
     let current_dir = std::env::current_dir().unwrap();
 
     let options = Options {

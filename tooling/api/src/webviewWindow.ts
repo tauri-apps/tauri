@@ -31,13 +31,15 @@ function getCurrentWebviewWindow(): WebviewWindow {
  *
  * @since 2.0.0
  */
-function getAllWebviewWindows(): WebviewWindow[] {
-  return window.__TAURI_INTERNALS__.metadata.webviews.map(
-    (w) =>
-      new WebviewWindow(w.label, {
-        // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-        skip: true
-      })
+async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
+  return invoke<string[]>('plugin:window|get_all_windows').then((windows) =>
+    windows.map(
+      (w) =>
+        new WebviewWindow(w, {
+          // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
+          skip: true
+        })
+    )
   )
 }
 
@@ -107,9 +109,9 @@ class WebviewWindow {
    * @param label The webview label.
    * @returns The Webview instance to communicate with the webview or null if the webview doesn't exist.
    */
-  static getByLabel(label: string): WebviewWindow | null {
+  static async getByLabel(label: string): Promise<WebviewWindow | null> {
     const webview =
-      getAllWebviewWindows().find((w) => w.label === label) ?? null
+      (await getAllWebviewWindows()).find((w) => w.label === label) ?? null
     if (webview) {
       // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
       return new WebviewWindow(webview.label, { skip: true })
@@ -127,11 +129,8 @@ class WebviewWindow {
   /**
    * Gets a list of instances of `Webview` for all available webviews.
    */
-  static getAll(): WebviewWindow[] {
-    return getAllWebviewWindows().map(
-      // @ts-expect-error `skip` is not defined in the public API but it is handled by the constructor
-      (w) => new WebviewWindow(w.label, { skip: true })
-    )
+  static async getAll(): Promise<WebviewWindow[]> {
+    return getAllWebviewWindows()
   }
 
   /**

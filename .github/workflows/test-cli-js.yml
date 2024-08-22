@@ -38,12 +38,12 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - run: corepack enable
       - name: setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: yarn
-          cache-dependency-path: tooling/cli/node/yarn.lock
+          cache: 'pnpm'
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -61,6 +61,6 @@ jobs:
         timeout-minutes: 30
         run: |
           cd ./tooling/cli/node
-          yarn
-          yarn build
-          yarn test
+          pnpm i --frozen-lockfile
+          pnpm build
+          pnpm test

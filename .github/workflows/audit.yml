@@ -14,7 +14,7 @@ on:
       - '**/Cargo.lock'
       - '**/Cargo.toml'
       - '**/package.json'
-      - '**/yarn.lock'
+      - '**/pnpm-lock.yaml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -34,11 +34,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: audit workspace
-        run: yarn audit
-      - name: audit @tauri-apps/api
-        working-directory: tooling/api
-        run: yarn audit
-      - name: audit @tauri-apps/cli
-        working-directory: tooling/cli/node
-        run: yarn audit
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - run: pnpm audit

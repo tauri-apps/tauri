@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin-{{ plugin_name }}"
-version = "0.0.0"
+version = "0.1.0"
 authors = [ "{{ author }}" ]
 description = ""
 edition = "2021"

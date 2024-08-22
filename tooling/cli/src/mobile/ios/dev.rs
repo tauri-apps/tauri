@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_assets,
+  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_resources,
   merge_plist, open_and_wait, MobileTarget,
 };
 use crate::{
@@ -35,6 +35,8 @@ use std::{
   net::{IpAddr, Ipv4Addr, SocketAddr},
   sync::OnceLock,
 };
+
+const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -117,6 +119,8 @@ impl From<Options> for DevOptions {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
   let result = run_command(options, noise_level);
   if result.is_err() {
     crate::dev::kill_before_dev_process();
@@ -155,33 +159,38 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
     let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
 
-    let app = get_app(tauri_config_, &interface);
+    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
     let (config, _metadata) = get_config(
       &app,
       tauri_config_,
       dev_options.features.as_ref(),
       &Default::default(),
     );
+
     (interface, app, config)
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(&tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
-  ensure_init(config.project_dir(), MobileTarget::Ios)?;
-  inject_assets(&config)?;
+  ensure_init(
+    &tauri_config,
+    config.app(),
+    config.project_dir(),
+    MobileTarget::Ios,
+  )?;
+  inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let info_plist_path = config
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
-  merge_plist(
-    vec![
-      tauri_path.join("Info.plist").into(),
-      tauri_path.join("Info.ios.plist").into(),
-    ],
-    &info_plist_path,
-  )?;
+  let merged_info_plist = merge_plist(vec![
+    info_plist_path.clone().into(),
+    tauri_path.join("Info.plist").into(),
+    tauri_path.join("Info.ios.plist").into(),
+  ])?;
+  merged_info_plist.to_file_xml(&info_plist_path)?;
 
   run_dev(
     interface,
@@ -360,6 +369,8 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
+  let set_host = options.host.is_some();
+
   configure_cargo(app, None)?;
 
   let open = options.open;
@@ -370,7 +381,7 @@ fn run_dev(
       debug: true,
       features: options.features,
       args: Vec::new(),
-      config: options.config,
+      config: dev_options.config.clone(),
       no_watch: options.no_watch,
     },
     |options| {
@@ -380,6 +391,8 @@ fn run_dev(
         args: options.args.clone(),
         noise_level,
         vars: Default::default(),
+        config: dev_options.config.clone(),
+        target_device: None,
       };
       let _handle = write_options(
         &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
@@ -387,6 +400,9 @@ fn run_dev(
       )?;
 
       if open {
+        if !set_host {
+          log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
+        }
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
         match run(device, options, config, &env) {
@@ -402,6 +418,9 @@ fn run_dev(
           }
         }
       } else {
+        if !set_host {
+          log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
+        }
         open_and_wait(config, &env)
       }
     },

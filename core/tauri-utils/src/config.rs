@@ -536,13 +536,13 @@ fn dmg_application_folder_position() -> Position {
   Position { x: 480, y: 170 }
 }
 
-fn de_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn de_macos_minimum_system_version<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
   D: Deserializer<'de>,
 {
   let version = Option::<String>::deserialize(deserializer)?;
   match version {
-    Some(v) if v.is_empty() => Ok(minimum_system_version()),
+    Some(v) if v.is_empty() => Ok(macos_minimum_system_version()),
     e => Ok(e),
   }
 }
@@ -569,8 +569,8 @@ pub struct MacConfig {
   ///
   /// An empty string is considered an invalid value so the default value is used.
   #[serde(
-    deserialize_with = "de_minimum_system_version",
-    default = "minimum_system_version",
+    deserialize_with = "de_macos_minimum_system_version",
+    default = "macos_minimum_system_version",
     alias = "minimum-system-version"
   )]
   pub minimum_system_version: Option<String>,
@@ -601,7 +601,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
-      minimum_system_version: minimum_system_version(),
+      minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
       hardened_runtime: true,
@@ -612,8 +612,12 @@ impl Default for MacConfig {
   }
 }
 
-fn minimum_system_version() -> Option<String> {
+fn macos_minimum_system_version() -> Option<String> {
   Some("10.13".into())
+}
+
+fn ios_minimum_system_version() -> String {
+  "13.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -892,6 +896,34 @@ impl Default for WebviewInstallMode {
   }
 }
 
+/// Custom Signing Command configuration.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
+pub enum CustomSignCommandConfig {
+  /// A string notation of the script to execute.
+  ///
+  /// "%1" will be replaced with the path to the binary to be signed.
+  ///
+  /// This is a simpler notation for the command.
+  /// Tauri will split the string with `' '` and use the first element as the command name and the rest as arguments.
+  ///
+  /// If you need to use whitespace in the command or arguments, use the object notation [`Self::ScriptWithOptions`].
+  Command(String),
+  /// An object notation of the command.
+  ///
+  /// This is more complex notation for the command but
+  /// this allows you to use whitespace in the command and arguments.
+  CommandWithOptions {
+    /// The command to run to sign the binary.
+    cmd: String,
+    /// The arguments to pass to the command.
+    ///
+    /// "%1" will be replaced with the path to the binary to be signed.
+    args: Vec<String>,
+  },
+}
+
 /// Windows bundler configuration.
 ///
 /// See more: <https://tauri.app/v1/api/config#windowsconfig>
@@ -936,19 +968,14 @@ pub struct WindowsConfig {
   /// Configuration for the installer generated with NSIS.
   pub nsis: Option<NsisConfig>,
   /// Specify a custom command to sign the binaries.
-  /// This command needs to have a `%1` in it which is just a placeholder for the binary path,
+  /// This command needs to have a `%1` in args which is just a placeholder for the binary path,
   /// which we will detect and replace before calling the command.
-  ///
-  /// Example:
-  /// ```text
-  /// sign-cli --arg1 --arg2 %1
-  /// ```
   ///
   /// By Default we use `signtool.exe` which can be found only on Windows so
   /// if you are on another platform and want to cross-compile and sign you will
   /// need to use another tool like `osslsigncode`.
   #[serde(alias = "sign-command")]
-  pub sign_command: Option<String>,
+  pub sign_command: Option<CustomSignCommandConfig>,
 }
 
 impl Default for WindowsConfig {
@@ -1366,7 +1393,7 @@ pub struct WindowConfig {
   ///
   /// - **Windows:**
   ///   - `false` has no effect on decorated window, shadow are always ON.
-  ///   - `true` will make ndecorated window have a 1px white border,
+  ///   - `true` will make undecorated window have a 1px white border,
   /// and on Windows 11, it will have a rounded corners.
   /// - **Linux:** Unsupported.
   #[serde(default = "default_true")]
@@ -1890,10 +1917,14 @@ pub struct TrayIconConfig {
 
 /// General configuration for the iOS target.
 #[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IosConfig {
+  /// A custom [XcodeGen] project.yml template to use.
+  ///
+  /// [XcodeGen]: <https://github.com/yonaskolb/XcodeGen>
+  pub template: Option<PathBuf>,
   /// A list of strings indicating any iOS frameworks that need to be bundled with the application.
   ///
   /// Note that you need to recreate the iOS project for the changes to be applied.
@@ -1902,6 +1933,25 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
+  ///
+  /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
+  #[serde(
+    alias = "minimum-system-version",
+    default = "ios_minimum_system_version"
+  )]
+  pub minimum_system_version: String,
+}
+
+impl Default for IosConfig {
+  fn default() -> Self {
+    Self {
+      template: None,
+      frameworks: None,
+      development_team: None,
+      minimum_system_version: ios_minimum_system_version(),
+    }
+  }
 }
 
 /// General configuration for the iOS target.
@@ -2148,7 +2198,9 @@ where
 /// - [`bundle`](#bundleconfig): The bundle configurations
 /// - [`plugins`](#pluginconfig): The plugins configuration
 ///
-/// ```json title="Example tauri.config.json file"
+/// Example tauri.config.json file:
+///
+/// ```json
 /// {
 ///   "productName": "tauri-app",
 ///   "version": "0.1.0",

@@ -30,7 +30,15 @@ describe('[CLI] @tauri-apps/cli template', () => {
       await move(outPath, cacheOutPath)
     }
 
-    await cli.run(['init', '--directory', process.cwd(), '--force', '--tauri-path', resolve(currentDirName, '../../../../../..'), '--ci'])
+    await cli.run([
+      'init',
+      '--directory',
+      process.cwd(),
+      '--force',
+      '--tauri-path',
+      resolve(currentDirName, '../../../../../..'),
+      '--ci'
+    ])
 
     if (outExists) {
       await move(cacheOutPath, outPath)

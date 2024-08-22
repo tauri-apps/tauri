@@ -40,7 +40,7 @@ mod static_vcruntime;
 #[cfg_attr(docsrs, doc(cfg(feature = "codegen")))]
 pub use codegen::context::CodegenContext;
 
-pub use acl::{AppManifest, InlinedPlugin};
+pub use acl::{AppManifest, DefaultPermissionRule, InlinedPlugin};
 
 const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
@@ -373,6 +373,17 @@ impl Attributes {
     self
   }
 
+  /// Adds the given list of plugins to the list of inlined plugins (a plugin that is part of your application).
+  ///
+  /// See [`InlinedPlugin`] for more information.
+  pub fn plugins<I>(mut self, plugins: I) -> Self
+  where
+    I: IntoIterator<Item = (&'static str, InlinedPlugin)>,
+  {
+    self.inlined_plugins.extend(plugins);
+    self
+  }
+
   /// Sets the application manifest for the Access Control List.
   ///
   /// See [`AppManifest`] for more information.
@@ -465,9 +476,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
     if i == last {
-      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={w}");
+      println!(
+        "cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}",
+        w.replace('-', "_")
+      );
     } else {
-      android_package_prefix.push_str(w);
+      android_package_prefix.push_str(&w.replace(['_', '-'], "_1"));
       android_package_prefix.push('_');
     }
   }
@@ -599,6 +613,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if let Some(version) = &config.bundle.macos.minimum_system_version {
       println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
     }
+  }
+
+  if target_triple.contains("ios") {
+    println!(
+      "cargo:rustc-env=IPHONEOS_DEPLOYMENT_TARGET={}",
+      config.bundle.ios.minimum_system_version
+    );
   }
 
   if target_triple.contains("windows") {

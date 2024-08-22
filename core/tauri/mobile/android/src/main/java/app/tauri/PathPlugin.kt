@@ -12,6 +12,8 @@ import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.JSObject
 
+const val TAURI_ASSETS_DIRECTORY_URI = "asset://localhost/"
+
 @TauriPlugin
 class PathPlugin(private val activity: Activity): Plugin(activity) {
     private fun resolvePath(invoke: Invoke, path: String?) {
@@ -67,8 +69,7 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
 
     @Command
     fun getResourcesDir(invoke: Invoke) {
-        // TODO
-        resolvePath(invoke, activity.cacheDir.absolutePath)
+        resolvePath(invoke, TAURI_ASSETS_DIRECTORY_URI)
     }
 
     @Command

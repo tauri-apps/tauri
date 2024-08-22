@@ -11,12 +11,7 @@ const warn = logger('app:spawn')
 /*
   Returns pid, takes onClose
  */
-module.exports.spawn = (
-  cmd,
-  params,
-  cwd,
-  onClose
-) => {
+module.exports.spawn = (cmd, params, cwd, onClose) => {
   log(`Running "${cmd} ${params.join(' ')}"`)
   log()
 
@@ -44,12 +39,7 @@ module.exports.spawn = (
 /*
   Returns nothing, takes onFail
  */
-module.exports.spawnSync = (
-  cmd,
-  params,
-  cwd,
-  onFail
-) => {
+module.exports.spawnSync = (cmd, params, cwd, onFail) => {
   log(`[sync] Running "${cmd} ${params.join(' ')}"`)
   log()
 

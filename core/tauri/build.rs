@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use heck::AsShoutySnakeCase;
+use tauri_utils::write_if_changed;
 
 use std::env::var_os;
 use std::fs::create_dir_all;
 use std::fs::read_dir;
 use std::fs::read_to_string;
-use std::fs::write;
 use std::{
   env::var,
   path::{Path, PathBuf},
@@ -46,6 +46,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
     &[
       ("create", false),
       // getters
+      ("get_all_windows", true),
       ("scale_factor", true),
       ("inner_position", true),
       ("outer_position", true),
@@ -120,6 +121,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("create_webview", false),
       ("create_webview_window", false),
       // getters
+      ("get_all_webviews", true),
       ("webview_position", true),
       ("webview_size", true),
       // setters
@@ -287,7 +289,9 @@ fn main() {
           .replace("{{library}}", &library);
 
         let out_path = kotlin_out_dir.join(file.file_name());
-        write(&out_path, content).expect("Failed to write kotlin file");
+        // Overwrite only if changed to not trigger rebuilds
+        write_if_changed(&out_path, &content).expect("Failed to write kotlin file");
+
         println!("cargo:rerun-if-changed={}", out_path.display());
       }
     }

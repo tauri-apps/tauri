@@ -16,45 +16,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  eslint-cli:
+  prettier:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - run: corepack enable
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: yarn
-          cache-dependency-path: tooling/cli/node/yarn.lock
-      - name: install deps via yarn
-        working-directory: ./tooling/cli/node/
-        run: yarn
-      # nothing to lint
-      #- name: run lint
-      #  working-directory: ./tooling/cli/node/
-      #  run: yarn lint
-      - name: run format
-        working-directory: ./tooling/cli/node/
-        run: yarn format:check
+          node-version: 'lts/*'
+          cache: 'pnpm'
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm format:check
 
-  eslint-api:
+  eslint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v3
+      - run: corepack enable
+      - uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: yarn
-          cache-dependency-path: tooling/api/yarn.lock
+          node-version: 'lts/*'
+          cache: 'pnpm'
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm eslint:check
 
-      - name: install deps via yarn
-        working-directory: ./tooling/api/
-        run: yarn
-      - name: run ts:check
-        working-directory: ./tooling/api/
-        run: yarn ts:check
-      - name: run lint
-        working-directory: ./tooling/api/
-        run: yarn lint
-      - name: run format
-        working-directory: ./tooling/api/
-        run: yarn format:check
+  typescript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'pnpm'
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm ts:check

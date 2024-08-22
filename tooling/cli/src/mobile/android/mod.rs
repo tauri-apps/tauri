@@ -25,6 +25,7 @@ use std::{
   time::Duration,
 };
 use sublime_fuzzy::best_match;
+use tauri_utils::resources::ResourcePaths;
 
 use super::{
   ensure_init, get_app,
@@ -32,12 +33,14 @@ use super::{
   log_finished, read_options, CliOptions, OptionsHandle, Target as MobileTarget,
   MIN_DEVICE_MATCH_SCORE,
 };
-use crate::{helpers::config::Config as TauriConfig, Result};
+use crate::{
+  helpers::config::{BundleResources, Config as TauriConfig},
+  Result,
+};
 
 mod android_studio_script;
 mod build;
 mod dev;
-mod open;
 pub(crate) mod project;
 
 #[derive(Parser)]
@@ -67,8 +70,6 @@ pub struct InitOptions {
 #[derive(Subcommand)]
 enum Commands {
   Init(InitOptions),
-  /// Open project in Android Studio
-  Open,
   Dev(dev::Options),
   Build(build::Options),
   #[clap(hide(true))]
@@ -78,13 +79,15 @@ enum Commands {
 pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
   let noise_level = NoiseLevel::from_occurrences(verbosity as u64);
   match cli.command {
-    Commands::Init(options) => init_command(
-      MobileTarget::Android,
-      options.ci,
-      false,
-      options.skip_targets_install,
-    )?,
-    Commands::Open => open::command()?,
+    Commands::Init(options) => {
+      crate::helpers::app_paths::resolve();
+      init_command(
+        MobileTarget::Android,
+        options.ci,
+        false,
+        options.skip_targets_install,
+      )?
+    }
     Commands::Dev(options) => dev::command(options, noise_level)?,
     Commands::Build(options) => build::command(options, noise_level)?,
     Commands::AndroidStudioScript(options) => android_studio_script::command(options)?,
@@ -297,7 +300,7 @@ fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
   }
 }
 
-fn inject_assets(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
+fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config
     .project_dir()
     .join("app/src/main")
@@ -308,6 +311,19 @@ fn inject_assets(config: &AndroidConfig, tauri_config: &TauriConfig) -> Result<(
     asset_dir.join("tauri.conf.json"),
     serde_json::to_string(&tauri_config)?,
   )?;
+
+  let resources = match &tauri_config.bundle.resources {
+    Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),
+    Some(BundleResources::Map(map)) => Some(ResourcePaths::from_map(map, true)),
+    None => None,
+  };
+  if let Some(resources) = resources {
+    for resource in resources.iter() {
+      let resource = resource?;
+      let dest = asset_dir.join(resource.target());
+      crate::helpers::fs::copy_file(resource.path(), dest)?;
+    }
+  }
 
   Ok(())
 }

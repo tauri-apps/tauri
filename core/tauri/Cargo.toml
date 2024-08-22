@@ -2,7 +2,7 @@
 name = "tauri"
 version = "2.0.0-rc.5"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
-exclude = [ "/test", "/.scripts", "CHANGELOG.md", "/target" ]
+exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
 links = "Tauri"
 authors = { workspace = true }
@@ -24,36 +24,44 @@ features = [
   "image-png",
   "protocol-asset",
   "test",
-  "specta"
+  "specta",
 ]
-rustc-args = [ "--cfg", "docsrs" ]
-rustdoc-args = [ "--cfg", "docsrs" ]
+rustc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
   "x86_64-apple-darwin",
   "x86_64-linux-android",
-  "x86_64-apple-ios"
+  "x86_64-apple-ios",
 ]
 
 [package.metadata.cargo-udeps.ignore]
-normal = [ "reqwest" ]
-build = [ "tauri-build" ]
-development = [ "quickcheck_macros" ]
+normal = ["reqwest"]
+build = ["tauri-build"]
+development = ["quickcheck_macros"]
 
 [dependencies]
-serde_json = { version = "1.0", features = [ "raw_value" ] }
-serde = { version = "1.0", features = [ "derive", "rc" ] }
-tokio = { version = "1", features = [ "rt", "rt-multi-thread", "sync", "fs", "io-util" ] }
+serde_json = { version = "1.0", features = ["raw_value"] }
+serde = { version = "1.0", features = ["derive", "rc"] }
+tokio = { version = "1", features = [
+  "rt",
+  "rt-multi-thread",
+  "sync",
+  "fs",
+  "io-util",
+] }
 futures-util = "0.3"
-uuid = { version = "1", features = [ "v4" ], optional = true }
+uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
 tauri-runtime = { version = "2.0.0-rc.5", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-rc.5", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-rc.5", features = [ "resources" ], path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-rc.5", features = [
+  "resources",
+], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "2.0.0-rc.5", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
@@ -61,9 +69,12 @@ state = "0.6"
 http = "1.1"
 dirs = "5"
 percent-encoding = "2.3"
-reqwest = { version = "0.12", default-features = false, features = [ "json", "stream" ] }
-bytes = { version = "1", features = [ "serde" ] }
-raw-window-handle = { version = "0.6", features = [ "std" ]}
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "stream",
+] }
+bytes = { version = "1", features = ["serde"] }
+raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
 urlpattern = "0.2"
 mime = "0.3"
@@ -75,15 +86,20 @@ tracing = { version = "0.1", optional = true }
 heck = "0.5"
 log = "0.4"
 dunce = "1"
-specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [ "function", "derive" ] }
+specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
+  "function",
+  "derive",
+] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.14", default-features = false, features = [ "serde" ] }
-tray-icon = { version = "0.15", default-features = false, features = [ "serde" ], optional = true }
+muda = { version = "0.14", default-features = false, features = ["serde"] }
+tray-icon = { version = "0.15", default-features = false, features = [
+  "serde",
+], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.18", features = [ "v3_24" ] }
-webkit2gtk = { version = "=2.0.1", features = [ "v2_38" ] }
+gtk = { version = "0.18", features = ["v3_24"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_38"] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -95,9 +111,9 @@ window-vibrancy = "0.5"
 webview2-com = "0.33"
 window-vibrancy = "0.5"
 
-  [target."cfg(windows)".dependencies.windows]
-  version = "0.58"
-  features = ["Win32_Foundation"]
+[target."cfg(windows)".dependencies.windows]
+version = "0.58"
+features = ["Win32_Foundation"]
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
@@ -111,54 +127,60 @@ swift-rs = "1.0.6"
 [build-dependencies]
 heck = "0.5"
 tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.5" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.5", features = [ "build" ] }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.5", features = [
+  "build",
+] }
 
 [dev-dependencies]
 proptest = "1.4.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-tauri = { path = ".", default-features = false, features = [ "wry" ] }
-tokio = { version = "1", features = [ "full" ] }
+tauri = { path = ".", default-features = false, features = ["wry"] }
+tokio = { version = "1", features = ["full"] }
 cargo_toml = "0.17"
 http-range = "0.1.5"
 
 [features]
-default = [ "wry", "compression", "objc-exception", "common-controls-v6" ]
-unstable = [ "tauri-runtime-wry/unstable" ]
-common-controls-v6 = [ "tray-icon?/common-controls-v6", "muda/common-controls-v6" ]
-tray-icon = [ "dep:tray-icon" ]
-tracing = [
-  "dep:tracing",
-  "tauri-macros/tracing",
-  "tauri-runtime-wry/tracing"
+default = ["wry", "compression", "objc-exception", "common-controls-v6"]
+unstable = ["tauri-runtime-wry/unstable"]
+common-controls-v6 = [
+  "tray-icon?/common-controls-v6",
+  "muda/common-controls-v6",
 ]
-test = [ ]
-compression = [ "tauri-macros/compression", "tauri-utils/compression" ]
-wry = [ "tauri-runtime-wry" ]
-objc-exception = [ "tauri-runtime-wry/objc-exception" ]
-linux-ipc-protocol = [ "tauri-runtime-wry/linux-protocol-body", "webkit2gtk/v2_40" ]
-linux-libxdo = [ "tray-icon/libxdo", "muda/libxdo" ]
-isolation = [ "tauri-utils/isolation", "tauri-macros/isolation", "uuid" ]
-custom-protocol = [ "tauri-macros/custom-protocol" ]
-native-tls = [ "reqwest/native-tls" ]
-native-tls-vendored = [ "reqwest/native-tls-vendored" ]
-rustls-tls = [ "reqwest/rustls-tls" ]
-devtools = [ "tauri-runtime/devtools", "tauri-runtime-wry/devtools" ]
-process-relaunch-dangerous-allow-symlink-macos = [ "tauri-utils/process-relaunch-dangerous-allow-symlink-macos" ]
+tray-icon = ["dep:tray-icon"]
+tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
+test = []
+compression = ["tauri-macros/compression", "tauri-utils/compression"]
+wry = ["tauri-runtime-wry"]
+objc-exception = ["tauri-runtime-wry/objc-exception"]
+linux-ipc-protocol = [
+  "tauri-runtime-wry/linux-protocol-body",
+  "webkit2gtk/v2_40",
+]
+linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
+custom-protocol = ["tauri-macros/custom-protocol"]
+native-tls = ["reqwest/native-tls"]
+native-tls-vendored = ["reqwest/native-tls-vendored"]
+rustls-tls = ["reqwest/rustls-tls"]
+devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
+process-relaunch-dangerous-allow-symlink-macos = [
+  "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
+]
 macos-private-api = [
   "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry/macos-private-api"
+  "tauri-runtime-wry/macos-private-api",
 ]
-webview-data-url = [ "data-url" ]
-protocol-asset = [ "http-range" ]
-config-json5 = [ "tauri-macros/config-json5" ]
-config-toml = [ "tauri-macros/config-toml" ]
-image-ico = [ "image/ico" ]
-image-png = [ "image/png" ]
-macos-proxy = [ "tauri-runtime-wry/macos-proxy" ]
-specta = [ "dep:specta" ]
+webview-data-url = ["data-url"]
+protocol-asset = ["http-range"]
+config-json5 = ["tauri-macros/config-json5"]
+config-toml = ["tauri-macros/config-toml"]
+image-ico = ["image/ico"]
+image-png = ["image/png"]
+macos-proxy = ["tauri-runtime-wry/macos-proxy"]
+specta = ["dep:specta"]
 
 [[example]]
 name = "commands"
@@ -171,7 +193,7 @@ path = "../../examples/helloworld/main.rs"
 [[example]]
 name = "multiwebview"
 path = "../../examples/multiwebview/main.rs"
-required-features = [ "unstable" ]
+required-features = ["unstable"]
 
 [[example]]
 name = "multiwindow"
@@ -180,10 +202,6 @@ path = "../../examples/multiwindow/main.rs"
 [[example]]
 name = "parent-window"
 path = "../../examples/parent-window/main.rs"
-
-[[example]]
-name = "navigation"
-path = "../../examples/navigation/main.rs"
 
 [[example]]
 name = "splashscreen"
@@ -200,8 +218,4 @@ path = "../../examples/streaming/main.rs"
 [[example]]
 name = "isolation"
 path = "../../examples/isolation/main.rs"
-required-features = [ "isolation" ]
-
-[[example]]
-name = "run-iteration"
-path = "../../examples/run-iteration/main.rs"
+required-features = ["isolation"]

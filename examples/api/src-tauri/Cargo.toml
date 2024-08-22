@@ -37,14 +37,3 @@ features = [
 [dev-dependencies.tauri]
 path = "../../../core/tauri"
 features = ["test"]
-
-[features]
-prod = ["tauri/custom-protocol"]
-
-# default to small, optimized release binaries
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = true
-incremental = false
-opt-level = "s"

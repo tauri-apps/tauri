@@ -1,6 +1,6 @@
 # Changelog
 
-## \[0.1.5-rc.0]
+## \[0.1.5]
 
 ### Bug Fixes
 

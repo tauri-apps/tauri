@@ -19,7 +19,7 @@ members = [
 ]
 
 exclude = [
-  # examples that can be compiled with the tauri CLI
+  # examples that need to be compiled with the tauri CLI
   "examples/api/src-tauri",
   "examples/resources/src-tauri",
   "examples/web/core",

@@ -49,8 +49,8 @@
 //! - **protocol-asset**: Enables the `asset` custom protocol.
 
 #![doc(
-  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
-  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 #![warn(missing_docs, rust_2018_idioms)]
 #![cfg_attr(docsrs, feature(doc_cfg))]

@@ -1,6 +1,6 @@
 # tauri-codegen
 
- <img align="right" src="https://github.com/tauri-apps/tauri/raw/dev/app-icon.png" height="128" width="128">
+ <img align="right" src="https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png" height="128" width="128">
 
 [![status](https://img.shields.io/badge/Status-Stable-green.svg)](https://github.com/tauri-apps/tauri)
 [![Chat Server](https://img.shields.io/badge/chat-on%20discord-7289da.svg)](https://discord.gg/SpmNs4S)

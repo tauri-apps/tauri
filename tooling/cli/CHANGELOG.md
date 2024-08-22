@@ -1,29 +1,5 @@
 # Changelog
 
-## \[2.0.0-rc.7]
-
-### Enhancements
-
-- [`da8c9a7d3`](https://www.github.com/tauri-apps/tauri/commit/da8c9a7d3069398c26826aeb082caa44b7c92809) ([#10669](https://www.github.com/tauri-apps/tauri/pull/10669) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Modify both ExportOptions.plist and project.pbxproj to reflect changes for the `IOS_CERTIFICATE`, `IOS_CERTIFICATE_PASSWORD` and `IOS_MOBILE_PROVISION` environment variables.
-
-### Bug Fixes
-
-- [`793ee0531`](https://www.github.com/tauri-apps/tauri/commit/793ee0531730597e6008c9c0dedabbab7a2bef53) ([#10700](https://www.github.com/tauri-apps/tauri/pull/10700) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow hyphens and underscores on app identifiers.
-- [`da8c9a7d3`](https://www.github.com/tauri-apps/tauri/commit/da8c9a7d3069398c26826aeb082caa44b7c92809) ([#10669](https://www.github.com/tauri-apps/tauri/pull/10669) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Synchronize Xcode project changes with the ExportOptions.plist file so `ios build` calls can work with code signing changes made in Xcode.
-
-### What's Changed
-
-- [`f4d5241b3`](https://www.github.com/tauri-apps/tauri/commit/f4d5241b377d0f7a1b58100ee19f7843384634ac) ([#10731](https://www.github.com/tauri-apps/tauri/pull/10731) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Update documentation icon path.
-
-### Dependencies
-
-- Upgraded to `tauri-utils@2.0.0-rc.6`
-- Upgraded to `tauri-bundler@2.0.1-rc.5`
-
-### Breaking Changes
-
-- [`da8c9a7d3`](https://www.github.com/tauri-apps/tauri/commit/da8c9a7d3069398c26826aeb082caa44b7c92809) ([#10669](https://www.github.com/tauri-apps/tauri/pull/10669) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `IOS_CERTIFICATE`, `IOS_CERTIFICATE_PASSWORD` and `IOS_MOBILE_PROVISION` environment variables are now read by the `ios build` command instead of `ios init`.
-
 ## \[2.0.0-rc.6]
 
 ### New Features

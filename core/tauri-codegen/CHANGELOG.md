@@ -1,15 +1,5 @@
 # Changelog
 
-## \[2.0.0-rc.6]
-
-### What's Changed
-
-- [`f4d5241b3`](https://www.github.com/tauri-apps/tauri/commit/f4d5241b377d0f7a1b58100ee19f7843384634ac) ([#10731](https://www.github.com/tauri-apps/tauri/pull/10731) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Update documentation icon path.
-
-### Dependencies
-
-- Upgraded to `tauri-utils@2.0.0-rc.6`
-
 ## \[2.0.0-rc.5]
 
 ### Dependencies

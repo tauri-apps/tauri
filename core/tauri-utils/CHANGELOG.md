@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.6]
+
+### Bug Fixes
+
+- [`9bcff3cd7`](https://www.github.com/tauri-apps/tauri/commit/9bcff3cd7997fe13425a21b577f93317831f77fa) ([#10703](https://www.github.com/tauri-apps/tauri/pull/10703) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Properly remove isolation script on Android.
+
+### What's Changed
+
+- [`f4d5241b3`](https://www.github.com/tauri-apps/tauri/commit/f4d5241b377d0f7a1b58100ee19f7843384634ac) ([#10731](https://www.github.com/tauri-apps/tauri/pull/10731) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Update documentation icon path.
+
 ## \[2.0.0-rc.5]
 
 ### Bug Fixes

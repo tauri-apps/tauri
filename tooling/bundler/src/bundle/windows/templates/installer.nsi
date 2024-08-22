@@ -556,29 +556,31 @@ Section WebView2
     ${EndIf}
   ${Else}
     !if "${MINIMUMWEBVIEW2VERSION}" != ""
-      ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
-      ${If} $R0 = 1
-        DetailPrint "$(installingWebview2)"
-        ${If} ${RunningX64}
-          ReadRegStr $R1 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" "path"
-        ${Else}
-          ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\EdgeUpdate" "path"
-        ${EndIf}
-        ${If} $R1 == ""
-          ReadRegStr $R1 HKCU "SOFTWARE\Microsoft\EdgeUpdate" "path"
-        ${EndIf}
-        ${If} $R1 != ""
-          ; Chromium updater docs: https://source.chromium.org/chromium/chromium/src/+/main:docs/updater/user_manual.md
-          ; Modified from "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView\ModifyPath"
-          ExecWait `"$R1" /install appguid=${WEBVIEW2APPGUID}&needsadmin=true` $1
-          ${If} $1 = 0
-            DetailPrint "$(webview2InstallSuccess)"
+      retry:
+        ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
+        ${If} $R0 = 1
+          DetailPrint "$(installingWebview2)"
+          ${If} ${RunningX64}
+            ReadRegStr $R1 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" "path"
           ${Else}
-            DetailPrint "$(webview2InstallError)"
-            Abort "$(webview2AbortError)"
+            ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\EdgeUpdate" "path"
+          ${EndIf}
+          ${If} $R1 == ""
+            ReadRegStr $R1 HKCU "SOFTWARE\Microsoft\EdgeUpdate" "path"
+          ${EndIf}
+          ${If} $R1 != ""
+            ; Chromium updater docs: https://source.chromium.org/chromium/chromium/src/+/main:docs/updater/user_manual.md
+            ; Modified from "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView\ModifyPath"
+            ExecWait `"$R1" /install appguid=${WEBVIEW2APPGUID}&needsadmin=true` $1
+            ${If} $1 = 0
+              DetailPrint "$(webview2InstallSuccess)"
+            ${Else}
+              MessageBox MB_ICONEXCLAMATION|MB_ABORTRETRYIGNORE "$(webview2InstallError)" IDIGNORE ignore IDRETRY retry
+              Quit
+              ignore:
+            ${EndIf}
           ${EndIf}
         ${EndIf}
-      ${EndIf}
     !endif
   ${EndIf}
 SectionEnd

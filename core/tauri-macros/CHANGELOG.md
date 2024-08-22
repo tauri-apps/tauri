@@ -1,6 +1,6 @@
 # Changelog
 
-## \[2.0.1-rc.0]
+## \[2.0.0-rc.6]
 
 ### What's Changed
 

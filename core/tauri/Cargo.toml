@@ -52,7 +52,7 @@ url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
 tauri-runtime = { version = "2.0.0-rc.6", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.1-rc.0", path = "../tauri-macros" }
+tauri-macros = { version = "2.0.0-rc.5", path = "../tauri-macros" }
 tauri-utils = { version = "2.0.0-rc.6", features = [ "resources" ], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "2.0.0-rc.6", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"

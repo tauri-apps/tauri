@@ -12,7 +12,7 @@
 - Upgraded to `tauri-build@2.0.0-rc.6`
 - Upgraded to `tauri-runtime-wry@2.0.0-rc.6`
 - Upgraded to `tauri-runtime@2.0.0-rc.6`
-- Upgraded to `tauri-macros@2.0.1-rc.0`
+- Upgraded to `tauri-macros@2.0.0-rc.5`
 
 ## \[2.0.0-rc.5]
 

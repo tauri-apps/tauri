@@ -457,10 +457,10 @@ pub struct NsisSettings {
   /// !macroend
   /// ```
   pub installer_hooks: Option<PathBuf>,
-  /// Ensure webview2 version to be newer than this major version,
+  /// Ensure webview2 version to be newer than this version,
   /// if the user's webview2 is older than this version,
   /// the installer will trigger a webview2 update
-  pub ensure_webview2_version: Option<u16>,
+  pub ensure_webview2_version: Option<String>,
 }
 
 /// The Custom Signing Command Settings for Windows exe

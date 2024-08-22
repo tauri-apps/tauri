@@ -29,6 +29,8 @@ ${StrLoc}
 !include "{{installer_hooks}}"
 {{/if}}
 
+!define WEBVIEW2APPGUID "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
 !define VERSION "{{version}}"
@@ -494,14 +496,15 @@ SectionEnd
 Section WebView2
   ; Check if Webview2 is already installed and skip this section
   ${If} ${RunningX64}
-    ReadRegStr $4 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    ReadRegStr $4 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\${WEBVIEW2APPGUID}" "pv"
   ${Else}
-    ReadRegStr $4 HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+    ReadRegStr $4 HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\${WEBVIEW2APPGUID}" "pv"
   ${EndIf}
-  ReadRegStr $5 HKCU "SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" "pv"
+  ${If} $4 == ""
+    ReadRegStr $4 HKCU "SOFTWARE\Microsoft\EdgeUpdate\Clients\${WEBVIEW2APPGUID}" "pv"
+  ${EndIf}
 
   ${If} $4 == ""
-  ${AndIf} $5 == ""
     ; Webview2 installation
     ;
     ; Skip if updating
@@ -553,21 +556,27 @@ Section WebView2
     ${EndIf}
   ${Else}
     !if "${MINIMUMWEBVIEW2VERSION}" != ""
-      ${If} $4 != ""
-        ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
-      ${Else}
-        ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$5" $R0
-      ${EndIf}
+      ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
       ${If} $R0 = 1
         DetailPrint "$(installingWebview2)"
-        ; Chromium updater docs: https://source.chromium.org/chromium/chromium/src/+/main:docs/updater/user_manual.md
-        ; Modified from "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView\ModifyPath"
-        ExecWait `"C:\Program Files (x86)\Microsoft\EdgeUpdate\MicrosoftEdgeUpdate.exe" /install appguid={F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}&needsadmin=true` $1
-        ${If} $1 = 0
-          DetailPrint "$(webview2InstallSuccess)"
+        ${If} ${RunningX64}
+          ReadRegStr $R1 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" "path"
         ${Else}
-          DetailPrint "$(webview2InstallError)"
-          Abort "$(webview2AbortError)"
+          ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\EdgeUpdate" "path"
+        ${EndIf}
+        ${If} $R1 == ""
+          ReadRegStr $R1 HKCU "SOFTWARE\Microsoft\EdgeUpdate" "path"
+        ${EndIf}
+        ${If} $R1 != ""
+          ; Chromium updater docs: https://source.chromium.org/chromium/chromium/src/+/main:docs/updater/user_manual.md
+          ; Modified from "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView\ModifyPath"
+          ExecWait `"$R1" /install appguid=${WEBVIEW2APPGUID}&needsadmin=true` $1
+          ${If} $1 = 0
+            DetailPrint "$(webview2InstallSuccess)"
+          ${Else}
+            DetailPrint "$(webview2InstallError)"
+            Abort "$(webview2AbortError)"
+          ${EndIf}
         ${EndIf}
       ${EndIf}
     !endif

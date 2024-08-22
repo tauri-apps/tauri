@@ -838,11 +838,11 @@ pub struct NsisConfig {
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
-  /// Ensure webview2 version to be newer than this major version,
+  /// Ensure webview2 version to be newer than this version,
   /// if the user's webview2 is older than this version,
   /// the installer will trigger a webview2 update
   #[serde(alias = "ensure-webview2-version")]
-  pub ensure_webview2_version: Option<u16>,
+  pub ensure_webview2_version: Option<String>,
 }
 
 /// Install modes for the Webview2 runtime.

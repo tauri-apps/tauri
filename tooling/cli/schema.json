@@ -2368,13 +2368,11 @@
           ]
         },
         "ensureWebview2Version": {
-          "description": "Ensure webview2 version to be newer than this major version,\n if the user's webview2 is older than this version,\n the installer will trigger a webview2 update",
+          "description": "Ensure webview2 version to be newer than this version,\n if the user's webview2 is older than this version,\n the installer will trigger a webview2 update",
           "type": [
-            "integer",
+            "string",
             "null"
-          ],
-          "format": "uint16",
-          "minimum": 0.0
+          ]
         }
       },
       "additionalProperties": false

@@ -2,7 +2,7 @@ workspace = { }
 
 [package]
 name = "tauri-bundler"
-version = "1.6.0"
+version = "1.6.1"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy"
@@ -17,7 +17,7 @@ rust-version = "1.71"
 exclude = [ "CHANGELOG.md", "/target", "rustfmt.toml" ]
 
 [dependencies]
-tauri-utils = { version = "1.6.0", path = "../../core/tauri-utils", features = [ "resources" ] }
+tauri-utils = { version = "1.6.1", path = "../../core/tauri-utils", features = [ "resources" ] }
 image = "0.25"
 flate2 = "1.0"
 anyhow = "1.0"

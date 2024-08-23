@@ -1,5 +1,21 @@
 # Changelog
 
+## \[0.14.10]
+
+### Bug Fixes
+
+- [`c3a90e5c2`](https://www.github.com/tauri-apps/tauri/commit/c3a90e5c274cf840124bf380fa49c73190d0f286) ([#10611](https://www.github.com/tauri-apps/tauri/pull/10611) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ensure system tray is created when the event loop is ready. Menu item modifications are not applied unless it is ready.
+- [`937849f28`](https://www.github.com/tauri-apps/tauri/commit/937849f28cf5c21739501058a159752262bb1fd2) ([#10587](https://www.github.com/tauri-apps/tauri/pull/10587) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Use `Arc` instead of `Rc` on global shortcut and tray types to prevent crashes on macOS.
+
+### What's Changed
+
+- [`fbcbc5ef7`](https://www.github.com/tauri-apps/tauri/commit/fbcbc5ef7cb5e3a69e3c23d6af24c8d340ae5f6b) ([#10392](https://www.github.com/tauri-apps/tauri/pull/10392) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+
+### Dependencies
+
+- Upgraded to `tauri-utils@1.6.1`
+- Upgraded to `tauri-runtime@0.14.5`
+
 ## \[0.14.9]
 
 ### Dependencies

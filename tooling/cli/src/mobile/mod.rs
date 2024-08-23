@@ -374,9 +374,9 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
     let mut permissions = metadata.permissions();
     let is_executable = permissions.mode() & 0o111 != 0;
     if !is_executable {
-      permissions.set_mode(0o755);
+      permissions.set_mode(permissions.mode() | 0o111);
       std::fs::set_permissions(&gradlew_path, permissions)
-        .context("failed to change gradlew permissions")?;
+        .context("failed to mark gradlew as executable")?;
     }
     std::fs::write(
       &gradlew_path,

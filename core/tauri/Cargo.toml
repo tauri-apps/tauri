@@ -196,10 +196,6 @@ name = "multiwindow"
 path = "../../examples/multiwindow/main.rs"
 
 [[example]]
-name = "parent-window"
-path = "../../examples/parent-window/main.rs"
-
-[[example]]
 name = "splashscreen"
 path = "../../examples/splashscreen/main.rs"
 

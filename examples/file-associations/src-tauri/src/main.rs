@@ -69,7 +69,7 @@ fn main() {
             .filter_map(|url| url.to_file_path().ok())
             .collect::<Vec<_>>();
 
-          handle_file_associations(app.handle().clone(), files);
+          handle_file_associations(app.clone(), files);
         }
       },
     );

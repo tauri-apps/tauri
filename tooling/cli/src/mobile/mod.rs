@@ -325,7 +325,10 @@ fn ensure_init(
       let java_folder = project_dir
         .join("app/src/main/java")
         .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
-      if !java_folder.exists() {
+      if java_folder.exists() {
+        #[cfg(unix)]
+        ensure_gradlew(&project_dir)?;
+      } else {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
       }
@@ -357,6 +360,31 @@ fn ensure_init(
         target.ide_name(),
         target.command_name(),
       )
+  }
+
+  Ok(())
+}
+
+#[cfg(unix)]
+fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  let gradlew_path = project_dir.join("gradlew");
+  if let Ok(metadata) = gradlew_path.metadata() {
+    let mut permissions = metadata.permissions();
+    let is_executable = permissions.mode() & 0o111 != 0;
+    if !is_executable {
+      permissions.set_mode(0o755);
+      std::fs::set_permissions(&gradlew_path, permissions)
+        .context("failed to change gradlew permissions")?;
+    }
+    std::fs::write(
+      &gradlew_path,
+      std::fs::read_to_string(&gradlew_path)
+        .context("failed to read gradlew")?
+        .replace("\r\n", "\n"),
+    )
+    .context("failed to replace gradlew CRLF with LF")?;
   }
 
   Ok(())

@@ -556,9 +556,9 @@ Section WebView2
     ${EndIf}
   ${Else}
     !if "${MINIMUMWEBVIEW2VERSION}" != ""
-      retry:
-        ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
-        ${If} $R0 = 1
+      ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
+      ${If} $R0 = 1
+        update_webview:
           DetailPrint "$(installingWebview2)"
           ${If} ${RunningX64}
             ReadRegStr $R1 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" "path"
@@ -575,12 +575,12 @@ Section WebView2
             ${If} $1 = 0
               DetailPrint "$(webview2InstallSuccess)"
             ${Else}
-              MessageBox MB_ICONEXCLAMATION|MB_ABORTRETRYIGNORE "$(webview2InstallError)" IDIGNORE ignore IDRETRY retry
+              MessageBox MB_ICONEXCLAMATION|MB_ABORTRETRYIGNORE "$(webview2InstallError)" IDIGNORE ignore IDRETRY update_webview
               Quit
               ignore:
             ${EndIf}
           ${EndIf}
-        ${EndIf}
+      ${EndIf}
     !endif
   ${EndIf}
 SectionEnd

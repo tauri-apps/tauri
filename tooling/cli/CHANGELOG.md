@@ -1,5 +1,21 @@
 # Changelog
 
+## \[1.6.1]
+
+### New Features
+
+- [`0aa0378c8`](https://www.github.com/tauri-apps/tauri/commit/0aa0378c8d632ce186ddd5df8b4bddd8853ceeaf) ([#10199](https://www.github.com/tauri-apps/tauri/pull/10199) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added a configuration option to disable hardened runtime on macOS codesign.
+
+### Bug Fixes
+
+- [`297cd55c4`](https://www.github.com/tauri-apps/tauri/commit/297cd55c442679b34df14fc8aaf2b03e4846f706) ([#10499](https://www.github.com/tauri-apps/tauri/pull/10499) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Changed the MSRV in Cargo.toml for `tauri-bundler` and `tauri-cli` to 1.71. The crates effectively required 1.70/1.71 to build for a while already.
+- [`212001c1d`](https://www.github.com/tauri-apps/tauri/commit/212001c1dfda1497c870eb91087cfb190f433e57) ([#10233](https://www.github.com/tauri-apps/tauri/pull/10233) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Fix cli failing to rename application when using cargo `--target-dir` flag with `tauri build` or `tauri dev`
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@1.6.1`
+- Upgraded to `tauri-utils@1.6.1`
+
 ## \[1.6.0]
 
 ### New Features

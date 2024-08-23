@@ -1,5 +1,16 @@
 # Changelog
 
+## \[1.5.4]
+
+### What's Changed
+
+- [`fbcbc5ef7`](https://www.github.com/tauri-apps/tauri/commit/fbcbc5ef7cb5e3a69e3c23d6af24c8d340ae5f6b) ([#10392](https://www.github.com/tauri-apps/tauri/pull/10392) by [@github-actions](https://www.github.com/tauri-apps/tauri/../../github-actions)) Emit `cargo:rustc-check-cfg` instruction so Cargo validates custom cfg attributes on Rust 1.80 (or nightly-2024-05-05).
+
+### Dependencies
+
+- Upgraded to `tauri-codegen@1.4.5`
+- Upgraded to `tauri-utils@1.6.1`
+
 ## \[1.5.3]
 
 ### Dependencies

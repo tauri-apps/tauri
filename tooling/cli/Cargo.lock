@@ -4298,7 +4298,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri-bundler"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -4339,7 +4339,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -4414,7 +4414,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "aes-gcm",
  "ctor",

@@ -118,7 +118,7 @@ impl<'a> PageLoadPayload<'a> {
 /// by internal code and external testing/fuzzing tools. If not used with feature `unstable`, this
 /// struct is marked `#[non_exhaustive]` and is non-constructable externally.
 #[derive(Debug)]
-#[cfg_attr(not(feature = "unstable"), non_exhaustive)]
+#[cfg_attr(not(feature = "test"), non_exhaustive)]
 pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,

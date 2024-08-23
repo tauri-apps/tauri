@@ -257,6 +257,12 @@ fn build_nsis_app_installer(
     if let Some(start_menu_folder) = &nsis.start_menu_folder {
       data.insert("start_menu_folder", to_json(start_menu_folder));
     }
+    if let Some(minimum_webview2_version) = &nsis.minimum_webview2_version {
+      data.insert(
+        "minimum_webview2_version",
+        to_json(minimum_webview2_version),
+      );
+    }
   }
 
   let compression = settings

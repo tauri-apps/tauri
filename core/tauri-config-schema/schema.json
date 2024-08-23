@@ -2366,6 +2366,13 @@
             "string",
             "null"
           ]
+        },
+        "minimumWebview2Version": {
+          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

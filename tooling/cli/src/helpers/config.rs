@@ -107,7 +107,7 @@ pub fn nsis_settings(config: NsisConfig) -> tauri_bundler::NsisSettings {
     compression: config.compression,
     start_menu_folder: config.start_menu_folder,
     installer_hooks: config.installer_hooks,
-    ensure_webview2_version: config.ensure_webview2_version,
+    minimum_webview2_version: config.minimum_webview2_version,
   }
 }
 

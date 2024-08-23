@@ -2367,8 +2367,8 @@
             "null"
           ]
         },
-        "ensureWebview2Version": {
-          "description": "Ensure webview2 version to be newer than this version,\n if the user's webview2 is older than this version,\n the installer will trigger a webview2 update",
+        "minimumWebview2Version": {
+          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
           "type": [
             "string",
             "null"

@@ -558,8 +558,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile2"
 version = "0.13.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76bd9e694230d442d680f8e578b4f252c67adbfd74cc1dd1caa9e1f1767114dc"
+source = "git+https://github.com/tauri-apps/cargo-mobile2/?branch=fix/ensure-gradlew-executable#ed4befb0238a4a59edd4d52d23a90be77db037b6"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",

@@ -230,7 +230,7 @@ pub struct WindowsAttributes {
   ///
   /// Defaults to:
   /// ```text
-  #[doc = include_str!("window-app-manifest.xml")]
+  #[doc = include_str!("windows-app-manifest.xml")]
   /// ```
   ///
   /// ## Warning
@@ -253,6 +253,11 @@ pub struct WindowsAttributes {
   ///
   /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
   app_manifest: Option<String>,
+
+  /// Path to an [application manifest] file to be included with the application on Windows.
+  ///
+  /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
+  app_manifest_path: Option<PathBuf>,
 }
 
 impl WindowsAttributes {
@@ -273,9 +278,11 @@ impl WindowsAttributes {
 
   /// Sets the [application manifest] to be included with the application on Windows.
   ///
+  /// This options conflicts with [WindowsAttributes::app_manifest_path]
+  ///
   /// Defaults to:
   /// ```text
-  #[doc = include_str!("window-app-manifest.xml")]
+  #[doc = include_str!("windows-app-manifest.xml")]
   /// ```
   ///
   /// ## Warning
@@ -325,6 +332,52 @@ impl WindowsAttributes {
   #[must_use]
   pub fn app_manifest<S: AsRef<str>>(mut self, manifest: S) -> Self {
     self.app_manifest = Some(manifest.as_ref().to_string());
+    self
+  }
+
+  /// Path to an [application manifest] file to be included with the application on Windows.
+  ///
+  /// This options conflicts with [WindowsAttributes::app_manifest]
+  ///
+  /// Defaults to:
+  /// ```text
+  #[doc = include_str!("windows-app-manifest.xml")]
+  /// ```
+  ///
+  /// ## Warning
+  ///
+  /// if you are using tauri's dialog APIs, you need to specify a dependency on Common Control v6 by adding the following to your custom manifest:
+  /// ```text
+  ///  <dependency>
+  ///    <dependentAssembly>
+  ///      <assemblyIdentity
+  ///        type="win32"
+  ///        name="Microsoft.Windows.Common-Controls"
+  ///        version="6.0.0.0"
+  ///        processorArchitecture="*"
+  ///        publicKeyToken="6595b64144ccf1df"
+  ///        language="*"
+  ///      />
+  ///    </dependentAssembly>
+  ///  </dependency>
+  /// ```
+  ///
+  /// # Example
+  ///
+  /// The following manifest will brand the exe as requesting administrator privileges.
+  /// Thus, every time it is executed, a Windows UAC dialog will appear.
+  ///
+  /// ```rust,no_run
+  /// let mut windows = tauri_build::WindowsAttributes::new();
+  /// windows = windows.app_manifest_file("./path/to/app-manifest.xml");
+  /// let attrs =  tauri_build::Attributes::new().windows_attributes(windows);
+  /// tauri_build::try_build(attrs).expect("failed to run build script");
+  /// ```
+  ///
+  /// [application manifest]: https://learn.microsoft.com/en-us/windows/win32/sbscs/application-manifests
+  #[must_use]
+  pub fn app_manifest_path<P: AsRef<Path>>(mut self, file: P) -> Self {
+    self.app_manifest_path = Some(file.as_ref().to_path_buf());
     self
   }
 }
@@ -626,6 +679,36 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     use semver::Version;
     use tauri_winres::{VersionInfo, WindowsResource};
 
+    // Embed the Windows application manifest file directly instead of using a resource file.
+    // See https://github.com/tauri-apps/tauri/pull/10743#issuecomment-2307055443
+    // and https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
+    let manifest_path = match (
+      attributes.windows_attributes.app_manifest,
+      attributes.windows_attributes.app_manifest_path,
+    ) {
+      (Some(manifest), None) => {
+        let path = out_dir.join("windows-app-manifest.xml");
+        std::fs::write(&path, manifest).context("failed to write windows-app-manifest.xml")?;
+        path
+      }
+      (None, None) => {
+        let path = out_dir.join("windows-app-manifest.xml");
+        let manifest = include_str!("windows-app-manifest.xml");
+        std::fs::write(&path, manifest).context("failed to write windows-app-manifest.xml")?;
+        path
+      }
+      (None, Some(manifest_path)) => manifest_path,
+      (Some(_), Some(_)) => {
+        unreachable!("app_manifest and app_manifest_file can't be set at the same time")
+      }
+    };
+
+    println!("cargo:rustc-link-arg=/MANIFEST:EMBED");
+    println!(
+      "cargo:rustc-link-arg=/MANIFESTINPUT:{}",
+      manifest_path.display()
+    );
+
     fn find_icon<F: Fn(&&String) -> bool>(config: &Config, predicate: F, default: &str) -> PathBuf {
       let icon_path = config
         .bundle
@@ -643,12 +726,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .unwrap_or_else(|| find_icon(&config, |i| i.ends_with(".ico"), "icons/icon.ico"));
 
     let mut res = WindowsResource::new();
-
-    if let Some(manifest) = attributes.windows_attributes.app_manifest {
-      res.set_manifest(&manifest);
-    } else {
-      res.set_manifest(include_str!("window-app-manifest.xml"));
-    }
 
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {

@@ -1,5 +1,5 @@
 ---
-"tauri-build": "patch"
+"tauri-build": "patch:feat"
 ---
 
 Add `WindowsAttributes::app_manifest_path` to specify a path to a Windows app manifest file.

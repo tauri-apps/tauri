@@ -22,13 +22,20 @@ use clap::{ArgAction, Parser, ValueEnum};
 
 use anyhow::Context;
 use cargo_mobile2::{
-  apple::{config::Config as AppleConfig, target::Target},
+  apple::{
+    config::Config as AppleConfig,
+    target::{ExportConfig, Target},
+  },
   env::Env,
   opts::{NoiseLevel, Profile},
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
 
-use std::{env::set_current_dir, fs};
+use std::{
+  env::{set_current_dir, var, var_os},
+  fs,
+  path::PathBuf,
+};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -294,7 +301,13 @@ fn run_build(
 
       target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
       target.archive(config, env, noise_level, profile, Some(app_version))?;
-      target.export(config, env, noise_level)?;
+
+      let mut export_config = ExportConfig::new().allow_provisioning_updates();
+      if let Some(credentials) = auth_credentials_from_env()? {
+        export_config = export_config.authentication_credentials(credentials);
+      }
+
+      target.export(config, env, noise_level, export_config)?;
 
       if let Ok(ipa_path) = config.ipa_path() {
         let out_dir = config.export_dir().join(target.arch);
@@ -312,4 +325,24 @@ fn run_build(
   log_finished(out_files, "IPA");
 
   Ok(handle)
+}
+
+fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::target::AuthCredentials>> {
+  match (
+    var("APPLE_API_KEY"),
+    var("APPLE_API_ISSUER"),
+    var_os("APPLE_API_KEY_PATH").map(PathBuf::from),
+  ) {
+    (Ok(key_id), Ok(key_issuer_id), Some(key_path)) => {
+      Ok(Some(cargo_mobile2::apple::target::AuthCredentials {
+        key_path,
+        key_id,
+        key_issuer_id,
+      }))
+    }
+    (Err(_), Err(_), None) => Ok(None),
+    _ => anyhow::bail!(
+      "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH must be provided for code signing"
+    ),
+  }
 }

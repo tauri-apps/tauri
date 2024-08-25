@@ -46,6 +46,9 @@ import UIKit
   }
 
   public func resolve(_ data: JsonObject) {
+    if (data.isEmpty) {
+      resolve()
+    }
     resolve(.dictionary(data))
   }
 

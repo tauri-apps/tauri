@@ -26,9 +26,9 @@ import UIKit
     self.sendChannelData = sendChannelData
   }
 
-  public func getArgsData() throws -> Any {
+  public func getArgsData() throws -> [String: Any] {
     let jsonData = self.data.data(using: .utf8)!
-    return try JSONSerialization.jsonObject(with: jsonData, options: [])
+    return try JSONSerialization.jsonObject(with: jsonData, options: []) as! [String: Any]
   }
 
   public func parseArgs<T: Decodable>(_ type: T.Type) throws -> T {

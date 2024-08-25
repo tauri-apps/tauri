@@ -1280,9 +1280,7 @@ fn tauri_config_to_bundle_settings(
 
   #[cfg(windows)]
   {
-    if let Some(webview_fixed_runtime_path) = &config.windows.webview_fixed_runtime_path {
-      resources.push(webview_fixed_runtime_path.display().to_string());
-    } else if let crate::helpers::config::WebviewInstallMode::FixedRuntime { path } =
+    if let crate::helpers::config::WebviewInstallMode::FixedRuntime { path } =
       &config.windows.webview_install_mode
     {
       resources.push(path.display().to_string());
@@ -1423,7 +1421,6 @@ fn tauri_config_to_bundle_settings(
       nsis: config.windows.nsis.map(nsis_settings),
       icon_path: windows_icon_path,
       webview_install_mode: config.windows.webview_install_mode,
-      webview_fixed_runtime_path: config.windows.webview_fixed_runtime_path,
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),
     },

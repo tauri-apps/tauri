@@ -576,15 +576,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .clone()
     .unwrap_or_else(|| BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
-    if let Some(fixed_webview2_runtime_path) =
-      match &config.bundle.windows.webview_fixed_runtime_path {
-        Some(path) => Some(path),
-        None => match &config.bundle.windows.webview_install_mode {
-          WebviewInstallMode::FixedRuntime { path } => Some(path),
-          _ => None,
-        },
-      }
-    {
+    if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
+      WebviewInstallMode::FixedRuntime { path } => Some(path),
+      _ => None,
+    } {
       resources.push(fixed_webview2_runtime_path.display().to_string());
     }
   }

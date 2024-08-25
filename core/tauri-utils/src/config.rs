@@ -841,7 +841,7 @@ pub struct NsisConfig {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
-  #[serde(alias = "ensure-webview2-version")]
+  #[serde(alias = "minimum-webview2-version")]
   pub minimum_webview2_version: Option<String>,
 }
 

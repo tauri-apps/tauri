@@ -26,6 +26,11 @@ import UIKit
     self.sendChannelData = sendChannelData
   }
 
+  public func getArgsData() throws -> Any {
+    let jsonData = self.data.data(using: .utf8)!
+    return try JSONSerialization.jsonObject(with: jsonData, options: [])
+  }
+
   public func parseArgs<T: Decodable>(_ type: T.Type) throws -> T {
     let jsonData = self.data.data(using: .utf8)!
     let decoder = JSONDecoder()

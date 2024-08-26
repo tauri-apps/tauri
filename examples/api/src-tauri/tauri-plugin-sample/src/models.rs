@@ -8,7 +8,7 @@ use tauri::ipc::Channel;
 #[derive(Serialize)]
 pub struct Event {
   pub kind: String,
-  pub value: Option<String>
+  pub value: Option<String>,
 }
 
 #[derive(Serialize)]

@@ -61,20 +61,7 @@ pub fn configure_cargo(
     }
   }
 
-  let mut dot_cargo = dot_cargo::DotCargo::load(app)?;
-  // Mysteriously, builds that don't specify `--target` seem to fight over
-  // the build cache with builds that use `--target`! This means that
-  // alternating between i.e. `cargo run` and `cargo apple run` would
-  // result in clean builds being made each time you switched... which is
-  // pretty nightmarish. Specifying `build.target` in `.cargo/config`
-  // fortunately has the same effect as specifying `--target`, so now we can
-  // `cargo run` with peace of mind!
-  //
-  // This behavior could be explained here:
-  // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
-  dot_cargo.set_default_target(util::host_target_triple()?);
-
-  dot_cargo.write(app).map_err(Into::into)
+  Ok(())
 }
 
 pub fn exec(

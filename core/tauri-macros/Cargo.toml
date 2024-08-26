@@ -4,13 +4,13 @@ version = "2.0.0-rc.5"
 description = "Macros for the tauri crate."
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-categories = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true

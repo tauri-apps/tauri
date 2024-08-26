@@ -2,13 +2,13 @@
 name = "tauri-plugin"
 version = "2.0.0-rc.6"
 description = "Build script and runtime Tauri plugin definitions"
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-categories = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 features = ["build", "runtime"]

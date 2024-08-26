@@ -17,8 +17,12 @@ class Invoke(
   private val argsJson: String,
   private val jsonMapper: ObjectMapper
 ) {
-  fun getArgsData(): JsonNode {
-    return jsonMapper.readTree(argsJson)
+  fun getRawArgs(): String {
+    return argsJson
+  }
+
+  fun getArgs(): JSObject {
+    return JSObject(argsJson)
   }
 
   fun<T> parseArgs(cls: Class<T>): T {

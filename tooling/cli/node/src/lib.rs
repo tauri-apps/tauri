@@ -19,7 +19,7 @@ pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) ->
       tauri_cli::try_run(args, bin_name)
     })) {
       Ok(t) => t,
-      Err(e) => {
+      Err(_) => {
         return function.call(
           Err(Error::new(
             Status::GenericFailure,

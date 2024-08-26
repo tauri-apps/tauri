@@ -457,6 +457,10 @@ pub struct NsisSettings {
   /// !macroend
   /// ```
   pub installer_hooks: Option<PathBuf>,
+  /// Try to ensure that the WebView2 version is equal to or newer than this version,
+  /// if the user's WebView2 is older than this version,
+  /// the installer will try to trigger a WebView2 update.
+  pub minimum_webview2_version: Option<String>,
 }
 
 /// The Custom Signing Command Settings for Windows exe
@@ -490,12 +494,6 @@ pub struct WindowsSettings {
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
-  /// Path to the webview fixed runtime to use.
-  ///
-  /// Overwrites [`Self::webview_install_mode`] if set.
-  ///
-  /// Will be removed in v2, use [`Self::webview_install_mode`] instead.
-  pub webview_fixed_runtime_path: Option<PathBuf>,
   /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
   ///
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
@@ -529,7 +527,6 @@ impl Default for WindowsSettings {
       nsis: None,
       icon_path: PathBuf::from("icons/icon.ico"),
       webview_install_mode: Default::default(),
-      webview_fixed_runtime_path: None,
       allow_downgrades: true,
       sign_command: None,
     }

@@ -4,23 +4,14 @@
 
 use super::{ActionResult, SectionItem};
 use crate::{
-  helpers::cargo_manifest::{crate_version, CargoLock, CargoManifest},
+  helpers::cargo_manifest::{
+    crate_latest_version, crate_version, CargoLock, CargoManifest, CrateVersion,
+  },
   interface::rust::get_workspace_dir,
 };
 use colored::Colorize;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
-
-fn crate_latest_version(name: &str) -> Option<String> {
-  let url = format!("https://docs.rs/crate/{name}/");
-  match ureq::get(&url).call() {
-    Ok(response) => match (response.status(), response.header("location")) {
-      (302, Some(location)) => Some(location.replace(&url, "")),
-      _ => None,
-    },
-    Err(_) => None,
-  }
-}
 
 pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
@@ -39,39 +30,8 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
         .and_then(|s| toml::from_str(&s).ok());
 
       for dep in ["tauri", "tauri-build", "wry", "tao"] {
-        let version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
-        let crate_version = version
-          .found_crate_versions
-          .into_iter()
-          .map(|v| semver::Version::parse(&v).ok())
-          .max();
-
-        let version_suffix = match (crate_version, crate_latest_version(dep)) {
-          (Some(Some(version)), Some(target_version)) => {
-            let target_version = semver::Version::parse(&target_version).unwrap();
-            if version < target_version {
-              Some(format!(
-                " ({}, latest: {})",
-                "outdated".yellow(),
-                target_version.to_string().green()
-              ))
-            } else {
-              None
-            }
-          }
-          _ => None,
-        };
-
-        let item = SectionItem::new().description(format!(
-          "{} {}: {}{}",
-          dep,
-          "[RUST]".dimmed(),
-          version.version,
-          version_suffix
-            .clone()
-            .map(|s| format!(",{s}"))
-            .unwrap_or_else(|| "".into())
-        ));
+        let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), dep);
+        let item = rust_section_item(dep, crate_version);
         items.push(item);
       }
     }
@@ -91,7 +51,7 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
           format!(
             "{} {}: {}{}",
             package,
-            "[RUST]".dimmed(),
+            "🦀",
             version.split_once('\n').unwrap_or_default().0,
             if !(version.is_empty() || latest_ver.is_empty()) {
               let version = semver::Version::parse(version).unwrap();
@@ -116,4 +76,38 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
   items.push(tauri_cli_rust_item);
 
   items
+}
+
+pub fn rust_section_item(dep: &str, crate_version: CrateVersion) -> SectionItem {
+  let version = crate_version
+    .version
+    .as_ref()
+    .and_then(|v| semver::Version::parse(v).ok());
+
+  let version_suffix = match (version, crate_latest_version(dep)) {
+    (Some(version), Some(target_version)) => {
+      let target_version = semver::Version::parse(&target_version).unwrap();
+      if version < target_version {
+        Some(format!(
+          " ({}, latest: {})",
+          "outdated".yellow(),
+          target_version.to_string().green()
+        ))
+      } else {
+        None
+      }
+    }
+    _ => None,
+  };
+
+  SectionItem::new().description(format!(
+    "{} {}: {}{}",
+    dep,
+    "🦀",
+    crate_version,
+    version_suffix
+      .clone()
+      .map(|s| format!(",{s}"))
+      .unwrap_or_else(|| "".into())
+  ))
 }

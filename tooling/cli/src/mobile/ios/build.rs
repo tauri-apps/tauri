@@ -4,7 +4,8 @@
 
 use super::{
   configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_resources,
-  log_finished, merge_plist, open_and_wait, MobileTarget, OptionsHandle,
+  load_pbxproj, log_finished, merge_plist, open_and_wait, project_config,
+  synchronize_project_config, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -21,13 +22,20 @@ use clap::{ArgAction, Parser, ValueEnum};
 
 use anyhow::Context;
 use cargo_mobile2::{
-  apple::{config::Config as AppleConfig, target::Target},
+  apple::{
+    config::Config as AppleConfig,
+    target::{ExportConfig, Target},
+  },
   env::Env,
   opts::{NoiseLevel, Profile},
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
 
-use std::{env::set_current_dir, fs};
+use std::{
+  env::{set_current_dir, var, var_os},
+  fs,
+  path::PathBuf,
+};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -138,14 +146,14 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_utils::platform::Target::Ios,
     options.config.as_ref().map(|c| &c.0),
   )?;
-  let (interface, app, config) = {
+  let (interface, app, mut config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
     let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(tauri_config_, &interface);
+    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
     let (config, _metadata) = get_config(
       &app,
       tauri_config_,
@@ -170,32 +178,55 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
-  merge_plist(
-    vec![
-      tauri_path.join("Info.plist").into(),
-      tauri_path.join("Info.ios.plist").into(),
-    ],
-    &info_plist_path,
-  )?;
+  let merged_info_plist = merge_plist(vec![
+    info_plist_path.clone().into(),
+    tauri_path.join("Info.plist").into(),
+    tauri_path.join("Info.ios.plist").into(),
+  ])?;
+  merged_info_plist.to_file_xml(&info_plist_path)?;
 
   let mut env = env()?;
   configure_cargo(&app, None)?;
 
-  let (keychain, provisioning_profile) = super::signing_from_env()?;
-  let init_config = super::init_config(keychain.as_ref(), provisioning_profile.as_ref())?;
-  if let Some(export_options_plist) =
-    create_export_options(&app, &init_config, options.export_method)
-  {
-    let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
-
-    merge_plist(
-      vec![
-        export_options_plist_path.clone().into(),
-        export_options_plist.into(),
-      ],
-      &export_options_plist_path,
-    )?;
+  let mut export_options_plist = plist::Dictionary::new();
+  if let Some(method) = options.export_method {
+    export_options_plist.insert("method".to_string(), method.to_string().into());
   }
+
+  let (keychain, provisioning_profile) = super::signing_from_env()?;
+  let project_config = project_config(keychain.as_ref(), provisioning_profile.as_ref())?;
+  let mut pbxproj = load_pbxproj(&config)?;
+
+  // synchronize pbxproj and exportoptions
+  synchronize_project_config(
+    &app,
+    &mut pbxproj,
+    &mut export_options_plist,
+    &project_config,
+    options.debug,
+  )?;
+  if pbxproj.has_changes() {
+    pbxproj.save()?;
+  }
+
+  // merge export options and write to temp file
+  let _export_options_tmp = if !export_options_plist.is_empty() {
+    let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
+    let export_options = tempfile::NamedTempFile::new()?;
+
+    let merged_plist = merge_plist(vec![
+      export_options.path().to_owned().into(),
+      export_options_plist_path.clone().into(),
+      plist::Value::from(export_options_plist).into(),
+    ])?;
+    merged_plist.to_file_xml(export_options.path())?;
+
+    config.set_export_options_plist_path(export_options.path());
+
+    Some(export_options)
+  } else {
+    None
+  };
 
   let open = options.open;
   let _handle = run_build(
@@ -213,41 +244,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   }
 
   Ok(())
-}
-
-fn create_export_options(
-  app: &cargo_mobile2::config::app::App,
-  config: &super::super::init::IosInitConfig,
-  export_method: Option<ExportMethod>,
-) -> Option<plist::Value> {
-  let mut plist = plist::Dictionary::new();
-
-  if let Some(method) = export_method {
-    plist.insert("method".to_string(), method.to_string().into());
-  }
-
-  if config.code_sign_identity.is_some() || config.provisioning_profile_uuid.is_some() {
-    plist.insert("signingStyle".to_string(), "manual".into());
-  }
-
-  if let Some(identity) = &config.code_sign_identity {
-    plist.insert("signingCertificate".to_string(), identity.clone().into());
-  }
-
-  if let Some(id) = &config.team_id {
-    plist.insert("teamID".to_string(), id.clone().into());
-  }
-
-  if let Some(profile_uuid) = &config.provisioning_profile_uuid {
-    let mut provisioning_profiles = plist::Dictionary::new();
-    provisioning_profiles.insert(app.reverse_identifier(), profile_uuid.clone().into());
-    plist.insert(
-      "provisioningProfiles".to_string(),
-      provisioning_profiles.into(),
-    );
-  }
-
-  (!plist.is_empty()).then(|| plist.into())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -305,7 +301,13 @@ fn run_build(
 
       target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
       target.archive(config, env, noise_level, profile, Some(app_version))?;
-      target.export(config, env, noise_level)?;
+
+      let mut export_config = ExportConfig::new().allow_provisioning_updates();
+      if let Some(credentials) = auth_credentials_from_env()? {
+        export_config = export_config.authentication_credentials(credentials);
+      }
+
+      target.export(config, env, noise_level, export_config)?;
 
       if let Ok(ipa_path) = config.ipa_path() {
         let out_dir = config.export_dir().join(target.arch);
@@ -323,4 +325,24 @@ fn run_build(
   log_finished(out_files, "IPA");
 
   Ok(handle)
+}
+
+fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::target::AuthCredentials>> {
+  match (
+    var("APPLE_API_KEY"),
+    var("APPLE_API_ISSUER"),
+    var_os("APPLE_API_KEY_PATH").map(PathBuf::from),
+  ) {
+    (Ok(key_id), Ok(key_issuer_id), Some(key_path)) => {
+      Ok(Some(cargo_mobile2::apple::target::AuthCredentials {
+        key_path,
+        key_id,
+        key_issuer_id,
+      }))
+    }
+    (Err(_), Err(_), None) => Ok(None),
+    _ => anyhow::bail!(
+      "APPLE_API_KEY, APPLE_API_ISSUER and APPLE_API_KEY_PATH must be provided for code signing"
+    ),
+  }
 }

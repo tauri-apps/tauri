@@ -489,7 +489,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     quote!()
   };
 
-  Ok(quote!({
+  let context = quote!({
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
@@ -507,6 +507,22 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     #maybe_config_parent_setter
 
     context
+  });
+
+  Ok(quote!({
+    let thread = ::std::thread::Builder::new()
+      .name(String::from("generated tauri context creation"))
+      .stack_size(8 * 1024 * 1024)
+      .spawn(|| #context)
+      .expect("unable to create thread with 8MiB stack");
+
+    match thread.join() {
+      Ok(context) => context,
+      Err(_) => {
+        eprintln!("the generated Tauri `Context` panicked during creation");
+        ::std::process::exit(101);
+      }
+    }
   }))
 }
 

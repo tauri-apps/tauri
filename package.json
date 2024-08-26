@@ -14,12 +14,17 @@
     "format": "prettier --write . --config .prettierrc --ignore-path .prettierignore",
     "format:check": "prettier --check . --config .prettierrc --ignore-path .prettierignore",
     "eslint:check": "pnpm run -r eslint:check",
-    "ts:check": "pnpm run -r ts:check",
-    "postinstall": "husky"
+    "ts:check": "pnpm run -r ts:check"
   },
   "devDependencies": {
-    "husky": "^9.1.4",
     "prettier": "^3.3.2"
   },
-  "packageManager": "pnpm@9.7.0"
+  "packageManager": "pnpm@9.7.1",
+  "pnpm": {
+    "auditConfig": {
+      "ignoreCves": [
+        "CVE-2024-4067"
+      ]
+    }
+  }
 }

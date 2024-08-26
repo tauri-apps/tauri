@@ -6,6 +6,8 @@ This feature is commonly used for functionality such as previewing or editing fi
 
 ## Running the example
 
-```
-cargo build --example file-associations
-```
+1. Run the following inside `examples/file-associations/src-tauri`
+
+   ```
+   cargo build
+   ```

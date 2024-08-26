@@ -1,7 +1,9 @@
 # Streaming example
 
-A simple Tauri Application showcase the streaming functionality.
+A simple Tauri Application showcase how to stream video through custom protocol but can be adapted to stream any type of files.
 
 To execute run the following on the root directory of the repository: `cargo run --example streaming`.
 
-By default the example uses a custom URI scheme protocol. To use the builtin `asset` protocol, run `cargo run --example streaming --features protocol-asset`.
+### Note
+
+Tauri has a built-in `asset` protocol that implements this streaming functionality so you don't need to. This example just exists as a reference.

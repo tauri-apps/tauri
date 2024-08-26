@@ -16,6 +16,10 @@ members = [
   # integration tests
   "core/tests/restart",
   "core/tests/acl",
+
+  # examples
+  "examples/file-associations/src-tauri",
+  "examples/api/src-tauri",
 ]
 
 exclude = [

@@ -249,12 +249,12 @@ fn main() {
   )
   .expect("failed to write checked_features file");
 
-  // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error
+  // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
   // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
   let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
   let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
   if is_tauri_workspace && target_os == "windows" && Ok("msvc") == target_env.as_deref() {
-    add_manifest();
+    embed_manifest_for_tests();
   }
 
   if target_os == "android" {
@@ -394,8 +394,8 @@ permissions = [{default_permissions}]
   }
 }
 
-fn add_manifest() {
-  static WINDOWS_MANIFEST_FILE: &str = "window-app-manifest.xml";
+fn embed_manifest_for_tests() {
+  static WINDOWS_MANIFEST_FILE: &str = "windows-app-manifest.xml";
 
   let manifest = std::env::current_dir()
     .unwrap()

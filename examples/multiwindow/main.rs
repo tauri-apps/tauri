@@ -4,42 +4,32 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::{webview::PageLoadEvent, Listener, WebviewWindowBuilder};
-use tauri_utils::acl::ExecutionContext;
+use tauri::WebviewWindowBuilder;
 
 fn main() {
+  tauri::Builder::default()
+    .setup(|app| {
+      WebviewWindowBuilder::new(app, "Third", tauri::WebviewUrl::default())
+        .title("Tauri - Third")
+        .build()?;
+
+      Ok(())
+    })
+    .run(generate_context())
+    .expect("failed to run tauri application");
+}
+
+fn generate_context() -> tauri::Context {
   let mut context = tauri::generate_context!("../../examples/multiwindow/tauri.conf.json");
   for cmd in [
     "plugin:event|listen",
     "plugin:event|emit",
     "plugin:event|emit_to",
+    "plugin:webview|create_webview_window",
   ] {
     context
       .runtime_authority_mut()
-      .__allow_command(cmd.to_string(), ExecutionContext::Local);
+      .__allow_command(cmd.to_string(), tauri_utils::acl::ExecutionContext::Local);
   }
-
-  tauri::Builder::default()
-    .on_page_load(|webview, payload| {
-      if payload.event() == PageLoadEvent::Finished {
-        let label = webview.label().to_string();
-        webview.listen("clicked".to_string(), move |_payload| {
-          println!("got 'clicked' event on window '{label}'");
-        });
-      }
-    })
-    .setup(|app| {
-      #[allow(unused_mut)]
-      let mut builder =
-        WebviewWindowBuilder::new(app, "Rust", tauri::WebviewUrl::App("index.html".into()));
-      #[cfg(target_os = "macos")]
-      {
-        builder = builder.tabbing_identifier("Rust");
-      }
-      let _webview = builder.title("Tauri - Rust").build()?;
-
-      Ok(())
-    })
-    .run(context)
-    .expect("failed to run tauri application");
+  context
 }

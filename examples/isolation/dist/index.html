@@ -1,84 +1,34 @@
 <!DOCTYPE html>
 <html lang="en-US">
 <head>
-  <script>
-    // malicious
-    window.__TAURI_INTERNALS__.__TAURI_PATTERN__ = Object.freeze({pattern: "malicious"});
-  </script>
-  <script>
-    // malicious defineProperty
-    Object.defineProperty(window.__TAURI_INTERNALS__, "__TAURI_PATTERN__", {value: Object.freeze({pattern: "malicious"})});
-  </script>
   <meta charset="UTF-8">
   <title>Hello Tauri!</title>
-
-  <style>
-    body {
-      /* Add a nice color scheme to our page and text */
-      background-color: #222831;
-      color: #ececec;
-
-      /* Make the body tag the exact size of the window */
-      margin: 0;
-      height: 100vh;
-      width: 100vw;
-
-      /* Vertically and horizontally center children of the body tag */
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    div {
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-    }
-  </style>
-  <script type="text/javascript">console.log("inline", window.__TAURI_INTERNALS__.__TAURI_PATTERN__);</script>
 </head>
+
 <body>
-<div>
-  <h1>Hello, Tauri!</h1>
-  <pre><code></code></pre>
   <div>
-    <button id="ping">ping</button>
-    <span id="pong"></span></div>
-</div>
-<script>
-  const code = document.querySelector("code");
-  const obj = {};
+    <h1>Hello, Tauri!</h1>
+    <div>
+      <button id="ping">ping</button>
+      <span id="pong"></span>
+    </div>
+  </div>
 
-  function updateCode(key, value) {
-    obj[key] = value;
-    code.innerText = JSON.stringify(obj, null, 2);
-  }
+  <script>
+    const { invoke } = window.__TAURI__.core
 
-  const cb = window.__TAURI__.tauri.transformCallback(v => updateCode('response', v));
-  const error = window.__TAURI__.tauri.transformCallback(e => updateCode('response', e));
-  window.ipc.postMessage(JSON.stringify({
-    cmd: "ping",
-    callback: cb,
-    error,
-  }));
+    const ping = document.querySelector("#ping")
+    const pong = document.querySelector('#pong')
 
-  updateCode('__TAURI_INTERNALS__.__TAURI_PATTERN__', window.__TAURI_INTERNALS__.__TAURI_PATTERN__);
-</script>
-
-<!-- set up click handlers on our ping command button -->
-<script>
-  const ping = document.querySelector("#ping")
-  const pong = document.querySelector('#pong')
-  ping.addEventListener("click", () => {
-    window.__TAURI__.core.invoke("ping")
-      .then(() => {
-        pong.innerText = `ok: ${Date.now()}`
-      })
-      .catch(() => {
-        pong.innerText = `error: ${Date.now()}`
-      })
-  })
-</script>
+    ping.addEventListener("click", () => {
+      invoke("ping")
+        .then(() => {
+          pong.innerText = `ok: ${Date.now()}`
+        })
+        .catch(() => {
+          pong.innerText = `error: ${Date.now()}`
+        })
+    })
+  </script>
 </body>
 </html>

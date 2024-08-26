@@ -45,6 +45,7 @@ jobs:
     if: needs.changes.outputs.api == 'true'
     steps:
       - uses: actions/checkout@v4
+      - run: corepack enable
 
       - name: build api
         working-directory: tooling/api

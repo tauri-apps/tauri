@@ -120,7 +120,6 @@
           "signCommand": null,
           "timestampUrl": null,
           "tsp": false,
-          "webviewFixedRuntimePath": null,
           "webviewInstallMode": {
             "silent": true,
             "type": "downloadBootstrapper"
@@ -1650,7 +1649,6 @@
             "signCommand": null,
             "timestampUrl": null,
             "tsp": false,
-            "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
               "silent": true,
               "type": "downloadBootstrapper"
@@ -1996,13 +1994,6 @@
             {
               "$ref": "#/definitions/WebviewInstallMode"
             }
-          ]
-        },
-        "webviewFixedRuntimePath": {
-          "description": "Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.\n\n Will be removed in v2, prefer the [`Self::webview_install_mode`] option.\n\n The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).\n The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
-          "type": [
-            "string",
-            "null"
           ]
         },
         "allowDowngrades": {

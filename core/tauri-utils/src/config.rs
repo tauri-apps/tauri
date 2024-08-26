@@ -841,7 +841,7 @@ pub struct NsisConfig {
   /// Try to ensure that the WebView2 version is equal to or newer than this version,
   /// if the user's WebView2 is older than this version,
   /// the installer will try to trigger a WebView2 update.
-  #[serde(alias = "ensure-webview2-version")]
+  #[serde(alias = "minimum-webview2-version")]
   pub minimum_webview2_version: Option<String>,
 }
 
@@ -948,14 +948,6 @@ pub struct WindowsConfig {
   /// The installation mode for the Webview2 runtime.
   #[serde(default, alias = "webview-install-mode")]
   pub webview_install_mode: WebviewInstallMode,
-  /// Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.
-  ///
-  /// Will be removed in v2, prefer the [`Self::webview_install_mode`] option.
-  ///
-  /// The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).
-  /// The `.cab` file must be extracted to a folder and this folder path must be defined on this field.
-  #[serde(alias = "webview-fixed-runtime-path")]
-  pub webview_fixed_runtime_path: Option<PathBuf>,
   /// Validates a second app installation, blocking the user from installing an older version if set to `false`.
   ///
   /// For instance, if `1.2.1` is installed, the user won't be able to install app version `1.2.0` or `1.1.5`.
@@ -986,7 +978,6 @@ impl Default for WindowsConfig {
       timestamp_url: None,
       tsp: false,
       webview_install_mode: Default::default(),
-      webview_fixed_runtime_path: None,
       allow_downgrades: true,
       wix: None,
       nsis: None,
@@ -2550,14 +2541,7 @@ mod build {
 
   impl ToTokens for WindowsConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let webview_install_mode = if let Some(fixed_runtime_path) = &self.webview_fixed_runtime_path
-      {
-        WebviewInstallMode::FixedRuntime {
-          path: fixed_runtime_path.clone(),
-        }
-      } else {
-        self.webview_install_mode.clone()
-      };
+      let webview_install_mode = &self.webview_install_mode;
       tokens.append_all(quote! { ::tauri::utils::config::WindowsConfig {
         webview_install_mode: #webview_install_mode,
         ..Default::default()

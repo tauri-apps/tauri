@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0-alpha.11",
-    "tauri-plugin-{{ plugin_name }}-api": "link:../../"
+    "tauri-plugin-{{ plugin_name }}-api": "file:../../"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^1.0.1",

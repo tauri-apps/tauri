@@ -345,7 +345,6 @@ fn ensure_init(
           .push("you have modified your \"identifier\" in the Tauri configuration");
       }
 
-      println!("{}", app.lib_name());
       if !project_yml.contains(&format!("framework: lib{}.a", app.lib_name())) {
         project_outdated_reasons
           .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");

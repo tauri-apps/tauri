@@ -34,8 +34,8 @@ jobs:
       - run: pnpm i --frozen-lockfile
       - run: pnpm format:check
 
-  taplo-fmt:
-    name: .toml format check using taplo-cli
+  taplo:
+    name: taplo (.toml files)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

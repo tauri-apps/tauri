@@ -427,13 +427,7 @@ fn build_nsis_app_installer(
       silent: silent_webview2_install,
     }
   } else {
-    let mut webview_install_mode = settings.windows().webview_install_mode.clone();
-    if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
-      webview_install_mode = WebviewInstallMode::FixedRuntime {
-        path: fixed_runtime_path,
-      };
-    }
-    webview_install_mode
+    settings.windows().webview_install_mode.clone()
   };
 
   let webview2_installer_args = to_json(if silent_webview2_install {

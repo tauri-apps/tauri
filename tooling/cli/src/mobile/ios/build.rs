@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, detect_target_ok, ensure_init, env, get_app, get_config, inject_resources,
-  load_pbxproj, log_finished, merge_plist, open_and_wait, project_config,
-  synchronize_project_config, MobileTarget, OptionsHandle,
+  detect_target_ok, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
+  log_finished, merge_plist, open_and_wait, project_config, synchronize_project_config,
+  MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -186,7 +186,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   merged_info_plist.to_file_xml(&info_plist_path)?;
 
   let mut env = env()?;
-  configure_cargo(&app, None)?;
 
   let mut export_options_plist = plist::Dictionary::new();
   if let Some(method) = options.export_method {

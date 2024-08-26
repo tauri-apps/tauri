@@ -9,13 +9,9 @@ use crate::{
   Result,
 };
 use cargo_mobile2::{
-  android::{
-    config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
-  },
+  android::env::Env as AndroidEnv,
   config::app::App,
-  dot_cargo,
   reserved_names::KOTLIN_ONLY_KEYWORDS,
-  target::TargetTrait as _,
   util::{
     self,
     cli::{Report, TextWrapper},
@@ -37,30 +33,6 @@ pub fn command(
 
   exec(target, &wrapper, ci, reinstall_deps, skip_targets_install)
     .map_err(|e| anyhow::anyhow!("{:#}", e))?;
-  Ok(())
-}
-
-pub fn configure_cargo(
-  app: &App,
-  android: Option<(&mut AndroidEnv, &AndroidConfig)>,
-) -> Result<()> {
-  if let Some((env, config)) = android {
-    for target in AndroidTarget::all().values() {
-      let config = target.generate_cargo_config(config, env)?;
-      let target_var_name = target.triple.replace('-', "_").to_uppercase();
-      if let Some(linker) = config.linker {
-        env.base.insert_env_var(
-          format!("CARGO_TARGET_{target_var_name}_LINKER"),
-          linker.into(),
-        );
-      }
-      env.base.insert_env_var(
-        format!("CARGO_TARGET_{target_var_name}_RUSTFLAGS"),
-        config.rustflags.join(" ").into(),
-      );
-    }
-  }
-
   Ok(())
 }
 

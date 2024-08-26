@@ -21,8 +21,3 @@ tauri-build = {{ tauri_build_dep }}
 tauri = {{ tauri_example_dep }}
 tauri-plugin-{{ plugin_name }} = { path = "../../../" }
 
-# If compile error is occurred with "using sysroot for 'iPhoneOS' but targeting 'MacOSX'",
-# you can try the patch by uncommenting this comment out.
-
-# [patch.crates-io]
-# swift-rs = { git = "https://github.com/guillemcordoba/swift-rs", branch = "main" }

@@ -1,6 +1,6 @@
 ---
-"@tauri-apps/cli": 'patch:bug'
-"tauri-cli": 'patch:bug'
+"tauri": 'patch:bug'
+"tauri-utils": 'patch:bug'
 ---
 
-Example template suggest to use patch of forked swift-rs
+Update swift-rs fixing a plugin build when native dependencies are used.

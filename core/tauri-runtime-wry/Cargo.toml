@@ -52,11 +52,7 @@ jni = "0.21"
 
 [features]
 devtools = ["wry/devtools", "tauri-runtime/devtools"]
-macos-private-api = [
-  "wry/fullscreen",
-  "wry/transparent",
-  "tauri-runtime/macos-private-api",
-]
+macos-private-api = ["wry/fullscreen", "wry/transparent", "tauri-runtime/macos-private-api"]
 objc-exception = ["wry/objc-exception"]
 linux-protocol-body = ["wry/linux-body", "webkit2gtk/v2_40"]
 tracing = ["dep:tracing", "wry/tracing"]

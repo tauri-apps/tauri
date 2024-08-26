@@ -5,12 +5,7 @@
 # ISOLATION_VOLUME: absolute path to the isolation dist folder
 # WORKSPACE_VOLUME: absolute path to the workspace
 # this can be done running `$ . .setup-cross.sh` in the examples/api folder
-volumes = [
-  "ICONS_VOLUME",
-  "DIST_VOLUME",
-  "ISOLATION_VOLUME",
-  "WORKSPACE_VOLUME",
-]
+volumes = ["ICONS_VOLUME", "DIST_VOLUME", "ISOLATION_VOLUME", "WORKSPACE_VOLUME"]
 
 [target.aarch64-unknown-linux-gnu]
 image = "aarch64-unknown-linux-gnu:latest"

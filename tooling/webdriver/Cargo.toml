@@ -15,14 +15,7 @@ rust-version = "1.60"
 
 [dependencies]
 anyhow = "1"
-hyper = { version = "0.14", features = [
-  "client",
-  "http1",
-  "runtime",
-  "server",
-  "stream",
-  "tcp",
-] }
+hyper = { version = "0.14", features = ["client", "http1", "runtime", "server", "stream", "tcp"] }
 futures = "0.3"
 futures-util = "0.3"
 pico-args = "0.4"

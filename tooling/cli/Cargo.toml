@@ -118,11 +118,7 @@ insta = "1"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.59"
-features = [
-  "Win32_Storage_FileSystem",
-  "Win32_System_IO",
-  "Win32_System_Console",
-]
+features = ["Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Console"]
 
 [target."cfg(unix)".dependencies]
 libc = "0.2"
@@ -133,11 +129,7 @@ tauri-macos-sign = { version = "0.1.1-rc.0", path = "../macos-sign" }
 
 [features]
 default = ["rustls"]
-native-tls = [
-  "tauri-bundler/native-tls",
-  "cargo-mobile2/native-tls",
-  "ureq/native-tls",
-]
+native-tls = ["tauri-bundler/native-tls", "cargo-mobile2/native-tls", "ureq/native-tls"]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls"]
 

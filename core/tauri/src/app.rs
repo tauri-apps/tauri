@@ -2090,7 +2090,13 @@ fn on_event_loop_event<R: Runtime>(
           {
             listener(app_handle, e.clone());
           }
-          for (label, listener) in &*app_handle.manager.menu.event_listeners.lock().unwrap() {
+          for (label, listener) in &*app_handle
+            .manager
+            .menu
+            .window_event_listeners
+            .lock()
+            .unwrap()
+          {
             if let Some(w) = app_handle.manager().get_window(label) {
               listener(&w, e.clone());
             }

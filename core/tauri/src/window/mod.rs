@@ -1087,7 +1087,7 @@ tauri::Builder::default()
     self
       .manager
       .menu
-      .event_listeners
+      .window_event_listeners
       .lock()
       .unwrap()
       .insert(self.label().to_string(), Box::new(f));

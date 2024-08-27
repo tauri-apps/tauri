@@ -2,18 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{menu::CheckMenuItem, menu::MenuId, Manager, Runtime};
+use crate::{
+  menu::{CheckMenuItem, MenuEvent, MenuId},
+  Manager, Runtime,
+};
 
 /// A builder type for [`CheckMenuItem`]
-pub struct CheckMenuItemBuilder {
+pub struct CheckMenuItemBuilder<R: Runtime> {
   id: Option<MenuId>,
   text: String,
   enabled: bool,
   checked: bool,
   accelerator: Option<String>,
+  handler: Option<Box<dyn Fn(&CheckMenuItem<R>, MenuEvent) + Send + Sync + 'static>>,
 }
 
-impl CheckMenuItemBuilder {
+impl<R: Runtime> CheckMenuItemBuilder<R> {
   /// Create a new menu item builder.
   ///
   /// - `text` could optionally contain an `&` before a character to assign this character as the mnemonic
@@ -25,6 +29,7 @@ impl CheckMenuItemBuilder {
       enabled: true,
       checked: true,
       accelerator: None,
+      handler: None,
     }
   }
 
@@ -39,6 +44,7 @@ impl CheckMenuItemBuilder {
       enabled: true,
       checked: true,
       accelerator: None,
+      handler: None,
     }
   }
 
@@ -66,9 +72,18 @@ impl CheckMenuItemBuilder {
     self
   }
 
+  /// Set a handler to be called when this item is activated.
+  pub fn handler<F: Fn(&CheckMenuItem<R>, MenuEvent) + Send + Sync + 'static>(
+    mut self,
+    handler: F,
+  ) -> Self {
+    self.handler.replace(Box::new(handler));
+    self
+  }
+
   /// Build the menu item
-  pub fn build<R: Runtime, M: Manager<R>>(self, manager: &M) -> crate::Result<CheckMenuItem<R>> {
-    if let Some(id) = self.id {
+  pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<CheckMenuItem<R>> {
+    let i = if let Some(id) = self.id {
       CheckMenuItem::with_id(
         manager,
         id,
@@ -76,7 +91,7 @@ impl CheckMenuItemBuilder {
         self.enabled,
         self.checked,
         self.accelerator,
-      )
+      )?
     } else {
       CheckMenuItem::new(
         manager,
@@ -84,7 +99,21 @@ impl CheckMenuItemBuilder {
         self.enabled,
         self.checked,
         self.accelerator,
-      )
-    }
+      )?
+    };
+
+    if let Some(handler) = self.handler {
+      let i = i.clone();
+      manager
+        .manager()
+        .menu
+        .on_menu_item_event(i.id().clone(), move |_app, e| {
+          if e.id == i.id() {
+            handler(&i, e)
+          }
+        });
+    };
+
+    Ok(i)
   }
 }

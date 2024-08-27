@@ -223,14 +223,14 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 
 /// Attributes used on Windows.
 #[allow(dead_code)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
   /// ```text
-  #[doc = include_str!("window-app-manifest.xml")]
+  #[doc = include_str!("windows-app-manifest.xml")]
   /// ```
   ///
   /// ## Warning
@@ -255,10 +255,28 @@ pub struct WindowsAttributes {
   app_manifest: Option<String>,
 }
 
+impl Default for WindowsAttributes {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
-    Self::default()
+    Self {
+      window_icon_path: Default::default(),
+      app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+    }
+  }
+
+  /// Creates the default attriute set wihtou the default app manifest.
+  #[must_use]
+  pub fn new_without_app_manifest() -> Self {
+    Self {
+      app_manifest: None,
+      window_icon_path: Default::default(),
+    }
   }
 
   /// Sets the icon to use on the window. Currently only used on Windows.
@@ -275,7 +293,7 @@ impl WindowsAttributes {
   ///
   /// Defaults to:
   /// ```text
-  #[doc = include_str!("window-app-manifest.xml")]
+  #[doc = include_str!("windows-app-manifest.xml")]
   /// ```
   ///
   /// ## Warning
@@ -641,8 +659,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(manifest) = attributes.windows_attributes.app_manifest {
       res.set_manifest(&manifest);
-    } else {
-      res.set_manifest(include_str!("window-app-manifest.xml"));
     }
 
     if let Some(version_str) = &config.version {

@@ -81,11 +81,11 @@ jobs:
 
       - name: move CLI to cargo bin dir
         if: matrix.platform != 'windows-latest'
-        run: mv ./crates/tauri-cli/target/debug/cargo-tauri $HOME/.cargo/bin
+        run: mv ./target/debug/cargo-tauri $HOME/.cargo/bin
 
       - name: move CLI to cargo bin dir
         if: matrix.platform == 'windows-latest'
-        run: mv ./crates/tauri-cli/target/debug/cargo-tauri.exe $HOME/.cargo/bin
+        run: mv ./target/debug/cargo-tauri.exe $HOME/.cargo/bin
 
       - run: pnpm i --frozen-lockfile
 

@@ -68,11 +68,14 @@ pub fn run(options: Options) -> Result<()> {
         .then_some(r#"cfg(any(target_os = "android", target_os = "ios"))"#)
     });
 
-  let version = version.or(metadata.version_req.as_deref());
+  let cargo_version_req = version.or(metadata.version_req.as_deref());
+  let npm_version_req = version
+    .map(ToString::to_string)
+    .or(metadata.version_req.as_ref().map(|v| format!("^{v}")));
 
   cargo::install_one(cargo::CargoInstallOptions {
     name: &crate_name,
-    version,
+    version: cargo_version_req,
     branch: options.branch.as_deref(),
     rev: options.rev.as_deref(),
     tag: options.tag.as_deref(),
@@ -85,7 +88,7 @@ pub fn run(options: Options) -> Result<()> {
       .map(PackageManager::from_project)
       .and_then(|managers| managers.into_iter().next())
     {
-      let npm_spec = match (version, options.tag, options.rev, options.branch) {
+      let npm_spec = match (npm_version_req, options.tag, options.rev, options.branch) {
         (Some(version), _, _, _) => {
           format!("{npm_name}@{version}")
         }

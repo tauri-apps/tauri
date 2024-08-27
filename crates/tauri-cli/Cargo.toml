@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [dependencies]
-cargo-mobile2 = { version = "0.14", default-features = false }
+cargo-mobile2 = { version = "0.15", default-features = false }
 jsonrpsee = { version = "0.24", features = ["server"] }
 jsonrpsee-core = "0.24"
 jsonrpsee-client-transport = { version = "0.24", features = ["ws"] }
@@ -112,6 +112,7 @@ tempfile = "3"
 
 [dev-dependencies]
 insta = "1"
+pretty_assertions = "1"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.59"

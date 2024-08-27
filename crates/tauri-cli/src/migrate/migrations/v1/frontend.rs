@@ -52,13 +52,26 @@ const MODULES_MAP: phf::Map<&str, &str> = phf::phf_map! {
   "@tauri-apps/api/process" => "@tauri-apps/plugin-process",
   "@tauri-apps/api/shell" => "@tauri-apps/plugin-shell",
   "@tauri-apps/api/updater" => "@tauri-apps/plugin-updater",
+  // v1 plugins to v2
+  "tauri-plugin-sql-api" => "@tauri-apps/plugin-sql",
+  "tauri-plugin-store-api" => "@tauri-apps/plugin-store",
+  "tauri-plugin-upload-api" => "@tauri-apps/plugin-upload",
+  "tauri-plugin-fs-extra-api" => "@tauri-apps/plugin-fs",
+  "tauri-plugin-fs-watch-api" => "@tauri-apps/plugin-fs",
+  "tauri-plugin-autostart-api" => "@tauri-apps/plugin-autostart",
+  "tauri-plugin-websocket-api" => "@tauri-apps/plugin-websocket",
+  "tauri-plugin-positioner-api" => "@tauri-apps/plugin-positioner",
+  "tauri-plugin-stronghold-api" => "@tauri-apps/plugin-stronghold",
+  "tauri-plugin-window-state-api" => "@tauri-apps/plugin-window-state",
+  "tauri-plugin-authenticator-api" => "@tauri-apps/plugin-authenticator",
 };
 const JS_EXTENSIONS: &[&str] = &["js", "mjs", "jsx", "ts", "mts", "tsx", "svelte", "vue"];
 
-/// Returns a list of paths that could not be migrated
+/// Returns a list of migrated plugins
 pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
   let mut new_npm_packages = Vec::new();
   let mut new_plugins = Vec::new();
+  let mut npm_packages_to_remove = Vec::new();
 
   let pre = env!("CARGO_PKG_VERSION_PRE");
   let npm_version = if pre.is_empty() {
@@ -92,7 +105,12 @@ pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
       let ext = path.extension().unwrap_or_default();
       if JS_EXTENSIONS.iter().any(|e| e == &ext) {
         let js_contents = std::fs::read_to_string(path)?;
-        let new_contents = migrate_imports(path, &js_contents, &mut new_plugins)?;
+        let new_contents = migrate_imports(
+          path,
+          &js_contents,
+          &mut new_plugins,
+          &mut npm_packages_to_remove,
+        )?;
         if new_contents != js_contents {
           fs::write(path, new_contents)
             .with_context(|| format!("Error writing {}", path.display()))?;
@@ -101,9 +119,16 @@ pub fn migrate(app_dir: &Path) -> Result<Vec<String>> {
     }
   }
 
-  new_npm_packages.sort();
-  new_npm_packages.dedup();
+  if !npm_packages_to_remove.is_empty() {
+    npm_packages_to_remove.sort();
+    npm_packages_to_remove.dedup();
+    pm.remove(&npm_packages_to_remove, app_dir)
+      .context("Error removing npm packages")?;
+  }
+
   if !new_npm_packages.is_empty() {
+    new_npm_packages.sort();
+    new_npm_packages.dedup();
     pm.install(&new_npm_packages, app_dir)
       .context("Error installing new npm packages")?;
   }
@@ -115,6 +140,7 @@ fn migrate_imports<'a>(
   path: &'a Path,
   js_source: &'a str,
   new_plugins: &mut Vec<String>,
+  npm_packages_to_remove: &mut Vec<String>,
 ) -> crate::Result<String> {
   let mut magic_js_source = MagicString::new(js_source);
 
@@ -158,31 +184,35 @@ fn migrate_imports<'a>(
       if let Statement::ImportDeclaration(stmt) = import {
         let module = stmt.source.value.as_str();
 
-        // skip parsing non @tauri-apps/api imports
-        if !module.starts_with("@tauri-apps/api") {
-          continue;
-        }
-
         // convert module to its pluginfied module or renamed one
         // import { ... } from "@tauri-apps/api/window" -> import { ... } from "@tauri-apps/api/webviewWindow"
         // import { ... } from "@tauri-apps/api/cli" -> import { ... } from "@tauri-apps/plugin-cli"
-        if let Some(&module) = MODULES_MAP.get(module) {
+        if let Some(&new_module) = MODULES_MAP.get(module) {
           // +1 and -1, to skip modifying the import quotes
           magic_js_source
             .overwrite(
               script_start + stmt.source.span.start as i64 + 1,
               script_start + stmt.source.span.end as i64 - 1,
-              module,
+              new_module,
               Default::default(),
             )
             .map_err(|e| anyhow::anyhow!("{e}"))
             .context("failed to replace import source")?;
 
           // if module was pluginified, add to packages
-          let module = module.split_once("plugin-");
-          if let Some((_, module)) = module {
-            new_plugins.push(module.to_string());
+          if let Some(plugin_name) = new_module.strip_prefix("@tauri-apps/plugin-") {
+            new_plugins.push(plugin_name.to_string());
           }
+
+          // if the module is a v1 plugin, we should remove it
+          if module.starts_with("tauri-plugin-") {
+            npm_packages_to_remove.push(module.to_string());
+          }
+        }
+
+        // skip parsing non @tauri-apps/api imports
+        if !module.starts_with("@tauri-apps/api") {
+          continue;
         }
 
         let Some(specifiers) = &mut stmt.specifiers else {
@@ -317,6 +347,7 @@ fn migrate_imports<'a>(
 mod tests {
 
   use super::*;
+  use pretty_assertions::assert_eq;
 
   #[test]
   fn migrates_vue() {
@@ -376,8 +407,15 @@ const appWindow = getCurrentWebviewWindow()
 "#;
 
     let mut new_plugins = Vec::new();
+    let mut npm_packages_to_remove = Vec::new();
 
-    let migrated = migrate_imports(Path::new("file.vue"), input, &mut new_plugins).unwrap();
+    let migrated = migrate_imports(
+      Path::new("file.vue"),
+      input,
+      &mut new_plugins,
+      &mut npm_packages_to_remove,
+    )
+    .unwrap();
 
     assert_eq!(migrated, expected);
 
@@ -392,6 +430,7 @@ const appWindow = getCurrentWebviewWindow()
         "fs"
       ]
     );
+    assert_eq!(npm_packages_to_remove, Vec::<String>::new());
   }
 
   #[test]
@@ -436,8 +475,15 @@ const appWindow = getCurrentWebviewWindow()
 "#;
 
     let mut new_plugins = Vec::new();
+    let mut npm_packages_to_remove = Vec::new();
 
-    let migrated = migrate_imports(Path::new("file.svelte"), input, &mut new_plugins).unwrap();
+    let migrated = migrate_imports(
+      Path::new("file.svelte"),
+      input,
+      &mut new_plugins,
+      &mut npm_packages_to_remove,
+    )
+    .unwrap();
 
     assert_eq!(migrated, expected);
 
@@ -452,6 +498,7 @@ const appWindow = getCurrentWebviewWindow()
         "fs"
       ]
     );
+    assert_eq!(npm_packages_to_remove, Vec::<String>::new());
   }
 
   #[test]
@@ -466,6 +513,8 @@ import { open } from "@tauri-apps/api/dialog";
 import { register } from "@tauri-apps/api/globalShortcut";
 import clipboard from "@tauri-apps/api/clipboard";
 import * as fs from "@tauri-apps/api/fs";
+import { Store } from "tauri-plugin-store-api";
+import Database from "tauri-plugin-sql-api";
 import "./App.css";
 
 function App() {
@@ -535,6 +584,8 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { register } from "@tauri-apps/plugin-global-shortcut";
 import clipboard from "@tauri-apps/plugin-clipboard-manager";
 import * as fs from "@tauri-apps/plugin-fs";
+import { Store } from "@tauri-apps/plugin-store";
+import Database from "@tauri-apps/plugin-sql";
 import "./App.css";
 import * as dialog from "@tauri-apps/plugin-dialog"
 import * as cli as superCli from "@tauri-apps/plugin-cli"
@@ -598,8 +649,15 @@ export default App;
 "#;
 
     let mut new_plugins = Vec::new();
+    let mut npm_packages_to_remove = Vec::new();
 
-    let migrated = migrate_imports(Path::new("file.js"), input, &mut new_plugins).unwrap();
+    let migrated = migrate_imports(
+      Path::new("file.js"),
+      input,
+      &mut new_plugins,
+      &mut npm_packages_to_remove,
+    )
+    .unwrap();
 
     assert_eq!(migrated, expected);
 
@@ -611,8 +669,14 @@ export default App;
         "dialog",
         "global-shortcut",
         "clipboard-manager",
-        "fs"
+        "fs",
+        "store",
+        "sql"
       ]
+    );
+    assert_eq!(
+      npm_packages_to_remove,
+      vec!["tauri-plugin-store-api", "tauri-plugin-sql-api"]
     );
   }
 }

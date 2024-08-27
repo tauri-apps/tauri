@@ -175,11 +175,6 @@ fn handlebars(app: &App) -> (Handlebars<'static>, JsonMap) {
     Box::new(quote_and_join_colon_prefix),
   );
   h.register_helper("snake-case", Box::new(snake_case));
-  h.register_helper("reverse-domain", Box::new(reverse_domain));
-  h.register_helper(
-    "reverse-domain-snake-case",
-    Box::new(reverse_domain_snake_case),
-  );
   h.register_helper("escape-kotlin-keyword", Box::new(escape_kotlin_keyword));
   // don't mix these up or very bad things will happen to all of us
   h.register_helper("prefix-path", Box::new(prefix_path));
@@ -298,31 +293,6 @@ fn snake_case(
   use heck::ToSnekCase as _;
   out
     .write(&get_str(helper).to_snek_case())
-    .map_err(Into::into)
-}
-
-fn reverse_domain(
-  helper: &Helper,
-  _: &Handlebars,
-  _: &Context,
-  _: &mut RenderContext,
-  out: &mut dyn Output,
-) -> HelperResult {
-  out
-    .write(&util::reverse_domain(get_str(helper)))
-    .map_err(Into::into)
-}
-
-fn reverse_domain_snake_case(
-  helper: &Helper,
-  _: &Handlebars,
-  _: &Context,
-  _: &mut RenderContext,
-  out: &mut dyn Output,
-) -> HelperResult {
-  use heck::ToSnekCase as _;
-  out
-    .write(&util::reverse_domain(get_str(helper)).to_snek_case())
     .map_err(Into::into)
 }
 

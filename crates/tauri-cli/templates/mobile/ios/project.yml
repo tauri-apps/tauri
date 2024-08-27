@@ -1,6 +1,6 @@
 name: {{app.name}}
 options:
-  bundleIdPrefix: {{reverse-domain app.identifier}}
+  bundleIdPrefix: {{app.identifier}}
   deploymentTarget:
     iOS: {{apple.ios-version}}
 fileGroups: [{{join file-groups}}]
@@ -11,7 +11,7 @@ settingGroups:
   app:
     base:
       PRODUCT_NAME: {{app.stylized-name}}
-      PRODUCT_BUNDLE_IDENTIFIER: {{reverse-domain app.identifier}}
+      PRODUCT_BUNDLE_IDENTIFIER: {{app.identifier}}
       {{#if apple.development-team}}
       DEVELOPMENT_TEAM: {{apple.development-team}}
       {{/if}}

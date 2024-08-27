@@ -91,6 +91,17 @@ pub enum TrayIconEvent {
     /// Mouse button state when this event was triggered.
     button_state: MouseButtonState,
   },
+  /// A double click happened on the tray icon. **Windows Only**
+  DoubleClick {
+    /// Id of the tray icon which triggered this event.
+    id: TrayIconId,
+    /// Physical Position of this event.
+    position: PhysicalPosition<f64>,
+    /// Position and size of the tray icon.
+    rect: Rect,
+    /// Mouse button that triggered this event.
+    button: MouseButton,
+  },
   /// The mouse entered the tray icon region.
   Enter {
     /// Id of the tray icon which triggered this event.
@@ -125,6 +136,7 @@ impl TrayIconEvent {
   pub fn id(&self) -> &TrayIconId {
     match self {
       TrayIconEvent::Click { id, .. } => id,
+      TrayIconEvent::DoubleClick { id, .. } => id,
       TrayIconEvent::Enter { id, .. } => id,
       TrayIconEvent::Move { id, .. } => id,
       TrayIconEvent::Leave { id, .. } => id,
@@ -150,6 +162,20 @@ impl From<tray_icon::TrayIconEvent> for TrayIconEvent {
         },
         button: button.into(),
         button_state: button_state.into(),
+      },
+      tray_icon::TrayIconEvent::DoubleClick {
+        id,
+        position,
+        rect,
+        button,
+      } => TrayIconEvent::DoubleClick {
+        id,
+        position,
+        rect: Rect {
+          position: rect.position.into(),
+          size: rect.size.into(),
+        },
+        button: button.into(),
       },
       tray_icon::TrayIconEvent::Enter { id, position, rect } => TrayIconEvent::Enter {
         id,

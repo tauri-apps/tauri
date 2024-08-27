@@ -42,6 +42,12 @@ pub fn get_target() -> &'static str {
   } else {
     "x86_64-apple-darwin"
   };
+  #[cfg(target_os = "ios")]
+  return if cfg!(target_arch = "aarch64") {
+    "aarch64-apple-ios"
+  } else {
+    "x86_64-apple-ios"
+  };
   #[cfg(target_os = "linux")]
   return "x86_64-unknown-linux-gnu";
   #[cfg(target_os = "windows")]
@@ -62,7 +68,7 @@ pub fn bench_root_path() -> PathBuf {
 
 #[allow(dead_code)]
 pub fn home_path() -> PathBuf {
-  #[cfg(any(target_os = "macos", target_os = "linux"))]
+  #[cfg(any(target_os = "macos", target_os = "ios", target_os = "linux"))]
   return PathBuf::from(env!("HOME"));
   #[cfg(target_os = "windows")]
   return PathBuf::from(env!("HOMEPATH"));

@@ -13,20 +13,20 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 mod cli;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 mod server;
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 mod webdriver;
 
-#[cfg(target_os = "macos")]
+#[cfg(not(any(target_os = "linux", windows)))]
 fn main() {
-  println!("tauri-driver is not supported on macOS");
+  println!("tauri-driver is not supported on this platform");
   std::process::exit(1);
 }
 
-#[cfg(not(target_os = "macos"))]
+#[cfg(any(target_os = "linux", windows))]
 fn main() {
   let args = pico_args::Arguments::from_env().into();
 

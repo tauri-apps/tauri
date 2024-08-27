@@ -2,12 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::env::args_os;
-use std::ffi::OsStr;
-use std::path::Path;
-use std::process::exit;
-
+#[cfg(not(any(target_os = "macos", target_os = "linux", windows)))]
 fn main() {
+  println!("The Tauri CLI is not supported on this platform");
+  std::process::exit(1);
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux", windows))]
+fn main() {
+  use std::env::args_os;
+  use std::ffi::OsStr;
+  use std::path::Path;
+  use std::process::exit;
+
   let mut args = args_os().peekable();
   let bin_name = match args
     .next()

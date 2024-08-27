@@ -319,6 +319,25 @@ fn build_command(
   build_cmd.arg("build");
   build_cmd.args(args);
 
+  // set the rust --remap-path-prefix flags to strip absolute paths that could leak usernames or other PII from panic messages and debug symbols
+  // see https://github.com/tauri-apps/tauri/issues/6538 for context
+  let mut rustflags = std::env::var("RUSTFLAGS").unwrap_or_default();
+
+  rustflags.push_str(&format!(
+    " --remap-path-prefix={}=",
+    std::env::current_dir().unwrap().display()
+  ));
+  rustflags.push_str(&format!(
+    " --remap-path-prefix={}=cargo",
+    env!("CARGO_HOME")
+  ));
+  rustflags.push_str(&format!(
+    " --remap-path-prefix={}=rustup",
+    env!("RUSTUP_HOME")
+  ));
+
+  build_cmd.envs([("RUSTFLAGS", rustflags)]);
+
   Ok(build_cmd)
 }
 

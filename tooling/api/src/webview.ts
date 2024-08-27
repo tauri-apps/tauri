@@ -526,7 +526,7 @@ class Webview {
    *
    * @example
    * ```typescript
-   * import { getCurrent } from "@tauri-apps/api/webview";
+   * import { getCurrentWebview } from "@tauri-apps/api/webview";
    * const unlisten = await getCurrentWebview().onDragDropEvent((event) => {
    *  if (event.payload.type === 'hover') {
    *    console.log('User hovering', event.payload.paths);

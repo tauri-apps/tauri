@@ -6,8 +6,7 @@ use serde::Deserialize;
 
 use std::{
   collections::HashMap,
-  fmt::Write,
-  fs::read_to_string,
+  fs,
   path::{Path, PathBuf},
 };
 
@@ -50,9 +49,63 @@ pub struct CargoManifest {
   pub dependencies: HashMap<String, CargoManifestDependency>,
 }
 
+#[derive(Default)]
 pub struct CrateVersion {
-  pub version: String,
-  pub found_crate_versions: Vec<String>,
+  pub version: Option<String>,
+  pub git: Option<String>,
+  pub git_branch: Option<String>,
+  pub git_rev: Option<String>,
+  pub path: Option<PathBuf>,
+  pub lock_version: Option<String>,
+}
+
+impl CrateVersion {
+  pub fn has_version(&self) -> bool {
+    self.version.is_some() || self.git.is_some() || self.path.is_some()
+  }
+}
+
+impl std::fmt::Display for CrateVersion {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    if let Some(g) = &self.git {
+      if let Some(version) = &self.version {
+        write!(f, "{g} ({version})")?;
+      } else {
+        write!(f, "git:{g}")?;
+        if let Some(branch) = &self.git_branch {
+          write!(f, "&branch={branch}")?;
+        } else if let Some(rev) = &self.git_rev {
+          write!(f, "#rev={rev}")?;
+        }
+      }
+    } else if let Some(p) = &self.path {
+      write!(f, "path:{}", p.display())?;
+      if let Some(version) = &self.version {
+        write!(f, " ({version})")?;
+      }
+    } else if let Some(version) = &self.version {
+      write!(f, "{version}")?;
+    } else {
+      return write!(f, "No version detected");
+    }
+
+    if let Some(lock_version) = &self.lock_version {
+      write!(f, " ({lock_version})")?;
+    }
+
+    Ok(())
+  }
+}
+
+pub fn crate_latest_version(name: &str) -> Option<String> {
+  let url = format!("https://docs.rs/crate/{name}/");
+  match ureq::get(&url).call() {
+    Ok(response) => match (response.status(), response.header("location")) {
+      (302, Some(location)) => Some(location.replace(&url, "")),
+      _ => None,
+    },
+    Err(_) => None,
+  }
 }
 
 pub fn crate_version(
@@ -61,6 +114,8 @@ pub fn crate_version(
   lock: Option<&CargoLock>,
   name: &str,
 ) -> CrateVersion {
+  let mut version = CrateVersion::default();
+
   let crate_lock_packages: Vec<CargoLockPackage> = lock
     .as_ref()
     .map(|lock| {
@@ -72,101 +127,54 @@ pub fn crate_version(
         .collect()
     })
     .unwrap_or_default();
-  let (crate_version_string, found_crate_versions) =
-    match (&manifest, &lock, crate_lock_packages.len()) {
-      (Some(_manifest), Some(_lock), 1) => {
-        let crate_lock_package = crate_lock_packages.first().unwrap();
-        let version_string = if let Some(s) = &crate_lock_package.source {
-          if s.starts_with("git") {
-            format!("{} ({})", s, crate_lock_package.version)
-          } else {
-            crate_lock_package.version.clone()
+
+  if crate_lock_packages.len() == 1 {
+    let crate_lock_package = crate_lock_packages.first().unwrap();
+    if let Some(s) = crate_lock_package
+      .source
+      .as_ref()
+      .filter(|s| s.starts_with("git"))
+    {
+      version.git = Some(s.clone());
+    }
+
+    version.version = Some(crate_lock_package.version.clone());
+  } else {
+    if let Some(dep) = manifest.and_then(|m| m.dependencies.get(name).cloned()) {
+      match dep {
+        CargoManifestDependency::Version(v) => version.version = Some(v),
+        CargoManifestDependency::Package(p) => {
+          if let Some(v) = p.version {
+            version.version = Some(v);
+          } else if let Some(p) = p.path {
+            let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
+            let v = fs::read_to_string(manifest_path)
+              .ok()
+              .and_then(|m| toml::from_str::<CargoManifest>(&m).ok())
+              .map(|m| m.package.version);
+            version.version = v;
+            version.path = Some(p);
+          } else if let Some(g) = p.git {
+            version.git = Some(g);
+            version.git_branch = p.branch;
+            version.git_rev = p.rev;
           }
-        } else {
-          crate_lock_package.version.clone()
-        };
-        (version_string, vec![crate_lock_package.version.clone()])
+        }
       }
-      (None, Some(_lock), 1) => {
-        let crate_lock_package = crate_lock_packages.first().unwrap();
-        let version_string = if let Some(s) = &crate_lock_package.source {
-          if s.starts_with("git") {
-            format!("{} ({})", s, crate_lock_package.version)
-          } else {
-            crate_lock_package.version.clone()
-          }
-        } else {
-          crate_lock_package.version.clone()
-        };
-        (
-          format!("{version_string} (no manifest)"),
-          vec![crate_lock_package.version.clone()],
-        )
+    }
+
+    if lock.is_some() && crate_lock_packages.is_empty() {
+      let lock_version = crate_lock_packages
+        .iter()
+        .map(|p| p.version.clone())
+        .collect::<Vec<String>>()
+        .join(", ");
+
+      if !lock_version.is_empty() {
+        version.lock_version = Some(lock_version);
       }
-      _ => {
-        let mut found_crate_versions = Vec::new();
-        let mut is_git = false;
-        let manifest_version = match manifest.and_then(|m| m.dependencies.get(name).cloned()) {
-          Some(tauri) => match tauri {
-            CargoManifestDependency::Version(v) => {
-              found_crate_versions.push(v.clone());
-              v
-            }
-            CargoManifestDependency::Package(p) => {
-              if let Some(v) = p.version {
-                found_crate_versions.push(v.clone());
-                v
-              } else if let Some(p) = p.path {
-                let manifest_path = tauri_dir.join(&p).join("Cargo.toml");
-                let v = match read_to_string(manifest_path)
-                  .map_err(|_| ())
-                  .and_then(|m| toml::from_str::<CargoManifest>(&m).map_err(|_| ()))
-                {
-                  Ok(manifest) => manifest.package.version,
-                  Err(_) => "unknown version".to_string(),
-                };
-                format!("path:{p:?} [{v}]")
-              } else if let Some(g) = p.git {
-                is_git = true;
-                let mut v = format!("git:{g}");
-                if let Some(branch) = p.branch {
-                  let _ = write!(v, "&branch={branch}");
-                } else if let Some(rev) = p.rev {
-                  let _ = write!(v, "#{rev}");
-                }
-                v
-              } else {
-                "unknown manifest".to_string()
-              }
-            }
-          },
-          None => "no manifest".to_string(),
-        };
-
-        let lock_version = match (lock, crate_lock_packages.is_empty()) {
-          (Some(_lock), false) => crate_lock_packages
-            .iter()
-            .map(|p| p.version.clone())
-            .collect::<Vec<String>>()
-            .join(", "),
-          (Some(_lock), true) => "unknown lockfile".to_string(),
-          _ => "no lockfile".to_string(),
-        };
-
-        (
-          format!(
-            "{} {}({})",
-            manifest_version,
-            if is_git { "(git manifest)" } else { "" },
-            lock_version
-          ),
-          found_crate_versions,
-        )
-      }
-    };
-
-  CrateVersion {
-    found_crate_versions,
-    version: crate_version_string,
+    }
   }
+
+  version
 }

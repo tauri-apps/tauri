@@ -185,14 +185,14 @@
       "path": "./core/tauri-plugin",
       "manager": "rust",
       "dependencies": ["tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-build": {
       "path": "./core/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion": [
-        "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
         "cargo build --manifest-path ../tauri-config-schema/Cargo.toml"
       ],
       "assets": [
@@ -212,14 +212,14 @@
         "tauri-runtime-wry",
         "tauri-build"
       ],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "@tauri-apps/cli": {
       "path": "./tooling/cli/node",
       "manager": "javascript",
       "dependencies": ["tauri-cli"],
       "postversion": [
-        "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "node ../../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
         "cargo build --manifest-path ../../../core/tauri-config-schema/Cargo.toml"
       ],
       "prepublish": [],

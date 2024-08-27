@@ -107,21 +107,21 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_utils::platform::Target::Android,
     options.config.as_ref().map(|c| &c.0),
   )?;
-  let (interface, app, config, metadata) = {
+  let (interface, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
     let interface = AppInterface::new(tauri_config_, build_options.target.clone())?;
     interface.build_options(&mut Vec::new(), &mut build_options.features, true);
 
-    let app = get_app(tauri_config_, &interface);
+    let app = get_app(MobileTarget::Android, tauri_config_, &interface);
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
       build_options.features.as_ref(),
       &Default::default(),
     );
-    (interface, app, config, metadata)
+    (interface, config, metadata)
   };
 
   let profile = if options.debug {
@@ -141,7 +141,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   )?;
 
   let mut env = env()?;
-  configure_cargo(&app, Some((&mut env, &config)))?;
+  configure_cargo(&mut env, &config)?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 

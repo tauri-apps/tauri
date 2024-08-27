@@ -1,10 +1,10 @@
-workspace = { }
+workspace = {}
 
 [package]
 name = "tauri-driver"
-version = "0.1.4"
-authors = [ "Tauri Programme within The Commons Conservancy" ]
-categories = [ "gui", "web-programming" ]
+version = "0.1.5"
+authors = ["Tauri Programme within The Commons Conservancy"]
+categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 homepage = "https://tauri.app"
 repository = "https://github.com/tauri-apps/tauri"
@@ -15,15 +15,15 @@ rust-version = "1.60"
 
 [dependencies]
 anyhow = "1"
-hyper = { version = "0.14", features = [ "client", "http1", "runtime", "server", "stream", "tcp" ] }
+hyper = { version = "0.14", features = ["client", "http1", "runtime", "server", "stream", "tcp"] }
 futures = "0.3"
 futures-util = "0.3"
 pico-args = "0.4"
-serde = { version = "1", features = [ "derive" ] }
+serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = [ "macros" ] }
+tokio = { version = "1", features = ["macros"] }
 which = "4"
 
 [target."cfg(unix)".dependencies]
 signal-hook = "0.3"
-signal-hook-tokio = { version = "0.3", features = [ "futures-v0_3" ] }
+signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }

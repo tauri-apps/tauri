@@ -1,19 +1,19 @@
 [package]
 name = "tauri-plugin"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 description = "Build script and runtime Tauri plugin definitions"
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-categories = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
-features = [ "build", "runtime" ]
-rustc-args = [ "--cfg", "docsrs" ]
-rustdoc-args = [ "--cfg", "docsrs" ]
+features = ["build", "runtime"]
+rustc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
 build = [
@@ -23,18 +23,20 @@ build = [
   "dep:glob",
   "dep:toml",
   "dep:plist",
-  "dep:walkdir"
+  "dep:walkdir",
 ]
-runtime = [ ]
+runtime = []
 
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { version = "2.0.0-rc.5", default-features = false, features = [ "build" ], path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-rc.6", default-features = false, features = [
+  "build",
+], path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }
-schemars = { version = "0.8.18", features = [ "preserve_order" ] }
+schemars = { version = "0.8.18", features = ["preserve_order"] }
 walkdir = { version = "2", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]

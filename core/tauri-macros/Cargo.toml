@@ -2,31 +2,31 @@
 name = "tauri-macros"
 version = "2.0.0-rc.5"
 description = "Macros for the tauri crate."
-exclude = [ "CHANGELOG.md", "/target" ]
+exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-categories = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [lib]
 proc-macro = true
 
 [dependencies]
-proc-macro2 = { version = "1", features = [ "span-locations" ] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
 quote = "1"
-syn = { version = "2", features = [ "full" ] }
+syn = { version = "2", features = ["full"] }
 heck = "0.5"
-tauri-codegen = { version = "2.0.0-rc.5", default-features = false, path = "../tauri-codegen" }
-tauri-utils = { version = "2.0.0-rc.5", path = "../tauri-utils" }
+tauri-codegen = { version = "2.0.0-rc.6", default-features = false, path = "../tauri-codegen" }
+tauri-utils = { version = "2.0.0-rc.6", path = "../tauri-utils" }
 
 [features]
-custom-protocol = [ ]
-compression = [ "tauri-codegen/compression" ]
-isolation = [ "tauri-codegen/isolation" ]
-config-json5 = [ "tauri-codegen/config-json5", "tauri-utils/config-json5" ]
-config-toml = [ "tauri-codegen/config-toml", "tauri-utils/config-toml" ]
-tracing = [ ]
+custom-protocol = []
+compression = ["tauri-codegen/compression"]
+isolation = ["tauri-codegen/isolation"]
+config-json5 = ["tauri-codegen/config-json5", "tauri-utils/config-json5"]
+config-toml = ["tauri-codegen/config-toml", "tauri-utils/config-toml"]
+tracing = []

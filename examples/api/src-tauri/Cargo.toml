@@ -11,10 +11,7 @@ name = "api_lib"
 crate-type = ["staticlib", "cdylib", "lib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = [
-  "codegen",
-  "isolation",
-] }
+tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
 
 [dependencies]
 serde_json = "1.0"
@@ -40,11 +37,3 @@ features = ["test"]
 
 [features]
 prod = ["tauri/custom-protocol"]
-
-# default to small, optimized release binaries
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = true
-incremental = false
-opt-level = "s"

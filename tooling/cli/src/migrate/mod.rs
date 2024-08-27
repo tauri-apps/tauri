@@ -38,7 +38,9 @@ pub fn command() -> Result<()> {
     None
   };
 
-  let tauri_version = crate_version(tauri_dir, Some(&manifest), lock.as_ref(), "tauri").version;
+  let tauri_version = crate_version(tauri_dir, Some(&manifest), lock.as_ref(), "tauri")
+    .version
+    .context("failed to get tauri version")?;
   let tauri_version = semver::Version::from_str(&tauri_version)?;
 
   if tauri_version.major == 1 {

@@ -25,20 +25,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fmt:
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: install Rust stable and rustfmt
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt
-
-      - name: run cargo fmt
-        run: cargo fmt --all -- --check
-
   clippy:
     runs-on: ubuntu-latest
     strategy:

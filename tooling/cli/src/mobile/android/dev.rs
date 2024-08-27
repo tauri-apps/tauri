@@ -27,7 +27,6 @@ use cargo_mobile2::{
     env::Env,
     target::Target,
   },
-  config::app::App,
   opts::{FilterLevel, NoiseLevel, Profile},
   target::TargetTrait,
 };
@@ -128,20 +127,20 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
   dev_options.target = Some(target_triple.clone());
 
-  let (interface, app, config, metadata) = {
+  let (interface, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
     let interface = AppInterface::new(tauri_config_, dev_options.target.clone())?;
 
-    let app = get_app(tauri_config_, &interface);
+    let app = get_app(MobileTarget::Android, tauri_config_, &interface);
     let (config, metadata) = get_config(
       &app,
       tauri_config_,
       dev_options.features.as_ref(),
       &Default::default(),
     );
-    (interface, app, config, metadata)
+    (interface, config, metadata)
   };
 
   let tauri_path = tauri_dir();
@@ -160,7 +159,6 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_config,
     device,
     env,
-    &app,
     &config,
     &metadata,
     noise_level,
@@ -175,7 +173,6 @@ fn run_dev(
   tauri_config: ConfigHandle,
   device: Option<Device>,
   mut env: Env,
-  app: &App,
   config: &AndroidConfig,
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
@@ -193,7 +190,7 @@ fn run_dev(
   let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
-  configure_cargo(app, Some((&mut env, config)))?;
+  configure_cargo(&mut env, config)?;
 
   // run an initial build to initialize plugins
   let target_triple = dev_options.target.as_ref().unwrap();

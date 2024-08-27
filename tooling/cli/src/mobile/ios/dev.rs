@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  configure_cargo, device_prompt, ensure_init, env, get_app, get_config, inject_resources,
-  merge_plist, open_and_wait, MobileTarget,
+  device_prompt, ensure_init, env, get_app, get_config, inject_resources, merge_plist,
+  open_and_wait, MobileTarget,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -25,7 +25,6 @@ use cargo_mobile2::{
     config::Config as AppleConfig,
     device::{Device, DeviceKind},
   },
-  config::app::App,
   env::Env,
   opts::{NoiseLevel, Profile},
 };
@@ -153,13 +152,13 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_utils::platform::Target::Ios,
     options.config.as_ref().map(|c| &c.0),
   )?;
-  let (interface, app, config) = {
+  let (interface, config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
     let interface = AppInterface::new(tauri_config_, Some(target_triple))?;
 
-    let app = get_app(tauri_config_, &interface);
+    let app = get_app(MobileTarget::Ios, tauri_config_, &interface);
     let (config, _metadata) = get_config(
       &app,
       tauri_config_,
@@ -167,7 +166,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       &Default::default(),
     );
 
-    (interface, app, config)
+    (interface, config)
   };
 
   let tauri_path = tauri_dir();
@@ -199,7 +198,6 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_config,
     device,
     env,
-    &app,
     &config,
     noise_level,
   )
@@ -344,7 +342,6 @@ fn run_dev(
   tauri_config: ConfigHandle,
   device: Option<Device>,
   env: Env,
-  app: &App,
   config: &AppleConfig,
   noise_level: NoiseLevel,
 ) -> Result<()> {
@@ -370,8 +367,6 @@ fn run_dev(
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let set_host = options.host.is_some();
-
-  configure_cargo(app, None)?;
 
   let open = options.open;
   let exit_on_panic = options.exit_on_panic;

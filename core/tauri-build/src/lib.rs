@@ -7,8 +7,8 @@
 //! This applies the macros at build-time in order to rig some special features needed by `cargo`.
 
 #![doc(
-  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png",
-  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/app-icon.png"
+  html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
+  html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -223,14 +223,14 @@ fn cfg_alias(alias: &str, has_feature: bool) {
 
 /// Attributes used on Windows.
 #[allow(dead_code)]
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct WindowsAttributes {
   window_icon_path: Option<PathBuf>,
   /// A string containing an [application manifest] to be included with the application on Windows.
   ///
   /// Defaults to:
   /// ```text
-  #[doc = include_str!("window-app-manifest.xml")]
+  #[doc = include_str!("windows-app-manifest.xml")]
   /// ```
   ///
   /// ## Warning
@@ -255,10 +255,28 @@ pub struct WindowsAttributes {
   app_manifest: Option<String>,
 }
 
+impl Default for WindowsAttributes {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl WindowsAttributes {
   /// Creates the default attribute set.
   pub fn new() -> Self {
-    Self::default()
+    Self {
+      window_icon_path: Default::default(),
+      app_manifest: Some(include_str!("windows-app-manifest.xml").into()),
+    }
+  }
+
+  /// Creates the default attriute set wihtou the default app manifest.
+  #[must_use]
+  pub fn new_without_app_manifest() -> Self {
+    Self {
+      app_manifest: None,
+      window_icon_path: Default::default(),
+    }
   }
 
   /// Sets the icon to use on the window. Currently only used on Windows.
@@ -275,7 +293,7 @@ impl WindowsAttributes {
   ///
   /// Defaults to:
   /// ```text
-  #[doc = include_str!("window-app-manifest.xml")]
+  #[doc = include_str!("windows-app-manifest.xml")]
   /// ```
   ///
   /// ## Warning
@@ -476,9 +494,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let mut android_package_prefix = String::new();
   for (i, w) in s.enumerate() {
     if i == last {
-      println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={w}");
+      println!(
+        "cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_APP_NAME={}",
+        w.replace('-', "_")
+      );
     } else {
-      android_package_prefix.push_str(w);
+      android_package_prefix.push_str(&w.replace(['_', '-'], "_1"));
       android_package_prefix.push('_');
     }
   }
@@ -573,15 +594,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     .clone()
     .unwrap_or_else(|| BundleResources::List(Vec::new()));
   if target_triple.contains("windows") {
-    if let Some(fixed_webview2_runtime_path) =
-      match &config.bundle.windows.webview_fixed_runtime_path {
-        Some(path) => Some(path),
-        None => match &config.bundle.windows.webview_install_mode {
-          WebviewInstallMode::FixedRuntime { path } => Some(path),
-          _ => None,
-        },
-      }
-    {
+    if let Some(fixed_webview2_runtime_path) = match &config.bundle.windows.webview_install_mode {
+      WebviewInstallMode::FixedRuntime { path } => Some(path),
+      _ => None,
+    } {
       resources.push(fixed_webview2_runtime_path.display().to_string());
     }
   }
@@ -643,8 +659,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(manifest) = attributes.windows_attributes.app_manifest {
       res.set_manifest(&manifest);
-    } else {
-      res.set_manifest(include_str!("window-app-manifest.xml"));
     }
 
     if let Some(version_str) = &config.version {

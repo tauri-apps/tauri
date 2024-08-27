@@ -10,7 +10,7 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue,
 };
-#[cfg(target_os = "macos")]
+#[cfg(unix)]
 use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
@@ -248,12 +248,18 @@ fn read_options(identifier: &str) -> CliOptions {
   options
 }
 
-pub fn get_app(config: &TauriConfig, interface: &AppInterface) -> App {
+pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
   let identifier = config
     .identifier
     .rsplit('.')
     .collect::<Vec<&str>>()
     .join(".");
+
+  let identifier = match target {
+    Target::Android => identifier.replace('-', "_"),
+    #[cfg(target_os = "macos")]
+    Target::Ios => identifier.replace('_', "-"),
+  };
 
   if identifier.is_empty() {
     log::error!("Bundle identifier set in `tauri.conf.json > identifier` cannot be empty");
@@ -318,8 +324,11 @@ fn ensure_init(
     Target::Android => {
       let java_folder = project_dir
         .join("app/src/main/java")
-        .join(tauri_config_.identifier.replace('.', "/"));
-      if !java_folder.exists() {
+        .join(tauri_config_.identifier.replace('.', "/").replace('-', "_"));
+      if java_folder.exists() {
+        #[cfg(unix)]
+        ensure_gradlew(&project_dir)?;
+      } else {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
       }
@@ -330,13 +339,12 @@ fn ensure_init(
         .context("missing project.yml file in the Xcode project directory")?;
       if !project_yml.contains(&format!(
         "PRODUCT_BUNDLE_IDENTIFIER: {}",
-        tauri_config_.identifier
+        tauri_config_.identifier.replace('_', "-")
       )) {
         project_outdated_reasons
           .push("you have modified your \"identifier\" in the Tauri configuration");
       }
 
-      println!("{}", app.lib_name());
       if !project_yml.contains(&format!("framework: lib{}.a", app.lib_name())) {
         project_outdated_reasons
           .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
@@ -351,6 +359,31 @@ fn ensure_init(
         target.ide_name(),
         target.command_name(),
       )
+  }
+
+  Ok(())
+}
+
+#[cfg(unix)]
+fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
+  use std::os::unix::fs::PermissionsExt;
+
+  let gradlew_path = project_dir.join("gradlew");
+  if let Ok(metadata) = gradlew_path.metadata() {
+    let mut permissions = metadata.permissions();
+    let is_executable = permissions.mode() & 0o111 != 0;
+    if !is_executable {
+      permissions.set_mode(permissions.mode() | 0o111);
+      std::fs::set_permissions(&gradlew_path, permissions)
+        .context("failed to mark gradlew as executable")?;
+    }
+    std::fs::write(
+      &gradlew_path,
+      std::fs::read_to_string(&gradlew_path)
+        .context("failed to read gradlew")?
+        .replace("\r\n", "\n"),
+    )
+    .context("failed to replace gradlew CRLF with LF")?;
   }
 
   Ok(())

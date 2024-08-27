@@ -7,45 +7,53 @@
   windows_subsystem = "windows"
 )]
 
-use std::{env, sync::Mutex};
-use tauri::Manager;
+use std::path::PathBuf;
+use tauri::AppHandle;
 
-struct OpenedUrls(Mutex<Option<Vec<url::Url>>>);
+fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
+  let files = files
+    .into_iter()
+    .map(|f| {
+      let file = f.to_string_lossy().replace("\\", "\\\\"); // escape backslash
+      format!("\"{file}\"",) // wrap in quotes for JS array
+    })
+    .collect::<Vec<_>>()
+    .join(",");
+
+  tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
+    .initialization_script(&format!("window.openedFiles = [{files}]"))
+    .build()
+    .unwrap();
+}
 
 fn main() {
   tauri::Builder::default()
-    .manage(OpenedUrls(Default::default()))
     .setup(|app| {
       #[cfg(any(windows, target_os = "linux"))]
       {
-        // NOTICE: `args` may include URL protocol (`your-app-protocol://`) or arguments (`--`) if app supports them.
-        let mut urls = Vec::new();
-        for arg in env::args().skip(1) {
-          if let Ok(url) = url::Url::parse(&arg) {
-            urls.push(url);
+        let mut files = Vec::new();
+
+        // NOTICE: `args` may include URL protocol (`your-app-protocol://`)
+        // or arguments (`--`) if your app supports them.
+        // files may aslo be passed as `file://path/to/file`
+        for maybe_file in std::env::args().skip(1) {
+          // skip flags like -f or --flag
+          if maybe_file.starts_with("-") {
+            continue;
+          }
+
+          // handle `file://` path urls and skip other urls
+          if let Ok(url) = url::Url::parse(&maybe_file) {
+            if let Ok(path) = url.to_file_path() {
+              files.push(path);
+            }
+          } else {
+            files.push(PathBuf::from(maybe_file))
           }
         }
 
-        if !urls.is_empty() {
-          app.state::<OpenedUrls>().0.lock().unwrap().replace(urls);
-        }
+        handle_file_associations(app.handle().clone(), files);
       }
-
-      let opened_urls = if let Some(urls) = &*app.state::<OpenedUrls>().0.lock().unwrap() {
-        urls
-          .iter()
-          .map(|u| u.as_str().replace("\\", "\\\\"))
-          .collect::<Vec<_>>()
-          .join(", ")
-      } else {
-        "".into()
-      };
-
-      tauri::WebviewWindowBuilder::new(app, "main", Default::default())
-        .initialization_script(&format!("window.openedUrls = `{opened_urls}`"))
-        .initialization_script(&format!("console.log(`{opened_urls}`)"))
-        .build()
-        .unwrap();
 
       Ok(())
     })
@@ -56,16 +64,12 @@ fn main() {
       |app, event| {
         #[cfg(any(target_os = "macos", target_os = "ios"))]
         if let tauri::RunEvent::Opened { urls } = event {
-          if let Some(w) = app.get_webview_window("main") {
-            let urls = urls
-              .iter()
-              .map(|u| u.as_str())
-              .collect::<Vec<_>>()
-              .join(",");
-            let _ = w.eval(&format!("window.onFileOpen(`{urls}`)"));
-          }
+          let files = urls
+            .into_iter()
+            .filter_map(|url| url.to_file_path().ok())
+            .collect::<Vec<_>>();
 
-          app.state::<OpenedUrls>().0.lock().unwrap().replace(urls);
+          handle_file_associations(app.clone(), files);
         }
       },
     );

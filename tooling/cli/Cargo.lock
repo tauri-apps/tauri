@@ -557,9 +557,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.13.4"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8dd9a8451eeeb998885ec3acb08b9bd32353ccd119b18db5ae6ddc41814fc03"
+checksum = "b37140c84631f1a416fff6a3f898db7bda1a2643335fdf14e3d5eb5af61bf2e3"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -5373,7 +5373,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-rc.4"
+version = "2.0.1-rc.5"
 dependencies = [
  "anyhow",
  "ar",
@@ -5402,7 +5402,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.0.0-rc.5",
+ "tauri-utils 2.0.0-rc.6",
  "tempfile",
  "thiserror",
  "time",
@@ -5416,7 +5416,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.6"
+version = "2.0.0-rc.7"
 dependencies = [
  "anyhow",
  "axum",
@@ -5477,7 +5477,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.5.4",
- "tauri-utils 2.0.0-rc.5",
+ "tauri-utils 2.0.0-rc.6",
  "tempfile",
  "tokio",
  "toml 0.8.10",
@@ -5559,7 +5559,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 dependencies = [
  "aes-gcm",
  "ctor",

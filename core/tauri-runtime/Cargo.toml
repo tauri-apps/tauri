@@ -1,46 +1,46 @@
 [package]
 name = "tauri-runtime"
-version = "2.0.0-rc.5"
+version = "2.0.0-rc.6"
 description = "Runtime for Tauri applications"
-exclude = [ "CHANGELOG.md", "/target" ]
+exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-categories = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 all-features = true
-rustc-args = [ "--cfg", "docsrs" ]
-rustdoc-args = [ "--cfg", "docsrs" ]
+rustc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
   "x86_64-apple-darwin",
   "x86_64-linux-android",
-  "x86_64-apple-ios"
+  "x86_64-apple-ios",
 ]
 
 [dependencies]
-serde = { version = "1.0", features = [ "derive" ] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
-tauri-utils = { version = "2.0.0-rc.5", path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-rc.6", path = "../tauri-utils" }
 http = "1.1"
 raw-window-handle = "0.6"
 url = { version = "2" }
-dpi = { version = "0.1", features = [ "serde" ] }
+dpi = { version = "0.1", features = ["serde"] }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.58"
-features = [ "Win32_Foundation" ]
+features = ["Win32_Foundation"]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
-gtk = { version = "0.18", features = [ "v3_24" ] }
+gtk = { version = "0.18", features = ["v3_24"] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
@@ -49,5 +49,5 @@ jni = "0.21"
 url = "2"
 
 [features]
-devtools = [ ]
-macos-private-api = [ ]
+devtools = []
+macos-private-api = []

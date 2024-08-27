@@ -9,9 +9,6 @@ use tauri::{
 
 use crate::models::*;
 
-#[cfg(target_os = "android")]
-const PLUGIN_IDENTIFIER: &str = "{{ android_package_id }}";
-
 #[cfg(target_os = "ios")]
 tauri::ios_plugin_binding!(init_plugin_{{ plugin_name_snake_case }});
 
@@ -21,7 +18,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
   api: PluginApi<R, C>,
 ) -> crate::Result<{{ plugin_name_pascal_case }}<R>> {
   #[cfg(target_os = "android")]
-  let handle = api.register_android_plugin(PLUGIN_IDENTIFIER, "ExamplePlugin")?;
+  let handle = api.register_android_plugin("{{ android_package_id }}", "ExamplePlugin")?;
   #[cfg(target_os = "ios")]
   let handle = api.register_ios_plugin(init_plugin_{{ plugin_name_snake_case }})?;
   Ok({{ plugin_name_pascal_case }}(handle))

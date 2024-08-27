@@ -252,15 +252,39 @@ fn process_bundle(config: &mut Map<String, Value>, migrated: &MigratedConfig) {
           license_file = Some(license);
         }
       }
+
+      // Windows
       if let Some(windows) = bundle_config.get_mut("windows") {
-        if let Some(wix) = windows.get_mut("wix").and_then(|v| v.as_object_mut()) {
-          if let Some(license_path) = wix.remove("license") {
-            license_file = Some(license_path);
+        if let Some(windows) = windows.as_object_mut() {
+          if let Some(wix) = windows.get_mut("wix").and_then(|v| v.as_object_mut()) {
+            if let Some(license_path) = wix.remove("license") {
+              license_file = Some(license_path);
+            }
           }
-        }
-        if let Some(nsis) = windows.get_mut("nsis").and_then(|v| v.as_object_mut()) {
-          if let Some(license_path) = nsis.remove("license") {
-            license_file = Some(license_path);
+          if let Some(nsis) = windows.get_mut("nsis").and_then(|v| v.as_object_mut()) {
+            if let Some(license_path) = nsis.remove("license") {
+              license_file = Some(license_path);
+            }
+          }
+
+          if let Some((fixed_runtime_path, key)) = windows
+            .remove("webviewFixedRuntimePath")
+            .map(|v| (v, "webviewInstallMode"))
+            .or_else(|| {
+              windows
+                .remove("webview-fixed-runtime-path")
+                .map(|v| (v, "webview-install-mode"))
+            })
+          {
+            if !fixed_runtime_path.is_null() {
+              windows.insert(
+                key.into(),
+                serde_json::json!({
+                  "type": "fixedRuntime",
+                  "path": fixed_runtime_path
+                }),
+              );
+            }
           }
         }
       }
@@ -1081,6 +1105,31 @@ mod test {
     assert_eq!(
       migrated["build"]["distDir"],
       original["build"]["frontendDist"]
+    );
+  }
+
+  #[test]
+  fn migrate_webview_fixed_runtime_path() {
+    let original = serde_json::json!({
+      "tauri": {
+        "bundle": {
+          "windows": {
+            "webviewFixedRuntimePath": "./path/to/runtime"
+          }
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+
+    assert_eq!(
+      migrated["bundle"]["windows"]["webviewInstallMode"]["type"],
+      "fixedRuntime"
+    );
+
+    assert_eq!(
+      migrated["bundle"]["windows"]["webviewInstallMode"]["path"],
+      original["tauri"]["bundle"]["windows"]["webviewFixedRuntimePath"]
     );
   }
 }

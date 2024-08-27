@@ -120,7 +120,6 @@
           "signCommand": null,
           "timestampUrl": null,
           "tsp": false,
-          "webviewFixedRuntimePath": null,
           "webviewInstallMode": {
             "silent": true,
             "type": "downloadBootstrapper"
@@ -1650,7 +1649,6 @@
             "signCommand": null,
             "timestampUrl": null,
             "tsp": false,
-            "webviewFixedRuntimePath": null,
             "webviewInstallMode": {
               "silent": true,
               "type": "downloadBootstrapper"
@@ -1996,13 +1994,6 @@
             {
               "$ref": "#/definitions/WebviewInstallMode"
             }
-          ]
-        },
-        "webviewFixedRuntimePath": {
-          "description": "Path to the webview fixed runtime to use. Overwrites [`Self::webview_install_mode`] if set.\n\n Will be removed in v2, prefer the [`Self::webview_install_mode`] option.\n\n The fixed version can be downloaded [on the official website](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section).\n The `.cab` file must be extracted to a folder and this folder path must be defined on this field.",
-          "type": [
-            "string",
-            "null"
           ]
         },
         "allowDowngrades": {
@@ -2362,6 +2353,13 @@
         },
         "installerHooks": {
           "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n\n ### Example\n\n ```nsh\n !macro NSIS_HOOK_PREINSTALL\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTINSTALL\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !macro NSIS_HOOK_PREUNINSTALL\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTUNINSTALL\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n\n ```",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "minimumWebview2Version": {
+          "description": "Try to ensure that the WebView2 version is equal to or newer than this version,\n if the user's WebView2 is older than this version,\n the installer will try to trigger a WebView2 update.",
           "type": [
             "string",
             "null"

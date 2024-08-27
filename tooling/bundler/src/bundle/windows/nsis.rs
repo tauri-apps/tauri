@@ -257,6 +257,12 @@ fn build_nsis_app_installer(
     if let Some(start_menu_folder) = &nsis.start_menu_folder {
       data.insert("start_menu_folder", to_json(start_menu_folder));
     }
+    if let Some(minimum_webview2_version) = &nsis.minimum_webview2_version {
+      data.insert(
+        "minimum_webview2_version",
+        to_json(minimum_webview2_version),
+      );
+    }
   }
 
   let compression = settings
@@ -421,13 +427,7 @@ fn build_nsis_app_installer(
       silent: silent_webview2_install,
     }
   } else {
-    let mut webview_install_mode = settings.windows().webview_install_mode.clone();
-    if let Some(fixed_runtime_path) = settings.windows().webview_fixed_runtime_path.clone() {
-      webview_install_mode = WebviewInstallMode::FixedRuntime {
-        path: fixed_runtime_path,
-      };
-    }
-    webview_install_mode
+    settings.windows().webview_install_mode.clone()
   };
 
   let webview2_installer_args = to_json(if silent_webview2_install {

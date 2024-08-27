@@ -33,7 +33,7 @@
   },
   "definitions": {
     "DefaultPermission": {
-      "description": "The default permission set of the plugin.\n\nWorks similarly to a permission with the \"default\" identifier.",
+      "description": "The default permission set of the plugin.\n\n Works similarly to a permission with the \"default\" identifier.",
       "type": "object",
       "required": [
         "permissions"
@@ -49,7 +49,7 @@
           "minimum": 1.0
         },
         "description": {
-          "description": "Human-readable description of what the permission does. Tauri convention is to use <h4> headings in markdown content for Tauri documentation generation purposes.",
+          "description": "Human-readable description of what the permission does.\n Tauri convention is to use <h4> headings in markdown content\n for Tauri documentation generation purposes.",
           "type": [
             "string",
             "null"
@@ -91,7 +91,7 @@
       }
     },
     "Permission": {
-      "description": "Descriptions of explicit privileges of commands.\n\nIt can enable commands to be accessible in the frontend of the application.\n\nIf the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
+      "description": "Descriptions of explicit privileges of commands.\n\n It can enable commands to be accessible in the frontend of the application.\n\n If the scope is defined it can be used to fine grain control the access of individual or multiple commands.",
       "type": "object",
       "required": [
         "identifier"
@@ -111,7 +111,7 @@
           "type": "string"
         },
         "description": {
-          "description": "Human-readable description of what the permission does. Tauri internal convention is to use <h4> headings in markdown content for Tauri documentation generation purposes.",
+          "description": "Human-readable description of what the permission does.\n Tauri internal convention is to use <h4> headings in markdown content\n for Tauri documentation generation purposes.",
           "type": [
             "string",
             "null"
@@ -150,7 +150,7 @@
       }
     },
     "Commands": {
-      "description": "Allowed and denied commands inside a permission.\n\nIf two commands clash inside of `allow` and `deny`, it should be denied by default.",
+      "description": "Allowed and denied commands inside a permission.\n\n If two commands clash inside of `allow` and `deny`, it should be denied by default.",
       "type": "object",
       "properties": {
         "allow": {
@@ -172,7 +172,7 @@
       }
     },
     "Scopes": {
-      "description": "An argument for fine grained behavior control of Tauri commands.\n\nIt can be of any serde serializable type and is used to allow or prevent certain actions inside a Tauri command. The configured scope is passed to the command and will be enforced by the command implementation.\n\n## Example\n\n```json { \"allow\": [{ \"path\": \"$HOME/**\" }], \"deny\": [{ \"path\": \"$HOME/secret.txt\" }] } ```",
+      "description": "An argument for fine grained behavior control of Tauri commands.\n\n It can be of any serde serializable type and is used to allow or prevent certain actions inside a Tauri command.\n The configured scope is passed to the command and will be enforced by the command implementation.\n\n ## Example\n\n ```json\n {\n   \"allow\": [{ \"path\": \"$HOME/**\" }],\n   \"deny\": [{ \"path\": \"$HOME/secret.txt\" }]\n }\n ```",
       "type": "object",
       "properties": {
         "allow": {

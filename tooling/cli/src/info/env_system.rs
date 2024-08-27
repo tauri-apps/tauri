@@ -181,9 +181,10 @@ pub fn items() -> Vec<SectionItem> {
     SectionItem::new().action(|| {
       let os_info = os_info::get();
       format!(
-        "OS: {} {} {:?}",
+        "OS: {} {} {} ({:?})",
         os_info.os_type(),
         os_info.version(),
+        os_info.architecture().unwrap_or("Unknown Architecture"),
         os_info.bitness()
       ).into()
     }),

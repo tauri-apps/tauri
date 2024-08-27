@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::PluginIosFramework;
 use crate::{helpers::template, Result};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
@@ -9,7 +10,7 @@ use handlebars::Handlebars;
 use std::{
   collections::BTreeMap,
   env::current_dir,
-  ffi::OsStr,
+  ffi::{OsStr, OsString},
   fs::{create_dir_all, File},
   path::{Component, PathBuf},
 };
@@ -42,6 +43,10 @@ pub struct InitOptions {
   #[clap(short, long)]
   #[clap(default_value_t = current_dir().expect("failed to read cwd").to_string_lossy().into_owned())]
   out_dir: String,
+  /// Type of framework to use for the iOS project.
+  #[clap(long)]
+  #[clap(default_value_t = PluginIosFramework::default())]
+  ios_framework: PluginIosFramework,
 }
 
 pub fn command(cli: Cli) -> Result<()> {
@@ -62,6 +67,11 @@ pub fn command(cli: Cli) -> Result<()> {
       let mut data = BTreeMap::new();
       super::init::plugin_name_data(&mut data, &plugin_name);
 
+      let ios_folder_name = match options.ios_framework {
+        PluginIosFramework::Spm => OsStr::new("ios-spm"),
+        PluginIosFramework::Xcode => OsStr::new("ios-xcode"),
+      };
+
       let mut created_dirs = Vec::new();
       template::render_with_generator(
         &handlebars,
@@ -72,7 +82,19 @@ pub fn command(cli: Cli) -> Result<()> {
           let mut components = path.components();
           let root = components.next().unwrap();
           if let Component::Normal(component) = root {
-            if component == OsStr::new("ios") {
+            if component == ios_folder_name {
+              let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
+              let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);
+              let new_folder_name = OsString::from(&new_folder_name);
+
+              let path = [
+                Component::Normal(OsStr::new("ios")),
+                Component::Normal(&new_folder_name),
+              ]
+              .into_iter()
+              .chain(components)
+              .collect::<PathBuf>();
+
               let path = out_dir.join(path);
               let parent = path.parent().unwrap().to_path_buf();
               if !created_dirs.contains(&parent) {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::PluginIosFramework;
 use crate::Result;
 use clap::Parser;
 use std::path::PathBuf;
@@ -37,7 +38,8 @@ pub struct Options {
   mobile: bool,
   /// Type of framework to use for the iOS project.
   #[clap(long)]
-  pub(crate) ios_framework: Option<super::init::IosFrameworkKind>,
+  #[clap(default_value_t = PluginIosFramework::default())]
+  pub(crate) ios_framework: PluginIosFramework,
 }
 
 impl From<Options> for super::init::Options {

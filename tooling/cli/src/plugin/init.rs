@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use super::PluginIosFramework;
 use crate::helpers::prompts;
 use crate::Result;
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
   VersionMetadata,
 };
 use anyhow::Context;
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
 use include_dir::{include_dir, Dir};
@@ -56,15 +57,8 @@ pub struct Options {
   pub(crate) mobile: bool,
   /// Type of framework to use for the iOS project.
   #[clap(long)]
-  pub(crate) ios_framework: Option<IosFrameworkKind>,
-}
-
-#[derive(Debug, Clone, ValueEnum)]
-pub enum IosFrameworkKind {
-  /// Swift Package Manager project
-  Spm,
-  /// Xcode project
-  Xcode,
+  #[clap(default_value_t = PluginIosFramework::default())]
+  pub(crate) ios_framework: PluginIosFramework,
 }
 
 impl Options {
@@ -167,7 +161,7 @@ pub fn command(mut options: Options) -> Result<()> {
       None
     };
 
-    let ios_framework = options.ios_framework.unwrap_or(IosFrameworkKind::Spm);
+    let ios_framework = options.ios_framework;
 
     let mut created_dirs = Vec::new();
     template::render_with_generator(
@@ -208,8 +202,8 @@ pub fn command(mut options: Options) -> Result<()> {
               }
             }
             "ios-spm" | "ios-xcode" if !(options.ios || options.mobile) => return Ok(None),
-            "ios-spm" if !matches!(ios_framework, IosFrameworkKind::Spm) => return Ok(None),
-            "ios-xcode" if !matches!(ios_framework, IosFrameworkKind::Xcode) => return Ok(None),
+            "ios-spm" if !matches!(ios_framework, PluginIosFramework::Spm) => return Ok(None),
+            "ios-xcode" if !matches!(ios_framework, PluginIosFramework::Xcode) => return Ok(None),
             "ios-spm" | "ios-xcode" => {
               let folder_name = components.next().unwrap().as_os_str().to_string_lossy();
               let new_folder_name = folder_name.replace("{{ plugin_name }}", &plugin_name);

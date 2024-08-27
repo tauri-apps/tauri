@@ -9,13 +9,9 @@ use crate::{
   Result,
 };
 use cargo_mobile2::{
-  android::{
-    config::Config as AndroidConfig, env::Env as AndroidEnv, target::Target as AndroidTarget,
-  },
+  android::env::Env as AndroidEnv,
   config::app::App,
-  dot_cargo,
   reserved_names::KOTLIN_ONLY_KEYWORDS,
-  target::TargetTrait as _,
   util::{
     self,
     cli::{Report, TextWrapper},
@@ -38,43 +34,6 @@ pub fn command(
   exec(target, &wrapper, ci, reinstall_deps, skip_targets_install)
     .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
-}
-
-pub fn configure_cargo(
-  app: &App,
-  android: Option<(&mut AndroidEnv, &AndroidConfig)>,
-) -> Result<()> {
-  if let Some((env, config)) = android {
-    for target in AndroidTarget::all().values() {
-      let config = target.generate_cargo_config(config, env)?;
-      let target_var_name = target.triple.replace('-', "_").to_uppercase();
-      if let Some(linker) = config.linker {
-        env.base.insert_env_var(
-          format!("CARGO_TARGET_{target_var_name}_LINKER"),
-          linker.into(),
-        );
-      }
-      env.base.insert_env_var(
-        format!("CARGO_TARGET_{target_var_name}_RUSTFLAGS"),
-        config.rustflags.join(" ").into(),
-      );
-    }
-  }
-
-  let mut dot_cargo = dot_cargo::DotCargo::load(app)?;
-  // Mysteriously, builds that don't specify `--target` seem to fight over
-  // the build cache with builds that use `--target`! This means that
-  // alternating between i.e. `cargo run` and `cargo apple run` would
-  // result in clean builds being made each time you switched... which is
-  // pretty nightmarish. Specifying `build.target` in `.cargo/config`
-  // fortunately has the same effect as specifying `--target`, so now we can
-  // `cargo run` with peace of mind!
-  //
-  // This behavior could be explained here:
-  // https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
-  dot_cargo.set_default_target(util::host_target_triple()?);
-
-  dot_cargo.write(app).map_err(Into::into)
 }
 
 pub fn exec(

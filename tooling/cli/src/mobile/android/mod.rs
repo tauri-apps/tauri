@@ -14,6 +14,7 @@ use cargo_mobile2::{
   config::app::{App, DEFAULT_ASSET_DIR},
   opts::{FilterLevel, NoiseLevel},
   os,
+  target::TargetTrait,
   util::prompt,
 };
 use clap::{Parser, Subcommand};
@@ -28,10 +29,8 @@ use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
 use super::{
-  ensure_init, get_app,
-  init::{command as init_command, configure_cargo},
-  log_finished, read_options, CliOptions, OptionsHandle, Target as MobileTarget,
-  MIN_DEVICE_MATCH_SCORE,
+  ensure_init, get_app, init::command as init_command, log_finished, read_options, CliOptions,
+  OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
   helpers::config::{BundleResources, Config as TauriConfig},
@@ -323,6 +322,25 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
       let dest = asset_dir.join(resource.target());
       crate::helpers::fs::copy_file(resource.path(), dest)?;
     }
+  }
+
+  Ok(())
+}
+
+fn configure_cargo(env: &mut Env, config: &AndroidConfig) -> Result<()> {
+  for target in Target::all().values() {
+    let config = target.generate_cargo_config(config, env)?;
+    let target_var_name = target.triple.replace('-', "_").to_uppercase();
+    if let Some(linker) = config.linker {
+      env.base.insert_env_var(
+        format!("CARGO_TARGET_{target_var_name}_LINKER"),
+        linker.into(),
+      );
+    }
+    env.base.insert_env_var(
+      format!("CARGO_TARGET_{target_var_name}_RUSTFLAGS"),
+      config.rustflags.join(" ").into(),
+    );
   }
 
   Ok(())

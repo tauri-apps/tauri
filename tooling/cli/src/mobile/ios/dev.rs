@@ -369,8 +369,6 @@ fn run_dev(
   let set_host = options.host.is_some();
 
   let open = options.open;
-  let exit_on_panic = options.exit_on_panic;
-  let no_watch = options.no_watch;
   interface.mobile_dev(
     MobileOptions {
       debug: true,
@@ -401,12 +399,7 @@ fn run_dev(
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
         match run(device, options, config, &env) {
-          Ok(c) => {
-            crate::dev::wait_dev_process(c.clone(), move |status, reason| {
-              crate::dev::on_app_exit(status, reason, exit_on_panic, no_watch)
-            });
-            Ok(Box::new(c) as Box<dyn DevProcess + Send>)
-          }
+          Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
             Err(e)

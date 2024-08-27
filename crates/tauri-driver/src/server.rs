@@ -148,10 +148,11 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
     use futures_util::StreamExt;
     use signal_hook::consts::signal::*;
 
-    let signals = signal_hook_tokio::Signals::new(&[SIGTERM, SIGINT, SIGQUIT])?;
+    let signals = signal_hook_tokio::Signals::new([SIGTERM, SIGINT, SIGQUIT])?;
     let signals_handle = signals.handle();
     let signals_task = tokio::spawn(async move {
       let mut signals = signals.fuse();
+      #[allow(clippy::never_loop)]
       while let Some(signal) = signals.next().await {
         match signal {
           SIGTERM | SIGINT | SIGQUIT => {

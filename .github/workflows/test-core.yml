@@ -95,11 +95,11 @@ jobs:
 
       - name: test
         if: ${{ !matrix.platform.cross }}
-        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
+        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri
 
       - name: test (using cross)
         if: ${{ matrix.platform.cross }}
         # update or remove the rev once we update the MSRV from 1.70.0
         run: |
           cargo install cross --git https://github.com/cross-rs/cross --rev 20c73df79c9aaf78a2ad2e9fe8ae981668a729dc --locked
-          cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
+          cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri

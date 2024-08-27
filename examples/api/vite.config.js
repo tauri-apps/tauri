@@ -12,6 +12,7 @@ const host = process.env.TAURI_DEV_HOST
 export default defineConfig({
   plugins: [Unocss(), svelte()],
   build: {
+    emptyOutDir: false,
     rollupOptions: {
       output: {
         entryFileNames: `assets/[name].js`,

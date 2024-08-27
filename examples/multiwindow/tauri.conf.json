@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/tauri-config-schema/schema.json",
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
   "productName": "Multi Window",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",

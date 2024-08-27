@@ -3,7 +3,7 @@ name = "api"
 version = "0.1.0"
 description = "An example Tauri Application showcasing the api"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71"
 license = "Apache-2.0 OR MIT"
 
 [lib]
@@ -11,7 +11,10 @@ name = "api_lib"
 crate-type = ["staticlib", "cdylib", "lib"]
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["codegen", "isolation"] }
+tauri-build = { path = "../../../crates/tauri-build", features = [
+  "codegen",
+  "isolation",
+] }
 
 [dependencies]
 serde_json = "1.0"
@@ -21,7 +24,7 @@ log = "0.4"
 tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
 
 [dependencies.tauri]
-path = "../../../core/tauri"
+path = "../../../crates/tauri"
 features = [
   "protocol-asset",
   "image-ico",
@@ -32,7 +35,7 @@ features = [
 ]
 
 [dev-dependencies.tauri]
-path = "../../../core/tauri"
+path = "../../../crates/tauri"
 features = ["test"]
 
 [features]

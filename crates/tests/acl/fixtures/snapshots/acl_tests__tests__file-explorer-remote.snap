@@ -1,0 +1,364 @@
+---
+source: crates/tests/acl/src/lib.rs
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        "plugin:fs|read_dir": [
+            ResolvedCommand {
+                context: Remote {
+                    url: RemoteUrlPattern(
+                        UrlPattern {
+                            protocol: Component {
+                                pattern_string: "https",
+                                regexp: Ok(
+                                    Regex(
+                                        "^https$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "https",
+                                    },
+                                },
+                            },
+                            username: Component {
+                                pattern_string: "",
+                                regexp: Ok(
+                                    Regex(
+                                        "^$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "",
+                                    },
+                                },
+                            },
+                            password: Component {
+                                pattern_string: "",
+                                regexp: Ok(
+                                    Regex(
+                                        "^$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "",
+                                    },
+                                },
+                            },
+                            hostname: Component {
+                                pattern_string: "tauri.app",
+                                regexp: Ok(
+                                    Regex(
+                                        "^tauri\\.app$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "tauri.app",
+                                    },
+                                },
+                            },
+                            port: Component {
+                                pattern_string: "",
+                                regexp: Ok(
+                                    Regex(
+                                        "^$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "",
+                                    },
+                                },
+                            },
+                            pathname: Component {
+                                pattern_string: "*",
+                                regexp: Ok(
+                                    Regex(
+                                        "^(.*)$",
+                                    ),
+                                ),
+                                group_name_list: [
+                                    "0",
+                                ],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
+                                    },
+                                },
+                            },
+                            search: Component {
+                                pattern_string: "*",
+                                regexp: Ok(
+                                    Regex(
+                                        "^(.*)$",
+                                    ),
+                                ),
+                                group_name_list: [
+                                    "0",
+                                ],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
+                                    },
+                                },
+                            },
+                            hash: Component {
+                                pattern_string: "*",
+                                regexp: Ok(
+                                    Regex(
+                                        "^(.*)$",
+                                    ),
+                                ),
+                                group_name_list: [
+                                    "0",
+                                ],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
+                                    },
+                                },
+                            },
+                        },
+                        "https://tauri.app",
+                    ),
+                },
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: None,
+            },
+        ],
+        "plugin:fs|read_file": [
+            ResolvedCommand {
+                context: Remote {
+                    url: RemoteUrlPattern(
+                        UrlPattern {
+                            protocol: Component {
+                                pattern_string: "https",
+                                regexp: Ok(
+                                    Regex(
+                                        "^https$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "https",
+                                    },
+                                },
+                            },
+                            username: Component {
+                                pattern_string: "",
+                                regexp: Ok(
+                                    Regex(
+                                        "^$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "",
+                                    },
+                                },
+                            },
+                            password: Component {
+                                pattern_string: "",
+                                regexp: Ok(
+                                    Regex(
+                                        "^$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "",
+                                    },
+                                },
+                            },
+                            hostname: Component {
+                                pattern_string: "tauri.app",
+                                regexp: Ok(
+                                    Regex(
+                                        "^tauri\\.app$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "tauri.app",
+                                    },
+                                },
+                            },
+                            port: Component {
+                                pattern_string: "",
+                                regexp: Ok(
+                                    Regex(
+                                        "^$",
+                                    ),
+                                ),
+                                group_name_list: [],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: Literal {
+                                        literal: "",
+                                    },
+                                },
+                            },
+                            pathname: Component {
+                                pattern_string: "*",
+                                regexp: Ok(
+                                    Regex(
+                                        "^(.*)$",
+                                    ),
+                                ),
+                                group_name_list: [
+                                    "0",
+                                ],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
+                                    },
+                                },
+                            },
+                            search: Component {
+                                pattern_string: "*",
+                                regexp: Ok(
+                                    Regex(
+                                        "^(.*)$",
+                                    ),
+                                ),
+                                group_name_list: [
+                                    "0",
+                                ],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
+                                    },
+                                },
+                            },
+                            hash: Component {
+                                pattern_string: "*",
+                                regexp: Ok(
+                                    Regex(
+                                        "^(.*)$",
+                                    ),
+                                ),
+                                group_name_list: [
+                                    "0",
+                                ],
+                                matcher: Matcher {
+                                    prefix: "",
+                                    suffix: "",
+                                    inner: SingleCapture {
+                                        filter: None,
+                                        allow_empty: true,
+                                    },
+                                },
+                            },
+                        },
+                        "https://tauri.app",
+                    ),
+                },
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: None,
+            },
+        ],
+    },
+    denied_commands: {},
+    command_scope: {},
+    global_scope: {
+        "fs": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+}

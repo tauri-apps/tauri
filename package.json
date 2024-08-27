@@ -11,8 +11,8 @@
     "url": "https://github.com/tauri-apps/tauri.git"
   },
   "scripts": {
-    "format": "prettier --write . --config .prettierrc --ignore-path .prettierignore",
-    "format:check": "prettier --check . --config .prettierrc --ignore-path .prettierignore",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "eslint:check": "pnpm run -r eslint:check",
     "ts:check": "pnpm run -r ts:check"
   },

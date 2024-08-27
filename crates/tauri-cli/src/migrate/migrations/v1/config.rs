@@ -243,6 +243,22 @@ fn process_bundle(config: &mut Map<String, Value>, migrated: &MigratedConfig) {
           .map(|l| l.insert("appimage".into(), appimage));
       }
 
+      if let Some(rpm) = bundle_config.remove("rpm") {
+        bundle_config
+          .entry("linux")
+          .or_insert_with(|| Value::Object(Default::default()))
+          .as_object_mut()
+          .map(|l| l.insert("rpm".into(), rpm));
+      }
+
+      if let Some(dmg) = bundle_config.remove("dmg") {
+        bundle_config
+          .entry("macOS")
+          .or_insert_with(|| Value::Object(Default::default()))
+          .as_object_mut()
+          .map(|l| l.insert("dmg".into(), dmg));
+      }
+
       // license file
       if let Some(macos) = bundle_config
         .get_mut("macOS")

@@ -112,6 +112,7 @@
           "minimumSystemVersion": "10.13"
         },
         "targets": "all",
+        "useLocalToolsDir": false,
         "windows": {
           "allowDowngrades": true,
           "certificateThumbprint": null,
@@ -1628,6 +1629,11 @@
             "string",
             "null"
           ]
+        },
+        "useLocalToolsDir": {
+          "description": "Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.\n\n If true, tools will be cached in `target\\.tauri-tools`.\n If false, tools will be cached in the current user's platform-specific cache directory.\n\n An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),\n because the Window system's app data directory is restricted.",
+          "default": false,
+          "type": "boolean"
         },
         "externalBin": {
           "description": "A list of—either absolute or relative—paths to binaries to embed with your application.\n\n Note that Tauri will look for system-specific binaries following the pattern \"binary-name{-target-triple}{.system-extension}\".\n\n E.g. for the external binary \"my-binary\", Tauri looks for:\n\n - \"my-binary-x86_64-pc-windows-msvc.exe\" for Windows\n - \"my-binary-x86_64-apple-darwin\" for macOS\n - \"my-binary-x86_64-unknown-linux-gnu\" for Linux\n\n so don't forget to provide binaries for all targeted platforms.",

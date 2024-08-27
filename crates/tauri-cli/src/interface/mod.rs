@@ -12,6 +12,7 @@ use std::{
 };
 
 use crate::helpers::config::Config;
+use anyhow::Context;
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface};
@@ -54,15 +55,23 @@ pub trait AppSettings {
       tauri_utils::platform::target_triple()?
     };
 
-    SettingsBuilder::new()
+    let mut settings_builder = SettingsBuilder::new()
       .package_settings(self.get_package_settings())
       .bundle_settings(self.get_bundle_settings(config, &enabled_features)?)
       .binaries(self.get_binaries(&target)?)
       .project_out_directory(out_dir)
       .target(target)
-      .package_types(package_types)
-      .build()
-      .map_err(Into::into)
+      .package_types(package_types);
+
+    if config.bundle.use_local_tools_dir {
+      settings_builder = settings_builder.local_tools_directory(
+        rust::get_cargo_metadata()
+          .context("failed to get cargo metadata")?
+          .target_directory,
+      )
+    }
+
+    settings_builder.build().map_err(Into::into)
   }
 }
 

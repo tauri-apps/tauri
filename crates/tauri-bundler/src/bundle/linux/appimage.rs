@@ -58,13 +58,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   sh_map.insert("arch", settings.target().split('-').next().unwrap());
   sh_map.insert("crate_name", settings.main_binary_name());
   sh_map.insert("appimage_filename", &appimage_filename);
-  let tauri_tools_path = dirs::cache_dir().map_or_else(
-    || output_path.to_path_buf(),
-    |mut p| {
-      p.push("tauri");
-      p
-    },
-  );
+
+  let tauri_tools_path = settings
+    .local_tools_directory()
+    .map(|d| d.join(".tauri"))
+    .unwrap_or_else(|| {
+      dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |mut p| p.join("tauri"))
+    });
+
   std::fs::create_dir_all(&tauri_tools_path)?;
   let tauri_tools_path_str = tauri_tools_path.to_string_lossy();
   sh_map.insert("tauri_tools_path", &tauri_tools_path_str);

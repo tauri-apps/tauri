@@ -63,7 +63,11 @@ const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
 pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
-  let tauri_tools_path = dirs::cache_dir().unwrap().join("tauri");
+  let tauri_tools_path = settings
+    .local_tools_directory()
+    .map(|d| d.join(".tauri"))
+    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
+
   let nsis_toolset_path = tauri_tools_path.join("NSIS");
 
   if !nsis_toolset_path.exists() {

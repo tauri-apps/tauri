@@ -63,7 +63,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .local_tools_directory()
     .map(|d| d.join(".tauri"))
     .unwrap_or_else(|| {
-      dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |mut p| p.join("tauri"))
+      dirs::cache_dir().map_or_else(|| output_path.to_path_buf(), |p| p.join("tauri"))
     });
 
   std::fs::create_dir_all(&tauri_tools_path)?;

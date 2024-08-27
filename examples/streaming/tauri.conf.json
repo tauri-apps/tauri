@@ -18,7 +18,7 @@
     "security": {
       "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; media-src stream: http://stream.localhost",
       "assetProtocol": {
-        "scope": ["**/test_video.mp4"]
+        "scope": ["**/streaming_example_test_video.mp4"]
       }
     }
   },

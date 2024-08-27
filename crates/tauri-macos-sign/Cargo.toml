@@ -7,7 +7,7 @@ keywords = ["codesign", "signing", "macos", "ios", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Code signing utilities for macOS and iOS apps"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71"
 
 [dependencies]
 anyhow = "1"

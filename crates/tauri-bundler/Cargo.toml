@@ -1,23 +1,18 @@
 [package]
 name = "tauri-bundler"
 version = "2.0.1-rc.5"
-authors = [
-  "George Burton <burtonageo@gmail.com>",
-  "Tauri Programme within The Commons Conservancy",
-]
+authors = ["George Burton <burtonageo@gmail.com>", "Tauri Programme within The Commons Conservancy"]
 categories = ["command-line-utilities", "development-tools::cargo-plugins"]
 license = "Apache-2.0 OR MIT"
 keywords = ["bundle", "cargo", "tauri"]
 repository = "https://github.com/tauri-apps/tauri"
 description = "Wrap rust executables in OS-specific app bundles for Tauri"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-rc.6", path = "../tauri-utils", features = [
-  "resources",
-] }
+tauri-utils = { version = "2.0.0-rc.6", path = "../tauri-utils", features = ["resources"] }
 image = "0.25.0"
 flate2 = "1.0"
 anyhow = "1.0"
@@ -32,9 +27,7 @@ tempfile = "3.10.1"
 log = { version = "0.4.21", features = ["kv"] }
 dirs = "5"
 os_pipe = "1"
-ureq = { version = "2.9.6", default-features = false, features = [
-  "socks-proxy",
-] }
+ureq = { version = "2.9.6", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"

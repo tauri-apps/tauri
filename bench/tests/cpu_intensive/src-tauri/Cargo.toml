@@ -3,12 +3,10 @@ name = "bench_cpu_intensive"
 version = "0.1.0"
 description = "A very simple Tauri Application"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71"
 
 [build-dependencies]
-tauri-build = { path = "../../../../crates/tauri-build", features = [
-  "codegen",
-] }
+tauri-build = { path = "../../../../crates/tauri-build", features = ["codegen"] }
 
 [dependencies]
 serde_json = "1.0"

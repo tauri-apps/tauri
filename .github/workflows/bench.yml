@@ -66,7 +66,9 @@ jobs:
 
       - name: run benchmarks
         run: |
-          cargo build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }} --manifest-path bench/tests/Cargo.toml
+          cargo build --manifest-path bench/tests/cpu_intensive/src-tauri/Cargo.toml --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }}
+          cargo build --manifest-path bench/tests/files_transfer/src-tauri/Cargo.toml --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }}
+          cargo build --manifest-path bench/tests/helloworld/src-tauri/Cargo.toml --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }}
           xvfb-run --auto-servernum cargo run --manifest-path bench/Cargo.toml --bin run_benchmark
 
       - name: clone benchmarks_results

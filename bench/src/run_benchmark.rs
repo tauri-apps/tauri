@@ -28,22 +28,19 @@ fn get_all_benchmarks() -> Vec<(String, String)> {
   vec![
     (
       "tauri_hello_world".into(),
-      format!(
-        "tests/target/{}/release/bench_helloworld",
-        utils::get_target()
-      ),
+      format!("../target/{}/release/bench_helloworld", utils::get_target()),
     ),
     (
       "tauri_cpu_intensive".into(),
       format!(
-        "tests/target/{}/release/bench_cpu_intensive",
+        "../target/{}/release/bench_cpu_intensive",
         utils::get_target()
       ),
     ),
     (
       "tauri_3mb_transfer".into(),
       format!(
-        "tests/target/{}/release/bench_files_transfer",
+        "../target/{}/release/bench_files_transfer",
         utils::get_target()
       ),
     ),

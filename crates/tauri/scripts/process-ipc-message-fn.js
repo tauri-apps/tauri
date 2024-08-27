@@ -20,7 +20,11 @@
         let o = {}
         val.forEach((v, k) => (o[k] = v))
         return o
-      } else if (
+      } else if (val instanceof Uint8Array) {
+        return Array.from(val)
+      } else if (val instanceof ArrayBuffer) {
+        return Array.from(new Uint8Array(val))
+      }  else if (
         val instanceof Object &&
         '__TAURI_CHANNEL_MARKER__' in val &&
         typeof val.id === 'number'

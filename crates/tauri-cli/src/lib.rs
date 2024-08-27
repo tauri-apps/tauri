@@ -32,8 +32,7 @@ mod plugin;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
-use env_logger::fmt::style::{AnsiColor, Style};
-use env_logger::Builder;
+use env_logger::fmt::Color;
 use log::Level;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
@@ -214,33 +213,35 @@ where
     Err(e) => e.exit(),
   };
 
-  let mut builder = Builder::from_default_env();
+  let mut builder = env_logger::Builder::from_default_env();
   let init_res = builder
     .format_indent(Some(12))
     .filter(None, verbosity_level(cli.verbose).to_level_filter())
     .format(|f, record| {
+      let mut style = f.style();
+
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {
         let action = action.to_cow_str().unwrap();
         is_command_output = action == "stdout" || action == "stderr";
         if !is_command_output {
-          let style = Style::new().fg_color(Some(AnsiColor::Green.into())).bold();
+          let style = style.set_color(Color::Green).set_bold(true);
+          let value = style.value(action);
 
-          write!(f, "    {style}{}{style:#} ", action)?;
+          write!(f, "    {value} ")?;
         }
       } else {
-        let style = f.default_level_style(record.level()).bold();
-        write!(
-          f,
-          "    {style}{}{style:#} ",
-          prettyprint_level(record.level())
-        )?;
+        let mut style = f.default_level_style(record.level());
+        style.set_bold(true);
+        let value = style.value(prettyprint_level(record.level()));
+        write!(f, "    {value} ",)?;
       }
 
       if !is_command_output && log::log_enabled!(Level::Debug) {
-        let style = Style::new().fg_color(Some(AnsiColor::Black.into()));
+        let style = style.set_color(Color::Black);
+        let value = style.value(record.target());
 
-        write!(f, "[{style}{}{style:#}] ", record.target())?;
+        write!(f, "[{value}] ")?;
       }
 
       writeln!(f, "{}", record.args())

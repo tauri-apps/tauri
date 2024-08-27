@@ -82,7 +82,7 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.14", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.15", default-features = false, features = ["serde"], optional = true }
+tray-icon = { version = "0.16", default-features = false, features = ["serde"], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }

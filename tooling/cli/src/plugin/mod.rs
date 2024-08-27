@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::Path;
+use std::{fmt::Display, path::Path};
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 use crate::Result;
 
@@ -12,6 +12,24 @@ mod android;
 mod init;
 mod ios;
 mod new;
+
+#[derive(Debug, Clone, ValueEnum, Default)]
+pub enum PluginIosFramework {
+  /// Swift Package Manager project
+  #[default]
+  Spm,
+  /// Xcode project
+  Xcode,
+}
+
+impl Display for PluginIosFramework {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Spm => write!(f, "spm"),
+      Self::Xcode => write!(f, "xcode"),
+    }
+  }
+}
 
 #[derive(Parser)]
 #[clap(

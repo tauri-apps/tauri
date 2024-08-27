@@ -192,11 +192,7 @@ fn cargo_deps() -> HashMap<String, usize> {
 
       let full_deps = cmd.output().expect("failed to run cargo tree").stdout;
       let full_deps = String::from_utf8(full_deps).expect("cargo tree output not utf-8");
-      let count = full_deps
-        .lines()
-        .collect::<HashSet<_>>()
-        .len()
-        .saturating_sub(1); // output includes wry itself
+      let count = full_deps.lines().collect::<HashSet<_>>().len() - 1; // output includes wry itself
 
       // set the count to the highest count seen for this OS
       let existing = results.entry(os.to_string()).or_default();

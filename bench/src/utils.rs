@@ -76,12 +76,7 @@ pub fn home_path() -> PathBuf {
 
 #[allow(dead_code)]
 pub fn tauri_root_path() -> PathBuf {
-  bench_root_path()
-    .parent()
-    .unwrap()
-    .parent()
-    .unwrap()
-    .to_path_buf()
+  bench_root_path().parent().unwrap().to_path_buf()
 }
 
 #[allow(dead_code)]

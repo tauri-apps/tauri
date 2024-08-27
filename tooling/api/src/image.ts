@@ -102,13 +102,9 @@ export function transformImage<T>(
       ? null
       : typeof image === 'string'
         ? image
-        : image instanceof Uint8Array
-          ? Array.from(image)
-          : image instanceof ArrayBuffer
-            ? Array.from(new Uint8Array(image))
-            : image instanceof Image
-              ? image.rid
-              : image
+        : image instanceof Image
+          ? image.rid
+          : image
 
   return ret as T
 }

@@ -36,7 +36,11 @@ describe('[CLI] @tauri-apps/cli template', () => {
       process.cwd(),
       '--force',
       '--tauri-path',
-      resolve(currentDirName, '../../../../../..'),
+      resolve(currentDirName, '../../../../..'),
+      '--before-build-command',
+      '',
+      '--before-dev-command',
+      '',
       '--ci'
     ])
 

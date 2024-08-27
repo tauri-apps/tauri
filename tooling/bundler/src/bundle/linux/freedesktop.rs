@@ -98,6 +98,8 @@ pub fn generate_desktop_file(
   data_dir: &Path,
 ) -> crate::Result<(PathBuf, PathBuf)> {
   let bin_name = settings.main_binary_name();
+  // %F is to enable file association for the application.
+  let exec_command = format!("{} %F", bin_name);
   let desktop_file_name = format!("{bin_name}.desktop");
   let path = PathBuf::from("usr/share/applications").join(desktop_file_name);
   let dest_path = PathBuf::from("/").join(&path);
@@ -160,7 +162,7 @@ pub fn generate_desktop_file(
       } else {
         None
       },
-      exec: bin_name,
+      exec: &exec_command,
       icon: bin_name,
       name: settings.product_name(),
       mime_type,

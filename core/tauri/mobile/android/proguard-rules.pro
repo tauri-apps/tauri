@@ -27,3 +27,5 @@
 -keep @app.tauri.annotation.InvokeArg public class * {
   *;
 }
+
+-keep class * extends com.fasterxml.jackson.databind.JsonDeserializer { *; }

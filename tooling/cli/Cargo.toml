@@ -115,6 +115,7 @@ tempfile = "3"
 
 [dev-dependencies]
 insta = "1"
+pretty_assertions = "1"
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.59"

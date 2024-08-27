@@ -5,13 +5,13 @@ description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
 links = "Tauri"
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-categories = { workspace = true }
-license = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
 
 [package.metadata.docs.rs]
 no-default-features = true
@@ -45,13 +45,7 @@ development = ["quickcheck_macros"]
 [dependencies]
 serde_json = { version = "1.0", features = ["raw_value"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
-tokio = { version = "1", features = [
-  "rt",
-  "rt-multi-thread",
-  "sync",
-  "fs",
-  "io-util",
-] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "fs", "io-util"] }
 futures-util = "0.3"
 uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
@@ -59,7 +53,7 @@ anyhow = "1.0"
 thiserror = "1.0"
 tauri-runtime = { version = "2.0.0-rc.6", path = "../tauri-runtime" }
 tauri-macros = { version = "2.0.0-rc.5", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-rc.6", features = [ "resources" ], path = "../tauri-utils" }
+tauri-utils = { version = "2.0.0-rc.6", features = ["resources"], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "2.0.0-rc.6", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
@@ -67,10 +61,7 @@ state = "0.6"
 http = "1.1"
 dirs = "5"
 percent-encoding = "2.3"
-reqwest = { version = "0.12", default-features = false, features = [
-  "json",
-  "stream",
-] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream"] }
 bytes = { version = "1", features = ["serde"] }
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
@@ -90,8 +81,8 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 ] }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.14", default-features = false, features = [ "serde" ] }
-tray-icon = { version = "0.16", default-features = false, features = [ "serde" ], optional = true }
+muda = { version = "0.14", default-features = false, features = ["serde"] }
+tray-icon = { version = "0.16", default-features = false, features = ["serde"], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
@@ -118,12 +109,12 @@ jni = "0.21"
 libc = "0.2"
 objc = "0.2"
 cocoa = "0.26"
-swift-rs = "1.0.6"
+swift-rs = "1.0.7"
 
 [build-dependencies]
 heck = "0.5"
 tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.6" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.6", features = [ "build" ] }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.6", features = ["build"] }
 
 [dev-dependencies]
 proptest = "1.4.0"
@@ -139,20 +130,14 @@ http-range = "0.1.5"
 [features]
 default = ["wry", "compression", "objc-exception", "common-controls-v6"]
 unstable = ["tauri-runtime-wry/unstable"]
-common-controls-v6 = [
-  "tray-icon?/common-controls-v6",
-  "muda/common-controls-v6",
-]
+common-controls-v6 = ["tray-icon?/common-controls-v6", "muda/common-controls-v6"]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["tauri-runtime-wry"]
 objc-exception = ["tauri-runtime-wry/objc-exception"]
-linux-ipc-protocol = [
-  "tauri-runtime-wry/linux-protocol-body",
-  "webkit2gtk/v2_40",
-]
+linux-ipc-protocol = ["tauri-runtime-wry/linux-protocol-body", "webkit2gtk/v2_40"]
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
@@ -163,10 +148,7 @@ devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
-macos-private-api = [
-  "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry/macos-private-api",
-]
+macos-private-api = ["tauri-runtime/macos-private-api", "tauri-runtime-wry/macos-private-api"]
 webview-data-url = ["data-url"]
 protocol-asset = ["http-range"]
 config-json5 = ["tauri-macros/config-json5"]

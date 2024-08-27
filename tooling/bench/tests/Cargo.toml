@@ -1,7 +1,5 @@
 [workspace]
-members = [
-  "./*/src-tauri/",
-]
+members = ["./*/src-tauri/"]
 resolver = "2"
 
 [profile.release]

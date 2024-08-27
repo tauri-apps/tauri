@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.15", default-features = false }
+cargo-mobile2 = { version = "0.15.1", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.24", features = ["server"] }

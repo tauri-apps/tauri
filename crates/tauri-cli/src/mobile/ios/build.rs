@@ -146,7 +146,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_utils::platform::Target::Ios,
     options.config.as_ref().map(|c| &c.0),
   )?;
-  let (interface, app, mut config) = {
+  let (interface, mut config) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
 
@@ -160,7 +160,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       build_options.features.as_ref(),
       &Default::default(),
     );
-    (interface, app, config)
+    (interface, config)
   };
 
   let tauri_path = tauri_dir();
@@ -198,7 +198,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   // synchronize pbxproj and exportoptions
   synchronize_project_config(
-    &app,
+    &config,
+    &tauri_config,
     &mut pbxproj,
     &mut export_options_plist,
     &project_config,

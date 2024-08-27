@@ -86,7 +86,7 @@ targets:
         EXCLUDED_ARCHS[sdk=iphoneos*]: arm64-sim x86_64
       groups: [app]
     dependencies:
-      - framework: lib{{app.lib-name}}.a
+      - framework: {{ lib-output-file-name }}
         embed: false
       {{~#each ios-libraries}}
       - framework: {{this}}
@@ -125,9 +125,9 @@ targets:
         name: Build Rust Code
         basedOnDependencyAnalysis: false
         outputFiles:
-          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/lib{{app.lib-name}}.a
-          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/lib{{app.lib-name}}.a
-          - $(SRCROOT)/Externals/arm64-sim/${CONFIGURATION}/lib{{app.lib-name}}.a
+          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/{{ lib-output-file-name }}
+          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/{{ lib-output-file-name }}
+          - $(SRCROOT)/Externals/arm64-sim/${CONFIGURATION}/{{ lib-output-file-name }}
     {{~#if ios-post-compile-scripts}}
     postCompileScripts:
       {{~#each ios-post-compile-scripts}}{{#if this.path}}

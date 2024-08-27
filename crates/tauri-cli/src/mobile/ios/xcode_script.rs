@@ -6,9 +6,11 @@ use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   helpers::config::get as get_tauri_config,
   interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  mobile::ios::LIB_OUTPUT_FILE_NAME,
   Result,
 };
 
+use anyhow::Context;
 use cargo_mobile2::{apple::target::Target, opts::Profile};
 use clap::Parser;
 
@@ -16,6 +18,7 @@ use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, var, var_os},
   ffi::OsStr,
+  fs::read_to_string,
   path::{Path, PathBuf},
   process::Command,
 };
@@ -233,10 +236,26 @@ pub fn command(options: Options) -> Result<()> {
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
     std::fs::create_dir_all(&externals_lib_dir)?;
-    std::fs::copy(
-      lib_path,
-      externals_lib_dir.join(format!("lib{}.a", config.app().lib_name())),
-    )?;
+
+    // backwards compatible lib output file name
+    let uses_new_lib_output_file_name = {
+      let pbxproj_contents = read_to_string(
+        project_dir
+          .join(format!("{}.xcodeproj", config.app().name()))
+          .join("project.pbxproj"),
+      )
+      .context("missing project.pbxproj file in the Xcode project")?;
+
+      pbxproj_contents.contains(LIB_OUTPUT_FILE_NAME)
+    };
+
+    let lib_output_file_name = if uses_new_lib_output_file_name {
+      LIB_OUTPUT_FILE_NAME.to_string()
+    } else {
+      format!("lib{}.a", config.app().lib_name())
+    };
+
+    std::fs::copy(lib_path, externals_lib_dir.join(lib_output_file_name))?;
   }
   Ok(())
 }

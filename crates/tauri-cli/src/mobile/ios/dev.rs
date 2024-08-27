@@ -3,8 +3,8 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  device_prompt, ensure_init, env, get_app, get_config, inject_resources, merge_plist,
-  open_and_wait, MobileTarget,
+  device_prompt, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
+  merge_plist, open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -190,6 +190,25 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_path.join("Info.ios.plist").into(),
   ])?;
   merged_info_plist.to_file_xml(&info_plist_path)?;
+
+  let mut pbxproj = load_pbxproj(&config)?;
+
+  // synchronize pbxproj
+  synchronize_project_config(
+    &config,
+    &tauri_config,
+    &mut pbxproj,
+    &mut plist::Dictionary::new(),
+    &ProjectConfig {
+      code_sign_identity: None,
+      team_id: None,
+      provisioning_profile_uuid: None,
+    },
+    !options.release_mode,
+  )?;
+  if pbxproj.has_changes() {
+    pbxproj.save()?;
+  }
 
   run_dev(
     interface,

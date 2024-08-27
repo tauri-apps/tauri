@@ -143,10 +143,10 @@ pub fn get_config(
   set_var("WRY_ANDROID_LIBRARY", app.lib_name());
   set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
 
-  let src_main_dir = config.project_dir().join("app/src/main").join(format!(
-    "java/{}",
-    app.reverse_identifier().replace('.', "/"),
-  ));
+  let src_main_dir = config
+    .project_dir()
+    .join("app/src/main")
+    .join(format!("java/{}", app.identifier().replace('.', "/"),));
   if config.project_dir().exists() {
     if src_main_dir.exists() {
       let _ = create_dir(src_main_dir.join("generated"));

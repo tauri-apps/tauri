@@ -249,16 +249,10 @@ fn read_options(identifier: &str) -> CliOptions {
 }
 
 pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -> App {
-  let identifier = config
-    .identifier
-    .rsplit('.')
-    .collect::<Vec<&str>>()
-    .join(".");
-
   let identifier = match target {
-    Target::Android => identifier.replace('-', "_"),
+    Target::Android => config.identifier.replace('-', "_"),
     #[cfg(target_os = "macos")]
-    Target::Ios => identifier.replace('_', "-"),
+    Target::Ios => config.identifier.replace('_', "-"),
   };
 
   if identifier.is_empty() {

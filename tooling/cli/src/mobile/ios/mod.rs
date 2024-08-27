@@ -538,7 +538,7 @@ pub fn synchronize_project_config(
       });
     if let Some(profile_uuid) = profile_uuid {
       let mut provisioning_profiles = plist::Dictionary::new();
-      provisioning_profiles.insert(app.reverse_identifier(), profile_uuid.into());
+      provisioning_profiles.insert(app.identifier(), profile_uuid.into());
       export_options_list.insert(
         "provisioningProfiles".to_string(),
         provisioning_profiles.into(),

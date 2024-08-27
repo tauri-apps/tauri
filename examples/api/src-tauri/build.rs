@@ -36,7 +36,7 @@ fn embed_manifest_for_tests() {
 
   let manifest = std::env::current_dir()
     .unwrap()
-    .join("../../../core/tauri-build/src")
+    .join("../../../crates/tauri-build/src")
     .join(WINDOWS_MANIFEST_FILE);
 
   println!("cargo:rerun-if-changed={}", manifest.display());

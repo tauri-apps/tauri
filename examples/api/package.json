@@ -7,10 +7,10 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "node ../../tooling/cli/node/tauri.js"
+    "tauri": "node ../../packages/cli/tauri.js"
   },
   "dependencies": {
-    "@tauri-apps/api": "../../tooling/api/dist",
+    "@tauri-apps/api": "../../packages/api/dist",
     "@zerodevx/svelte-json-view": "1.0.9"
   },
   "devDependencies": {

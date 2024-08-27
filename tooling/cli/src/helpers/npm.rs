@@ -117,6 +117,40 @@ impl PackageManager {
     Ok(())
   }
 
+  pub fn remove<P: AsRef<Path>>(&self, dependencies: &[String], app_dir: P) -> crate::Result<()> {
+    let dependencies_str = if dependencies.len() > 1 {
+      "dependencies"
+    } else {
+      "dependency"
+    };
+    log::info!(
+      "Removing NPM {dependencies_str} {}...",
+      dependencies
+        .iter()
+        .map(|d| format!("\"{d}\""))
+        .collect::<Vec<_>>()
+        .join(", ")
+    );
+
+    let status = self
+      .cross_command()
+      .arg(if *self == Self::Npm {
+        "uninstall"
+      } else {
+        "remove"
+      })
+      .args(dependencies)
+      .current_dir(app_dir)
+      .status()
+      .with_context(|| format!("failed to run {self}"))?;
+
+    if !status.success() {
+      anyhow::bail!("Failed to remove NPM {dependencies_str}");
+    }
+
+    Ok(())
+  }
+
   pub fn current_package_version<P: AsRef<Path>>(
     &self,
     name: &str,

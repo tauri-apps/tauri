@@ -56,7 +56,7 @@ pub fn get_target() -> &'static str {
 
 pub fn target_dir() -> PathBuf {
   bench_root_path()
-    .join("tests")
+    .join("..")
     .join("target")
     .join(get_target())
     .join("release")

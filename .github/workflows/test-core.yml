@@ -8,12 +8,15 @@ on:
   push:
     branches:
       - dev
-      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-core.yml'
-      - 'core/**'
-      - '!core/tauri/scripts/**'
+      - 'crates/**'
+      - '!crates/tauri/scripts/**'
+      - '!crates/tauri-cli/**'
+      - '!crates/tauri-bundler/**'
+      - '!crates/tauri-macos-sign/**'
+      - '!crates/tauri-schema-generator/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -88,8 +91,11 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: v2
-          workspaces: core -> ../target
           save-if: ${{ matrix.features.key == 'all' }}
+
+      - name: test
+        if: ${{ !matrix.platform.cross }}
+        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
 
       - name: test (using cross)
         if: ${{ matrix.platform.cross }}
@@ -97,7 +103,3 @@ jobs:
         run: |
           cargo install cross --git https://github.com/cross-rs/cross --rev 20c73df79c9aaf78a2ad2e9fe8ae981668a729dc --locked
           cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}
-
-      - name: test (using cargo)
-        if: ${{ !matrix.platform.cross }}
-        run: cargo ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }}

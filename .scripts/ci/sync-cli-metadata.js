@@ -6,7 +6,7 @@
 
 /*
 This script is solely intended to be run as part of the `covector version` step to
-keep the `../tooling/cli/metadata.json` up to date with other version bumps. Long term
+keep the `../crates/tauri-cli/metadata.json` up to date with other version bumps. Long term
 we should look to find a more "rusty way" to import / "pin" a version value in our tauri-cli
 rust binaries.
 */
@@ -17,8 +17,8 @@ const { resolve } = require('path')
 const packageNickname = process.argv[2]
 const filePath =
   packageNickname === '@tauri-apps/cli'
-    ? `../../../tooling/cli/metadata-v2.json`
-    : `../../tooling/cli/metadata-v2.json`
+    ? `../../../crates/tauri-cli/metadata-v2.json`
+    : `../../crates/tauri-cli/metadata-v2.json`
 const bump = process.argv[3]
 let index = null
 

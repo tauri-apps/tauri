@@ -1,36 +1,37 @@
 [workspace]
-resolver = "2"
 members = [
-  # core
-  "core/tauri",
-  "core/tauri-runtime",
-  "core/tauri-runtime-wry",
-  "core/tauri-macros",
-  "core/tauri-utils",
-  "core/tauri-build",
-  "core/tauri-codegen",
-  "core/tauri-config-schema",
-  "core/tauri-acl-schema",
-  "core/tauri-plugin",
+  "crates/tauri",
+  "crates/tauri-runtime",
+  "crates/tauri-runtime-wry",
+  "crates/tauri-macros",
+  "crates/tauri-utils",
+  "crates/tauri-build",
+  "crates/tauri-codegen",
+  "crates/tauri-plugin",
+  "crates/tauri-schema-generator",
+  "crates/tauri-cli",
+  "crates/tauri-bundler",
+  "crates/tauri-macos-sign",
+  "crates/tauri-driver",
+
+  # @tauri-apps/cli rust project
+  "packages/cli",
 
   # integration tests
-  "core/tests/restart",
-  "core/tests/acl",
+  "crates/tests/restart",
+  "crates/tests/acl",
+
+  # bench
+  "bench",
+  "bench/tests/cpu_intensive/src-tauri",
+  "bench/tests/files_transfer/src-tauri",
+  "bench/tests/helloworld/src-tauri",
 
   # examples
   "examples/file-associations/src-tauri",
   "examples/api/src-tauri",
 ]
-
-exclude = [
-  # examples that need to be compiled with the tauri CLI
-  "examples/api/src-tauri",
-  "examples/resources/src-tauri",
-  "examples/web/core",
-  "examples/file-associations/src-tauri",
-  "examples/workspace",
-  "examples/plugins/tauri-plugin-example",
-]
+resolver = "2"
 
 [workspace.package]
 authors = ["Tauri Programme within The Commons Conservancy"]
@@ -44,6 +45,17 @@ rust-version = "1.70"
 # default to small, optimized workspace release binaries
 [profile.release]
 panic = "abort"
+codegen-units = 1
+lto = true
+incremental = false
+opt-level = "s"
+
+# profiles for tauri-cli
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+
+[profile.release-size-optimized]
+inherits = "release"
 codegen-units = 1
 lto = true
 incremental = false

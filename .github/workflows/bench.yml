@@ -8,11 +8,11 @@ on:
   push:
     branches:
       - dev
-      - 1.x
   workflow_dispatch:
   pull_request:
     paths:
       - '.github/workflows/bench.yml'
+      - 'bench/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -55,7 +55,7 @@ jobs:
           python -m pip install --upgrade pip
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            webkit2gtk-4.1 libayatana-appindicator3-dev \
             xvfb \
             at-spi2-core
           wget https://github.com/sharkdp/hyperfine/releases/download/v1.18.0/hyperfine_1.18.0_amd64.deb
@@ -63,15 +63,11 @@ jobs:
           pip install memory_profiler
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            core -> ../target
-            tooling/bench/tests
 
       - name: run benchmarks
         run: |
-          cargo build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }} --manifest-path tooling/bench/tests/Cargo.toml
-          xvfb-run --auto-servernum cargo run --manifest-path tooling/bench/Cargo.toml --bin run_benchmark
+          cargo build --release -Z build-std=std,panic_abort -Z build-std-features=panic_immediate_abort --target ${{ matrix.platform.target }} --manifest-path bench/tests/Cargo.toml
+          xvfb-run --auto-servernum cargo run --manifest-path bench/Cargo.toml --bin run_benchmark
 
       - name: clone benchmarks_results
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
@@ -84,7 +80,7 @@ jobs:
       - name: push new benchmarks
         if: github.repository == 'tauri-apps/tauri' && github.ref == 'refs/heads/dev'
         run: |
-          cargo run --manifest-path tooling/bench/Cargo.toml --bin build_benchmark_jsons
+          cargo run --manifest-path bench/Cargo.toml --bin build_benchmark_jsons
           cd gh-pages
           git pull
           git config user.name "tauri-bench"

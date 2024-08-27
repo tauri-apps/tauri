@@ -8,8 +8,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/lint-js.yml'
-      - 'tooling/cli/node/**'
-      - 'tooling/api/**'
+      - 'packages/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

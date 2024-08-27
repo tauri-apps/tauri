@@ -19,6 +19,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: check change files end with .md
+        run: |
+          for file in .changes
+          do
+            if [[ ! "$file" =~ \.(md|json)$ ]]; then
+              echo ".changes directory should only contain files that end with .md"
+              echo "found an invalid file in .changes directory:"
+              echo "$file"
+              exit 1
+            fi
+          end
+
       - uses: dorny/paths-filter@v2
         id: filter
         with:

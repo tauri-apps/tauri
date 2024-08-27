@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - dev
-      - 1.x
 
 env:
   RUST_BACKTRACE: 1
@@ -38,24 +37,26 @@ jobs:
         with:
           filters: |
             tauri:
-              - 'core/tauri/**'
-              - '!core/tauri/scripts/**'
+              - 'crates/tauri/**'
+              - '!crates/tauri/scripts/**'
             build:
-              - 'core/tauri-build/**'
+              - 'crates/tauri-build/**'
             codegen:
-              - 'core/tauri-codegen/**'
+              - 'crates/tauri-codegen/**'
             macros:
-              - 'core/tauri-macros/**'
+              - 'crates/tauri-macros/**'
             runtime:
-              - 'core/tauri-runtime/**'
+              - 'crates/tauri-runtime/**'
             wry:
-              - 'core/tauri-runtime-wry/**'
+              - 'crates/tauri-runtime-wry/**'
             utils:
-              - 'core/tauri-utils/**'
+              - 'crates/tauri-utils/**'
             bundler:
-              - 'tooling/bundler/**'
+              - 'crates/tauri-bundler/**'
             cli:
-              - 'tooling/cli/**'
+              - 'crates/tauri-cli/**'
+            macossign:
+              - 'crates/tauri-macos-sign/**'
 
   setup:
     runs-on: ubuntu-latest
@@ -69,7 +70,8 @@ jobs:
       needs.changes.outputs.wry == 'true' ||
       needs.changes.outputs.utils == 'true' ||
       needs.changes.outputs.bundler == 'true' ||
-      needs.changes.outputs.cli == 'true'
+      needs.changes.outputs.cli == 'true' ||
+      needs.changes.outputs.macossign == 'true'
 
     steps:
       - uses: actions/checkout@v4
@@ -99,17 +101,19 @@ jobs:
           UTILS: ${{ needs.changes.outputs.utils == 'true' }}
           BUNDLER: ${{ needs.changes.outputs.bundler == 'true' }}
           CLI: ${{ needs.changes.outputs.cli == 'true' }}
+          MACOSSIGN: ${{ needs.changes.outputs.macossign == 'true' }}
         run: |
           crates=()
-          if [ "${TAURI}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri\""; fi
-          if [ "${BUILD}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-build\""; fi
-          if [ "${CODEGEN}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-codegen\""; fi
-          if [ "${MACROS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-macros\""; fi
-          if [ "${RUNTIME}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime\""; fi
-          if [ "${WRY}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-runtime-wry\""; fi
-          if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./core/tauri-utils\""; fi
-          if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/bundler\""; fi
-          if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./tooling/cli\""; fi
+          if [ "${TAURI}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri\""; fi
+          if [ "${BUILD}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-build\""; fi
+          if [ "${CODEGEN}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-codegen\""; fi
+          if [ "${MACROS}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-macros\""; fi
+          if [ "${RUNTIME}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-runtime\""; fi
+          if [ "${WRY}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-runtime-wry\""; fi
+          if [ "${UTILS}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-utils\""; fi
+          if [ "${BUNDLER}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-bundler\""; fi
+          if [ "${CLI}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-cli\""; fi
+          if [ "${MACOSSIGN}" == "true" ]; then crates[${#crates[@]}]="\"./crates/tauri-macos-sign\""; fi
           echo "matrix=[$crates]" >> "$GITHUB_OUTPUT"
     outputs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
@@ -132,11 +136,6 @@ jobs:
           sudo apt-get install -y libgtk-3-dev
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            core -> ../target
-            tooling/cli
-            tooling/bundler
 
       - name: Download udeps
         uses: actions/download-artifact@v3

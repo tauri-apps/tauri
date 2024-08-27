@@ -18,7 +18,7 @@ on:
 
 defaults:
   run:
-    working-directory: tooling/cli/node/
+    working-directory: packages/cli/
 
 jobs:
   build:
@@ -48,14 +48,14 @@ jobs:
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
-              cd tooling/cli/node
+              cd packages/cli
               pnpm build:release --target x86_64-unknown-linux-gnu
               strip *.node
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
-              cd tooling/cli/node
+              cd packages/cli
               pnpm build:release
               strip *.node
           - host: macos-latest
@@ -67,7 +67,7 @@ jobs:
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
-              cd tooling/cli/node
+              cd packages/cli
               pnpm build:release --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
           - host: ubuntu-20.04
@@ -84,11 +84,11 @@ jobs:
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
-              cd tooling/cli/node
+              cd packages/cli
               rustup target add aarch64-unknown-linux-musl
               pnpm build:release --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
-    name: stable - ${{ matrix.settings.target }} - node@16
+    name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
-          node-version: 18
+          node-version: 20
           cache: 'pnpm'
           architecture: ${{ matrix.settings.architecture }}
       - name: Install Rust
@@ -108,7 +108,7 @@ jobs:
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}
-          working-directory: 'tooling/cli/'
+          working-directory: 'crates/tauri-cli/'
         if: ${{ matrix.settings.docker }}
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
@@ -134,7 +134,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: tooling/cli/node/${{ env.APP_NAME }}.*.node
+          path: packages/cli/${{ env.APP_NAME }}.*.node
           if-no-files-found: error
   #  build-freebsd:
   #    runs-on: macos-10.15
@@ -173,7 +173,7 @@ jobs:
   #            whoami
   #            env
   #            freebsd-version
-  #            cd ./tooling/cli/node/
+  #            cd ./packages/cli/
   #            pnpm i --frozen-lockfile --ignore-scripts
   #            pnpm build:release
   #            strip -x *.node
@@ -183,7 +183,7 @@ jobs:
   #        uses: actions/upload-artifact@v3
   #        with:
   #          name: bindings-freebsd
-  #          path: tooling/cli/node/${{ env.APP_NAME }}.*.node
+  #          path: packages/cli/${{ env.APP_NAME }}.*.node
   #          if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
@@ -215,7 +215,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: 'tooling/cli/node/'
+          path: 'packages/cli/'
       - name: List packages
         run: ls -R .
         shell: bash
@@ -246,7 +246,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: bindings-x86_64-unknown-linux-gnu
-          path: 'tooling/cli/node/'
+          path: 'packages/cli'
       - name: List packages
         run: ls -R .
         shell: bash
@@ -283,7 +283,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: bindings-x86_64-unknown-linux-musl
-          path: 'tooling/cli/node/'
+          path: 'packages/cli/'
       - name: List packages
         run: ls -R .
         shell: bash
@@ -322,12 +322,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: bindings-aarch64-unknown-linux-gnu
-          path: 'tooling/cli/node/'
+          path: 'packages/cli'
       - name: Download armv7-gnueabihf artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
-          path: 'tooling/cli/node/'
+          path: 'packages/cli/'
       # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
       - uses: addnab/docker-run-action@v3
         with:
@@ -345,7 +345,7 @@ jobs:
             eval "$(fnm env --use-on-cd)"
             fnm install ${{ matrix.node }}
             fnm use ${{ matrix.node }}
-            cd tooling/cli/node
+            cd packages/cli
             node tauri.js --help
             ls -la
   publish:
@@ -373,7 +373,7 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v3
         with:
-          path: tooling/cli/node/artifacts
+          path: packages/cli/artifacts
       - name: Move artifacts
         run: pnpm artifacts
       - name: List packages

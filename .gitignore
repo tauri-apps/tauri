@@ -26,11 +26,8 @@ target/
 streaming_example_test_video.mp4
 
 # examples /gen directory
-/examples/**/gen/
-
-# old cli directories
-/tooling/cli.js
-/tooling/cli.rs
+/examples/**/src-tauri/gen/
+/bench/**/src-tauri/gen/
 
 # logs
 logs

@@ -8,11 +8,11 @@ on:
   pull_request:
     paths:
       - '.github/workflows/check-generated-files.yml'
-      - 'tooling/api/src/**'
-      - 'core/tauri/scripts/bundle.global.js'
-      - 'core/tauri-utils/src/config.rs'
-      - 'tooling/cli/schema.json'
-      - 'core/tauri-config-schema/schema.json'
+      - 'packages/api/src/**'
+      - 'crates/tauri/scripts/bundle.global.js'
+      - 'crates/tauri-utils/src/config.rs'
+      - 'crates/tauri-cli/config.schema.json'
+      - 'crates/tauri-schema-generator/schemas/*.json'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,13 +31,12 @@ jobs:
         with:
           filters: |
             api:
-              - 'tooling/api/src/**'
-              - 'core/tauri/scripts/bundle.global.js'
+              - 'packages/api/src/**'
+              - 'crates/tauri/scripts/bundle.global.js'
             schema:
-              - 'core/tauri-utils/src/config.rs'
-              - 'tooling/cli/schema.json'
-              - 'core/tauri-config-schema/schema.json'
-              - 'core/tauri-acl-schema/*.json'
+              - 'crates/tauri-utils/src/config.rs'
+              - 'crates/tauri-cli/config.schema.json'
+              - 'crates/tauri-schema-generator/schemas/*.json'
 
   api:
     runs-on: ubuntu-latest
@@ -51,9 +50,11 @@ jobs:
           node-version: 'lts/*'
           cache: 'pnpm'
 
+      - name: install deps
+        run: pnpm i --frozen-lockfile
       - name: build api
-        working-directory: tooling/api
-        run: pnpm i --frozen-lockfile && pnpm build
+        run: pnpm build
+        working-directory: packages/api
       - name: check api
         run: ./.scripts/ci/has-diff.sh
 
@@ -73,14 +74,9 @@ jobs:
           sudo apt-get install -y libgtk-3-dev
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: core -> ../target
 
-      - name: generate config schema
-        run: cargo build --manifest-path ./core/tauri-config-schema/Cargo.toml
+      - name: generate schemas
+        run: cargo build --manifest-path ./crates/tauri-schema-generator/Cargo.toml
 
-      - name: generate ACL schema
-        run: cargo build --manifest-path ./core/tauri-acl-schema/Cargo.toml
-
-      - name: check schema
+      - name: check schemas
         run: ./.scripts/ci/has-diff.sh

@@ -37,7 +37,7 @@ export default defineConfig({
         }
       : undefined,
     fs: {
-      allow: ['.', '../../tooling/api/dist']
+      allow: ['.', '../../packages/api/dist']
     }
   }
 })

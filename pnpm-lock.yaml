@@ -18,8 +18,8 @@ importers:
   examples/api:
     dependencies:
       '@tauri-apps/api':
-        specifier: ../../tooling/api/dist
-        version: link:../../tooling/api/dist
+        specifier: ../../packages/api/dist
+        version: link:../../packages/api/dist
       '@zerodevx/svelte-json-view':
         specifier: 1.0.9
         version: 1.0.9(svelte@4.2.18)
@@ -50,7 +50,7 @@ importers:
 
   examples/resources: {}
 
-  tooling/api:
+  packages/api:
     devDependencies:
       '@eslint/js':
         specifier: ^9.4.0
@@ -95,7 +95,7 @@ importers:
         specifier: ^8.1.0
         version: 8.2.0(eslint@9.9.0(jiti@1.21.6))(typescript@5.5.4)
 
-  tooling/cli/node:
+  packages/cli:
     devDependencies:
       '@napi-rs/cli':
         specifier: 2.18.3

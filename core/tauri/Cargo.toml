@@ -109,7 +109,7 @@ jni = "0.21"
 libc = "0.2"
 objc = "0.2"
 cocoa = "0.26"
-swift-rs = "1.0.6"
+swift-rs = "1.0.7"
 
 [build-dependencies]
 heck = "0.5"

@@ -30,6 +30,7 @@ members = [
   # examples
   "examples/file-associations/src-tauri",
   "examples/api/src-tauri",
+  "examples/api/src-tauri/tauri-plugin-sample",
 ]
 resolver = "2"
 

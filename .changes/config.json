@@ -232,7 +232,7 @@
       "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"],
       "postversion": [
         "cargo check",
-        "cargo build --manifest-path ../../crates/tauri-schema-generator/Cargo.toml"
+        "cargo build --manifest-path ../crates/tauri-schema-generator/Cargo.toml"
       ]
     },
     "tauri-driver": {

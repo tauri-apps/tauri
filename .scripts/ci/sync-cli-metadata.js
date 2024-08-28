@@ -6,7 +6,7 @@
 
 /*
 This script is solely intended to be run as part of the `covector version` step to
-keep the `../crates/tauri-cli/metadata.json` up to date with other version bumps. Long term
+keep the `../../crates/tauri-cli/metadata-v2.json` up to date with other version bumps. Long term
 we should look to find a more "rusty way" to import / "pin" a version value in our tauri-cli
 rust binaries.
 */
@@ -15,10 +15,7 @@ const { readFileSync, writeFileSync } = require('fs')
 const { resolve } = require('path')
 
 const packageNickname = process.argv[2]
-const filePath =
-  packageNickname === '@tauri-apps/cli'
-    ? `../../../crates/tauri-cli/metadata-v2.json`
-    : `../../crates/tauri-cli/metadata-v2.json`
+const filePath = resolve(__dirname, '../../crates/tauri-cli/metadata-v2.json')
 const bump = process.argv[3]
 let index = null
 
@@ -52,7 +49,7 @@ const inc = (version) => {
   }
   if (bump === 'premajor') {
     const pre = JSON.parse(
-      readFileSync(resolve(filePath, '../../../.changes/pre.json'), 'utf-8')
+      readFileSync(resolve(__dirname, '../../.changes/pre.json'), 'utf-8')
     )
     return `${v.join('.')}-${pre.tag}.0`
   }

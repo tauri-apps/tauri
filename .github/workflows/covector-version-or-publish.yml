@@ -41,7 +41,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
 
       - name: build CLI
-        run: cargo build --manifest-path ./crates/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: run integration tests
         run: cargo test --test '*' -- --ignored

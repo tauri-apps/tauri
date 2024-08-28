@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.7]
+
+### New Features
+
+- [`ad83d41cb`](https://www.github.com/tauri-apps/tauri/commit/ad83d41cb5bc3bc3611a3dbaf0e355df3021dac0) ([#10743](https://www.github.com/tauri-apps/tauri/pull/10743) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WindowsAttributes::new_without_app_manifest` to create `WindowsAttributes` without the default manifest.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-codegen@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### Bug Fixes

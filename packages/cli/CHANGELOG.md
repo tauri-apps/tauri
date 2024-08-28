@@ -1,5 +1,40 @@
 # Changelog
 
+## \[2.0.0-rc.8]
+
+### New Features
+
+- [`91e9e784a`](https://www.github.com/tauri-apps/tauri/commit/91e9e784aa59634e3fe6359f8b78d071d76a9e42) ([#10729](https://www.github.com/tauri-apps/tauri/pull/10729) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add plugins information in `tauri info` output
+- [`09e9dc1aa`](https://www.github.com/tauri-apps/tauri/commit/09e9dc1aab1b66aa6a3a009d5873db586abe76a0) ([#10752](https://www.github.com/tauri-apps/tauri/pull/10752) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow Xcode to manage iOS code sign and provisioning profiles by default.
+  On CI, the `APPLE_API_KEY`, `APPLE_API_ISSUER` and `APPLE_API_KEY_PATH` environment variables must be provided for authentication.
+
+### Enhancements
+
+- [`3a4972b39`](https://www.github.com/tauri-apps/tauri/commit/3a4972b394c65c32eefebfb2181ba56b0cfc08f7) ([#10793](https://www.github.com/tauri-apps/tauri/pull/10793) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Include architecture in the `tauri info` output.
+- [`fd68b7fde`](https://www.github.com/tauri-apps/tauri/commit/fd68b7fdea3890d9f0a373a252a3682bd9d04138) ([#10785](https://www.github.com/tauri-apps/tauri/pull/10785) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove the `.cargo/config` file creation that used to fix mobile build caches.
+- [`f67a9eb6d`](https://www.github.com/tauri-apps/tauri/commit/f67a9eb6de4567c2374b8cdbabadcf0ca44d28fb) ([#10802](https://www.github.com/tauri-apps/tauri/pull/10802) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Synchronize identifier, development team and lib name with the iOS Xcode project.
+
+### Bug Fixes
+
+- [`83ed090bf`](https://www.github.com/tauri-apps/tauri/commit/83ed090bfa58a1784495f474d93b16a568be513f) ([#10790](https://www.github.com/tauri-apps/tauri/pull/10790) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Do not quit `ios dev` and `android dev` process when we fail to attach the logger.
+- [`2d31aef75`](https://www.github.com/tauri-apps/tauri/commit/2d31aef759f496f3afe46b7697176e61a8570511) ([#10751](https://www.github.com/tauri-apps/tauri/pull/10751) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ensure gradlew is executable and does not use CRLF so it can be used on UNIX systems.
+- [`02b2f964a`](https://www.github.com/tauri-apps/tauri/commit/02b2f964a70c61ff08b5052bd9fcde472d706d9c) ([#10795](https://www.github.com/tauri-apps/tauri/pull/10795) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix the `add` command NPM version specifier for known plugins from `2.0.0-rc` (unknown version requirement) to `^2.0.0-rc`.
+- [`84070bae9`](https://www.github.com/tauri-apps/tauri/commit/84070bae92d234bc3630e795cfaf79f869f3a751) ([#10792](https://www.github.com/tauri-apps/tauri/pull/10792) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri plugin ios init` not generating the iOS folder.
+- [`edb2ca31f`](https://www.github.com/tauri-apps/tauri/commit/edb2ca31f70a39004b6a09ae53425f22e243318e) ([#10794](https://www.github.com/tauri-apps/tauri/pull/10794) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Migrate v1 plugins NPM packages.
+- [`9718dc9e8`](https://www.github.com/tauri-apps/tauri/commit/9718dc9e8c9bc91d9a5d9e0e06a7afab62492152) ([#10791](https://www.github.com/tauri-apps/tauri/pull/10791) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Reintroduce the `targetSdk` value in the Android application template.
+
+### What's Changed
+
+- [`fb6bf3142`](https://www.github.com/tauri-apps/tauri/commit/fb6bf314252c88dd49af74bdbb8499df370836ae) ([#10763](https://www.github.com/tauri-apps/tauri/pull/10763) by [@rdlabo](https://www.github.com/tauri-apps/tauri/../../rdlabo)) Update plugin template Android code to match documentation on Android package ID usage.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.8`
+
+### Breaking Changes
+
+- [`073bb4f45`](https://www.github.com/tauri-apps/tauri/commit/073bb4f459a923541b94970dfa7e087bccaa2cfd) ([#10772](https://www.github.com/tauri-apps/tauri/pull/10772) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Removed the deprecated `webview_fixed_runtime_path` config option, use the `webview_install_mode` instead.
+
 ## \[2.0.0-rc.7]
 
 ### Enhancements

@@ -4347,7 +4347,8 @@ fn get_work_area_size(target_monitor: &MonitorHandle) -> TaoPhysicalSize<u32> {
       cbSize: std::mem::size_of::<MONITORINFO>() as u32,
       ..Default::default()
     };
-    let status = unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor()), &mut monitor_info) };
+    let status =
+      unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor() as _), &mut monitor_info) };
     if status.into() {
       return TaoPhysicalSize::new(
         (monitor_info.rcWork.right - monitor_info.rcWork.left) as u32,

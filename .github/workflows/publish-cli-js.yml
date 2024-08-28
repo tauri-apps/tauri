@@ -178,7 +178,7 @@ jobs:
   #            pnpm build:release
   #            strip -x *.node
   #            rm -rf node_modules
-  #            rm -rf ../target
+  #            rm -rf ../../target
   #      - name: Upload artifact
   #        uses: actions/upload-artifact@v3
   #        with:

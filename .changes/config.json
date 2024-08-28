@@ -219,8 +219,8 @@
       "manager": "javascript",
       "dependencies": ["tauri-cli"],
       "postversion": [
-        "node ../../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../../../crates/tauri-schema-generator/Cargo.toml"
+        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../../crates/tauri-schema-generator/Cargo.toml"
       ],
       "prepublish": [],
       "publish": [],

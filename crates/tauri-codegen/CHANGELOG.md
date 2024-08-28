@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.7]
+
+### Bug Fixes
+
+- [`88bc35732`](https://www.github.com/tauri-apps/tauri/commit/88bc357325ba278527d8cba956e828f5744c8a34) ([#10734](https://www.github.com/tauri-apps/tauri/pull/10734) by [@chippers](https://www.github.com/tauri-apps/tauri/../../chippers)) Generate context in a separate thread to prevent a stack overflow.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### What's Changed

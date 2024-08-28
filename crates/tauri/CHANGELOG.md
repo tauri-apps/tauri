@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.0.0-rc.7]
+
+### New Features
+
+- [`1e441811e`](https://www.github.com/tauri-apps/tauri/commit/1e441811ee16c687343760f555c86d52ebfe8f87) ([#10786](https://www.github.com/tauri-apps/tauri/pull/10786) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, Add and emit `DoubleClick` variant for `TrayIconEvent`.
+
+### Enhancements
+
+- [`f86a8146a`](https://www.github.com/tauri-apps/tauri/commit/f86a8146addd8a25bc44c492300fe0563104b83d) ([#10761](https://www.github.com/tauri-apps/tauri/pull/10761) by [@rdlabo](https://www.github.com/tauri-apps/tauri/../../rdlabo)) Added `getArgs` and `getRawArgs` methods to the plugin `Invoke` class (Kotlin and Swift),
+  which lets you parse the arguments manually instead of through the `parseArgs` method.
+
+### Bug Fixes
+
+- [`03f2a5098`](https://www.github.com/tauri-apps/tauri/commit/03f2a50981b8c01b1c196811fce9d93f1bf0820d) ([#10718](https://www.github.com/tauri-apps/tauri/pull/10718) by [@rdlabo](https://www.github.com/tauri-apps/tauri/../../rdlabo)) Update swift-rs fixing a plugin build when native dependencies are used.
+- [`22d2afa89`](https://www.github.com/tauri-apps/tauri/commit/22d2afa89bfe626bf952c2bb4b1f37935c1a2f71) ([#10800](https://www.github.com/tauri-apps/tauri/pull/10800) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Change the Android Proguard rules to keep custom JSON deserializers.
+- [`fbe76a955`](https://www.github.com/tauri-apps/tauri/commit/fbe76a955a63af9fb33f66d5f747caf858cf179b) ([#10797](https://www.github.com/tauri-apps/tauri/pull/10797) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Uint8Arrays and ArrayBuffers are now properly serialized as an array of numbers.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-build@2.0.0-rc.7`
+- Upgraded to `tauri-runtime@2.0.0-rc.7`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.7`
+- Upgraded to `tauri-macros@2.0.0-rc.6`
+
 ## \[2.0.0-rc.6]
 
 ### What's Changed

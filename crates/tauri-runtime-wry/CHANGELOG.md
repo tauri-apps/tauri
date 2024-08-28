@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.0.0-rc.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-runtime@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### Bug Fixes

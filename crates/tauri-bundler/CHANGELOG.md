@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.1-rc.6]
+
+### New Features
+
+- [`58dda44a5`](https://www.github.com/tauri-apps/tauri/commit/58dda44a59b915f091602cdfc53385a148469793) ([#10339](https://www.github.com/tauri-apps/tauri/pull/10339) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add a new option `minimumWebview2Version` for Windows NSIS installer to trigger a webview2 update if the user's webview2 is older than this version
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+
+### Breaking Changes
+
+- [`073bb4f45`](https://www.github.com/tauri-apps/tauri/commit/073bb4f459a923541b94970dfa7e087bccaa2cfd) ([#10772](https://www.github.com/tauri-apps/tauri/pull/10772) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Removed the deprecated `webview_fixed_runtime_path` config option, use the `webview_install_mode` instead.
+
 ## \[2.0.1-rc.5]
 
 ### What's Changed

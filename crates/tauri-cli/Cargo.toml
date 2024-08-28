@@ -90,7 +90,7 @@ env_logger = "0.11.5"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
 axum = { version = "0.7.4", features = ["ws"] }
-html5ever = "0.26"
+html5ever = "0.28"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = ["macros", "sync"] }
 common-path = "1"
@@ -101,10 +101,10 @@ css-color = "0.2"
 resvg = "0.43.0"
 dunce = "1"
 glob = "0.3"
-oxc_parser = "0.24"
-oxc_span = "0.24"
-oxc_allocator = "0.24"
-oxc_ast = "0.24"
+oxc_parser = "0.25"
+oxc_span = "0.25"
+oxc_allocator = "0.25"
+oxc_ast = "0.25"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"

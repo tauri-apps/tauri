@@ -10,7 +10,6 @@ on:
   push:
     branches:
       - dev
-      - 1.x
     paths:
       - '.github/workflows/supply-chain.yml'
       - '**/Cargo.lock'

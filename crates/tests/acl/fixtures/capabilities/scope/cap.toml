@@ -1,0 +1,11 @@
+identifier = "run-app"
+description = "app capability"
+windows = ["main"]
+permissions = [
+  "fs:read",
+  "fs:allow-app",
+  "fs:deny-home",
+  "fs:allow-read-resources",
+  "fs:allow-move-temp",
+  "fs:read-download-dir",
+]

@@ -3,16 +3,13 @@ name = "tauri-file-associations-demo"
 version = "0.1.0"
 description = "A Tauri application that associate file types"
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.71"
 
 [build-dependencies]
-tauri-build = { path = "../../../core/tauri-build", features = ["codegen"] }
+tauri-build = { path = "../../../crates/tauri-build", features = ["codegen"] }
 
 [dependencies]
 serde_json = "1.0"
-serde = { version = "1.0", features = [ "derive" ] }
-tauri = { path = "../../../core/tauri", features = [] }
+serde = { version = "1.0", features = ["derive"] }
+tauri = { path = "../../../crates/tauri", features = [] }
 url = "2"
-
-[features]
-default = [ "tauri/custom-protocol" ]

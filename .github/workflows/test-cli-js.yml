@@ -8,12 +8,11 @@ on:
   push:
     branches:
       - dev
-      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-js.yml'
       # currently` @tauri-apps/cli` only tests the template
-      - 'tooling/cli/templates/app/**'
+      - 'crates/tauri-cli/templates/app/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -42,7 +41,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 'lts/*'
           cache: 'pnpm'
 
       - name: install Linux dependencies
@@ -52,15 +51,11 @@ jobs:
           sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            tooling/cli
-            tooling/cli/node/test/jest/fixtures/empty/src-tauri
 
       - name: test
         timeout-minutes: 30
         run: |
-          cd ./tooling/cli/node
+          cd ./packages/cli
           pnpm i --frozen-lockfile
           pnpm build
           pnpm test

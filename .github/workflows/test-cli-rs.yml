@@ -8,13 +8,12 @@ on:
   push:
     branches:
       - dev
-      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-rs.yml'
-      - 'core/tauri-utils/**'
-      - 'tooling/bundler/**'
-      - 'tooling/cli/**'
+      - 'crates/tauri-utils/**'
+      - 'crates/tauri-bundler/**'
+      - 'crates/tauri-cli/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -53,11 +52,9 @@ jobs:
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: tooling/cli
 
       - name: test CLI
-        run: cargo test --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}
+        run: cargo test --manifest-path ./crates/tauri-cli/Cargo.toml ${{ matrix.platform.args }}

@@ -8,13 +8,13 @@ on:
   pull_request:
     paths:
       - '.github/workflows/test-android.yml'
-      - 'tooling/cli/templates/mobile/android/**'
-      - 'tooling/cli/src/mobile/**'
-      - '!tooling/cli/src/mobile/ios.rs'
-      - '!tooling/cli/src/mobile/ios/**'
-      - 'core/tauri-build/src/mobile.rs'
-      - 'core/tauri/mobile/android/**'
-      - 'core/tauri/mobile/android-codegen/**'
+      - 'crates/tauri-cli/templates/mobile/android/**'
+      - 'crates/tauri-cli/src/mobile/**'
+      - '!crates/tauri-cli/src/mobile/ios.rs'
+      - '!crates/tauri-cli/src/mobile/ios/**'
+      - 'crates/tauri-build/src/mobile.rs'
+      - 'crates/tauri/mobile/android/**'
+      - 'crates/tauri/mobile/android-codegen/**'
   workflow_dispatch:
 
 concurrency:
@@ -46,7 +46,7 @@ jobs:
       - name: setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: lts/*
           cache: 'pnpm'
 
       - uses: actions/setup-java@v3
@@ -75,29 +75,23 @@ jobs:
           done
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            tooling/cli
-            examples/api/src-tauri
 
       - name: build CLI
-        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: move CLI to cargo bin dir
         if: matrix.platform != 'windows-latest'
-        run: mv ./tooling/cli/target/debug/cargo-tauri $HOME/.cargo/bin
+        run: mv ./target/debug/cargo-tauri $HOME/.cargo/bin
 
       - name: move CLI to cargo bin dir
         if: matrix.platform == 'windows-latest'
-        run: mv ./tooling/cli/target/debug/cargo-tauri.exe $HOME/.cargo/bin
+        run: mv ./target/debug/cargo-tauri.exe $HOME/.cargo/bin
+
+      - run: pnpm i --frozen-lockfile
 
       - name: build Tauri API
-        working-directory: ./tooling/api
-        run: pnpm i --frozen-lockfile && pnpm build
-
-      - name: install API example dependencies
-        working-directory: ./examples/api
-        run: pnpm i --frozen-lockfile
+        working-directory: ./packages/api
+        run: pnpm build
 
       - name: init Android Studio project
         working-directory: ./examples/api

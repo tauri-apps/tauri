@@ -1,0 +1,87 @@
+---
+source: crates/tests/acl/src/lib.rs
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        "plugin:ping|ping": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [
+                    Pattern {
+                        original: "child1",
+                        tokens: [
+                            Char(
+                                'c',
+                            ),
+                            Char(
+                                'h',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'l',
+                            ),
+                            Char(
+                                'd',
+                            ),
+                            Char(
+                                '1',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                    Pattern {
+                        original: "child2",
+                        tokens: [
+                            Char(
+                                'c',
+                            ),
+                            Char(
+                                'h',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'l',
+                            ),
+                            Char(
+                                'd',
+                            ),
+                            Char(
+                                '2',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                scope_id: None,
+            },
+        ],
+    },
+    denied_commands: {},
+    command_scope: {},
+    global_scope: {},
+}

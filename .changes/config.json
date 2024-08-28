@@ -128,7 +128,7 @@
   },
   "packages": {
     "@tauri-apps/api": {
-      "path": "./tooling/api",
+      "path": "./packages/api",
       "manager": "javascript",
       "publish": [
         {
@@ -149,61 +149,61 @@
       ]
     },
     "tauri-utils": {
-      "path": "./core/tauri-utils",
+      "path": "./crates/tauri-utils",
       "manager": "rust"
     },
     "tauri-macos-sign": {
-      "path": "./tooling/macos-sign",
+      "path": "./crates/tauri-macos-sign",
       "manager": "rust"
     },
     "tauri-bundler": {
-      "path": "./tooling/bundler",
+      "path": "./crates/tauri-bundler",
       "manager": "rust",
       "dependencies": ["tauri-utils", "tauri-macos-sign"]
     },
     "tauri-runtime": {
-      "path": "./core/tauri-runtime",
+      "path": "./crates/tauri-runtime",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
     "tauri-runtime-wry": {
-      "path": "./core/tauri-runtime-wry",
+      "path": "./crates/tauri-runtime-wry",
       "manager": "rust",
       "dependencies": ["tauri-utils", "tauri-runtime"]
     },
     "tauri-codegen": {
-      "path": "./core/tauri-codegen",
+      "path": "./crates/tauri-codegen",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
     "tauri-macros": {
-      "path": "./core/tauri-macros",
+      "path": "./crates/tauri-macros",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"]
     },
     "tauri-plugin": {
-      "path": "./core/tauri-plugin",
+      "path": "./crates/tauri-plugin",
       "manager": "rust",
       "dependencies": ["tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-build": {
-      "path": "./core/tauri-build",
+      "path": "./crates/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion": [
-        "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../tauri-config-schema/Cargo.toml"
+        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
       ],
       "assets": [
         {
-          "path": "./tooling/cli/schema.json",
-          "name": "schema.json"
+          "path": "./crates/tauri-schema-generator/schemas/config.schema.json",
+          "name": "config.schema.json"
         }
       ]
     },
     "tauri": {
-      "path": "./core/tauri",
+      "path": "./crates/tauri",
       "manager": "rust",
       "dependencies": [
         "tauri-macros",
@@ -212,31 +212,31 @@
         "tauri-runtime-wry",
         "tauri-build"
       ],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "@tauri-apps/cli": {
-      "path": "./tooling/cli/node",
+      "path": "./packages/cli",
       "manager": "javascript",
       "dependencies": ["tauri-cli"],
       "postversion": [
-        "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../../../core/tauri-config-schema/Cargo.toml"
+        "node ../../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../../../crates/tauri-schema-generator/Cargo.toml"
       ],
       "prepublish": [],
       "publish": [],
       "postpublish": []
     },
     "tauri-cli": {
-      "path": "./tooling/cli",
+      "path": "./crates/tauri-cli",
       "manager": "rust",
       "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"],
       "postversion": [
         "cargo check",
-        "cargo build --manifest-path ../../core/tauri-config-schema/Cargo.toml"
+        "cargo build --manifest-path ../../crates/tauri-schema-generator/Cargo.toml"
       ]
     },
     "tauri-driver": {
-      "path": "./tooling/webdriver",
+      "path": "./crates/tauri-driver",
       "manager": "rust",
       "postversion": "cargo check"
     }

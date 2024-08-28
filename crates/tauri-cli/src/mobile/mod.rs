@@ -329,17 +329,16 @@ fn ensure_init(
     }
     #[cfg(target_os = "macos")]
     Target::Ios => {
-      let project_yml = read_to_string(project_dir.join("project.yml"))
-        .context("missing project.yml file in the Xcode project directory")?;
-      if !project_yml.contains(&format!(
-        "PRODUCT_BUNDLE_IDENTIFIER: {}",
-        tauri_config_.identifier.replace('_', "-")
-      )) {
-        project_outdated_reasons
-          .push("you have modified your \"identifier\" in the Tauri configuration");
-      }
+      let pbxproj_contents = read_to_string(
+        project_dir
+          .join(format!("{}.xcodeproj", app.name()))
+          .join("project.pbxproj"),
+      )
+      .context("missing project.yml file in the Xcode project directory")?;
 
-      if !project_yml.contains(&format!("framework: lib{}.a", app.lib_name())) {
+      if !(pbxproj_contents.contains(ios::LIB_OUTPUT_FILE_NAME)
+        || pbxproj_contents.contains(&format!("lib{}.a", app.lib_name())))
+      {
         project_outdated_reasons
           .push("you have modified your [lib.name] or [package.name] in the Cargo.toml file");
       }

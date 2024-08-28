@@ -123,6 +123,26 @@ async function addPluginListener<T>(
   )
 }
 
+type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
+
+/**
+ * Get permission state for a plugin.
+ *
+ * This should be used by plugin authors to wrap their actual implementation.
+ */
+async function checkPermissions<T>(plugin: string): Promise<T> {
+  return invoke(`plugin:${plugin}|check_permissions`)
+}
+
+/**
+ * Request permissions.
+ *
+ * This should be used by plugin authors to wrap their actual implementation.
+ */
+async function requestPermissions<T>(plugin: string): Promise<T> {
+  return invoke(`plugin:${plugin}|request_permissions`)
+}
+
 /**
  * Command arguments.
  *
@@ -249,6 +269,9 @@ export {
   Channel,
   PluginListener,
   addPluginListener,
+  PermissionState,
+  checkPermissions,
+  requestPermissions,
   invoke,
   convertFileSrc,
   isTauri

@@ -903,7 +903,8 @@ fn initialize<R: Runtime>(
 }
 
 /// Permission state.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub enum PermissionState {
   /// Permission access has been granted.
   Granted,
@@ -912,6 +913,7 @@ pub enum PermissionState {
   /// Permission must be requested, but you must explain to the user why your app needs that permission. **Android only**.
   PromptWithRationale,
   /// Unknown state. Must request permission.
+  #[default]
   Unknown,
 }
 

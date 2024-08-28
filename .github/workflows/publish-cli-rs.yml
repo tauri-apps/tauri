@@ -64,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
-          path: crates/tauri-cli/target/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
+          path: target/release-size-optimized/cargo-tauri${{ matrix.config.ext }}
           if-no-files-found: error
 
   upload:

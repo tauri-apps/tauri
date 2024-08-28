@@ -1,5 +1,5 @@
 {
-  "$schema": "../../core/tauri-config-schema/schema.json",
+  "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
   "productName": "Hello World",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
@@ -7,6 +7,7 @@
     "frontendDist": ["index.html"]
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "Welcome to Tauri!",

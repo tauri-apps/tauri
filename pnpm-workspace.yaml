@@ -1,0 +1,6 @@
+packages:
+  - packages/api
+  - packages/cli
+  - examples/api
+  - examples/resources
+  - examples/file-associations

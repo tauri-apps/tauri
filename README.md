@@ -35,7 +35,7 @@ The list of Tauri's features includes, but is not limited to:
 - Built-in self updater (desktop only)
 - System tray icons
 - Native notifications
-- Localhost free (🔥)
+- [Localhost free (🔥)](https://github.com/tauri-apps/tauri/issues/10510)
 - GitHub action for streamlined CI
 - VS Code extension
 
@@ -43,13 +43,13 @@ The list of Tauri's features includes, but is not limited to:
 
 Tauri currently supports development and distribution on the following platforms:
 
-| Platform           | Versions                                                                                                        |
-| :----------------- | :-------------------------------------------------------------------------------------------------------------- |
-| Windows            | 7 and above                                                                                                     |
-| macOS              | 10.15 and above                                                                                                 |
-| Linux              | webkit2gtk 4.0 for Tauri v1 (for example Ubuntu 18.04). webkit2gtk 4.1 for Tauri v2 (for example Ubuntu 22.04). |
-| iOS/iPadOS (beta)  | 9 and above                                                                                                     |
-| Android (beta)     | 7 and above                                                                                                     |
+| Platform          | Versions                                                                                                        |
+| :---------------- | :-------------------------------------------------------------------------------------------------------------- |
+| Windows           | 7 and above                                                                                                     |
+| macOS             | 10.15 and above                                                                                                 |
+| Linux             | webkit2gtk 4.0 for Tauri v1 (for example Ubuntu 18.04). webkit2gtk 4.1 for Tauri v2 (for example Ubuntu 22.04). |
+| iOS/iPadOS (beta) | 9 and above                                                                                                     |
+| Android (beta)    | 7 and above                                                                                                     |
 
 ## Contributing
 

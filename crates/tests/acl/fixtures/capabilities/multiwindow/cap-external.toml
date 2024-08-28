@@ -1,0 +1,4 @@
+identifier = "run-app-external-url"
+description = "external window capability"
+windows = ["external"]
+permissions = ["fs:read", "fs:deny-home"]

@@ -38,13 +38,13 @@ jobs:
           if-no-files-found: error
 
       - name: build CLI
-        run: cargo build --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: Upload CLI
         uses: actions/upload-artifact@v3
         with:
           name: cargo-tauri
-          path: tooling/cli/target/debug/cargo-tauri
+          path: crates/tauri-cli/target/debug/cargo-tauri
           if-no-files-found: error
 
   docker:
@@ -66,10 +66,11 @@ jobs:
         with:
           targets: ${{ matrix.target.name }}
 
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 'lts/*'
 
       - name: Download cross
         uses: actions/download-artifact@v3
@@ -111,10 +112,10 @@ jobs:
 
       - name: Test
         run: |
-          cd tooling/api
-          yarn && yarn build
+          cd packages/api
+          pnpm i --frozen-lockfile && pnpm build
           cd ../../examples/api
-          yarn
+          pnpm i --frozen-lockfile
           . .setup-cross.sh
           chmod +x cargo-tauri
           chmod +x $HOME/.cargo/bin/cross

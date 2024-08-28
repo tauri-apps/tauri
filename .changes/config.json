@@ -14,10 +14,13 @@
   "pkgManagers": {
     "rust": {
       "version": true,
-      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkgFile.pkg.package.name }/${ pkg.pkgFile.version }"
+        }
+      },
       "prepublish": [
-        "sudo apt-get update",
-        "sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",
@@ -43,11 +46,6 @@
         }
       ],
       "publish": [
-        "sleep 15s",
-        {
-          "command": "cargo package --no-verify",
-          "dryRunCommand": true
-        },
         {
           "command": "echo '<details>\n<summary><em><h4>Cargo Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
@@ -64,33 +62,34 @@
           "pipe": true
         }
       ],
-      "postpublish": [
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
-        "git push --tags -f"
-      ],
-      "assets": [
-        {
-          "path": "./target/package/${ pkg.pkg }-${ pkgFile.version }.crate",
-          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
-        }
-      ]
+      "postpublish": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://crates.io/api/v1/crates/${ pkg.pkgFile.pkg.package.name }/${ pkg.pkgFile.version }"
+        },
+        "retries": [5000, 5000, 5000]
+      }
     },
     "javascript": {
       "version": true,
-      "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
+      "getPublishedVersion": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://registry.npmjs.com/${ pkg.pkgFile.pkg.name }/${ pkg.pkgFile.version }"
+        }
+      },
       "prepublish": [
         {
-          "command": "yarn",
+          "command": "pnpm i --frozen-lockfile",
           "dryRunCommand": true
         },
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn audit",
+          "command": "pnpm audit",
           "dryRunCommand": true,
           "runFromRoot": true,
           "pipe": true
@@ -99,22 +98,17 @@
           "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
-        },
-        {
-          "command": "npm pack",
-          "dryRunCommand": true
         }
       ],
       "publish": [
-        "sleep 15s",
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn publish --access public --loglevel silly --tag next",
-          "dryRunCommand": "npm publish --dry-run --access public",
+          "command": "pnpm publish --access public --loglevel silly --tag next --no-git-checks",
+          "dryRunCommand": "npm publish --dry-run --access public --no-git-checks",
           "pipe": true
         },
         {
@@ -123,57 +117,27 @@
           "pipe": true
         }
       ],
-      "postpublish": [
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor } -f",
-        "git tag ${ pkg.pkg }-v${ pkgFile.versionMajor }.${ pkgFile.versionMinor } -f",
-        "git push --tags -f"
-      ]
+      "postpublish": {
+        "use": "fetch:check",
+        "options": {
+          "url": "https://registry.npmjs.com/${ pkg.pkgFile.pkg.name }/${ pkg.pkgFile.version }"
+        },
+        "retries": [5000, 5000, 5000]
+      }
     }
   },
   "packages": {
     "@tauri-apps/api": {
-      "path": "./tooling/api",
+      "path": "./packages/api",
       "manager": "javascript",
-      "assets": [
-        {
-          "path": "./tooling/api/dist/tauri-apps-api-${ pkgFile.version }.tgz",
-          "name": "tauri-apps-api-${ pkgFile.version }.tgz"
-        }
-      ],
-      "prepublish": [
-        {
-          "command": "yarn",
-          "dryRunCommand": true
-        },
-        {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Audit</h4></em></summary>\n\n```'",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "yarn audit",
-          "dryRunCommand": true,
-          "runFromRoot": true,
-          "pipe": true
-        },
-        {
-          "command": "echo '```\n\n</details>\n'",
-          "dryRunCommand": true,
-          "pipe": true
-        },
-        {
-          "command": "yarn npm-pack",
-          "dryRunCommand": true
-        }
-      ],
       "publish": [
         {
-          "command": "echo '<details>\n<summary><em><h4>Yarn Publish</h4></em></summary>\n\n```'",
+          "command": "echo '<details>\n<summary><em><h4>PNPM Publish</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
         },
         {
-          "command": "yarn npm-publish",
+          "command": "pnpm npm-publish",
           "dryRunCommand": true,
           "pipe": true
         },
@@ -185,61 +149,61 @@
       ]
     },
     "tauri-utils": {
-      "path": "./core/tauri-utils",
+      "path": "./crates/tauri-utils",
       "manager": "rust"
     },
     "tauri-macos-sign": {
-      "path": "./tooling/macos-sign",
+      "path": "./crates/tauri-macos-sign",
       "manager": "rust"
     },
     "tauri-bundler": {
-      "path": "./tooling/bundler",
+      "path": "./crates/tauri-bundler",
       "manager": "rust",
       "dependencies": ["tauri-utils", "tauri-macos-sign"]
     },
     "tauri-runtime": {
-      "path": "./core/tauri-runtime",
+      "path": "./crates/tauri-runtime",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
     "tauri-runtime-wry": {
-      "path": "./core/tauri-runtime-wry",
+      "path": "./crates/tauri-runtime-wry",
       "manager": "rust",
       "dependencies": ["tauri-utils", "tauri-runtime"]
     },
     "tauri-codegen": {
-      "path": "./core/tauri-codegen",
+      "path": "./crates/tauri-codegen",
       "manager": "rust",
       "dependencies": ["tauri-utils"]
     },
     "tauri-macros": {
-      "path": "./core/tauri-macros",
+      "path": "./crates/tauri-macros",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"]
     },
     "tauri-plugin": {
-      "path": "./core/tauri-plugin",
+      "path": "./crates/tauri-plugin",
       "manager": "rust",
       "dependencies": ["tauri-utils"],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri-build": {
-      "path": "./core/tauri-build",
+      "path": "./crates/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
       "postversion": [
-        "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../tauri-config-schema/Cargo.toml"
+        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
       ],
       "assets": [
         {
-          "path": "./tooling/cli/schema.json",
-          "name": "schema.json"
+          "path": "./crates/tauri-schema-generator/schemas/config.schema.json",
+          "name": "config.schema.json"
         }
       ]
     },
     "tauri": {
-      "path": "./core/tauri",
+      "path": "./crates/tauri",
       "manager": "rust",
       "dependencies": [
         "tauri-macros",
@@ -248,38 +212,31 @@
         "tauri-runtime-wry",
         "tauri-build"
       ],
-      "postversion": "node ../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "@tauri-apps/cli": {
-      "path": "./tooling/cli/node",
+      "path": "./packages/cli",
       "manager": "javascript",
-      "getPublishedVersion": "node ../../../.scripts/covector/package-latest-version.js npm ${ pkgFile.pkg.name } ${ pkgFile.pkg.version }",
       "dependencies": ["tauri-cli"],
       "postversion": [
-        "node ../../../.scripts/covector/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../../../core/tauri-config-schema/Cargo.toml"
+        "node ../../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../../../crates/tauri-schema-generator/Cargo.toml"
       ],
       "prepublish": [],
       "publish": [],
       "postpublish": []
     },
     "tauri-cli": {
-      "path": "./tooling/cli",
+      "path": "./crates/tauri-cli",
       "manager": "rust",
       "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"],
       "postversion": [
         "cargo check",
-        "cargo build --manifest-path ../../core/tauri-config-schema/Cargo.toml"
-      ],
-      "assets": [
-        {
-          "path": "${ pkg.path }/target/package/tauri-cli-${ pkgFile.version }.crate",
-          "name": "${ pkg.pkg }-${ pkgFile.version }.crate"
-        }
+        "cargo build --manifest-path ../../crates/tauri-schema-generator/Cargo.toml"
       ]
     },
     "tauri-driver": {
-      "path": "./tooling/webdriver",
+      "path": "./crates/tauri-driver",
       "manager": "rust",
       "postversion": "cargo check"
     }

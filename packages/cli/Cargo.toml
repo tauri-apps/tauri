@@ -1,0 +1,22 @@
+[package]
+edition = "2021"
+name = "tauri-cli-node"
+version = "0.0.0"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
+napi = { version = "2.16", default-features = false, features = ["napi4"] }
+napi-derive = "2.16"
+tauri-cli = { path = "../../crates/tauri-cli", default-features = false }
+log = "0.4.21"
+
+[build-dependencies]
+napi-build = "2.1"
+
+[features]
+default = ["tauri-cli/default"]
+native-tls = ["tauri-cli/native-tls"]
+native-tls-vendored = ["tauri-cli/native-tls-vendored"]

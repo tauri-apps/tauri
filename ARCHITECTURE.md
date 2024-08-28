@@ -21,50 +21,50 @@ The following section briefly describes the roles of the various parts of Tauri.
 
 ### Tauri Core [STABLE RUST]
 
-#### [tauri](https://github.com/tauri-apps/tauri/tree/dev/core/tauri)
+#### [tauri](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri)
 
 This is the major crate that holds everything together. It brings the runtimes, macros, utilities and API into one final product. It reads the `tauri.conf.json` file at compile time in order to bring in features and undertake actual configuration of the app (and even the `Cargo.toml` file in the project's folder). It handles script injection (for polyfills / prototype revision) at runtime, hosts the API for systems interaction, and even manages updating.
 
-#### [tauri-build](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-build)
+#### [tauri-build](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-build)
 
 Apply the macros at build-time in order to rig some special features needed by `cargo`.
 
-#### [tauri-codegen](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-codegen)
+#### [tauri-codegen](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-codegen)
 
 - Embed, hash, and compress assets, including icons for the app as well as the system-tray.
 - Parse `tauri.conf.json` at compile time and generate the Config struct.
 
-#### [tauri-macros](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-macros)
+#### [tauri-macros](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-macros)
 
 Create macros for the context, handler, and commands by leveraging the `tauri-codegen` crate.
 
-#### [tauri-runtime](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-runtime)
+#### [tauri-runtime](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-runtime)
 
 This is the glue layer between tauri itself and lower level webview libraries.
 
-#### [tauri-runtime-wry](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-runtime-wry)
+#### [tauri-runtime-wry](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-runtime-wry)
 
 This crate opens up direct systems-level interactions specifically for WRY, such as printing, monitor detection, and other windowing related tasks. `tauri-runtime` implementation for WRY.
 
-#### [tauri-utils](https://github.com/tauri-apps/tauri/tree/dev/core/tauri-utils)
+#### [tauri-utils](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-utils)
 
 This is common code that is reused in many places and offers useful utilities like parsing configuration files, detecting platform triples, injecting the CSP, and managing assets.
 
 ### Tauri Tooling
 
-#### [@tauri-apps/api](https://github.com/tauri-apps/tauri/tree/dev/tooling/api) [TS -> JS]
+#### [@tauri-apps/api](https://github.com/tauri-apps/tauri/tree/dev/packages/api) [TS -> JS]
 
 A TypeScript library that creates `cjs` and `esm` JavaScript endpoints for you to import into your Frontend framework so that the Webview can call and listen to backend activity. We also ship the pure TypeScript, because for some frameworks this is more optimal. It uses the message passing of webviews to their hosts.
 
-#### [bundler](https://github.com/tauri-apps/tauri/tree/dev/tooling/bundler) [RUST / SHELL]
+#### [bundler](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-bundler) [RUST / SHELL]
 
 The bundler is a library that builds a Tauri App for the platform triple it detects / is told. At the moment it currently supports macOS, Windows and Linux - but in the near future will support mobile platforms as well. May be used outside of Tauri projects.
 
-#### [@tauri-apps/cli](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli/node) [JS]
+#### [@tauri-apps/cli](https://github.com/tauri-apps/tauri/tree/dev/packages/cli) [JS]
 
-It is a wrapper around [tauri-cli](https://github.com/tauri-apps/tauri/blob/dev/tooling/cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
+It is a wrapper around [tauri-cli](https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-cli) using [napi-rs](https://github.com/napi-rs/napi-rs) to produce NPM packages for each platform.
 
-#### [tauri-cli](https://github.com/tauri-apps/tauri/tree/dev/tooling/cli) [RUST]
+#### [tauri-cli](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-cli) [RUST]
 
 This rust executable provides the full interface to all of the required activities for which the CLI is required. It will run on macOS, Windows, and Linux.
 
@@ -128,7 +128,7 @@ Because of the many ways to build front-ends, we will stick with a common node.j
 The easiest way to do this is to run the following:
 
 ```
-npx create-tauri-app
+npm create tauri-app
 ```
 
 Which will ask you a bunch of questions about the framework you want to install and then create everything you need in a single folder - some via the placement of template files and some through normal installation procedures of your framework.
@@ -138,6 +138,8 @@ Which will ask you a bunch of questions about the framework you want to install 
 Once everything is installed, you can run:
 
 ```
+pnpm tauri dev
+-or-
 yarn tauri dev
 -or-
 npm run tauri dev
@@ -157,7 +159,7 @@ If you modify your rust code or anything in the Cargo.toml, the window will clos
 If you need to get deeper insight into your current project, or triage requires investigation of installed components, just run:
 
 ```
-yarn tauri info
+pnpm tauri info
 ```
 
 ## What does the Release flow look like?
@@ -169,7 +171,7 @@ Depending upon the operating system that the developer (or CI) is building the a
 To kick off this process, just:
 
 ```
-yarn tauri build
+pnpm tauri build
 ```
 
 After some time, the process will end and you can see the results in the `./src-tauri/target/release` folder.

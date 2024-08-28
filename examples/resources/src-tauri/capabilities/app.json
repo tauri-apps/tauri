@@ -1,11 +1,6 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "app",
-  "permissions": [
-    "core:event:default",
-    "core:window:default"
-  ],
-  "windows": [
-    "main"
-  ]
+  "permissions": ["core:path:default"],
+  "windows": ["main"]
 }

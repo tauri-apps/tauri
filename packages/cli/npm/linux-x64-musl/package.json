@@ -1,0 +1,35 @@
+{
+  "name": "@tauri-apps/cli-linux-x64-musl",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "musl"
+  ],
+  "main": "cli.linux-x64-musl.node",
+  "files": [
+    "cli.linux-x64-musl.node"
+  ],
+  "engines": {
+    "node": ">= 10"
+  }
+}

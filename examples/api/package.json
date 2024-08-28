@@ -7,19 +7,19 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "tauri": "node ../../tooling/cli/node/tauri.js"
+    "tauri": "node ../../packages/cli/tauri.js"
   },
   "dependencies": {
-    "@tauri-apps/api": "../../tooling/api/dist",
+    "@tauri-apps/api": "../../packages/api/dist",
     "@zerodevx/svelte-json-view": "1.0.9"
   },
   "devDependencies": {
     "@iconify-json/codicon": "^1.1.49",
     "@iconify-json/ph": "^1.1.13",
-    "@sveltejs/vite-plugin-svelte": "^3.1.1",
     "@unocss/extractor-svelte": "^0.61.0",
-    "svelte": "^4.2.18",
     "unocss": "^0.61.0",
-    "vite": "^5.3.2"
+    "@sveltejs/vite-plugin-svelte": "^3.1.1",
+    "svelte": "^4.2.18",
+    "vite": "^5.4.1"
   }
 }

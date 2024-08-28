@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Welcome to Tauri!</title>
+  </head>
+  <body>
+    <h1>Welcome to Tauri!</h1>
+
+    <script>
+      window.addEventListener('DOMContentLoaded', (event) =>
+        window.__TAURI__.core.invoke('app_loaded_successfully')
+      )
+    </script>
+  </body>
+</html>

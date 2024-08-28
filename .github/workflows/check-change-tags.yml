@@ -21,7 +21,7 @@ jobs:
 
       - name: check change files end with .md
         run: |
-          for file in .changes
+          for file in .changes/*
           do
             if [[ ! "$file" =~ \.(md|json)$ ]]; then
               echo ".changes directory should only contain files that end with .md"
@@ -29,7 +29,7 @@ jobs:
               echo "$file"
               exit 1
             fi
-          end
+          done
 
       - uses: dorny/paths-filter@v3
         id: filter

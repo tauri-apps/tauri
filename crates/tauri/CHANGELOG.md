@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.8]
+
+### Enhancements
+
+- [`d7e5c00e9`](https://www.github.com/tauri-apps/tauri/commit/d7e5c00e94938f6be94e693d3f21f1f8f431c4f9) ([#10817](https://www.github.com/tauri-apps/tauri/pull/10817) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `plugin:::PermissionState` enum.
+
 ## \[2.0.0-rc.7]
 
 ### New Features

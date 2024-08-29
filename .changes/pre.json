@@ -88,6 +88,7 @@
     ".changes/resource-dir-android.md",
     ".changes/resource-dir-ios.md",
     ".changes/resources-map-becoming-dirs.md",
+    ".changes/rust-permission-state.md",
     ".changes/serialize-array-buffer.md",
     ".changes/synchronize-config-and-xcode-project.md",
     ".changes/synchronize-pbxproj-export-options.md",

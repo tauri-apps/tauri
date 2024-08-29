@@ -12,7 +12,10 @@ use crate::{
   webview::PageLoadPayload,
   AppHandle, Error, RunEvent, Runtime, Webview, Window,
 };
-use serde::de::DeserializeOwned;
+use serde::{
+  de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
+  Serialize, Serializer,
+};
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
 use thiserror::Error;
@@ -897,4 +900,55 @@ fn initialize<R: Runtime>(
       config.0.get(plugin.name()).cloned().unwrap_or_default(),
     )
     .map_err(|e| Error::PluginInitialization(plugin.name().to_string(), e.to_string()))
+}
+
+/// Permission state.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub enum PermissionState {
+  /// Permission access has been granted.
+  Granted,
+  /// Permission access has been denied.
+  Denied,
+  /// Permission must be requested, but you must explain to the user why your app needs that permission. **Android only**.
+  PromptWithRationale,
+  /// Unknown state. Must request permission.
+  #[default]
+  Unknown,
+}
+
+impl std::fmt::Display for PermissionState {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      Self::Granted => write!(f, "granted"),
+      Self::Denied => write!(f, "denied"),
+      Self::PromptWithRationale => write!(f, "prompt-with-rationale"),
+      Self::Unknown => write!(f, "Unknown"),
+    }
+  }
+}
+
+impl Serialize for PermissionState {
+  fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+  where
+    S: Serializer,
+  {
+    serializer.serialize_str(self.to_string().as_ref())
+  }
+}
+
+impl<'de> Deserialize<'de> for PermissionState {
+  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let s = <String as Deserialize>::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+      "granted" => Ok(Self::Granted),
+      "denied" => Ok(Self::Denied),
+      "prompt-with-rationale" => Ok(Self::PromptWithRationale),
+      "prompt" => Ok(Self::Unknown),
+      _ => Err(DeError::custom(format!("unknown permission state '{s}'"))),
+    }
+  }
 }

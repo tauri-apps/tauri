@@ -163,7 +163,17 @@ fn generate_control_file(
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
-  let authors = settings.authors_comma_separated().unwrap_or_default();
+  let authors = settings
+    .authors_comma_separated()
+    .or_else(|| settings.publisher().map(ToString::to_string))
+    .unwrap_or_else(|| {
+      settings
+        .bundle_identifier()
+        .split('.')
+        .nth(1)
+        .unwrap_or(settings.bundle_identifier())
+        .to_string()
+    });
 
   writeln!(file, "Maintainer: {authors}")?;
   if let Some(section) = &settings.deb().section {

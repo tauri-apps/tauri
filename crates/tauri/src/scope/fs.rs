@@ -125,7 +125,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
   if let Some(p) = canonicalized {
     list.insert(f(&p.to_string_lossy())?);
-  } else if cfg!(windows) && !path.as_os_str().as_encoded_bytes().starts_with(b"\\\\") {
+  } else if cfg!(windows) && !path.to_string_lossy().starts_with("\\\\") {
     list.insert(f(&format!("\\\\?\\{}", path.display()))?);
   }
 

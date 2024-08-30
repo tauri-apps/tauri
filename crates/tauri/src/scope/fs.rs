@@ -109,7 +109,9 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
     if let Some(mut p) = last {
       // remove the last component of the path
       // so the next iteration checks its parent
-      path.pop();
+      if !path.pop() {
+        break None;
+      }
       // append the already checked path to the last component
       if let Some(checked_path) = &checked_path {
         p.push(checked_path);
@@ -123,7 +125,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
   if let Some(p) = canonicalized {
     list.insert(f(&p.to_string_lossy())?);
-  } else if cfg!(windows) {
+  } else if cfg!(windows) && !path.as_os_str().as_encoded_bytes().starts_with(b"\\\\") {
     list.insert(f(&format!("\\\\?\\{}", path.display()))?);
   }
 

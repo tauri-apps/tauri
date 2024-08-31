@@ -7145,6 +7145,7 @@ name = "tauri-cli"
 version = "2.0.0-rc.8"
 dependencies = [
  "anyhow",
+ "ar",
  "axum",
  "base64 0.22.1",
  "cargo-mobile2",
@@ -7183,6 +7184,7 @@ dependencies = [
  "minisign",
  "notify",
  "notify-debouncer-mini",
+ "object",
  "os_info",
  "os_pipe",
  "oxc_allocator",

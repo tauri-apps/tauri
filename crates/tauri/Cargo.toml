@@ -99,7 +99,7 @@ tray-icon = { version = "0.16", default-features = false, features = [
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_38"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -155,10 +155,6 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["tauri-runtime-wry"]
 objc-exception = ["tauri-runtime-wry/objc-exception"]
-linux-ipc-protocol = [
-  "tauri-runtime-wry/linux-protocol-body",
-  "webkit2gtk/v2_40",
-]
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]

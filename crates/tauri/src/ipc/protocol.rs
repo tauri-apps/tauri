@@ -17,6 +17,7 @@ use http::{
   },
   HeaderValue, Method, Request, StatusCode,
 };
+use mime::APPLICATION_OCTET_STREAM;
 use url::Url;
 
 use super::{CallbackFn, InvokeResponse};
@@ -278,11 +279,17 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
           serde_json::from_str::<IsolationMessage<'_>>(request.body())
             .map_err(Into::into)
             .and_then(|message| {
+              let is_raw = message.payload.content_type() == &APPLICATION_OCTET_STREAM.to_string();
+              let payload = crypto_keys.decrypt(message.payload)?;
               Ok(Message {
                 cmd: message.cmd,
                 callback: message.callback,
                 error: message.error,
-                payload: serde_json::from_slice(&crypto_keys.decrypt(message.payload)?)?,
+                payload: if is_raw {
+                  payload.into()
+                } else {
+                  serde_json::from_slice(&payload)?
+                },
                 options: message.options,
                 invoke_key: message.invoke_key,
               })

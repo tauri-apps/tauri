@@ -24,7 +24,7 @@ use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
-    target::{ExportConfig, Target},
+    target::{BuildConfig, ExportConfig, Target},
   },
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -299,11 +299,25 @@ fn run_build(
         app_version.push_extra(build_number);
       }
 
-      target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
+      let credentials = auth_credentials_from_env()?;
+
+      let mut build_config = BuildConfig::new().allow_provisioning_updates();
+      if let Some(credentials) = &credentials {
+        build_config = build_config.authentication_credentials(credentials.clone());
+      }
+
+      target.build(
+        config,
+        env,
+        NoiseLevel::FranklyQuitePedantic,
+        profile,
+        build_config,
+      )?;
+
       target.archive(config, env, noise_level, profile, Some(app_version))?;
 
       let mut export_config = ExportConfig::new().allow_provisioning_updates();
-      if let Some(credentials) = auth_credentials_from_env()? {
+      if let Some(credentials) = credentials {
         export_config = export_config.authentication_credentials(credentials);
       }
 
@@ -327,14 +341,14 @@ fn run_build(
   Ok(handle)
 }
 
-fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::target::AuthCredentials>> {
+fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCredentials>> {
   match (
     var("APPLE_API_KEY"),
     var("APPLE_API_ISSUER"),
     var_os("APPLE_API_KEY_PATH").map(PathBuf::from),
   ) {
     (Ok(key_id), Ok(key_issuer_id), Some(key_path)) => {
-      Ok(Some(cargo_mobile2::apple::target::AuthCredentials {
+      Ok(Some(cargo_mobile2::apple::AuthCredentials {
         key_path,
         key_id,
         key_issuer_id,

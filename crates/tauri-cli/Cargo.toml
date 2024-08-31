@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.0.0-rc.8"
+version = "2.0.0-rc.9"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.71"
@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = ["derive", "env"] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.1-rc.6", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.0.1-rc.7", default-features = false, path = "../tauri-bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }

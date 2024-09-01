@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.10]
+
+### Bug Fixes
+
+- [`6faa03276`](https://www.github.com/tauri-apps/tauri/commit/6faa032766b23cd161503905d4c79365ff6c50d1) ([#10854](https://www.github.com/tauri-apps/tauri/pull/10854) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes iOS code signing failing on CI due to a missing development certificate.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.9`
+
 ## \[2.0.0-rc.9]
 
 ### Bug Fixes

@@ -44,6 +44,7 @@
     ".changes/fix-config-override.md",
     ".changes/fix-context-stack-size.md",
     ".changes/fix-export-default-permissions.md",
+    ".changes/fix-ios-automatic-signing-ci.md",
     ".changes/fix-ios-build-older-swift.md",
     ".changes/fix-ios-bun-support.md",
     ".changes/fix-ios-signing-api-key.md",

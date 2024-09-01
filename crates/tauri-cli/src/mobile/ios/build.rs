@@ -24,7 +24,7 @@ use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
-    target::{BuildConfig, ExportConfig, Target},
+    target::{ArchiveConfig, BuildConfig, ExportConfig, Target},
   },
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -301,7 +301,9 @@ fn run_build(
 
       let credentials = auth_credentials_from_env()?;
 
-      let mut build_config = BuildConfig::new().allow_provisioning_updates();
+      let mut build_config = BuildConfig::new()
+        .allow_provisioning_updates()
+        .skip_codesign();
       if let Some(credentials) = &credentials {
         build_config = build_config.authentication_credentials(credentials.clone());
       }
@@ -314,7 +316,14 @@ fn run_build(
         build_config,
       )?;
 
-      target.archive(config, env, noise_level, profile, Some(app_version))?;
+      target.archive(
+        config,
+        env,
+        noise_level,
+        profile,
+        Some(app_version),
+        ArchiveConfig::new().skip_codesign(),
+      )?;
 
       let mut export_config = ExportConfig::new().allow_provisioning_updates();
       if let Some(credentials) = credentials {

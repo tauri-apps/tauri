@@ -747,9 +747,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e188b5be2e86ea9c384075d5f5560edea7b0c8b6a06553c7ab0aa61a4475f623"
+checksum = "93ede7b4200c8794c5fe7bc25c93a8f1756b87d50968cc20def67f2618035f65"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -7142,7 +7142,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.9"
+version = "2.0.0-rc.8"
 dependencies = [
  "anyhow",
  "axum",

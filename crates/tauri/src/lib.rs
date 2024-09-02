@@ -388,7 +388,6 @@ pub struct Context<R: Runtime> {
   #[cfg(all(desktop, feature = "tray-icon"))]
   pub(crate) tray_icon: Option<image::Image<'static>>,
   pub(crate) package_info: PackageInfo,
-  pub(crate) _info_plist: (),
   pub(crate) pattern: Pattern,
   pub(crate) runtime_authority: RuntimeAuthority,
   pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
@@ -502,7 +501,6 @@ impl<R: Runtime> Context<R> {
     default_window_icon: Option<image::Image<'static>>,
     app_icon: Option<Vec<u8>>,
     package_info: PackageInfo,
-    info_plist: (),
     pattern: Pattern,
     runtime_authority: RuntimeAuthority,
     plugin_global_api_scripts: Option<&'static [&'static str]>,
@@ -517,7 +515,6 @@ impl<R: Runtime> Context<R> {
       #[cfg(all(desktop, feature = "tray-icon"))]
       tray_icon: None,
       package_info,
-      _info_plist: info_plist,
       pattern,
       runtime_authority,
       plugin_global_api_scripts,

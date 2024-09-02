@@ -454,7 +454,7 @@ fn parse_invoke_request<R: Runtime>(
     .decode_utf8_lossy()
     .to_string();
 
-  // on Android and on Linux (without the linux-ipc-protocol Cargo feature) we cannot read the request body
+  // on Android we cannot read the request body
   // so we must ignore it because some commands use the IPC for faster response
   let has_payload = !body.is_empty();
 

@@ -126,6 +126,13 @@ pub enum Error {
     /// Permission identifier.
     permission: String,
   },
+
+  /// Capability with the given identifier already exists.
+  #[error("capability with identifier `{identifier}` already exists")]
+  CapabilityAlreadyExists {
+    /// Capability identifier.
+    identifier: String,
+  },
 }
 
 /// Allowed and denied commands inside a permission.

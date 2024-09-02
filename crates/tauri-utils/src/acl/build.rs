@@ -135,10 +135,20 @@ pub fn parse_capabilities(
   {
     match CapabilityFile::load(&path)? {
       CapabilityFile::Capability(capability) => {
+        if capabilities_map.contains_key(&capability.identifier) {
+          return Err(Error::CapabilityAlreadyExists {
+            identifier: capability.identifier,
+          });
+        }
         capabilities_map.insert(capability.identifier.clone(), capability);
       }
       CapabilityFile::List(capabilities) | CapabilityFile::NamedList { capabilities } => {
         for capability in capabilities {
+          if capabilities_map.contains_key(&capability.identifier) {
+            return Err(Error::CapabilityAlreadyExists {
+              identifier: capability.identifier,
+            });
+          }
           capabilities_map.insert(capability.identifier.clone(), capability);
         }
       }

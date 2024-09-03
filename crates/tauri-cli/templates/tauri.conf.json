@@ -1,4 +1,5 @@
 {
+  "$schema": "https://schema.tauri.app/config/2.0.0-rc",
   "productName": "{{ app_name }}",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",

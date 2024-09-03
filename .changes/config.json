@@ -23,14 +23,14 @@
       "prepublish": [
         "cargo install cargo-audit --features=fix",
         {
-          "command": "cargo generate-lockfile",
+          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
-          "runFromRoot": true,
           "pipe": true
         },
         {
-          "command": "echo '<details>\n<summary><em><h4>Cargo Audit</h4></em></summary>\n\n```'",
+          "command": "cargo generate-lockfile",
           "dryRunCommand": true,
+          "runFromRoot": true,
           "pipe": true
         },
         {
@@ -80,13 +80,13 @@
       },
       "prepublish": [
         {
-          "command": "pnpm i --frozen-lockfile",
-          "dryRunCommand": true
-        },
-        {
           "command": "echo '<details>\n<summary><em><h4>PNPM Audit</h4></em></summary>\n\n```'",
           "dryRunCommand": true,
           "pipe": true
+        },
+        {
+          "command": "pnpm i --frozen-lockfile",
+          "dryRunCommand": true
         },
         {
           "command": "pnpm audit",
@@ -191,16 +191,7 @@
       "path": "./crates/tauri-build",
       "manager": "rust",
       "dependencies": ["tauri-codegen", "tauri-utils"],
-      "postversion": [
-        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
-      ],
-      "assets": [
-        {
-          "path": "./crates/tauri-schema-generator/schemas/config.schema.json",
-          "name": "config.schema.json"
-        }
-      ]
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
     },
     "tauri": {
       "path": "./crates/tauri",
@@ -212,16 +203,16 @@
         "tauri-runtime-wry",
         "tauri-build"
       ],
-      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }"
+      "postversion": [
+        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
+        "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
+      ]
     },
     "@tauri-apps/cli": {
       "path": "./packages/cli",
       "manager": "javascript",
       "dependencies": ["tauri-cli"],
-      "postversion": [
-        "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
-        "cargo build --manifest-path ../../crates/tauri-schema-generator/Cargo.toml"
-      ],
+      "postversion": "node ../../.scripts/ci/sync-cli-metadata.js ${ pkg.pkg } ${ release.type }",
       "prepublish": [],
       "publish": [],
       "postpublish": []
@@ -230,10 +221,7 @@
       "path": "./crates/tauri-cli",
       "manager": "rust",
       "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"],
-      "postversion": [
-        "cargo check",
-        "cargo build --manifest-path ../tauri-schema-generator/Cargo.toml"
-      ]
+      "postversion": "cargo check"
     },
     "tauri-driver": {
       "path": "./crates/tauri-driver",

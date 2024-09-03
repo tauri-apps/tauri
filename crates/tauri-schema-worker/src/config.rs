@@ -1,0 +1,142 @@
+use anyhow::Context;
+use axum::{
+  extract::Path,
+  http::{header, StatusCode},
+  response::Result,
+  routing::get,
+  Router,
+};
+use semver::{Version, VersionReq};
+use serde::Deserialize;
+use worker::*;
+
+#[derive(Deserialize)]
+pub struct CrateReleases {
+  pub versions: Vec<CrateRelease>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CrateRelease {
+  #[serde(alias = "num")]
+  pub version: Version,
+  pub yanked: Option<bool>,
+}
+
+#[derive(Deserialize)]
+pub struct CrateMetadataFull {
+  #[serde(rename = "crate")]
+  pub crate_: CrateMetadata,
+}
+
+#[derive(Deserialize)]
+pub struct CrateMetadata {
+  pub max_stable_version: Version,
+}
+
+const USERAGENT: &str = "tauri-schema-worker (contact@tauri.app)";
+
+pub fn router() -> Router {
+  Router::new()
+    .route("/config", get(latest_stable_schema))
+    .route("/config/latest", get(latest_stable_schema))
+    .route("/config/stable", get(latest_stable_schema))
+    .route("/config/next", get(latest_next_schema)) // pre-releases versions, (rc, alpha and beta)
+    .route("/config/:version", get(schema))
+}
+
+async fn schema(Path(version): Path<String>) -> Result<String> {
+  Ok(
+    try_schema(version)
+      .await
+      .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
+  )
+}
+
+async fn latest_stable_schema() -> Result<String> {
+  Ok(
+    max_stable_schema()
+      .await
+      .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
+  )
+}
+
+async fn latest_next_schema() -> Result<String> {
+  Ok(
+    try_latest_prerelease_schema()
+      .await
+      .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
+  )
+}
+
+#[worker::send]
+async fn try_latest_prerelease_schema() -> anyhow::Result<String> {
+  let releases = crate_releases("tauri").await?;
+  let version = releases
+    .into_iter()
+    .filter(|r| !r.version.pre.is_empty())
+    .map(|r| r.version)
+    .max()
+    .context("Couldn't find latest pre-release")?;
+  schema_file_for_version(version).await
+}
+
+#[worker::send]
+async fn try_schema(version: String) -> anyhow::Result<String> {
+  let version = version.parse::<VersionReq>()?;
+
+  let releases = crate_releases("tauri").await?;
+
+  if releases.is_empty() {
+    return max_stable_schema().await;
+  }
+
+  let Some(version) = releases.into_iter().find(|r| version.matches(&r.version)) else {
+    return max_stable_schema().await;
+  };
+
+  schema_file_for_version(version.version).await
+}
+
+async fn crate_releases(crate_: &str) -> anyhow::Result<Vec<CrateRelease>> {
+  let url = format!("https://crates.io/api/v1/crates/{crate_}/versions");
+  let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
+
+  let versions: CrateReleases = res.json().await?;
+  let versions = versions.versions;
+
+  let flt = |r: &CrateRelease| r.yanked == Some(false);
+  Ok(versions.into_iter().filter(flt).collect())
+}
+
+async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
+  console_log!("Fetching schema for {version}");
+
+  let path = if version.major >= 2 {
+    "crates/tauri-schema-generator/schemas/config.schema.json"
+  } else {
+    "core/tauri-config-schema/schema.json"
+  };
+  let url = format!("https://raw.githubusercontent.com/tauri-apps/tauri/tauri-v{version}/{path}");
+  let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
+  res.text().await.map_err(Into::into)
+}
+
+#[worker::send]
+async fn max_stable_schema() -> anyhow::Result<String> {
+  let max = max_stable_version("tauri").await?;
+  schema_file_for_version(max).await
+}
+
+async fn max_stable_version(crate_: &str) -> anyhow::Result<Version> {
+  let url = format!("https://crates.io/api/v1/crates/{crate_}");
+  let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
+  let metadata: CrateMetadataFull = res.json().await?;
+  Ok(metadata.crate_.max_stable_version)
+}
+
+fn fetch_req(url: &str) -> anyhow::Result<worker::Request> {
+  let mut req = worker::Request::new(&url, Method::Get)?;
+  let headers = req.headers_mut()?;
+  headers.append(header::USER_AGENT.as_str(), USERAGENT)?;
+  Ok(req)
+}

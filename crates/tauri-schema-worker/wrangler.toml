@@ -1,0 +1,11 @@
+# Copyright 2019-2022 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name = "tauri-schema"
+main = "build/worker/shim.mjs"
+compatibility_date = "2023-08-23"
+send_metrics = false
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"

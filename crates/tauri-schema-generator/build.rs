@@ -4,6 +4,7 @@
 
 use std::{error::Error, path::PathBuf};
 
+use serde::Deserialize;
 use tauri_utils::{
   acl::{capability::Capability, Permission, Scopes},
   config::Config,
@@ -16,9 +17,13 @@ macro_rules! schema {
   };
 }
 
+#[derive(Deserialize)]
+pub struct VersionMetadata {
+  tauri: String,
+}
+
 pub fn main() -> Result<(), Box<dyn Error>> {
   let schemas = [
-    schema!("config", Config),
     schema!("capability", Capability),
     schema!("permission", Permission),
     schema!("scope", Scopes),
@@ -32,10 +37,21 @@ pub fn main() -> Result<(), Box<dyn Error>> {
   for (filename, schema) in schemas {
     let schema = serde_json::to_string_pretty(&schema)?;
     write_if_changed(schemas_dir.join(filename), &schema)?;
+  }
 
-    if filename.starts_with("config") {
-      write_if_changed(out.join("../tauri-cli/config.schema.json"), schema)?;
-    }
+  // write config schema file
+  {
+    let metadata = include_str!("../tauri-cli/metadata-v2.json");
+    let tauri_ver = serde_json::from_str::<VersionMetadata>(metadata)?.tauri;
+
+    // set id for generated schema
+    let (filename, mut config_schema) = schema!("config", Config);
+    let schema_metadata = config_schema.schema.metadata.as_mut().unwrap();
+    schema_metadata.id = Some(format!("tauri-config-{}", tauri_ver));
+
+    let config_schema = serde_json::to_string_pretty(&config_schema)?;
+    write_if_changed(schemas_dir.join(filename), &config_schema)?;
+    write_if_changed(out.join("../tauri-cli/config.schema.json"), config_schema)?;
   }
 
   Ok(())

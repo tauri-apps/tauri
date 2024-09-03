@@ -19,7 +19,7 @@
   "devDependencies": {
     "prettier": "^3.3.3"
   },
-  "packageManager": "pnpm@9.7.1",
+  "packageManager": "pnpm@9.9.0",
   "pnpm": {
     "overrides": {
       "micromatch@<4.0.8": ">=4.0.8"

@@ -131,7 +131,6 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
       description: "Tauri test",
       crate_name: "test",
     },
-    _info_plist: (),
     pattern: Pattern::Brownfield,
     runtime_authority: RuntimeAuthority::new(Default::default(), Resolved::default()),
     plugin_global_api_scripts: None,
@@ -163,7 +162,6 @@ pub fn mock_builder() -> Builder<MockRuntime> {
     process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
     os_name: std::env::consts::OS,
     fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
-    linux_ipc_protocol_enabled: cfg!(feature = "linux-ipc-protocol"),
     invoke_key: INVOKE_KEY,
   }
   .render_default(&Default::default())

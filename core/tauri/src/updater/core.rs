@@ -1006,53 +1006,90 @@ fn copy_files_and_run<R: Read + Seek>(
 // │          └── ...
 // └── ...
 #[cfg(target_os = "macos")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
-  let mut extracted_files: Vec<PathBuf> = Vec::new();
-
+fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, target_path: &Path) -> Result {
   // extract the buffer to the tmp_dir
   // we extract our signed archive into our final directory without any temp file
   let mut extractor =
     Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
   // the first file in the tar.gz will always be
   // <app_name>/Contents
-  let tmp_dir = tempfile::Builder::new()
-    .prefix("tauri_current_app")
-    .tempdir()?;
 
-  // create backup of our current app
-  Move::from_source(extract_path).to_dest(tmp_dir.path())?;
+  // We'll extract the files to a temp directory first
+  let tmp_extract_dir = tempfile::Builder::new()
+    .prefix("tauri_updated_app")
+    .tempdir()?
+    .into_path();
 
   // extract all the files
   extractor.with_files(|entry| {
     let path = entry.path()?;
     // skip the first folder (should be the app name)
     let collected_path: PathBuf = path.iter().skip(1).collect();
-    let extraction_path = extract_path.join(collected_path);
+    let extraction_path = tmp_extract_dir.join(collected_path);
 
-    // if something went wrong during the extraction, we should restore previous app
     if let Err(err) = entry.extract(&extraction_path) {
-      for file in &extracted_files {
-        // delete all the files we extracted
-        if file.is_dir() {
-          std::fs::remove_dir(file)?;
-        } else {
-          std::fs::remove_file(file)?;
-        }
-      }
-      Move::from_source(tmp_dir.path()).to_dest(extract_path)?;
+      std::fs::remove_dir_all(&tmp_extract_dir).ok();
       return Err(crate::api::Error::Extract(err.to_string()));
     }
-
-    extracted_files.push(extraction_path);
 
     Ok(false)
   })?;
 
+  let tmp_backup_dir = tempfile::Builder::new()
+    .prefix("tauri_current_app")
+    .tempdir()?;
+
+  // create backup of our current app
+  let move_result = Move::from_source(target_path).to_dest(tmp_backup_dir.path());
+  let need_authorization = if let Err(err) = move_result {
+    if is_permission_error(&err) {
+      true
+    } else {
+      std::fs::remove_dir_all(&tmp_extract_dir).ok();
+      return Err(err.into());
+    }
+  } else {
+    false
+  };
+
+  if need_authorization {
+    // Ask for permission using AppleScript - run the two moves with admin privileges
+    let script = format!(
+      "do shell script \"mv -f '{target_path}' '{tmp_backup_dir}' && mv -f '{tmp_extract_dir}' '{target_path}'\" with administrator privileges",
+      tmp_extract_dir = tmp_extract_dir.display(),
+      target_path = target_path.display(),
+      tmp_backup_dir = tmp_backup_dir.path().display()
+    );
+    let mut osascript = std::process::Command::new("osascript");
+    osascript.arg("-e").arg(script);
+    let status = osascript.status()?;
+    if !status.success() {
+      std::fs::remove_dir_all(&tmp_extract_dir).ok();
+      return Err(Error::Io(std::io::Error::new(
+        std::io::ErrorKind::PermissionDenied,
+        "Failed to move the new app into place",
+      )));
+    }
+  } else {
+    // move the new app to the target path
+    Move::from_source(&tmp_extract_dir).to_dest(target_path)?;
+  }
+
   let _ = std::process::Command::new("touch")
-    .arg(extract_path)
+    .arg(target_path)
     .status();
 
   Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn is_permission_error(err: &crate::api::Error) -> bool {
+  if let crate::api::Error::Io(io_err) = err {
+    if io_err.kind() == std::io::ErrorKind::PermissionDenied {
+      return true;
+    }
+  }
+  false
 }
 
 pub(crate) fn get_updater_target() -> Option<&'static str> {

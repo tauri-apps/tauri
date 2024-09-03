@@ -261,7 +261,7 @@ impl<'a> ResourcePathsIter<'a> {
         None => {
           self.glob_iter = None;
           return Some(Err(crate::Error::GlobPathNotFound(pattern.clone())));
-        },
+        }
       }
     }
 
@@ -480,7 +480,7 @@ mod tests {
         ("*.toml".into(), "".into()),
         ("*.conf.json".into(), "json".into()),
         ("../non-existent-file".into(), "asd".into()), // invalid case
-        ("../non/*".into(), "asd".into()), // invalid case
+        ("../non/*".into(), "asd".into()),             // invalid case
       ]),
       true,
     )
@@ -556,7 +556,6 @@ mod tests {
     }
   }
 
-
   #[test]
   #[serial_test::serial(resources)]
   fn resource_paths_errors() {
@@ -581,7 +580,6 @@ mod tests {
     .iter()
     .collect::<Vec<_>>();
 
-
     dbg!(&resources);
 
     assert_eq!(resources.len(), 4);
@@ -589,11 +587,35 @@ mod tests {
     assert!(resources.iter().all(|r| r.is_err()));
 
     // hashmap order is not guaranteed so we check the error variant exists and how many
-    assert!(resources.iter().any(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_)))));
-    assert_eq!(resources.iter().filter(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_)))).count(), 2);
-    assert!(resources.iter().any(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_)))));
-    assert_eq!(resources.iter().filter(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_)))).count(), 1);
-    assert!(resources.iter().any(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_)))));
-    assert_eq!(resources.iter().filter(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_)))).count(), 1);
+    assert!(resources
+      .iter()
+      .any(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_)))));
+    assert_eq!(
+      resources
+        .iter()
+        .filter(|r| matches!(r, Err(crate::Error::ResourcePathNotFound(_))))
+        .count(),
+      2
+    );
+    assert!(resources
+      .iter()
+      .any(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_)))));
+    assert_eq!(
+      resources
+        .iter()
+        .filter(|r| matches!(r, Err(crate::Error::NotAllowedToWalkDir(_))))
+        .count(),
+      1
+    );
+    assert!(resources
+      .iter()
+      .any(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_)))));
+    assert_eq!(
+      resources
+        .iter()
+        .filter(|r| matches!(r, Err(crate::Error::GlobPathNotFound(_))))
+        .count(),
+      1
+    );
   }
 }

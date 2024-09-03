@@ -135,7 +135,7 @@ async fn max_stable_version(crate_: &str) -> anyhow::Result<Version> {
 }
 
 fn fetch_req(url: &str) -> anyhow::Result<worker::Request> {
-  let mut req = worker::Request::new(&url, Method::Get)?;
+  let mut req = worker::Request::new(url, Method::Get)?;
   let headers = req.headers_mut()?;
   headers.append(header::USER_AGENT.as_str(), USERAGENT)?;
   Ok(req)

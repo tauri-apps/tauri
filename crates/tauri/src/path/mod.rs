@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::{Component, Display, Path, PathBuf};
+use std::{
+  path::{Component, Display, Path, PathBuf},
+  str::FromStr,
+};
 
 use crate::Runtime;
 
@@ -48,6 +51,14 @@ impl SafePathBuf {
 impl AsRef<Path> for SafePathBuf {
   fn as_ref(&self) -> &Path {
     self.0.as_ref()
+  }
+}
+
+impl FromStr for SafePathBuf {
+  type Err = &'static str;
+
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    Self::new(s.into())
   }
 }
 

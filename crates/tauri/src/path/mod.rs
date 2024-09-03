@@ -9,7 +9,7 @@ use std::{
 
 use crate::Runtime;
 
-use serde::{de::Error as DeError, Deserialize, Deserializer};
+use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 pub(crate) mod plugin;
@@ -27,7 +27,7 @@ pub use android::PathResolver;
 pub use desktop::PathResolver;
 
 /// A wrapper for [`PathBuf`] that prevents path traversal.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SafePathBuf(PathBuf);
 
 impl SafePathBuf {

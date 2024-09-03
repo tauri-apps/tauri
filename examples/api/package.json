@@ -19,7 +19,7 @@
     "@unocss/extractor-svelte": "^0.61.0",
     "unocss": "^0.61.0",
     "@sveltejs/vite-plugin-svelte": "^3.1.1",
-    "svelte": "^4.2.18",
+    "svelte": "^4.2.19",
     "vite": "^5.4.1"
   }
 }

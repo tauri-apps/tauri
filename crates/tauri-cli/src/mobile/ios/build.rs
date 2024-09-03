@@ -24,7 +24,7 @@ use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
-    target::{ExportConfig, Target},
+    target::{ArchiveConfig, BuildConfig, ExportConfig, Target},
   },
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -299,22 +299,62 @@ fn run_build(
         app_version.push_extra(build_number);
       }
 
-      target.build(config, env, NoiseLevel::FranklyQuitePedantic, profile)?;
-      target.archive(config, env, noise_level, profile, Some(app_version))?;
+      let credentials = auth_credentials_from_env()?;
+
+      let mut build_config = BuildConfig::new()
+        .allow_provisioning_updates()
+        .skip_codesign();
+      if let Some(credentials) = &credentials {
+        build_config = build_config.authentication_credentials(credentials.clone());
+      }
+
+      target.build(
+        config,
+        env,
+        NoiseLevel::FranklyQuitePedantic,
+        profile,
+        build_config,
+      )?;
+
+      target.archive(
+        config,
+        env,
+        noise_level,
+        profile,
+        Some(app_version),
+        ArchiveConfig::new().skip_codesign(),
+      )?;
 
       let mut export_config = ExportConfig::new().allow_provisioning_updates();
-      if let Some(credentials) = auth_credentials_from_env()? {
+      if let Some(credentials) = credentials {
         export_config = export_config.authentication_credentials(credentials);
       }
 
-      target.export(config, env, noise_level, export_config)?;
+      let out_dir = config.export_dir().join(target.arch);
 
-      if let Ok(ipa_path) = config.ipa_path() {
-        let out_dir = config.export_dir().join(target.arch);
+      if target.sdk == "iphonesimulator" {
         fs::create_dir_all(&out_dir)?;
-        let path = out_dir.join(ipa_path.file_name().unwrap());
-        fs::rename(&ipa_path, &path)?;
+
+        let app_path = config
+          .archive_dir()
+          .join(format!("{}.xcarchive", config.scheme()))
+          .join("Products")
+          .join("Applications")
+          .join(config.app().stylized_name())
+          .with_extension("app");
+
+        let path = out_dir.join(app_path.file_name().unwrap());
+        fs::rename(&app_path, &path)?;
         out_files.push(path);
+      } else {
+        target.export(config, env, noise_level, export_config)?;
+
+        if let Ok(ipa_path) = config.ipa_path() {
+          fs::create_dir_all(&out_dir)?;
+          let path = out_dir.join(ipa_path.file_name().unwrap());
+          fs::rename(&ipa_path, &path)?;
+          out_files.push(path);
+        }
       }
 
       Ok(())
@@ -322,19 +362,19 @@ fn run_build(
   )
   .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))??;
 
-  log_finished(out_files, "IPA");
+  log_finished(out_files, "iOS Bundle");
 
   Ok(handle)
 }
 
-fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::target::AuthCredentials>> {
+fn auth_credentials_from_env() -> Result<Option<cargo_mobile2::apple::AuthCredentials>> {
   match (
     var("APPLE_API_KEY"),
     var("APPLE_API_ISSUER"),
     var_os("APPLE_API_KEY_PATH").map(PathBuf::from),
   ) {
     (Ok(key_id), Ok(key_issuer_id), Some(key_path)) => {
-      Ok(Some(cargo_mobile2::apple::target::AuthCredentials {
+      Ok(Some(cargo_mobile2::apple::AuthCredentials {
         key_path,
         key_id,
         key_issuer_id,

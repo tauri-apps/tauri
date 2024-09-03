@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-rc.9]
+
+### Bug Fixes
+
+- [`6faa03276`](https://www.github.com/tauri-apps/tauri/commit/6faa032766b23cd161503905d4c79365ff6c50d1) ([#10854](https://www.github.com/tauri-apps/tauri/pull/10854) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes iOS code signing failing on CI due to a missing development certificate.
+
+## \[2.0.0-rc.9]
+
+### Bug Fixes
+
+- [`5af1f5dec`](https://www.github.com/tauri-apps/tauri/commit/5af1f5dec1bb98f335169df8c5e30c19a24cae07) ([#10851](https://www.github.com/tauri-apps/tauri/pull/10851) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `ios build` failing to build iOS app in CI when using an API key for automatic signing.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-rc.7`
+
 ## \[2.0.0-rc.8]
 
 ### New Features

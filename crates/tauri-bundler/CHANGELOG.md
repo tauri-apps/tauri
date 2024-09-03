@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.1-rc.7]
+
+### Enhancements
+
+- [`5ec74456b`](https://www.github.com/tauri-apps/tauri/commit/5ec74456b9ae45eaa63e225856de1b7eb83abe6f) ([#10825](https://www.github.com/tauri-apps/tauri/pull/10825) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The debian `Maintainer` field now defaults to the Cargo.toml authors, but fallbacks to the `publisher` config value and the second part of the bundle identifier.
+
 ## \[2.0.1-rc.6]
 
 ### New Features

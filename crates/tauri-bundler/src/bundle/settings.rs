@@ -539,7 +539,9 @@ pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
   /// The app's publisher. Defaults to the second element in the identifier string.
-  /// Currently maps to the Manufacturer property of the Windows Installer.
+  ///
+  /// Currently maps to the Manufacturer property of the Windows Installer
+  /// and the Maintainer field of debian packages if the Cargo.toml does not have the authors field.
   pub publisher: Option<String>,
   /// A url to the home page of your application. If None, will
   /// fallback to [PackageSettings::homepage].

@@ -1218,7 +1218,6 @@ pub(crate) struct InvokeInitializationScript<'a> {
   pub(crate) process_ipc_message_fn: &'a str,
   pub(crate) os_name: &'a str,
   pub(crate) fetch_channel_data_command: &'a str,
-  pub(crate) linux_ipc_protocol_enabled: bool,
   pub(crate) invoke_key: &'a str,
 }
 
@@ -1254,7 +1253,6 @@ impl<R: Runtime> Builder<R> {
         process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
-        linux_ipc_protocol_enabled: cfg!(feature = "linux-ipc-protocol"),
         invoke_key: &invoke_key.clone(),
       }
       .render_default(&Default::default())

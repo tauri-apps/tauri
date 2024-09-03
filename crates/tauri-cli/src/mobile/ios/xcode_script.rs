@@ -13,14 +13,15 @@ use crate::{
 use anyhow::Context;
 use cargo_mobile2::{apple::target::Target, opts::Profile};
 use clap::Parser;
+use object::{Object, ObjectSymbol};
 
 use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, var, var_os},
   ffi::OsStr,
   fs::read_to_string,
+  io::Read,
   path::{Path, PathBuf},
-  process::Command,
 };
 
 #[derive(Debug, Parser)]
@@ -228,10 +229,7 @@ pub fn command(options: Options) -> Result<()> {
       return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
     }
 
-    // for some reason the app works on release, but `nm <path>` does not print the start_app symbol
-    if profile == Profile::Debug {
-      validate_lib(&lib_path)?;
-    }
+    validate_lib(&lib_path)?;
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
@@ -261,15 +259,28 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  // we ignore `nm` errors
-  if let Ok(output) = Command::new("nm").arg(path).output() {
-    let symbols = String::from_utf8_lossy(&output.stdout);
-    if !symbols.contains("start_app") {
-      anyhow::bail!(
-      "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
-      path.display()
-    );
+  let mut archive = ar::Archive::new(std::fs::File::open(path)?);
+  // Iterate over all entries in the archive:
+  while let Some(entry) = archive.next_entry() {
+    let Ok(mut entry) = entry else {
+      continue;
+    };
+    let mut obj_bytes = Vec::new();
+    entry.read_to_end(&mut obj_bytes)?;
+
+    let file = object::File::parse(&*obj_bytes)?;
+    for symbol in file.symbols() {
+      let Ok(name) = symbol.name() else {
+        continue;
+      };
+      if name.contains("start_app") {
+        return Ok(());
+      }
     }
   }
-  Ok(())
+
+  anyhow::bail!(
+    "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
+    path.display()
+  )
 }

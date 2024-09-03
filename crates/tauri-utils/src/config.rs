@@ -1142,7 +1142,9 @@ pub struct BundleConfig {
   /// Produce updaters and their signatures or not
   pub create_updater_artifacts: Updater,
   /// The application's publisher. Defaults to the second element in the identifier string.
-  /// Currently maps to the Manufacturer property of the Windows Installer.
+  ///
+  /// Currently maps to the Manufacturer property of the Windows Installer
+  /// and the Maintainer field of debian packages if the Cargo.toml does not have the authors field.
   pub publisher: Option<String>,
   /// A url to the home page of your application. If unset, will
   /// fallback to `homepage` defined in `Cargo.toml`.

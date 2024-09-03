@@ -747,9 +747,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.15.1"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0b8132519bea2d46174e777bd36d480d93afbe1df31c27cacfb411ff152bba1"
+checksum = "93ede7b4200c8794c5fe7bc25c93a8f1756b87d50968cc20def67f2618035f65"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -7131,7 +7131,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-rc.6"
+version = "2.0.1-rc.7"
 dependencies = [
  "anyhow",
  "ar",
@@ -7174,9 +7174,10 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.8"
+version = "2.0.0-rc.9"
 dependencies = [
  "anyhow",
+ "ar",
  "axum",
  "base64 0.22.1",
  "cargo-mobile2",
@@ -7215,6 +7216,7 @@ dependencies = [
  "minisign",
  "notify",
  "notify-debouncer-mini",
+ "object",
  "os_info",
  "os_pipe",
  "oxc_allocator",

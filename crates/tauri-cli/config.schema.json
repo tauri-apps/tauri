@@ -1547,7 +1547,7 @@
           ]
         },
         "publisher": {
-          "description": "The application's publisher. Defaults to the second element in the identifier string.\n Currently maps to the Manufacturer property of the Windows Installer.",
+          "description": "The application's publisher. Defaults to the second element in the identifier string.\n\n Currently maps to the Manufacturer property of the Windows Installer\n and the Maintainer field of debian packages if the Cargo.toml does not have the authors field.",
           "type": [
             "string",
             "null"

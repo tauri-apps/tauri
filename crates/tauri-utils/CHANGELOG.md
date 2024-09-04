@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.8]
+
+### Enhancements
+
+- [`f0acf504a`](https://www.github.com/tauri-apps/tauri/commit/f0acf504a2a972c063188a00143d8bf2b887691d) ([#10858](https://www.github.com/tauri-apps/tauri/pull/10858) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Validate duplicate capability identifier.
+
 ## \[2.0.0-rc.7]
 
 ### New Features

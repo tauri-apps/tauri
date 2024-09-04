@@ -472,4 +472,79 @@ mod tests {
       assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
     }
   }
+
+  #[cfg(windows)]
+  #[test]
+  fn windows_root_paths() {
+    let scope = new_scope();
+    {
+      // UNC network path
+      scope.allow_directory("\\\\localhost\\c$", true).unwrap();
+      assert!(scope.is_allowed("\\\\localhost\\c$"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
+      // Does not work because push_pattern adds a trailing backslash to the base
+      // pattern before "\**" is added leading to a pattern of "\\localhost\c$\\**"
+      // which does not match.
+      // assert!(scope.is_allowed("\\\\localhost\\c$\\NonExistentFile"));
+      assert!(!scope.is_allowed("\\\\localhost\\d$"));
+      assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim UNC network path
+      scope
+        .allow_directory("\\\\?\\UNC\\localhost\\c$", true)
+        .unwrap();
+      assert!(scope.is_allowed("\\\\localhost\\c$"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
+      // Does not work because non-existent files can't be canonicalized, therefore
+      // the verbatim prefix ("\\?\UNC\") is not added.
+      // assert!(scope.is_allowed("\\\\localhost\\c$\\Windows\\NonExistentFile"));
+      assert!(!scope.is_allowed("\\\\localhost\\d$"));
+      assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
+    }
+
+    let scope = new_scope();
+    {
+      // Device namespace
+      scope.allow_file("\\\\.\\COM1").unwrap();
+      assert!(scope.is_allowed("\\\\.\\COM1"));
+      assert!(!scope.is_allowed("\\\\.\\COM2"));
+    }
+
+    // This case does not work because a drive letter without a backslash (like "C:")
+    // canonicalizes to the current working directory of that drive. On the other hand,
+    // adding a backslash (like "C:\") results in the patterns being constructed with
+    // double backslahes (e.g. "C:\\**") which then do not match.
+    // let scope = new_scope();
+    // {
+    //   // Drive root
+    //   scope.allow_directory("C:", true).unwrap();
+    //   assert!(scope.is_allowed("C:\\Windows"));
+    //   assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+    //   assert!(scope.is_allowed("C:\\NonExistentFile"));
+    //   assert!(!scope.is_allowed("D:\\home"));
+    // }
+
+    let scope = new_scope();
+    {
+      // Verbatim drive root
+      scope.allow_directory("\\\\?\\C:", true).unwrap();
+      assert!(scope.is_allowed("C:\\Windows"));
+      assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+      // Does not work because non-existent files can't be canonicalized, therefore
+      // the verbatim prefix ("\\?\") is not added.
+      // assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(!scope.is_allowed("D:\\home"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim path
+      scope.allow_file("\\\\?\\anyfile").unwrap();
+      assert!(scope.is_allowed("\\\\?\\anyfile"));
+      assert!(!scope.is_allowed("\\\\?\\otherfile"));
+    }
+  }
 }

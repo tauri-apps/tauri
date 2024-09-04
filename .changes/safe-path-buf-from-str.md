@@ -1,5 +1,5 @@
 ---
-"tauri": patch:enhance
+"tauri": patch:feat
 ---
 
 Add `FromStr` impl for `SafePathBuf`

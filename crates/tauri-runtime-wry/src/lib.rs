@@ -2912,7 +2912,7 @@ fn handle_user_message<T: UserEvent>(
           #[allow(unused_variables)]
           WindowMessage::SetSkipTaskbar(skip) => {
             #[cfg(any(windows, target_os = "linux"))]
-            window.set_skip_taskbar(skip);
+            let _ = window.set_skip_taskbar(skip);
           }
           WindowMessage::SetCursorGrab(grab) => {
             let _ = window.set_cursor_grab(grab);

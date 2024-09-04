@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.8]
+
+### What's Changed
+
+- [`27d018343`](https://www.github.com/tauri-apps/tauri/commit/27d01834312ee7953b6ccd5b0a368e7a69b225e9) ([#10844](https://www.github.com/tauri-apps/tauri/pull/10844) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changes how the Info.plist is embedded on macOS development to avoid a clippy warning.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+
 ## \[2.0.0-rc.7]
 
 ### Bug Fixes

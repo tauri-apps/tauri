@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.0.0-rc.9]
+
+### New Features
+
+- [`0899e5083`](https://www.github.com/tauri-apps/tauri/commit/0899e5083104dfcf924a0530ba73ead2963ee421) ([#10884](https://www.github.com/tauri-apps/tauri/pull/10884) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Derive serde `Serialize` for `SafePathBuf`
+- [`431ca2c77`](https://www.github.com/tauri-apps/tauri/commit/431ca2c7763f7e31ad533c49576ab658569ddd29) ([#10870](https://www.github.com/tauri-apps/tauri/pull/10870) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add `FromStr` impl for `SafePathBuf`
+
+### Bug Fixes
+
+- [`79de4332b`](https://www.github.com/tauri-apps/tauri/commit/79de4332b6fe01e848c286cedf9ceea773cf6190) ([#10841](https://www.github.com/tauri-apps/tauri/pull/10841) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes IPC postMessage raw body processing when using the isolation pattern.
+- [`6696e4880`](https://www.github.com/tauri-apps/tauri/commit/6696e48800576e124066388156f1d083376eec30) ([#10842](https://www.github.com/tauri-apps/tauri/pull/10842) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes a warning when using a null value on the `invoke.resolve()` iOS plugin API.
+
+### What's Changed
+
+- [`27d018343`](https://www.github.com/tauri-apps/tauri/commit/27d01834312ee7953b6ccd5b0a368e7a69b225e9) ([#10844](https://www.github.com/tauri-apps/tauri/pull/10844) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changes how the Info.plist is embedded on macOS development to avoid a clippy warning.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.8`
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-runtime@2.0.0-rc.8`
+- Upgraded to `tauri-macros@2.0.0-rc.7`
+- Upgraded to `tauri-build@2.0.0-rc.8`
+
+### Breaking Changes
+
+- [`5048a7293`](https://www.github.com/tauri-apps/tauri/commit/5048a7293b87b5b93aaefd42dedc0e551e08086c) ([#10840](https://www.github.com/tauri-apps/tauri/pull/10840) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `linux-ipc-protocol` feature is now always enabled, so the Cargo feature flag was removed.
+  This increases the minimum webkit2gtk version to a release that does not affect the minimum target Linux distros for Tauri apps.
+
 ## \[2.0.0-rc.8]
 
 ### Enhancements

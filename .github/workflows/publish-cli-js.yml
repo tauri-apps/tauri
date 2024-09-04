@@ -131,7 +131,7 @@ jobs:
         shell: bash
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
           path: packages/cli/${{ env.APP_NAME }}.*.node
@@ -180,7 +180,7 @@ jobs:
   #            rm -rf node_modules
   #            rm -rf ../../target
   #      - name: Upload artifact
-  #        uses: actions/upload-artifact@v3
+  #        uses: actions/upload-artifact@v4
   #        with:
   #          name: bindings-freebsd
   #          path: packages/cli/${{ env.APP_NAME }}.*.node

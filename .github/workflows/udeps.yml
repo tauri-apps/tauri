@@ -83,7 +83,7 @@ jobs:
         run: cargo install cargo-udeps --locked --force
 
       - name: Upload udeps
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: udeps
           path: '~/.cargo/bin/cargo-udeps'

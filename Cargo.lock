@@ -2963,19 +2963,6 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.24.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5690139d2f55868e080017335e4b94cb7414274c74f1669c84fb5feba2c9f69d"
-dependencies = [
- "bytemuck",
- "byteorder",
- "color_quant",
- "num-traits",
- "png",
-]
-
-[[package]]
-name = "image"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99314c8a2152b8ddb211f924cdae532d8c5e4c8bb54728e12fff1b0cd5963a10"
@@ -7036,7 +7023,7 @@ dependencies = [
  "heck 0.5.0",
  "http 1.1.0",
  "http-range",
- "image 0.24.9",
+ "image",
  "jni",
  "libc",
  "log",
@@ -7111,7 +7098,7 @@ dependencies = [
  "handlebars",
  "heck 0.5.0",
  "hex",
- "image 0.25.2",
+ "image",
  "log",
  "md5",
  "native-tls",
@@ -7165,7 +7152,7 @@ dependencies = [
  "heck 0.5.0",
  "html5ever",
  "ignore",
- "image 0.25.2",
+ "image",
  "include_dir",
  "insta",
  "itertools 0.13.0",

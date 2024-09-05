@@ -80,7 +80,7 @@ urlpattern = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-image = { version = "0.24", default-features = false, optional = true }
+image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.5"

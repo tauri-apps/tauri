@@ -82,8 +82,13 @@ impl<R: Runtime> Assets<R> for NoopAsset {
     None
   }
 
-  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
-    Box::new(self.assets.iter().map(|(k, b)| (k.as_str(), b.as_slice())))
+  fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
+    Box::new(
+      self
+        .assets
+        .iter()
+        .map(|(k, b)| (Cow::Borrowed(k.as_str()), Cow::Borrowed(b.as_slice()))),
+    )
   }
 
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_> {

@@ -309,7 +309,7 @@ impl<R: Runtime> AssetResolver<R> {
   }
 
   /// Iterate on all assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
     self.manager.assets.iter()
   }
 }

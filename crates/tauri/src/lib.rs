@@ -351,7 +351,7 @@ pub trait Assets<R: Runtime>: Send + Sync + 'static {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
 
   /// Iterator for the assets.
-  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_>;
+  fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_>;
 
   /// Gets the hashes for the CSP tag of the HTML on the given path.
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
@@ -362,7 +362,7 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
     EmbeddedAssets::get(self, key)
   }
 
-  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+  fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
     EmbeddedAssets::iter(self)
   }
 

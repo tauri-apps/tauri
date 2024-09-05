@@ -155,8 +155,13 @@ impl EmbeddedAssets {
   }
 
   /// Iterate on the assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
-    Box::new(self.assets.into_iter().map(|(k, b)| (*k, *b)))
+  pub fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
+    Box::new(
+      self
+        .assets
+        .into_iter()
+        .map(|(k, b)| (Cow::Borrowed(*k), Cow::Borrowed(*b))),
+    )
   }
 
   /// CSP hashes for the given asset.

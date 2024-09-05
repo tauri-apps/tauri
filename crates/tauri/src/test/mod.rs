@@ -64,7 +64,7 @@ use crate::{
 };
 use tauri_utils::{
   acl::resolved::Resolved,
-  assets::{AssetKey, CspHash},
+  assets::{AssetKey, AssetsIter, CspHash},
   config::{AppConfig, Config},
 };
 
@@ -82,7 +82,7 @@ impl<R: Runtime> Assets<R> for NoopAsset {
     None
   }
 
-  fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
+  fn iter(&self) -> Box<AssetsIter<'_>> {
     Box::new(
       self
         .assets

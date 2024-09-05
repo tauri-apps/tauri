@@ -37,7 +37,7 @@ use tauri_runtime::{
   window::DragDropEvent,
   RuntimeInitArgs,
 };
-use tauri_utils::PackageInfo;
+use tauri_utils::{assets::AssetsIter, PackageInfo};
 
 use serde::Serialize;
 use std::{
@@ -309,7 +309,7 @@ impl<R: Runtime> AssetResolver<R> {
   }
 
   /// Iterate on all assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
+  pub fn iter(&self) -> Box<AssetsIter<'_>> {
     self.manager.assets.iter()
   }
 }

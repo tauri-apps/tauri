@@ -12,6 +12,9 @@ use std::{
   path::{Component, Path},
 };
 
+/// Assets iterator.
+pub type AssetsIter<'a> = dyn Iterator<Item = (Cow<'a, str>, Cow<'a, [u8]>)> + 'a;
+
 /// Represent an asset file path in a normalized way.
 ///
 /// The following rules are enforced and added if needed:
@@ -155,7 +158,7 @@ impl EmbeddedAssets {
   }
 
   /// Iterate on the assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (Cow<'_, str>, Cow<'_, [u8]>)> + '_> {
+  pub fn iter(&self) -> Box<AssetsIter<'_>> {
     Box::new(
       self
         .assets

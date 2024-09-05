@@ -302,7 +302,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   #[cfg(target_os = "macos")]
-  let info_plist = if target == Target::MacOS && dev && !running_tests {
+  let maybe_embed_plist_block = if target == Target::MacOS && dev && !running_tests {
     let info_plist_path = config_parent.join("Info.plist");
     let mut info_plist = if info_plist_path.exists() {
       plist::Value::from_file(&info_plist_path)
@@ -333,10 +333,10 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       tauri::embed_plist::embed_info_plist!(#plist);
     })
   } else {
-    quote!(())
+    quote!()
   };
   #[cfg(not(target_os = "macos"))]
-  let info_plist = quote!(());
+  let maybe_embed_plist_block = quote!();
 
   let pattern = match &options.pattern {
     PatternKind::Brownfield => quote!(#root::Pattern::Brownfield),
@@ -490,6 +490,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   let context = quote!({
+    #maybe_embed_plist_block
+
     #[allow(unused_mut, clippy::let_and_return)]
     let mut context = #root::Context::new(
       #config,
@@ -497,7 +499,6 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       #default_window_icon,
       #app_icon,
       #package_info,
-      #info_plist,
       #pattern,
       #runtime_authority,
       #plugin_global_api_script

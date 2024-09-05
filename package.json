@@ -22,7 +22,8 @@
   "packageManager": "pnpm@9.7.1",
   "pnpm": {
     "overrides": {
-      "micromatch@<4.0.8": ">=4.0.8"
+      "micromatch@<4.0.8": ">=4.0.8",
+      "svelte@<4.2.19": ">=4.2.19"
     }
   }
 }

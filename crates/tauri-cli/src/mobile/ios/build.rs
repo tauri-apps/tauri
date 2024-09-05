@@ -330,14 +330,31 @@ fn run_build(
         export_config = export_config.authentication_credentials(credentials);
       }
 
-      target.export(config, env, noise_level, export_config)?;
+      let out_dir = config.export_dir().join(target.arch);
 
-      if let Ok(ipa_path) = config.ipa_path() {
-        let out_dir = config.export_dir().join(target.arch);
+      if target.sdk == "iphonesimulator" {
         fs::create_dir_all(&out_dir)?;
-        let path = out_dir.join(ipa_path.file_name().unwrap());
-        fs::rename(&ipa_path, &path)?;
+
+        let app_path = config
+          .archive_dir()
+          .join(format!("{}.xcarchive", config.scheme()))
+          .join("Products")
+          .join("Applications")
+          .join(config.app().stylized_name())
+          .with_extension("app");
+
+        let path = out_dir.join(app_path.file_name().unwrap());
+        fs::rename(&app_path, &path)?;
         out_files.push(path);
+      } else {
+        target.export(config, env, noise_level, export_config)?;
+
+        if let Ok(ipa_path) = config.ipa_path() {
+          fs::create_dir_all(&out_dir)?;
+          let path = out_dir.join(ipa_path.file_name().unwrap());
+          fs::rename(&ipa_path, &path)?;
+          out_files.push(path);
+        }
       }
 
       Ok(())
@@ -345,7 +362,7 @@ fn run_build(
   )
   .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))??;
 
-  log_finished(out_files, "IPA");
+  log_finished(out_files, "iOS Bundle");
 
   Ok(handle)
 }

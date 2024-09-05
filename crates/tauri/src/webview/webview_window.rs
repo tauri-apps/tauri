@@ -505,20 +505,6 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// Whether the window should be transparent. If this is true, writing colors
-  /// with alpha values different than `1.0` will produce a transparent window.
-  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
-  #[cfg_attr(
-    docsrs,
-    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
-  )]
-  #[must_use]
-  pub fn transparent(mut self, transparent: bool) -> Self {
-    self.window_builder = self.window_builder.transparent(transparent);
-    self.webview_builder = self.webview_builder.transparent(transparent);
-    self
-  }
-
   /// Whether the window should have borders and bars.
   #[must_use]
   pub fn decorations(mut self, decorations: bool) -> Self {
@@ -856,6 +842,23 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   #[must_use]
   pub fn proxy_url(mut self, url: Url) -> Self {
     self.webview_builder = self.webview_builder.proxy_url(url);
+    self
+  }
+
+  /// Whether the window should be transparent. If this is true, writing colors
+  /// with alpha values different than `1.0` will produce a transparent window.
+  #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
+  #[cfg_attr(
+    docsrs,
+    doc(cfg(any(not(target_os = "macos"), feature = "macos-private-api")))
+  )]
+  #[must_use]
+  pub fn transparent(mut self, transparent: bool) -> Self {
+    #[cfg(desktop)]
+    {
+      self.window_builder = self.window_builder.transparent(transparent);
+    }
+    self.webview_builder = self.webview_builder.transparent(transparent);
     self
   }
 

@@ -1,8 +1,5 @@
 {
   "singleQuote": true,
   "semi": false,
-  "trailingComma": "none",
-  "overrides": [
-    { "files": [".changes/**.md"], "options": { "singleQuote": false } }
-  ]
+  "trailingComma": "none"
 }

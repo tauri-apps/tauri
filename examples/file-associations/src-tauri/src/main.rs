@@ -49,7 +49,7 @@ fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
 
 fn main() {
   tauri::Builder::default()
-    .setup(|app| {
+    .setup(|#[allow(unused_variables)] app| {
       #[cfg(any(windows, target_os = "linux"))]
       {
         let mut files = Vec::new();

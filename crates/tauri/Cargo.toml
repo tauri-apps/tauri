@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-rc.8"
+version = "2.0.0-rc.9"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -57,12 +57,12 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "2.0.0-rc.7", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-rc.6", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-rc.7", features = [
+tauri-runtime = { version = "2.0.0-rc.8", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-rc.7", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-rc.8", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.0.0-rc.7", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.0.0-rc.8", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -99,7 +99,7 @@ tray-icon = { version = "0.16", default-features = false, features = [
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_38"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
@@ -126,8 +126,8 @@ swift-rs = "1.0.7"
 
 [build-dependencies]
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.7" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.7", features = [
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.8" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.8", features = [
   "build",
 ] }
 
@@ -155,10 +155,6 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["tauri-runtime-wry"]
 objc-exception = ["tauri-runtime-wry/objc-exception"]
-linux-ipc-protocol = [
-  "tauri-runtime-wry/linux-protocol-body",
-  "webkit2gtk/v2_40",
-]
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]

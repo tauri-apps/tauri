@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-rc.11]
+
+### Enhancements
+
+- [`9c9644d15`](https://www.github.com/tauri-apps/tauri/commit/9c9644d155818d9efcad65b60aa985a59e767922) ([#10845](https://www.github.com/tauri-apps/tauri/pull/10845) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Enhance iOS library validation, checking libs built with link time optimization.
+
+### Bug Fixes
+
+- [`b42683592`](https://www.github.com/tauri-apps/tauri/commit/b42683592d446f25c2005b59e9e3ec551175906d) ([#10847](https://www.github.com/tauri-apps/tauri/pull/10847) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `ios build --target [aarch64-sim | x86_64]` failing to generate the app bundle for the iOS simulator.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.10`
+
 ## \[2.0.0-rc.10]
 
 ### Bug Fixes

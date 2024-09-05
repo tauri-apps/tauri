@@ -76,11 +76,11 @@ reqwest = { version = "0.12", default-features = false, features = [
 bytes = { version = "1", features = ["serde"] }
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
-urlpattern = "0.2"
+urlpattern = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-image = { version = "0.24", default-features = false, optional = true }
+image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.5"
@@ -93,7 +93,7 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.14", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.16", default-features = false, features = [
+tray-icon = { version = "0.17", default-features = false, features = [
   "serde",
 ], optional = true }
 

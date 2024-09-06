@@ -24,8 +24,7 @@ use tauri_utils::{
 
 use std::{
   collections::HashMap,
-  env::var_os,
-  fs::copy,
+  env, fs,
   path::{Path, PathBuf},
 };
 
@@ -55,8 +54,8 @@ fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
     return Err(anyhow::anyhow!("{:?} is not a file", from));
   }
   let dest_dir = to.parent().expect("No data in parent");
-  std::fs::create_dir_all(dest_dir)?;
-  std::fs::copy(from, to)?;
+  fs::create_dir_all(dest_dir)?;
+  fs::copy(from, to)?;
   Ok(())
 }
 
@@ -84,7 +83,7 @@ fn copy_binaries(
 
     let dest = path.join(file_name);
     if dest.exists() {
-      std::fs::remove_file(&dest).unwrap();
+      fs::remove_file(&dest).unwrap();
     }
     copy_file(&src, &dest)?;
   }
@@ -139,16 +138,16 @@ fn copy_dir(from: &Path, to: &Path) -> Result<()> {
     let rel_path = entry.path().strip_prefix(from)?;
     let dest_path = to.join(rel_path);
     if entry.file_type().is_symlink() {
-      let target = std::fs::read_link(entry.path())?;
+      let target = fs::read_link(entry.path())?;
       if entry.path().is_dir() {
         symlink_dir(&target, &dest_path)?;
       } else {
         symlink_file(&target, &dest_path)?;
       }
     } else if entry.file_type().is_dir() {
-      std::fs::create_dir(dest_path)?;
+      fs::create_dir(dest_path)?;
     } else {
-      std::fs::copy(entry.path(), dest_path)?;
+      fs::copy(entry.path(), dest_path)?;
     }
   }
   Ok(())
@@ -168,7 +167,7 @@ fn copy_framework_from(src_dir: &Path, framework: &str, dest_dir: &Path) -> Resu
 
 // Copies the macOS application bundle frameworks to the target folder
 fn copy_frameworks(dest_dir: &Path, frameworks: &[String]) -> Result<()> {
-  std::fs::create_dir_all(dest_dir)
+  fs::create_dir_all(dest_dir)
     .with_context(|| format!("Failed to create frameworks output directory at {dest_dir:?}"))?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
@@ -420,8 +419,7 @@ impl Attributes {
 }
 
 pub fn is_dev() -> bool {
-  std::env::var("DEP_TAURI_DEV")
-    .expect("missing `cargo:dev` instruction, please update tauri to latest")
+  env::var("DEP_TAURI_DEV").expect("missing `cargo:dev` instruction, please update tauri to latest")
     == "true"
 }
 
@@ -471,19 +469,19 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   #[cfg(feature = "config-toml")]
   println!("cargo:rerun-if-changed=Tauri.toml");
 
-  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
 
-  let target_triple = std::env::var("TARGET").unwrap();
+  let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
   let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
     target,
-    std::env::current_dir().unwrap(),
+    env::current_dir().unwrap(),
   )?)?;
-  if let Ok(env) = std::env::var("TAURI_CONFIG") {
+  if let Ok(env) = env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value = serde_json::from_str(&env)?;
     json_patch::merge(&mut config, &merge_config);
   }
@@ -506,7 +504,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   android_package_prefix.pop();
   println!("cargo:rustc-env=TAURI_ANDROID_PACKAGE_NAME_PREFIX={android_package_prefix}");
 
-  if let Some(project_dir) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+  if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     mobile::generate_gradle_files(project_dir, &config)?;
   }
 
@@ -514,7 +512,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   let ws_path = get_workspace_dir()?;
   let mut manifest =
-    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&std::fs::read("Cargo.toml")?)?;
+    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&fs::read("Cargo.toml")?)?;
 
   if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
     Manifest::complete_from_path_and_workspace(
@@ -526,11 +524,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
   }
 
-  let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+  let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
-  let mut acl_manifests = acl::get_manifests_from_plugins()?;
+  acl::get_manifests_from_plugins()?;
   let app_manifest = acl::app_manifest_permissions(
     &out_dir,
     attributes.app_manifest,
@@ -544,7 +542,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
   acl_manifests.extend(acl::inline_plugins(&out_dir, attributes.inlined_plugins)?);
 
-  std::fs::write(
+  fs::write(
     out_dir.join(ACL_MANIFESTS_FILE_NAME),
     serde_json::to_string(&acl_manifests)?,
   )?;
@@ -559,7 +557,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   acl::validate_capabilities(&acl_manifests, &capabilities)?;
 
   let capabilities_path = acl::save_capabilities(&capabilities)?;
-  copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
+  fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
   acl::save_acl_manifests(&acl_manifests)?;
 
@@ -567,7 +565,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
-  std::env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
+  env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);
 
   // TODO: far from ideal, but there's no other way to get the target dir, see <https://github.com/rust-lang/cargo/issues/5457>
   let target_dir = out_dir
@@ -612,7 +610,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if let Some(frameworks) = &config.bundle.macos.frameworks {
       if !frameworks.is_empty() {
         let frameworks_dir = target_dir.parent().unwrap().join("Frameworks");
-        let _ = std::fs::remove_dir_all(&frameworks_dir);
+        let _ = fs::remove_dir_all(&frameworks_dir);
         // copy frameworks to the root `target` folder (instead of `target/debug` for instance)
         // because the rpath is set to `@executable_path/../Frameworks`.
         copy_frameworks(&frameworks_dir, frameworks)?;
@@ -697,17 +695,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       )
     })?;
 
-    let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap();
+    let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap();
     match target_env.as_str() {
       "gnu" => {
-        let target_arch = match std::env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
+        let target_arch = match env::var("CARGO_CFG_TARGET_ARCH").unwrap().as_str() {
           "x86_64" => Some("x64"),
           "x86" => Some("x86"),
           "aarch64" => Some("arm64"),
           arch => None,
         };
         if let Some(target_arch) = target_arch {
-          for entry in std::fs::read_dir(target_dir.join("build"))? {
+          for entry in fs::read_dir(target_dir.join("build"))? {
             let path = entry?.path();
             let webview2_loader_path = path
               .join("out")
@@ -715,14 +713,14 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
               .join("WebView2Loader.dll");
             if path.to_string_lossy().contains("webview2-com-sys") && webview2_loader_path.exists()
             {
-              std::fs::copy(webview2_loader_path, target_dir.join("WebView2Loader.dll"))?;
+              fs::copy(webview2_loader_path, target_dir.join("WebView2Loader.dll"))?;
               break;
             }
           }
         }
       }
       "msvc" => {
-        if std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
+        if env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
           static_vcruntime::build();
         }
       }

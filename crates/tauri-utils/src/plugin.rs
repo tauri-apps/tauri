@@ -42,7 +42,7 @@ mod build {
       }
     }
 
-    std::fs::write(
+    fs::write(
       out_dir.join(GLOBAL_API_SCRIPT_FILE_LIST_PATH),
       serde_json::to_string(&scripts).expect("failed to serialize global API script paths"),
     )

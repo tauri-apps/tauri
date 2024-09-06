@@ -4,8 +4,7 @@
 
 use std::{
   collections::{BTreeMap, BTreeSet, HashMap},
-  env::current_dir,
-  fs::{copy, create_dir_all, read_to_string, write},
+  env, fs,
   path::{Path, PathBuf},
 };
 
@@ -39,7 +38,7 @@ const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 /// To change the glob pattern that is used to find permissions, use [`Self::permissions_path_pattern`].
 ///
 /// To autogenerate permissions for each of the plugin commands, see [`Self::commands`].
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct InlinedPlugin {
   commands: &'static [&'static str],
   permissions_path_pattern: Option<&'static str>,
@@ -47,7 +46,7 @@ pub struct InlinedPlugin {
 }
 
 /// Variants of a generated default permission that can be used on an [`InlinedPlugin`].
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DefaultPermissionRule {
   /// Allow all commands from [`InlinedPlugin::commands`].
   AllowAllCommands,
@@ -95,7 +94,7 @@ impl InlinedPlugin {
 /// To change the glob pattern that is used to find permissions, use [`Self::permissions_path_pattern`].
 ///
 /// To autogenerate permissions for each of the app commands, see [`Self::commands`].
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct AppManifest {
   commands: &'static [&'static str],
   permissions_path_pattern: Option<&'static str>,
@@ -289,13 +288,13 @@ pub fn generate_schema(acl_manifests: &BTreeMap<String, Manifest>, target: Targe
   let schema = capabilities_schema(acl_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
   let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
-  create_dir_all(&out_dir).context("unable to create schema output directory")?;
+  fs::create_dir_all(&out_dir).context("unable to create schema output directory")?;
 
   let schema_path = out_dir.join(format!("{target}-{CAPABILITIES_SCHEMA_FILE_NAME}"));
-  if schema_str != read_to_string(&schema_path).unwrap_or_default() {
-    write(&schema_path, schema_str)?;
+  if schema_str != fs::read_to_string(&schema_path).unwrap_or_default() {
+    fs::write(&schema_path, schema_str)?;
 
-    copy(
+    fs::copy(
       schema_path,
       out_dir.join(format!(
         "{}-{CAPABILITIES_SCHEMA_FILE_NAME}",
@@ -315,8 +314,8 @@ pub fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<
   let capabilities_path =
     PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);
   let capabilities_json = serde_json::to_string(&capabilities)?;
-  if capabilities_json != read_to_string(&capabilities_path).unwrap_or_default() {
-    std::fs::write(&capabilities_path, capabilities_json)?;
+  if capabilities_json != fs::read_to_string(&capabilities_path).unwrap_or_default() {
+    fs::write(&capabilities_path, capabilities_json)?;
   }
   Ok(capabilities_path)
 }
@@ -325,8 +324,8 @@ pub fn save_acl_manifests(acl_manifests: &BTreeMap<String, Manifest>) -> Result<
   let acl_manifests_path =
     PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(ACL_MANIFESTS_FILE_NAME);
   let acl_manifests_json = serde_json::to_string(&acl_manifests)?;
-  if acl_manifests_json != read_to_string(&acl_manifests_path).unwrap_or_default() {
-    std::fs::write(&acl_manifests_path, acl_manifests_json)?;
+  if acl_manifests_json != fs::read_to_string(&acl_manifests_path).unwrap_or_default() {
+    fs::write(&acl_manifests_path, acl_manifests_json)?;
   }
   Ok(acl_manifests_path)
 }
@@ -354,7 +353,7 @@ pub fn inline_plugins(
 
   for (name, plugin) in inlined_plugins {
     let plugin_out_dir = out_dir.join("plugins").join(name);
-    create_dir_all(&plugin_out_dir)?;
+    fs::create_dir_all(&plugin_out_dir)?;
 
     let mut permission_files = if plugin.commands.is_empty() {
       Vec::new()
@@ -436,7 +435,7 @@ pub fn app_manifest_permissions(
   inlined_plugins: &HashMap<&'static str, InlinedPlugin>,
 ) -> Result<Manifest> {
   let app_out_dir = out_dir.join("app-manifest");
-  create_dir_all(&app_out_dir)?;
+  fs::create_dir_all(&app_out_dir)?;
   let pkg_name = "__app__";
 
   let mut permission_files = if manifest.commands.is_empty() {
@@ -473,7 +472,7 @@ pub fn app_manifest_permissions(
       );
     }
 
-    let permissions_root = current_dir()?.join("permissions");
+    let permissions_root = env::current_dir()?.join("permissions");
     let inlined_plugins_permissions: Vec<_> = inlined_plugins
       .keys()
       .map(|name| permissions_root.join(name))

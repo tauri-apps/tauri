@@ -134,9 +134,7 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
     };
     Schema::Object(SchemaObject {
       metadata: Some(Box::new(Metadata {
-        description: description
-          .as_ref()
-          .map(|d| format!("{command_name} -> {d}")),
+        description: description.map(ToString::to_string),
         ..Default::default()
       })),
       instance_type: Some(InstanceType::String.into()),
@@ -370,22 +368,22 @@ fn inline_plugins(
         DefaultPermissionRule::Allow(permissions) => permissions,
       });
       if let Some(default_permissions) = default_permissions {
-        let default_permission_toml = format!(
+        let default_permissions = default_permissions
+          .iter()
+          .map(|p| format!("\"{p}\""))
+          .collect::<Vec<String>>()
+          .join(",");
+        let default_permission = format!(
           r###"# Automatically generated - DO NOT EDIT!
 [default]
 permissions = [{default_permissions}]
-"###,
-          default_permissions = default_permissions
-            .iter()
-            .map(|p| format!("\"{p}\""))
-            .collect::<Vec<String>>()
-            .join(",")
+"###
         );
 
-        let default_permission_toml_path = plugin_out_dir.join("default.toml");
+        let default_permission_path = plugin_out_dir.join("default.toml");
 
-        write_if_changed(&default_permission_toml_path, default_permission_toml)
-          .unwrap_or_else(|_| panic!("unable to autogenerate {default_permission_toml_path:?}"));
+        write_if_changed(&default_permission_path, default_permission)
+          .unwrap_or_else(|_| panic!("unable to autogenerate {default_permission_path:?}"));
       }
 
       tauri_utils::acl::build::define_permissions(

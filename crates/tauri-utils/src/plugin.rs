@@ -10,6 +10,7 @@ pub use build::*;
 mod build {
   use std::{
     env::vars_os,
+    fs,
     path::{Path, PathBuf},
   };
 
@@ -30,7 +31,7 @@ mod build {
 
   /// Collects the path of all the global API scripts defined with [`define_global_api_script_path`]
   /// and saves them to the out dir with filename [`GLOBAL_API_SCRIPT_FILE_LIST_PATH`].
-  pub fn load_global_api_scripts(out_dir: &Path) {
+  pub fn save_global_api_scripts_paths(out_dir: &Path) {
     let mut scripts = Vec::new();
 
     for (key, value) in vars_os() {
@@ -47,5 +48,32 @@ mod build {
       serde_json::to_string(&scripts).expect("failed to serialize global API script paths"),
     )
     .expect("failed to write global API script");
+  }
+
+  /// Load global api scripts from [`GLOBAL_API_SCRIPT_FILE_LIST_PATH`]
+  pub fn read_global_api_scripts(out_dir: &Path) -> Option<Vec<String>> {
+    let global_scripts_path = out_dir.join(GLOBAL_API_SCRIPT_FILE_LIST_PATH);
+    if !global_scripts_path.exists() {
+      return None;
+    }
+
+    let global_scripts_str = fs::read_to_string(global_scripts_path)
+      .expect("failed to read plugin global API script paths");
+    let global_scripts = serde_json::from_str::<Vec<PathBuf>>(&global_scripts_str)
+      .expect("failed to parse plugin global API script paths");
+
+    Some(
+      global_scripts
+        .into_iter()
+        .map(|p| {
+          fs::read_to_string(&p).unwrap_or_else(|e| {
+            panic!(
+              "failed to read plugin global API script {}: {e}",
+              p.display()
+            )
+          })
+        })
+        .collect(),
+    )
   }
 }

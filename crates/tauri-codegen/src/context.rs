@@ -27,7 +27,6 @@ use tauri_utils::{
   config::{CapabilityEntry, Config, FrontendDist, PatternKind},
   html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
   platform::Target,
-  plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH,
   tokens::{map_lit, str_lit},
 };
 
@@ -448,32 +447,13 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
   let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
-  let plugin_global_api_script_file_list_path = out_dir.join(GLOBAL_API_SCRIPT_FILE_LIST_PATH);
-  let plugin_global_api_script =
-    if config.app.with_global_tauri && plugin_global_api_script_file_list_path.exists() {
-      let file_list_str = std::fs::read_to_string(plugin_global_api_script_file_list_path)
-        .expect("failed to read plugin global API script paths");
-      let file_list = serde_json::from_str::<Vec<PathBuf>>(&file_list_str)
-        .expect("failed to parse plugin global API script paths");
-
-      let mut plugins = Vec::new();
-      for path in file_list {
-        plugins.push(std::fs::read_to_string(&path).unwrap_or_else(|e| {
-          panic!(
-            "failed to read plugin global API script {}: {e}",
-            path.display()
-          )
-        }));
-      }
-
-      Some(plugins)
+  let plugin_global_api_scripts = if config.app.with_global_tauri {
+    if let Some(scripts) = tauri_utils::plugin::read_global_api_scripts(&out_dir) {
+      let scripts = scripts.into_iter().map(|s| quote!(#s));
+      quote!(::std::option::Option::Some(&[#(#scripts),*]))
     } else {
-      None
-    };
-
-  let plugin_global_api_script = if let Some(scripts) = plugin_global_api_script {
-    let scripts = scripts.into_iter().map(|s| quote!(#s));
-    quote!(::std::option::Option::Some(&[#(#scripts),*]))
+      quote!(::std::option::Option::None)
+    }
   } else {
     quote!(::std::option::Option::None)
   };
@@ -499,7 +479,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       #package_info,
       #pattern,
       #runtime_authority,
-      #plugin_global_api_script
+      #plugin_global_api_scripts
     );
 
     #with_tray_icon_code

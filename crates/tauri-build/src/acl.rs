@@ -26,11 +26,11 @@ use tauri_utils::{
   write_if_changed,
 };
 
+use crate::Attributes;
+
 const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
 /// Path of the folder where schemas are saved.
 const CAPABILITIES_SCHEMA_FOLDER_PATH: &str = "gen/schemas";
-const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
-const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 
 /// Definition of a plugin that is part of the Tauri application instead of having its own crate.
 ///
@@ -284,7 +284,7 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
   schema
 }
 
-pub fn generate_schema(acl_manifests: &BTreeMap<String, Manifest>, target: Target) -> Result<()> {
+fn generate_schema(acl_manifests: &BTreeMap<String, Manifest>, target: Target) -> Result<()> {
   let schema = capabilities_schema(acl_manifests);
   let schema_str = serde_json::to_string_pretty(&schema).unwrap();
   let out_dir = PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH);
@@ -310,42 +310,42 @@ pub fn generate_schema(acl_manifests: &BTreeMap<String, Manifest>, target: Targe
   Ok(())
 }
 
-pub fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
-  let capabilities_path =
-    PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);
-  let capabilities_json = serde_json::to_string(&capabilities)?;
-  if capabilities_json != fs::read_to_string(&capabilities_path).unwrap_or_default() {
-    fs::write(&capabilities_path, capabilities_json)?;
-  }
-  Ok(capabilities_path)
+/// Saves capabilities in a file inside the project, mainly to be read by tauri-cli.
+fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
+  let path = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);
+  let json = serde_json::to_string(&capabilities)?;
+  write_if_changed(&path, json)?;
+  Ok(path)
 }
 
-pub fn save_acl_manifests(acl_manifests: &BTreeMap<String, Manifest>) -> Result<PathBuf> {
-  let acl_manifests_path =
-    PathBuf::from(CAPABILITIES_SCHEMA_FOLDER_PATH).join(ACL_MANIFESTS_FILE_NAME);
+/// Saves ACL manifests in a file inside the project, mainly to be read by tauri-cli.
+fn save_acl_manifests(acl_manifests: &BTreeMap<String, Manifest>) -> Result<PathBuf> {
+  let acl_manifests_path = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH).join(ACL_MANIFESTS_FILE_NAME);
   let acl_manifests_json = serde_json::to_string(&acl_manifests)?;
-  if acl_manifests_json != fs::read_to_string(&acl_manifests_path).unwrap_or_default() {
-    fs::write(&acl_manifests_path, acl_manifests_json)?;
-  }
+  write_if_changed(&acl_manifests_path, acl_manifests_json)?;
   Ok(acl_manifests_path)
 }
 
-pub fn get_manifests_from_plugins() -> Result<BTreeMap<String, Manifest>> {
-  let permission_map =
-    tauri_utils::acl::build::read_permissions().context("failed to read plugin permissions")?;
-  let mut global_scope_map = tauri_utils::acl::build::read_global_scope_schemas()
-    .context("failed to read global scope schemas")?;
+fn read_plugins_manifests() -> Result<BTreeMap<String, Manifest>> {
+  use tauri_utils::acl;
 
-  let mut processed = BTreeMap::new();
+  let permission_map =
+    acl::build::read_permissions().context("failed to read plugin permissions")?;
+  let mut global_scope_map =
+    acl::build::read_global_scope_schemas().context("failed to read global scope schemas")?;
+
+  let mut manifests = BTreeMap::new();
+
   for (plugin_name, permission_files) in permission_map {
-    let manifest = Manifest::new(permission_files, global_scope_map.remove(&plugin_name));
-    processed.insert(plugin_name, manifest);
+    let global_scope_schema = global_scope_map.remove(&plugin_name);
+    let manifest = Manifest::new(permission_files, global_scope_schema);
+    manifests.insert(plugin_name, manifest);
   }
 
-  Ok(processed)
+  Ok(manifests)
 }
 
-pub fn inline_plugins(
+fn inline_plugins(
   out_dir: &Path,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
 ) -> Result<BTreeMap<String, Manifest>> {
@@ -429,7 +429,7 @@ permissions = [{default_permissions}]
   Ok(acl_manifests)
 }
 
-pub fn app_manifest_permissions(
+fn app_manifest_permissions(
   out_dir: &Path,
   manifest: AppManifest,
   inlined_plugins: &HashMap<&'static str, InlinedPlugin>,
@@ -500,7 +500,7 @@ pub fn app_manifest_permissions(
   ))
 }
 
-pub fn validate_capabilities(
+fn validate_capabilities(
   acl_manifests: &BTreeMap<String, Manifest>,
   capabilities: &BTreeMap<String, Capability>,
 ) -> Result<()> {
@@ -563,6 +563,47 @@ pub fn validate_capabilities(
       }
     }
   }
+
+  Ok(())
+}
+
+pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::Result<()> {
+  let mut acl_manifests = read_plugins_manifests()?;
+
+  let app_manifest = app_manifest_permissions(
+    &out_dir,
+    attributes.app_manifest,
+    &attributes.inlined_plugins,
+  )?;
+  if app_manifest.default_permission.is_some()
+    || !app_manifest.permission_sets.is_empty()
+    || !app_manifest.permissions.is_empty()
+  {
+    acl_manifests.insert(APP_ACL_KEY.into(), app_manifest);
+  }
+
+  acl_manifests.extend(inline_plugins(
+    &out_dir,
+    attributes.inlined_plugins.clone(),
+  )?);
+
+  let acl_manifests_path = save_acl_manifests(&acl_manifests)?;
+  fs::copy(acl_manifests_path, out_dir.join(ACL_MANIFESTS_FILE_NAME))?;
+
+  generate_schema(&acl_manifests, target)?;
+
+  let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
+    tauri_utils::acl::build::parse_capabilities(pattern)?
+  } else {
+    println!("cargo:rerun-if-changed=capabilities");
+    tauri_utils::acl::build::parse_capabilities("./capabilities/**/*")?
+  };
+  validate_capabilities(&acl_manifests, &capabilities)?;
+
+  let capabilities_path = save_capabilities(&capabilities)?;
+  fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
+
+  tauri_utils::plugin::save_global_api_scripts_paths(&out_dir);
 
   Ok(())
 }

@@ -17,7 +17,6 @@ pub use anyhow::Result;
 use cargo_toml::Manifest;
 
 use tauri_utils::{
-  acl::{build::parse_capabilities, APP_ACL_KEY},
   config::{BundleResources, Config, WebviewInstallMode},
   resources::{external_binaries, ResourcePaths},
 };
@@ -525,40 +524,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   manifest::check(&config, &mut manifest)?;
 
-  acl::get_manifests_from_plugins()?;
-  let app_manifest = acl::app_manifest_permissions(
-    &out_dir,
-    attributes.app_manifest,
-    &attributes.inlined_plugins,
-  )?;
-  if app_manifest.default_permission.is_some()
-    || !app_manifest.permission_sets.is_empty()
-    || !app_manifest.permissions.is_empty()
-  {
-    acl_manifests.insert(APP_ACL_KEY.into(), app_manifest);
-  }
-  acl_manifests.extend(acl::inline_plugins(&out_dir, attributes.inlined_plugins)?);
-
-  fs::write(
-    out_dir.join(ACL_MANIFESTS_FILE_NAME),
-    serde_json::to_string(&acl_manifests)?,
-  )?;
-
-  let capabilities = if let Some(pattern) = attributes.capabilities_path_pattern {
-    parse_capabilities(pattern)?
-  } else {
-    println!("cargo:rerun-if-changed=capabilities");
-    parse_capabilities("./capabilities/**/*")?
-  };
-  acl::generate_schema(&acl_manifests, target)?;
-  acl::validate_capabilities(&acl_manifests, &capabilities)?;
-
-  let capabilities_path = acl::save_capabilities(&capabilities)?;
-  fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
-
-  acl::save_acl_manifests(&acl_manifests)?;
-
-  tauri_utils::plugin::load_global_api_scripts(&out_dir);
+  acl::build(&out_dir, target, &attributes)?;
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly

@@ -326,8 +326,7 @@ fn main() {
   define_permissions(&out_dir);
 }
 
-fn define_permissions(out_dir: &Path) {
-  let license_header = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 ";
@@ -342,7 +341,7 @@ fn define_permissions(out_dir: &Path) {
     tauri_utils::acl::build::autogenerate_command_permissions(
       &commands_dir,
       &commands.iter().map(|(cmd, _)| *cmd).collect::<Vec<_>>(),
-      license_header,
+      LICENSE_HEADER,
       false,
     );
     let default_permissions = commands
@@ -356,7 +355,7 @@ fn define_permissions(out_dir: &Path) {
       .join(", ");
 
     let default_toml = format!(
-      r###"{license_header}# Automatically generated - DO NOT EDIT!
+      r###"{LICENSE_HEADER}# Automatically generated - DO NOT EDIT!
 
 [default]
 description = "Default permissions for the plugin."

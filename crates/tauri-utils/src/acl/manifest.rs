@@ -80,30 +80,15 @@ impl Manifest {
         });
       }
 
-      manifest.permissions.extend(
-        permission_file
-          .permission
-          .into_iter()
-          .map(|p| (p.identifier.clone(), p))
-          .collect::<BTreeMap<_, _>>(),
-      );
+      for permission in permission_file.permission {
+        let key = permission.identifier.clone();
+        manifest.permissions.insert(key, permission);
+      }
 
-      manifest.permission_sets.extend(
-        permission_file
-          .set
-          .into_iter()
-          .map(|set| {
-            (
-              set.identifier.clone(),
-              PermissionSet {
-                identifier: set.identifier,
-                description: set.description,
-                permissions: set.permissions,
-              },
-            )
-          })
-          .collect::<BTreeMap<_, _>>(),
-      );
+      for set in permission_file.set {
+        let key = set.identifier.clone();
+        manifest.permission_sets.insert(key, set);
+      }
     }
 
     manifest

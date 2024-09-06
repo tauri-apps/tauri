@@ -140,7 +140,7 @@ fn capabilities_schema(acl_manifests: &BTreeMap<String, Manifest>) -> RootSchema
         ..Default::default()
       })),
       instance_type: Some(InstanceType::String.into()),
-      enum_values: Some(vec![serde_json::Value::String(command_name)]),
+      const_value: Some(serde_json::Value::String(command_name)),
       ..Default::default()
     })
   }

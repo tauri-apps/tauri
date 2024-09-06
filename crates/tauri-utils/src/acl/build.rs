@@ -167,7 +167,7 @@ fn permissions_schema(permissions: &[PermissionFile]) -> RootSchema {
         ..Default::default()
       })),
       instance_type: Some(InstanceType::String.into()),
-      enum_values: Some(vec![serde_json::Value::String(id.into())]),
+      const_value: Some(serde_json::Value::String(id.into())),
       ..Default::default()
     })
   }

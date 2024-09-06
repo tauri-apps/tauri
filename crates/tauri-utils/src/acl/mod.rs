@@ -34,6 +34,10 @@ pub use self::{identifier::*, value::*};
 pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 /// Known ACL key for the app permissions.
 pub const APP_ACL_KEY: &str = "__app-acl__";
+/// Known acl manifests file
+pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
+/// Known capabilityies file
+pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 #[cfg(feature = "build")]
 pub mod build;

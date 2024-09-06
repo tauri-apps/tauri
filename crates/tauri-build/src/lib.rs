@@ -41,9 +41,6 @@ pub use codegen::context::CodegenContext;
 
 pub use acl::{AppManifest, DefaultPermissionRule, InlinedPlugin};
 
-const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
-const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
-
 fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();
   let to = to.as_ref();

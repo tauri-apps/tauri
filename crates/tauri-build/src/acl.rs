@@ -20,7 +20,7 @@ use tauri_utils::{
   acl::{
     capability::{Capability, CapabilityFile},
     manifest::Manifest,
-    APP_ACL_KEY,
+    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
   },
   platform::Target,
   write_if_changed,

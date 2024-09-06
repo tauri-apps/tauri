@@ -18,6 +18,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 use syn::Expr;
+use tauri_utils::acl::{ACL_MANIFESTS_FILE_NAME, CAPABILITIES_FILE_NAME};
 use tauri_utils::{
   acl::capability::{Capability, CapabilityFile},
   acl::manifest::Manifest,
@@ -29,9 +30,6 @@ use tauri_utils::{
   plugin::GLOBAL_API_SCRIPT_FILE_LIST_PATH,
   tokens::{map_lit, str_lit},
 };
-
-const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
-const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 
 /// Necessary data needed by [`context_codegen`] to generate code for a Tauri application context.
 pub struct ContextData {

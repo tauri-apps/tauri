@@ -324,6 +324,7 @@ fn save_acl_manifests(acl_manifests: &BTreeMap<String, Manifest>) -> Result<Path
   Ok(acl_manifests_path)
 }
 
+/// Read plugin permissions and scope schema from env vars
 fn read_plugins_manifests() -> Result<BTreeMap<String, Manifest>> {
   use tauri_utils::acl;
 

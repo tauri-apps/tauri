@@ -50,7 +50,7 @@ mod build {
     .expect("failed to write global API script");
   }
 
-  /// Load global api scripts from [`GLOBAL_API_SCRIPT_FILE_LIST_PATH`]
+  /// Read global api scripts from [`GLOBAL_API_SCRIPT_FILE_LIST_PATH`]
   pub fn read_global_api_scripts(out_dir: &Path) -> Option<Vec<String>> {
     let global_scripts_path = out_dir.join(GLOBAL_API_SCRIPT_FILE_LIST_PATH);
     if !global_scripts_path.exists() {

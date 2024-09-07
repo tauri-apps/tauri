@@ -1084,7 +1084,7 @@ mod test_utils {
     fn check_spawn_task(task in "[a-z]+") {
       // create dummy task function
       let dummy_task = async move {
-        format!("{task}-run-dummy-task");
+        let _ = format!("{task}-run-dummy-task");
       };
       // call spawn
       crate::async_runtime::spawn(dummy_task);

@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-runtime@2.0.0-rc.9`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.9`
+- Upgraded to `tauri-macros@2.0.0-rc.8`
+- Upgraded to `tauri-build@2.0.0-rc.9`
+- [`d9c8d3cc8`](https://www.github.com/tauri-apps/tauri/commit/d9c8d3cc8d5ca67cd767ffc7a521f801b41ce201) ([#10902](https://www.github.com/tauri-apps/tauri/pull/10902) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update infer to 0.16, tray icon to 0.17, urlpattern to 0.3, image to 0.25
+
+### Breaking Changes
+
+- [`faa259bac`](https://www.github.com/tauri-apps/tauri/commit/faa259bacf1ace670af763982c6903190faf163a) ([#10907](https://www.github.com/tauri-apps/tauri/pull/10907) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `Assets::iter` function now must return a iterator with `Item = (Cow<'_, str>, Cow<'_, [u8]>)` to be more flexible on contexts where the assets are not `'static`.
+
 ## \[2.0.0-rc.9]
 
 ### New Features

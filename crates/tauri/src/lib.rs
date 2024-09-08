@@ -62,9 +62,6 @@ macro_rules! ios_plugin_binding {
     tauri::swift_rs::swift!(fn $fn_name() -> *const ::std::ffi::c_void);
   }
 }
-#[cfg(target_os = "ios")]
-#[doc(hidden)]
-pub use cocoa;
 #[cfg(target_os = "macos")]
 #[doc(hidden)]
 pub use embed_plist;

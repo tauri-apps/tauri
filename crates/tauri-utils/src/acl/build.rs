@@ -11,10 +11,6 @@ use std::{
 };
 
 use crate::{acl::Error, write_if_changed};
-use schemars::{
-  schema::{InstanceType, Metadata, RootSchema, Schema, SchemaObject, SubschemaValidation},
-  schema_for,
-};
 
 use super::{
   capability::{Capability, CapabilityFile},
@@ -234,90 +230,6 @@ pub fn parse_capabilities(pattern: &str) -> Result<BTreeMap<String, Capability>,
   }
 
   Ok(capabilities_map)
-}
-
-fn permissions_schema(permissions: &[PermissionFile]) -> RootSchema {
-  let mut schema = schema_for!(PermissionFile);
-
-  fn schema_from(id: &str, description: Option<&str>) -> Schema {
-    Schema::Object(SchemaObject {
-      metadata: Some(Box::new(Metadata {
-        description: description.map(ToString::to_string),
-        ..Default::default()
-      })),
-      instance_type: Some(InstanceType::String.into()),
-      const_value: Some(serde_json::Value::String(id.into())),
-      ..Default::default()
-    })
-  }
-
-  let mut permission_schemas = Vec::new();
-  for file in permissions {
-    if let Some(permission) = &file.default {
-      permission_schemas.push(schema_from("default", permission.description.as_deref()));
-    }
-
-    permission_schemas.extend(
-      file
-        .set
-        .iter()
-        .map(|set| schema_from(&set.identifier, Some(set.description.as_str())))
-        .collect::<Vec<_>>(),
-    );
-
-    permission_schemas.extend(
-      file
-        .permission
-        .iter()
-        .map(|permission| schema_from(&permission.identifier, permission.description.as_deref()))
-        .collect::<Vec<_>>(),
-    );
-  }
-
-  if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionSet") {
-    if let Some(Schema::Object(permissions_prop_schema)) =
-      obj.object().properties.get_mut("permissions")
-    {
-      permissions_prop_schema.array().items.replace(
-        Schema::Object(SchemaObject {
-          reference: Some("#/definitions/PermissionKind".into()),
-          ..Default::default()
-        })
-        .into(),
-      );
-
-      schema.definitions.insert(
-        "PermissionKind".into(),
-        Schema::Object(SchemaObject {
-          instance_type: Some(InstanceType::String.into()),
-          subschemas: Some(Box::new(SubschemaValidation {
-            one_of: Some(permission_schemas),
-            ..Default::default()
-          })),
-          ..Default::default()
-        }),
-      );
-    }
-  }
-
-  schema
-}
-
-/// Generate and write a schema based on the format of a [`PermissionFile`].
-pub fn generate_schema<P: AsRef<Path>>(
-  permissions: &[PermissionFile],
-  out_dir: P,
-) -> Result<(), Error> {
-  let schema = permissions_schema(permissions);
-  let schema_str = serde_json::to_string_pretty(&schema).unwrap();
-
-  let out_dir = out_dir.as_ref().join(PERMISSION_SCHEMAS_FOLDER_NAME);
-  fs::create_dir_all(&out_dir).expect("unable to create schema output directory");
-
-  let schema_path = out_dir.join(PERMISSION_SCHEMA_FILE_NAME);
-  write_if_changed(&schema_path, schema_str).map_err(Error::WriteFile)?;
-
-  Ok(())
 }
 
 /// Permissions that are generated from commands using [`autogenerate_command_permissions`].

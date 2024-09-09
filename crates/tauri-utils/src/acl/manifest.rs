@@ -7,6 +7,8 @@
 use std::{collections::BTreeMap, num::NonZeroU64};
 
 use super::{Permission, PermissionSet};
+#[cfg(feature = "schema")]
+use schemars::schema::*;
 use serde::{Deserialize, Serialize};
 
 /// The default permission set of the plugin.
@@ -92,6 +94,34 @@ impl Manifest {
     }
 
     manifest
+  }
+}
+
+#[cfg(feature = "schema")]
+impl Manifest {
+  /// Return scope schema and extra schema definitions for this plugin manifest.
+  pub fn global_scope_schema(
+    &self,
+  ) -> Result<Option<(Schema, schemars::Map<String, Schema>)>, super::Error> {
+    self
+      .global_scope_schema
+      .as_ref()
+      .map(|s| {
+        serde_json::from_value::<RootSchema>(s.clone()).map(|s| {
+          // convert RootSchema to Schema
+          let scope_schema = Schema::Object(SchemaObject {
+            array: Some(Box::new(ArrayValidation {
+              items: Some(Schema::Object(s.schema).into()),
+              ..Default::default()
+            })),
+            ..Default::default()
+          });
+
+          (scope_schema, s.definitions)
+        })
+      })
+      .transpose()
+      .map_err(Into::into)
   }
 }
 

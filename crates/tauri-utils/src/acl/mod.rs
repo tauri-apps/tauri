@@ -45,6 +45,8 @@ pub mod capability;
 pub mod identifier;
 pub mod manifest;
 pub mod resolved;
+#[cfg(feature = "schema")]
+pub mod schema;
 pub mod value;
 
 /// Possible errors while processing ACL files.
@@ -77,6 +79,10 @@ pub enum Error {
   /// IO error while creating a file
   #[error("failed to create file: {0}")]
   CreateFile(std::io::Error),
+
+  /// IO error while creating a dir
+  #[error("failed to create dir: {0}")]
+  CreateDir(std::io::Error),
 
   /// [`cargo_metadata`] was not able to complete successfully
   #[cfg(feature = "build")]

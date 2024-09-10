@@ -717,7 +717,7 @@ pub fn build_wix_app_installer(
       &output_path,
       path,
       extensions,
-      app_exe_source,
+      &app_exe_source,
     )?;
   }
 

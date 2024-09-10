@@ -110,7 +110,7 @@ pub fn generate_data(
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     let dest_path = bin_dir.join(bin.name());
-    common::copy_file(&bin_path, dest_path)
+    common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
 
     if use_v1_bin_name() && bin.name() == settings.main_binary_name() {

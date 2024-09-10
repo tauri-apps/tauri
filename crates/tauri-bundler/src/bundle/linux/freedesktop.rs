@@ -27,7 +27,7 @@ use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use serde::Serialize;
 
 use crate::bundle::common;
-use crate::bundle::common::{get_bin_name, use_v1_bin_name};
+use crate::bundle::common::get_bin_name;
 use crate::Settings;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]

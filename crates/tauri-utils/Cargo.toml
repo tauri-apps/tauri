@@ -1,6 +1,6 @@
 [package]
 name = "tauri-utils"
-version = "2.0.0-rc.9"
+version = "2.0.0-rc.10"
 description = "Utilities for Tauri"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.9"
+version = "2.0.0-rc.10"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -24,8 +24,8 @@ wry = { version = "0.43.1", default-features = false, features = [
   "linux-body",
 ] }
 tao = { version = "0.30", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.0.0-rc.9", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-rc.9", path = "../tauri-utils" }
+tauri-runtime = { version = "2.0.0-rc.10", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-rc.10", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1.1"
 url = "2"

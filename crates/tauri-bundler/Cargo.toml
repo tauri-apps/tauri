@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.0.1-rc.9"
+version = "2.0.1-rc.10"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -15,7 +15,7 @@ rust-version = "1.71"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-rc.9", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.0.0-rc.10", path = "../tauri-utils", features = [
   "resources",
 ] }
 image = "0.25.0"

@@ -42,13 +42,13 @@ sha1 = "0.10"
 sha2 = "0.10"
 zip = { version = "2.0", default-features = false, features = ["deflate"] }
 dunce = "1"
-url = "2"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 uuid = { version = "1", features = ["v4", "v5"] }
 bitness = "0.4"
 windows-registry = "0.2.0"
 glob = "0.3"
+url = "2"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
 version = "0.59"

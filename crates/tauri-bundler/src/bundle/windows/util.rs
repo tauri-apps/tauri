@@ -70,9 +70,9 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   log::info!(action = "Downloading"; "{}", url);
 
-  let (agent, url) = match std::env::var("GITHUB_CDN") {
+  let (agent, url) = match std::env::var("TAURI_BUNDLER_TOOLS_DOWNLOAD_GITHUB_CDN") {
     Ok(cdn) => {
-      let mut parsed_cdn = url::Url::parse(&cdn).expect("Invalid cdn");
+      let mut parsed_cdn = url::Url::parse(&cdn)?;
       parsed_cdn.set_path(url);
 
       (ureq::AgentBuilder::new().build(), parsed_cdn.to_string())

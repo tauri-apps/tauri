@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.10]
+
+### Bug Fixes
+
+- [`0a47bf043`](https://www.github.com/tauri-apps/tauri/commit/0a47bf04302ca8502d3da21b3bc27818720fe34a) ([#10946](https://www.github.com/tauri-apps/tauri/pull/10946) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that made the `identifier` in `tauri.conf.json` optional while it was actually required.
+
 ## \[2.0.0-rc.9]
 
 ### Dependencies

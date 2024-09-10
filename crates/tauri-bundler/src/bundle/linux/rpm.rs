@@ -6,7 +6,7 @@
 use crate::Settings;
 
 use super::freedesktop;
-use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
+use crate::bundle::common::get_bin_name;
 use anyhow::Context;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
 use std::{

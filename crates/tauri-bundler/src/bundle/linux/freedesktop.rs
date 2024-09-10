@@ -161,8 +161,8 @@ pub fn generate_desktop_file(
       } else {
         None
       },
-      exec: bin_name,
-      icon: bin_name,
+      exec: &bin_name,
+      icon: &bin_name,
       name: settings.product_name(),
       mime_type,
       long_description: settings.long_description().unwrap_or_default().to_string(),

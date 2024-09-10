@@ -30,7 +30,7 @@ use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
-use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
+use crate::bundle::common::get_bin_name;
 use std::{
   fs::{self, File, OpenOptions},
   io::{self, Write},
@@ -109,7 +109,7 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    let dest_path = if use_v1_bin_name() && bin.name() == settings.main_binary_name() {
+    let dest_path = if bin.name() == settings.main_binary_name() {
       bin_dir.join(get_bin_name(settings))
     } else {
       bin_dir.join(bin.name())

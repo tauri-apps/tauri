@@ -754,7 +754,7 @@ fn copy_files_and_run(bytes: &[u8], extract_path: &Path) -> Result {
 
         let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 
-        let permissions = std::fs::metadata(&extract_path)?.permissions();
+        let permissions = std::fs::metadata(extract_path)?.permissions();
 
         // create a backup of our current app image
         Move::from_source(extract_path).to_dest(tmp_app_image)?;
@@ -782,8 +782,8 @@ fn copy_files_and_run(bytes: &[u8], extract_path: &Path) -> Result {
             })
             .map_err(Into::into);
         } else {
-          return match std::fs::write(&extract_path, bytes)
-            .and_then(|_| std::fs::set_permissions(&extract_path, permissions))
+          return match std::fs::write(extract_path, bytes)
+            .and_then(|_| std::fs::set_permissions(extract_path, permissions))
           {
             Err(err) => {
               // if something went wrong during the extraction, we should restore previous app

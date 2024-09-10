@@ -31,7 +31,7 @@ use crate::Settings;
 
 use anyhow::Context;
 
-use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
+use crate::bundle::common::get_bin_name;
 use std::{
   ffi::OsStr,
   fs,
@@ -157,12 +157,14 @@ fn copy_binaries_to_bundle(
   let dest_dir = bundle_directory.join("MacOS");
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    let dest_path = dest_dir.join(bin.name());
+    let dest_path = if bin.name() == settings.main_binary_name() {
+      dest_dir.join(get_bin_name(settings))
+    } else {
+      dest_dir.join(bin.name())
+    };
+
     common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
-    if use_v1_bin_name() && bin.name() == settings.main_binary_name() {
-      rename_app(settings.target(), &dest_path, settings.product_name())?;
-    }
     paths.push(dest_path);
   }
   Ok(paths)

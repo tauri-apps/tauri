@@ -345,7 +345,7 @@ fn build_nsis_app_installer(
 
   let old_binary_path = settings.binary_path(main_binary).with_extension("exe");
   let main_binary_path = if use_v1_bin_name() {
-    rename_app(settings.target(), &old_binary_path, settings.product_name())?
+    rename_app(settings, &old_binary_path)?
   } else {
     old_binary_path
   };
@@ -356,7 +356,7 @@ fn build_nsis_app_installer(
       main_binary_path
         .file_stem()
         .and_then(|file_name| file_name.to_str())
-        .unwrap_or_else(|| get_bin_name(settings)),
+        .unwrap_or(get_bin_name(settings).as_str()),
     ),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));

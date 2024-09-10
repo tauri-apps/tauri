@@ -135,44 +135,44 @@ pub(crate) fn use_v1_bin_name() -> bool {
   env_var.as_deref() == Ok("true") || env_var.as_deref() == Ok("1")
 }
 
-pub(crate) fn get_bin_name(settings: &Settings) -> &str {
+pub(crate) fn get_bin_name(settings: &Settings) -> String {
   if use_v1_bin_name() {
-    settings.product_name()
+    let target_os = settings
+      .target()
+      .split('-')
+      .nth(2)
+      .unwrap_or(std::env::consts::OS)
+      .replace("darwin", "macos");
+
+    if target_os == "linux" {
+      settings.product_name().to_kebab_case()
+    } else {
+      settings.product_name().to_string()
+    }
   } else {
-    settings.main_binary_name()
+    settings.main_binary_name().to_string()
   }
 }
 
-pub(crate) fn rename_app(
-  target: &str,
-  bin_path: &Path,
-  product_name: &str,
-) -> crate::Result<PathBuf> {
-  let target_os = target
-    .split('-')
-    .nth(2)
-    .unwrap_or(std::env::consts::OS)
-    .replace("darwin", "macos");
-
-  let product_name = if target_os == "linux" {
-    product_name.to_kebab_case()
-  } else {
-    product_name.into()
-  };
+pub(crate) fn rename_app(settings: &Settings, bin_path: &Path) -> crate::Result<PathBuf> {
+  let bin_name = get_bin_name(settings);
 
   let product_path = bin_path
     .parent()
     .unwrap()
-    .join(product_name)
+    .join(bin_name)
     .with_extension(bin_path.extension().unwrap_or_default());
 
-  fs::rename(bin_path, &product_path).with_context(|| {
-    format!(
-      "failed to rename `{}` to `{}`",
-      display_path(bin_path),
-      display_path(&product_path),
-    )
-  })?;
+  if !product_path.exists() {
+    fs::rename(bin_path, &product_path).with_context(|| {
+      format!(
+        "failed to rename `{}` to `{}`",
+        display_path(bin_path),
+        display_path(&product_path),
+      )
+    })?;
+  }
+
   Ok(product_path)
 }
 

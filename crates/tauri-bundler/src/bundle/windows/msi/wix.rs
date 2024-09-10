@@ -404,7 +404,7 @@ pub fn build_wix_app_installer(
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
   let old_binary_path = settings.binary_path(main_binary);
   let app_exe_source = if use_v1_bin_name() {
-    rename_app(settings.target(), &old_binary_path, settings.product_name())?
+    rename_app(settings, &old_binary_path)?
   } else {
     old_binary_path
   };

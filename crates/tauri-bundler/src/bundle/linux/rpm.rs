@@ -100,17 +100,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Add binaries
   for bin in settings.binaries() {
-    let src = if use_v1_bin_name() && bin.name() == settings.main_binary_name() {
-      rename_app(
-        settings.target(),
-        &settings.binary_path(bin),
-        settings.product_name(),
-      )?
+    let src = settings.binary_path(bin);
+
+    let dest_name = if bin.name() == settings.main_binary_name() {
+      get_bin_name(settings)
     } else {
-      settings.binary_path(bin)
+      bin.name().to_string()
     };
 
-    let dest = Path::new("/usr/bin").join(bin.name());
+    let dest = Path::new("/usr/bin").join(dest_name);
     builder = builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
   }
 

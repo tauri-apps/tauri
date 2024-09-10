@@ -1072,7 +1072,21 @@ fn copy_files_and_run(
   };
 
   let file = HSTRING::from(file);
-  let parameters = installer_args.join(OsStr::new(" "));
+  // due to our MSRV of 1.61, we can't use .join() on Vec<OsStr>
+  // so we join it manually. adapted from:
+  // https://github.com/rust-lang/rust/blob/712463de61c65033a6f333f0a14fbb65e34efc50/library/std/src/ffi/os_str.rs#L1558-L1573
+  let parameters = {
+    if let Some((first, suffix)) = installer_args.split_first() {
+      let first_owned = first.to_os_string();
+      suffix.iter().fold(first_owned, |mut a, b| {
+        a.push(" "); // sep
+        a.push(b);
+        a
+      })
+    } else {
+      std::ffi::OsString::new()
+    }
+  };
   let parameters = HSTRING::from(parameters);
   let ret = unsafe {
     ShellExecuteW(
@@ -1793,6 +1807,8 @@ mod test {
   #[test]
   #[cfg(target_os = "macos")]
   fn http_updater_complete_process() {
+    use std::io::Read;
+
     #[cfg(target_os = "macos")]
     let archive_file = "archive.macos.tar.gz";
     #[cfg(target_os = "linux")]

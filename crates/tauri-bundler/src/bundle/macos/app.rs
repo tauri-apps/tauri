@@ -31,6 +31,7 @@ use crate::Settings;
 
 use anyhow::Context;
 
+use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
 use std::{
   ffi::OsStr,
   fs,
@@ -159,6 +160,9 @@ fn copy_binaries_to_bundle(
     let dest_path = dest_dir.join(bin.name());
     common::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+    if use_v1_bin_name() && bin.name() == settings.main_binary_name() {
+      rename_app(settings.target(), &dest_path, settings.product_name())?;
+    }
     paths.push(dest_path);
   }
   Ok(paths)
@@ -198,10 +202,7 @@ fn create_info_plist(
   let mut plist = plist::Dictionary::new();
   plist.insert("CFBundleDevelopmentRegion".into(), "English".into());
   plist.insert("CFBundleDisplayName".into(), settings.product_name().into());
-  plist.insert(
-    "CFBundleExecutable".into(),
-    settings.main_binary_name().into(),
-  );
+  plist.insert("CFBundleExecutable".into(), get_bin_name(&settings).into());
   if let Some(path) = bundle_icon_file {
     plist.insert(
       "CFBundleIconFile".into(),

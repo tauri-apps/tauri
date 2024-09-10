@@ -20,6 +20,7 @@ use anyhow::Context;
 use handlebars::{to_json, Handlebars};
 use tauri_utils::config::{NSISInstallerMode, NsisCompression, WebviewInstallMode};
 
+use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
 use std::{
   collections::BTreeMap,
   fs,
@@ -341,14 +342,21 @@ fn build_nsis_app_installer(
     .iter()
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-  let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
+
+  let old_binary_path = settings.binary_path(main_binary).with_extension("exe");
+  let main_binary_path = if use_v1_bin_name() {
+    rename_app(settings.target(), &old_binary_path, settings.product_name())?
+  } else {
+    old_binary_path
+  };
+
   data.insert(
     "main_binary_name",
     to_json(
       main_binary_path
         .file_stem()
         .and_then(|file_name| file_name.to_str())
-        .unwrap_or_else(|| main_binary.name()),
+        .unwrap_or_else(|| get_bin_name(&settings)),
     ),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));

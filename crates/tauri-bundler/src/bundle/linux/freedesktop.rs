@@ -27,6 +27,7 @@ use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use serde::Serialize;
 
 use crate::bundle::common;
+use crate::bundle::common::{get_bin_name, use_v1_bin_name};
 use crate::Settings;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -50,7 +51,7 @@ pub fn list_icon_files(
       width,
       height,
       if is_high_density { "@2" } else { "" },
-      settings.main_binary_name()
+      get_bin_name(&settings)
     ))
   };
   let mut icons = BTreeMap::new();
@@ -97,7 +98,7 @@ pub fn generate_desktop_file(
   custom_template_path: &Option<PathBuf>,
   data_dir: &Path,
 ) -> crate::Result<(PathBuf, PathBuf)> {
-  let bin_name = settings.main_binary_name();
+  let bin_name = get_bin_name(&settings);
   let desktop_file_name = format!("{bin_name}.desktop");
   let path = PathBuf::from("usr/share/applications").join(desktop_file_name);
   let dest_path = PathBuf::from("/").join(&path);

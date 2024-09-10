@@ -3,14 +3,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::Settings;
+use anyhow::Context;
+use heck::ToKebabCase;
 use std::{
   ffi::OsStr,
   fs::{self, File},
   io::{self, BufRead, BufReader, BufWriter},
-  path::Path,
+  path::{Path, PathBuf},
   process::{Command, ExitStatus, Output, Stdio},
   sync::{Arc, Mutex},
 };
+use tauri_utils::display_path;
 
 /// Returns true if the path has a filename indicating that it is a high-density
 /// "retina" icon.  Specifically, returns true the file stem ends with
@@ -124,6 +128,52 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
     }
   }
   Ok(())
+}
+
+pub(crate) fn use_v1_bin_name() -> bool {
+  let env_var = std::env::var("V1_COMPATIBLE_BIN_NAME");
+  env_var.as_deref() == Ok("true") || env_var.as_deref() == Ok("1")
+}
+
+pub(crate) fn get_bin_name(settings: &Settings) -> &str {
+  if use_v1_bin_name() {
+    settings.product_name()
+  } else {
+    settings.main_binary_name()
+  }
+}
+
+pub(crate) fn rename_app(
+  target: &str,
+  bin_path: &Path,
+  product_name: &str,
+) -> crate::Result<PathBuf> {
+  let target_os = target
+    .split('-')
+    .nth(2)
+    .unwrap_or(std::env::consts::OS)
+    .replace("darwin", "macos");
+
+  let product_name = if target_os == "linux" {
+    product_name.to_kebab_case()
+  } else {
+    product_name.into()
+  };
+
+  let product_path = bin_path
+    .parent()
+    .unwrap()
+    .join(product_name)
+    .with_extension(bin_path.extension().unwrap_or_default());
+
+  fs::rename(bin_path, &product_path).with_context(|| {
+    format!(
+      "failed to rename `{}` to `{}`",
+      display_path(bin_path),
+      display_path(&product_path),
+    )
+  })?;
+  Ok(product_path)
 }
 
 /// Copies user-defined files specified in the configuration file to the package.

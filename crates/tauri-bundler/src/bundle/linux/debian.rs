@@ -30,6 +30,7 @@ use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
 use walkdir::WalkDir;
 
+use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
 use std::{
   fs::{self, File, OpenOptions},
   io::{self, Write},
@@ -108,8 +109,13 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, bin_dir.join(bin.name()))
+    let dest_path = bin_dir.join(bin.name());
+    common::copy_file(&bin_path, dest_path)
       .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
+
+    if use_v1_bin_name() && bin.name() == settings.main_binary_name() {
+      rename_app(settings.target(), &dest_path, settings.product_name())?;
+    }
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
@@ -133,7 +139,7 @@ pub fn generate_data(
 fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
-    let bin_name = settings.main_binary_name();
+    let bin_name = get_bin_name(&settings);
     let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
 
     let changelog_file = common::create_file(&dest_path)?;
@@ -306,7 +312,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(get_bin_name(&settings));
   settings.copy_resources(&resource_dir)
 }
 

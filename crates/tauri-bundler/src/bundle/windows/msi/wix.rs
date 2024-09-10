@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
 use crate::bundle::{
   common::CommandExt,
   path_utils::{copy_file, FileOpts},
@@ -291,6 +292,7 @@ fn run_candle(
   cwd: &Path,
   wxs_file_path: PathBuf,
   extensions: Vec<PathBuf>,
+  main_binary_path: &Path,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
     "x86_64" => "x64",
@@ -304,20 +306,11 @@ fn run_candle(
     }
   };
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-
   let mut args = vec![
     "-arch".to_string(),
     arch.to_string(),
     wxs_file_path.to_string_lossy().to_string(),
-    format!(
-      "-dSourceDir={}",
-      display_path(settings.binary_path(main_binary))
-    ),
+    format!("-dSourceDir={}", display_path(main_binary_path)),
   ];
 
   if settings
@@ -409,7 +402,12 @@ pub fn build_wix_app_installer(
     .iter()
     .find(|bin| bin.main())
     .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-  let app_exe_source = settings.binary_path(main_binary);
+  let old_binary_path = settings.binary_path(main_binary);
+  let app_exe_source = if use_v1_bin_name() {
+    rename_app(settings.target(), &old_binary_path, settings.product_name())?
+  } else {
+    old_binary_path
+  };
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -524,7 +522,7 @@ pub fn build_wix_app_installer(
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
-    format!("{}.app.x64", &settings.main_binary_name()).as_bytes(),
+    format!("{}.app.x64", get_bin_name(&settings)).as_bytes(),
   )
   .to_string();
 
@@ -540,7 +538,7 @@ pub fn build_wix_app_installer(
   let shortcut_guid = generate_package_guid(settings).to_string();
   data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
-  let app_exe_name = settings.main_binary_name().to_string();
+  let app_exe_name = get_bin_name(&settings).to_string();
   data.insert("app_exe_name", to_json(app_exe_name));
 
   let binaries = generate_binaries_data(settings)?;
@@ -713,7 +711,14 @@ pub fn build_wix_app_installer(
     for ext in &extensions {
       fragment_extensions.insert(ext.clone());
     }
-    run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
+    run_candle(
+      settings,
+      wix_toolset_path,
+      &output_path,
+      path,
+      extensions,
+      app_exe_source,
+    )?;
   }
 
   let mut output_paths = Vec::new();

@@ -5,6 +5,8 @@
 
 use crate::Settings;
 
+use super::freedesktop;
+use crate::bundle::common::{get_bin_name, rename_app, use_v1_bin_name};
 use anyhow::Context;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
 use std::{
@@ -12,8 +14,6 @@ use std::{
   fs::{self, File},
   path::{Path, PathBuf},
 };
-
-use super::freedesktop;
 
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the RPM was created.
@@ -100,7 +100,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Add binaries
   for bin in settings.binaries() {
-    let src = settings.binary_path(bin);
+    let src = if use_v1_bin_name() && bin.name() == settings.main_binary_name() {
+      rename_app(
+        settings.target(),
+        &settings.binary_path(bin),
+        settings.product_name(),
+      )?
+    } else {
+      settings.binary_path(bin)
+    };
+
     let dest = Path::new("/usr/bin").join(bin.name());
     builder = builder.with_file(src, FileOptions::new(dest.to_string_lossy()))?;
   }
@@ -141,7 +150,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Add resources
   if settings.resource_files().count() > 0 {
-    let resource_dir = Path::new("/usr/lib").join(settings.main_binary_name());
+    let resource_dir = Path::new("/usr/lib").join(get_bin_name(&settings));
     // Create an empty file, needed to add a directory to the RPM package
     // (cf https://github.com/rpm-rs/rpm/issues/177)
     let empty_file_path = &package_dir.join("empty");

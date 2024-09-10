@@ -52,6 +52,9 @@ pub enum Error {
     "Unsupported application architecture, expected one of `x86`, `x86_64`, `arm` or `aarch64`."
   )]
   UnsupportedArch,
+  /// Invalid updater binary format
+  #[error("invalid updater binary format")]
+  InvalidUpdaterFormat,
   /// The platform was not found on the updater JSON response.
   #[error("the platform `{0}` was not found on the response `platforms` object")]
   TargetNotFound(String),
@@ -65,6 +68,9 @@ pub enum Error {
   /// HTTP error.
   #[error(transparent)]
   Http(#[from] http::Error),
+  /// HTTP invalid header value error.
+  #[error(transparent)]
+  InvalidHeaderValue(#[from] http::header::InvalidHeaderValue),
   /// Temp dir is not on same mount mount. This prevents our updater to rename the AppImage to a temp file.
   #[cfg(target_os = "linux")]
   #[error("temp directory is not on the same mount point as the AppImage")]

@@ -11,7 +11,7 @@ use crate::{
 };
 use base64::Engine;
 use http::{
-  header::{HeaderName, HeaderValue},
+  header::{self, HeaderName, HeaderValue},
   HeaderMap, StatusCode,
 };
 use minisign_verify::{PublicKey, Signature};
@@ -23,13 +23,11 @@ use time::OffsetDateTime;
 use tracing::Instrument;
 use url::Url;
 
-#[cfg(desktop)]
-use std::io::Seek;
 use std::{
   collections::HashMap,
   env,
   fmt::{self},
-  io::{Cursor, Read},
+  io::Cursor,
   path::{Path, PathBuf},
   str::{from_utf8, FromStr},
   time::Duration,
@@ -42,10 +40,9 @@ use std::ffi::OsStr;
 use crate::api::file::Compression;
 
 #[cfg(target_os = "windows")]
-use std::{
-  fs::read_dir,
-  process::{exit, Command},
-};
+use std::process::{exit, Command};
+
+const UPDATER_USER_AGENT: &str = concat!("tauri-updater/", env!("CARGO_PKG_VERSION"),);
 
 type ShouldInstall = dyn FnOnce(&Version, &RemoteRelease) -> bool + Send;
 
@@ -365,7 +362,7 @@ impl<R: Runtime> UpdateBuilder<R> {
 
     // we want JSON only
     let mut headers = self.headers;
-    headers.insert("Accept", HeaderValue::from_str("application/json").unwrap());
+    headers.insert(header::ACCEPT, HeaderValue::from_str("application/json")?);
 
     // Allow fallback if more than 1 urls is provided
     let mut last_error: Option<Error> = None;
@@ -386,10 +383,17 @@ impl<R: Runtime> UpdateBuilder<R> {
         #[cfg(feature = "tracing")]
         tracing::debug!("checking if there is an update via {}", url);
 
-        let mut request = HttpRequestBuilder::new("GET", &fixed_link)?.headers(headers.clone());
+        let mut request = HttpRequestBuilder::new("GET", &fixed_link)?
+          .headers(headers.clone())
+          .header(
+            header::USER_AGENT,
+            HeaderValue::from_str(UPDATER_USER_AGENT)?,
+          )?;
+
         if let Some(timeout) = self.timeout {
           request = request.timeout(timeout);
         }
+
         let resp = ClientBuilder::new().build()?.send(request).await;
 
         // If we got a success, we stop the loop
@@ -470,7 +474,7 @@ impl<R: Runtime> UpdateBuilder<R> {
       final_release.version() > &self.current_version
     };
 
-    headers.remove("Accept");
+    headers.remove(header::ACCEPT);
 
     // create our new updater
     Ok(Update {
@@ -622,12 +626,12 @@ impl<R: Runtime> Update<R> {
     // set our headers
     let mut headers = self.headers.clone();
     headers.insert(
-      "Accept",
-      HeaderValue::from_str("application/octet-stream").unwrap(),
+      header::ACCEPT,
+      HeaderValue::from_str("application/octet-stream")?,
     );
     headers.insert(
-      "User-Agent",
-      HeaderValue::from_str("tauri/updater").unwrap(),
+      header::USER_AGENT,
+      HeaderValue::from_str(UPDATER_USER_AGENT)?,
     );
 
     let client = ClientBuilder::new().max_redirections(5).build()?;
@@ -653,7 +657,7 @@ impl<R: Runtime> Update<R> {
 
     let content_length: Option<u64> = response
       .headers()
-      .get("Content-Length")
+      .get(header::CONTENT_LENGTH)
       .and_then(|value| value.to_str().ok())
       .and_then(|value| value.parse().ok());
 
@@ -685,12 +689,9 @@ impl<R: Runtime> Update<R> {
 
     on_download_finish();
 
-    // create memory buffer from our archive (Seek + Read)
-    let mut archive_buffer = Cursor::new(buffer);
-
     // We need an announced signature by the server
     // if there is no signature, bail out.
-    verify_signature(&mut archive_buffer, &self.signature, &pub_key)?;
+    verify_signature(&buffer, &self.signature, &pub_key)?;
 
     // TODO: implement updater in mobile
     #[cfg(desktop)]
@@ -702,14 +703,14 @@ impl<R: Runtime> Update<R> {
       // macos .app
       #[cfg(target_os = "windows")]
       copy_files_and_run(
-        archive_buffer,
+        &buffer,
         &self.extract_path,
         self.with_elevated_task,
         &self.app.config(),
         &self.app.env(),
       )?;
       #[cfg(not(target_os = "windows"))]
-      copy_files_and_run(archive_buffer, &self.extract_path)?;
+      copy_files_and_run(&buffer, &self.extract_path)?;
     }
 
     // We are done!
@@ -728,7 +729,7 @@ impl<R: Runtime> Update<R> {
 // the extract_path is the current AppImage path
 // tmp_dir is where our new AppImage is found
 #[cfg(target_os = "linux")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
+fn copy_files_and_run(bytes: &[u8], extract_path: &Path) -> Result {
   use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
   let extract_path_metadata = extract_path.metadata()?;
@@ -753,29 +754,45 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
 
         let tmp_app_image = &tmp_dir.path().join("current_app.AppImage");
 
+        let permissions = std::fs::metadata(&extract_path)?.permissions();
+
         // create a backup of our current app image
         Move::from_source(extract_path).to_dest(tmp_app_image)?;
 
-        // extract the buffer to the tmp_dir
-        // we extract our signed archive into our final directory without any temp file
-        let mut extractor =
-          Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+        if infer::archive::is_gz(bytes) {
+          // extract the buffer to the tmp_dir
+          // we extract our signed archive into our final directory without any temp file
+          let archive = Cursor::new(bytes);
+          let mut extractor =
+            Extract::from_cursor(archive, ArchiveFormat::Tar(Some(Compression::Gz)));
 
-        return extractor
-          .with_files(|entry| {
-            let path = entry.path()?;
-            if path.extension() == Some(OsStr::new("AppImage")) {
-              // if something went wrong during the extraction, we should restore previous app
-              if let Err(err) = entry.extract(extract_path) {
-                Move::from_source(tmp_app_image).to_dest(extract_path)?;
-                return Err(crate::api::Error::Extract(err.to_string()));
+          return extractor
+            .with_files(|entry| {
+              let path = entry.path()?;
+              if path.extension() == Some(OsStr::new("AppImage")) {
+                // if something went wrong during the extraction, we should restore previous app
+                if let Err(err) = entry.extract(extract_path) {
+                  Move::from_source(tmp_app_image).to_dest(extract_path)?;
+                  return Err(crate::api::Error::Extract(err.to_string()));
+                }
+                // early finish we have everything we need here
+                return Ok(true);
               }
-              // early finish we have everything we need here
-              return Ok(true);
+              Ok(false)
+            })
+            .map_err(Into::into);
+        } else {
+          return match std::fs::write(&extract_path, bytes)
+            .and_then(|_| std::fs::set_permissions(&extract_path, permissions))
+          {
+            Err(err) => {
+              // if something went wrong during the extraction, we should restore previous app
+              Move::from_source(tmp_app_image).to_dest(extract_path)?;
+              Err(err.into())
             }
-            Ok(false)
-          })
-          .map_err(Into::into);
+            Ok(_) => Ok(()),
+          };
+        }
       }
     }
   }
@@ -783,38 +800,87 @@ fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) ->
   Err(Error::TempDirNotOnSameMountPoint)
 }
 
+#[cfg(windows)]
+trait PathExt {
+  fn wrap_in_quotes(&self) -> Self;
+}
+
+#[cfg(windows)]
+impl PathExt for PathBuf {
+  fn wrap_in_quotes(&self) -> Self {
+    let mut p = std::ffi::OsString::from("\"");
+    p.push(self.as_os_str());
+    p.push("\"");
+    PathBuf::from(p)
+  }
+}
+
+#[cfg(windows)]
+enum WindowsUpdaterType {
+  Nsis {
+    path: PathBuf,
+    #[allow(unused)]
+    temp: Option<tempfile::TempPath>,
+  },
+  Msi {
+    path: PathBuf,
+    quoted_path: PathBuf,
+    #[allow(unused)]
+    temp: Option<tempfile::TempPath>,
+  },
+}
+
+#[cfg(windows)]
+impl WindowsUpdaterType {
+  fn nsis(path: PathBuf, temp: Option<tempfile::TempPath>) -> Self {
+    Self::Nsis { path, temp }
+  }
+
+  fn msi(path: PathBuf, temp: Option<tempfile::TempPath>) -> Self {
+    Self::Msi {
+      quoted_path: path.wrap_in_quotes(),
+      path,
+      temp,
+    }
+  }
+}
+
+#[cfg(windows)]
+fn write_installer_in_temp(
+  bytes: &[u8],
+  ext: &str,
+  temp_dir: &Path,
+) -> Result<(PathBuf, Option<tempfile::TempPath>)> {
+  use std::io::Write;
+
+  let mut temp_file = tempfile::Builder::new()
+    .suffix(ext)
+    .rand_bytes(0)
+    .tempfile_in(temp_dir)?;
+  temp_file.write_all(bytes)?;
+
+  let temp = temp_file.into_temp_path();
+  Ok((temp.to_path_buf(), Some(temp)))
+}
+
 // Windows
 //
-// ### Expected structure:
-// ├── [AppName]_[version]_x64.msi.zip          # ZIP generated by tauri-bundler
-// │   └──[AppName]_[version]_x64.msi           # Application MSI
-// ├── [AppName]_[version]_x64-setup.exe.zip          # ZIP generated by tauri-bundler
-// │   └──[AppName]_[version]_x64-setup.exe           # NSIS installer
-// └── ...
-//
-// ## MSI
-// Update server can provide a MSI for Windows. (Generated with tauri-bundler from *Wix*)
-// To replace current version of the application. In later version we'll offer
-// incremental update to push specific binaries.
-//
-// ## EXE
-// Update server can provide a custom EXE (installer) who can run any task.
+/// ### Expected one of:
+/// ├── [AppName]_[version]_x64.msi              # Application MSI
+/// ├── [AppName]_[version]_x64-setup.exe        # NSIS installer
+/// ├── [AppName]_[version]_x64.msi.zip          # ZIP generated by tauri-bundler
+/// │   └──[AppName]_[version]_x64.msi              # Application MSI
+/// ├── [AppName]_[version]_x64-setup.exe.zip    # ZIP generated by tauri-bundler
+/// │   └──[AppName]_[version]_x64-setup.exe        # NSIS installer
 #[cfg(target_os = "windows")]
-#[allow(clippy::unnecessary_wraps)]
-fn copy_files_and_run<R: Read + Seek>(
-  archive_buffer: R,
+fn copy_files_and_run(
+  bytes: &[u8],
   _extract_path: &Path,
   with_elevated_task: bool,
   config: &crate::Config,
   env: &crate::Env,
 ) -> Result {
-  // FIXME: We need to create a memory buffer with the MSI and then run it.
-  //        (instead of extracting the MSI to a temp path)
-  //
-  // The tricky part is the MSI need to be exposed and spawned so the memory allocation
-  // shouldn't drop but we should be able to pass the reference so we can drop it once the installation
-  // is done, otherwise we have a huge memory leak.
-
+  use std::iter::once;
   use windows::{
     core::{HSTRING, PCWSTR},
     w,
@@ -824,46 +890,63 @@ fn copy_files_and_run<R: Read + Seek>(
     },
   };
 
-  let tmp_dir = tempfile::Builder::new().tempdir()?.into_path();
+  let temp_dir = tempfile::Builder::new().tempdir()?.into_path();
 
-  // extract the buffer to the tmp_dir
-  // we extract our signed archive into our final directory without any temp file
-  let mut extractor = Extract::from_cursor(archive_buffer, ArchiveFormat::Zip);
+  let updater_type = if infer::archive::is_zip(bytes) {
+    let archive = Cursor::new(bytes);
+    let mut extractor = Extract::from_cursor(archive, ArchiveFormat::Zip);
+    extractor.extract_into(&temp_dir)?;
 
-  // extract the msi
-  extractor.extract_into(&tmp_dir)?;
-
-  let paths = read_dir(&tmp_dir)?;
+    let mut paths = std::fs::read_dir(&temp_dir)?;
+    loop {
+      if let Some(path) = paths.next() {
+        let path = path?.path();
+        let ext = path.extension();
+        if ext == Some(OsStr::new("exe")) {
+          break WindowsUpdaterType::nsis(path, None);
+        } else if ext == Some(OsStr::new("msi")) {
+          break WindowsUpdaterType::msi(path, None);
+        }
+      } else {
+        return Err(Error::InvalidUpdaterFormat);
+      }
+    }
+  } else if infer::app::is_exe(bytes) {
+    let (path, temp) = write_installer_in_temp(bytes, ".exe", &temp_dir)?;
+    WindowsUpdaterType::nsis(path, temp)
+  } else if infer::archive::is_msi(bytes) {
+    let (path, temp) = write_installer_in_temp(bytes, ".msi", &temp_dir)?;
+    WindowsUpdaterType::msi(path, temp)
+  } else {
+    return Err(Error::InvalidUpdaterFormat);
+  };
 
   let system_root = std::env::var("SYSTEMROOT");
-  let powershell_path = system_root.as_ref().map_or_else(
-    |_| "powershell.exe".to_string(),
-    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
-  );
 
-  let mut installer_args_shellexecute;
-
-  for path in paths {
-    let found_path = path?.path();
-    // we support 2 type of files exe & msi for now
-    // If it's an `exe` we expect an NSIS installer.
-    if found_path.extension() == Some(OsStr::new("exe")) {
-      installer_args_shellexecute = [
+  let installer_args: Vec<&OsStr> = match &updater_type {
+    WindowsUpdaterType::Nsis { .. } => config
+      .tauri
+      .updater
+      .windows
+      .install_mode
+      .nsis_args()
+      .iter()
+      .map(OsStr::new)
+      .chain(once(OsStr::new("/ARGS")))
+      .chain(env.args.iter().map(OsStr::new))
+      .chain(
         config
           .tauri
           .updater
           .windows
-          .install_mode
-          .nsis_args()
+          .installer_args
           .iter()
-          .map(|a| a.to_string())
-          .collect(),
-        vec!["/ARGS".to_string()],
-        env.args.clone(),
-        config.tauri.updater.windows.installer_args.clone(),
-      ]
-      .concat();
-    } else if found_path.extension() == Some(OsStr::new("msi")) {
+          .map(OsStr::new),
+      )
+      .collect(),
+    WindowsUpdaterType::Msi {
+      path, quoted_path, ..
+    } => {
       if with_elevated_task {
         if let Some(bin_name) = current_exe()
           .ok()
@@ -882,8 +965,8 @@ fn copy_files_and_run<R: Read + Seek>(
           {
             if output.status.success() {
               // Rename the MSI to the match file name the Skip UAC task is expecting it to be
-              let temp_msi = tmp_dir.with_file_name(bin_name).with_extension("msi");
-              Move::from_source(&found_path)
+              let temp_msi = temp_dir.with_file_name(bin_name).with_extension("msi");
+              Move::from_source(&path)
                 .to_dest(&temp_msi)
                 .expect("Unable to move update MSI");
               let exit_status = Command::new("schtasks")
@@ -903,6 +986,11 @@ fn copy_files_and_run<R: Read + Seek>(
         }
       }
 
+      let powershell_path = system_root.as_ref().map_or_else(
+        |_| "powershell.exe".to_string(),
+        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
+      );
+
       // we need to wrap the current exe path in quotes for Start-Process
       let mut current_executable = std::ffi::OsString::new();
       current_executable.push("\"");
@@ -911,7 +999,7 @@ fn copy_files_and_run<R: Read + Seek>(
 
       let mut msi_path = std::ffi::OsString::new();
       msi_path.push("\"\"\"");
-      msi_path.push(&found_path);
+      msi_path.push(&path);
       msi_path.push("\"\"\"");
 
       let msi_installer_args = [
@@ -954,8 +1042,13 @@ fn copy_files_and_run<R: Read + Seek>(
       }
 
       let powershell_install_res = powershell_cmd.spawn();
-      if powershell_install_res.is_err() {
-        installer_args_shellexecute = [
+      if powershell_install_res.is_ok() {
+        exit(0);
+      }
+
+      [OsStr::new("/i"), quoted_path.as_os_str()]
+        .into_iter()
+        .chain(
           config
             .tauri
             .updater
@@ -963,39 +1056,39 @@ fn copy_files_and_run<R: Read + Seek>(
             .install_mode
             .msiexec_args()
             .iter()
-            .map(|a| a.to_string())
-            .collect(),
-          config.tauri.updater.windows.installer_args.clone(),
-        ]
-        .concat();
-        installer_args_shellexecute.push("/promptrestart".to_string());
-      } else {
-        exit(0);
-      }
-    } else {
-      continue;
+            .map(OsStr::new),
+        )
+        .chain(once(OsStr::new("/promptrestart")))
+        .collect()
     }
+  };
 
-    let file = HSTRING::from(found_path.as_os_str());
-    let parameters = HSTRING::from(installer_args_shellexecute.join(" "));
-    let ret = unsafe {
-      ShellExecuteW(
-        HWND(0),
-        w!("open"),
-        &file,
-        &parameters,
-        PCWSTR::null(),
-        SW_SHOW.0 as _,
-      )
-    };
-    if ret.0 <= 32 {
-      return Err(Error::Io(std::io::Error::last_os_error()));
-    }
+  let file = match &updater_type {
+    WindowsUpdaterType::Nsis { path, .. } => path.as_os_str().to_os_string(),
+    WindowsUpdaterType::Msi { .. } => std::env::var("SYSTEMROOT").as_ref().map_or_else(
+      |_| std::ffi::OsString::from("msiexec.exe"),
+      |p| std::ffi::OsString::from(format!("{p}\\System32\\msiexec.exe")),
+    ),
+  };
 
-    exit(0);
+  let file = HSTRING::from(file);
+  let parameters = installer_args.join(OsStr::new(" "));
+  let parameters = HSTRING::from(parameters);
+  let ret = unsafe {
+    ShellExecuteW(
+      HWND(0),
+      w!("open"),
+      &file,
+      &parameters,
+      PCWSTR::null(),
+      SW_SHOW.0 as _,
+    )
+  };
+  if ret.0 <= 32 {
+    return Err(Error::Io(std::io::Error::last_os_error()));
   }
 
-  Ok(())
+  exit(0);
 }
 
 // MacOS
@@ -1006,13 +1099,14 @@ fn copy_files_and_run<R: Read + Seek>(
 // │          └── ...
 // └── ...
 #[cfg(target_os = "macos")]
-fn copy_files_and_run<R: Read + Seek>(archive_buffer: R, extract_path: &Path) -> Result {
+fn copy_files_and_run(bytes: &[u8], extract_path: &Path) -> Result {
   let mut extracted_files: Vec<PathBuf> = Vec::new();
+
+  let archive = Cursor::new(bytes);
 
   // extract the buffer to the tmp_dir
   // we extract our signed archive into our final directory without any temp file
-  let mut extractor =
-    Extract::from_cursor(archive_buffer, ArchiveFormat::Tar(Some(Compression::Gz)));
+  let mut extractor = Extract::from_cursor(archive, ArchiveFormat::Tar(Some(Compression::Gz)));
   // the first file in the tar.gz will always be
   // <app_name>/Contents
   let tmp_dir = tempfile::Builder::new()
@@ -1132,28 +1226,15 @@ fn base64_to_string(base64_string: &str) -> Result<String> {
 // Validate signature
 // need to be public because its been used
 // by our tests in the bundler
-//
-// NOTE: The buffer position is not reset.
-pub fn verify_signature<R>(
-  archive_reader: &mut R,
-  release_signature: &str,
-  pub_key: &str,
-) -> Result<bool>
-where
-  R: Read,
-{
+pub fn verify_signature(data: &[u8], release_signature: &str, pub_key: &str) -> Result<bool> {
   // we need to convert the pub key
   let pub_key_decoded = base64_to_string(pub_key)?;
   let public_key = PublicKey::decode(&pub_key_decoded)?;
   let signature_base64_decoded = base64_to_string(release_signature)?;
   let signature = Signature::decode(&signature_base64_decoded)?;
 
-  // read all bytes until EOF in the buffer
-  let mut data = Vec::new();
-  archive_reader.read_to_end(&mut data)?;
-
   // Validate signature or bail out
-  public_key.verify(&data, &signature, true)?;
+  public_key.verify(data, &signature, true)?;
   Ok(true)
 }
 

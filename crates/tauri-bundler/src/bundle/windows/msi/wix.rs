@@ -522,7 +522,7 @@ pub fn build_wix_app_installer(
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
-    format!("{}.app.x64", get_bin_name(&settings)).as_bytes(),
+    format!("{}.app.x64", get_bin_name(settings)).as_bytes(),
   )
   .to_string();
 
@@ -538,7 +538,7 @@ pub fn build_wix_app_installer(
   let shortcut_guid = generate_package_guid(settings).to_string();
   data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
-  let app_exe_name = get_bin_name(&settings).to_string();
+  let app_exe_name = get_bin_name(settings).to_string();
   data.insert("app_exe_name", to_json(app_exe_name));
 
   let binaries = generate_binaries_data(settings)?;
@@ -563,7 +563,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(app_exe_source));
+  data.insert("app_exe_source", to_json(&app_exe_source));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;

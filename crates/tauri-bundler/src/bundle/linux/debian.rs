@@ -139,7 +139,7 @@ pub fn generate_data(
 fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
-    let bin_name = get_bin_name(&settings);
+    let bin_name = get_bin_name(settings);
     let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
 
     let changelog_file = common::create_file(&dest_path)?;
@@ -312,7 +312,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(get_bin_name(&settings));
+  let resource_dir = data_dir.join("usr/lib").join(get_bin_name(settings));
   settings.copy_resources(&resource_dir)
 }
 

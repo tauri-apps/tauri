@@ -202,7 +202,7 @@ fn create_info_plist(
   let mut plist = plist::Dictionary::new();
   plist.insert("CFBundleDevelopmentRegion".into(), "English".into());
   plist.insert("CFBundleDisplayName".into(), settings.product_name().into());
-  plist.insert("CFBundleExecutable".into(), get_bin_name(&settings).into());
+  plist.insert("CFBundleExecutable".into(), get_bin_name(settings).into());
   if let Some(path) = bundle_icon_file {
     plist.insert(
       "CFBundleIconFile".into(),

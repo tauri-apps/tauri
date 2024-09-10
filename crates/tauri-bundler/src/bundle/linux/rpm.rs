@@ -150,7 +150,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Add resources
   if settings.resource_files().count() > 0 {
-    let resource_dir = Path::new("/usr/lib").join(get_bin_name(&settings));
+    let resource_dir = Path::new("/usr/lib").join(get_bin_name(settings));
     // Create an empty file, needed to add a directory to the RPM package
     // (cf https://github.com/rpm-rs/rpm/issues/177)
     let empty_file_path = &package_dir.join("empty");

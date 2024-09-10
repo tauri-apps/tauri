@@ -356,7 +356,7 @@ fn build_nsis_app_installer(
       main_binary_path
         .file_stem()
         .and_then(|file_name| file_name.to_str())
-        .unwrap_or_else(|| get_bin_name(&settings)),
+        .unwrap_or_else(|| get_bin_name(settings)),
     ),
   );
   data.insert("main_binary_path", to_json(&main_binary_path));

@@ -58,7 +58,7 @@ pub enum Error {
   #[cfg(windows)]
   #[error("`{0}`")]
   Glob(#[from] glob::GlobError),
-  /// Failed to parse the github cdn
+  /// Failed to parse the URL
   #[cfg(windows)]
   #[error("`{0}`")]
   UrlParse(#[from] url::ParseError),

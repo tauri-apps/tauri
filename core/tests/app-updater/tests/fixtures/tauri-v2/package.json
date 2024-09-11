@@ -1,0 +1,12 @@
+{
+	"name": "tauri-v2",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"tauri": "tauri"
+	},
+	"devDependencies": {
+		"@tauri-apps/cli": "^2.0.0-rc"
+	}
+}

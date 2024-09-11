@@ -1,0 +1,7 @@
+{
+	"identifier": "app",
+	"description": "permissions required to run the app",
+	"local": true,
+	"windows": ["main"],
+	"permissions": ["core:default"]
+}

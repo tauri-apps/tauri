@@ -524,7 +524,7 @@ pub fn build_wix_app_installer(
   data.insert("manufacturer", to_json(manufacturer));
   let upgrade_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
-    format!("{}.app.x64", &settings.main_binary_name()).as_bytes(),
+    format!("{}.exe.app.x64", &settings.product_name()).as_bytes(),
   )
   .to_string();
 

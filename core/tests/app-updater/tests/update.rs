@@ -544,6 +544,10 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
       if code != expected_exit_code {
         panic!("failed to update app\nexpected {expected_exit_code} got {code}",);
       }
+
+      // wait for the update to be applied on Windows
+      #[cfg(windows)]
+      std::thread::sleep(std::time::Duration::from_secs(3));
     }
 
     // graceful shutdown

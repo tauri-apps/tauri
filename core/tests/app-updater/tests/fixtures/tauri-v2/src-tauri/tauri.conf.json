@@ -1,0 +1,42 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "frontendDist": "../src"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "../../../../../../../examples/.icons/32x32.png",
+      "../../../../../../../examples/.icons/128x128.png",
+      "../../../../../../../examples/.icons/128x128@2x.png",
+      "../../../../../../../examples/.icons/icon.icns",
+      "../../../../../../../examples/.icons/icon.ico"
+    ]
+  },
+  "version": "1.0.0",
+  "identifier": "com.tauri.updater",
+  "plugins": {
+    "updater": {
+      "windows": {
+        "installMode": "quiet",
+        "installerArgs": [
+          "/NS"
+        ]
+      },
+      "pubkey": "dummy",
+      "endpoints": [
+        "http://localhost:3007"
+      ]
+    }
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  }
+}

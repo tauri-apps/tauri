@@ -4,6 +4,8 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use std::time::Duration;
+
 fn main() {
   let mut context = tauri::generate_context!();
   if std::env::var("TARGET").unwrap_or_default() == "nsis" {
@@ -25,15 +27,22 @@ fn main() {
     .setup(|app| {
       let handle = app.handle();
       tauri::async_runtime::spawn(async move {
-        match handle.updater().check().await {
+        match handle
+          .updater()
+          .timeout(Duration::from_secs(1))
+          .check()
+          .await
+        {
           Ok(update) => {
             if update.is_update_available() {
               if let Err(e) = update.download_and_install().await {
                 println!("{e}");
                 std::process::exit(1);
               }
+              std::process::exit(0);
+            } else {
+              std::process::exit(2);
             }
-            std::process::exit(0);
           }
           Err(e) => {
             println!("{e}");

@@ -2230,8 +2230,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> RunIteration {
-    use std::sync::atomic::Ordering;
-
     use wry::application::platform::run_return::EventLoopExtRunReturn;
     let windows = self.context.main_thread.windows.clone();
     let webview_id_map = self.context.webview_id_map.clone();

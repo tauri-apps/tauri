@@ -166,7 +166,8 @@ updater = [
   "base64",
   "http-api",
   "dialog-ask",
-  "fs-extract-api"
+  "fs-extract-api",
+  "infer"
 ]
 http-api = [ "reqwest", "bytes", "indexmap" ]
 http-multipart = [ "reqwest/multipart" ]

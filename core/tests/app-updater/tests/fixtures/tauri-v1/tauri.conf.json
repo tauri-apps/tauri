@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../core/tauri-config-schema/schema.json",
+  "$schema": "../../../../../../core/tauri-config-schema/schema.json",
   "build": {
     "distDir": [],
     "devPath": []
@@ -10,11 +10,11 @@
       "targets": "all",
       "identifier": "com.tauri.updater",
       "icon": [
-        "../../../examples/.icons/32x32.png",
-        "../../../examples/.icons/128x128.png",
-        "../../../examples/.icons/128x128@2x.png",
-        "../../../examples/.icons/icon.icns",
-        "../../../examples/.icons/icon.ico"
+        "../../../../../../examples/.icons/32x32.png",
+        "../../../../../../examples/.icons/128x128.png",
+        "../../../../../../examples/.icons/128x128@2x.png",
+        "../../../../../../examples/.icons/icon.icns",
+        "../../../../../../examples/.icons/icon.ico"
       ],
       "category": "DeveloperTool",
       "macOS": {

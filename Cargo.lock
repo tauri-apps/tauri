@@ -7120,6 +7120,7 @@ dependencies = [
  "thiserror",
  "time",
  "ureq",
+ "url",
  "uuid",
  "walkdir",
  "windows-registry",

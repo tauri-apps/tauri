@@ -70,7 +70,7 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
 }
 
 fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {
-  match std::env::var("TAURI_BUNDLER_TOOLS_DOWNLOAD_GITHUB_CDN") {
+  match std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR") {
     Ok(cdn) if url.starts_with("https://github.com/") => {
       let mut parsed_cdn = Url::parse(&cdn)?;
       parsed_cdn.set_path(url);

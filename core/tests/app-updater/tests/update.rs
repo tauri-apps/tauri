@@ -420,7 +420,7 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
       Arc::new(tiny_http::Server::http("localhost:3007").expect("failed to start updater server"));
 
     let server_ = server.clone();
-    std::thread::spawn(move || loop {
+    std::thread::spawn(move || {
       for request in server_.incoming_requests() {
         match request.url() {
           "/" => {
@@ -549,6 +549,10 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
       #[cfg(windows)]
       std::thread::sleep(std::time::Duration::from_secs(3));
     }
+
+    // force Rust to rebuild the binary so it doesn't conflict with other test runs
+    #[cfg(windows)]
+    std::fs::remove_file(tauri_v1_fixture_dir.join("target/debug/app-updater.exe")).unwrap();
 
     // graceful shutdown
     server.unblock();

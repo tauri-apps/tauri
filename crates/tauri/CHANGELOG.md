@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-rc.11]
+
+### Bug Fixes
+
+- [`fafceec30`](https://www.github.com/tauri-apps/tauri/commit/fafceec3092f405fbc6642d331e5440b90d9fd62) ([#10943](https://www.github.com/tauri-apps/tauri/pull/10943) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes mobile dev server proxy request URL with trailing slashes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-runtime@2.0.0-rc.10`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.10`
+- Upgraded to `tauri-macros@2.0.0-rc.9`
+- Upgraded to `tauri-build@2.0.0-rc.10`
+
 ## \[2.0.0-rc.10]
 
 ### Dependencies

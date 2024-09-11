@@ -135,7 +135,7 @@ fn build_app(
 }
 
 fn build_app_v2(cwd: &Path, envs: Vec<(&str, &str)>, config: &ConfigV2, target: BundleTarget) {
-  let mut command = Command::new("npm");
+  let mut command = cross_command("npm");
   command
     .args(["run", "tauri", "--", "build", "--debug", "-vv"])
     .arg("--config")
@@ -283,6 +283,18 @@ fn update_app_v1() {
   });
 }
 
+fn cross_command(bin: &str) -> Command {
+  #[cfg(target_os = "windows")]
+  let cmd = {
+    let mut cmd = Command::new("cmd");
+    cmd.arg("/c").arg(bin);
+    cmd
+  };
+  #[cfg(not(target_os = "windows"))]
+  let cmd = Command::new(bin);
+  cmd
+}
+
 #[test]
 #[serial_test::serial(updater)]
 #[ignore]
@@ -292,7 +304,7 @@ fn update_app_to_v2() {
 
   update_app_flow(|_options| {
     // npm install
-    let status = Command::new("npm")
+    let status = cross_command("npm")
       .arg("install")
       .current_dir(&fixture_dir)
       .status()

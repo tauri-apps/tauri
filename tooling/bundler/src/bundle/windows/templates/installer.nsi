@@ -571,6 +571,9 @@ Section Install
     WriteRegStr SHCTX "${UNINSTKEY}" $MultiUser.InstallMode 1
   !endif
 
+  ; Save current MAINBINARYNAME for future updates from v2 updater
+  WriteRegStr SHCTX "${UNINSTKEY}" "MainBinaryName" "${MAINBINARYNAME}.exe"
+
   ; Registry information for add/remove programs
   WriteRegStr SHCTX "${UNINSTKEY}" "DisplayName" "${PRODUCTNAME}"
   WriteRegStr SHCTX "${UNINSTKEY}" "DisplayIcon" "$\"$INSTDIR\${MAINBINARYNAME}.exe$\""

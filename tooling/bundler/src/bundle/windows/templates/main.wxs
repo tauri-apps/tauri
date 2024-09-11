@@ -114,6 +114,10 @@
                 <RegistryKey Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}">
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
                 </RegistryKey>
+                <!-- Save current MAINBINARYNAME for future updates from v2 updater -->
+                <RegistryKey Root="HKLM" Key="Software\\{{manufacturer}}\\{{product_name}}">
+                    <RegistryValue Name="MainBinaryName" Type="string" Value="{{main_binary_name}}"/>
+                </RegistryKey>
             </Component>
             <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
                 <File Id="Path" Source="{{app_exe_source}}" KeyPath="yes" Checksum="yes"/>

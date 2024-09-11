@@ -1,5 +1,32 @@
 # Changelog
 
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-runtime@2.0.0-rc.10`
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-runtime@2.0.0-rc.9`
+
+## \[2.0.0-rc.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-runtime@2.0.0-rc.8`
+- [`77056b194`](https://www.github.com/tauri-apps/tauri/commit/77056b194a2aa8be1b9865d707b741a6ed72ec56) ([#10895](https://www.github.com/tauri-apps/tauri/pull/10895) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update tao to 0.30 and wry to 0.43.
+
+### Breaking Changes
+
+- [`5048a7293`](https://www.github.com/tauri-apps/tauri/commit/5048a7293b87b5b93aaefd42dedc0e551e08086c) ([#10840](https://www.github.com/tauri-apps/tauri/pull/10840) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `linux-ipc-protocol` feature is now always enabled, so the Cargo feature flag was removed.
+  This increases the minimum webkit2gtk version to a release that does not affect the minimum target Linux distros for Tauri apps.
+
 ## \[2.0.0-rc.7]
 
 ### Dependencies

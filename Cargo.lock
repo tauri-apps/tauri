@@ -14,7 +14,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "serde_json",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
 ]
 
 [[package]]
@@ -2973,19 +2973,6 @@ dependencies = [
 
 [[package]]
 name = "image"
-version = "0.24.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5690139d2f55868e080017335e4b94cb7414274c74f1669c84fb5feba2c9f69d"
-dependencies = [
- "bytemuck",
- "byteorder",
- "color_quant",
- "num-traits",
- "png",
-]
-
-[[package]]
-name = "image"
 version = "0.25.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99314c8a2152b8ddb211f924cdae532d8c5e4c8bb54728e12fff1b0cd5963a10"
@@ -3081,9 +3068,9 @@ dependencies = [
 
 [[package]]
 name = "infer"
-version = "0.15.0"
+version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb33622da908807a06f9513c19b3c1ad50fab3e4137d82a78107d502075aa199"
+checksum = "bc150e5ce2330295b8616ce0e3f53250e53af31759a9dbedad1621ba29151847"
 dependencies = [
  "cfb",
 ]
@@ -5430,9 +5417,9 @@ dependencies = [
 
 [[package]]
 name = "quinn-proto"
-version = "0.11.6"
+version = "0.11.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba92fb39ec7ad06ca2582c0ca834dfeadcaf06ddfc8e635c80aa7e1c05315fdd"
+checksum = "fadfaed2cd7f389d0161bb73eeb07b7b78f8691047a6f3e73caaeae55310a4a6"
 dependencies = [
  "bytes",
  "rand 0.8.5",
@@ -6984,9 +6971,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.29.1"
+version = "0.30.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3a97abbc7d6cfd0720da3e06fcb1cf2ac87cbfdb5bbbce103a1279a211c4d81"
+checksum = "2a93f2c6b8fdaeb7f417bda89b5bc767999745c3052969664ae1fa65892deb7e"
 dependencies = [
  "bitflags 2.6.0",
  "cocoa",
@@ -7051,7 +7038,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-rc.8"
+version = "2.0.0-rc.11"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7068,7 +7055,7 @@ dependencies = [
  "heck 0.5.0",
  "http 1.1.0",
  "http-range",
- "image 0.24.9",
+ "image",
  "jni",
  "libc",
  "log",
@@ -7093,7 +7080,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "thiserror",
  "tokio",
  "tracing",
@@ -7109,7 +7096,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.10"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -7123,7 +7110,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-codegen",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "tauri-winres",
  "toml 0.8.19",
  "walkdir",
@@ -7131,7 +7118,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-rc.7"
+version = "2.0.1-rc.10"
 dependencies = [
  "anyhow",
  "ar",
@@ -7143,7 +7130,7 @@ dependencies = [
  "handlebars",
  "heck 0.5.0",
  "hex",
- "image 0.25.2",
+ "image",
  "log",
  "md5",
  "native-tls",
@@ -7160,7 +7147,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "tempfile",
  "thiserror",
  "time",
@@ -7174,7 +7161,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.9"
+version = "2.0.0-rc.12"
 dependencies = [
  "anyhow",
  "ar",
@@ -7197,7 +7184,7 @@ dependencies = [
  "heck 0.5.0",
  "html5ever",
  "ignore",
- "image 0.25.2",
+ "image",
  "include_dir",
  "insta",
  "itertools 0.13.0",
@@ -7238,7 +7225,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.6.0",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "tempfile",
  "tokio",
  "toml 0.8.19",
@@ -7262,7 +7249,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.10"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -7278,7 +7265,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "syn 2.0.76",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "thiserror",
  "time",
  "url",
@@ -7343,19 +7330,19 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-rc.6"
+version = "2.0.0-rc.9"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.76",
  "tauri-codegen",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
 ]
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.10"
 dependencies = [
  "anyhow",
  "glob",
@@ -7363,7 +7350,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "toml 0.8.19",
  "walkdir",
 ]
@@ -7381,7 +7368,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.10"
 dependencies = [
  "dpi",
  "gtk",
@@ -7390,7 +7377,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "thiserror",
  "url",
  "windows 0.58.0",
@@ -7398,7 +7385,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.10"
 dependencies = [
  "cocoa",
  "gtk",
@@ -7410,7 +7397,7 @@ dependencies = [
  "softbuffer",
  "tao",
  "tauri-runtime",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "tracing",
  "url",
  "webkit2gtk",
@@ -7426,7 +7413,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.7",
+ "tauri-utils 2.0.0-rc.10",
  "url",
 ]
 
@@ -7477,7 +7464,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-rc.7"
+version = "2.0.0-rc.10"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -7487,7 +7474,7 @@ dependencies = [
  "getrandom 0.2.15",
  "glob",
  "html5ever",
- "infer 0.15.0",
+ "infer 0.16.0",
  "json-patch 2.0.0",
  "json5",
  "kuchikiki",
@@ -7963,9 +7950,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "131a65b2cef2081bc14dbcd414c906edbfa3bb5323dd7e748cc298614681196b"
+checksum = "044d7738b3d50f288ddef035b793228740ad4d927f5466b0af55dc15e7e03cfe"
 dependencies = [
  "core-graphics 0.24.0",
  "crossbeam-channel",
@@ -8222,11 +8209,10 @@ dependencies = [
 
 [[package]]
 name = "urlpattern"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9bd5ff03aea02fa45b13a7980151fe45009af1980ba69f651ec367121a31609"
+checksum = "70acd30e3aa1450bc2eece896ce2ad0d178e9c079493819301573dae3c37ba6d"
 dependencies = [
- "derive_more",
  "regex",
  "serde",
  "unic-ucd-ident",
@@ -9099,9 +9085,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.42.0"
+version = "0.43.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "49b8049c8f239cdbfaaea4bacb9646f6b208938ceec0acd5b3e99cd05f70903f"
+checksum = "f4d715cf5fe88e9647f3d17b207b6d060d4a88e7171d4ccb2d2c657dd1d44728"
 dependencies = [
  "base64 0.22.1",
  "block",

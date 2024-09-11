@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.0-rc.10]
+
+### Bug Fixes
+
+- [`0a47bf043`](https://www.github.com/tauri-apps/tauri/commit/0a47bf04302ca8502d3da21b3bc27818720fe34a) ([#10946](https://www.github.com/tauri-apps/tauri/pull/10946) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that made the `identifier` in `tauri.conf.json` optional while it was actually required.
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- [`d9c8d3cc8`](https://www.github.com/tauri-apps/tauri/commit/d9c8d3cc8d5ca67cd767ffc7a521f801b41ce201) ([#10902](https://www.github.com/tauri-apps/tauri/pull/10902) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update infer to 0.16, tray icon to 0.17, urlpattern to 0.3, image to 0.25
+
+### Breaking Changes
+
+- [`faa259bac`](https://www.github.com/tauri-apps/tauri/commit/faa259bacf1ace670af763982c6903190faf163a) ([#10907](https://www.github.com/tauri-apps/tauri/pull/10907) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `Assets::iter` function now must return a iterator with `Item = (Cow<'_, str>, Cow<'_, [u8]>)` to be more flexible on contexts where the assets are not `'static`.
+
+## \[2.0.0-rc.8]
+
+### Enhancements
+
+- [`f0acf504a`](https://www.github.com/tauri-apps/tauri/commit/f0acf504a2a972c063188a00143d8bf2b887691d) ([#10858](https://www.github.com/tauri-apps/tauri/pull/10858) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Validate duplicate capability identifier.
+
 ## \[2.0.0-rc.7]
 
 ### New Features

@@ -15,7 +15,7 @@ These environment variables are inputs to the CLI which may have an equivalent C
 - `TAURI_CLI_NO_DEV_SERVER_WAIT` — Skip waiting for the frontend dev server to start before building the tauri application.
 - `TAURI_LINUX_AYATANA_APPINDICATOR` — Set this var to `true` or `1` to force usage of `libayatana-appindicator` for system tray on Linux.
 - `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` — Specify the bundler's WiX `FipsCompliant` option.
-- `TAURI_BUNDLER_TOOLS_DOWNLOAD_GITHUB_CDN ` - Specify a GitHub CDN to speed up the download of necessary files.
+- `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR` - Specify a GitHub mirror to download files and tools used by tauri bundler.
 - `TAURI_SKIP_SIDECAR_SIGNATURE_CHECK` - Skip signing sidecars.
 - `TAURI_SIGNING_PRIVATE_KEY` — Private key used to sign your app bundles, can be either a string or a path to the file.
 - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — The signing private key password, see `TAURI_SIGNING_PRIVATE_KEY`.

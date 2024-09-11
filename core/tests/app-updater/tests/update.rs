@@ -379,12 +379,15 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
   };
 
   for (bundle_target, out_bundle_path) in bundle_paths(&app_root, UPDATE_APP_VERSION) {
-    let bundle_updater_ext = out_bundle_path
+    let mut bundle_updater_ext = out_bundle_path
       .extension()
       .unwrap()
       .to_str()
       .unwrap()
-      .replace("exe", "nsis");
+      .to_string();
+    if matches!(tauri_version, TauriVersion::V1) {
+      bundle_updater_ext = bundle_updater_ext.replace("exe", "nsis");
+    }
 
     let (out_updater_path, signature) = if let Some(updater_zip_ext) = &updater_zip_ext {
       let signature_path =

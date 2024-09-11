@@ -75,15 +75,6 @@
             <RegistrySearch Id="PrevInstallDirReg" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="InstallDir" Type="raw"/>
         </Property>
 
-        <!-- get stored main binary name -->
-        <Property Id="MAINBINARYNAME">
-            <RegistrySearch Id="MainBinaryName"
-                            Root="HKLM"
-                            Key="Software\\{{manufacturer}}\\{{product_name}}"
-                            Name="MainBinaryName"
-                            Type="raw" />
-        </Property>
-
         <!-- launch app checkbox -->
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.LaunchApp)" />
         <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1"/>
@@ -132,10 +123,6 @@
             <Component Id="RegistryEntries" Guid="*">
                 <RegistryKey Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}">
                     <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
-                </RegistryKey>
-                <!-- Save current MAINBINARYNAME for future updates -->
-                <RegistryKey Root="HKLM" Key="Software\\{{manufacturer}}\\{{product_name}}">
-                    <RegistryValue Name="MainBinaryName" Type="string" Value="{{main_binary_name}}"/>
                 </RegistryKey>
                 <!-- Change the Root to HKCU for perUser installations -->
                 {{#each deep_link_protocols as |protocol| ~}}
@@ -354,19 +341,7 @@
         </InstallExecuteSequence>
         {{/if}}
 
-
-        <!-- Remove old main binary if it doesn't match new main binary name -->
-        <CustomAction
-            Id="RemoveOldMainBinary"
-            Execute="deferred"
-            Return="check"
-            Impersonate="no"
-            Directory="INSTALLDIR"
-            ExeCommand='powershell.exe -WindowStyle hidden "Remove-Item &apos;[INSTALLDIR][MAINBINARYNAME]&apos;"' />
         <InstallExecuteSequence>
-            <Custom Action='RemoveOldMainBinary' After='InstallInitialize'>
-                <![CDATA[(NOT REMOVE) AND MAINBINARYNAME AND (MAINBINARYNAME <> "{{main_binary_name}}")]]>
-            </Custom>
           <Custom Action="LaunchApplication" After="InstallFinalize">AUTOLAUNCHAPP AND NOT Installed</Custom>
         </InstallExecuteSequence>
 

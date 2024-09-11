@@ -42,7 +42,7 @@ use crate::api::file::Compression;
 #[cfg(target_os = "windows")]
 use std::process::{exit, Command};
 
-const UPDATER_USER_AGENT: &str = concat!("tauri-updater/", env!("CARGO_PKG_VERSION"),);
+const UPDATER_USER_AGENT: &str = "tauri/updater";
 
 type ShouldInstall = dyn FnOnce(&Version, &RemoteRelease) -> bool + Send;
 

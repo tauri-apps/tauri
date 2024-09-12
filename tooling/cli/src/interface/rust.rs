@@ -92,7 +92,7 @@ pub struct DevChild {
 }
 
 impl DevChild {
-  fn kill(&self) -> std::io::Result<()> {
+  pub fn kill(&self) -> std::io::Result<()> {
     if let Some(child) = &*self.app_child.lock().unwrap() {
       child.kill()?;
     } else {
@@ -195,10 +195,12 @@ impl Interface for Rust {
 
     if options.no_watch {
       let (tx, rx) = sync_channel(1);
-      self.run_dev(options, move |status, reason| {
+      let child = self.run_dev(options, move |status, reason| {
         tx.send(()).unwrap();
         on_exit_(status, reason)
       })?;
+
+      let _ = crate::dev::DEV_CHILD.set(Arc::new(Mutex::new(child)));
 
       rx.recv().unwrap();
       Ok(())
@@ -206,6 +208,10 @@ impl Interface for Rust {
       let child = self.run_dev(options.clone(), move |status, reason| {
         on_exit_(status, reason)
       })?;
+
+      let child = Arc::new(Mutex::new(child));
+      let child_ = Arc::clone(&child);
+      let _ = crate::dev::DEV_CHILD.set(child_);
 
       self.run_dev_watcher(child, options, on_exit)
     }
@@ -446,11 +452,10 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(ExitStatus, ExitReason) + Send + Sync + 'static>(
     &mut self,
-    child: DevChild,
+    process: Arc<Mutex<DevChild>>,
     options: Options,
     on_exit: Arc<F>,
   ) -> crate::Result<()> {
-    let process = Arc::new(Mutex::new(child));
     let (tx, rx) = sync_channel(1);
     let app_path = app_dir();
 

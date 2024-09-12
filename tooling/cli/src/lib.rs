@@ -177,6 +177,14 @@ where
   Ok(())
 }
 
+pub fn kill_dev_app() -> Result<()> {
+  dev::DEV_CHILD
+    .get()
+    .map(|child| child.lock().unwrap().kill())
+    .unwrap_or(Ok(()))
+    .map_err(Into::into)
+}
+
 /// This maps the occurrence of `--verbose` flags to the correct log level
 fn verbosity_level(num: u8) -> Level {
   match num {

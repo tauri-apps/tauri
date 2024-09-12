@@ -8,7 +8,7 @@ use crate::{
     command_env,
     config::{get as get_config, reload as reload_config, AppUrl, BeforeDevCommand, WindowUrl},
   },
-  interface::{AppInterface, ExitReason, Interface},
+  interface::{rust::DevChild, AppInterface, ExitReason, Interface},
   CommandExt, Result,
 };
 use clap::{ArgAction, Parser};
@@ -27,6 +27,7 @@ use std::{
   },
 };
 
+pub(crate) static DEV_CHILD: OnceCell<Arc<Mutex<DevChild>>> = OnceCell::new();
 static BEFORE_DEV: OnceCell<Mutex<Arc<SharedChild>>> = OnceCell::new();
 static KILL_BEFORE_DEV_FLAG: OnceCell<AtomicBool> = OnceCell::new();
 

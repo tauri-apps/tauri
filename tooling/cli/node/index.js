@@ -252,7 +252,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { run, logError } = nativeBinding
+const { run, killDevApp, logError } = nativeBinding
 
 module.exports.run = run
+module.exports.killDevApp = killDevApp
 module.exports.logError = logError

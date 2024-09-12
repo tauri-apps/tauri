@@ -5,9 +5,10 @@
 //! Schema generation for ACL items.
 
 use std::{
-  collections::BTreeMap,
+  collections::{btree_map::Values, BTreeMap},
   fs,
   path::{Path, PathBuf},
+  slice::Iter,
 };
 
 use schemars::schema::*;
@@ -26,8 +27,15 @@ pub const CAPABILITIES_SCHEMA_FILE_NAME: &str = "schema.json";
 /// Path of the folder where schemas are saved.
 pub const CAPABILITIES_SCHEMA_FOLDER_PATH: &str = "gen/schemas";
 
+// TODO: once MSRV is high enough, remove generic and use impl <trait>
+// see https://github.com/tauri-apps/tauri/commit/b5561d74aee431f93c0c5b0fa6784fc0a956effe#diff-7c31d393f83cae149122e74ad44ac98e7d70ffb45c9e5b0a94ec52881b6f1cebR30-R42
 /// Permission schema generator trait
-pub trait PermissionSchemaGenerator {
+pub trait PermissionSchemaGenerator<
+  'a,
+  Ps: Iterator<Item = &'a PermissionSet>,
+  P: Iterator<Item = &'a Permission>,
+>
+{
   /// Whether has a default permission set or not.
   fn has_default_permission_set(&self) -> bool;
 
@@ -35,10 +43,10 @@ pub trait PermissionSchemaGenerator {
   fn default_set_description(&self) -> Option<&str>;
 
   /// Permissions sets to generate schema for.
-  fn permission_sets(&self) -> impl Iterator<Item = &PermissionSet>;
+  fn permission_sets(&'a self) -> Ps;
 
   /// Permissions to generate schema for.
-  fn permissions(&self) -> impl Iterator<Item = &Permission>;
+  fn permissions(&'a self) -> P;
 
   /// A utility function to generate a schema for a permission identifier
   fn perm_id_schema(name: Option<&str>, id: &str, description: Option<&str>) -> Schema {
@@ -60,7 +68,7 @@ pub trait PermissionSchemaGenerator {
   }
 
   /// Generate schemas for all possible permissions.
-  fn gen_possible_permission_schemas(&self, name: Option<&str>) -> Vec<Schema> {
+  fn gen_possible_permission_schemas(&'a self, name: Option<&str>) -> Vec<Schema> {
     let mut permission_schemas = Vec::new();
 
     // schema for default set
@@ -85,7 +93,13 @@ pub trait PermissionSchemaGenerator {
   }
 }
 
-impl PermissionSchemaGenerator for Manifest {
+impl<'a>
+  PermissionSchemaGenerator<
+    'a,
+    Values<'a, std::string::String, PermissionSet>,
+    Values<'a, std::string::String, Permission>,
+  > for Manifest
+{
   fn has_default_permission_set(&self) -> bool {
     self.default_permission.is_some()
   }
@@ -97,16 +111,18 @@ impl PermissionSchemaGenerator for Manifest {
       .map(|d| d.description.as_str())
   }
 
-  fn permission_sets(&self) -> impl Iterator<Item = &PermissionSet> {
+  fn permission_sets(&'a self) -> Values<'a, std::string::String, PermissionSet> {
     self.permission_sets.values()
   }
 
-  fn permissions(&self) -> impl Iterator<Item = &Permission> {
+  fn permissions(&'a self) -> Values<'a, std::string::String, Permission> {
     self.permissions.values()
   }
 }
 
-impl PermissionSchemaGenerator for PermissionFile {
+impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permission>>
+  for PermissionFile
+{
   fn has_default_permission_set(&self) -> bool {
     self.default.is_some()
   }
@@ -115,11 +131,11 @@ impl PermissionSchemaGenerator for PermissionFile {
     self.default.as_ref().and_then(|d| d.description.as_deref())
   }
 
-  fn permission_sets(&self) -> impl Iterator<Item = &PermissionSet> {
+  fn permission_sets(&'a self) -> Iter<'a, PermissionSet> {
     self.set.iter()
   }
 
-  fn permissions(&self) -> impl Iterator<Item = &Permission> {
+  fn permissions(&'a self) -> Iter<'a, Permission> {
     self.permission.iter()
   }
 }

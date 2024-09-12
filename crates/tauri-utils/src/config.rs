@@ -404,7 +404,7 @@ pub struct RpmConfig {
   /// in order for the package to be installed.
   pub conflicts: Option<Vec<String>>,
   /// The list of RPM dependencies your application supersedes - if this package is installed,
-  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  /// packages listed as "obsoletes" will be automatically removed (if they are present).
   pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   #[serde(default = "default_release")]

@@ -673,8 +673,13 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set("ProductName", product_name);
     }
 
-    if let Some(short_description) = &config.bundle.short_description {
-      res.set("FileDescription", short_description);
+    let file_description = config
+      .product_name
+      .or_else(|| manifest.package.as_ref().map(|p| p.name.clone()))
+      .or_else(|| std::env::var("CARGO_PKG_NAME").ok());
+
+    if let Some(file_description) = file_description {
+      res.set("FileDescription", &file_description);
     }
 
     if let Some(copyright) = &config.bundle.copyright {

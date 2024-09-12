@@ -282,14 +282,13 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
   App::from_raw(tauri_dir().to_path_buf(), raw)
     .unwrap()
     .with_target_dir_resolver(move |target, profile| {
-      let bin_path = app_settings
-        .app_binary_path(&InterfaceOptions {
+      app_settings
+        .out_dir(&InterfaceOptions {
           debug: matches!(profile, Profile::Debug),
           target: Some(target.into()),
           ..Default::default()
         })
-        .expect("failed to resolve target directory");
-      bin_path.parent().unwrap().to_path_buf()
+        .expect("failed to resolve target directory")
     })
 }
 

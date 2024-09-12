@@ -215,14 +215,11 @@ pub fn command(options: Options) -> Result<()> {
       target_env,
     )?;
 
-    let bin_path = interface
-      .app_settings()
-      .app_binary_path(&InterfaceOptions {
-        debug: matches!(profile, Profile::Debug),
-        target: Some(rust_triple.into()),
-        ..Default::default()
-      })?;
-    let out_dir = bin_path.parent().unwrap();
+    let out_dir = interface.app_settings().out_dir(&InterfaceOptions {
+      debug: matches!(profile, Profile::Debug),
+      target: Some(rust_triple.into()),
+      ..Default::default()
+    })?;
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {

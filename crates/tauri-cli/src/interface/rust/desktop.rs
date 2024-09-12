@@ -8,7 +8,9 @@ use crate::CommandExt;
 use anyhow::Context;
 use shared_child::SharedChild;
 use std::{
+  fs,
   io::{BufReader, ErrorKind, Write},
+  path::PathBuf,
   process::{Command, ExitStatus, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -64,6 +66,7 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
   app_settings: &RustAppSettings,
+  main_binary_name: Option<String>,
   on_exit: F,
 ) -> crate::Result<impl DevProcess> {
   let bin_path = app_settings.app_binary_path(&options)?;
@@ -79,6 +82,9 @@ pub fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     config_features,
     move |status, reason| {
       if status == Some(0) {
+        let main_binary_name = main_binary_name.as_deref();
+        let bin_path = rename_app(bin_path, main_binary_name).expect("failed to rename app");
+
         let mut app = Command::new(bin_path);
         app.stdout(os_pipe::dup_stdout().unwrap());
         app.stderr(os_pipe::dup_stderr().unwrap());
@@ -119,18 +125,19 @@ pub fn build(
   app_settings: &RustAppSettings,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
-) -> crate::Result<()> {
+  main_binary_name: Option<&str>,
+) -> crate::Result<PathBuf> {
+  let out_dir = app_settings.out_dir(&options)?;
   let bin_path = app_settings.app_binary_path(&options)?;
-  let out_dir = bin_path.parent().unwrap();
-
-  let bin_name = bin_path.file_stem().unwrap();
 
   if !std::env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "false") {
     std::env::set_var("STATIC_VCRUNTIME", "true");
   }
 
   if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(out_dir).with_context(|| "failed to create project out directory")?;
+    std::fs::create_dir_all(&out_dir).with_context(|| "failed to create project out directory")?;
+
+    let bin_name = bin_path.file_stem().unwrap();
 
     let mut lipo_cmd = Command::new("lipo");
     lipo_cmd
@@ -162,7 +169,7 @@ pub fn build(
       .with_context(|| "failed to build app")?;
   }
 
-  Ok(())
+  rename_app(bin_path, main_binary_name)
 }
 
 fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
@@ -361,6 +368,25 @@ fn validate_target(
     }
   }
   Ok(())
+}
+
+fn rename_app(bin_path: PathBuf, main_binary_name: Option<&str>) -> crate::Result<PathBuf> {
+  if let Some(main_binary_name) = main_binary_name {
+    let new_path = bin_path
+      .with_file_name(main_binary_name)
+      .with_extension(bin_path.extension().unwrap_or_default());
+
+    fs::rename(&bin_path, &new_path).with_context(|| {
+      format!(
+        "failed to rename `{}` to `{}`",
+        tauri_utils::display_path(bin_path),
+        tauri_utils::display_path(&new_path),
+      )
+    })?;
+    Ok(new_path)
+  } else {
+    Ok(bin_path)
+  }
 }
 
 // taken from https://github.com/rust-lang/cargo/blob/78b10d4e611ab0721fc3aeaf0edd5dd8f4fdc372/src/cargo/core/shell.rs#L514

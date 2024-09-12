@@ -22,6 +22,13 @@
       ],
       "pattern": "^[^/\\:*?\"<>|]+$"
     },
+    "mainBinaryName": {
+      "description": "App main binary filename. Defaults to the name of your cargo crate.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "version": {
       "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.\n\n By default version 1.0 is used on Android.",
       "type": [

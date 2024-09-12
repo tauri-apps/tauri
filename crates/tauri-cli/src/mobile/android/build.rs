@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   ConfigValue, Result,
 };
@@ -191,8 +191,7 @@ fn run_build(
   };
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&interface_options)?;
-  let out_dir = bin_path.parent().unwrap();
+  let out_dir = app_settings.out_dir(&interface_options)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   let cli_options = CliOptions {

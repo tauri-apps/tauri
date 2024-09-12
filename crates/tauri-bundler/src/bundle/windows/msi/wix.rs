@@ -304,11 +304,7 @@ fn run_candle(
     }
   };
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
+  let main_binary = settings.main_binary()?;
 
   let mut args = vec![
     "-arch".to_string(),
@@ -403,13 +399,6 @@ pub fn build_wix_app_installer(
 
   // target only supports x64.
   log::info!("Target: {}", arch);
-
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-  let app_exe_source = settings.binary_path(main_binary);
 
   let output_path = settings.project_out_directory().join("wix").join(arch);
 
@@ -540,9 +529,6 @@ pub fn build_wix_app_installer(
   let shortcut_guid = generate_package_guid(settings).to_string();
   data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
-  let app_exe_name = settings.main_binary_name().to_string();
-  data.insert("app_exe_name", to_json(app_exe_name));
-
   let binaries = generate_binaries_data(settings)?;
 
   let binaries_json = to_json(binaries);
@@ -565,7 +551,12 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
-  data.insert("app_exe_source", to_json(app_exe_source));
+  let main_binary_name = settings.main_binary_name()?;
+  data.insert("main_binary_name", to_json(main_binary_name));
+
+  let main_binary = settings.main_binary()?;
+  let main_binary_path = settings.binary_path(main_binary);
+  data.insert("main_binary_path", to_json(main_binary_path));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;

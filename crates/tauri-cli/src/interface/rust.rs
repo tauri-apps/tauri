@@ -115,6 +115,7 @@ pub struct Rust {
   app_settings: Arc<RustAppSettings>,
   config_features: Vec<String>,
   available_targets: Option<Vec<RustupTarget>>,
+  main_binary_name: Option<String>,
 }
 
 impl Interface for Rust {
@@ -160,6 +161,7 @@ impl Interface for Rust {
     Ok(Self {
       app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
+      main_binary_name: config.main_binary_name.clone(),
       available_targets: None,
     })
   }
@@ -168,14 +170,14 @@ impl Interface for Rust {
     self.app_settings.clone()
   }
 
-  fn build(&mut self, options: Options) -> crate::Result<()> {
+  fn build(&mut self, options: Options) -> crate::Result<PathBuf> {
     desktop::build(
       options,
       &self.app_settings,
       &mut self.available_targets,
       self.config_features.clone(),
-    )?;
-    Ok(())
+      self.main_binary_name.as_deref(),
+    )
   }
 
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
@@ -498,6 +500,7 @@ impl Rust {
       &mut self.available_targets,
       self.config_features.clone(),
       &self.app_settings,
+      self.main_binary_name.clone(),
       on_exit,
     )
     .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
@@ -665,7 +668,6 @@ struct WorkspacePackageSettings {
 #[derive(Clone, Debug, Deserialize)]
 struct BinarySettings {
   name: String,
-  path: Option<String>,
 }
 
 /// The package settings.
@@ -865,32 +867,30 @@ impl AppSettings for RustAppSettings {
     let bin_name = binaries
       .iter()
       .find(|x| x.main())
-      .expect("failed to find main binary")
+      .context("failed to find main binary")?
       .name();
 
     let out_dir = self
       .out_dir(options)
-      .with_context(|| "failed to get project out directory")?;
+      .context("failed to get project out directory")?;
 
-    let binary_extension: String = if self.target_triple.contains("windows") {
+    let ext = if self.target_triple.contains("windows") {
       "exe"
     } else {
       ""
-    }
-    .into();
+    };
 
-    Ok(out_dir.join(bin_name).with_extension(binary_extension))
+    Ok(out_dir.join(bin_name).with_extension(ext))
   }
 
   fn get_binaries(&self, target: &str) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
 
-    let binary_extension: String = if target.contains("windows") {
+    let ext = if target.contains("windows") {
       ".exe"
     } else {
       ""
-    }
-    .into();
+    };
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -899,10 +899,9 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        let name = format!("{}{}", bin.name, binary_extension);
-        let is_main =
-          bin.name == self.cargo_package_settings.name || bin.name.as_str() == default_run;
-        binaries.push(BundleBinary::with_path(name, is_main, bin.path.clone()))
+        let name = format!("{}{}", bin.name, ext);
+        let is_main = bin.name == self.cargo_package_settings.name || bin.name == default_run;
+        binaries.push(BundleBinary::new(name, is_main))
       }
     }
 
@@ -912,12 +911,9 @@ impl AppSettings for RustAppSettings {
       for entry in fs_bins {
         let path = entry?.path();
         if let Some(name) = path.file_stem() {
-          let bin_exists = binaries.iter().any(|bin| {
-            bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
-          });
-          if !bin_exists {
+          if !binaries.iter().any(|bin| bin.name() == name) {
             binaries.push(BundleBinary::new(
-              format!("{}{}", name.to_string_lossy(), &binary_extension),
+              format!("{}{}", name.to_string_lossy(), ext),
               false,
             ))
           }
@@ -927,16 +923,13 @@ impl AppSettings for RustAppSettings {
 
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
       if !binaries.iter_mut().any(|bin| bin.name() == default_run) {
-        binaries.push(BundleBinary::new(
-          format!("{}{}", default_run, binary_extension),
-          true,
-        ));
+        binaries.push(BundleBinary::new(format!("{}{}", default_run, ext), true));
       }
     }
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        format!("{}{}", self.cargo_package_settings.name, &binary_extension),
+        format!("{}{}", self.cargo_package_settings.name, ext),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),

@@ -863,6 +863,32 @@ fn write_installer_in_temp(
   Ok((temp.to_path_buf(), Some(temp)))
 }
 
+#[cfg(windows)]
+fn escape_msi_property_arg(arg: impl AsRef<OsStr>) -> String {
+  let mut arg = arg.as_ref().to_string_lossy().to_string();
+
+  // Otherwise this argument will get lost in ShellExecute
+  if arg.is_empty() {
+    return "\"\"\"\"".to_string();
+  } else if !arg.contains(' ') && !arg.contains('"') {
+    return arg;
+  }
+
+  if arg.contains('"') {
+    arg = arg.replace('"', r#""""""#)
+  }
+
+  if arg.starts_with('-') {
+    if let Some((a1, a2)) = arg.split_once('=') {
+      format!("{a1}=\"\"{a2}\"\"")
+    } else {
+      format!("\"\"{arg}\"\"")
+    }
+  } else {
+    format!("\"\"{arg}\"\"")
+  }
+}
+
 // Windows
 //
 /// ### Expected one of:
@@ -921,7 +947,7 @@ fn copy_files_and_run(
     return Err(Error::InvalidUpdaterFormat);
   };
 
-  let system_root = std::env::var("SYSTEMROOT");
+  let msi_args;
 
   let installer_args: Vec<&OsStr> = match &updater_type {
     WindowsUpdaterType::Nsis { .. } => config
@@ -986,66 +1012,13 @@ fn copy_files_and_run(
           }
         }
       }
-
-      let powershell_path = system_root.as_ref().map_or_else(
-        |_| "powershell.exe".to_string(),
-        |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
-      );
-
-      // we need to wrap the current exe path in quotes for Start-Process
-      let mut current_executable = std::ffi::OsString::new();
-      current_executable.push("\"");
-      current_executable.push(dunce::simplified(&current_exe()?));
-      current_executable.push("\"");
-
-      let mut msi_path = std::ffi::OsString::new();
-      msi_path.push("\"\"\"");
-      msi_path.push(&path);
-      msi_path.push("\"\"\"");
-
-      let msi_installer_args = [
-        config.tauri.updater.windows.install_mode.msiexec_args(),
-        config
-          .tauri
-          .updater
-          .windows
-          .installer_args
-          .iter()
-          .map(AsRef::as_ref)
-          .collect::<Vec<_>>()
-          .as_slice(),
-      ]
-      .concat();
-
-      // run the installer and relaunch the application
-      let mut powershell_cmd = Command::new(powershell_path);
-
-      powershell_cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args([
-          "Start-Process",
-          "-Wait",
-          "-FilePath",
-          "$Env:SYSTEMROOT\\System32\\msiexec.exe",
-          "-ArgumentList",
-        ])
-        .arg("/i,")
-        .arg(&msi_path)
-        .arg(format!(
-          ", {}, /promptrestart;",
-          msi_installer_args.join(", ")
-        ))
-        .arg("Start-Process")
-        .arg(current_executable);
-
-      if !env.args.is_empty() {
-        powershell_cmd.arg("-ArgumentList").arg(env.args.join(", "));
-      }
-
-      let powershell_install_res = powershell_cmd.spawn();
-      if powershell_install_res.is_ok() {
-        exit(0);
-      }
+      let escaped_args = env
+        .args
+        .iter()
+        .map(escape_msi_property_arg)
+        .collect::<Vec<_>>()
+        .join(" ");
+      msi_args = std::ffi::OsString::from(format!("LAUNCHAPPARGS=\"{escaped_args}\""));
 
       [OsStr::new("/i"), quoted_path.as_os_str()]
         .into_iter()
@@ -1060,6 +1033,17 @@ fn copy_files_and_run(
             .map(OsStr::new),
         )
         .chain(once(OsStr::new("/promptrestart")))
+        .chain(
+          config
+            .tauri
+            .updater
+            .windows
+            .installer_args
+            .iter()
+            .map(OsStr::new),
+        )
+        .chain(once(OsStr::new("AUTOLAUNCHAPP=True")))
+        .chain(once(msi_args.as_os_str()))
         .collect()
     }
   };
@@ -1915,5 +1899,65 @@ mod test {
     let bin_file = tmp_dir_path.join("with").join("long").join("path.json");
 
     assert!(bin_file.exists());
+  }
+
+  #[test]
+  #[cfg(windows)]
+  fn it_wraps_correctly() {
+    use super::PathExt;
+    use std::path::PathBuf;
+
+    assert_eq!(
+      PathBuf::from("C:\\Users\\Some User\\AppData\\tauri-example.exe").wrap_in_quotes(),
+      PathBuf::from("\"C:\\Users\\Some User\\AppData\\tauri-example.exe\"")
+    )
+  }
+
+  #[test]
+  #[cfg(windows)]
+  fn it_escapes_correctly() {
+    use super::escape_msi_property_arg;
+
+    // Explanation for quotes:
+    // The output of escape_msi_property_args() will be used in `LAUNCHAPPARGS=\"{HERE}\"`. This is the first quote level.
+    // To escape a quotation mark we use a second quotation mark, so "" is interpreted as " later.
+    // This means that the escaped strings can't ever have a single quotation mark!
+    // Now there are 3 major things to look out for to not break the msiexec call:
+    //   1) Wrap spaces in quotation marks, otherwise it will be interpreted as the end of the msiexec argument.
+    //   2) Escape escaping quotation marks, otherwise they will either end the msiexec argument or be ignored.
+    //   3) Escape emtpy args in quotation marks, otherwise the argument will get lost.
+    let cases = [
+      "something",
+      "--flag",
+      "--empty=",
+      "--arg=value",
+      "some space",                     // This simulates `./my-app "some string"`.
+      "--arg value", // -> This simulates `./my-app "--arg value"`. Same as above but it triggers the startsWith(`-`) logic.
+      "--arg=unwrapped space", // `./my-app --arg="unwrapped space"`
+      "--arg=\"wrapped\"", // `./my-app --args=""wrapped""`
+      "--arg=\"wrapped space\"", // `./my-app --args=""wrapped space""`
+      "--arg=midword\"wrapped space\"", // `./my-app --args=midword""wrapped""`
+      "",            // `./my-app '""'`
+    ];
+    let cases_escaped = [
+      "something",
+      "--flag",
+      "--empty=",
+      "--arg=value",
+      "\"\"some space\"\"",
+      "\"\"--arg value\"\"",
+      "--arg=\"\"unwrapped space\"\"",
+      r#"--arg=""""""wrapped"""""""#,
+      r#"--arg=""""""wrapped space"""""""#,
+      r#"--arg=""midword""""wrapped space"""""""#,
+      "\"\"\"\"",
+    ];
+
+    // Just to be sure we didn't mess that up
+    assert_eq!(cases.len(), cases_escaped.len());
+
+    for (orig, escaped) in cases.iter().zip(cases_escaped) {
+      assert_eq!(escape_msi_property_arg(orig), escaped);
+    }
   }
 }

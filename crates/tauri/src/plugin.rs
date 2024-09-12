@@ -923,7 +923,7 @@ impl std::fmt::Display for PermissionState {
       Self::Granted => write!(f, "granted"),
       Self::Denied => write!(f, "denied"),
       Self::PromptWithRationale => write!(f, "prompt-with-rationale"),
-      Self::Unknown => write!(f, "unknown"),
+      Self::Unknown => write!(f, "prompt"),
     }
   }
 }

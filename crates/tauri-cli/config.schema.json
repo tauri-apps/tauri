@@ -2675,7 +2675,7 @@
           }
         },
         "obsoletes": {
-          "description": "The list of RPM dependencies your application supersedes - if this package is installed,\n packages listed as “obsoletes” will be automatically removed (if they are present).",
+          "description": "The list of RPM dependencies your application supersedes - if this package is installed,\n packages listed as \"obsoletes\" will be automatically removed (if they are present).",
           "type": [
             "array",
             "null"

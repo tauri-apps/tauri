@@ -114,7 +114,7 @@ impl AppManifest {
 /// Saves capabilities in a file inside the project, mainly to be read by tauri-cli.
 fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
   let dir = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH);
-  fs::create_dir_all(&dir)?;
+  fs::create_dir_all(dir)?;
 
   let path = dir.join(CAPABILITIES_FILE_NAME);
   let json = serde_json::to_string(&capabilities)?;
@@ -126,7 +126,7 @@ fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<Path
 /// Saves ACL manifests in a file inside the project, mainly to be read by tauri-cli.
 fn save_acl_manifests(acl_manifests: &BTreeMap<String, Manifest>) -> Result<PathBuf> {
   let dir = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH);
-  fs::create_dir_all(&dir)?;
+  fs::create_dir_all(dir)?;
 
   let path = dir.join(ACL_MANIFESTS_FILE_NAME);
   let json = serde_json::to_string(&acl_manifests)?;

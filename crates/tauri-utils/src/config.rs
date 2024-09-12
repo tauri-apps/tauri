@@ -1058,7 +1058,7 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
-/// File association
+/// Deep link protocol configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

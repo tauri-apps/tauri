@@ -113,18 +113,26 @@ impl AppManifest {
 
 /// Saves capabilities in a file inside the project, mainly to be read by tauri-cli.
 fn save_capabilities(capabilities: &BTreeMap<String, Capability>) -> Result<PathBuf> {
-  let path = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH).join(CAPABILITIES_FILE_NAME);
+  let dir = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH);
+  fs::create_dir_all(&dir)?;
+
+  let path = dir.join(CAPABILITIES_FILE_NAME);
   let json = serde_json::to_string(&capabilities)?;
   write_if_changed(&path, json)?;
+
   Ok(path)
 }
 
 /// Saves ACL manifests in a file inside the project, mainly to be read by tauri-cli.
 fn save_acl_manifests(acl_manifests: &BTreeMap<String, Manifest>) -> Result<PathBuf> {
-  let acl_manifests_path = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH).join(ACL_MANIFESTS_FILE_NAME);
-  let acl_manifests_json = serde_json::to_string(&acl_manifests)?;
-  write_if_changed(&acl_manifests_path, acl_manifests_json)?;
-  Ok(acl_manifests_path)
+  let dir = Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH);
+  fs::create_dir_all(&dir)?;
+
+  let path = dir.join(ACL_MANIFESTS_FILE_NAME);
+  let json = serde_json::to_string(&acl_manifests)?;
+  write_if_changed(&path, json)?;
+
+  Ok(path)
 }
 
 /// Read plugin permissions and scope schema from env vars

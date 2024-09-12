@@ -678,9 +678,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       .or_else(|| manifest.package.as_ref().map(|p| p.name.clone()))
       .or_else(|| std::env::var("CARGO_PKG_NAME").ok());
 
-    if let Some(file_description) = file_description {
-      res.set("FileDescription", &file_description);
-    }
+    res.set("FileDescription", &file_description.unwrap());
 
     if let Some(copyright) = &config.bundle.copyright {
       res.set("LegalCopyright", copyright);

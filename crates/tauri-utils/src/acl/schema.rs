@@ -130,8 +130,7 @@ fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Mani
   if let Some(Schema::Object(identifier_schema)) = schema.definitions.get_mut("Identifier") {
     let permission_schemas = acl
       .iter()
-      .map(|(name, manifest)| manifest.gen_possible_permission_schemas(Some(&name)))
-      .flatten()
+      .flat_map(|(name, manifest)| manifest.gen_possible_permission_schemas(Some(name)))
       .collect::<Vec<_>>();
 
     let new_subschemas = Box::new(SubschemaValidation {
@@ -195,15 +194,12 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
 
     let mut all_of = vec![];
 
-    let schemas = acl
-      .iter()
-      .map(|(name, manifest)| {
-        manifest
-          .global_scope_schema()
-          .unwrap_or_else(|e| panic!("invalid JSON schema for plugin {name}: {e}"))
-          .map(|s| (s, manifest.gen_possible_permission_schemas(Some(&name))))
-      })
-      .flatten();
+    let schemas = acl.iter().filter_map(|(name, manifest)| {
+      manifest
+        .global_scope_schema()
+        .unwrap_or_else(|e| panic!("invalid JSON schema for plugin {name}: {e}"))
+        .map(|s| (s, manifest.gen_possible_permission_schemas(Some(name))))
+    });
 
     for ((scope_schema, defs), acl_perm_schema) in schemas {
       let mut perm_schema = SchemaObject::default();
@@ -280,8 +276,7 @@ fn extend_permission_file_schema(schema: &mut RootSchema, permissions: &[Permiss
   // collect possible permissions
   let permission_schemas = permissions
     .iter()
-    .map(|p| p.gen_possible_permission_schemas(None))
-    .flatten()
+    .flat_map(|p| p.gen_possible_permission_schemas(None))
     .collect();
 
   if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionSet") {

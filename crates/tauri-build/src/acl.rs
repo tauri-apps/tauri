@@ -324,10 +324,6 @@ fn validate_capabilities(
       let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);
       let permission_name = permission_id.get_base();
 
-      if key == "core" && permission_name == "default" {
-        continue;
-      }
-
       let permission_exists = acl_manifests
         .get(key)
         .map(|manifest| {
@@ -373,7 +369,7 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   let mut acl_manifests = read_plugins_manifests()?;
 
   let app_manifest = app_manifest_permissions(
-    &out_dir,
+    out_dir,
     attributes.app_manifest,
     &attributes.inlined_plugins,
   )?;
@@ -384,10 +380,7 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
     acl_manifests.insert(APP_ACL_KEY.into(), app_manifest);
   }
 
-  acl_manifests.extend(inline_plugins(
-    &out_dir,
-    attributes.inlined_plugins.clone(),
-  )?);
+  acl_manifests.extend(inline_plugins(out_dir, attributes.inlined_plugins.clone())?);
 
   let acl_manifests_path = save_acl_manifests(&acl_manifests)?;
   fs::copy(acl_manifests_path, out_dir.join(ACL_MANIFESTS_FILE_NAME))?;
@@ -405,7 +398,7 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   let capabilities_path = save_capabilities(&capabilities)?;
   fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
-  tauri_utils::plugin::save_global_api_scripts_paths(&out_dir);
+  tauri_utils::plugin::save_global_api_scripts_paths(out_dir);
 
   Ok(())
 }

@@ -46,7 +46,7 @@ pub struct PermissionFile {
 }
 
 /// Plugin manifest.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Manifest {
   /// Default permission.
   pub default_permission: Option<PermissionSet>,
@@ -98,11 +98,12 @@ impl Manifest {
 }
 
 #[cfg(feature = "schema")]
+type ScopeSchema = (Schema, schemars::Map<String, Schema>);
+
+#[cfg(feature = "schema")]
 impl Manifest {
   /// Return scope schema and extra schema definitions for this plugin manifest.
-  pub fn global_scope_schema(
-    &self,
-  ) -> Result<Option<(Schema, schemars::Map<String, Schema>)>, super::Error> {
+  pub fn global_scope_schema(&self) -> Result<Option<ScopeSchema>, super::Error> {
     self
       .global_scope_schema
       .as_ref()

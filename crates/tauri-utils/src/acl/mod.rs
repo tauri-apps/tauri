@@ -195,7 +195,7 @@ impl Scopes {
 /// It can enable commands to be accessible in the frontend of the application.
 ///
 /// If the scope is defined it can be used to fine grain control the access of individual or multiple commands.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Permission {
   /// The version of the permission.
@@ -222,6 +222,17 @@ pub struct Permission {
   /// Target platforms this permission applies. By default all platforms are affected by this permission.
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+}
+
+impl Permission {
+  /// Whether this permission should be active based on the platform target or not.
+  pub fn is_active(&self, target: &Target) -> bool {
+    self
+      .platforms
+      .as_ref()
+      .map(|platforms| platforms.contains(target))
+      .unwrap_or(true)
+  }
 }
 
 /// A set of direct permissions grouped together under a new name.

@@ -30,6 +30,8 @@ use crate::platform::Target;
 
 pub use self::{identifier::*, value::*};
 
+/// Known foldername of the permission schema files
+pub const PERMISSION_SCHEMAS_FOLDER_NAME: &str = "schemas";
 /// Known filename of the permission schema JSON file
 pub const PERMISSION_SCHEMA_FILE_NAME: &str = "schema.json";
 /// Known ACL key for the app permissions.

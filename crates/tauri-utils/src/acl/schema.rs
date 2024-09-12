@@ -12,11 +12,10 @@ use std::{
 
 use schemars::schema::*;
 
-use super::Error;
+use super::{Error, PERMISSION_SCHEMAS_FOLDER_NAME};
 use crate::{platform::Target, write_if_changed};
 
 use super::{
-  build::PERMISSION_SCHEMAS_FOLDER_NAME,
   capability::CapabilityFile,
   manifest::{Manifest, PermissionFile},
   Permission, PermissionSet, PERMISSION_SCHEMA_FILE_NAME,

@@ -174,6 +174,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   )?;
   inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
+  let mut plist = plist::Dictionary::new();
+  let version = interface.app_settings().get_package_settings().version;
+  plist.insert("CFBundleShortVersionString".into(), version.clone().into());
+  plist.insert("CFBundleVersion".into(), version.into());
+
   let info_plist_path = config
     .project_dir()
     .join(config.scheme())
@@ -182,6 +187,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     info_plist_path.clone().into(),
     tauri_path.join("Info.plist").into(),
     tauri_path.join("Info.ios.plist").into(),
+    plist::Value::Dictionary(plist).into(),
   ])?;
   merged_info_plist.to_file_xml(&info_plist_path)?;
 

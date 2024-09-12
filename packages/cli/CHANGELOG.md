@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-rc.13]
+
+### Bug Fixes
+
+- [`a5848af65`](https://www.github.com/tauri-apps/tauri/commit/a5848af65b10d89686314cf737b7fd9d91f99dd8) ([#10944](https://www.github.com/tauri-apps/tauri/pull/10944) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Synchronize app version (`tauri.conf.json > version` or `Cargo.toml > package > version`) with the `CFBundleVersion` and `CFBundleShortVersionString` Info.plist values.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.12`
+
+## \[2.0.0-rc.12]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.11`
+
 ## \[2.0.0-rc.11]
 
 ### Enhancements

@@ -79,6 +79,7 @@ pub use tauri_macros::include_image;
 pub use tauri_macros::mobile_entry_point;
 pub use tauri_macros::{command, generate_handler};
 
+use tauri_utils::assets::AssetsIter;
 pub use url::Url;
 
 pub(crate) mod app;
@@ -351,7 +352,7 @@ pub trait Assets<R: Runtime>: Send + Sync + 'static {
   fn get(&self, key: &AssetKey) -> Option<Cow<'_, [u8]>>;
 
   /// Iterator for the assets.
-  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_>;
+  fn iter(&self) -> Box<tauri_utils::assets::AssetsIter<'_>>;
 
   /// Gets the hashes for the CSP tag of the HTML on the given path.
   fn csp_hashes(&self, html_path: &AssetKey) -> Box<dyn Iterator<Item = CspHash<'_>> + '_>;
@@ -362,7 +363,7 @@ impl<R: Runtime> Assets<R> for EmbeddedAssets {
     EmbeddedAssets::get(self, key)
   }
 
-  fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+  fn iter(&self) -> Box<AssetsIter<'_>> {
     EmbeddedAssets::iter(self)
   }
 

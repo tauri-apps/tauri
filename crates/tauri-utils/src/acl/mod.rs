@@ -261,7 +261,7 @@ impl FromStr for RemoteUrlPattern {
     {
       init.pathname.replace("*".to_string());
     }
-    let pattern = urlpattern::UrlPattern::parse(init)?;
+    let pattern = urlpattern::UrlPattern::parse(init, Default::default())?;
     Ok(Self(Arc::new(pattern), s.to_string()))
   }
 }

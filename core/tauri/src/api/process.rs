@@ -82,10 +82,49 @@ pub fn restart(env: &Env) {
   use std::process::{exit, Command};
 
   if let Ok(path) = current_binary(env) {
-    Command::new(path)
-      .args(&env.args)
-      .spawn()
-      .expect("application failed to start");
+    // on macOS on updates the binary name might have changed
+    // so we'll read the Contents/MacOS folder instead to infer the actual binary path
+    #[cfg(target_os = "macos")]
+    if let Some(parent) = path.parent() {
+      if parent.components().last()
+        == Some(std::path::Component::Normal(std::ffi::OsStr::new("MacOS")))
+      {
+        let macos_binaries = std::fs::read_dir(parent)
+          .map(|dir| {
+            dir
+              .into_iter()
+              .flatten()
+              .map(|entry| entry.path())
+              .collect::<Vec<_>>()
+          })
+          .unwrap_or_default();
+        match macos_binaries.len() {
+          0 => {
+            // should never happen, but let's not panic here since it's a crucial feature for updates
+            exit(1);
+          }
+          1 => {
+            // we have one binary (no sidecar) so we should use it to restart
+            if let Err(e) = Command::new(macos_binaries.first().unwrap())
+              .args(&env.args)
+              .spawn()
+            {
+              eprintln!("failed to restart app: {e}");
+            }
+
+            exit(0);
+          }
+          _ => {
+            // in case of sidecars we don't have enough information here to decide what's the right binary name
+            // so let's hope the binary name didn't change by running the Command::spawn below
+          }
+        }
+      }
+    }
+
+    if let Err(e) = Command::new(path).args(&env.args).spawn() {
+      eprintln!("failed to restart app: {e}");
+    }
   }
 
   exit(0);

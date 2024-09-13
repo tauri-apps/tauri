@@ -549,7 +549,9 @@ pub fn build_wix_app_installer(
   data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
   let app_exe_name = settings.main_binary_name().to_string();
-  data.insert("app_exe_name", to_json(app_exe_name));
+  // Note: `app_exe_name` kept around to not break custom wix templates depending on it
+  data.insert("app_exe_name", to_json(&app_exe_name));
+  data.insert("main_binary_name", to_json(app_exe_name));
 
   let binaries = generate_binaries_data(settings)?;
 

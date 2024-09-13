@@ -295,32 +295,24 @@
       "type": "string",
       "oneOf": [
         {
-          "description": "allow-ping -> Enables the ping command without any pre-configured scope.",
+          "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
-          "enum": [
-            "allow-ping"
-          ]
+          "const": "allow-ping"
         },
         {
-          "description": "deny-ping -> Denies the ping command without any pre-configured scope.",
+          "description": "Denies the ping command without any pre-configured scope.",
           "type": "string",
-          "enum": [
-            "deny-ping"
-          ]
+          "const": "deny-ping"
         },
         {
-          "description": "global-scope -> Sets a global scope.",
+          "description": "Sets a global scope.",
           "type": "string",
-          "enum": [
-            "global-scope"
-          ]
+          "const": "global-scope"
         },
         {
-          "description": "allow-ping-scoped -> Enables the ping command with a test scope.",
+          "description": "Enables the ping command with a test scope.",
           "type": "string",
-          "enum": [
-            "allow-ping-scoped"
-          ]
+          "const": "allow-ping-scoped"
         }
       ]
     }

@@ -212,7 +212,7 @@ impl schemars::JsonSchema for BundleTarget {
   fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
-        enum_values: Some(vec!["all".into()]),
+        const_value: Some("all".into()),
         metadata: Some(Box::new(schemars::schema::Metadata {
           description: Some("Bundle all targets.".to_owned()),
           ..Default::default()

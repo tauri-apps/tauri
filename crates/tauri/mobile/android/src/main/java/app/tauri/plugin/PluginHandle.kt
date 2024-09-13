@@ -143,9 +143,13 @@ class PluginHandle(private val manager: PluginManager, val name: String, val ins
         val command = method.getAnnotation(Command::class.java) ?: continue
         val methodMeta = CommandData(method, command)
         commands[method.name] = methodMeta
-      } else if (method.isAnnotationPresent(ActivityCallback::class.java)) {
+      }
+
+      if (method.isAnnotationPresent(ActivityCallback::class.java)) {
         startActivityCallbackMethods[method.name] = method
-      } else if (method.isAnnotationPresent(PermissionCallback::class.java)) {
+      }
+
+      if (method.isAnnotationPresent(PermissionCallback::class.java)) {
         permissionCallbackMethods[method.name] = method
       }
     }

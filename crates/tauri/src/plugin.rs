@@ -923,7 +923,7 @@ impl std::fmt::Display for PermissionState {
       Self::Granted => write!(f, "granted"),
       Self::Denied => write!(f, "denied"),
       Self::PromptWithRationale => write!(f, "prompt-with-rationale"),
-      Self::Unknown => write!(f, "prompt"),
+      Self::Prompt => write!(f, "prompt"),
     }
   }
 }
@@ -947,7 +947,7 @@ impl<'de> Deserialize<'de> for PermissionState {
       "granted" => Ok(Self::Granted),
       "denied" => Ok(Self::Denied),
       "prompt-with-rationale" => Ok(Self::PromptWithRationale),
-      "prompt" => Ok(Self::Unknown),
+      "prompt" => Ok(Self::Prompt),
       _ => Err(DeError::custom(format!("unknown permission state '{s}'"))),
     }
   }

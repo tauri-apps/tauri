@@ -1,5 +1,5 @@
 ---
-"tauri": patch:bug
+"tauri": patch:breaking
 ---
 
-Fix display implementation of `PermissionState::Unknown` not generating the `prompt` string.
+Rename `PermissionState::Unknown` to `PermissionState::Prompt`.

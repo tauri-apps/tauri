@@ -546,8 +546,9 @@ pub fn build_wix_app_installer(
   let shortcut_guid = generate_package_guid(settings).to_string();
   data.insert("shortcut_guid", to_json(shortcut_guid.as_str()));
 
-  let app_exe_name = settings.main_binary_name().to_string();
-  data.insert("app_exe_name", to_json(app_exe_name));
+  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom temples
+  let main_binary_name = settings.main_binary_name().to_string();
+  data.insert("main_binary_name", to_json(&main_binary_name));
 
   let binaries = generate_binaries_data(settings)?;
 

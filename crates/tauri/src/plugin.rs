@@ -910,11 +910,11 @@ pub enum PermissionState {
   Granted,
   /// Permission access has been denied.
   Denied,
+  /// Permission must be requested.
+  #[default]
+  Prompt,
   /// Permission must be requested, but you must explain to the user why your app needs that permission. **Android only**.
   PromptWithRationale,
-  /// Unknown state. Must request permission.
-  #[default]
-  Unknown,
 }
 
 impl std::fmt::Display for PermissionState {
@@ -922,8 +922,8 @@ impl std::fmt::Display for PermissionState {
     match self {
       Self::Granted => write!(f, "granted"),
       Self::Denied => write!(f, "denied"),
-      Self::PromptWithRationale => write!(f, "prompt-with-rationale"),
       Self::Prompt => write!(f, "prompt"),
+      Self::PromptWithRationale => write!(f, "prompt-with-rationale"),
     }
   }
 }
@@ -946,8 +946,8 @@ impl<'de> Deserialize<'de> for PermissionState {
     match s.to_lowercase().as_str() {
       "granted" => Ok(Self::Granted),
       "denied" => Ok(Self::Denied),
-      "prompt-with-rationale" => Ok(Self::PromptWithRationale),
       "prompt" => Ok(Self::Prompt),
+      "prompt-with-rationale" => Ok(Self::PromptWithRationale),
       _ => Err(DeError::custom(format!("unknown permission state '{s}'"))),
     }
   }

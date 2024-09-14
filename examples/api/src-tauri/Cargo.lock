@@ -4050,6 +4050,7 @@ dependencies = [
  "ignore",
  "indexmap 1.9.3",
  "infer",
+ "log",
  "minisign-verify",
  "nix",
  "notify-rust",

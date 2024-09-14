@@ -115,6 +115,7 @@ nix = { version = "0.26.0", default-features = false, features = [ "user", "sock
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
 plist = "1"
+log = "0.4"
 cocoa = "0.24" # wry still uses 0.24
 objc = "0.2" # Do not update without consensus
 

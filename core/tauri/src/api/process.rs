@@ -88,7 +88,7 @@ pub fn restart(env: &Env) {
     restart_macos_app(&path, env);
 
     if let Err(e) = Command::new(path).args(&env.args).spawn() {
-      eprintln!("failed to restart app: {e}");
+      log::error!("failed to restart app: {e}");
     }
   }
 
@@ -126,7 +126,7 @@ fn restart_macos_app(current_binary: &PathBuf, env: &Env) {
             .args(&env.args)
             .spawn()
           {
-            eprintln!("failed to restart app: {e}");
+            log::error!("failed to restart app: {e}");
           }
 
           exit(0);

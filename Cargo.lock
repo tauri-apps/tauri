@@ -4090,6 +4090,7 @@ dependencies = [
  "ignore",
  "indexmap",
  "infer",
+ "log",
  "minisign-verify",
  "mockito",
  "nix 0.26.4",

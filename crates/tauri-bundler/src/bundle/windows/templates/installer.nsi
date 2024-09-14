@@ -64,6 +64,8 @@ ${StrLoc}
 Var PassiveMode
 Var UpdateMode
 Var NoShortcutMode
+Var WixMode
+Var OldMainBinaryName
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -175,7 +177,7 @@ Function PageReinstall
   StrCpy $0 0
   wix_loop:
     EnumRegKey $1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" $0
-    StrCmp $1 "" wix_done ; Exit loop if there is no more keys to loop on
+    StrCmp $1 "" wix_loop_done ; Exit loop if there is no more keys to loop on
     IntOp $0 $0 + 1
     ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "DisplayName"
     ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "Publisher"
@@ -183,11 +185,11 @@ Function PageReinstall
     ReadRegStr $R0 HKLM "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1" "UninstallString"
     ${StrCase} $R1 $R0 "L"
     ${StrLoc} $R0 $R1 "msiexec" ">"
-    StrCmp $R0 0 0 wix_done
-    StrCpy $R7 "wix"
+    StrCmp $R0 0 0 wix_loop_done
+    StrCpy $WixMode 1
     StrCpy $R6 "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\$1"
     Goto compare_version
-  wix_done:
+  wix_loop_done:
 
   ; Check if there is an existing installation, if not, abort the reinstall page
   ReadRegStr $R0 SHCTX "${UNINSTKEY}" ""
@@ -198,7 +200,7 @@ Function PageReinstall
   ; and modify the messages presented to the user accordingly
   compare_version:
   StrCpy $R4 "$(older)"
-  ${If} $R7 == "wix"
+  ${If} $WixMode = 1
     ReadRegStr $R0 HKLM "$R6" "DisplayVersion"
   ${Else}
     ReadRegStr $R0 SHCTX "${UNINSTKEY}" "DisplayVersion"
@@ -213,14 +215,12 @@ Function PageReinstall
     StrCpy $R2 "$(addOrReinstall)"
     StrCpy $R3 "$(uninstallApp)"
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(chooseMaintenanceOption)"
-    StrCpy $R5 "2"
   ; Upgrading
   ${ElseIf} $R0 = 1
     StrCpy $R1 "$(olderOrUnknownVersionInstalled)"
     StrCpy $R2 "$(uninstallBeforeInstalling)"
     StrCpy $R3 "$(dontUninstall)"
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
-    StrCpy $R5 "1"
   ; Downgrading
   ${ElseIf} $R0 = -1
     StrCpy $R1 "$(newerVersionInstalled)"
@@ -231,7 +231,6 @@ Function PageReinstall
       StrCpy $R3 "$(dontUninstallDowngrade)"
     !endif
     !insertmacro MUI_HEADER_TEXT "$(alreadyInstalled)" "$(choowHowToInstall)"
-    StrCpy $R5 "1"
   ${Else}
     Abort
   ${EndIf}
@@ -242,38 +241,40 @@ Function PageReinstall
   ; of this function because we need to populate some variables
   ; related to current installed version if detected and whether
   ; we are downgrading or not.
-  Call SkipIfPassive
-
-  nsDialogs::Create 1018
-  Pop $R4
-  ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
-
-  ${NSD_CreateLabel} 0 0 100% 24u $R1
-  Pop $R1
-
-  ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
-  Pop $R2
-  ${NSD_OnClick} $R2 PageReinstallUpdateSelection
-
-  ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
-  Pop $R3
-  ; Disable this radio button if downgrading and downgrades are disabled
-  !if "${ALLOWDOWNGRADES}" == "false"
-    ${IfThen} $R0 = -1 ${|} EnableWindow $R3 0 ${|}
-  !endif
-  ${NSD_OnClick} $R3 PageReinstallUpdateSelection
-
-  ; Check the first radio button if this the first time
-  ; we enter this page or if the second button wasn't
-  ; selected the last time we were on this page
-  ${If} $ReinstallPageCheck <> 2
-    SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
+  ${If} $PassiveMode = 1
+    Call PageLeaveReinstall
   ${Else}
-    SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
-  ${EndIf}
+    nsDialogs::Create 1018
+    Pop $R4
+    ${IfThen} $(^RTL) = 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-  ${NSD_SetFocus} $R2
-  nsDialogs::Show
+    ${NSD_CreateLabel} 0 0 100% 24u $R1
+    Pop $R1
+
+    ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
+    Pop $R2
+    ${NSD_OnClick} $R2 PageReinstallUpdateSelection
+
+    ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
+    Pop $R3
+    ; Disable this radio button if downgrading and downgrades are disabled
+    !if "${ALLOWDOWNGRADES}" == "false"
+      ${IfThen} $R0 = -1 ${|} EnableWindow $R3 0 ${|}
+    !endif
+    ${NSD_OnClick} $R3 PageReinstallUpdateSelection
+
+    ; Check the first radio button if this the first time
+    ; we enter this page or if the second button wasn't
+    ; selected the last time we were on this page
+    ${If} $ReinstallPageCheck <> 2
+      SendMessage $R2 ${BM_SETCHECK} ${BST_CHECKED} 0
+    ${Else}
+      SendMessage $R3 ${BM_SETCHECK} ${BST_CHECKED} 0
+    ${EndIf}
+
+    ${NSD_SetFocus} $R2
+    nsDialogs::Show
+  ${EndIf}
 FunctionEnd
 Function PageReinstallUpdateSelection
   ${NSD_GetState} $R2 $R1
@@ -286,30 +287,54 @@ FunctionEnd
 Function PageLeaveReinstall
   ${NSD_GetState} $R2 $R1
 
-  ; $R5 holds whether we are reinstalling the same version or not
-  ; $R5 == "1" -> different versions
-  ; $R5 == "2" -> same version
-  ;
-  ; $R1 holds the radio buttons state. its meaning is dependent on the context
-  StrCmp $R5 "1" 0 +2 ; Existing install is not the same version?
-    StrCmp $R1 "1" reinst_uninstall reinst_done ; $R1 == "1", then user chose to uninstall existing version, otherwise skip uninstalling
-  StrCmp $R1 "1" reinst_done ; Same version? skip uninstalling
+  ; If migrating from Wix, always uninstall
+  ${If} $WixMode = 1
+    Goto reinst_uninstall
+  ${EndIf}
+
+  ; In update mode, always proceeds without uninstalling
+  ${If} $UpdateMode = 1
+    Goto reinst_done
+  ${EndIf}
+
+  ; $R0 holds whether same(0)/upgrading(1)/downgrading(-1) version
+  ; $R1 holds the radio buttons state:
+  ;   1 => first choice was selected
+  ;   0 => second choice was selected
+  ${If} $R0 = 0 ; Same version, proceed
+    ${If} $R1 = 1              ; User chose to add/reinstall
+      Goto reinst_done
+    ${Else}                    ; User chose to uninstall
+      Goto reinst_uninstall
+    ${EndIf}
+  ${ElseIf} $R0 = 1 ; Upgrading
+    ${If} $R1 = 1              ; User chose to uninstall
+      Goto reinst_uninstall
+    ${Else}
+      Goto reinst_done         ; User chose NOT to uninstall
+    ${EndIf}
+  ${ElseIf} $R0 = -1 ; Downgrading
+    ${If} $R1 = 1              ; User chose to uninstall
+      Goto reinst_uninstall
+    ${Else}
+      Goto reinst_done         ; User chose NOT to uninstall
+    ${EndIf}
+  ${EndIf}
 
   reinst_uninstall:
     HideWindow
     ClearErrors
 
-    ${If} $R7 == "wix"
+    ${If} $WixMode = 1
       ReadRegStr $R1 HKLM "$R6" "UninstallString"
       ExecWait '$R1' $0
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
-      ${If} $UpdateMode = 1
-        ExecWait '$R1 /UPDATE /P _?=$4' $0
-      ${Else}
-        ExecWait '$R1 /P _?=$4' $0
-      ${EndIf}
+      ${IfThen} $UpdateMode = 1 ${|} StrCpy $R1 "$R1 /UPDATE" ${|} ; append /UPDATE
+      ${IfThen} $PassiveMode = 1 ${|} StrCpy $R1 "$R1 /P" ${|} ; append /P
+      StrCpy $R1 "$R1 _?=$4" ; append uninstall directory
+      ExecWait '$R1' $0
     ${EndIf}
 
     BringToFront
@@ -318,18 +343,20 @@ Function PageLeaveReinstall
 
     ${If} $0 <> 0
     ${OrIf} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
-      ${If} $0 = 1 ; User aborted uninstaller?
-        StrCmp $R5 "2" 0 +2 ; Is the existing install the same version?
-          Quit ; ...yes, already installed, we are done
+      ; User cancelled wix uninstaller? return to select un/reinstall page
+      ${If} $WixMode = 1
+      ${AndIf} $0 = 1602
         Abort
       ${EndIf}
+
+      ; User cancelled NSIS uninstaller? return to select un/reinstall page
+      ${If} $0 = 1
+        Abort
+      ${EndIf}
+
+      ; Other erros? show generic error message and return to select un/reinstall page
       MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
       Abort
-    ${Else}
-      StrCpy $0 $R1 1
-      ${IfThen} $0 == '"' ${|} StrCpy $R1 $R1 -1 1 ${|} ; Strip quotes from UninstallString
-      Delete $R1
-      RMDir $INSTDIR
     ${EndIf}
   reinst_done:
 FunctionEnd
@@ -409,6 +436,7 @@ FunctionEnd
 Function un.ConfirmLeave
   SendMessage $DeleteAppDataCheckbox ${BM_GETCHECK} 0 0 $DeleteAppDataCheckboxState
 FunctionEnd
+!define MUI_PAGE_CUSTOMFUNCTION_PRE un.SkipIfPassive
 !insertmacro MUI_UNPAGE_CONFIRM
 
 ; 2. Uninstalling Page
@@ -637,10 +665,10 @@ Section Install
   !endif
 
   ; Remove old main binary if it doesn't match new main binary name
-  ReadRegStr $0 SHCTX "${UNINSTKEY}" "MainBinaryName"
-  ${If} $0 != ""
-  ${AndIf} $0 != "${MAINBINARYNAME}.exe"
-    Delete "$INSTDIR\$0"
+  ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
+  ${If} $OldMainBinaryName != ""
+  ${AndIf} $OldMainBinaryName != "${MAINBINARYNAME}.exe"
+    Delete "$INSTDIR\$OldMainBinaryName"
   ${EndIf}
 
   ; Save current MAINBINARYNAME for future updates
@@ -821,8 +849,9 @@ Section Uninstall
     !insertmacro NSIS_HOOK_POSTUNINSTALL
   !endif
 
-  ; Auto close if passive mode
+  ; Auto close if passive mode or updating
   ${If} $PassiveMode = 1
+  ${OrIf} $UpdateMode = 1
     SetAutoClose true
   ${EndIf}
 SectionEnd
@@ -840,20 +869,23 @@ FunctionEnd
 Function SkipIfPassive
   ${IfThen} $PassiveMode = 1  ${|} Abort ${|}
 FunctionEnd
+Function un.SkipIfPassive
+  ${IfThen} $PassiveMode = 1  ${|} Abort ${|}
+FunctionEnd
 
 Function CreateOrUpdateStartMenuShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
   StrCpy $R0 0
 
-  !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  !insertmacro IsShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\$OldMainBinaryName"
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$SMPROGRAMS\$AppStartMenuFolder\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
     StrCpy $R0 1
   ${EndIf}
 
-  !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  !insertmacro IsShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\$OldMainBinaryName"
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$SMPROGRAMS\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
@@ -865,9 +897,12 @@ Function CreateOrUpdateStartMenuShortcut
   ${EndIf}
 
   ; Skip creating shortcut if in update mode or no shortcut mode
-  ${If} $UpdateMode = 1
-  ${OrIf} $NoShortcutMode = 1
-    Return
+  ; but always create if migrating from wix
+  ${If} $WixMode = 0
+    ${If} $UpdateMode = 1
+    ${OrIf} $NoShortcutMode = 1
+      Return
+    ${EndIf}
   ${EndIf}
 
   !if "${STARTMENUFOLDER}" != ""
@@ -883,7 +918,7 @@ FunctionEnd
 Function CreateOrUpdateDesktopShortcut
   ; We used to use product name as MAINBINARYNAME
   ; migrate old shortcuts to target the new MAINBINARYNAME
-  !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${PRODUCTNAME}.exe"
+  !insertmacro IsShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\$OldMainBinaryName"
   Pop $0
   ${If} $0 = 1
     !insertmacro SetShortcutTarget "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"
@@ -891,9 +926,12 @@ Function CreateOrUpdateDesktopShortcut
   ${EndIf}
 
   ; Skip creating shortcut if in update mode or no shortcut mode
-  ${If} $UpdateMode = 1
-  ${OrIf} $NoShortcutMode = 1
-    Return
+  ; but always create if migrating from wix
+  ${If} $WixMode = 0
+    ${If} $UpdateMode = 1
+    ${OrIf} $NoShortcutMode = 1
+      Return
+    ${EndIf}
   ${EndIf}
 
   CreateShortcut "$DESKTOP\${PRODUCTNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe"

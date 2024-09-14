@@ -832,7 +832,7 @@ impl Settings {
       .binaries
       .iter()
       .find(|bin| bin.main)
-      .context("failed to find main binary")
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map_err(Into::into)
   }
 
@@ -842,7 +842,7 @@ impl Settings {
       .binaries
       .iter()
       .find(|bin| bin.main)
-      .context("failed to find main binary")
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map(|b| b.name.as_str())
       .map_err(Into::into)
   }

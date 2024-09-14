@@ -867,7 +867,7 @@ impl AppSettings for RustAppSettings {
     let bin_name = binaries
       .iter()
       .find(|x| x.main())
-      .context("failed to find main binary")?
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")?
       .name();
 
     let out_dir = self

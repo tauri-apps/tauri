@@ -212,7 +212,7 @@ impl schemars::JsonSchema for BundleTarget {
   fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
-        enum_values: Some(vec!["all".into()]),
+        const_value: Some("all".into()),
         metadata: Some(Box::new(schemars::schema::Metadata {
           description: Some("Bundle all targets.".to_owned()),
           ..Default::default()
@@ -1058,7 +1058,7 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
-/// File association
+/// Deep link protocol configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

@@ -518,6 +518,12 @@ pub fn build_wix_app_installer(
   .to_string();
 
   data.insert("upgrade_code", to_json(upgrade_code.as_str()));
+  let product_code = Uuid::new_v5(
+    &Uuid::NAMESPACE_DNS,
+    &settings.bundle_identifier().as_bytes(),
+  )
+  .to_string();
+  data.insert("product_code", to_json(product_code.as_str()));
   data.insert(
     "allow_downgrades",
     to_json(settings.windows().allow_downgrades),
@@ -551,6 +557,7 @@ pub fn build_wix_app_installer(
   let merge_modules = get_merge_modules(settings)?;
   data.insert("merge_modules", to_json(merge_modules));
 
+  // Note: `main_binary_name` is not used in our template but we keep it as it is potentially useful for custom temples
   let main_binary_name = settings.main_binary_name()?;
   data.insert("main_binary_name", to_json(main_binary_name));
 

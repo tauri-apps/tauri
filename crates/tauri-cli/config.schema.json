@@ -1755,9 +1755,7 @@
       "anyOf": [
         {
           "description": "Bundle all targets.",
-          "enum": [
-            "all"
-          ]
+          "const": "all"
         },
         {
           "description": "A list of bundle targets.",

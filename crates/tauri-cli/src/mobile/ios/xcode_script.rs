@@ -5,7 +5,7 @@
 use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   helpers::config::get as get_tauri_config,
-  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
   Result,
 };

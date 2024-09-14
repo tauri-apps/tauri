@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, reload as reload_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   ConfigValue, Result,
 };

@@ -639,7 +639,7 @@ Section Install
   ; Remove old main binary if it doesn't match new main binary name
   ReadRegStr $0 SHCTX "${UNINSTKEY}" "MainBinaryName"
   ${If} $0 != ""
-  ${AndIf} "${MAINBINARYNAME}.exe"
+  ${AndIf} $0 != "${MAINBINARYNAME}.exe"
     Delete "$INSTDIR\$0"
   ${EndIf}
 

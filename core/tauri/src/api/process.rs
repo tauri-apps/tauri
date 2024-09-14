@@ -82,11 +82,56 @@ pub fn restart(env: &Env) {
   use std::process::{exit, Command};
 
   if let Ok(path) = current_binary(env) {
-    Command::new(path)
-      .args(&env.args)
-      .spawn()
-      .expect("application failed to start");
+    // on macOS on updates the binary name might have changed
+    // so we'll read the Contents/Info.plist file to determine the binary path
+    #[cfg(target_os = "macos")]
+    restart_macos_app(&path, env);
+
+    if let Err(e) = Command::new(path).args(&env.args).spawn() {
+      log::error!("failed to restart app: {e}");
+    }
   }
 
   exit(0);
+}
+
+#[cfg(target_os = "macos")]
+fn restart_macos_app(current_binary: &PathBuf, env: &Env) {
+  use std::process::{exit, Command};
+
+  if let Some(macos_directory) = current_binary.parent() {
+    if macos_directory.components().last()
+      != Some(std::path::Component::Normal(std::ffi::OsStr::new("MacOS")))
+    {
+      return;
+    }
+
+    if let Some(contents_directory) = macos_directory.parent() {
+      if contents_directory.components().last()
+        != Some(std::path::Component::Normal(std::ffi::OsStr::new(
+          "Contents",
+        )))
+      {
+        return;
+      }
+
+      if let Ok(info_plist) =
+        plist::from_file::<_, plist::Dictionary>(contents_directory.join("Info.plist"))
+      {
+        if let Some(binary_name) = info_plist
+          .get("CFBundleExecutable")
+          .and_then(|v| v.as_string())
+        {
+          if let Err(e) = Command::new(macos_directory.join(binary_name))
+            .args(&env.args)
+            .spawn()
+          {
+            log::error!("failed to restart app: {e}");
+          }
+
+          exit(0);
+        }
+      }
+    }
+  }
 }

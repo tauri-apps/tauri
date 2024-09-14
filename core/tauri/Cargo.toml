@@ -101,6 +101,7 @@ sys-locale = { version = "0.3", optional = true }
 tracing = { version = "0.1", optional = true }
 indexmap = { version = "1", features = [ "std", "serde" ], optional = true }
 getrandom = { version = "0.2", features = [ "std" ] }
+log = "0.4"
 
 [target."cfg(any(target_os = \"macos\", windows, target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 rfd = { version = "0.10", optional = true, features = [ "gtk3", "common-controls-v6" ] } # 0.11 raised gtk version
@@ -114,6 +115,7 @@ nix = { version = "0.26.0", default-features = false, features = [ "user", "sock
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"
+plist = "1"
 cocoa = "0.24" # wry still uses 0.24
 objc = "0.2" # Do not update without consensus
 

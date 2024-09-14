@@ -4027,7 +4027,7 @@ checksum = "69758bda2e78f098e4ccb393021a0963bb3442eac05f135c30f61b7370bbafae"
 
 [[package]]
 name = "tauri"
-version = "1.7.1"
+version = "1.7.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4050,6 +4050,7 @@ dependencies = [
  "ignore",
  "indexmap 1.9.3",
  "infer",
+ "log",
  "minisign-verify",
  "nix",
  "notify-rust",
@@ -4059,6 +4060,7 @@ dependencies = [
  "os_info",
  "os_pipe",
  "percent-encoding",
+ "plist",
  "png",
  "rand 0.8.5",
  "raw-window-handle",
@@ -4093,7 +4095,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.5.3"
+version = "1.5.4"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -4112,7 +4114,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.4.4"
+version = "1.4.5"
 dependencies = [
  "base64 0.21.7",
  "brotli",
@@ -4136,7 +4138,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.4.5"
+version = "1.4.6"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -4148,7 +4150,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.14.4"
+version = "0.14.5"
 dependencies = [
  "gtk",
  "http",
@@ -4167,7 +4169,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.14.9"
+version = "0.14.10"
 dependencies = [
  "arboard",
  "cocoa 0.24.1",
@@ -4186,7 +4188,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.6.0"
+version = "1.6.1"
 dependencies = [
  "aes-gcm",
  "brotli",

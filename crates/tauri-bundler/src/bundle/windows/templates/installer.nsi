@@ -665,9 +665,10 @@ Section Install
   !endif
 
   ; Remove old main binary if it doesn't match new main binary name
-  ReadRegStr $OldMainBinaryName SHCTX "${UNINSTKEY}" "MainBinaryName"
-  ${If} $OldMainBinaryName != "${MAINBINARYNAME}.exe"
-    Delete "$INSTDIR\$OldMainBinaryName"
+  ReadRegStr $0 SHCTX "${UNINSTKEY}" "MainBinaryName"
+  ${If} $0 != ""
+  ${AndIf} $0 != "${MAINBINARYNAME}.exe"
+    Delete "$INSTDIR\$0"
   ${EndIf}
 
   ; Save current MAINBINARYNAME for future updates

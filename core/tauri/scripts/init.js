@@ -22,5 +22,5 @@
 
   __RAW_event_initialization_script__
 
-  if(window.__TAURI_INVOKE__ !== undefined) window.__TAURI_INVOKE__('__initialized', { url: window.location.href })
+  if (window.__TAURI_INVOKE__ !== undefined) window.__TAURI_INVOKE__('__initialized', { url: window.location.href })
 })()

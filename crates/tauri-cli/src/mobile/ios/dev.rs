@@ -417,7 +417,7 @@ fn run_dev(
         }
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
-        match run(device, options, config, &env) {
+        match run(device, options, config, noise_level, &env) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
@@ -438,6 +438,7 @@ fn run(
   device: &Device<'_>,
   options: MobileOptions,
   config: &AppleConfig,
+  noise_level: NoiseLevel,
   env: &Env,
 ) -> crate::Result<DevChild> {
   let profile = if options.debug {
@@ -450,7 +451,7 @@ fn run(
     .run(
       config,
       env,
-      NoiseLevel::FranklyQuitePedantic,
+      noise_level,
       false, // do not quit on app exit
       profile,
     )

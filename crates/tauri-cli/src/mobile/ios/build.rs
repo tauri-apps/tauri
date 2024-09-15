@@ -314,13 +314,7 @@ fn run_build(
         build_config = build_config.authentication_credentials(credentials.clone());
       }
 
-      target.build(
-        config,
-        env,
-        NoiseLevel::FranklyQuitePedantic,
-        profile,
-        build_config,
-      )?;
+      target.build(config, env, noise_level, profile, build_config)?;
 
       target.archive(
         config,

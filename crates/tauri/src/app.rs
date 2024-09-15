@@ -2053,22 +2053,18 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::Ready => {
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
-      unsafe {
-        use cocoa::{
-          appkit::NSImage,
-          base::{id, nil},
-          foundation::NSData,
-        };
-        use objc::*;
+      {
+        use objc2::ClassType;
+        use objc2_app_kit::{NSApplication, NSImage};
+        use objc2_foundation::{MainThreadMarker, NSData};
+
         if let Some(icon) = app_handle.manager.app_icon.clone() {
-          let ns_app: id = msg_send![class!(NSApplication), sharedApplication];
-          let data = NSData::dataWithBytes_length_(
-            nil,
-            icon.as_ptr() as *const std::os::raw::c_void,
-            icon.len() as u64,
-          );
-          let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
-          let _: () = msg_send![ns_app, setApplicationIconImage: app_icon];
+          // TODO: Enable this check.
+          let mtm = unsafe { MainThreadMarker::new_unchecked() };
+          let app = NSApplication::sharedApplication(mtm);
+          let data = NSData::with_bytes(&icon);
+          let app_icon = NSImage::initWithData(NSImage::alloc(), &data).expect("creating icon");
+          unsafe { app.setApplicationIconImage(Some(&app_icon)) };
         }
       }
       RunEvent::Ready

@@ -1592,9 +1592,6 @@ impl<R: Runtime> WebviewWindow<R> {
   /// # Examples
   ///
   /// ```rust,no_run
-  /// #[cfg(target_os = "macos")]
-  /// #[macro_use]
-  /// extern crate objc;
   /// use tauri::Manager;
   ///
   /// fn main() {
@@ -1618,10 +1615,14 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   ///         #[cfg(target_os = "macos")]
   ///         unsafe {
-  ///           let () = msg_send![webview.inner(), setPageZoom: 4.];
-  ///           let () = msg_send![webview.controller(), removeAllUserScripts];
-  ///           let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-  ///           let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+  ///           let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
+  ///           let controller: &objc2_web_kit::WKUserContentController = &*webview.controller().cast();
+  ///           let window: &objc2_app_kit::NSWindow = &*webview.ns_window().cast();
+  ///
+  ///           view.setPageZoom(4.);
+  ///           controller.removeAllUserScripts();
+  ///           let bg_color = objc2_app_kit::NSColor::colorWithDeviceRed_green_blue_alpha(0.5, 0.2, 0.4, 1.);
+  ///           window.setBackgroundColor(Some(&bg_color));
   ///         }
   ///
   ///         #[cfg(target_os = "android")]
@@ -1636,6 +1637,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///   });
   /// }
   /// ```
+  #[allow(clippy::needless_doctest_main)] // To avoid a large diff
   #[cfg(feature = "wry")]
   #[cfg_attr(docsrs, doc(feature = "wry"))]
   pub fn with_webview<F: FnOnce(crate::webview::PlatformWebview) + Send + 'static>(

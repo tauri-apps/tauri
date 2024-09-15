@@ -1,5 +1,21 @@
 # Changelog
 
+## \[1.8.0]
+
+### New Features
+
+- [`50fbf7bf1`](https://www.github.com/tauri-apps/tauri/commit/50fbf7bf1d8ee7bd97c1c896524be9cf362c73aa) ([#10939](https://www.github.com/tauri-apps/tauri/pull/10939) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add support for updating using non-zipped files. Only `.exe`(NSIS) and `.msi` (MSI Installer) on Windows and `.AppImage` on Linux.
+- [`50fbf7bf1`](https://www.github.com/tauri-apps/tauri/commit/50fbf7bf1d8ee7bd97c1c896524be9cf362c73aa) ([#10939](https://www.github.com/tauri-apps/tauri/pull/10939) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Pass `/UPDATE` flag to NSIS installer on updates
+
+### Enhancements
+
+- [`14443a131`](https://www.github.com/tauri-apps/tauri/commit/14443a13190fe006aedc96176e970f9ec8644c13) ([#10966](https://www.github.com/tauri-apps/tauri/pull/10966) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, maintain current CLI arguments when relaunching the app after updates using `.msi`.
+
+### Bug Fixes
+
+- [`26d243f43`](https://www.github.com/tauri-apps/tauri/commit/26d243f43a8528194689834dce0101bcba78196a) ([#10991](https://www.github.com/tauri-apps/tauri/pull/10991) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes the restart() function not being compatible with the v2 binary name change.
+  Additionally, do not panic if we somehow failed to restart, and only exit instead.
+
 ## \[1.7.2]
 
 ### Enhancements

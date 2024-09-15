@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.5.5]
+
+### Bug Fixes
+
+- [`2e87e85f8`](https://www.github.com/tauri-apps/tauri/commit/2e87e85f8550eccf2a3b23a36b135f3ad682509e) ([#10976](https://www.github.com/tauri-apps/tauri/pull/10976) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The executable and NSIS installer on Windows will now use the `productName` config for the `FileDescription` property instead of `shortDescription`.
+
 ## \[1.5.4]
 
 ### What's Changed

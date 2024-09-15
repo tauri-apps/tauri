@@ -1,5 +1,16 @@
 # Changelog
 
+## \[1.7.0]
+
+### New Features
+
+- [`298f8ca58`](https://www.github.com/tauri-apps/tauri/commit/298f8ca584a5d6c900a11d01c91a0b4a4a3e0014) ([#10952](https://www.github.com/tauri-apps/tauri/pull/10952) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Store main binary name in registry for NSIS installer. This will be used in future app updates to detect main binary name changes.
+- [`14443a131`](https://www.github.com/tauri-apps/tauri/commit/14443a13190fe006aedc96176e970f9ec8644c13) ([#10966](https://www.github.com/tauri-apps/tauri/pull/10966) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `AUTOLAUNCHAPP` and `LAUNCHAPPARGS` properties to MSI installer, which can be used by updater to instruct launching the app after update and maintain the passed CLI arguments.
+
+### Bug Fixes
+
+- [`2e87e85f8`](https://www.github.com/tauri-apps/tauri/commit/2e87e85f8550eccf2a3b23a36b135f3ad682509e) ([#10976](https://www.github.com/tauri-apps/tauri/pull/10976) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The executable and NSIS installer on Windows will now use the `productName` config for the `FileDescription` property instead of `shortDescription`.
+
 ## \[1.6.1]
 
 ### New Features

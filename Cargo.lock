@@ -4577,6 +4577,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-web-kit"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68bc69301064cebefc6c4c90ce9cba69225239e4b8ff99d445a2b5563797da65"
+dependencies = [
+ "bitflags 2.6.0",
+ "block2",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+]
+
+[[package]]
 name = "objc_exception"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7276,7 +7289,6 @@ dependencies = [
  "anyhow",
  "bytes",
  "cargo_toml",
- "cocoa 0.26.0",
  "data-url",
  "dirs",
  "dunce",
@@ -7294,7 +7306,10 @@ dependencies = [
  "log",
  "mime",
  "muda",
- "objc",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
+ "objc2-web-kit",
  "percent-encoding",
  "plist",
  "proptest",
@@ -7661,11 +7676,13 @@ dependencies = [
 name = "tauri-runtime-wry"
 version = "2.0.0-rc.11"
 dependencies = [
- "cocoa 0.26.0",
  "gtk",
  "http 1.1.0",
  "jni",
  "log",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-foundation",
  "percent-encoding",
  "raw-window-handle",
  "softbuffer",

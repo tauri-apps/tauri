@@ -101,11 +101,19 @@ tray-icon = { version = "0.17", default-features = false, features = [
 gtk = { version = "0.18", features = ["v3_24"] }
 webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
 
-[target."cfg(target_os = \"macos\")".dependencies]
+# macOS
+[target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
 plist = "1"
-cocoa = "0.26"
-objc = "0.2"
+objc2 = "0.5.2"
+objc2-foundation = { version = "0.2.2", features = ["NSData", "NSThread"] }
+objc2-app-kit = { version = "0.2.2", features = [
+  "NSApplication",
+  "NSColor",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+] }
 window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
@@ -119,10 +127,9 @@ features = ["Win32_Foundation"]
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
 
-[target."cfg(target_os = \"ios\")".dependencies]
+# UIKit, i.e. iOS/tvOS/watchOS/visionOS
+[target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-objc = "0.2"
-cocoa = "0.26"
 swift-rs = "1.0.7"
 
 [build-dependencies]
@@ -142,6 +149,14 @@ tauri = { path = ".", default-features = false, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
 cargo_toml = "0.17"
 http-range = "0.1.5"
+
+# macOS
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-web-kit = { version = "0.2.2", features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKUserContentController",
+] }
 
 [features]
 default = ["wry", "compression", "objc-exception", "common-controls-v6"]

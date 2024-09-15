@@ -7,6 +7,8 @@
 use std::{collections::BTreeMap, num::NonZeroU64};
 
 use super::{Permission, PermissionSet};
+#[cfg(feature = "schema")]
+use schemars::schema::*;
 use serde::{Deserialize, Serialize};
 
 /// The default permission set of the plugin.
@@ -44,7 +46,7 @@ pub struct PermissionFile {
 }
 
 /// Plugin manifest.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Manifest {
   /// Default permission.
   pub default_permission: Option<PermissionSet>,
@@ -80,33 +82,47 @@ impl Manifest {
         });
       }
 
-      manifest.permissions.extend(
-        permission_file
-          .permission
-          .into_iter()
-          .map(|p| (p.identifier.clone(), p))
-          .collect::<BTreeMap<_, _>>(),
-      );
+      for permission in permission_file.permission {
+        let key = permission.identifier.clone();
+        manifest.permissions.insert(key, permission);
+      }
 
-      manifest.permission_sets.extend(
-        permission_file
-          .set
-          .into_iter()
-          .map(|set| {
-            (
-              set.identifier.clone(),
-              PermissionSet {
-                identifier: set.identifier,
-                description: set.description,
-                permissions: set.permissions,
-              },
-            )
-          })
-          .collect::<BTreeMap<_, _>>(),
-      );
+      for set in permission_file.set {
+        let key = set.identifier.clone();
+        manifest.permission_sets.insert(key, set);
+      }
     }
 
     manifest
+  }
+}
+
+#[cfg(feature = "schema")]
+type ScopeSchema = (Schema, schemars::Map<String, Schema>);
+
+#[cfg(feature = "schema")]
+impl Manifest {
+  /// Return scope schema and extra schema definitions for this plugin manifest.
+  pub fn global_scope_schema(&self) -> Result<Option<ScopeSchema>, super::Error> {
+    self
+      .global_scope_schema
+      .as_ref()
+      .map(|s| {
+        serde_json::from_value::<RootSchema>(s.clone()).map(|s| {
+          // convert RootSchema to Schema
+          let scope_schema = Schema::Object(SchemaObject {
+            array: Some(Box::new(ArrayValidation {
+              items: Some(Schema::Object(s.schema).into()),
+              ..Default::default()
+            })),
+            ..Default::default()
+          });
+
+          (scope_schema, s.definitions)
+        })
+      })
+      .transpose()
+      .map_err(Into::into)
   }
 }
 

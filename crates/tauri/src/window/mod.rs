@@ -1977,7 +1977,7 @@ tauri::Builder::default()
       .set_progress_bar(crate::runtime::ProgressBarState {
         status: progress_state.status,
         progress: progress_state.progress,
-        desktop_filename: Some(format!("{}.desktop", self.package_info().crate_name)),
+        desktop_filename: Some(format!("{}.desktop", self.package_info().name)),
       })
       .map_err(Into::into)
   }

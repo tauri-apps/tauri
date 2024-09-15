@@ -110,6 +110,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
     config: Config {
       schema: None,
       product_name: Default::default(),
+      main_binary_name: Default::default(),
       version: Default::default(),
       identifier: Default::default(),
       app: AppConfig {

@@ -336,21 +336,9 @@ fn build_nsis_app_installer(
   }
   data.insert("language_files", to_json(language_files_paths));
 
-  let main_binary = settings
-    .binaries()
-    .iter()
-    .find(|bin| bin.main())
-    .ok_or_else(|| anyhow::anyhow!("Failed to get main binary"))?;
-  let main_binary_path = settings.binary_path(main_binary).with_extension("exe");
-  data.insert(
-    "main_binary_name",
-    to_json(
-      main_binary_path
-        .file_stem()
-        .and_then(|file_name| file_name.to_str())
-        .unwrap_or_else(|| main_binary.name()),
-    ),
-  );
+  let main_binary = settings.main_binary()?;
+  let main_binary_path = settings.binary_path(main_binary);
+  data.insert("main_binary_name", to_json(main_binary.name()));
   data.insert("main_binary_path", to_json(&main_binary_path));
 
   let out_file = "nsis-output.exe";

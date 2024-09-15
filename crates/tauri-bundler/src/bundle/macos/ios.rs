@@ -170,7 +170,7 @@ fn generate_info_plist(
   writeln!(
     file,
     "  <key>CFBundleExecutable</key>\n  <string>{}</string>",
-    settings.main_binary_name()
+    settings.main_binary_name()?
   )?;
   writeln!(
     file,

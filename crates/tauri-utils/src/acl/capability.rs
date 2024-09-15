@@ -195,6 +195,17 @@ pub struct Capability {
   pub platforms: Option<Vec<Target>>,
 }
 
+impl Capability {
+  /// Whether this capability should be active based on the platform target or not.
+  pub fn is_active(&self, target: &Target) -> bool {
+    self
+      .platforms
+      .as_ref()
+      .map(|platforms| platforms.contains(target))
+      .unwrap_or(true)
+  }
+}
+
 #[cfg(feature = "schema")]
 fn unique_permission(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
   use schemars::schema;

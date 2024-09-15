@@ -1,5 +1,47 @@
 # Changelog
 
+## \[2.0.0-rc.12]
+
+### New Features
+
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `mainBinaryName` config option to set the file name for the main binary.
+
+### Enhancements
+
+- [`5eb036f33`](https://www.github.com/tauri-apps/tauri/commit/5eb036f33951a9946f25ce5fa7fc47ae4469aa60) ([#11002](https://www.github.com/tauri-apps/tauri/pull/11002) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Handle macOS binary name change on the `process::restart` function.
+
+### Bug Fixes
+
+- [`63649d82d`](https://www.github.com/tauri-apps/tauri/commit/63649d82d20b8f69d973b41bd0c157997770d6a0) ([#10971](https://www.github.com/tauri-apps/tauri/pull/10971) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix schema generation for `core:default` set.
+- [`be18ed50d`](https://www.github.com/tauri-apps/tauri/commit/be18ed50d8e04261da1553662a768e7ce0f1dd8f) ([#10982](https://www.github.com/tauri-apps/tauri/pull/10982) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Add a Proguard rule to prevent custom JSON deserializer and serializer classes from being optimized away.
+- [`00182ebf8`](https://www.github.com/tauri-apps/tauri/commit/00182ebf894b83302179ccb7f415f97d04600c77) ([#10988](https://www.github.com/tauri-apps/tauri/pull/10988) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `requestPermissions` not resolving on Android.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-rc.11`
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-runtime@2.0.0-rc.11`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.11`
+- Upgraded to `tauri-macros@2.0.0-rc.10`
+
+### Breaking Changes
+
+- [`fe5ff1228`](https://www.github.com/tauri-apps/tauri/commit/fe5ff1228c34cf12929d861454ab9716da9480da) ([#10978](https://www.github.com/tauri-apps/tauri/pull/10978) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Rename `PermissionState::Unknown` to `PermissionState::Prompt`.
+
+## \[2.0.0-rc.11]
+
+### Bug Fixes
+
+- [`fafceec30`](https://www.github.com/tauri-apps/tauri/commit/fafceec3092f405fbc6642d331e5440b90d9fd62) ([#10943](https://www.github.com/tauri-apps/tauri/pull/10943) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes mobile dev server proxy request URL with trailing slashes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-runtime@2.0.0-rc.10`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.10`
+- Upgraded to `tauri-macros@2.0.0-rc.9`
+- Upgraded to `tauri-build@2.0.0-rc.10`
+
 ## \[2.0.0-rc.10]
 
 ### Dependencies

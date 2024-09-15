@@ -115,6 +115,7 @@ pub struct Rust {
   app_settings: Arc<RustAppSettings>,
   config_features: Vec<String>,
   available_targets: Option<Vec<RustupTarget>>,
+  main_binary_name: Option<String>,
 }
 
 impl Interface for Rust {
@@ -160,6 +161,7 @@ impl Interface for Rust {
     Ok(Self {
       app_settings: Arc::new(app_settings),
       config_features: config.build.features.clone().unwrap_or_default(),
+      main_binary_name: config.main_binary_name.clone(),
       available_targets: None,
     })
   }
@@ -168,14 +170,14 @@ impl Interface for Rust {
     self.app_settings.clone()
   }
 
-  fn build(&mut self, options: Options) -> crate::Result<()> {
+  fn build(&mut self, options: Options) -> crate::Result<PathBuf> {
     desktop::build(
       options,
       &self.app_settings,
       &mut self.available_targets,
       self.config_features.clone(),
-    )?;
-    Ok(())
+      self.main_binary_name.as_deref(),
+    )
   }
 
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
@@ -498,6 +500,7 @@ impl Rust {
       &mut self.available_targets,
       self.config_features.clone(),
       &self.app_settings,
+      self.main_binary_name.clone(),
       on_exit,
     )
     .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
@@ -861,36 +864,28 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let binaries = self.get_binaries(&self.target_triple)?;
+    let binaries = self.get_binaries()?;
     let bin_name = binaries
       .iter()
       .find(|x| x.main())
-      .expect("failed to find main binary")
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")?
       .name();
 
     let out_dir = self
       .out_dir(options)
-      .with_context(|| "failed to get project out directory")?;
+      .context("failed to get project out directory")?;
 
-    let binary_extension: String = if self.target_triple.contains("windows") {
+    let ext = if self.target_triple.contains("windows") {
       "exe"
     } else {
       ""
-    }
-    .into();
+    };
 
-    Ok(out_dir.join(bin_name).with_extension(binary_extension))
+    Ok(out_dir.join(bin_name).with_extension(ext))
   }
 
-  fn get_binaries(&self, target: &str) -> crate::Result<Vec<BundleBinary>> {
+  fn get_binaries(&self) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
-
-    let binary_extension: String = if target.contains("windows") {
-      ".exe"
-    } else {
-      ""
-    }
-    .into();
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -899,44 +894,67 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        let name = format!("{}{}", bin.name, binary_extension);
-        let is_main =
-          bin.name == self.cargo_package_settings.name || bin.name.as_str() == default_run;
-        binaries.push(BundleBinary::with_path(name, is_main, bin.path.clone()))
+        let is_main = bin.name == self.cargo_package_settings.name || bin.name == default_run;
+        binaries.push(BundleBinary::with_path(
+          bin.name.clone(),
+          is_main,
+          bin.path.clone(),
+        ))
       }
     }
 
-    let mut bins_path = tauri_dir().to_path_buf();
-    bins_path.push("src/bin");
-    if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
-      for entry in fs_bins {
-        let path = entry?.path();
-        if let Some(name) = path.file_stem() {
-          let bin_exists = binaries.iter().any(|bin| {
-            bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
-          });
-          if !bin_exists {
-            binaries.push(BundleBinary::new(
-              format!("{}{}", name.to_string_lossy(), &binary_extension),
-              false,
-            ))
-          }
-        }
+    let mut binaries_paths = std::fs::read_dir(tauri_dir().join("src/bin"))
+      .map(|dir| {
+        dir
+          .into_iter()
+          .flatten()
+          .map(|entry| {
+            (
+              entry
+                .path()
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned(),
+              entry.path(),
+            )
+          })
+          .collect::<Vec<_>>()
+      })
+      .unwrap_or_default();
+
+    if !binaries_paths
+      .iter()
+      .any(|(_name, path)| path == Path::new("src/main.rs"))
+      && tauri_dir().join("src/main.rs").exists()
+    {
+      binaries_paths.push((
+        self.cargo_package_settings.name.clone(),
+        tauri_dir().join("src/main.rs"),
+      ));
+    }
+
+    for (name, path) in binaries_paths {
+      // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
+      let bin_exists = binaries
+        .iter()
+        .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
+      if !bin_exists {
+        binaries.push(BundleBinary::new(name, false))
       }
     }
 
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
-      if !binaries.iter_mut().any(|bin| bin.name() == default_run) {
-        binaries.push(BundleBinary::new(
-          format!("{}{}", default_run, binary_extension),
-          true,
-        ));
+      if let Some(binary) = binaries.iter_mut().find(|bin| bin.name() == default_run) {
+        binary.set_main(true);
+      } else {
+        binaries.push(BundleBinary::new(default_run.clone(), true));
       }
     }
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        format!("{}{}", self.cargo_package_settings.name, &binary_extension),
+        self.cargo_package_settings.name.clone(),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),

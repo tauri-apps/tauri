@@ -133,8 +133,8 @@ pub fn generate_data(
 fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
-    let bin_name = settings.main_binary_name();
-    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
+    let product_name = settings.product_name();
+    let dest_path = data_dir.join(format!("usr/share/doc/{product_name}/changelog.gz"));
 
     let changelog_file = common::create_file(&dest_path)?;
     let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
@@ -306,7 +306,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(settings.product_name());
   settings.copy_resources(&resource_dir)
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.13"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.71"
@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.17", default-features = false }
+cargo-mobile2 = { version = "0.17.2", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.24", features = ["server"] }
@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = ["derive", "env"] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.1-rc.9", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.0.1-rc.11", default-features = false, path = "../tauri-bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -57,7 +57,7 @@ shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = ["serde"] }
 json-patch = "2.0"
-tauri-utils = { version = "2.0.0-rc.9", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.0.0-rc.11", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",

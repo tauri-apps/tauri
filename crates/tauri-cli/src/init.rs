@@ -196,15 +196,15 @@ pub fn command(mut options: Options) -> Result<()> {
       template_target_path
     );
   } else {
-    let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = options.tauri_path {
+    let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = &options.tauri_path {
       (
         format!(
           r#"{{  path = {:?} }}"#,
-          resolve_tauri_path(&tauri_path, "crates/tauri")
+          resolve_tauri_path(tauri_path, "crates/tauri")
         ),
         format!(
           "{{  path = {:?} }}",
-          resolve_tauri_path(&tauri_path, "crates/tauri-build")
+          resolve_tauri_path(tauri_path, "crates/tauri-build")
         ),
       )
     } else {
@@ -220,6 +220,9 @@ pub fn command(mut options: Options) -> Result<()> {
 
     let mut data = BTreeMap::new();
     data.insert("tauri_dep", to_json(tauri_dep));
+    if options.tauri_path.is_some() {
+      data.insert("patch_tauri_dep", to_json(true));
+    }
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
     data.insert(
       "frontend_dist",

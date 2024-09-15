@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.0.0-rc.11]
+
+### New Features
+
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `mainBinaryName` config option to set the file name for the main binary.
+
+## \[2.0.0-rc.10]
+
+### Bug Fixes
+
+- [`0a47bf043`](https://www.github.com/tauri-apps/tauri/commit/0a47bf04302ca8502d3da21b3bc27818720fe34a) ([#10946](https://www.github.com/tauri-apps/tauri/pull/10946) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that made the `identifier` in `tauri.conf.json` optional while it was actually required.
+
 ## \[2.0.0-rc.9]
 
 ### Dependencies

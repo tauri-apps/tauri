@@ -212,7 +212,7 @@ impl schemars::JsonSchema for BundleTarget {
   fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
-        enum_values: Some(vec!["all".into()]),
+        const_value: Some("all".into()),
         metadata: Some(Box::new(schemars::schema::Metadata {
           description: Some("Bundle all targets.".to_owned()),
           ..Default::default()
@@ -404,7 +404,7 @@ pub struct RpmConfig {
   /// in order for the package to be installed.
   pub conflicts: Option<Vec<String>>,
   /// The list of RPM dependencies your application supersedes - if this package is installed,
-  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  /// packages listed as "obsoletes" will be automatically removed (if they are present).
   pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   #[serde(default = "default_release")]
@@ -1058,7 +1058,7 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
-/// File association
+/// Deep link protocol configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -2242,6 +2242,9 @@ pub struct Config {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
+  /// App main binary filename. Defaults to the name of your cargo crate.
+  #[serde(alias = "main-binary-name")]
+  pub main_binary_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   ///
   /// By default version 1.0 is used on Android.
@@ -2250,9 +2253,8 @@ pub struct Config {
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
   /// This string must be unique across applications since it is used in system configurations like
   /// the bundle ID and path to the webview data directory.
-  /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
+  /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
-  #[serde(default)]
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]
@@ -2837,6 +2839,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let schema = quote!(None);
       let product_name = opt_str_lit(self.product_name.as_ref());
+      let main_binary_name = opt_str_lit(self.main_binary_name.as_ref());
       let version = opt_str_lit(self.version.as_ref());
       let identifier = str_lit(&self.identifier);
       let app = &self.app;
@@ -2849,6 +2852,7 @@ mod build {
         ::tauri::utils::config::Config,
         schema,
         product_name,
+        main_binary_name,
         version,
         identifier,
         app,

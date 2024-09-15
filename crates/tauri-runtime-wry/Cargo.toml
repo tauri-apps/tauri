@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"

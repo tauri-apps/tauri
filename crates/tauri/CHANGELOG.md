@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-rc.13]
+
+### Enhancements
+
+- [`bc4804d48`](https://www.github.com/tauri-apps/tauri/commit/bc4804d4841efefd57fd1f3e147550a3340e2b31) ([#10924](https://www.github.com/tauri-apps/tauri/pull/10924) by [@madsmtm](https://www.github.com/tauri-apps/tauri/../../madsmtm)) Use `objc2` internally and in examples, leading to better memory safety.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.12`
+
+### Breaking Changes
+
+- [`bc4804d48`](https://www.github.com/tauri-apps/tauri/commit/bc4804d4841efefd57fd1f3e147550a3340e2b31) ([#10924](https://www.github.com/tauri-apps/tauri/pull/10924) by [@madsmtm](https://www.github.com/tauri-apps/tauri/../../madsmtm)) Change the pointer type of `PlatformWebview`'s `inner`, `controller`, `ns_window` and `view_controller` to `c_void`, to avoid publically depending on `objc`.
+
 ## \[2.0.0-rc.12]
 
 ### New Features

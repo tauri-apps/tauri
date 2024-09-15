@@ -35,7 +35,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate deb_folder structure
   let (data_dir, icons) = debian::generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
-  common::copy_custom_files(&settings.deb().files, &data_dir)
+  common::copy_custom_files(&settings.appimage().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");

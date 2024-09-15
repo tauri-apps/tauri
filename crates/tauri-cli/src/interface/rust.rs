@@ -906,28 +906,51 @@ impl AppSettings for RustAppSettings {
       }
     }
 
-    let mut bins_path = tauri_dir().to_path_buf();
-    bins_path.push("src/bin");
-    if let Ok(fs_bins) = std::fs::read_dir(bins_path) {
-      for entry in fs_bins {
-        let path = entry?.path();
-        if let Some(name) = path.file_stem() {
-          // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
-          let bin_exists = binaries.iter().any(|bin| {
-            bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
-          });
-          if !bin_exists {
-            binaries.push(BundleBinary::new(
-              format!("{}{}", name.to_string_lossy(), ext),
-              false,
-            ))
-          }
-        }
+    let mut binaries_paths = std::fs::read_dir(tauri_dir().join("src/bin"))
+      .map(|dir| {
+        dir
+          .into_iter()
+          .flatten()
+          .map(|entry| {
+            (
+              entry
+                .path()
+                .file_stem()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned(),
+              entry.path(),
+            )
+          })
+          .collect::<Vec<_>>()
+      })
+      .unwrap_or_default();
+
+    if !binaries_paths
+      .iter()
+      .any(|(_name, path)| path == Path::new("src/main.rs"))
+      && tauri_dir().join("src/main.rs").exists()
+    {
+      binaries_paths.push((
+        self.cargo_package_settings.name.clone(),
+        tauri_dir().join("src/main.rs"),
+      ));
+    }
+
+    for (name, path) in binaries_paths {
+      // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
+      let bin_exists = binaries
+        .iter()
+        .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
+      if !bin_exists {
+        binaries.push(BundleBinary::new(format!("{name}{ext}"), false))
       }
     }
 
     if let Some(default_run) = self.package_settings.default_run.as_ref() {
-      if !binaries.iter_mut().any(|bin| bin.name() == default_run) {
+      if let Some(binary) = binaries.iter_mut().find(|bin| bin.name() == default_run) {
+        binary.set_main(true);
+      } else {
         binaries.push(BundleBinary::new(format!("{}{}", default_run, ext), true));
       }
     }

@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.0-rc.15]
+
+### Enhancements
+
+- [`5a0e922d4`](https://www.github.com/tauri-apps/tauri/commit/5a0e922d40dc3b7d9a8e3a65ccaf76d09f026cb8) ([#11007](https://www.github.com/tauri-apps/tauri/pull/11007) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Automatically discover the `src-tauri/src/main.rs` binary when it is not explicitly defined in the Cargo manifest bin array.
+
+### Bug Fixes
+
+- [`94e9d476e`](https://www.github.com/tauri-apps/tauri/commit/94e9d476ef506b1b8c09f55b81620c7839f98086) ([#11011](https://www.github.com/tauri-apps/tauri/pull/11011) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `main_binary_name` in custom wix and nsis templates including `.exe`
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.15`
+
 ## \[2.0.0-rc.14]
 
 ### Enhancements

@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.0.1-rc.11"
+version = "2.0.1-rc.12"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",

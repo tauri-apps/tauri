@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.1-rc.12]
+
+### Bug Fixes
+
+- [`94e9d476e`](https://www.github.com/tauri-apps/tauri/commit/94e9d476ef506b1b8c09f55b81620c7839f98086) ([#11011](https://www.github.com/tauri-apps/tauri/pull/11011) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `main_binary_name` in custom wix and nsis templates including `.exe`
+
 ## \[2.0.1-rc.11]
 
 ### New Features

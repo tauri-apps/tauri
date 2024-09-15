@@ -869,13 +869,26 @@ impl Settings {
       .iter()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map(|b| b.name.as_str())
+      .map(|b| b.name())
       .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    self.project_out_directory.join(binary.name())
+    let target_os = self
+      .target()
+      .split('-')
+      .nth(2)
+      .unwrap_or(std::env::consts::OS)
+      .replace("darwin", "macos");
+
+    let path = self.project_out_directory.join(binary.name());
+
+    if target_os == "windows" {
+      path.with_extension("exe")
+    } else {
+      path
+    }
   }
 
   /// Returns the list of binaries to bundle.

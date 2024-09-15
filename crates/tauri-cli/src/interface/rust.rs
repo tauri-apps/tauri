@@ -864,7 +864,7 @@ impl AppSettings for RustAppSettings {
   }
 
   fn app_binary_path(&self, options: &Options) -> crate::Result<PathBuf> {
-    let binaries = self.get_binaries(&self.target_triple)?;
+    let binaries = self.get_binaries()?;
     let bin_name = binaries
       .iter()
       .find(|x| x.main())
@@ -884,14 +884,8 @@ impl AppSettings for RustAppSettings {
     Ok(out_dir.join(bin_name).with_extension(ext))
   }
 
-  fn get_binaries(&self, target: &str) -> crate::Result<Vec<BundleBinary>> {
+  fn get_binaries(&self) -> crate::Result<Vec<BundleBinary>> {
     let mut binaries: Vec<BundleBinary> = vec![];
-
-    let ext = if target.contains("windows") {
-      ".exe"
-    } else {
-      ""
-    };
 
     if let Some(bins) = &self.cargo_settings.bin {
       let default_run = self
@@ -900,9 +894,12 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        let name = format!("{}{}", bin.name, ext);
         let is_main = bin.name == self.cargo_package_settings.name || bin.name == default_run;
-        binaries.push(BundleBinary::with_path(name, is_main, bin.path.clone()))
+        binaries.push(BundleBinary::with_path(
+          bin.name.clone(),
+          is_main,
+          bin.path.clone(),
+        ))
       }
     }
 
@@ -943,7 +940,7 @@ impl AppSettings for RustAppSettings {
         .iter()
         .any(|bin| bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string())));
       if !bin_exists {
-        binaries.push(BundleBinary::new(format!("{name}{ext}"), false))
+        binaries.push(BundleBinary::new(name, false))
       }
     }
 
@@ -951,13 +948,13 @@ impl AppSettings for RustAppSettings {
       if let Some(binary) = binaries.iter_mut().find(|bin| bin.name() == default_run) {
         binary.set_main(true);
       } else {
-        binaries.push(BundleBinary::new(format!("{}{}", default_run, ext), true));
+        binaries.push(BundleBinary::new(default_run.clone(), true));
       }
     }
 
     match binaries.len() {
       0 => binaries.push(BundleBinary::new(
-        format!("{}{}", self.cargo_package_settings.name, ext),
+        self.cargo_package_settings.name.clone(),
         true,
       )),
       1 => binaries.get_mut(0).unwrap().set_main(true),

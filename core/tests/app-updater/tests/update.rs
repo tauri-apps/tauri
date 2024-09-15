@@ -12,7 +12,12 @@ use std::{
   sync::Arc,
 };
 
+use hyper::{
+  service::{make_service_fn, service_fn},
+  Body, Method, Request, Response, StatusCode,
+};
 use serde::Serialize;
+use tokio_util::codec::{BytesCodec, FramedRead};
 
 const UPDATER_PRIVATE_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHJzaWduIGVuY3J5cHRlZCBzZWNyZXQga2V5ClJXUlRZMEl5dkpDN09RZm5GeVAzc2RuYlNzWVVJelJRQnNIV2JUcGVXZUplWXZXYXpqUUFBQkFBQUFBQUFBQUFBQUlBQUFBQTZrN2RnWGh5dURxSzZiL1ZQSDdNcktiaHRxczQwMXdQelRHbjRNcGVlY1BLMTBxR2dpa3I3dDE1UTVDRDE4MXR4WlQwa1BQaXdxKy9UU2J2QmVSNXhOQWFDeG1GSVllbUNpTGJQRkhhTnROR3I5RmdUZi90OGtvaGhJS1ZTcjdZU0NyYzhQWlQ5cGM9Cg==";
 // const UPDATER_PUBLIC_KEY: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFOUJFNDg1NTU4NUZDQUQKUldTdC9JVlZoZVNiL2tVVG1hSFRETjRIZXE0a0F6d3dSY2ViYzdrSFh2MjBGWm1jM0NoWVFqM1YK";
@@ -415,53 +420,68 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
 
     let target = target.clone();
 
-    // create the updater server
-    let server =
-      Arc::new(tiny_http::Server::http("localhost:3007").expect("failed to start updater server"));
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
 
-    let server_ = server.clone();
-    std::thread::spawn(move || {
-      for request in server_.incoming_requests() {
-        match request.url() {
-          "/" => {
-            let mut platforms = HashMap::new();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
 
-            platforms.insert(
-              target.clone(),
-              PlatformUpdate {
-                signature: signature.clone(),
-                url: "http://localhost:3007/download",
-                with_elevated_task: false,
-              },
-            );
-            let body = serde_json::to_vec(&Update {
-              version: UPDATE_APP_VERSION,
-              date: time::OffsetDateTime::now_utc()
-                .format(&time::format_description::well_known::Rfc3339)
-                .unwrap(),
-              platforms,
-            })
-            .unwrap();
-            let len = body.len();
-            let response = tiny_http::Response::new(
-              tiny_http::StatusCode(200),
-              Vec::new(),
-              std::io::Cursor::new(body),
-              Some(len),
-              None,
-            );
-            let _ = request.respond(response);
-          }
-          "/download" => {
-            let _ = request.respond(tiny_http::Response::from_file(
-              File::open(&updater_path).unwrap_or_else(|_| {
-                panic!("failed to open updater bundle {}", updater_path.display())
-              }),
-            ));
-          }
-          _ => (),
+    runtime.spawn(async move {
+      // create the updater server
+      let addr = "127.0.0.1:3007".parse().unwrap();
+
+      let make_service = make_service_fn(move |_| {
+        let updater_path = updater_path.clone();
+        let signature = signature.clone();
+        let target = target.clone();
+        async move {
+          Ok::<_, hyper::Error>(service_fn(move |req| {
+            let updater_path = updater_path.clone();
+            let signature = signature.clone();
+            let target = target.clone();
+            async move {
+              match (req.method(), req.uri().path()) {
+                (&Method::GET, "/") => {
+                  let mut platforms = HashMap::new();
+
+                  platforms.insert(
+                    target.clone(),
+                    PlatformUpdate {
+                      signature: signature.clone(),
+                      url: "http://localhost:3007/download",
+                      with_elevated_task: false,
+                    },
+                  );
+                  let body = serde_json::to_vec(&Update {
+                    version: UPDATE_APP_VERSION,
+                    date: time::OffsetDateTime::now_utc()
+                      .format(&time::format_description::well_known::Rfc3339)
+                      .unwrap(),
+                    platforms,
+                  })
+                  .unwrap();
+
+                  Ok(Response::new(hyper::Body::from(body)))
+                }
+                (&Method::GET, "/download") => {
+                  let file = tokio::fs::File::open(&updater_path).await.unwrap();
+                  let stream = FramedRead::new(file, BytesCodec::new());
+                  let body = Body::wrap_stream(stream);
+                  return Ok(Response::new(body));
+                }
+                _ => Response::builder()
+                  .status(StatusCode::NOT_FOUND)
+                  .body("Not Found".into()),
+              }
+            }
+          }))
         }
-      }
+      });
+      let server = hyper::Server::bind(&addr).serve(make_service);
+
+      let graceful = server.with_graceful_shutdown(async {
+        rx.await.ok();
+      });
+
+      graceful.await.unwrap();
     });
 
     let config = Config {
@@ -557,6 +577,6 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
     std::fs::remove_file(tauri_v1_fixture_dir.join("target/debug/app-updater.exe")).unwrap();
 
     // graceful shutdown
-    server.unblock();
+    tx.send(()).unwrap();
   }
 }

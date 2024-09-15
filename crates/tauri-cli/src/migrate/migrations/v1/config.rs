@@ -158,7 +158,9 @@ fn process_package_metadata(config: &mut Map<String, Value>) {
             .map(|v| (v, "product-name"))
         })
       {
-        config.insert(key.into(), product_name);
+        config.insert(key.into(), product_name.clone());
+        // keep main binary name unchanged
+        config.insert("mainBinaryName".into(), product_name);
       }
 
       if let Some(version) = package_config.remove("version") {
@@ -872,6 +874,10 @@ mod test {
 
     // app information
     assert_eq!(migrated["productName"], original["package"]["productName"]);
+    assert_eq!(
+      migrated["mainBinaryName"],
+      original["package"]["productName"]
+    );
     assert_eq!(migrated["version"], original["package"]["version"]);
     assert_eq!(
       migrated["identifier"],

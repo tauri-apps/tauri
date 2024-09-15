@@ -879,8 +879,7 @@ impl Settings {
       .target()
       .split('-')
       .nth(2)
-      .unwrap_or(std::env::consts::OS)
-      .replace("darwin", "macos");
+      .unwrap_or(std::env::consts::OS);
 
     let path = self.project_out_directory.join(binary.name());
 

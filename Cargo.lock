@@ -7031,6 +7031,7 @@ dependencies = [
  "muda",
  "objc",
  "percent-encoding",
+ "plist",
  "proptest",
  "quickcheck",
  "quickcheck_macros",

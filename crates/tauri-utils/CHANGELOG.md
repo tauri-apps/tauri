@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.11]
+
+### New Features
+
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `mainBinaryName` config option to set the file name for the main binary.
+
 ## \[2.0.0-rc.10]
 
 ### Bug Fixes

@@ -14,7 +14,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "serde_json",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
 ]
 
 [[package]]
@@ -7271,7 +7271,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7314,7 +7314,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "thiserror",
  "tokio",
  "tracing",
@@ -7330,7 +7330,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.11"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -7344,7 +7344,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-codegen",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "tauri-winres",
  "toml 0.8.19",
  "walkdir",
@@ -7352,7 +7352,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-rc.10"
+version = "2.0.1-rc.11"
 dependencies = [
  "anyhow",
  "ar",
@@ -7381,7 +7381,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "tempfile",
  "thiserror",
  "time",
@@ -7396,7 +7396,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.12"
+version = "2.0.0-rc.13"
 dependencies = [
  "anyhow",
  "ar",
@@ -7460,7 +7460,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.6.0",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "tempfile",
  "tokio",
  "toml 0.8.19",
@@ -7484,7 +7484,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.11"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -7500,7 +7500,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "syn 2.0.76",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "thiserror",
  "time",
  "url",
@@ -7565,29 +7565,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-rc.9"
+version = "2.0.0-rc.10"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.76",
  "tauri-codegen",
- "tauri-utils 2.0.0-rc.10",
-]
-
-[[package]]
-name = "tauri-plugin"
-version = "2.0.0-rc.10"
-dependencies = [
- "anyhow",
- "glob",
- "plist",
- "schemars",
- "serde",
- "serde_json",
- "tauri-utils 2.0.0-rc.10",
- "toml 0.8.19",
- "walkdir",
+ "tauri-utils 2.0.0-rc.11",
 ]
 
 [[package]]
@@ -7602,7 +7587,22 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tauri-utils 2.0.0-rc.10",
+ "toml 0.8.19",
+ "walkdir",
+]
+
+[[package]]
+name = "tauri-plugin"
+version = "2.0.0-rc.11"
+dependencies = [
+ "anyhow",
+ "glob",
+ "plist",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tauri-utils 2.0.0-rc.11",
  "toml 0.8.19",
  "walkdir",
 ]
@@ -7624,7 +7624,7 @@ dependencies = [
  "serde_repr",
  "swift-rs",
  "tauri",
- "tauri-plugin 2.0.0-rc.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tauri-plugin 2.0.0-rc.10",
  "thiserror",
  "time",
 ]
@@ -7636,13 +7636,13 @@ dependencies = [
  "log",
  "serde",
  "tauri",
- "tauri-plugin 2.0.0-rc.10",
+ "tauri-plugin 2.0.0-rc.11",
  "thiserror",
 ]
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.11"
 dependencies = [
  "dpi",
  "gtk",
@@ -7651,7 +7651,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "thiserror",
  "url",
  "windows 0.58.0",
@@ -7659,7 +7659,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.11"
 dependencies = [
  "cocoa 0.26.0",
  "gtk",
@@ -7671,7 +7671,7 @@ dependencies = [
  "softbuffer",
  "tao",
  "tauri-runtime",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "tracing",
  "url",
  "webkit2gtk",
@@ -7687,7 +7687,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.10",
+ "tauri-utils 2.0.0-rc.11",
  "url",
 ]
 
@@ -7725,6 +7725,39 @@ dependencies = [
 [[package]]
 name = "tauri-utils"
 version = "2.0.0-rc.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba92ad9cdf7658fefa29a7218dda0acead9400c021bbf9c3f88e98f5e3b9bbab"
+dependencies = [
+ "cargo_metadata",
+ "ctor",
+ "dunce",
+ "glob",
+ "html5ever",
+ "infer 0.16.0",
+ "json-patch 2.0.0",
+ "kuchikiki",
+ "log",
+ "memchr",
+ "phf 0.11.2",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "schemars",
+ "semver",
+ "serde",
+ "serde-untagged",
+ "serde_json",
+ "serde_with",
+ "swift-rs",
+ "thiserror",
+ "toml 0.8.19",
+ "url",
+ "urlpattern",
+]
+
+[[package]]
+name = "tauri-utils"
+version = "2.0.0-rc.11"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -7758,39 +7791,6 @@ dependencies = [
  "url",
  "urlpattern",
  "walkdir",
-]
-
-[[package]]
-name = "tauri-utils"
-version = "2.0.0-rc.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ba92ad9cdf7658fefa29a7218dda0acead9400c021bbf9c3f88e98f5e3b9bbab"
-dependencies = [
- "cargo_metadata",
- "ctor",
- "dunce",
- "glob",
- "html5ever",
- "infer 0.16.0",
- "json-patch 2.0.0",
- "kuchikiki",
- "log",
- "memchr",
- "phf 0.11.2",
- "proc-macro2",
- "quote",
- "regex",
- "schemars",
- "semver",
- "serde",
- "serde-untagged",
- "serde_json",
- "serde_with",
- "swift-rs",
- "thiserror",
- "toml 0.8.19",
- "url",
- "urlpattern",
 ]
 
 [[package]]

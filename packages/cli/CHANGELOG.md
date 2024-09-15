@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.14]
+
+### Enhancements
+
+- [`6c5340f8b`](https://www.github.com/tauri-apps/tauri/commit/6c5340f8b2549dfe89f19656304e65cd670afc92) ([#11004](https://www.github.com/tauri-apps/tauri/pull/11004) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added the `log` plugin to the app template, which is required to visualize logs on Android and iOS.
+- [`3ad2427dc`](https://www.github.com/tauri-apps/tauri/commit/3ad2427dc08f12c61edc726b587acce32eca1080) ([#10961](https://www.github.com/tauri-apps/tauri/pull/10961) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Only render app logs on iOS unless `-vv` is provided to the `ios dev` command.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.13`
+
 ## \[2.0.0-rc.13]
 
 ### Bug Fixes

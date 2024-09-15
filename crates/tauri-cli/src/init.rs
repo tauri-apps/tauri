@@ -200,11 +200,11 @@ pub fn command(mut options: Options) -> Result<()> {
       (
         format!(
           r#"{{  path = {:?} }}"#,
-          resolve_tauri_path(&tauri_path, "crates/tauri")
+          resolve_tauri_path(tauri_path, "crates/tauri")
         ),
         format!(
           "{{  path = {:?} }}",
-          resolve_tauri_path(&tauri_path, "crates/tauri-build")
+          resolve_tauri_path(tauri_path, "crates/tauri-build")
         ),
       )
     } else {

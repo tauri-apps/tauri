@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.11]
+
+### Bug Fixes
+
+- [`9d468774a`](https://www.github.com/tauri-apps/tauri/commit/9d468774a94b5f5210a3012db2e58dbfab4755f4) ([#10975](https://www.github.com/tauri-apps/tauri/pull/10975) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The executable and NSIS installer on Windows will now use the `productName` config for the `FileDescription` property instead of `shortDescription`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-codegen@2.0.0-rc.11`
+
 ## \[2.0.0-rc.10]
 
 ### Dependencies

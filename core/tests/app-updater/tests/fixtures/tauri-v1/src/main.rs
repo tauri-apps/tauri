@@ -31,7 +31,7 @@ fn main() {
       tauri::async_runtime::spawn(async move {
         match handle
           .updater()
-          .timeout(Duration::from_secs(1))
+          .timeout(Duration::from_secs(15))
           .check()
           .await
         {

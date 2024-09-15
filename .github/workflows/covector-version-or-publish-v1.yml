@@ -180,9 +180,12 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
+          cache-on-failure: true
           workspaces: |
             core -> ../target
             tooling/cli
+            core/tests/app-updater/tests/fixtures/tauri-v1
+            core/tests/app-updater/tests/fixtures/tauri-v2/src-tauri
 
       - name: build CLI
         run: cargo build --manifest-path ./tooling/cli/Cargo.toml

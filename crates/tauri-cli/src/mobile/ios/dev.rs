@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, reload as reload_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   ConfigValue, Result,
 };
@@ -377,12 +377,11 @@ fn run_dev(
   crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+  let out_dir = app_settings.out_dir(&InterfaceOptions {
     debug: !dev_options.release_mode,
     target: dev_options.target.clone(),
     ..Default::default()
   })?;
-  let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let set_host = options.host.is_some();

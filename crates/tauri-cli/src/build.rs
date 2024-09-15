@@ -9,7 +9,7 @@ use crate::{
     app_paths::tauri_dir,
     config::{get as get_config, ConfigHandle, FrontendDist},
   },
-  interface::{AppInterface, AppSettings, Interface},
+  interface::{AppInterface, Interface},
   ConfigValue, Result,
 };
 use anyhow::Context;
@@ -83,10 +83,9 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
-  let bin_path = app_settings.app_binary_path(&interface_options)?;
-  let out_dir = bin_path.parent().unwrap();
+  let out_dir = app_settings.out_dir(&interface_options)?;
 
-  interface.build(interface_options)?;
+  let bin_path = interface.build(interface_options)?;
 
   log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(&bin_path));
 
@@ -100,7 +99,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
       &interface,
       &app_settings,
       config_,
-      out_dir,
+      &out_dir,
     )?;
   }
 

@@ -55,10 +55,16 @@ pub trait AppSettings {
       tauri_utils::platform::target_triple()?
     };
 
+    let mut bins = self.get_binaries(&target)?;
+    if let Some(main_binary_name) = &config.main_binary_name {
+      let main = bins.iter_mut().find(|b| b.main()).context("no main bin?")?;
+      main.set_name(main_binary_name.to_owned());
+    }
+
     let mut settings_builder = SettingsBuilder::new()
       .package_settings(self.get_package_settings())
       .bundle_settings(self.get_bundle_settings(config, &enabled_features)?)
-      .binaries(self.get_binaries(&target)?)
+      .binaries(bins)
       .project_out_directory(out_dir)
       .target(target)
       .package_types(package_types);
@@ -91,7 +97,7 @@ pub trait Interface: Sized {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self>;
   fn app_settings(&self) -> Arc<Self::AppSettings>;
   fn env(&self) -> HashMap<&str, String>;
-  fn build(&mut self, options: Options) -> crate::Result<()>;
+  fn build(&mut self, options: Options) -> crate::Result<PathBuf>;
   fn dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
     &mut self,
     options: Options,

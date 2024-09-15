@@ -5,6 +5,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+use anyhow::Context;
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
@@ -617,8 +618,8 @@ pub struct BundleSettings {
 #[derive(Clone, Debug)]
 pub struct BundleBinary {
   name: String,
-  src_path: Option<String>,
   main: bool,
+  src_path: Option<String>,
 }
 
 impl BundleBinary {
@@ -626,8 +627,8 @@ impl BundleBinary {
   pub fn new(name: String, main: bool) -> Self {
     Self {
       name,
-      src_path: None,
       main,
+      src_path: None,
     }
   }
 
@@ -640,13 +641,6 @@ impl BundleBinary {
     }
   }
 
-  /// Sets the src path of the binary.
-  #[must_use]
-  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
-    self.src_path = src_path;
-    self
-  }
-
   /// Mark the binary as the main executable.
   pub fn set_main(&mut self, main: bool) {
     self.main = main;
@@ -657,14 +651,21 @@ impl BundleBinary {
     self.name = name;
   }
 
-  /// Returns the binary name.
-  pub fn name(&self) -> &str {
-    &self.name
+  /// Sets the src path of the binary.
+  #[must_use]
+  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
+    self.src_path = src_path;
+    self
   }
 
   /// Returns the binary `main` flag.
   pub fn main(&self) -> bool {
     self.main
+  }
+
+  /// Returns the binary name.
+  pub fn name(&self) -> &str {
+    &self.name
   }
 
   /// Returns the binary source path.
@@ -852,14 +853,24 @@ impl Settings {
   }
 
   /// Returns the file name of the binary being bundled.
-  pub fn main_binary_name(&self) -> &str {
+  pub fn main_binary(&self) -> crate::Result<&BundleBinary> {
     self
       .binaries
       .iter()
       .find(|bin| bin.main)
-      .expect("failed to find main binary")
-      .name
-      .as_str()
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map_err(Into::into)
+  }
+
+  /// Returns the file name of the binary being bundled.
+  pub fn main_binary_name(&self) -> crate::Result<&str> {
+    self
+      .binaries
+      .iter()
+      .find(|bin| bin.main)
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map(|b| b.name.as_str())
+      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.

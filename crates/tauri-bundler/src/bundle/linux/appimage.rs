@@ -56,7 +56,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
   sh_map.insert("arch", settings.target().split('-').next().unwrap());
-  sh_map.insert("crate_name", settings.main_binary_name());
+  sh_map.insert("product_name", settings.product_name());
   sh_map.insert("appimage_filename", &appimage_filename);
 
   let tauri_tools_path = settings

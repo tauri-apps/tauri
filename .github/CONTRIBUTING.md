@@ -40,7 +40,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
   - If you are resolving a special issue, add `(fix: #xxxx[,#xxx])` (#xxxx is the issue id) in your PR title for a better release log, e.g. `fix: update entities encoding/decoding (fix #3899)`.
   - Provide detailed description of the bug in the PR, or link to an issue that does.
  
-- Follow the instructions in `.changes/readme.md` to log your changes. ie. [readme.md](https://github.com/tauri-apps/tauri/blob/dev/.changes/README.md)
+- If the PR is meant to be released, follow the instructions in `.changes/readme.md` to log your changes. ie. [readme.md](https://github.com/tauri-apps/tauri/blob/dev/.changes/README.md)
 
 ## Development Guide
 

@@ -92,7 +92,7 @@ pub fn restart(env: &Env) -> ! {
 }
 
 #[cfg(target_os = "macos")]
-fn restart_macos_app(current_binary: &PathBuf, env: &Env) {
+fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
   use std::process::{exit, Command};
 
   if let Some(macos_directory) = current_binary.parent() {

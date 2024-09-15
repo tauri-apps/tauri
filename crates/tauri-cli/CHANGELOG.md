@@ -14,7 +14,7 @@
 
 ### Dependencies
 
-- Upgraded to `tauri-bundler@3.0.0-rc.0`
+- Upgraded to `tauri-bundler@2.0.1-rc.11`
 - Upgraded to `tauri-utils@2.0.0-rc.11`
 
 ## \[2.0.0-rc.12]

@@ -7,11 +7,13 @@
 use tauri_plugin_updater::UpdaterExt;
 
 fn main() {
+  eprintln!("running tauri v2 app...");
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
     .plugin(tauri_plugin_updater::Builder::new().build())
     .setup(|app| {
       let handle = app.handle().clone();
+      println!("current version: {}", app.package_info().version);
       tauri::async_runtime::spawn(async move {
         match handle.updater().unwrap().check().await {
           Ok(Some(update)) => {

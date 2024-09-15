@@ -7,6 +7,7 @@
 use std::time::Duration;
 
 fn main() {
+  eprintln!("running tauri v1 app...");
   let mut context = tauri::generate_context!();
   if std::env::var("TARGET").unwrap_or_default() == "nsis" {
     // /D sets the default installation directory ($INSTDIR),
@@ -25,6 +26,7 @@ fn main() {
   }
   tauri::Builder::default()
     .setup(|app| {
+      println!("current version: {}", app.package_info().version);
       let handle = app.handle();
       tauri::async_runtime::spawn(async move {
         match handle
@@ -34,6 +36,7 @@ fn main() {
           .await
         {
           Ok(update) => {
+            println!("got update {}", update.latest_version());
             if update.is_update_available() {
               if let Err(e) = update.download_and_install().await {
                 println!("{e}");

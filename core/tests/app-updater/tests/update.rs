@@ -490,6 +490,8 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
       vec![UPDATED_EXIT_CODE, UP_TO_DATE_EXIT_CODE]
     };
 
+    let ci = std::env::var("CI").map(|v| v == "true").unwrap_or_default();
+
     for expected_exit_code in status_checks {
       let mut binary_cmd = if cfg!(windows) {
         Command::new(tauri_v1_fixture_dir.join("target/debug/app-updater.exe"))
@@ -501,7 +503,7 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
             .1
             .join("Contents/MacOS/app-updater"),
         )
-      } else if std::env::var("CI").map(|v| v == "true").unwrap_or_default() {
+      } else if ci {
         let mut c = Command::new("xvfb-run");
         c.arg("--auto-servernum").arg(
           &bundle_paths(&tauri_v1_fixture_dir, "0.1.0")
@@ -542,12 +544,12 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
 
       let code = status.code().unwrap_or(-1);
       if code != expected_exit_code {
-        panic!("failed to update app\nexpected {expected_exit_code} got {code}",);
+        panic!("failed to update app\nexpected {expected_exit_code} got {code}");
       }
 
       // wait for the update to be applied on Windows
       #[cfg(windows)]
-      std::thread::sleep(std::time::Duration::from_secs(3));
+      std::thread::sleep(std::time::Duration::from_secs(if ci { 6 } else { 3 }));
     }
 
     // force Rust to rebuild the binary so it doesn't conflict with other test runs

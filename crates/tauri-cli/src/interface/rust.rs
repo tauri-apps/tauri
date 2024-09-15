@@ -668,6 +668,7 @@ struct WorkspacePackageSettings {
 #[derive(Clone, Debug, Deserialize)]
 struct BinarySettings {
   name: String,
+  path: Option<String>,
 }
 
 /// The package settings.
@@ -901,7 +902,7 @@ impl AppSettings for RustAppSettings {
       for bin in bins {
         let name = format!("{}{}", bin.name, ext);
         let is_main = bin.name == self.cargo_package_settings.name || bin.name == default_run;
-        binaries.push(BundleBinary::new(name, is_main))
+        binaries.push(BundleBinary::with_path(name, is_main, bin.path.clone()))
       }
     }
 
@@ -911,7 +912,10 @@ impl AppSettings for RustAppSettings {
       for entry in fs_bins {
         let path = entry?.path();
         if let Some(name) = path.file_stem() {
-          if !binaries.iter().any(|bin| bin.name() == name) {
+          let bin_exists = binaries.iter().any(|bin| {
+            bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
+          });
+          if !bin_exists {
             binaries.push(BundleBinary::new(
               format!("{}{}", name.to_string_lossy(), ext),
               false,

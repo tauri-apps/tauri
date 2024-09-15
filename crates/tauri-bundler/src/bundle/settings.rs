@@ -619,12 +619,26 @@ pub struct BundleSettings {
 pub struct BundleBinary {
   name: String,
   main: bool,
+  src_path: Option<String>,
 }
 
 impl BundleBinary {
   /// Creates a new bundle binary.
   pub fn new(name: String, main: bool) -> Self {
-    Self { name, main }
+    Self {
+      name,
+      main,
+      src_path: None,
+    }
+  }
+
+  /// Creates a new bundle binary with path.
+  pub fn with_path(name: String, main: bool, src_path: Option<String>) -> Self {
+    Self {
+      name,
+      src_path,
+      main,
+    }
   }
 
   /// Mark the binary as the main executable.
@@ -637,6 +651,13 @@ impl BundleBinary {
     self.name = name;
   }
 
+  /// Sets the src path of the binary.
+  #[must_use]
+  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
+    self.src_path = src_path;
+    self
+  }
+
   /// Returns the binary `main` flag.
   pub fn main(&self) -> bool {
     self.main
@@ -645,6 +666,11 @@ impl BundleBinary {
   /// Returns the binary name.
   pub fn name(&self) -> &str {
     &self.name
+  }
+
+  /// Returns the binary source path.
+  pub fn src_path(&self) -> Option<&String> {
+    self.src_path.as_ref()
   }
 }
 

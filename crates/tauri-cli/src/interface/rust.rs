@@ -912,6 +912,7 @@ impl AppSettings for RustAppSettings {
       for entry in fs_bins {
         let path = entry?.path();
         if let Some(name) = path.file_stem() {
+          // see https://github.com/tauri-apps/tauri/pull/10977#discussion_r1759742414
           let bin_exists = binaries.iter().any(|bin| {
             bin.name() == name || path.ends_with(bin.src_path().unwrap_or(&"".to_string()))
           });

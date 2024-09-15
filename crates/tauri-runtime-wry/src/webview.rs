@@ -22,7 +22,7 @@ mod imp {
     pub manager: *mut c_void,
     #[cfg(target_os = "macos")]
     pub ns_window: *mut c_void,
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "ios")]
     pub view_controller: *mut c_void,
   }
 }

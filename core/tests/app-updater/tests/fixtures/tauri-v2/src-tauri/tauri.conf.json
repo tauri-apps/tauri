@@ -14,7 +14,12 @@
       "../../../../../../../examples/.icons/128x128@2x.png",
       "../../../../../../../examples/.icons/icon.icns",
       "../../../../../../../examples/.icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "frameworks": [
+        "./frameworks/test.framework"
+      ]
+    }
   },
   "version": "1.0.0",
   "identifier": "com.tauri.updater",

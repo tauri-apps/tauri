@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-rc.13"
+version = "2.0.0-rc.14"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"

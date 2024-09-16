@@ -20,6 +20,6 @@ jobs:
       - uses: cloudflare/wrangler-action@3
         with:
           command: deploy
-          workingDirectory: 'packages/schema-worker'
+          workingDirectory: 'crates/tauri-schema-worker'
           apiToken: ${{ secrets.SCHEMA_WORKER_CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.SCHEMA_WORKER_CLOUDFLARE_ACCOUNT_ID  }}

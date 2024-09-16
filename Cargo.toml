@@ -9,6 +9,7 @@ members = [
   "crates/tauri-codegen",
   "crates/tauri-plugin",
   "crates/tauri-schema-generator",
+  "crates/tauri-schema-worker",
   "crates/tauri-cli",
   "crates/tauri-bundler",
   "crates/tauri-macos-sign",
@@ -50,6 +51,7 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+strip = true
 
 # profiles for tauri-cli
 [profile.dev.package.miniz_oxide]

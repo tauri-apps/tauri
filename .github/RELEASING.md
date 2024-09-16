@@ -21,15 +21,11 @@ and `Trigger tauri-cli publishing workflow` steps in [covector-version-or-publis
 
 # Version Pull Request
 
-On each pull request merged, [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml) workflow will run to determine whether to publish or not
-and it determines that based on two conditions:
+On each pull request merged, [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml) workflow will run, and:
 
-- `.changes` doesn't have any change files in it
-- `.changes` has change files but they all included in `pre.json` (usually this is only when we are in `-alpha` to `-rc` phase).
+When there're change files inside `.changes` folder and they're not all included in `pre.json` (usually this is only when we are in `-alpha` to `-rc` phase), it will open/update an `Apply Version Updates From Current Changes` PR (https://github.com/tauri-apps/tauri/pull/11029 for example) that bumps all packages based on current existing change files and generate `CHANGELOG.md` entries. see `Create Pull Request With Versions Bumped` step in [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml).
 
-If one of these conditions are met, covector will start to publish packages configured in [`.changes/config.json`](../.changes/config.json).
-
-Otherwise, it will bump all packages based on current existing change files and generate CHANGELOG.md entries. These changes will then be included in a version PR, see `Create Pull Request With Versions Bumped` step in [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml).
+Otherwise, covector will start to publish packages configured in [`.changes/config.json`](../.changes/config.json).
 
 # Releasing and Publishing
 

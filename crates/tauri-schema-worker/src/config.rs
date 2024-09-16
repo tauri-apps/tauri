@@ -110,7 +110,13 @@ async fn crate_releases(crate_: &str) -> anyhow::Result<Vec<CrateRelease>> {
 }
 
 async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
-  console_log!("Fetching schema for {version}");
+  let cache = Cache::open("schema".to_string()).await;
+  if let Some(mut cached) = cache.get(version.to_string(), true).await? {
+    console_log!("Serving schema for {version} from cache");
+    return cached.text().await.map_err(Into::into);
+  }
+
+  console_log!("Fetching schema for {version} from remote");
 
   let path = if version.major >= 2 {
     "crates/tauri-schema-generator/schemas/config.schema.json"
@@ -136,8 +142,29 @@ async fn stable_version(crate_: &str) -> anyhow::Result<Version> {
 }
 
 fn fetch_req(url: &str) -> anyhow::Result<worker::Request> {
-  let mut req = worker::Request::new(url, Method::Get)?;
-  let headers = req.headers_mut()?;
+  let mut headers = Headers::new();
   headers.append(header::USER_AGENT.as_str(), USERAGENT)?;
-  Ok(req)
+
+  worker::Request::new_with_init(
+    url,
+    &RequestInit {
+      method: Method::Get,
+      headers,
+      cf: CfProperties {
+        cache_ttl: Some(86400),
+        cache_everything: Some(true),
+        cache_ttl_by_status: Some(
+          [
+            ("200-299".to_string(), 86400),
+            ("404".to_string(), 1),
+            ("500-599".to_string(), 0),
+          ]
+          .into(),
+        ),
+        ..Default::default()
+      },
+      ..Default::default()
+    },
+  )
+  .map_err(Into::into)
 }

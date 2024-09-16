@@ -98,6 +98,7 @@
     ".changes/mobile-identifier.md",
     ".changes/mobile-plugin-get-args.md",
     ".changes/nsis-ensure-webview2-version.md",
+    ".changes/objc2-nsimage-missing.md",
     ".changes/only-validate-ios-lib-debug.md",
     ".changes/permissions-add-target-specific.md",
     ".changes/plugin-builder-failable.md",

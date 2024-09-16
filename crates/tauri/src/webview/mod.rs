@@ -1136,17 +1136,11 @@ fn main() {
       return;
     }
 
-    let custom_responder = self.manager().webview.invoke_responder.clone();
-
     let resolver = InvokeResolver::new(
       self.clone(),
       Arc::new(Mutex::new(Some(Box::new(
         #[allow(unused_variables)]
         move |webview: Webview<R>, cmd, response, callback, error| {
-          if let Some(responder) = &custom_responder {
-            (responder)(&webview, &cmd, &response, callback, error);
-          }
-
           responder(webview, cmd, response, callback, error);
         },
       )))),

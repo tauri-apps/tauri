@@ -22,7 +22,7 @@ use tauri_utils::{
 use crate::{
   app::{AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener, OnPageLoad},
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
-  ipc::{Invoke, InvokeHandler, InvokeResponder, RuntimeAuthority},
+  ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   utils::{config::Config, PackageInfo},
   Assets, Context, Pattern, Runtime, StateManager, Window,
@@ -254,7 +254,7 @@ impl<R: Runtime> AppManager<R> {
       String,
       crate::app::GlobalMenuEventListener<Window<R>>,
     >,
-    (invoke_responder, invoke_initialization_script): (Option<Arc<InvokeResponder<R>>>, String),
+    invoke_initialization_script: String,
     invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
@@ -276,7 +276,6 @@ impl<R: Runtime> AppManager<R> {
         on_page_load,
         uri_scheme_protocols: Mutex::new(uri_scheme_protocols),
         event_listeners: Arc::new(webiew_event_listeners),
-        invoke_responder,
         invoke_initialization_script,
         invoke_key: invoke_key.clone(),
       },
@@ -731,7 +730,7 @@ mod test {
       Default::default(),
       Default::default(),
       Default::default(),
-      (None, "".into()),
+      "".into(),
       crate::generate_invoke_key().unwrap(),
     );
 

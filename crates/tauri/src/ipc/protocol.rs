@@ -325,7 +325,6 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
           request,
           Box::new(move |webview, cmd, response, callback, error| {
             use crate::ipc::Channel;
-            use crate::sealed::ManagerBase;
 
             #[cfg(feature = "tracing")]
             let _respond_span = tracing::trace_span!(
@@ -334,104 +333,101 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
             )
             .entered();
 
-            // the channel data command is the only command that uses a custom protocol on Linux
-            if webview.manager().webview.invoke_responder.is_none() {
-              fn responder_eval<R: Runtime>(
-                webview: &crate::Webview<R>,
-                js: crate::Result<String>,
-                error: CallbackFn,
-              ) {
-                let eval_js = match js {
-                  Ok(js) => js,
-                  Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
-                    .expect("unable to serialize response error string to json"),
-                };
-
-                let _ = webview.eval(&eval_js);
-              }
-
-              let can_use_channel_for_response = cmd
-                != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-                && !options.custom_protocol_ipc_blocked;
-
-              #[cfg(feature = "tracing")]
-              let mime_type = match &response {
-                InvokeResponse::Ok(InvokeResponseBody::Json(_)) => mime::APPLICATION_JSON,
-                InvokeResponse::Ok(InvokeResponseBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
-                InvokeResponse::Err(_) => mime::APPLICATION_JSON,
+            fn responder_eval<R: Runtime>(
+              webview: &crate::Webview<R>,
+              js: crate::Result<String>,
+              error: CallbackFn,
+            ) {
+              let eval_js = match js {
+                Ok(js) => js,
+                Err(e) => crate::ipc::format_callback::format(error, &e.to_string())
+                  .expect("unable to serialize response error string to json"),
               };
 
-              #[cfg(feature = "tracing")]
-              let _response_span = match &response {
-                InvokeResponse::Ok(InvokeResponseBody::Json(v)) => tracing::trace_span!(
-                  "ipc::request::response",
-                  response = v,
-                  mime_type = mime_type.essence_str()
-                )
-                .entered(),
-                InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => tracing::trace_span!(
-                  "ipc::request::response",
-                  response = format!("{v:?}"),
-                  mime_type = mime_type.essence_str()
-                )
-                .entered(),
-                InvokeResponse::Err(e) => tracing::trace_span!(
-                  "ipc::request::response",
-                  response = format!("{e:?}"),
-                  mime_type = mime_type.essence_str()
-                )
-                .entered(),
-              };
+              let _ = webview.eval(&eval_js);
+            }
 
-              match response {
-                InvokeResponse::Ok(InvokeResponseBody::Json(v)) => {
-                  if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
-                    && (v.starts_with('{') || v.starts_with('['))
-                    && can_use_channel_for_response
-                  {
-                    let _ = Channel::from_callback_fn(webview, callback)
-                      .send(InvokeResponseBody::Json(v));
-                  } else {
-                    responder_eval(
-                      &webview,
-                      crate::ipc::format_callback::format_result_raw(
-                        Result::<_, String>::Ok(v),
-                        callback,
-                        error,
-                      ),
+            let can_use_channel_for_response = cmd
+              != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+              && !options.custom_protocol_ipc_blocked;
+
+            #[cfg(feature = "tracing")]
+            let mime_type = match &response {
+              InvokeResponse::Ok(InvokeResponseBody::Json(_)) => mime::APPLICATION_JSON,
+              InvokeResponse::Ok(InvokeResponseBody::Raw(_)) => mime::APPLICATION_OCTET_STREAM,
+              InvokeResponse::Err(_) => mime::APPLICATION_JSON,
+            };
+
+            #[cfg(feature = "tracing")]
+            let _response_span = match &response {
+              InvokeResponse::Ok(InvokeResponseBody::Json(v)) => tracing::trace_span!(
+                "ipc::request::response",
+                response = v,
+                mime_type = mime_type.essence_str()
+              )
+              .entered(),
+              InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => tracing::trace_span!(
+                "ipc::request::response",
+                response = format!("{v:?}"),
+                mime_type = mime_type.essence_str()
+              )
+              .entered(),
+              InvokeResponse::Err(e) => tracing::trace_span!(
+                "ipc::request::response",
+                response = format!("{e:?}"),
+                mime_type = mime_type.essence_str()
+              )
+              .entered(),
+            };
+
+            match response {
+              InvokeResponse::Ok(InvokeResponseBody::Json(v)) => {
+                if !(cfg!(target_os = "macos") || cfg!(target_os = "ios"))
+                  && (v.starts_with('{') || v.starts_with('['))
+                  && can_use_channel_for_response
+                {
+                  let _ =
+                    Channel::from_callback_fn(webview, callback).send(InvokeResponseBody::Json(v));
+                } else {
+                  responder_eval(
+                    &webview,
+                    crate::ipc::format_callback::format_result_raw(
+                      Result::<_, String>::Ok(v),
+                      callback,
                       error,
-                    )
-                  }
-                }
-                InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => {
-                  if cfg!(target_os = "macos")
-                    || cfg!(target_os = "ios")
-                    || !can_use_channel_for_response
-                  {
-                    responder_eval(
-                      &webview,
-                      crate::ipc::format_callback::format_result(
-                        Result::<_, ()>::Ok(v),
-                        callback,
-                        error,
-                      ),
-                      error,
-                    );
-                  } else {
-                    let _ = Channel::from_callback_fn(webview, callback)
-                      .send(InvokeResponseBody::Raw(v.clone()));
-                  }
-                }
-                InvokeResponse::Err(e) => responder_eval(
-                  &webview,
-                  crate::ipc::format_callback::format_result(
-                    Result::<(), _>::Err(&e.0),
-                    callback,
+                    ),
                     error,
-                  ),
+                  )
+                }
+              }
+              InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => {
+                if cfg!(target_os = "macos")
+                  || cfg!(target_os = "ios")
+                  || !can_use_channel_for_response
+                {
+                  responder_eval(
+                    &webview,
+                    crate::ipc::format_callback::format_result(
+                      Result::<_, ()>::Ok(v),
+                      callback,
+                      error,
+                    ),
+                    error,
+                  );
+                } else {
+                  let _ = Channel::from_callback_fn(webview, callback)
+                    .send(InvokeResponseBody::Raw(v.clone()));
+                }
+              }
+              InvokeResponse::Err(e) => responder_eval(
+                &webview,
+                crate::ipc::format_callback::format_result(
+                  Result::<(), _>::Err(&e.0),
+                  callback,
                   error,
                 ),
-              }
+                error,
+              ),
             }
           }),
         );
@@ -593,7 +589,7 @@ mod tests {
       Default::default(),
       Default::default(),
       Default::default(),
-      (None, "".into()),
+      "".into(),
       crate::generate_invoke_key().unwrap(),
     );
 
@@ -706,7 +702,7 @@ mod tests {
       Default::default(),
       Default::default(),
       Default::default(),
-      (None, "".into()),
+      "".into(),
       crate::generate_invoke_key().unwrap(),
     );
 

@@ -5,8 +5,7 @@
 use crate::{
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponder, InvokeResponse,
+    channel::ChannelDataIpcQueue, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler,
   },
   manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
@@ -1169,9 +1168,6 @@ pub struct Builder<R: Runtime> {
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
-  /// The JS message responder.
-  invoke_responder: Option<Arc<InvokeResponder<R>>>,
-
   /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
   pub(crate) invoke_initialization_script: String,
 
@@ -1248,7 +1244,6 @@ impl<R: Runtime> Builder<R> {
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
-      invoke_responder: None,
       invoke_initialization_script: InvokeInitializationScript {
         process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
@@ -1312,17 +1307,11 @@ impl<R: Runtime> Builder<R> {
 
   /// Defines a custom JS message system.
   ///
-  /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
-  ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_INTERNALS__.postMessage`.
   /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
   #[must_use]
-  pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
-  where
-    F: Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
-  {
+  pub fn invoke_system(mut self, initialization_script: String) -> Self {
     self.invoke_initialization_script = initialization_script;
-    self.invoke_responder.replace(Arc::new(responder));
     self
   }
 
@@ -1782,7 +1771,7 @@ tauri::Builder::default()
       self.webview_event_listeners,
       #[cfg(desktop)]
       HashMap::new(),
-      (self.invoke_responder, self.invoke_initialization_script),
+      self.invoke_initialization_script,
       self.invoke_key,
     ));
 

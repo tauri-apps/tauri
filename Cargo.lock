@@ -7284,7 +7284,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-rc.13"
+version = "2.0.0-rc.14"
 dependencies = [
  "anyhow",
  "bytes",

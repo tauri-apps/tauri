@@ -106,7 +106,8 @@ async fn try_next_schema() -> anyhow::Result<String> {
 
 async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
   let cache = Cache::open("schema".to_string()).await;
-  if let Some(mut cached) = cache.get(version.to_string(), true).await? {
+  let cache_key = format!("https://scheam.tauri.app/config/{version}");
+  if let Some(mut cached) = cache.get(cache_key.clone(), true).await? {
     console_log!("Serving schema for {version} from cache");
     return cached.text().await.map_err(Into::into);
   }
@@ -120,6 +121,9 @@ async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
   };
   let url = format!("https://raw.githubusercontent.com/tauri-apps/tauri/tauri-v{version}/{path}");
   let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
+
+  cache.put(cache_key, res.cloned()?).await?;
+
   res.text().await.map_err(Into::into)
 }
 

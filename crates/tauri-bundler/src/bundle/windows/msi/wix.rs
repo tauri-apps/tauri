@@ -520,7 +520,7 @@ pub fn build_wix_app_installer(
   data.insert("upgrade_code", to_json(upgrade_code.as_str()));
   let product_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
-    &settings.bundle_identifier().as_bytes(),
+    settings.bundle_identifier().as_bytes(),
   )
   .to_string();
   data.insert("product_code", to_json(product_code.as_str()));

@@ -1259,6 +1259,12 @@ pub struct WindowConfig {
   /// The window identifier. It must be alphanumeric.
   #[serde(default = "default_window_label")]
   pub label: String,
+  /// Whether Tauri should create this window at app startup or not.
+  ///
+  /// When this is set to `false` you must manually grab the config object via `app.config().app.windows`
+  /// and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2.0.0-rc/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).
+  #[serde(default = "default_true")]
+  pub create: bool,
   /// The window webview URL.
   #[serde(default)]
   pub url: WebviewUrl,
@@ -1455,6 +1461,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WebviewUrl::default(),
+      create: true,
       user_agent: None,
       drag_drop_enabled: true,
       center: false,
@@ -1835,7 +1842,7 @@ impl Default for PatternKind {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppConfig {
-  /// The windows configuration.
+  /// The app windows configuration.
   #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// Security configuration.
@@ -2423,6 +2430,7 @@ mod build {
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
+      let create = &self.create;
       let url = &self.url;
       let user_agent = opt_str_lit(self.user_agent.as_ref());
       let drag_drop_enabled = self.drag_drop_enabled;
@@ -2469,6 +2477,7 @@ mod build {
         ::tauri::utils::config::WindowConfig,
         label,
         url,
+        create,
         user_agent,
         drag_drop_enabled,
         center,

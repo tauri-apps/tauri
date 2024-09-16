@@ -160,7 +160,7 @@
       "type": "object",
       "properties": {
         "windows": {
-          "description": "The windows configuration.",
+          "description": "The app windows configuration.",
           "default": [],
           "type": "array",
           "items": {
@@ -224,6 +224,11 @@
           "description": "The window identifier. It must be alphanumeric.",
           "default": "main",
           "type": "string"
+        },
+        "create": {
+          "description": "Whether Tauri should create this window at app startup or not.\n\n When this is set to `false` you must manually grab the config object via `app.config().app.windows`\n and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2.0.0-rc/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).",
+          "default": true,
+          "type": "boolean"
         },
         "url": {
           "description": "The window webview URL.",

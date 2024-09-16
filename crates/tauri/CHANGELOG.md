@@ -4,7 +4,7 @@
 
 ### Bug Fixes
 
-- [`e5f037277`](https://www.github.com/tauri-apps/tauri/commit/e5f037277505c477b8d563bd77b7bd6e23b46296) ([#11018](https://www.github.com/tauri-apps/tauri/pull/11018) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix comiplation error on macOS due to a missing feature for `NSImage`
+- [`e5f037277`](https://www.github.com/tauri-apps/tauri/commit/e5f037277505c477b8d563bd77b7bd6e23b46296) ([#11018](https://www.github.com/tauri-apps/tauri/pull/11018) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix compilation error on macOS due to a missing feature for `NSImage`.
 
 ## \[2.0.0-rc.13]
 

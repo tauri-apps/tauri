@@ -1332,10 +1332,11 @@ impl<R: Runtime> Builder<R> {
   /// Note that the implementation details is up to your implementation.
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
+  where
+    F: Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
+  {
     self.invoke_initialization_script =
       initialization_script.replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
-  {
-    self.invoke_initialization_script = initialization_script;
     self.invoke_responder.replace(Arc::new(responder));
     self
   }

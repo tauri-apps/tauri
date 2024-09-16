@@ -10,7 +10,7 @@ This document is mainly intended for team members responsible for maintaining th
 
 # Covector
 
-We use [`covector`](https://github.com/jbolda/covector) to manage our version pumbs and relase pipeline.
+We use [`covector`](https://github.com/jbolda/covector) to manage our version bumps and release pipeline.
 It can be configured in [`.changes/config.json`](../.changes/config.json) which includes how each package should be published step by step.
 
 Some packages can't be published directly using `covector` as it requires to be built on a matrix of platforms

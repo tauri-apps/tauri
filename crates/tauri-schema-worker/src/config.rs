@@ -41,39 +41,36 @@ const USERAGENT: &str = "tauri-schema-worker (contact@tauri.app)";
 
 pub fn router() -> Router {
   Router::new()
-    .route("/config", get(latest_stable_schema))
-    .route("/config/latest", get(latest_stable_schema))
-    .route("/config/stable", get(latest_stable_schema))
-    .route("/config/next", get(latest_next_schema)) // pre-releases versions, (rc, alpha and beta)
-    .route("/config/:version", get(schema))
+    .route("/config", get(stable_schema))
+    .route("/config/latest", get(stable_schema))
+    .route("/config/stable", get(stable_schema))
+    .route("/config/next", get(next_schema)) // pre-releases versions, (rc, alpha and beta)
+    .route("/config/:version", get(schema_for_version))
 }
 
-async fn schema(Path(version): Path<String>) -> Result<String> {
-  Ok(
-    try_schema(version)
-      .await
-      .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
-  )
+async fn schema_for_version(Path(version): Path<String>) -> Result<String> {
+  try_schema_for_version(version)
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    .map_err(Into::into)
 }
 
-async fn latest_stable_schema() -> Result<String> {
-  Ok(
-    max_stable_schema()
-      .await
-      .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
-  )
+async fn stable_schema() -> Result<String> {
+  try_stable_schema()
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    .map_err(Into::into)
 }
 
-async fn latest_next_schema() -> Result<String> {
-  Ok(
-    try_latest_prerelease_schema()
-      .await
-      .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?,
-  )
+async fn next_schema() -> Result<String> {
+  try_next_schema()
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+    .map_err(Into::into)
 }
 
 #[worker::send]
-async fn try_latest_prerelease_schema() -> anyhow::Result<String> {
+async fn try_next_schema() -> anyhow::Result<String> {
   let releases = crate_releases("tauri").await?;
   let version = releases
     .into_iter()
@@ -85,17 +82,17 @@ async fn try_latest_prerelease_schema() -> anyhow::Result<String> {
 }
 
 #[worker::send]
-async fn try_schema(version: String) -> anyhow::Result<String> {
+async fn try_schema_for_version(version: String) -> anyhow::Result<String> {
   let version = version.parse::<VersionReq>()?;
 
   let releases = crate_releases("tauri").await?;
 
   if releases.is_empty() {
-    return max_stable_schema().await;
+    return try_stable_schema().await;
   }
 
   let Some(version) = releases.into_iter().find(|r| version.matches(&r.version)) else {
-    return max_stable_schema().await;
+    return try_stable_schema().await;
   };
 
   schema_file_for_version(version.version).await
@@ -126,12 +123,12 @@ async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
 }
 
 #[worker::send]
-async fn max_stable_schema() -> anyhow::Result<String> {
-  let max = max_stable_version("tauri").await?;
+async fn try_stable_schema() -> anyhow::Result<String> {
+  let max = stable_version("tauri").await?;
   schema_file_for_version(max).await
 }
 
-async fn max_stable_version(crate_: &str) -> anyhow::Result<Version> {
+async fn stable_version(crate_: &str) -> anyhow::Result<Version> {
   let url = format!("https://crates.io/api/v1/crates/{crate_}");
   let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
   let metadata: CrateMetadataFull = res.json().await?;

@@ -160,7 +160,7 @@
       "type": "object",
       "properties": {
         "windows": {
-          "description": "The windows configuration.",
+          "description": "The app windows configuration.",
           "default": [],
           "type": "array",
           "items": {
@@ -224,6 +224,11 @@
           "description": "The window identifier. It must be alphanumeric.",
           "default": "main",
           "type": "string"
+        },
+        "create": {
+          "description": "Whether or not to create this window at app startup or not.",
+          "default": true,
+          "type": "boolean"
         },
         "url": {
           "description": "The window webview URL.",

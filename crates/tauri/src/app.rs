@@ -2014,7 +2014,7 @@ impl<R: Runtime> HasDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   app.ran_setup = true;
 
-  for window_config in app.config().app.windows.clone() {
+  for window_config in app.config().app.windows.iter().filter(|w| w.create) {
     WebviewWindowBuilder::from_config(app.handle(), &window_config)?.build()?;
   }
 

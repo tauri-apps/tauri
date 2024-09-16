@@ -1259,7 +1259,10 @@ pub struct WindowConfig {
   /// The window identifier. It must be alphanumeric.
   #[serde(default = "default_window_label")]
   pub label: String,
-  /// Whether or not to create this window at app startup or not.
+  /// Whether Tauri should create this window at app startup or not.
+  ///
+  /// When this is set to `false` you must manually grab the config object via `app.config().app.windows`
+  /// and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2.0.0-rc/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).
   #[serde(default = "default_true")]
   pub create: bool,
   /// The window webview URL.

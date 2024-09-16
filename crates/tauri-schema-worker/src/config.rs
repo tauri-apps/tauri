@@ -70,18 +70,6 @@ async fn next_schema() -> Result<String> {
 }
 
 #[worker::send]
-async fn try_next_schema() -> anyhow::Result<String> {
-  let releases = crate_releases("tauri").await?;
-  let version = releases
-    .into_iter()
-    .filter(|r| !r.version.pre.is_empty())
-    .map(|r| r.version)
-    .max()
-    .context("Couldn't find latest pre-release")?;
-  schema_file_for_version(version).await
-}
-
-#[worker::send]
 async fn try_schema_for_version(version: String) -> anyhow::Result<String> {
   let version = version.parse::<VersionReq>()?;
 
@@ -98,15 +86,22 @@ async fn try_schema_for_version(version: String) -> anyhow::Result<String> {
   schema_file_for_version(version.version).await
 }
 
-async fn crate_releases(crate_: &str) -> anyhow::Result<Vec<CrateRelease>> {
-  let url = format!("https://crates.io/api/v1/crates/{crate_}/versions");
-  let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
+#[worker::send]
+async fn try_stable_schema() -> anyhow::Result<String> {
+  let max = stable_version("tauri").await?;
+  schema_file_for_version(max).await
+}
 
-  let versions: CrateReleases = res.json().await?;
-  let versions = versions.versions;
-
-  let flt = |r: &CrateRelease| r.yanked == Some(false);
-  Ok(versions.into_iter().filter(flt).collect())
+#[worker::send]
+async fn try_next_schema() -> anyhow::Result<String> {
+  let releases = crate_releases("tauri").await?;
+  let version = releases
+    .into_iter()
+    .filter(|r| !r.version.pre.is_empty())
+    .map(|r| r.version)
+    .max()
+    .context("Couldn't find latest pre-release")?;
+  schema_file_for_version(version).await
 }
 
 async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
@@ -128,10 +123,15 @@ async fn schema_file_for_version(version: Version) -> anyhow::Result<String> {
   res.text().await.map_err(Into::into)
 }
 
-#[worker::send]
-async fn try_stable_schema() -> anyhow::Result<String> {
-  let max = stable_version("tauri").await?;
-  schema_file_for_version(max).await
+async fn crate_releases(crate_: &str) -> anyhow::Result<Vec<CrateRelease>> {
+  let url = format!("https://crates.io/api/v1/crates/{crate_}/versions");
+  let mut res = Fetch::Request(fetch_req(&url)?).send().await?;
+
+  let versions: CrateReleases = res.json().await?;
+  let versions = versions.versions;
+
+  let flt = |r: &CrateRelease| r.yanked == Some(false);
+  Ok(versions.into_iter().filter(flt).collect())
 }
 
 async fn stable_version(crate_: &str) -> anyhow::Result<Version> {

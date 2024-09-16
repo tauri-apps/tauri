@@ -29,7 +29,7 @@ and it determines that based on two conditions:
 
 If one of these conditions are met, covector will start to publish packages configured in [`.changes/config.json`](../.changes/config.json).
 
-Otherwise, it will pump all packages based on current existing change files and generate CHANGELOG.md entries. These changes will then be included in a version PR, see `Create Pull Request With Versions Bumped` step in [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml).
+Otherwise, it will bump all packages based on current existing change files and generate CHANGELOG.md entries. These changes will then be included in a version PR, see `Create Pull Request With Versions Bumped` step in [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml).
 
 # Releasing and Publishing
 

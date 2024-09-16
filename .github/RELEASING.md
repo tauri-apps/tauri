@@ -48,7 +48,7 @@ Releasing can be as easy as merging the version pull request but here is a check
 
 It is possible and due to many factors that one or many packages release can fail to release, there is no reason to panic, we can fix this.
 
-Did all of the packages failed to release?
+Did all of the packages fail to release?
 
 - yes?
   - [ ] `git checkout -b revert-branch`

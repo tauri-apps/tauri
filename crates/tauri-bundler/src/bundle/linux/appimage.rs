@@ -35,7 +35,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate deb_folder structure
   let (data_dir, icons) = debian::generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
-  common::copy_custom_files(&settings.deb().files, &data_dir)
+  common::copy_custom_files(&settings.appimage().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
@@ -56,7 +56,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // setup data to insert into shell script
   let mut sh_map = BTreeMap::new();
   sh_map.insert("arch", settings.target().split('-').next().unwrap());
-  sh_map.insert("crate_name", settings.main_binary_name());
+  sh_map.insert("product_name", settings.product_name());
   sh_map.insert("appimage_filename", &appimage_filename);
 
   let tauri_tools_path = settings

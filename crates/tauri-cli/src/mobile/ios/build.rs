@@ -271,12 +271,11 @@ fn run_build(
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+  let out_dir = app_settings.out_dir(&InterfaceOptions {
     debug: build_options.debug,
     target: build_options.target.clone(),
     ..Default::default()
   })?;
-  let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let cli_options = CliOptions {
@@ -314,13 +313,7 @@ fn run_build(
         build_config = build_config.authentication_credentials(credentials.clone());
       }
 
-      target.build(
-        config,
-        env,
-        NoiseLevel::FranklyQuitePedantic,
-        profile,
-        build_config,
-      )?;
+      target.build(config, env, noise_level, profile, build_config)?;
 
       target.archive(
         config,

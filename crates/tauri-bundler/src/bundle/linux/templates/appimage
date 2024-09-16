@@ -17,10 +17,10 @@ else
     linuxdeploy_arch="$ARCH"
 fi
 
-mkdir -p "{{crate_name}}.AppDir"
-cp -r ../appimage_deb/data/usr "{{crate_name}}.AppDir"
+mkdir -p "{{product_name}}.AppDir"
+cp -r ../appimage_deb/data/usr "{{product_name}}.AppDir"
 
-cd "{{crate_name}}.AppDir"
+cd "{{product_name}}.AppDir"
 mkdir -p "usr/bin"
 mkdir -p "usr/lib"
 
@@ -56,14 +56,14 @@ find -L /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname
 ( cd "{{tauri_tools_path}}" && ( wget -q -4 -N https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -N https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH} ) )
 chmod +x "{{tauri_tools_path}}/AppRun-${ARCH}"
 
-# We need AppRun to be installed as {{crate_name}}.AppDir/AppRun.
+# We need AppRun to be installed as {{product_name}}.AppDir/AppRun.
 # Otherwise the linuxdeploy scripts will default to symlinking our main bin instead and will crash on trying to launch.
 cp "{{tauri_tools_path}}/AppRun-${ARCH}" AppRun
 
 cp "{{icon_path}}" .DirIcon
-ln -sf "{{icon_path}}" "{{crate_name}}.png"
+ln -sf "{{icon_path}}" "{{product_name}}.png"
 
-ln -sf "usr/share/applications/{{crate_name}}.desktop" "{{crate_name}}.desktop"
+ln -sf "usr/share/applications/{{product_name}}.desktop" "{{product_name}}.desktop"
 
 cd ..
 
@@ -83,4 +83,4 @@ chmod +x "{{tauri_tools_path}}/linuxdeploy-${linuxdeploy_arch}.AppImage"
 
 dd if=/dev/zero bs=1 count=3 seek=8 conv=notrunc of="{{tauri_tools_path}}/linuxdeploy-${linuxdeploy_arch}.AppImage"
 
-OUTPUT="{{appimage_filename}}" "{{tauri_tools_path}}/linuxdeploy-${linuxdeploy_arch}.AppImage" --appimage-extract-and-run --appdir "{{crate_name}}.AppDir" --plugin gtk ${gst_plugin} --output appimage
+OUTPUT="{{appimage_filename}}" "{{tauri_tools_path}}/linuxdeploy-${linuxdeploy_arch}.AppImage" --appimage-extract-and-run --appdir "{{product_name}}.AppDir" --plugin gtk ${gst_plugin} --output appimage

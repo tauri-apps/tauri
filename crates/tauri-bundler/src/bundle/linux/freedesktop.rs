@@ -44,13 +44,14 @@ pub fn list_icon_files(
   data_dir: &Path,
 ) -> crate::Result<BTreeMap<Icon, PathBuf>> {
   let base_dir = data_dir.join("usr/share/icons/hicolor");
+  let main_binary_name = settings.main_binary_name()?;
   let get_dest_path = |width: u32, height: u32, is_high_density: bool| {
     base_dir.join(format!(
       "{}x{}{}/apps/{}.png",
       width,
       height,
       if is_high_density { "@2" } else { "" },
-      settings.main_binary_name()
+      main_binary_name
     ))
   };
   let mut icons = BTreeMap::new();
@@ -97,8 +98,9 @@ pub fn generate_desktop_file(
   custom_template_path: &Option<PathBuf>,
   data_dir: &Path,
 ) -> crate::Result<(PathBuf, PathBuf)> {
-  let bin_name = settings.main_binary_name();
-  let desktop_file_name = format!("{bin_name}.desktop");
+  let bin_name = settings.main_binary_name()?;
+  let product_name = settings.product_name();
+  let desktop_file_name = format!("{product_name}.desktop");
   let path = PathBuf::from("usr/share/applications").join(desktop_file_name);
   let dest_path = PathBuf::from("/").join(&path);
   let file_path = data_dir.join(&path);

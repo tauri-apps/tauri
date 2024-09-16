@@ -580,8 +580,6 @@ mod tests {
     .iter()
     .collect::<Vec<_>>();
 
-    dbg!(&resources);
-
     assert_eq!(resources.len(), 4);
 
     assert!(resources.iter().all(|r| r.is_err()));

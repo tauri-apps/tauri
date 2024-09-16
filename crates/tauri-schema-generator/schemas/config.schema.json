@@ -23,6 +23,13 @@
       ],
       "pattern": "^[^/\\:*?\"<>|]+$"
     },
+    "mainBinaryName": {
+      "description": "App main binary filename. Defaults to the name of your cargo crate.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "version": {
       "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.\n\n By default version 1.0 is used on Android.",
       "type": [
@@ -1749,9 +1756,7 @@
       "anyOf": [
         {
           "description": "Bundle all targets.",
-          "enum": [
-            "all"
-          ]
+          "const": "all"
         },
         {
           "description": "A list of bundle targets.",
@@ -2676,7 +2681,7 @@
           }
         },
         "obsoletes": {
-          "description": "The list of RPM dependencies your application supersedes - if this package is installed,\n packages listed as “obsoletes” will be automatically removed (if they are present).",
+          "description": "The list of RPM dependencies your application supersedes - if this package is installed,\n packages listed as \"obsoletes\" will be automatically removed (if they are present).",
           "type": [
             "array",
             "null"

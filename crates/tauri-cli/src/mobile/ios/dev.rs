@@ -13,7 +13,7 @@ use crate::{
     config::{get as get_tauri_config, reload as reload_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{write_options, CliOptions, DevChild, DevProcess},
   ConfigValue, Result,
 };
@@ -377,12 +377,11 @@ fn run_dev(
   crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+  let out_dir = app_settings.out_dir(&InterfaceOptions {
     debug: !dev_options.release_mode,
     target: dev_options.target.clone(),
     ..Default::default()
   })?;
-  let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let set_host = options.host.is_some();
@@ -417,7 +416,7 @@ fn run_dev(
         }
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
-        match run(device, options, config, &env) {
+        match run(device, options, config, noise_level, &env) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
@@ -438,6 +437,7 @@ fn run(
   device: &Device<'_>,
   options: MobileOptions,
   config: &AppleConfig,
+  noise_level: NoiseLevel,
   env: &Env,
 ) -> crate::Result<DevChild> {
   let profile = if options.debug {
@@ -450,7 +450,7 @@ fn run(
     .run(
       config,
       env,
-      NoiseLevel::FranklyQuitePedantic,
+      noise_level,
       false, // do not quit on app exit
       profile,
     )

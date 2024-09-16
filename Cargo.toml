@@ -68,3 +68,4 @@ opt-level = "s"
 # See https://github.com/GREsau/schemars/issues/120 for reference
 [patch.crates-io]
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
+tauri = { path = "./crates/tauri" }

@@ -11,23 +11,12 @@ use crate::platform::Target;
 use super::{
   capability::{Capability, PermissionEntry},
   manifest::Manifest,
-  Commands, Error, ExecutionContext, Permission, PermissionSet, Scopes, Value, APP_ACL_KEY,
+  Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes, Value,
+  APP_ACL_KEY,
 };
 
 /// A key for a scope, used to link a [`ResolvedCommand#structfield.scope`] to the store [`Resolved#structfield.scopes`].
 pub type ScopeKey = u64;
-
-const CORE_PLUGINS: &[&str] = &[
-  "core:app",
-  "core:event",
-  "core:image",
-  "core:menu",
-  "core:path",
-  "core:resources",
-  "core:tray",
-  "core:webview",
-  "core:window",
-];
 
 /// Metadata for what referenced a [`ResolvedCommand`].
 #[cfg(debug_assertions)]
@@ -103,39 +92,17 @@ impl Resolved {
     let mut global_scope: BTreeMap<String, Vec<Scopes>> = BTreeMap::new();
 
     // resolve commands
-    for capability in capabilities.values_mut() {
-      if !capability
-        .platforms
-        .as_ref()
-        .map(|platforms| platforms.contains(&target))
-        .unwrap_or(true)
-      {
-        continue;
-      }
-
-      if let Some(core_default_index) = capability.permissions.iter().position(|permission| {
-        matches!(
-          permission,
-          PermissionEntry::PermissionRef(i) if i.get() == "core:default"
-        )
-      }) {
-        capability.permissions.remove(core_default_index);
-        for plugin in CORE_PLUGINS {
-          capability.permissions.push(PermissionEntry::PermissionRef(
-            format!("{plugin}:default").try_into().unwrap(),
-          ));
-        }
-      }
-
+    for capability in capabilities.values_mut().filter(|c| c.is_active(&target)) {
       with_resolved_permissions(
         capability,
         acl,
         target,
         |ResolvedPermission {
            key,
-           permission_name,
            commands,
            scope,
+           #[cfg_attr(not(debug_assertions), allow(unused))]
+           permission_name,
          }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {
             // global scope
@@ -236,86 +203,6 @@ fn parse_glob_patterns(mut raw: Vec<String>) -> Result<Vec<glob::Pattern>, Error
   Ok(patterns)
 }
 
-struct ResolvedPermission<'a> {
-  key: &'a str,
-  permission_name: &'a str,
-  commands: Commands,
-  scope: Scopes,
-}
-
-fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>) -> Result<(), Error>>(
-  capability: &Capability,
-  acl: &BTreeMap<String, Manifest>,
-  target: Target,
-  mut f: F,
-) -> Result<(), Error> {
-  for permission_entry in &capability.permissions {
-    let permission_id = permission_entry.identifier();
-    let permission_name = permission_id.get_base();
-
-    let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);
-
-    let permissions = get_permissions(key, permission_name, acl)?
-      .into_iter()
-      .filter(|p| {
-        p.platforms
-          .as_ref()
-          .map(|platforms| platforms.contains(&target))
-          .unwrap_or(true)
-      })
-      .collect::<Vec<_>>();
-
-    let mut resolved_scope = Scopes::default();
-    let mut commands = Commands::default();
-
-    if let PermissionEntry::ExtendedPermission {
-      identifier: _,
-      scope,
-    } = permission_entry
-    {
-      if let Some(allow) = scope.allow.clone() {
-        resolved_scope
-          .allow
-          .get_or_insert_with(Default::default)
-          .extend(allow);
-      }
-      if let Some(deny) = scope.deny.clone() {
-        resolved_scope
-          .deny
-          .get_or_insert_with(Default::default)
-          .extend(deny);
-      }
-    }
-
-    for permission in permissions {
-      if let Some(allow) = permission.scope.allow.clone() {
-        resolved_scope
-          .allow
-          .get_or_insert_with(Default::default)
-          .extend(allow);
-      }
-      if let Some(deny) = permission.scope.deny.clone() {
-        resolved_scope
-          .deny
-          .get_or_insert_with(Default::default)
-          .extend(deny);
-      }
-
-      commands.allow.extend(permission.commands.allow.clone());
-      commands.deny.extend(permission.commands.deny.clone());
-    }
-
-    f(ResolvedPermission {
-      key,
-      permission_name,
-      commands,
-      scope: resolved_scope,
-    })?;
-  }
-
-  Ok(())
-}
-
 fn resolve_command(
   commands: &mut BTreeMap<String, Vec<ResolvedCommand>>,
   command: String,
@@ -356,21 +243,175 @@ fn resolve_command(
   Ok(())
 }
 
+struct ResolvedPermission<'a> {
+  key: &'a str,
+  permission_name: &'a str,
+  commands: Commands,
+  scope: Scopes,
+}
+
+/// Iterate over permissions in a capability, resolving permission sets if necessary
+/// to produce a [`ResolvedPermission`] and calling the provided callback with it.
+fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>) -> Result<(), Error>>(
+  capability: &Capability,
+  acl: &BTreeMap<String, Manifest>,
+  target: Target,
+  mut f: F,
+) -> Result<(), Error> {
+  for permission_entry in &capability.permissions {
+    let permission_id = permission_entry.identifier();
+
+    let permissions = get_permissions(permission_id, acl)?
+      .into_iter()
+      .filter(|p| p.permission.is_active(&target));
+
+    for TraversedPermission {
+      key,
+      permission_name,
+      permission,
+    } in permissions
+    {
+      let mut resolved_scope = Scopes::default();
+      let mut commands = Commands::default();
+
+      if let PermissionEntry::ExtendedPermission {
+        identifier: _,
+        scope,
+      } = permission_entry
+      {
+        if let Some(allow) = scope.allow.clone() {
+          resolved_scope
+            .allow
+            .get_or_insert_with(Default::default)
+            .extend(allow);
+        }
+        if let Some(deny) = scope.deny.clone() {
+          resolved_scope
+            .deny
+            .get_or_insert_with(Default::default)
+            .extend(deny);
+        }
+      }
+
+      if let Some(allow) = permission.scope.allow.clone() {
+        resolved_scope
+          .allow
+          .get_or_insert_with(Default::default)
+          .extend(allow);
+      }
+      if let Some(deny) = permission.scope.deny.clone() {
+        resolved_scope
+          .deny
+          .get_or_insert_with(Default::default)
+          .extend(deny);
+      }
+
+      commands.allow.extend(permission.commands.allow.clone());
+      commands.deny.extend(permission.commands.deny.clone());
+
+      f(ResolvedPermission {
+        key: &key,
+        permission_name: &permission_name,
+        commands,
+        scope: resolved_scope,
+      })?;
+    }
+  }
+
+  Ok(())
+}
+
+#[derive(Debug)]
+struct TraversedPermission<'a> {
+  key: String,
+  permission_name: String,
+  permission: &'a Permission,
+}
+
+fn get_permissions<'a>(
+  permission_id: &Identifier,
+  acl: &'a BTreeMap<String, Manifest>,
+) -> Result<Vec<TraversedPermission<'a>>, Error> {
+  let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);
+  let permission_name = permission_id.get_base();
+
+  let manifest = acl.get(key).ok_or_else(|| Error::UnknownManifest {
+    key: display_perm_key(key).to_string(),
+    available: acl.keys().cloned().collect::<Vec<_>>().join(", "),
+  })?;
+
+  if permission_name == "default" {
+    manifest
+      .default_permission
+      .as_ref()
+      .map(|default| get_permission_set_permissions(permission_id, acl, manifest, default))
+      .unwrap_or_else(|| Ok(Default::default()))
+  } else if let Some(set) = manifest.permission_sets.get(permission_name) {
+    get_permission_set_permissions(permission_id, acl, manifest, set)
+  } else if let Some(permission) = manifest.permissions.get(permission_name) {
+    Ok(vec![TraversedPermission {
+      key: key.to_string(),
+      permission_name: permission_name.to_string(),
+      permission,
+    }])
+  } else {
+    Err(Error::UnknownPermission {
+      key: display_perm_key(key).to_string(),
+      permission: permission_name.to_string(),
+    })
+  }
+}
+
 // get the permissions from a permission set
 fn get_permission_set_permissions<'a>(
+  permission_id: &Identifier,
+  acl: &'a BTreeMap<String, Manifest>,
   manifest: &'a Manifest,
   set: &'a PermissionSet,
-) -> Result<Vec<&'a Permission>, Error> {
+) -> Result<Vec<TraversedPermission<'a>>, Error> {
+  let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);
+
   let mut permissions = Vec::new();
 
-  for p in &set.permissions {
-    if let Some(permission) = manifest.permissions.get(p) {
-      permissions.push(permission);
-    } else if let Some(permission_set) = manifest.permission_sets.get(p) {
-      permissions.extend(get_permission_set_permissions(manifest, permission_set)?);
+  for perm in &set.permissions {
+    // a set could include permissions from other plugins
+    // for example `dialog:default`, could include `fs:default`
+    // in this case `perm = "fs:default"` which is not a permission
+    // in the dialog manifest so we check if `perm` still have a prefix (i.e `fs:`)
+    // and if so, we resolve this prefix from `acl` first before proceeding
+    let id = Identifier::try_from(perm.clone()).expect("invalid identifier in permission set?");
+    let (manifest, permission_id, key, permission_name) =
+      if let Some((new_key, manifest)) = id.get_prefix().and_then(|k| acl.get(k).map(|m| (k, m))) {
+        (manifest, &id, new_key, id.get_base())
+      } else {
+        (manifest, permission_id, key, perm.as_str())
+      };
+
+    if permission_name == "default" {
+      permissions.extend(
+        manifest
+          .default_permission
+          .as_ref()
+          .map(|default| get_permission_set_permissions(permission_id, acl, manifest, default))
+          .transpose()?
+          .unwrap_or_default(),
+      );
+    } else if let Some(permission) = manifest.permissions.get(permission_name) {
+      permissions.push(TraversedPermission {
+        key: key.to_string(),
+        permission_name: permission_name.to_string(),
+        permission,
+      });
+    } else if let Some(permission_set) = manifest.permission_sets.get(permission_name) {
+      permissions.extend(get_permission_set_permissions(
+        permission_id,
+        acl,
+        manifest,
+        permission_set,
+      )?);
     } else {
       return Err(Error::SetPermissionNotFound {
-        permission: p.to_string(),
+        permission: permission_name.to_string(),
         set: set.identifier.clone(),
       });
     }
@@ -379,39 +420,12 @@ fn get_permission_set_permissions<'a>(
   Ok(permissions)
 }
 
-fn get_permissions<'a>(
-  key: &'a str,
-  permission_name: &'a str,
-  acl: &'a BTreeMap<String, Manifest>,
-) -> Result<Vec<&'a Permission>, Error> {
-  let manifest = acl.get(key).ok_or_else(|| Error::UnknownManifest {
-    key: if key == APP_ACL_KEY {
-      "app manifest".to_string()
-    } else {
-      key.to_string()
-    },
-    available: acl.keys().cloned().collect::<Vec<_>>().join(", "),
-  })?;
-
-  if permission_name == "default" {
-    manifest
-      .default_permission
-      .as_ref()
-      .map(|default| get_permission_set_permissions(manifest, default))
-      .unwrap_or_else(|| Ok(Vec::new()))
-  } else if let Some(set) = manifest.permission_sets.get(permission_name) {
-    get_permission_set_permissions(manifest, set)
-  } else if let Some(permission) = manifest.permissions.get(permission_name) {
-    Ok(vec![permission])
+#[inline]
+fn display_perm_key(prefix: &str) -> &str {
+  if prefix == APP_ACL_KEY {
+    "app manifest"
   } else {
-    Err(Error::UnknownPermission {
-      key: if key == APP_ACL_KEY {
-        "app manifest".to_string()
-      } else {
-        key.to_string()
-      },
-      permission: permission_name.to_string(),
-    })
+    prefix
   }
 }
 
@@ -531,5 +545,127 @@ mod build {
         global_scope
       )
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+
+  use super::{get_permissions, Identifier, Manifest, Permission, PermissionSet};
+
+  fn manifest<const P: usize, const S: usize>(
+    name: &str,
+    permissions: [&str; P],
+    default_set: Option<&[&str]>,
+    sets: [(&str, &[&str]); S],
+  ) -> (String, Manifest) {
+    (
+      name.to_string(),
+      Manifest {
+        default_permission: default_set.map(|perms| PermissionSet {
+          identifier: "default".to_string(),
+          description: "default set".to_string(),
+          permissions: perms.iter().map(|s| s.to_string()).collect(),
+        }),
+        permissions: permissions
+          .iter()
+          .map(|p| {
+            (
+              p.to_string(),
+              Permission {
+                identifier: p.to_string(),
+                ..Default::default()
+              },
+            )
+          })
+          .collect(),
+        permission_sets: sets
+          .iter()
+          .map(|(s, perms)| {
+            (
+              s.to_string(),
+              PermissionSet {
+                identifier: s.to_string(),
+                description: format!("{s} set"),
+                permissions: perms.iter().map(|s| s.to_string()).collect(),
+              },
+            )
+          })
+          .collect(),
+        ..Default::default()
+      },
+    )
+  }
+
+  fn id(id: &str) -> Identifier {
+    Identifier::try_from(id.to_string()).unwrap()
+  }
+
+  #[test]
+  fn resolves_permissions_from_other_plugins() {
+    let acl = [
+      manifest(
+        "fs",
+        ["read", "write", "rm", "exist"],
+        Some(&["read", "exist"]),
+        [],
+      ),
+      manifest(
+        "http",
+        ["fetch", "fetch-cancel"],
+        None,
+        [("fetch-with-cancel", &["fetch", "fetch-cancel"])],
+      ),
+      manifest(
+        "dialog",
+        ["open", "save"],
+        None,
+        [(
+          "extra",
+          &[
+            "save",
+            "fs:default",
+            "fs:write",
+            "http:default",
+            "http:fetch-with-cancel",
+          ],
+        )],
+      ),
+    ]
+    .into();
+
+    let permissions = get_permissions(&id("fs:default"), &acl).unwrap();
+    assert_eq!(permissions.len(), 2);
+    assert_eq!(permissions[0].key, "fs");
+    assert_eq!(permissions[0].permission_name, "read");
+    assert_eq!(permissions[1].key, "fs");
+    assert_eq!(permissions[1].permission_name, "exist");
+
+    let permissions = get_permissions(&id("fs:rm"), &acl).unwrap();
+    assert_eq!(permissions.len(), 1);
+    assert_eq!(permissions[0].key, "fs");
+    assert_eq!(permissions[0].permission_name, "rm");
+
+    let permissions = get_permissions(&id("http:fetch-with-cancel"), &acl).unwrap();
+    assert_eq!(permissions.len(), 2);
+    assert_eq!(permissions[0].key, "http");
+    assert_eq!(permissions[0].permission_name, "fetch");
+    assert_eq!(permissions[1].key, "http");
+    assert_eq!(permissions[1].permission_name, "fetch-cancel");
+
+    let permissions = get_permissions(&id("dialog:extra"), &acl).unwrap();
+    assert_eq!(permissions.len(), 6);
+    assert_eq!(permissions[0].key, "dialog");
+    assert_eq!(permissions[0].permission_name, "save");
+    assert_eq!(permissions[1].key, "fs");
+    assert_eq!(permissions[1].permission_name, "read");
+    assert_eq!(permissions[2].key, "fs");
+    assert_eq!(permissions[2].permission_name, "exist");
+    assert_eq!(permissions[3].key, "fs");
+    assert_eq!(permissions[3].permission_name, "write");
+    assert_eq!(permissions[4].key, "http");
+    assert_eq!(permissions[4].permission_name, "fetch");
+    assert_eq!(permissions[5].key, "http");
+    assert_eq!(permissions[5].permission_name, "fetch-cancel");
   }
 }

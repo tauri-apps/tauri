@@ -14,7 +14,7 @@ We use [`covector`](https://github.com/jbolda/covector) to manage our version bu
 It can be configured in [`.changes/config.json`](../.changes/config.json) which includes how each package should be published step by step.
 
 Some packages can't be published directly using `covector` as it requires to be built on a matrix of platforms
-such as `tauri-cli` prebuilt binraies which is published using using [publish-cli-rs.yml](./workflows/publish-cli-rs.yml)
+such as `tauri-cli` prebuilt binraies which is published using [publish-cli-rs.yml](./workflows/publish-cli-rs.yml)
 and `@tauri-apps/cli` native Node.js modules which is published using using [publish-cli-js.yml](./workflows/publish-cli-js.yml)
 both of which are triggered after `covector` has created a github release for both of them, see `Trigger @tauri-apps/cli publishing workflow`
 and `Trigger tauri-cli publishing workflow` steps in [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml)

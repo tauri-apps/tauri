@@ -1316,12 +1316,27 @@ impl<R: Runtime> Builder<R> {
   ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_INTERNALS__.postMessage`.
   /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
+  ///
+  /// Additionally, the script must include a `__INVOKE_KEY__` token that is replaced with a value that must be sent with the IPC payload
+  /// to check the integrity of the message by the [`crate::WebviewWindow::on_message`] API, e.g.
+  ///
+  /// ```js
+  /// const invokeKey = __INVOKE_KEY__;
+  /// fetch('my-impl://command', {
+  ///   headers: {
+  ///     'Tauri-Invoke-Key': invokeKey,
+  ///   }
+  /// })
+  /// ```
+  ///
+  /// Note that the implementation details is up to your implementation.
   #[must_use]
   pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
   where
     F: Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
   {
-    self.invoke_initialization_script = initialization_script;
+    self.invoke_initialization_script =
+      initialization_script.replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
     self.invoke_responder.replace(Arc::new(responder));
     self
   }

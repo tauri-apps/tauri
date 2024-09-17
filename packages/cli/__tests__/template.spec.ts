@@ -2,23 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-const fixtureSetup = require('../fixtures/app-test-setup.js')
-const { resolve } = require('path')
-const { existsSync, readFileSync, writeFileSync, rmSync } = require('fs')
-const { move } = require('fs-extra')
-const cli = require('~/main.js')
-
-const currentDirName = __dirname
+import { resolve } from 'node:path'
+import {
+  existsSync,
+  readFileSync,
+  writeFileSync,
+  rmSync,
+  renameSync
+} from 'node:fs'
+import cli from '../main.js'
+import { describe, it } from 'vitest'
 
 describe('[CLI] @tauri-apps/cli template', () => {
-  it('init a project and builds it', async () => {
+  it('init a project and builds it', { timeout: 200000 }, async () => {
     const cwd = process.cwd()
-    const fixturePath = resolve(currentDirName, '../fixtures/empty')
+    const fixturePath = resolve(__dirname, './fixtures/empty')
     const tauriFixturePath = resolve(fixturePath, 'src-tauri')
     const outPath = resolve(tauriFixturePath, 'target')
     const cacheOutPath = resolve(fixturePath, 'target')
-
-    fixtureSetup.initJest('empty')
 
     process.chdir(fixturePath)
 
@@ -27,7 +28,7 @@ describe('[CLI] @tauri-apps/cli template', () => {
       if (existsSync(cacheOutPath)) {
         rmSync(cacheOutPath, { recursive: true, force: true })
       }
-      await move(outPath, cacheOutPath)
+      renameSync(outPath, cacheOutPath)
     }
 
     await cli.run([
@@ -36,7 +37,7 @@ describe('[CLI] @tauri-apps/cli template', () => {
       process.cwd(),
       '--force',
       '--tauri-path',
-      resolve(currentDirName, '../../../../..'),
+      resolve(__dirname, '../../..'),
       '--before-build-command',
       '',
       '--before-dev-command',
@@ -45,7 +46,7 @@ describe('[CLI] @tauri-apps/cli template', () => {
     ])
 
     if (outExists) {
-      await move(cacheOutPath, outPath)
+      renameSync(cacheOutPath, outPath)
     }
 
     process.chdir(tauriFixturePath)

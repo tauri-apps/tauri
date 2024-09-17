@@ -27,7 +27,7 @@ When there're change files inside `.changes` folder and they're not all included
 
 Otherwise, covector will start to publish packages configured in [`.changes/config.json`](../.changes/config.json).
 
-# Releasing and Publishing
+## Releasing and Publishing
 
 Releasing can be as easy as merging the version pull request but here is a checklist to follow:
 

@@ -19,7 +19,7 @@ and `@tauri-apps/cli` native Node.js modules which is published using using [pub
 both of which are triggered after `covector` has created a github release for both of them, see `Trigger @tauri-apps/cli publishing workflow`
 and `Trigger tauri-cli publishing workflow` steps in [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml)
 
-# Version Pull Request
+## Version Pull Request
 
 On each pull request merged, [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml) workflow will run, and:
 

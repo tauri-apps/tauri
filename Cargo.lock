@@ -14,7 +14,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "serde_json",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
 ]
 
 [[package]]
@@ -7316,7 +7316,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.0.0-rc.14"
+version = "2.0.0-rc.15"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7361,7 +7361,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "thiserror",
  "tokio",
  "tracing",
@@ -7377,7 +7377,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -7391,7 +7391,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-codegen",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "tauri-winres",
  "toml 0.8.19",
  "walkdir",
@@ -7399,7 +7399,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.1-rc.12"
+version = "2.0.1-rc.13"
 dependencies = [
  "anyhow",
  "ar",
@@ -7428,7 +7428,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "tempfile",
  "thiserror",
  "time",
@@ -7443,7 +7443,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0-rc.15"
+version = "2.0.0-rc.16"
 dependencies = [
  "anyhow",
  "ar",
@@ -7507,7 +7507,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.6.0",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "tempfile",
  "tokio",
  "toml 0.8.19",
@@ -7531,7 +7531,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -7547,7 +7547,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "syn 2.0.76",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "thiserror",
  "time",
  "url",
@@ -7612,14 +7612,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0-rc.10"
+version = "2.0.0-rc.11"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.76",
  "tauri-codegen",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
 ]
 
 [[package]]
@@ -7641,7 +7641,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 dependencies = [
  "anyhow",
  "glob",
@@ -7649,7 +7649,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "toml 0.8.19",
  "walkdir",
 ]
@@ -7683,13 +7683,13 @@ dependencies = [
  "log",
  "serde",
  "tauri",
- "tauri-plugin 2.0.0-rc.11",
+ "tauri-plugin 2.0.0-rc.12",
  "thiserror",
 ]
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 dependencies = [
  "dpi",
  "gtk",
@@ -7698,7 +7698,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "thiserror",
  "url",
  "windows 0.58.0",
@@ -7706,7 +7706,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.12"
+version = "2.0.0-rc.13"
 dependencies = [
  "gtk",
  "http 1.1.0",
@@ -7720,7 +7720,7 @@ dependencies = [
  "softbuffer",
  "tao",
  "tauri-runtime",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "tracing",
  "url",
  "webkit2gtk",
@@ -7736,7 +7736,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0-rc.11",
+ "tauri-utils 2.0.0-rc.12",
  "url",
 ]
 
@@ -7820,7 +7820,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0-rc.11"
+version = "2.0.0-rc.12"
 dependencies = [
  "aes-gcm",
  "brotli",

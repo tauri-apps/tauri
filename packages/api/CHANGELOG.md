@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### New Features
+
+- [`ddf69157b`](https://www.github.com/tauri-apps/tauri/commit/ddf69157b54249f3321ca72db6703812019f1ab9) ([#11031](https://www.github.com/tauri-apps/tauri/pull/11031) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `toPhysical` method on `LogicalPositon` and `LogicalSize` classes.
+
 ## \[2.0.0-rc.4]
 
 ### Enhancements

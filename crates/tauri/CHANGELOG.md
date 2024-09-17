@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.0-rc.15]
+
+### New Features
+
+- [`ad294d274`](https://www.github.com/tauri-apps/tauri/commit/ad294d274dd81d2ef91ed73af9163b6e9b8eb964) ([#11032](https://www.github.com/tauri-apps/tauri/pull/11032) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `app > windows > create` option to choose whether to create this window at app startup or not.
+
+### Enhancements
+
+- [`e7fd676c2`](https://www.github.com/tauri-apps/tauri/commit/e7fd676c2741929727e3e25bd81cd6ea45e4da7b) ([#11025](https://www.github.com/tauri-apps/tauri/pull/11025) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Inject `__INVOKE_KEY__` into custom invoke systems so their implementations can properly construct `tauri::webview::InvokeRequest`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+- Upgraded to `tauri-runtime@2.0.0-rc.12`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.13`
+- Upgraded to `tauri-macros@2.0.0-rc.11`
+- Upgraded to `tauri-build@2.0.0-rc.12`
+
+### Breaking Changes
+
+- [`551e0624a`](https://www.github.com/tauri-apps/tauri/commit/551e0624a903ed6cf8390add7868c655c7778ce4) ([#11027](https://www.github.com/tauri-apps/tauri/pull/11027) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove the `responder` part of a custom invoke system now that the responder can be set directly in the `tauri::WebviewWindow::on_message` function.
+
 ## \[2.0.0-rc.14]
 
 ### Bug Fixes

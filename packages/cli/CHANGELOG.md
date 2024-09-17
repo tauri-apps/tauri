@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.0-rc.16]
+
+### New Features
+
+- [`9bb8fc618`](https://www.github.com/tauri-apps/tauri/commit/9bb8fc6189a93bcb811588b36e710d0f7818a1f9) ([#11030](https://www.github.com/tauri-apps/tauri/pull/11030) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `--no-example` flag for `tauri plugin new` and `tauri plugin init` to disable creation of an example project.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.16`
+
 ## \[2.0.0-rc.15]
 
 ### Enhancements

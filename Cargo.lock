@@ -6310,6 +6310,7 @@ dependencies = [
  "serde",
  "serde_json",
  "url",
+ "uuid",
 ]
 
 [[package]]
@@ -7514,6 +7515,7 @@ dependencies = [
  "toml_edit 0.22.20",
  "ureq",
  "url",
+ "uuid",
  "walkdir",
  "windows-sys 0.59.0",
 ]
@@ -7853,6 +7855,7 @@ dependencies = [
  "toml 0.8.19",
  "url",
  "urlpattern",
+ "uuid",
  "walkdir",
 ]
 
@@ -8629,6 +8632,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81dfa00651efa65069b0b6b651f4aaa31ba9e3c3ce0137aaad053604ee7e0314"
 dependencies = [
  "getrandom 0.2.15",
+ "serde",
  "sha1_smol",
 ]
 

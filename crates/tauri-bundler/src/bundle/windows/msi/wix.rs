@@ -511,13 +511,21 @@ pub fn build_wix_app_installer(
     .unwrap_or_else(|| bundle_id.split('.').nth(1).unwrap_or(bundle_id));
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
-  let upgrade_code = Uuid::new_v5(
-    &Uuid::NAMESPACE_DNS,
-    format!("{}.exe.app.x64", &settings.product_name()).as_bytes(),
-  )
-  .to_string();
 
-  data.insert("upgrade_code", to_json(upgrade_code.as_str()));
+  // NOTE: if this is ever changed, make sure to also update `tauri generate-wix-upgrade-code` subcommand
+  let upgrade_code = settings
+    .windows()
+    .wix
+    .as_ref()
+    .and_then(|w| w.upgrade_code)
+    .unwrap_or_else(|| {
+      Uuid::new_v5(
+        &Uuid::NAMESPACE_DNS,
+        format!("{}.exe.app.x64", &settings.product_name()).as_bytes(),
+      )
+    });
+  data.insert("upgrade_code", to_json(upgrade_code.to_string()));
+
   let product_code = Uuid::new_v5(
     &Uuid::NAMESPACE_DNS,
     settings.bundle_identifier().as_bytes(),

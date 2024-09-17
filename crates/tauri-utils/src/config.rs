@@ -658,6 +658,16 @@ impl Default for WixLanguage {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WixConfig {
+  /// A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,
+  /// otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.
+  ///
+  /// By default, tauri generates this code by generating a Uuid v5 using the string `<productName>.exe.app.x64` in the DNS namespace.
+  /// You can use Tauri's CLI to generate and print this code for you, run `tauri generate-wix-upgrade-code`.
+  ///
+  /// It is recommended that you set this value in your tauri config file to avoid accidental changes in your upgrade code
+  /// whenever you want to change your product name.
+  #[serde(alias = "upgrade-code")]
+  pub upgrade_code: Option<uuid::Uuid>,
   /// The installer languages to build. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.
   #[serde(default)]
   pub language: WixLanguage,

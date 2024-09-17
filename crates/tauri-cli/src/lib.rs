@@ -151,6 +151,8 @@ enum Commands {
   Completions(completions::Options),
   Permission(acl::permission::Cli),
   Capability(acl::capability::Cli),
+  /// Generate default Upgrade Code used by MSI installer derived from productName.
+  GenerateWixUpgradeCode,
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -268,7 +270,32 @@ where
     #[cfg(target_os = "macos")]
     Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
     Commands::Migrate => migrate::command()?,
+    Commands::GenerateWixUpgradeCode => generate_wix_upgrade_code()?,
   }
+
+  Ok(())
+}
+
+// NOTE: if this is ever changed, make sure to also update Wix upgrade code generation in tauri-bundler
+fn generate_wix_upgrade_code() -> Result<()> {
+  crate::helpers::app_paths::resolve();
+
+  let target = tauri_utils::platform::Target::Windows;
+  let config = crate::helpers::config::get(target, None)?;
+  let config = config.lock().unwrap();
+
+  let product_name = config
+    .as_ref()
+    .and_then(|c| c.product_name.as_deref())
+    .unwrap_or_default();
+
+  let upgrade_code = uuid::Uuid::new_v5(
+    &uuid::Uuid::NAMESPACE_DNS,
+    format!("{product_name}.exe.app.x64").as_bytes(),
+  )
+  .to_string();
+
+  log::info!(action = "Generated"; "Wix Upgrade Code: {upgrade_code}");
 
   Ok(())
 }

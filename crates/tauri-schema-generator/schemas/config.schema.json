@@ -2165,6 +2165,14 @@
       "description": "Configuration for the MSI bundle using WiX.\n\n See more: <https://tauri.app/v1/api/config#wixconfig>",
       "type": "object",
       "properties": {
+        "upgradeCode": {
+          "description": "A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,\n otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.\n\n By default, tauri generates this code by generating a Uuid v5 using the string `<productName>.exe.app.x64` in the DNS namespace.\n You can use Tauri's CLI to generate and print this code for you, run `tauri generate-wix-upgrade-code`.\n\n It is recommended that you set this value in your tauri config file to avoid accidental changes in your upgrade code\n whenever you want to change your product name.",
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uuid"
+        },
         "language": {
           "description": "The installer languages to build. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.",
           "default": "en-US",

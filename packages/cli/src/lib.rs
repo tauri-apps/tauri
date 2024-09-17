@@ -18,7 +18,7 @@ pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) ->
   // can do work while `tauri dev` is running.
   std::thread::spawn(move || {
     let res = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-      tauri_cli::try_run(args, bin_name)
+      tauri_cli::try_run(args, bin_name).inspect_err(|e| eprintln!("{e:#}"))
     })) {
       Ok(t) => t,
       Err(_) => {

@@ -40,7 +40,7 @@ Releasing can be as easy as merging the version pull request but here is a check
   - [ ] `git push --force`
 - [ ] Approve and merge the version pull request
 
-# Publishing failed, what to do?
+## Publishing failed, what to do?
 
 It is possible and due to many factors that one or many packages release can fail to release, there is no reason to panic, we can fix this.
 

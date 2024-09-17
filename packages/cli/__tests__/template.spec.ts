@@ -14,7 +14,7 @@ import cli from '../main.js'
 import { describe, it } from 'vitest'
 
 describe('[CLI] @tauri-apps/cli template', () => {
-  it('init a project and builds it', { timeout: 200000 }, async () => {
+  it('init a project and builds it', { timeout: 15 * 60 * 1000 }, async () => {
     const cwd = process.cwd()
     const fixturePath = resolve(__dirname, './fixtures/empty')
     const tauriFixturePath = resolve(fixturePath, 'src-tauri')

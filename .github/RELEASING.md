@@ -8,7 +8,7 @@ This document is mainly intended for team members responsible for maintaining th
 - [Releasing and Publishing](#releasing-and-publishing)
 - [Publishing failed, what to do?](#publishing-failed-what-to-do)
 
-# Covector
+## Covector
 
 We use [`covector`](https://github.com/jbolda/covector) to manage our version bumps and release pipeline.
 It can be configured in [`.changes/config.json`](../.changes/config.json) which includes how each package should be published step by step.

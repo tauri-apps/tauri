@@ -345,11 +345,15 @@ fn escaped_pattern(p: &str) -> Result<Pattern, glob::PatternError> {
 }
 
 fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternError> {
-  Pattern::new(&format!(
-    "{}{}{append}",
-    glob::Pattern::escape(p),
-    MAIN_SEPARATOR
-  ))
+  if p.ends_with(MAIN_SEPARATOR) {
+    Pattern::new(&format!("{}{append}", glob::Pattern::escape(p)))
+  } else {
+    Pattern::new(&format!(
+      "{}{}{append}",
+      glob::Pattern::escape(p),
+      MAIN_SEPARATOR
+    ))
+  }
 }
 
 #[cfg(test)]
@@ -482,10 +486,7 @@ mod tests {
       scope.allow_directory("\\\\localhost\\c$", true).unwrap();
       assert!(scope.is_allowed("\\\\localhost\\c$"));
       assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
-      // Does not work because push_pattern adds a trailing backslash to the base
-      // pattern before "\**" is added leading to a pattern of "\\localhost\c$\\**"
-      // which does not match.
-      // assert!(scope.is_allowed("\\\\localhost\\c$\\NonExistentFile"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\NonExistentFile"));
       assert!(!scope.is_allowed("\\\\localhost\\d$"));
       assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
     }

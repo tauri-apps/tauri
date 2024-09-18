@@ -17,7 +17,7 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { git = "https://github.com/tauri-apps/wry", branch = "refactor/error-duplicate-custom-protocols", default-features = false, features = [
+wry = { version = "0.44", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",

@@ -1,3 +1,5 @@
+; https://nsis.sourceforge.io/Get_process_info
+;
 ; NSIS PROCESS INFO LIBRARY - GetProcessInfo.nsh
 ; Version 1.1 - Mar 28th, 2011
 ;

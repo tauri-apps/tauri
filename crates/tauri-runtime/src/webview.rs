@@ -208,6 +208,7 @@ pub struct WebviewAttributes {
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
+  pub browser_extensions_enabled: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -258,6 +259,7 @@ impl WebviewAttributes {
       auto_resize: false,
       proxy_url: None,
       zoom_hotkeys_enabled: false,
+      browser_extensions_enabled: false,
     }
   }
 

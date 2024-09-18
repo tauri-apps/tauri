@@ -9450,8 +9450,7 @@ dependencies = [
 [[package]]
 name = "wry"
 version = "0.43.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4d715cf5fe88e9647f3d17b207b6d060d4a88e7171d4ccb2d2c657dd1d44728"
+source = "git+https://github.com/tauri-apps/wry?branch=refactor/error-duplicate-custom-protocols#9a10e28b0cd8c47a1bc65665c90aa25ce0f3b787"
 dependencies = [
  "base64 0.22.1",
  "block",

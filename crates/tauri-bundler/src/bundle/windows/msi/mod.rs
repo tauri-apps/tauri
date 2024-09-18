@@ -34,6 +34,43 @@ pub const WIX_URL: &str =
   "https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip";
 pub const WIX_SHA256: &str = "6ac824e1642d6f7277d0ed7ea09411a508f6116ba6fae0aa5f2c7daa2ff43d31";
 
+const WIX_REQUIRED_FILES: &[&str] = &[
+  "candle.exe",
+  "candle.exe.config",
+  "darice.cub",
+  "light.exe",
+  "light.exe.config",
+  "wconsole.dll",
+  "winterop.dll",
+  "wix.dll",
+  "WixUIExtension.dll",
+  "WixUtilExtension.dll",
+];
+
+/// Runs all of the commands to build the MSI installer.
+/// Returns a vector of PathBuf that shows where the MSI was created.
+pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<PathBuf>> {
+  let tauri_tools_path = settings
+    .local_tools_directory()
+    .map(|d| d.join(".tauri"))
+    .unwrap_or_else(|| dirs::cache_dir().unwrap().join("tauri"));
+
+  let wix_path = tauri_tools_path.join("WixTools314");
+
+  if !wix_path.exists() {
+    get_and_extract_wix(&wix_path)?;
+  } else if WIX_REQUIRED_FILES
+    .iter()
+    .any(|p| !wix_path.join(p).exists())
+  {
+    log::warn!("WixTools directory is missing some files. Recreating it.");
+    std::fs::remove_dir_all(&wix_path)?;
+    get_and_extract_wix(&wix_path)?;
+  }
+
+  build_wix_app_installer(settings, &wix_path, updater)
+}
+
 // For Cross Platform Compilation.
 
 // const VC_REDIST_X86_URL: &str =
@@ -630,7 +667,7 @@ pub fn build_wix_app_installer(
       .expect("Failed to setup custom handlebar template");
   } else {
     handlebars
-      .register_template_string("main.wxs", include_str!("../templates/main.wxs"))
+      .register_template_string("main.wxs", include_str!("./main.wxs"))
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }
@@ -649,7 +686,7 @@ pub fn build_wix_app_installer(
 
     // Create the update task XML
     let mut skip_uac_task = Handlebars::new();
-    let xml = include_str!("../templates/update-task.xml");
+    let xml = include_str!("./update-task.xml");
     skip_uac_task
       .register_template_string("update.xml", xml)
       .map_err(|e| e.to_string())
@@ -661,7 +698,7 @@ pub fn build_wix_app_installer(
     // Create the Powershell script to install the task
     let mut skip_uac_task_installer = Handlebars::new();
     skip_uac_task_installer.register_escape_fn(handlebars::no_escape);
-    let xml = include_str!("../templates/install-task.ps1");
+    let xml = include_str!("./install-task.ps1");
     skip_uac_task_installer
       .register_template_string("install-task.ps1", xml)
       .map_err(|e| e.to_string())
@@ -673,7 +710,7 @@ pub fn build_wix_app_installer(
     // Create the Powershell script to uninstall the task
     let mut skip_uac_task_uninstaller = Handlebars::new();
     skip_uac_task_uninstaller.register_escape_fn(handlebars::no_escape);
-    let xml = include_str!("../templates/uninstall-task.ps1");
+    let xml = include_str!("./uninstall-task.ps1");
     skip_uac_task_uninstaller
       .register_template_string("uninstall-task.ps1", xml)
       .map_err(|e| e.to_string())

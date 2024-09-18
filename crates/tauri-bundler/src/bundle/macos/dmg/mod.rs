@@ -72,17 +72,14 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   log::info!(action = "Bundling"; "{} ({})", dmg_name, dmg_path.display());
 
   // write the scripts
-  write(
-    &bundle_script_path,
-    include_str!("templates/dmg/bundle_dmg"),
-  )?;
+  write(&bundle_script_path, include_str!("./bundle_dmg"))?;
   write(
     support_directory_path.join("template.applescript"),
-    include_str!("templates/dmg/template.applescript"),
+    include_str!("./template.applescript"),
   )?;
   write(
     support_directory_path.join("eula-resources-template.xml"),
-    include_str!("templates/dmg/eula-resources-template.xml"),
+    include_str!("./eula-resources-template.xml"),
   )?;
 
   // chmod script for execution

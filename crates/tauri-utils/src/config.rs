@@ -783,7 +783,7 @@ pub struct NsisConfig {
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
   ///
-  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.
   ///
   /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,

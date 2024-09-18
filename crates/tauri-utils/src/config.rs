@@ -1454,6 +1454,14 @@ pub struct WindowConfig {
   /// - **Android / iOS**: Unsupported.
   #[serde(default)]
   pub zoom_hotkeys_enabled: bool,
+  /// Whether browser extensions can be installed for the webview process
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
+  /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  #[serde(default)]
+  pub browser_extensions_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -1501,6 +1509,7 @@ impl Default for WindowConfig {
       parent: None,
       proxy_url: None,
       zoom_hotkeys_enabled: false,
+      browser_extensions_enabled: false,
     }
   }
 }

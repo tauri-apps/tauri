@@ -33,9 +33,12 @@ const NSIS_URL: &str =
   "https://github.com/tauri-apps/binary-releases/releases/download/nsis-3/nsis-3.zip";
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
-const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.1/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "F99A50209A345185A84D34D0E5F66D04C75FF52F";
+const NSIS_NS_PROCESS_URL: &str =
+  "https://github.com/tauri-apps/binary-releases/releases/download/nsis-plugins-v0/nsProcess.dll";
+const NSIS_NS_PROCESS_SHA1: &str = "B058E3FCFB7B550041DA16BF10D8837024C38BF6";
+const NSIS_SEMVERCOMPARE_URL: &str =
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_semvercompare-v0.3.0/nsis_semvercompare.dll";
+const NSIS_SEMVERCOMPARE_SHA1: &str = "CD84C1B0D63D217F85E0CC6474FC415C572ADE6D";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -43,22 +46,34 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
   "Include/nsDialogs.nsh",
   "Include/WinMessages.nsh",
+  "Plugins/x86-unicode/nsis_semvercompare.dll",
+  "Plugins/x86-unicode/nsProcess.dll",
 ];
 #[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/nsis_tauri_utils.dll"];
+const NSIS_REQUIRED_FILES: &[&str] = &[
+  "Plugins/x86-unicode/nsis_semvercompare.dll",
+  "Plugins/x86-unicode/nsProcess.dll",
+];
 
-const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
-  NSIS_TAURI_UTILS_URL,
-  NSIS_TAURI_UTILS_SHA1,
-  HashAlgorithm::Sha1,
-)];
+const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[
+  (
+    "Plugins/x86-unicode/nsis_semvercompare.dll",
+    NSIS_SEMVERCOMPARE_URL,
+    NSIS_SEMVERCOMPARE_SHA1,
+    HashAlgorithm::Sha1,
+  ),
+  (
+    "Plugins/x86-unicode/nsProcess.dll",
+    NSIS_NS_PROCESS_URL,
+    NSIS_NS_PROCESS_SHA1,
+    HashAlgorithm::Sha1,
+  ),
+];
 
 /// Runs all of the commands to build the NSIS installer.
 /// Returns a vector of PathBuf that shows where the NSIS installer was created.
@@ -111,17 +126,22 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     fs::rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
-  let nsis_plugins = nsis_toolset_path.join("Plugins");
+  let target_folder = nsis_toolset_path.join("Plugins").join("x86-unicode");
+  fs::create_dir_all(&target_folder)?;
 
   let data = download_and_verify(
-    NSIS_TAURI_UTILS_URL,
-    NSIS_TAURI_UTILS_SHA1,
+    NSIS_SEMVERCOMPARE_URL,
+    NSIS_SEMVERCOMPARE_SHA1,
     HashAlgorithm::Sha1,
   )?;
+  fs::write(target_folder.join("nsis_semvercompare.dll"), data)?;
 
-  let target_folder = nsis_plugins.join("x86-unicode");
-  fs::create_dir_all(&target_folder)?;
-  fs::write(target_folder.join("nsis_tauri_utils.dll"), data)?;
+  let data = download_and_verify(
+    NSIS_NS_PROCESS_URL,
+    NSIS_NS_PROCESS_SHA1,
+    HashAlgorithm::Sha1,
+  )?;
+  fs::write(target_folder.join("nsProcess.dll"), data)?;
 
   Ok(())
 }

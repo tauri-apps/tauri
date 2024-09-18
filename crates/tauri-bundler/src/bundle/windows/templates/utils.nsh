@@ -18,25 +18,61 @@
   ${EndIf}
 !macroend
 
+
+!macro FIND_PROCESS_ALL _EXE _RESULT
+  nsProcess::_FindProcess "${_EXE}"
+  Pop ${_RESULT}
+!macroend
+
+!macro FIND_PROCESS_USER _EXE _RESULT
+  nsExec::Exec `"$SYSDIR\cmd.exe" /c tasklist /FO csv /FI "USERNAME eq %USERNAME%" /FI "IMAGENAME eq ${_EXE}" | "$SYSDIR\find.exe" "${_EXE}"`
+  Pop ${_RESULT}
+!macroend
+
+!macro FIND_PROCESS _EXE _RESULT
+  !if "${INSTALLMODE}" == "currentUser"
+    !insertmacro FIND_PROCESS_USER ${_EXE} ${_RESULT}
+  !else
+    ${If} $MultiUser.InstallMode == "CurrentUser"
+      !insertmacro FIND_PROCESS_USER ${_EXE} ${_RESULT}
+    ${Else}
+      !insertmacro FIND_PROCESS_ALL ${_EXE} ${_RESULT}
+    ${EndIf}
+  !endif
+!macroend
+
+!macro KILL_PROCESS_ALL _EXE _RESULT _CURRENT_PID
+  nsExec::Exec `taskkill /f /t /im "${_EXE}" /fi "PID ne ${_CURRENT_PID}"`
+!macroend
+
+!macro KILL_PROCESS_USER _EXE _RESULT _CURRENT_PID
+  nsExec::Exec `"$SYSDIR\cmd.exe" /c taskkill /f /t /im "${_EXE}" /fi "PID ne ${_CURRENT_PID}" /fi "USERNAME eq %USERNAME%"`
+!macroend
+
+!macro KILL_PROCESS _EXE _RESULT _CURRENT_PID
+!if "${INSTALLMODE}" == "currentUser"
+    !insertmacro KILL_PROCESS_USER ${_EXE} ${_RESULT} ${_CURRENT_PID}
+  !else
+    ${If} $MultiUser.InstallMode == "CurrentUser"
+      !insertmacro KILL_PROCESS_USER ${_EXE} ${_RESULT} ${_CURRENT_PID}
+    ${Else}
+      !insertmacro KILL_PROCESS_ALL ${_EXE} ${_RESULT} ${_CURRENT_PID}
+    ${EndIf}
+  !endif
+!macroend
+
+Var pid
+
 ; Checks whether app is running or not and prompts to kill it.
 !macro CheckIfAppIsRunning
-  !if "${INSTALLMODE}" == "currentUser"
-    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
-  !else
-    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
-  !endif
+  !insertmacro FIND_PROCESS "${MAINBINARYNAME}.exe" $R0
   Pop $R0
   ${If} $R0 = 0
       IfSilent kill 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
       kill:
-        !if "${INSTALLMODE}" == "currentUser"
-          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
-        !else
-          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
-        !endif
-        Pop $R0
-        Sleep 500
+        ${GetProcessInfo} 0 $pid $1 $2 $3 $4
+        !insertmacro KILL_PROCESS "${MAINBINARYNAME}.exe" $R0 $pid
         ${If} $R0 = 0
           Goto app_check_done
         ${Else}

@@ -19,6 +19,7 @@ ManifestDPIAwareness PerMonitorV2
 !include WordFunc.nsh
 !include "utils.nsh"
 !include "FileAssociation.nsh"
+!include "GetProcessInfo.nsh"
 !include "Win\COM.nsh"
 !include "Win\Propkey.nsh"
 !include "StrFunc.nsh"
@@ -207,7 +208,7 @@ Function PageReinstall
   ${EndIf}
   ${IfThen} $R0 == "" ${|} StrCpy $R4 "$(unknown)" ${|}
 
-  nsis_tauri_utils::SemverCompare "${VERSION}" $R0
+  nsis_semvercompare::SemverCompare "${VERSION}" $R0
   Pop $R0
   ; Reinstalling the same version
   ${If} $R0 = 0
@@ -394,7 +395,8 @@ Var AppStartMenuFolder
 !insertmacro MUI_PAGE_FINISH
 
 Function RunMainBinary
-  nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" ""
+  ; https://mdb-blog.blogspot.com/2013/01/nsis-lunch-program-as-user-from-uac.html
+  Exec '"$WINDIR\explorer.exe" "$INSTDIR\${MAINBINARYNAME}.exe"'
 FunctionEnd
 
 ; Uninstaller Pages
@@ -725,7 +727,10 @@ Function .onInstSuccess
     ${GetOptions} $CMDLINE "/R" $R0
     ${IfNot} ${Errors}
       ${GetOptions} $CMDLINE "/ARGS" $R0
-      nsis_tauri_utils::RunAsUser "$INSTDIR\${MAINBINARYNAME}.exe" "$R0"
+
+      ;https://mdb-blog.blogspot.com/2013/01/nsis-lunch-program-as-user-from-uac.html
+      CreateShortCut "$TEMP\${MAINBINARYNAME}.lnk" "$INSTDIR\${MAINBINARYNAME}.exe" "$R0"
+      Exec '"$WINDIR\explorer.exe" "$TEMP\${MAINBINARYNAME}.lnk"'
     ${EndIf}
   ${EndIf}
 FunctionEnd

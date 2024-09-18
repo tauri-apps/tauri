@@ -4072,6 +4072,11 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_https_scheme(false);
   }
 
+  #[cfg(windows)]
+  {
+    webview_builder = webview_builder.with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
+  }
+
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
     kind,
     window_id.clone(),

@@ -185,7 +185,7 @@ pub struct DebianSettings {
   ///
   /// Default file contents:
   /// ```text
-  #[doc = include_str!("./linux/templates/main.desktop")]
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Define the section in Debian Control file. See : <https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections>
@@ -243,7 +243,7 @@ pub struct RpmSettings {
   ///
   /// Default file contents:
   /// ```text
-  #[doc = include_str!("./linux/templates/main.desktop")]
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -410,7 +410,7 @@ pub struct NsisSettings {
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
   ///
-  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsi` file.
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsi` file.
   ///
   /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,

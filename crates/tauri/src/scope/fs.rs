@@ -77,7 +77,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   pattern: P,
   f: F,
 ) -> crate::Result<()> {
-  let path: PathBuf = pattern.as_ref().components().collect();
+  let path: PathBuf = dunce::simplified(pattern.as_ref()).components().collect();
   list.insert(f(&path.to_string_lossy())?);
 
   let mut path = path;
@@ -514,29 +514,23 @@ mod tests {
       assert!(!scope.is_allowed("\\\\.\\COM2"));
     }
 
-    // This case does not work because a drive letter without a backslash (like "C:")
-    // canonicalizes to the current working directory of that drive. On the other hand,
-    // adding a backslash (like "C:\") results in the patterns being constructed with
-    // double backslahes (e.g. "C:\\**") which then do not match.
-    // let scope = new_scope();
-    // {
-    //   // Drive root
-    //   scope.allow_directory("C:", true).unwrap();
-    //   assert!(scope.is_allowed("C:\\Windows"));
-    //   assert!(scope.is_allowed("C:\\Windows\\system.ini"));
-    //   assert!(scope.is_allowed("C:\\NonExistentFile"));
-    //   assert!(!scope.is_allowed("D:\\home"));
-    // }
+    let scope = new_scope();
+    {
+      // Drive root
+      scope.allow_directory("C:\\", true).unwrap();
+      assert!(scope.is_allowed("C:\\Windows"));
+      assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+      assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(!scope.is_allowed("D:\\home"));
+    }
 
     let scope = new_scope();
     {
       // Verbatim drive root
-      scope.allow_directory("\\\\?\\C:", true).unwrap();
+      scope.allow_directory("\\\\?\\C:\\", true).unwrap();
       assert!(scope.is_allowed("C:\\Windows"));
       assert!(scope.is_allowed("C:\\Windows\\system.ini"));
-      // Does not work because non-existent files can't be canonicalized, therefore
-      // the verbatim prefix ("\\?\") is not added.
-      // assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(scope.is_allowed("C:\\NonExistentFile"));
       assert!(!scope.is_allowed("D:\\home"));
     }
 

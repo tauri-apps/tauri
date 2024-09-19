@@ -77,10 +77,23 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   pattern: P,
   f: F,
 ) -> crate::Result<()> {
-  let path: PathBuf = pattern.as_ref().components().collect();
+  let mut path: PathBuf = dunce::simplified(pattern.as_ref()).components().collect();
+
+  if cfg!(windows) {
+    // Canonicalize disk-relative paths before inserting into the list
+    use std::path::{Component, Prefix};
+    let mut components = path.components();
+    if let Some(Component::Prefix(prefix)) = components.next() {
+      if matches!(prefix.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_))
+        && !matches!(components.next(), Some(Component::RootDir))
+      {
+        path = dunce::simplified(&path.canonicalize()?).to_path_buf();
+      }
+    }
+  }
+
   list.insert(f(&path.to_string_lossy())?);
 
-  let mut path = path;
   let mut checked_path = None;
 
   // attempt to canonicalize parents in case we have a path like `/data/user/0/appid/**`
@@ -109,7 +122,9 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
     if let Some(mut p) = last {
       // remove the last component of the path
       // so the next iteration checks its parent
-      path.pop();
+      if !path.pop() {
+        break None;
+      }
       // append the already checked path to the last component
       if let Some(checked_path) = &checked_path {
         p.push(checked_path);
@@ -123,7 +138,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
   if let Some(p) = canonicalized {
     list.insert(f(&p.to_string_lossy())?);
-  } else if cfg!(windows) {
+  } else if cfg!(windows) && !path.to_string_lossy().starts_with("\\\\") {
     list.insert(f(&format!("\\\\?\\{}", path.display()))?);
   }
 
@@ -343,11 +358,15 @@ fn escaped_pattern(p: &str) -> Result<Pattern, glob::PatternError> {
 }
 
 fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternError> {
-  Pattern::new(&format!(
-    "{}{}{append}",
-    glob::Pattern::escape(p),
-    MAIN_SEPARATOR
-  ))
+  if p.ends_with(MAIN_SEPARATOR) {
+    Pattern::new(&format!("{}{append}", glob::Pattern::escape(p)))
+  } else {
+    Pattern::new(&format!(
+      "{}{}{append}",
+      glob::Pattern::escape(p),
+      MAIN_SEPARATOR
+    ))
+  }
 }
 
 #[cfg(test)]
@@ -468,6 +487,106 @@ mod tests {
       assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
       assert!(!scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
       assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn windows_root_paths() {
+    let scope = new_scope();
+    {
+      // UNC network path
+      scope.allow_directory("\\\\localhost\\c$", true).unwrap();
+      assert!(scope.is_allowed("\\\\localhost\\c$"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\NonExistentFile"));
+      assert!(!scope.is_allowed("\\\\localhost\\d$"));
+      assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim UNC network path
+      scope
+        .allow_directory("\\\\?\\UNC\\localhost\\c$", true)
+        .unwrap();
+      assert!(scope.is_allowed("\\\\localhost\\c$"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
+      assert!(scope.is_allowed("\\\\?\\UNC\\localhost\\c$\\Windows\\NonExistentFile"));
+      // A non-existent file cannot be canonicalized to a verbatim UNC path, so this will fail to match
+      assert!(!scope.is_allowed("\\\\localhost\\c$\\Windows\\NonExistentFile"));
+      assert!(!scope.is_allowed("\\\\localhost\\d$"));
+      assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
+    }
+
+    let scope = new_scope();
+    {
+      // Device namespace
+      scope.allow_file("\\\\.\\COM1").unwrap();
+      assert!(scope.is_allowed("\\\\.\\COM1"));
+      assert!(!scope.is_allowed("\\\\.\\COM2"));
+    }
+
+    let scope = new_scope();
+    {
+      // Disk root
+      scope.allow_directory("C:\\", true).unwrap();
+      assert!(scope.is_allowed("C:\\Windows"));
+      assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+      assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(!scope.is_allowed("D:\\home"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim disk root
+      scope.allow_directory("\\\\?\\C:\\", true).unwrap();
+      assert!(scope.is_allowed("C:\\Windows"));
+      assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+      assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(!scope.is_allowed("D:\\home"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim path
+      scope.allow_file("\\\\?\\anyfile").unwrap();
+      assert!(scope.is_allowed("\\\\?\\anyfile"));
+      assert!(!scope.is_allowed("\\\\?\\otherfile"));
+    }
+
+    let cwd = std::env::current_dir().unwrap();
+    let disk = {
+      let std::path::Component::Prefix(prefix) = cwd.components().next().unwrap() else {
+        panic!("Expected current dir to start with a prefix");
+      };
+      assert!(
+        matches!(prefix.kind(), std::path::Prefix::Disk(_)),
+        "Expected current dir to be on a disk drive"
+      );
+      prefix.as_os_str().to_string_lossy()
+    };
+
+    let scope = new_scope();
+    {
+      // Disk
+      scope.allow_directory(&*disk, true).unwrap();
+      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
+      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
+      assert!(!scope.is_allowed("C:\\Windows"));
+      assert!(!scope.is_allowed("Q:Cargo.toml"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim disk
+      scope
+        .allow_directory(format!("\\\\?\\{}", disk), true)
+        .unwrap();
+      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
+      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
+      assert!(!scope.is_allowed("C:\\Windows"));
+      assert!(!scope.is_allowed("Q:Cargo.toml"));
     }
   }
 }

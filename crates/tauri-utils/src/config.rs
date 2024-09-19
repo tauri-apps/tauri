@@ -2480,6 +2480,7 @@ mod build {
       let incognito = self.incognito;
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
+      let browser_extensions_enabled = self.browser_extensions_enabled;
 
       literal_struct!(
         tokens,
@@ -2525,7 +2526,8 @@ mod build {
         window_effects,
         incognito,
         parent,
-        zoom_hotkeys_enabled
+        zoom_hotkeys_enabled,
+        browser_extensions_enabled
       );
     }
   }

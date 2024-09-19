@@ -15,15 +15,12 @@ pub struct Options {
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
   no_api: bool,
-  /// Initializes a Tauri core plugin (internal usage)
-  #[clap(long, hide(true))]
-  tauri: bool,
+  /// Initialize without an example project.
+  #[clap(long)]
+  no_example: bool,
   /// Set target directory for init
   #[clap(short, long)]
   directory: Option<String>,
-  /// Path of the Tauri project to use (relative to the cwd)
-  #[clap(short, long)]
-  tauri_path: Option<PathBuf>,
   /// Author name
   #[clap(short, long)]
   author: Option<String>,
@@ -40,6 +37,13 @@ pub struct Options {
   #[clap(long)]
   #[clap(default_value_t = PluginIosFramework::default())]
   pub(crate) ios_framework: PluginIosFramework,
+
+  /// Initializes a Tauri core plugin (internal usage)
+  #[clap(long, hide(true))]
+  tauri: bool,
+  /// Path of the Tauri project to use (relative to the cwd)
+  #[clap(short, long)]
+  tauri_path: Option<PathBuf>,
 }
 
 impl From<Options> for super::init::Options {
@@ -47,14 +51,16 @@ impl From<Options> for super::init::Options {
     Self {
       plugin_name: Some(o.plugin_name),
       no_api: o.no_api,
-      tauri: o.tauri,
+      no_example: o.no_example,
       directory: o.directory.unwrap(),
-      tauri_path: o.tauri_path,
       author: o.author,
       android: o.android,
       ios: o.ios,
       mobile: o.mobile,
       ios_framework: o.ios_framework,
+
+      tauri: o.tauri,
+      tauri_path: o.tauri_path,
     }
   }
 }

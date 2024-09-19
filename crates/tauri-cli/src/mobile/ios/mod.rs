@@ -29,7 +29,7 @@ use super::{
 use crate::{
   helpers::{
     app_paths::tauri_dir,
-    config::{BundleResources, Config as TauriConfig},
+    config::{BundleResources, Config as TauriConfig, ConfigHandle},
     pbxproj,
   },
   Result,
@@ -49,6 +49,7 @@ pub(crate) mod project;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "APPLE_DEVELOPMENT_TEAM";
+pub const LIB_OUTPUT_FILE_NAME: &str = "libapp.a";
 
 #[derive(Parser)]
 #[clap(
@@ -131,7 +132,7 @@ pub fn get_config(
               log::warn!("No code signing certificates found. You must add one and set the certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. To list the available certificates, run `tauri info`.");
               None
             }
-            1 => Some(teams.first().unwrap().id.clone()),
+            1 =>None,
             _ => {
               log::warn!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
               None
@@ -421,12 +422,21 @@ pub fn load_pbxproj(config: &AppleConfig) -> Result<pbxproj::Pbxproj> {
 }
 
 pub fn synchronize_project_config(
-  app: &App,
+  config: &AppleConfig,
+  tauri_config: &ConfigHandle,
   pbxproj: &mut pbxproj::Pbxproj,
   export_options_list: &mut plist::Dictionary,
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
+  let identifier = tauri_config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .identifier
+    .clone();
+
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();
 
@@ -437,9 +447,25 @@ pub fn synchronize_project_config(
     .find(|l| l.comment.contains("_iOS"))
   {
     for build_configuration_ref in xc_configuration_list.build_configurations {
-      if manual_signing {
-        pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_STYLE", "Manual");
+      pbxproj.set_build_settings(
+        &build_configuration_ref.id,
+        "CODE_SIGN_STYLE",
+        if manual_signing {
+          "Manual"
+        } else {
+          "Automatic"
+        },
+      );
+
+      if let Some(team) = config.development_team() {
+        pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", team);
       }
+
+      pbxproj.set_build_settings(
+        &build_configuration_ref.id,
+        "PRODUCT_BUNDLE_IDENTIFIER",
+        &identifier,
+      );
 
       if let Some(identity) = &project_config.code_sign_identity {
         let identity = format!("\"{identity}\"");
@@ -536,7 +562,7 @@ pub fn synchronize_project_config(
       });
     if let Some(profile_uuid) = profile_uuid {
       let mut provisioning_profiles = plist::Dictionary::new();
-      provisioning_profiles.insert(app.identifier().to_string(), profile_uuid.into());
+      provisioning_profiles.insert(config.app().identifier().to_string(), profile_uuid.into());
       export_options_list.insert(
         "provisioningProfiles".to_string(),
         provisioning_profiles.into(),

@@ -1,5 +1,47 @@
 # Changelog
 
+## \[2.0.0-rc.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+- Upgraded to `tauri-codegen@2.0.0-rc.12`
+
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-codegen@2.0.0-rc.11`
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-codegen@2.0.0-rc.10`
+
+## \[2.0.0-rc.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-codegen@2.0.0-rc.9`
+
+## \[2.0.0-rc.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-codegen@2.0.0-rc.8`
+
+## \[2.0.0-rc.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-codegen@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### What's Changed

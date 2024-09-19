@@ -9,6 +9,7 @@ members = [
   "crates/tauri-codegen",
   "crates/tauri-plugin",
   "crates/tauri-schema-generator",
+  "crates/tauri-schema-worker",
   "crates/tauri-cli",
   "crates/tauri-bundler",
   "crates/tauri-macos-sign",
@@ -30,6 +31,7 @@ members = [
   # examples
   "examples/file-associations/src-tauri",
   "examples/api/src-tauri",
+  "examples/api/src-tauri/tauri-plugin-sample",
 ]
 resolver = "2"
 
@@ -49,6 +51,7 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+strip = true
 
 # profiles for tauri-cli
 [profile.dev.package.miniz_oxide]
@@ -65,3 +68,4 @@ opt-level = "s"
 # See https://github.com/GREsau/schemars/issues/120 for reference
 [patch.crates-io]
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
+tauri = { path = "./crates/tauri" }

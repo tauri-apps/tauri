@@ -1,5 +1,164 @@
 # Changelog
 
+## \[2.0.0-rc.15]
+
+### New Features
+
+- [`ad294d274`](https://www.github.com/tauri-apps/tauri/commit/ad294d274dd81d2ef91ed73af9163b6e9b8eb964) ([#11032](https://www.github.com/tauri-apps/tauri/pull/11032) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `app > windows > create` option to choose whether to create this window at app startup or not.
+
+### Enhancements
+
+- [`e7fd676c2`](https://www.github.com/tauri-apps/tauri/commit/e7fd676c2741929727e3e25bd81cd6ea45e4da7b) ([#11025](https://www.github.com/tauri-apps/tauri/pull/11025) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Inject `__INVOKE_KEY__` into custom invoke systems so their implementations can properly construct `tauri::webview::InvokeRequest`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+- Upgraded to `tauri-runtime@2.0.0-rc.12`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.13`
+- Upgraded to `tauri-macros@2.0.0-rc.11`
+- Upgraded to `tauri-build@2.0.0-rc.12`
+
+### Breaking Changes
+
+- [`551e0624a`](https://www.github.com/tauri-apps/tauri/commit/551e0624a903ed6cf8390add7868c655c7778ce4) ([#11027](https://www.github.com/tauri-apps/tauri/pull/11027) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove the `responder` part of a custom invoke system now that the responder can be set directly in the `tauri::WebviewWindow::on_message` function.
+
+## \[2.0.0-rc.14]
+
+### Bug Fixes
+
+- [`e5f037277`](https://www.github.com/tauri-apps/tauri/commit/e5f037277505c477b8d563bd77b7bd6e23b46296) ([#11018](https://www.github.com/tauri-apps/tauri/pull/11018) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix compilation error on macOS due to a missing feature for `NSImage`.
+
+## \[2.0.0-rc.13]
+
+### Enhancements
+
+- [`bc4804d48`](https://www.github.com/tauri-apps/tauri/commit/bc4804d4841efefd57fd1f3e147550a3340e2b31) ([#10924](https://www.github.com/tauri-apps/tauri/pull/10924) by [@madsmtm](https://www.github.com/tauri-apps/tauri/../../madsmtm)) Use `objc2` internally and in examples, leading to better memory safety.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.12`
+
+### Breaking Changes
+
+- [`bc4804d48`](https://www.github.com/tauri-apps/tauri/commit/bc4804d4841efefd57fd1f3e147550a3340e2b31) ([#10924](https://www.github.com/tauri-apps/tauri/pull/10924) by [@madsmtm](https://www.github.com/tauri-apps/tauri/../../madsmtm)) Change the pointer type of `PlatformWebview`'s `inner`, `controller`, `ns_window` and `view_controller` to `c_void`, to avoid publically depending on `objc`.
+
+## \[2.0.0-rc.12]
+
+### New Features
+
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `mainBinaryName` config option to set the file name for the main binary.
+
+### Enhancements
+
+- [`5eb036f33`](https://www.github.com/tauri-apps/tauri/commit/5eb036f33951a9946f25ce5fa7fc47ae4469aa60) ([#11002](https://www.github.com/tauri-apps/tauri/pull/11002) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Handle macOS binary name change on the `process::restart` function.
+
+### Bug Fixes
+
+- [`63649d82d`](https://www.github.com/tauri-apps/tauri/commit/63649d82d20b8f69d973b41bd0c157997770d6a0) ([#10971](https://www.github.com/tauri-apps/tauri/pull/10971) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix schema generation for `core:default` set.
+- [`be18ed50d`](https://www.github.com/tauri-apps/tauri/commit/be18ed50d8e04261da1553662a768e7ce0f1dd8f) ([#10982](https://www.github.com/tauri-apps/tauri/pull/10982) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Add a Proguard rule to prevent custom JSON deserializer and serializer classes from being optimized away.
+- [`00182ebf8`](https://www.github.com/tauri-apps/tauri/commit/00182ebf894b83302179ccb7f415f97d04600c77) ([#10988](https://www.github.com/tauri-apps/tauri/pull/10988) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `requestPermissions` not resolving on Android.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.0-rc.11`
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-runtime@2.0.0-rc.11`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.11`
+- Upgraded to `tauri-macros@2.0.0-rc.10`
+
+### Breaking Changes
+
+- [`fe5ff1228`](https://www.github.com/tauri-apps/tauri/commit/fe5ff1228c34cf12929d861454ab9716da9480da) ([#10978](https://www.github.com/tauri-apps/tauri/pull/10978) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Rename `PermissionState::Unknown` to `PermissionState::Prompt`.
+
+## \[2.0.0-rc.11]
+
+### Bug Fixes
+
+- [`fafceec30`](https://www.github.com/tauri-apps/tauri/commit/fafceec3092f405fbc6642d331e5440b90d9fd62) ([#10943](https://www.github.com/tauri-apps/tauri/pull/10943) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes mobile dev server proxy request URL with trailing slashes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-runtime@2.0.0-rc.10`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.10`
+- Upgraded to `tauri-macros@2.0.0-rc.9`
+- Upgraded to `tauri-build@2.0.0-rc.10`
+
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-runtime@2.0.0-rc.9`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.9`
+- Upgraded to `tauri-macros@2.0.0-rc.8`
+- Upgraded to `tauri-build@2.0.0-rc.9`
+- [`d9c8d3cc8`](https://www.github.com/tauri-apps/tauri/commit/d9c8d3cc8d5ca67cd767ffc7a521f801b41ce201) ([#10902](https://www.github.com/tauri-apps/tauri/pull/10902) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update infer to 0.16, tray icon to 0.17, urlpattern to 0.3, image to 0.25
+
+### Breaking Changes
+
+- [`faa259bac`](https://www.github.com/tauri-apps/tauri/commit/faa259bacf1ace670af763982c6903190faf163a) ([#10907](https://www.github.com/tauri-apps/tauri/pull/10907) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `Assets::iter` function now must return a iterator with `Item = (Cow<'_, str>, Cow<'_, [u8]>)` to be more flexible on contexts where the assets are not `'static`.
+
+## \[2.0.0-rc.9]
+
+### New Features
+
+- [`0899e5083`](https://www.github.com/tauri-apps/tauri/commit/0899e5083104dfcf924a0530ba73ead2963ee421) ([#10884](https://www.github.com/tauri-apps/tauri/pull/10884) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Derive serde `Serialize` for `SafePathBuf`
+- [`431ca2c77`](https://www.github.com/tauri-apps/tauri/commit/431ca2c7763f7e31ad533c49576ab658569ddd29) ([#10870](https://www.github.com/tauri-apps/tauri/pull/10870) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add `FromStr` impl for `SafePathBuf`
+
+### Bug Fixes
+
+- [`79de4332b`](https://www.github.com/tauri-apps/tauri/commit/79de4332b6fe01e848c286cedf9ceea773cf6190) ([#10841](https://www.github.com/tauri-apps/tauri/pull/10841) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes IPC postMessage raw body processing when using the isolation pattern.
+- [`6696e4880`](https://www.github.com/tauri-apps/tauri/commit/6696e48800576e124066388156f1d083376eec30) ([#10842](https://www.github.com/tauri-apps/tauri/pull/10842) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes a warning when using a null value on the `invoke.resolve()` iOS plugin API.
+
+### What's Changed
+
+- [`27d018343`](https://www.github.com/tauri-apps/tauri/commit/27d01834312ee7953b6ccd5b0a368e7a69b225e9) ([#10844](https://www.github.com/tauri-apps/tauri/pull/10844) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changes how the Info.plist is embedded on macOS development to avoid a clippy warning.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.8`
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-runtime@2.0.0-rc.8`
+- Upgraded to `tauri-macros@2.0.0-rc.7`
+- Upgraded to `tauri-build@2.0.0-rc.8`
+
+### Breaking Changes
+
+- [`5048a7293`](https://www.github.com/tauri-apps/tauri/commit/5048a7293b87b5b93aaefd42dedc0e551e08086c) ([#10840](https://www.github.com/tauri-apps/tauri/pull/10840) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `linux-ipc-protocol` feature is now always enabled, so the Cargo feature flag was removed.
+  This increases the minimum webkit2gtk version to a release that does not affect the minimum target Linux distros for Tauri apps.
+
+## \[2.0.0-rc.8]
+
+### Enhancements
+
+- [`d7e5c00e9`](https://www.github.com/tauri-apps/tauri/commit/d7e5c00e94938f6be94e693d3f21f1f8f431c4f9) ([#10817](https://www.github.com/tauri-apps/tauri/pull/10817) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `plugin:::PermissionState` enum.
+
+## \[2.0.0-rc.7]
+
+### New Features
+
+- [`1e441811e`](https://www.github.com/tauri-apps/tauri/commit/1e441811ee16c687343760f555c86d52ebfe8f87) ([#10786](https://www.github.com/tauri-apps/tauri/pull/10786) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, Add and emit `DoubleClick` variant for `TrayIconEvent`.
+
+### Enhancements
+
+- [`f86a8146a`](https://www.github.com/tauri-apps/tauri/commit/f86a8146addd8a25bc44c492300fe0563104b83d) ([#10761](https://www.github.com/tauri-apps/tauri/pull/10761) by [@rdlabo](https://www.github.com/tauri-apps/tauri/../../rdlabo)) Added `getArgs` and `getRawArgs` methods to the plugin `Invoke` class (Kotlin and Swift),
+  which lets you parse the arguments manually instead of through the `parseArgs` method.
+
+### Bug Fixes
+
+- [`03f2a5098`](https://www.github.com/tauri-apps/tauri/commit/03f2a50981b8c01b1c196811fce9d93f1bf0820d) ([#10718](https://www.github.com/tauri-apps/tauri/pull/10718) by [@rdlabo](https://www.github.com/tauri-apps/tauri/../../rdlabo)) Update swift-rs fixing a plugin build when native dependencies are used.
+- [`22d2afa89`](https://www.github.com/tauri-apps/tauri/commit/22d2afa89bfe626bf952c2bb4b1f37935c1a2f71) ([#10800](https://www.github.com/tauri-apps/tauri/pull/10800) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Change the Android Proguard rules to keep custom JSON deserializers.
+- [`fbe76a955`](https://www.github.com/tauri-apps/tauri/commit/fbe76a955a63af9fb33f66d5f747caf858cf179b) ([#10797](https://www.github.com/tauri-apps/tauri/pull/10797) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Uint8Arrays and ArrayBuffers are now properly serialized as an array of numbers.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-build@2.0.0-rc.7`
+- Upgraded to `tauri-runtime@2.0.0-rc.7`
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.7`
+- Upgraded to `tauri-macros@2.0.0-rc.6`
+
 ## \[2.0.0-rc.6]
 
 ### What's Changed

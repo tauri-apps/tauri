@@ -21,7 +21,7 @@ use url::Url;
 
 use crate::{
   app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
-  ipc::{InvokeHandler, InvokeResponder},
+  ipc::InvokeHandler,
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
@@ -75,8 +75,6 @@ pub struct WebviewManager<R: Runtime> {
   /// Webview event listeners to all webviews.
   pub event_listeners: Arc<Vec<GlobalWebviewEventListener<R>>>,
 
-  /// Responder for invoke calls.
-  pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
 

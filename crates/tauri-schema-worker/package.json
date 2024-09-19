@@ -1,0 +1,13 @@
+{
+  "name": "tauri-schema-worker",
+  "version": "0.0.0",
+  "license": "Apache-2.0 OR MIT",
+  "private": "true",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^3.75"
+  }
+}

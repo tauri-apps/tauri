@@ -5,8 +5,7 @@
 use crate::{
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
-    InvokeHandler, InvokeResponder, InvokeResponse,
+    channel::ChannelDataIpcQueue, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler,
   },
   manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
@@ -37,7 +36,7 @@ use tauri_runtime::{
   window::DragDropEvent,
   RuntimeInitArgs,
 };
-use tauri_utils::PackageInfo;
+use tauri_utils::{assets::AssetsIter, PackageInfo};
 
 use serde::Serialize;
 use std::{
@@ -309,7 +308,7 @@ impl<R: Runtime> AssetResolver<R> {
   }
 
   /// Iterate on all assets.
-  pub fn iter(&self) -> Box<dyn Iterator<Item = (&str, &[u8])> + '_> {
+  pub fn iter(&self) -> Box<AssetsIter<'_>> {
     self.manager.assets.iter()
   }
 }
@@ -1169,9 +1168,6 @@ pub struct Builder<R: Runtime> {
   /// The JS message handler.
   invoke_handler: Box<InvokeHandler<R>>,
 
-  /// The JS message responder.
-  invoke_responder: Option<Arc<InvokeResponder<R>>>,
-
   /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
   pub(crate) invoke_initialization_script: String,
 
@@ -1218,7 +1214,6 @@ pub(crate) struct InvokeInitializationScript<'a> {
   pub(crate) process_ipc_message_fn: &'a str,
   pub(crate) os_name: &'a str,
   pub(crate) fetch_channel_data_command: &'a str,
-  pub(crate) linux_ipc_protocol_enabled: bool,
   pub(crate) invoke_key: &'a str,
 }
 
@@ -1249,12 +1244,10 @@ impl<R: Runtime> Builder<R> {
       runtime_any_thread: false,
       setup: Box::new(|_| Ok(())),
       invoke_handler: Box::new(|_| false),
-      invoke_responder: None,
       invoke_initialization_script: InvokeInitializationScript {
         process_ipc_message_fn: crate::manager::webview::PROCESS_IPC_MESSAGE_FN,
         os_name: std::env::consts::OS,
         fetch_channel_data_command: crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND,
-        linux_ipc_protocol_enabled: cfg!(feature = "linux-ipc-protocol"),
         invoke_key: &invoke_key.clone(),
       }
       .render_default(&Default::default())
@@ -1314,17 +1307,26 @@ impl<R: Runtime> Builder<R> {
 
   /// Defines a custom JS message system.
   ///
-  /// The `responder` is a function that will be called when a command has been executed and must send a response to the JS layer.
-  ///
   /// The `initialization_script` is a script that initializes `window.__TAURI_INTERNALS__.postMessage`.
   /// That function must take the `(message: object, options: object)` arguments and send it to the backend.
+  ///
+  /// Additionally, the script must include a `__INVOKE_KEY__` token that is replaced with a value that must be sent with the IPC payload
+  /// to check the integrity of the message by the [`crate::WebviewWindow::on_message`] API, e.g.
+  ///
+  /// ```js
+  /// const invokeKey = __INVOKE_KEY__;
+  /// fetch('my-impl://command', {
+  ///   headers: {
+  ///     'Tauri-Invoke-Key': invokeKey,
+  ///   }
+  /// })
+  /// ```
+  ///
+  /// Note that the implementation details is up to your implementation.
   #[must_use]
-  pub fn invoke_system<F>(mut self, initialization_script: String, responder: F) -> Self
-  where
-    F: Fn(&Webview<R>, &str, &InvokeResponse, CallbackFn, CallbackFn) + Send + Sync + 'static,
-  {
-    self.invoke_initialization_script = initialization_script;
-    self.invoke_responder.replace(Arc::new(responder));
+  pub fn invoke_system(mut self, initialization_script: String) -> Self {
+    self.invoke_initialization_script =
+      initialization_script.replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
     self
   }
 
@@ -1784,7 +1786,7 @@ tauri::Builder::default()
       self.webview_event_listeners,
       #[cfg(desktop)]
       HashMap::new(),
-      (self.invoke_responder, self.invoke_initialization_script),
+      self.invoke_initialization_script,
       self.invoke_key,
     ));
 
@@ -2012,8 +2014,8 @@ impl<R: Runtime> HasDisplayHandle for App<R> {
 fn setup<R: Runtime>(app: &mut App<R>) -> crate::Result<()> {
   app.ran_setup = true;
 
-  for window_config in app.config().app.windows.clone() {
-    WebviewWindowBuilder::from_config(app.handle(), &window_config)?.build()?;
+  for window_config in app.config().app.windows.iter().filter(|w| w.create) {
+    WebviewWindowBuilder::from_config(app.handle(), window_config)?.build()?;
   }
 
   app.manager.assets.setup(app);
@@ -2055,22 +2057,18 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::Ready => {
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
-      unsafe {
-        use cocoa::{
-          appkit::NSImage,
-          base::{id, nil},
-          foundation::NSData,
-        };
-        use objc::*;
+      {
+        use objc2::ClassType;
+        use objc2_app_kit::{NSApplication, NSImage};
+        use objc2_foundation::{MainThreadMarker, NSData};
+
         if let Some(icon) = app_handle.manager.app_icon.clone() {
-          let ns_app: id = msg_send![class!(NSApplication), sharedApplication];
-          let data = NSData::dataWithBytes_length_(
-            nil,
-            icon.as_ptr() as *const std::os::raw::c_void,
-            icon.len() as u64,
-          );
-          let app_icon = NSImage::initWithData_(NSImage::alloc(nil), data);
-          let _: () = msg_send![ns_app, setApplicationIconImage: app_icon];
+          // TODO: Enable this check.
+          let mtm = unsafe { MainThreadMarker::new_unchecked() };
+          let app = NSApplication::sharedApplication(mtm);
+          let data = NSData::with_bytes(&icon);
+          let app_icon = NSImage::initWithData(NSImage::alloc(), &data).expect("creating icon");
+          unsafe { app.setApplicationIconImage(Some(&app_icon)) };
         }
       }
       RunEvent::Ready

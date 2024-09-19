@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.0.0-rc.6"
+version = "2.0.0-rc.15"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -57,12 +57,12 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1.0"
 thiserror = "1.0"
-tauri-runtime = { version = "2.0.0-rc.6", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.0-rc.5", path = "../tauri-macros" }
-tauri-utils = { version = "2.0.0-rc.6", features = [
+tauri-runtime = { version = "2.0.0-rc.12", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.0-rc.11", path = "../tauri-macros" }
+tauri-utils = { version = "2.0.0-rc.12", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.0.0-rc.6", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.0.0-rc.13", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 state = "0.6"
@@ -76,11 +76,11 @@ reqwest = { version = "0.12", default-features = false, features = [
 bytes = { version = "1", features = ["serde"] }
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
-urlpattern = "0.2"
+urlpattern = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
-image = { version = "0.24", default-features = false, optional = true }
+image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1.5", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.5"
@@ -93,18 +93,28 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
 muda = { version = "0.14", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.16", default-features = false, features = [
+tray-icon = { version = "0.17", default-features = false, features = [
   "serde",
 ], optional = true }
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_38"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
 
-[target."cfg(target_os = \"macos\")".dependencies]
+# macOS
+[target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
-cocoa = "0.26"
-objc = "0.2"
+plist = "1"
+objc2 = "0.5.2"
+objc2-foundation = { version = "0.2.2", features = ["NSData", "NSThread"] }
+objc2-app-kit = { version = "0.2.2", features = [
+  "NSApplication",
+  "NSColor",
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+  "NSImage",
+] }
 window-vibrancy = "0.5"
 
 [target."cfg(windows)".dependencies]
@@ -118,16 +128,15 @@ features = ["Win32_Foundation"]
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
 
-[target."cfg(target_os = \"ios\")".dependencies]
+# UIKit, i.e. iOS/tvOS/watchOS/visionOS
+[target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-objc = "0.2"
-cocoa = "0.26"
 swift-rs = "1.0.7"
 
 [build-dependencies]
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.6" }
-tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.6", features = [
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.0-rc.12" }
+tauri-utils = { path = "../tauri-utils/", version = "2.0.0-rc.12", features = [
   "build",
 ] }
 
@@ -142,6 +151,14 @@ tokio = { version = "1", features = ["full"] }
 cargo_toml = "0.17"
 http-range = "0.1.5"
 
+# macOS
+[target.'cfg(target_os = "macos")'.dev-dependencies]
+objc2-web-kit = { version = "0.2.2", features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKUserContentController",
+] }
+
 [features]
 default = ["wry", "compression", "objc-exception", "common-controls-v6"]
 unstable = ["tauri-runtime-wry/unstable"]
@@ -155,10 +172,6 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["tauri-runtime-wry"]
 objc-exception = ["tauri-runtime-wry/objc-exception"]
-linux-ipc-protocol = [
-  "tauri-runtime-wry/linux-protocol-body",
-  "webkit2gtk/v2_40",
-]
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]

@@ -8,9 +8,30 @@
 )]
 
 use std::path::PathBuf;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
+  // -- Scope handling start --
+
+  // You can remove this block if you only want to know about the paths, but not actually "use" them in the frontend.
+
+  // This requires the `fs` tauri plugin and is required to make the plugin's frontend work:
+  // use tauri_plugin_fs::FsExt;
+  // let fs_scope = app.fs_scope();
+
+  // This is for the `asset:` protocol to work:
+  let asset_protocol_scope = app.asset_protocol_scope();
+
+  for file in &files {
+    // This requires the `fs` plugin:
+    // let _ = fs_scope.allow_file(file);
+
+    // This is for the `asset:` protocol:
+    let _ = asset_protocol_scope.allow_file(file);
+  }
+
+  // -- Scope handling end --
+
   let files = files
     .into_iter()
     .map(|f| {
@@ -28,7 +49,7 @@ fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
 
 fn main() {
   tauri::Builder::default()
-    .setup(|app| {
+    .setup(|#[allow(unused_variables)] app| {
       #[cfg(any(windows, target_os = "linux"))]
       {
         let mut files = Vec::new();

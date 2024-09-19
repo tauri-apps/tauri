@@ -28,4 +28,14 @@
   *;
 }
 
+-keep @com.fasterxml.jackson.databind.annotation.JsonDeserialize public class * {
+  *;
+}
+
+-keep @com.fasterxml.jackson.databind.annotation.JsonSerialize public class * {
+  *;
+}
+
 -keep class * extends com.fasterxml.jackson.databind.JsonDeserializer { *; }
+
+-keep class * extends com.fasterxml.jackson.databind.JsonSerializer { *; }

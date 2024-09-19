@@ -1461,12 +1461,9 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
-          Ok(unsafe {
-            use objc::*;
-            let ns_window: cocoa::base::id =
-              objc::msg_send![h.ns_view.as_ptr() as cocoa::base::id, window];
-            ns_window as *mut _
-          })
+          let view: &objc2_app_kit::NSView = unsafe { h.ns_view.cast().as_ref() };
+          let ns_window = view.window().expect("view to be installed in window");
+          Ok(objc2::rc::Retained::autorelease_ptr(ns_window).cast())
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1980,7 +1977,7 @@ tauri::Builder::default()
       .set_progress_bar(crate::runtime::ProgressBarState {
         status: progress_state.status,
         progress: progress_state.progress,
-        desktop_filename: Some(format!("{}.desktop", self.package_info().crate_name)),
+        desktop_filename: Some(format!("{}.desktop", self.package_info().name)),
       })
       .map_err(Into::into)
   }

@@ -33,16 +33,13 @@ pub struct Options {
   /// Initializes a Tauri plugin without the TypeScript API
   #[clap(long)]
   pub(crate) no_api: bool,
-  /// Initializes a Tauri core plugin (internal usage)
-  #[clap(long, hide(true))]
-  pub(crate) tauri: bool,
+  /// Initialize without an example project.
+  #[clap(long)]
+  pub(crate) no_example: bool,
   /// Set target directory for init
   #[clap(short, long)]
   #[clap(default_value_t = current_dir().expect("failed to read cwd").display().to_string())]
   pub(crate) directory: String,
-  /// Path of the Tauri project to use (relative to the cwd)
-  #[clap(short, long)]
-  pub(crate) tauri_path: Option<PathBuf>,
   /// Author name
   #[clap(short, long)]
   pub(crate) author: Option<String>,
@@ -59,6 +56,13 @@ pub struct Options {
   #[clap(long)]
   #[clap(default_value_t = PluginIosFramework::default())]
   pub(crate) ios_framework: PluginIosFramework,
+
+  /// Initializes a Tauri core plugin (internal usage)
+  #[clap(long, hide(true))]
+  pub(crate) tauri: bool,
+  /// Path of the Tauri project to use (relative to the cwd)
+  #[clap(short, long)]
+  pub(crate) tauri_path: Option<PathBuf>,
 }
 
 impl Options {
@@ -176,14 +180,14 @@ pub fn command(mut options: Options) -> Result<()> {
         if let Component::Normal(component) = root {
           match component.to_str().unwrap() {
             "__example-api" => {
-              if options.no_api {
+              if options.no_api || options.no_example {
                 return Ok(None);
               } else {
                 path = Path::new("examples").join(components.collect::<PathBuf>());
               }
             }
             "__example-basic" => {
-              if options.no_api {
+              if options.no_api && !options.no_example {
                 path = Path::new("examples").join(components.collect::<PathBuf>());
               } else {
                 return Ok(None);

@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-rc.5]
+
+### New Features
+
+- [`ddf69157b`](https://www.github.com/tauri-apps/tauri/commit/ddf69157b54249f3321ca72db6703812019f1ab9) ([#11031](https://www.github.com/tauri-apps/tauri/pull/11031) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `toPhysical` method on `LogicalPositon` and `LogicalSize` classes.
+
+## \[2.0.0-rc.4]
+
+### Enhancements
+
+- [`f81929e25`](https://www.github.com/tauri-apps/tauri/commit/f81929e25104aa1091e464bd012c80649dedf9e5) ([#10799](https://www.github.com/tauri-apps/tauri/pull/10799) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `PermissionState`, `checkPermissions` and `requestPermissions` base APIs to the core module, designed for plugin authors to extend.
+
+### Bug Fixes
+
+- [`fbe76a955`](https://www.github.com/tauri-apps/tauri/commit/fbe76a955a63af9fb33f66d5f747caf858cf179b) ([#10797](https://www.github.com/tauri-apps/tauri/pull/10797) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Uint8Arrays and ArrayBuffers are now properly serialized as an array of numbers.
+
 ## \[2.0.0-rc.3]
 
 ### What's Changed

@@ -115,10 +115,8 @@ impl<'a> PageLoadPayload<'a> {
 /// # Stability
 ///
 /// This struct is **NOT** part of the public stable API and is only meant to be used
-/// by internal code and external testing/fuzzing tools. If not used with feature `unstable`, this
-/// struct is marked `#[non_exhaustive]` and is non-constructable externally.
+/// by internal code and external testing/fuzzing tools or custom invoke systems.
 #[derive(Debug)]
-#[cfg_attr(not(feature = "test"), non_exhaustive)]
 pub struct InvokeRequest {
   /// The invoke command.
   pub cmd: String,
@@ -179,7 +177,7 @@ impl PlatformWebview {
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
-  pub fn inner(&self) -> cocoa::base::id {
+  pub fn inner(&self) -> *mut std::ffi::c_void {
     self.0.webview
   }
 
@@ -188,7 +186,7 @@ impl PlatformWebview {
   /// [controller]: https://developer.apple.com/documentation/webkit/wkusercontentcontroller
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
-  pub fn controller(&self) -> cocoa::base::id {
+  pub fn controller(&self) -> *mut std::ffi::c_void {
     self.0.manager
   }
 
@@ -197,7 +195,7 @@ impl PlatformWebview {
   /// [NSWindow]: https://developer.apple.com/documentation/appkit/nswindow
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
-  pub fn ns_window(&self) -> cocoa::base::id {
+  pub fn ns_window(&self) -> *mut std::ffi::c_void {
     self.0.ns_window
   }
 
@@ -206,7 +204,7 @@ impl PlatformWebview {
   /// [UIViewController]: https://developer.apple.com/documentation/uikit/uiviewcontroller
   #[cfg(target_os = "ios")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "ios")))]
-  pub fn view_controller(&self) -> cocoa::base::id {
+  pub fn view_controller(&self) -> *mut std::ffi::c_void {
     self.0.view_controller
   }
 
@@ -1000,9 +998,6 @@ impl<R: Runtime> Webview<R> {
     feature = "unstable",
     doc = r####"
 ```rust,no_run
-#[cfg(target_os = "macos")]
-#[macro_use]
-extern crate objc;
 use tauri::Manager;
 
 fn main() {
@@ -1026,10 +1021,14 @@ fn main() {
 
         #[cfg(target_os = "macos")]
         unsafe {
-          let () = msg_send![webview.inner(), setPageZoom: 4.];
-          let () = msg_send![webview.controller(), removeAllUserScripts];
-          let bg_color: cocoa::base::id = msg_send![class!(NSColor), colorWithDeviceRed:0.5 green:0.2 blue:0.4 alpha:1.];
-          let () = msg_send![webview.ns_window(), setBackgroundColor: bg_color];
+          let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
+          let controller: &objc2_web_kit::WKUserContentController = &*webview.controller().cast();
+          let window: &objc2_app_kit::NSWindow = &*webview.ns_window().cast();
+
+          view.setPageZoom(4.);
+          controller.removeAllUserScripts();
+          let bg_color = objc2_app_kit::NSColor::colorWithDeviceRed_green_blue_alpha(0.5, 0.2, 0.4, 1.);
+          window.setBackgroundColor(Some(&bg_color));
         }
 
         #[cfg(target_os = "android")]
@@ -1137,17 +1136,11 @@ fn main() {
       return;
     }
 
-    let custom_responder = self.manager().webview.invoke_responder.clone();
-
     let resolver = InvokeResolver::new(
       self.clone(),
       Arc::new(Mutex::new(Some(Box::new(
         #[allow(unused_variables)]
         move |webview: Webview<R>, cmd, response, callback, error| {
-          if let Some(responder) = &custom_responder {
-            (responder)(&webview, &cmd, &response, callback, error);
-          }
-
           responder(webview, cmd, response, callback, error);
         },
       )))),

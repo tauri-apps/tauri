@@ -4,7 +4,7 @@
 
 import Foundation
 
-public typealias JsonObject = [String: Any]
+public typealias JsonObject = [String: Any?]
 
 public enum JsonValue {
 	case dictionary(JsonObject)

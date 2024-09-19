@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.0.0-rc.6"
+version = "2.0.0-rc.13"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -17,14 +17,15 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.42", default-features = false, features = [
+wry = { version = "0.43.1", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
+  "linux-body",
 ] }
-tao = { version = "0.29.1", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.0.0-rc.6", path = "../tauri-runtime" }
-tauri-utils = { version = "2.0.0-rc.6", path = "../tauri-utils" }
+tao = { version = "0.30", default-features = false, features = ["rwh_06"] }
+tauri-runtime = { version = "2.0.0-rc.12", path = "../tauri-runtime" }
+tauri-utils = { version = "2.0.0-rc.12", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1.1"
 url = "2"
@@ -41,11 +42,17 @@ features = ["Win32_Foundation", "Win32_Graphics_Dwm"]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0", features = ["v2_38"] }
+webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 percent-encoding = "2.1"
 
-[target."cfg(any(target_os = \"ios\", target_os = \"macos\"))".dependencies]
-cocoa = "0.26"
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.5.2"
+objc2-foundation = { version = "0.2.2", features = [] }
+objc2-app-kit = { version = "0.2.2", features = [
+  "NSResponder",
+  "NSView",
+  "NSWindow",
+] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
@@ -58,7 +65,6 @@ macos-private-api = [
   "tauri-runtime/macos-private-api",
 ]
 objc-exception = ["wry/objc-exception"]
-linux-protocol-body = ["wry/linux-body", "webkit2gtk/v2_40"]
 tracing = ["dep:tracing", "wry/tracing"]
 macos-proxy = ["wry/mac-proxy"]
 unstable = []

@@ -1,5 +1,55 @@
 # Changelog
 
+## \[2.0.0-rc.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+- Upgraded to `tauri-codegen@2.0.0-rc.12`
+
+## \[2.0.0-rc.11]
+
+### Bug Fixes
+
+- [`9d468774a`](https://www.github.com/tauri-apps/tauri/commit/9d468774a94b5f5210a3012db2e58dbfab4755f4) ([#10975](https://www.github.com/tauri-apps/tauri/pull/10975) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The executable and NSIS installer on Windows will now use the `productName` config for the `FileDescription` property instead of `shortDescription`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-codegen@2.0.0-rc.11`
+
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-codegen@2.0.0-rc.10`
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-codegen@2.0.0-rc.9`
+
+## \[2.0.0-rc.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-codegen@2.0.0-rc.8`
+
+## \[2.0.0-rc.7]
+
+### New Features
+
+- [`ad83d41cb`](https://www.github.com/tauri-apps/tauri/commit/ad83d41cb5bc3bc3611a3dbaf0e355df3021dac0) ([#10743](https://www.github.com/tauri-apps/tauri/pull/10743) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WindowsAttributes::new_without_app_manifest` to create `WindowsAttributes` without the default manifest.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-codegen@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### Bug Fixes

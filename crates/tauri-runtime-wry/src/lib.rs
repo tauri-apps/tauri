@@ -2828,9 +2828,8 @@ fn handle_user_message<T: UserEvent>(
 
             #[cfg(target_os = "macos")]
             {
-              use cocoa::{appkit::NSWindow, base::id};
-              let ns_window: id = window.ns_window() as _;
-              unsafe { ns_window.center() };
+              let ns_window: &objc2_app_kit::NSWindow = unsafe { &*window.ns_window().cast() };
+              ns_window.center();
             }
           }
           WindowMessage::RequestUserAttention(request_type) => {
@@ -2920,7 +2919,7 @@ fn handle_user_message<T: UserEvent>(
           #[allow(unused_variables)]
           WindowMessage::SetSkipTaskbar(skip) => {
             #[cfg(any(windows, target_os = "linux"))]
-            window.set_skip_taskbar(skip);
+            let _ = window.set_skip_taskbar(skip);
           }
           WindowMessage::SetCursorGrab(grab) => {
             let _ = window.set_cursor_grab(grab);
@@ -3250,9 +3249,9 @@ fn handle_user_message<T: UserEvent>(
             {
               use wry::WebViewExtMacOS;
               f(Webview {
-                webview: webview.webview(),
-                manager: webview.manager(),
-                ns_window: webview.ns_window(),
+                webview: webview.webview().cast(),
+                manager: webview.manager().cast(),
+                ns_window: webview.ns_window().cast(),
               });
             }
             #[cfg(target_os = "ios")]
@@ -3261,9 +3260,9 @@ fn handle_user_message<T: UserEvent>(
               use wry::WebViewExtIOS;
 
               f(Webview {
-                webview: webview.inner.webview(),
-                manager: webview.inner.manager(),
-                view_controller: window.ui_view_controller() as cocoa::base::id,
+                webview: webview.inner.webview().cast(),
+                manager: webview.inner.manager().cast(),
+                view_controller: window.ui_view_controller().cast(),
               });
             }
             #[cfg(windows)]
@@ -4270,7 +4269,8 @@ fn inner_size(
   if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
-    let view_frame = unsafe { cocoa::appkit::NSView::frame(webview.webview()) };
+    let view: &objc2_app_kit::NSView = unsafe { &*webview.webview().cast() };
+    let view_frame = view.frame();
     let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     return logical.to_physical(window.scale_factor());
   }

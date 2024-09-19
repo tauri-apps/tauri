@@ -1,0 +1,25 @@
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-License-Identifier: MIT
+
+name: deploy schema worker
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - '.github/workflows/deploy-schema-worker.yml'
+      - 'crates/tauri-schema-worker/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          command: deploy
+          workingDirectory: 'crates/tauri-schema-worker'
+          apiToken: ${{ secrets.SCHEMA_WORKER_CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.SCHEMA_WORKER_CLOUDFLARE_ACCOUNT_ID  }}

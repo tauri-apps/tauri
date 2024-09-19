@@ -230,12 +230,14 @@ impl Pbxproj {
       .iter_mut()
       .find(|s| s.key == key)
     {
-      let Some(line) = self.raw_lines.get_mut(build_setting.line_number) else {
-        return;
-      };
+      if build_setting.value != value {
+        let Some(line) = self.raw_lines.get_mut(build_setting.line_number) else {
+          return;
+        };
 
-      *line = format!("{}{key} = {value};", build_setting.identation);
-      self.has_changes = true;
+        *line = format!("{}{key} = {value};", build_setting.identation);
+        self.has_changes = true;
+      }
     } else {
       let Some(last_build_setting) = build_configuration.build_settings.last().cloned() else {
         return;

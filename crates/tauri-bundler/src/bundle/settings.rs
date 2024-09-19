@@ -5,6 +5,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+use anyhow::Context;
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
@@ -184,7 +185,7 @@ pub struct DebianSettings {
   ///
   /// Default file contents:
   /// ```text
-  #[doc = include_str!("./linux/templates/main.desktop")]
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Define the section in Debian Control file. See : <https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections>
@@ -242,7 +243,7 @@ pub struct RpmSettings {
   ///
   /// Default file contents:
   /// ```text
-  #[doc = include_str!("./linux/templates/main.desktop")]
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -409,7 +410,7 @@ pub struct NsisSettings {
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
   ///
-  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsi` file.
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsi` file.
   ///
   /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
@@ -539,7 +540,9 @@ pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
   /// The app's publisher. Defaults to the second element in the identifier string.
-  /// Currently maps to the Manufacturer property of the Windows Installer.
+  ///
+  /// Currently maps to the Manufacturer property of the Windows Installer
+  /// and the Maintainer field of debian packages if the Cargo.toml does not have the authors field.
   pub publisher: Option<String>,
   /// A url to the home page of your application. If None, will
   /// fallback to [PackageSettings::homepage].
@@ -615,8 +618,8 @@ pub struct BundleSettings {
 #[derive(Clone, Debug)]
 pub struct BundleBinary {
   name: String,
-  src_path: Option<String>,
   main: bool,
+  src_path: Option<String>,
 }
 
 impl BundleBinary {
@@ -624,8 +627,8 @@ impl BundleBinary {
   pub fn new(name: String, main: bool) -> Self {
     Self {
       name,
-      src_path: None,
       main,
+      src_path: None,
     }
   }
 
@@ -638,13 +641,6 @@ impl BundleBinary {
     }
   }
 
-  /// Sets the src path of the binary.
-  #[must_use]
-  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
-    self.src_path = src_path;
-    self
-  }
-
   /// Mark the binary as the main executable.
   pub fn set_main(&mut self, main: bool) {
     self.main = main;
@@ -655,14 +651,21 @@ impl BundleBinary {
     self.name = name;
   }
 
-  /// Returns the binary name.
-  pub fn name(&self) -> &str {
-    &self.name
+  /// Sets the src path of the binary.
+  #[must_use]
+  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
+    self.src_path = src_path;
+    self
   }
 
   /// Returns the binary `main` flag.
   pub fn main(&self) -> bool {
     self.main
+  }
+
+  /// Returns the binary name.
+  pub fn name(&self) -> &str {
+    &self.name
   }
 
   /// Returns the binary source path.
@@ -850,19 +853,41 @@ impl Settings {
   }
 
   /// Returns the file name of the binary being bundled.
-  pub fn main_binary_name(&self) -> &str {
+  pub fn main_binary(&self) -> crate::Result<&BundleBinary> {
     self
       .binaries
       .iter()
       .find(|bin| bin.main)
-      .expect("failed to find main binary")
-      .name
-      .as_str()
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map_err(Into::into)
+  }
+
+  /// Returns the file name of the binary being bundled.
+  pub fn main_binary_name(&self) -> crate::Result<&str> {
+    self
+      .binaries
+      .iter()
+      .find(|bin| bin.main)
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map(|b| b.name())
+      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    self.project_out_directory.join(binary.name())
+    let target_os = self
+      .target()
+      .split('-')
+      .nth(2)
+      .unwrap_or(std::env::consts::OS);
+
+    let path = self.project_out_directory.join(binary.name());
+
+    if target_os == "windows" {
+      path.with_extension("exe")
+    } else {
+      path
+    }
   }
 
   /// Returns the list of binaries to bundle.

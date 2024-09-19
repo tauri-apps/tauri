@@ -212,7 +212,7 @@ impl schemars::JsonSchema for BundleTarget {
   fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
-        enum_values: Some(vec!["all".into()]),
+        const_value: Some("all".into()),
         metadata: Some(Box::new(schemars::schema::Metadata {
           description: Some("Bundle all targets.".to_owned()),
           ..Default::default()
@@ -404,7 +404,7 @@ pub struct RpmConfig {
   /// in order for the package to be installed.
   pub conflicts: Option<Vec<String>>,
   /// The list of RPM dependencies your application supersedes - if this package is installed,
-  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  /// packages listed as "obsoletes" will be automatically removed (if they are present).
   pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   #[serde(default = "default_release")]
@@ -783,7 +783,7 @@ pub struct NsisConfig {
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
   ///
-  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.
   ///
   /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
@@ -1058,7 +1058,7 @@ pub struct FileAssociation {
   pub mime_type: Option<String>,
 }
 
-/// File association
+/// Deep link protocol configuration.
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1142,7 +1142,9 @@ pub struct BundleConfig {
   /// Produce updaters and their signatures or not
   pub create_updater_artifacts: Updater,
   /// The application's publisher. Defaults to the second element in the identifier string.
-  /// Currently maps to the Manufacturer property of the Windows Installer.
+  ///
+  /// Currently maps to the Manufacturer property of the Windows Installer
+  /// and the Maintainer field of debian packages if the Cargo.toml does not have the authors field.
   pub publisher: Option<String>,
   /// A url to the home page of your application. If unset, will
   /// fallback to `homepage` defined in `Cargo.toml`.
@@ -1257,6 +1259,12 @@ pub struct WindowConfig {
   /// The window identifier. It must be alphanumeric.
   #[serde(default = "default_window_label")]
   pub label: String,
+  /// Whether Tauri should create this window at app startup or not.
+  ///
+  /// When this is set to `false` you must manually grab the config object via `app.config().app.windows`
+  /// and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2.0.0-rc/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).
+  #[serde(default = "default_true")]
+  pub create: bool,
   /// The window webview URL.
   #[serde(default)]
   pub url: WebviewUrl,
@@ -1453,6 +1461,7 @@ impl Default for WindowConfig {
     Self {
       label: default_window_label(),
       url: WebviewUrl::default(),
+      create: true,
       user_agent: None,
       drag_drop_enabled: true,
       center: false,
@@ -1833,7 +1842,7 @@ impl Default for PatternKind {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppConfig {
-  /// The windows configuration.
+  /// The app windows configuration.
   #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// Security configuration.
@@ -2240,6 +2249,9 @@ pub struct Config {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
+  /// App main binary filename. Defaults to the name of your cargo crate.
+  #[serde(alias = "main-binary-name")]
+  pub main_binary_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
   ///
   /// By default version 1.0 is used on Android.
@@ -2248,9 +2260,8 @@ pub struct Config {
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
   /// This string must be unique across applications since it is used in system configurations like
   /// the bundle ID and path to the webview data directory.
-  /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
+  /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
-  #[serde(default)]
   pub identifier: String,
   /// The App configuration.
   #[serde(default)]
@@ -2419,6 +2430,7 @@ mod build {
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
+      let create = &self.create;
       let url = &self.url;
       let user_agent = opt_str_lit(self.user_agent.as_ref());
       let drag_drop_enabled = self.drag_drop_enabled;
@@ -2465,6 +2477,7 @@ mod build {
         ::tauri::utils::config::WindowConfig,
         label,
         url,
+        create,
         user_agent,
         drag_drop_enabled,
         center,
@@ -2835,6 +2848,7 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let schema = quote!(None);
       let product_name = opt_str_lit(self.product_name.as_ref());
+      let main_binary_name = opt_str_lit(self.main_binary_name.as_ref());
       let version = opt_str_lit(self.version.as_ref());
       let identifier = str_lit(&self.identifier);
       let app = &self.app;
@@ -2847,6 +2861,7 @@ mod build {
         ::tauri::utils::config::Config,
         schema,
         product_name,
+        main_binary_name,
         version,
         identifier,
         app,

@@ -4,6 +4,7 @@
 
 use crate::{
   helpers::{config::Config as TauriConfig, template},
+  mobile::ios::LIB_OUTPUT_FILE_NAME,
   Result,
 };
 use anyhow::Context;
@@ -75,6 +76,8 @@ pub fn gen(
   let default_archs = ["arm64", "arm64-sim"];
   #[cfg(not(target_arch = "aarch64"))]
   let default_archs = ["arm64", "x86_64"];
+
+  map.insert("lib-output-file-name", LIB_OUTPUT_FILE_NAME);
 
   map.insert("file-groups", &source_dirs);
   map.insert("ios-frameworks", metadata.ios().frameworks());

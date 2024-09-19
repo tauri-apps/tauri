@@ -151,10 +151,14 @@ impl Interface for Rust {
       std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
     }
 
-    std::env::set_var(
-      "IPHONEOS_DEPLOYMENT_TARGET",
-      &config.bundle.ios.minimum_system_version,
-    );
+    if let Some(target) = &target {
+      if target.ends_with("ios") || target.ends_with("ios-sim") {
+        std::env::set_var(
+          "IPHONEOS_DEPLOYMENT_TARGET",
+          &config.bundle.ios.minimum_system_version,
+        );
+      }
+    }
 
     let app_settings = RustAppSettings::new(config, manifest, target)?;
 

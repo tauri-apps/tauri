@@ -42,8 +42,6 @@ mod desktop_commands {
     incognito: bool,
     #[serde(default)]
     zoom_hotkeys_enabled: bool,
-    #[serde(default)]
-    browser_extensions_enabled: bool,
   }
 
   #[derive(Serialize)]
@@ -101,7 +99,6 @@ mod desktop_commands {
     builder.webview_attributes.window_effects = options.window_effects;
     builder.webview_attributes.incognito = options.incognito;
     builder.webview_attributes.zoom_hotkeys_enabled = options.zoom_hotkeys_enabled;
-    builder.webview_attributes.browser_extensions_enabled = options.browser_extensions_enabled;
 
     window.add_child(
       builder,

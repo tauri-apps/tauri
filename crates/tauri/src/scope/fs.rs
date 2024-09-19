@@ -94,7 +94,6 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
 
   list.insert(f(&path.to_string_lossy())?);
 
-  let mut path = path;
   let mut checked_path = None;
 
   // attempt to canonicalize parents in case we have a path like `/data/user/0/appid/**`

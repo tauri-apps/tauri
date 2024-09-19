@@ -311,6 +311,8 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
+  fn set_theme(&self, theme: Option<Theme>);
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -401,6 +403,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn available_monitors(&self) -> Vec<Monitor>;
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
+
+  fn set_theme(&self, theme: Option<Theme>);
 
   /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]

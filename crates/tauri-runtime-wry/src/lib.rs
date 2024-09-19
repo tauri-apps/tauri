@@ -2270,6 +2270,18 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
+  fn set_theme(&self, theme: Option<Theme>) {
+    self
+      .context
+      .main_thread
+      .window_target
+      .set_theme(match theme {
+        Some(Theme::Light) => Some(TaoTheme::Light),
+        Some(Theme::Dark) => Some(TaoTheme::Dark),
+        _ => None,
+      });
+  }
+
   #[cfg(target_os = "macos")]
   fn show(&self) -> tauri_runtime::Result<()> {
     send_user_message(
@@ -2547,6 +2559,18 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
+  }
+
+  fn set_theme(&self, theme: Option<Theme>) {
+    self
+      .context
+      .main_thread
+      .window_target
+      .set_theme(match theme {
+        Some(Theme::Light) => Some(TaoTheme::Light),
+        Some(Theme::Dark) => Some(TaoTheme::Dark),
+        _ => None,
+      });
   }
 
   #[cfg(target_os = "macos")]

@@ -685,6 +685,15 @@ macro_rules! shared_app_impl {
         })
       }
 
+      /// Set the app theme.
+      pub fn set_theme(&self, theme: Option<Theme>) {
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.set_theme(theme),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.set_theme(theme),
+          _ => unreachable!(),
+        }
+      }
+
       /// Returns the default window icon.
       pub fn default_window_icon(&self) -> Option<&Image<'_>> {
         self.manager.window.default_icon.as_ref()
@@ -822,6 +831,17 @@ macro_rules! shared_app_impl {
         match self.runtime() {
           RuntimeOrDispatch::Runtime(r) => r.show(),
           RuntimeOrDispatch::RuntimeHandle(h) => h.show()?,
+          _ => unreachable!(),
+        }
+        Ok(())
+      }
+
+      /// Hides the application.
+      #[cfg(target_os = "macos")]
+      pub fn hide(&self) -> crate::Result<()> {
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(r) => r.hide(),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.hide()?,
           _ => unreachable!(),
         }
         Ok(())

@@ -847,17 +847,6 @@ macro_rules! shared_app_impl {
         Ok(())
       }
 
-      /// Hides the application.
-      #[cfg(target_os = "macos")]
-      pub fn hide(&self) -> crate::Result<()> {
-        match self.runtime() {
-          RuntimeOrDispatch::Runtime(r) => r.hide(),
-          RuntimeOrDispatch::RuntimeHandle(h) => h.hide()?,
-          _ => unreachable!(),
-        }
-        Ok(())
-      }
-
       /// Runs necessary cleanup tasks before exiting the process.
       /// **You should always exit the tauri app immediately after this function returns and not use any tauri-related APIs.**
       pub fn cleanup_before_exit(&self) {

@@ -3923,8 +3923,7 @@ fn create_webview<T: UserEvent>(
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
-    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled)
-    .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
+    .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();

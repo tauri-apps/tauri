@@ -23,7 +23,7 @@ wry = { version = "0.43.1", default-features = false, features = [
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.30", default-features = false, features = ["rwh_06"] }
+tao = { version = "0.30.1", default-features = false, features = ["rwh_06"] }
 tauri-runtime = { version = "2.0.0-rc.12", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.0-rc.12", path = "../tauri-utils" }
 raw-window-handle = "0.6"

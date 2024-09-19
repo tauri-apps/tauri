@@ -2981,8 +2981,12 @@ fn handle_user_message<T: UserEvent>(
               }
             };
           }
-          WindowMessage::SetTheme(_theme) => {
-            // window.set_theme(theme);
+          WindowMessage::SetTheme(theme) => {
+            window.set_theme(match theme {
+              Some(Theme::Light) => Some(TaoTheme::Light),
+              Some(Theme::Dark) => Some(TaoTheme::Dark),
+              _ => None,
+            });
           }
         }
       }

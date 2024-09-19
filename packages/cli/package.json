@@ -51,8 +51,10 @@
   },
   "scripts": {
     "artifacts": "napi artifacts",
-    "build:release": "cross-env TARGET=node napi build --platform --profile release-size-optimized",
-    "build": "cross-env TARGET=node napi build --platform",
+    "build": "cross-env TARGET=node napi build --platform --profile release-size-optimized",
+    "postbuild": "node append-headers.js",
+    "build:debug": "cross-env TARGET=node napi build --platform",
+    "postbuild:debug": "node append-headers.js",
     "prepublishOnly": "napi prepublish -t npm --gh-release-id $RELEASE_ID",
     "prepack": "cp ../../crates/tauri-schema-generator/schemas/config.schema.json .",
     "version": "napi version",

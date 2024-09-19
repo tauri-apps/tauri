@@ -14,7 +14,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "eslint:check": "pnpm run -r eslint:check",
-    "ts:check": "pnpm run -r ts:check"
+    "ts:check": "pnpm run -r ts:check",
+    "build": "pnpm run -r build",
+    "build:api": "pnpm run --filter \"@tauri-apps/api\" build",
+    "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
+    "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
+    "test": "pnpm run -r build"
   },
   "devDependencies": {
     "prettier": "^3.3.3"

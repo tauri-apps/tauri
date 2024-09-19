@@ -481,6 +481,11 @@
           "description": "Whether page zooming by hotkeys is enabled\n\n ## Platform-specific:\n\n - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.\n - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,\n 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission\n\n - **Android / iOS**: Unsupported.",
           "default": false,
           "type": "boolean"
+        },
+        "browserExtensionsEnabled": {
+          "description": "Whether browser extensions can be installed for the webview process\n\n ## Platform-specific:\n\n - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)\n - **MacOS / Linux / iOS / Android** - Unsupported.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

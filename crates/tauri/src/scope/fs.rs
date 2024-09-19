@@ -77,7 +77,21 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   pattern: P,
   f: F,
 ) -> crate::Result<()> {
-  let path: PathBuf = dunce::simplified(pattern.as_ref()).components().collect();
+  let mut path: PathBuf = dunce::simplified(pattern.as_ref()).components().collect();
+
+  if cfg!(windows) {
+    // Canonicalize disk-relative paths before inserting into the list
+    use std::path::{Component, Prefix};
+    let mut components = path.components();
+    if let Some(Component::Prefix(prefix)) = components.next() {
+      if matches!(prefix.kind(), Prefix::Disk(_) | Prefix::VerbatimDisk(_))
+        && !matches!(components.next(), Some(Component::RootDir))
+      {
+        path = dunce::simplified(&path.canonicalize()?).to_path_buf();
+      }
+    }
+  }
+
   list.insert(f(&path.to_string_lossy())?);
 
   let mut path = path;
@@ -499,9 +513,9 @@ mod tests {
         .unwrap();
       assert!(scope.is_allowed("\\\\localhost\\c$"));
       assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
-      // Does not work because non-existent files can't be canonicalized, therefore
-      // the verbatim prefix ("\\?\UNC\") is not added.
-      // assert!(scope.is_allowed("\\\\localhost\\c$\\Windows\\NonExistentFile"));
+      assert!(scope.is_allowed("\\\\?\\UNC\\localhost\\c$\\Windows\\NonExistentFile"));
+      // A non-existent file cannot be canonicalized to a verbatim UNC path, so this will fail to match
+      assert!(!scope.is_allowed("\\\\localhost\\c$\\Windows\\NonExistentFile"));
       assert!(!scope.is_allowed("\\\\localhost\\d$"));
       assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
     }
@@ -516,7 +530,7 @@ mod tests {
 
     let scope = new_scope();
     {
-      // Drive root
+      // Disk root
       scope.allow_directory("C:\\", true).unwrap();
       assert!(scope.is_allowed("C:\\Windows"));
       assert!(scope.is_allowed("C:\\Windows\\system.ini"));
@@ -526,7 +540,7 @@ mod tests {
 
     let scope = new_scope();
     {
-      // Verbatim drive root
+      // Verbatim disk root
       scope.allow_directory("\\\\?\\C:\\", true).unwrap();
       assert!(scope.is_allowed("C:\\Windows"));
       assert!(scope.is_allowed("C:\\Windows\\system.ini"));
@@ -540,6 +554,40 @@ mod tests {
       scope.allow_file("\\\\?\\anyfile").unwrap();
       assert!(scope.is_allowed("\\\\?\\anyfile"));
       assert!(!scope.is_allowed("\\\\?\\otherfile"));
+    }
+
+    let cwd = std::env::current_dir().unwrap();
+    let disk = {
+      let std::path::Component::Prefix(prefix) = cwd.components().next().unwrap() else {
+        panic!("Expected current dir to start with a prefix");
+      };
+      assert!(
+        matches!(prefix.kind(), std::path::Prefix::Disk(_)),
+        "Expected current dir to be on a disk drive"
+      );
+      prefix.as_os_str().to_string_lossy()
+    };
+
+    let scope = new_scope();
+    {
+      // Disk
+      scope.allow_directory(&*disk, true).unwrap();
+      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
+      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
+      assert!(!scope.is_allowed("C:\\Windows"));
+      assert!(!scope.is_allowed("Q:Cargo.toml"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim disk
+      scope
+        .allow_directory(format!("\\\\?\\{}", disk), true)
+        .unwrap();
+      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
+      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
+      assert!(!scope.is_allowed("C:\\Windows"));
+      assert!(!scope.is_allowed("Q:Cargo.toml"));
     }
   }
 }

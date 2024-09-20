@@ -69,9 +69,6 @@ pub fn run(options: Options) -> Result<()> {
     });
 
   let cargo_version_req = version.or(metadata.version_req.as_deref());
-  let npm_version_req = version
-    .map(ToString::to_string)
-    .or(metadata.version_req.as_ref().map(|v| format!("^{v}")));
 
   cargo::install_one(cargo::CargoInstallOptions {
     name: &crate_name,
@@ -88,6 +85,13 @@ pub fn run(options: Options) -> Result<()> {
       .map(PackageManager::from_project)
       .and_then(|managers| managers.into_iter().next())
     {
+      let npm_version_req = version
+        .map(ToString::to_string)
+        .or(metadata.version_req.as_ref().map(|v| match manager {
+          PackageManager::Npm => format!(">={v}"),
+          _ => format!("~{v}"),
+        }));
+
       let npm_spec = match (npm_version_req, options.tag, options.rev, options.branch) {
         (Some(version), _, _, _) => {
           format!("{npm_name}@{version}")

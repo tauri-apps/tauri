@@ -775,6 +775,18 @@ fn main() {
     self.webview_attributes.zoom_hotkeys_enabled = enabled;
     self
   }
+
+  /// Whether browser extensions can be installed for the webview process
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
+  /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  #[must_use]
+  pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
+    self.webview_attributes.browser_extensions_enabled = enabled;
+    self
+  }
 }
 
 /// Webview.

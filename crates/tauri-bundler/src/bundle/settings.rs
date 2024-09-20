@@ -355,7 +355,7 @@ pub struct WixSettings {
   /// otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.
   ///
   /// By default, tauri generates this code by generating a Uuid v5 using the string `<productName>.exe.app.x64` in the DNS namespace.
-  /// You can use Tauri's CLI to generate and print this code for you, run `tauri generate-wix-upgrade-code`.
+  /// You can use Tauri's CLI to generate and print this code for you by running `tauri generate-wix-upgrade-code`.
   ///
   /// It is recommended that you set this value in your tauri config file to avoid accidental changes in your upgrade code
   /// whenever you want to change your product name.

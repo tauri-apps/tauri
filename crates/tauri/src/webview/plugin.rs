@@ -177,6 +177,7 @@ mod desktop_commands {
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
   setter!(set_webview_zoom, set_zoom, f64);
+  setter!(clear_all_webview_browsing_data, clear_all_browsing_data);
 
   #[command(root = "crate")]
   pub async fn reparent<R: Runtime>(
@@ -262,6 +263,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_zoom,
             desktop_commands::print,
             desktop_commands::reparent,
+            desktop_commands::clear_all_webview_browsing_data,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
           ]);

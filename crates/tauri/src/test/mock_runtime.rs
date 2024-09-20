@@ -572,6 +572,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
     Ok(())
   }
+
+  fn clear_all_browsing_data(&self) -> Result<()> {
+    Ok(())
+  }
 }
 
 impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {

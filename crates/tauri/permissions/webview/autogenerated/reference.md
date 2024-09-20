@@ -19,6 +19,32 @@ Default permissions for the plugin.
 <tr>
 <td>
 
+`core:webview:allow-clear-browsing-data`
+
+</td>
+<td>
+
+Enables the clear_browsing_data command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-clear-browsing-data`
+
+</td>
+<td>
+
+Denies the clear_browsing_data command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-create-webview`
 
 </td>

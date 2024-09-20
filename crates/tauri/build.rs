@@ -127,6 +127,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_webview_zoom", false),
       ("print", false),
       ("reparent", false),
+      ("clear_browsing_data", false),
       // internal
       ("internal_toggle_devtools", true),
     ],

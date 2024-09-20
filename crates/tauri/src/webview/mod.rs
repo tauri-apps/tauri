@@ -958,6 +958,15 @@ impl<R: Runtime> Webview<R> {
     Ok(())
   }
 
+  /// Clear all browsing data for this webview.
+  pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .clear_all_browsing_data()
+      .map_err(Into::into)
+  }
+
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   pub fn set_auto_resize(&self, auto_resize: bool) -> crate::Result<()> {
     self

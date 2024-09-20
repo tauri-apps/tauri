@@ -517,6 +517,20 @@ class Webview {
     })
   }
 
+  /**
+   * Clears all browsing data for this webview.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().clearAllBrowsingData();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async clearAllBrowsingData(): Promise<void> {
+    return invoke('plugin:webview|clear_all_webview_browsing_data')
+  }
+
   // Listeners
 
   /**

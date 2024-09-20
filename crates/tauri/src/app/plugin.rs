@@ -53,7 +53,7 @@ pub fn default_window_icon<R: Runtime>(
 }
 
 #[command(root = "crate")]
-pub fn set_app_theme<R: Runtime>(app: AppHandle<R>, theme: Option<Theme>) {
+pub async fn set_app_theme<R: Runtime>(app: AppHandle<R>, theme: Option<Theme>) {
   app.set_theme(theme);
 }
 

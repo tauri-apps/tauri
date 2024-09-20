@@ -2562,15 +2562,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
-    self
-      .context
-      .main_thread
-      .window_target
-      .set_theme(match theme {
-        Some(Theme::Light) => Some(TaoTheme::Light),
-        Some(Theme::Dark) => Some(TaoTheme::Dark),
-        _ => None,
-      });
+    self.event_loop.set_theme(match theme {
+      Some(Theme::Light) => Some(TaoTheme::Light),
+      Some(Theme::Dark) => Some(TaoTheme::Dark),
+      _ => None,
+    });
   }
 
   #[cfg(target_os = "macos")]

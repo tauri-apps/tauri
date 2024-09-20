@@ -804,6 +804,11 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// - **Linux / Windows / iOS / Android:** Unsupported.
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()>;
 
-  /// Set the window theme.
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
   fn set_theme(&self, theme: Option<Theme>) -> Result<()>;
 }

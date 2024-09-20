@@ -2,11 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::{
+  any::{Any, TypeId},
+  cell::UnsafeCell,
+  collections::HashMap,
+  hash::BuildHasherDefault,
+  sync::Mutex,
+};
+
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError},
   Runtime,
 };
-use state::TypeMap;
 
 /// A guard for a state value.
 ///
@@ -56,31 +63,98 @@ impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for S
   }
 }
 
+// Taken from: https://github.com/SergioBenitez/state/blob/556c1b94db8ce8427a0e72de7983ab5a9af4cc41/src/ident_hash.rs
+// This is a _super_ stupid hash. It just uses its input as the hash value. This
+// hash is meant to be used _only_ for "prehashed" values. In particular, we use
+// this so that hashing a TypeId is essentially a noop. This is because TypeIds
+// are already unique integers.
+#[derive(Default)]
+struct IdentHash(u64);
+
+impl std::hash::Hasher for IdentHash {
+  fn finish(&self) -> u64 {
+    self.0
+  }
+
+  fn write(&mut self, bytes: &[u8]) {
+    for byte in bytes {
+      self.write_u8(*byte);
+    }
+  }
+
+  fn write_u8(&mut self, i: u8) {
+    self.0 = (self.0 << 8) | (i as u64);
+  }
+
+  fn write_u64(&mut self, i: u64) {
+    self.0 = i;
+  }
+}
+
+type TypeIdMap = HashMap<TypeId, Box<dyn Any>, BuildHasherDefault<IdentHash>>;
+
 /// The Tauri state manager.
 #[derive(Debug)]
-pub struct StateManager(pub(crate) TypeMap![Send + Sync]);
+pub struct StateManager {
+  map: Mutex<UnsafeCell<TypeIdMap>>,
+}
+
+// SAFETY: data is accessed behind a lock
+unsafe impl Sync for StateManager {}
+unsafe impl Send for StateManager {}
 
 impl StateManager {
   pub(crate) fn new() -> Self {
-    Self(<TypeMap![Send + Sync]>::new())
+    Self {
+      map: Default::default(),
+    }
+  }
+
+  fn with_map_ref<'a, F: FnOnce(&'a TypeIdMap) -> R, R>(&'a self, f: F) -> R {
+    let map = self.map.lock().unwrap();
+    let map = map.get();
+    // SAFETY: safe to access since we are holding a lock
+    f(unsafe { &*map })
+  }
+
+  fn with_map_mut<F: FnOnce(&mut TypeIdMap) -> R, R>(&self, f: F) -> R {
+    let mut map = self.map.lock().unwrap();
+    let map = map.get_mut();
+    f(map)
   }
 
   pub(crate) fn set<T: Send + Sync + 'static>(&self, state: T) -> bool {
-    self.0.set(state)
+    self.with_map_mut(|map| {
+      let type_id = TypeId::of::<T>();
+      let already_set = map.contains_key(&type_id);
+      if !already_set {
+        map.insert(type_id, Box::new(state) as Box<dyn Any>);
+      }
+      !already_set
+    })
+  }
+
+  pub(crate) fn unmanage<T: Send + Sync + 'static>(&self) -> bool {
+    self.with_map_mut(|map| {
+      let type_id = TypeId::of::<T>();
+      map.remove(&type_id).is_some()
+    })
   }
 
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
-    State(
-      self
-        .0
-        .try_get()
-        .expect("state: get() called before set() for given type"),
-    )
+    self
+      .try_get()
+      .expect("state: get() when given type is not managed")
   }
 
   /// Gets the state associated with the specified type.
   pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
-    self.0.try_get().map(State)
+    self.with_map_ref(|map| {
+      map
+        .get(&TypeId::of::<T>())
+        .and_then(|ptr| ptr.downcast_ref::<T>())
+        .map(State)
+    })
   }
 }

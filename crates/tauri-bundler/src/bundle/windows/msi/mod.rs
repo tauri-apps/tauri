@@ -549,7 +549,7 @@ pub fn build_wix_app_installer(
   data.insert("bundle_id", to_json(bundle_id));
   data.insert("manufacturer", to_json(manufacturer));
 
-  // NOTE: if this is ever changed, make sure to also update `tauri generate-wix-upgrade-code` subcommand
+  // NOTE: if this is ever changed, make sure to also update `tauri inspect wix-upgrade-code` subcommand
   let upgrade_code = settings
     .windows()
     .wix

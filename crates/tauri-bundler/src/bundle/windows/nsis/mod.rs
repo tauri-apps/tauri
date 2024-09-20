@@ -480,19 +480,16 @@ fn build_nsis_app_installer(
       .expect("Failed to setup custom handlebar template");
   } else {
     handlebars
-      .register_template_string("installer.nsi", include_str!("./templates/installer.nsi"))
+      .register_template_string("installer.nsi", include_str!("./installer.nsi"))
       .map_err(|e| e.to_string())
       .expect("Failed to setup handlebar template");
   }
 
   write_utf8_with_bom(
     output_path.join("FileAssociation.nsh"),
-    include_bytes!("./templates/FileAssociation.nsh"),
+    include_bytes!("./FileAssociation.nsh"),
   )?;
-  write_utf8_with_bom(
-    output_path.join("utils.nsh"),
-    include_bytes!("./templates/utils.nsh"),
-  )?;
+  write_utf8_with_bom(output_path.join("utils.nsh"), include_bytes!("./utils.nsh"))?;
 
   let installer_nsi_path = output_path.join("installer.nsi");
   write_utf8_with_bom(
@@ -681,23 +678,23 @@ fn generate_estimated_size(
 fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
   let path = format!("{lang}.nsh");
   let content: &[u8] = match lang.to_lowercase().as_str() {
-    "arabic" => include_bytes!("./templates/nsis-languages/Arabic.nsh"),
-    "bulgarian" => include_bytes!("./templates/nsis-languages/Bulgarian.nsh"),
-    "dutch" => include_bytes!("./templates/nsis-languages/Dutch.nsh"),
-    "english" => include_bytes!("./templates/nsis-languages/English.nsh"),
-    "german" => include_bytes!("./templates/nsis-languages/German.nsh"),
-    "japanese" => include_bytes!("./templates/nsis-languages/Japanese.nsh"),
-    "korean" => include_bytes!("./templates/nsis-languages/Korean.nsh"),
-    "portuguesebr" => include_bytes!("./templates/nsis-languages/PortugueseBR.nsh"),
-    "russian" => include_bytes!("./templates/nsis-languages/Russian.nsh"),
-    "tradchinese" => include_bytes!("./templates/nsis-languages/TradChinese.nsh"),
-    "simpchinese" => include_bytes!("./templates/nsis-languages/SimpChinese.nsh"),
-    "french" => include_bytes!("./templates/nsis-languages/French.nsh"),
-    "spanish" => include_bytes!("./templates/nsis-languages/Spanish.nsh"),
-    "spanishinternational" => include_bytes!("./templates/nsis-languages/SpanishInternational.nsh"),
-    "persian" => include_bytes!("./templates/nsis-languages/Persian.nsh"),
-    "turkish" => include_bytes!("./templates/nsis-languages/Turkish.nsh"),
-    "swedish" => include_bytes!("./templates/nsis-languages/Swedish.nsh"),
+    "arabic" => include_bytes!("./languages/Arabic.nsh"),
+    "bulgarian" => include_bytes!("./languages/Bulgarian.nsh"),
+    "dutch" => include_bytes!("./languages/Dutch.nsh"),
+    "english" => include_bytes!("./languages/English.nsh"),
+    "german" => include_bytes!("./languages/German.nsh"),
+    "japanese" => include_bytes!("./languages/Japanese.nsh"),
+    "korean" => include_bytes!("./languages/Korean.nsh"),
+    "portuguesebr" => include_bytes!("./languages/PortugueseBR.nsh"),
+    "russian" => include_bytes!("./languages/Russian.nsh"),
+    "tradchinese" => include_bytes!("./languages/TradChinese.nsh"),
+    "simpchinese" => include_bytes!("./languages/SimpChinese.nsh"),
+    "french" => include_bytes!("./languages/French.nsh"),
+    "spanish" => include_bytes!("./languages/Spanish.nsh"),
+    "spanishinternational" => include_bytes!("./languages/SpanishInternational.nsh"),
+    "persian" => include_bytes!("./languages/Persian.nsh"),
+    "turkish" => include_bytes!("./languages/Turkish.nsh"),
+    "swedish" => include_bytes!("./languages/Swedish.nsh"),
     _ => return None,
   };
   Some((path, content))

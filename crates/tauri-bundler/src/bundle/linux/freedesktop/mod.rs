@@ -114,7 +114,7 @@ pub fn generate_desktop_file(
       .with_context(|| "Failed to setup custom handlebar template")?;
   } else {
     handlebars
-      .register_template_string("main.desktop", include_str!("./templates/main.desktop"))
+      .register_template_string("main.desktop", include_str!("./main.desktop"))
       .with_context(|| "Failed to setup default handlebar template")?;
   }
 

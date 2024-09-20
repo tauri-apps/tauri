@@ -793,7 +793,7 @@ pub struct NsisConfig {
   /// A key-value pair where the key is the language and the
   /// value is the path to a custom `.nsh` file that holds the translated text for tauri's custom messages.
   ///
-  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsh` file.
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsh` file.
   ///
   /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`] languages array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
@@ -1464,6 +1464,14 @@ pub struct WindowConfig {
   /// - **Android / iOS**: Unsupported.
   #[serde(default)]
   pub zoom_hotkeys_enabled: bool,
+  /// Whether browser extensions can be installed for the webview process
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
+  /// - **MacOS / Linux / iOS / Android** - Unsupported.
+  #[serde(default)]
+  pub browser_extensions_enabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -1511,6 +1519,7 @@ impl Default for WindowConfig {
       parent: None,
       proxy_url: None,
       zoom_hotkeys_enabled: false,
+      browser_extensions_enabled: false,
     }
   }
 }
@@ -2481,6 +2490,7 @@ mod build {
       let incognito = self.incognito;
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
+      let browser_extensions_enabled = self.browser_extensions_enabled;
 
       literal_struct!(
         tokens,
@@ -2526,7 +2536,8 @@ mod build {
         window_effects,
         incognito,
         parent,
-        zoom_hotkeys_enabled
+        zoom_hotkeys_enabled,
+        browser_extensions_enabled
       );
     }
   }

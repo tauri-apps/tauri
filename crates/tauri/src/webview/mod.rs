@@ -1472,6 +1472,15 @@ tauri::Builder::default()
       .set_zoom(scale_factor)
       .map_err(Into::into)
   }
+
+  /// Clear all browsing data for this webview.
+  pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .clear_all_browsing_data()
+      .map_err(Into::into)
+  }
 }
 
 impl<R: Runtime> Listener<R> for Webview<R> {

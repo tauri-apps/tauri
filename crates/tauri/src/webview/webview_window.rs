@@ -1782,6 +1782,11 @@ impl<R: Runtime> WebviewWindow<R> {
   pub fn set_zoom(&self, scale_factor: f64) -> crate::Result<()> {
     self.webview.set_zoom(scale_factor)
   }
+
+  /// Clear all browsing data for this webview window.
+  pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
+    self.webview.clear_all_browsing_data()
+  }
 }
 
 impl<R: Runtime> Listener<R> for WebviewWindow<R> {

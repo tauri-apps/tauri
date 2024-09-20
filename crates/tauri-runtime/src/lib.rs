@@ -512,6 +512,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Set the webview zoom level
   fn set_zoom(&self, scale_factor: f64) -> Result<()>;
+
+  /// Clear all browsing data for this webview.
+  fn clear_all_browsing_data(&self) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.

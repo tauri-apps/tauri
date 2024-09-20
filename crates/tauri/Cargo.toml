@@ -65,7 +65,6 @@ tauri-utils = { version = "2.0.0-rc.12", features = [
 tauri-runtime-wry = { version = "2.0.0-rc.13", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
-state = "0.6"
 http = "1.1"
 dirs = "5"
 percent-encoding = "2.3"

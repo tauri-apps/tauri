@@ -8,7 +8,6 @@ use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use state::TypeMap;
 
 use tauri_utils::acl::{
   capability::{Capability, CapabilityFile, PermissionEntry},
@@ -24,7 +23,7 @@ use tauri_utils::platform::Target;
 use url::Url;
 
 use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
-use crate::{AppHandle, Manager};
+use crate::{AppHandle, Manager, StateManager};
 
 use super::{CommandArg, CommandItem};
 
@@ -232,7 +231,7 @@ impl RuntimeAuthority {
     let command_cache = resolved_acl
       .command_scope
       .keys()
-      .map(|key| (*key, <TypeMap![Send + Sync]>::new()))
+      .map(|key| (*key, StateManager::new()))
       .collect();
     Self {
       acl,
@@ -242,7 +241,7 @@ impl RuntimeAuthority {
         command_scope: resolved_acl.command_scope,
         global_scope: resolved_acl.global_scope,
         command_cache,
-        global_scope_cache: Default::default(),
+        global_scope_cache: StateManager::new(),
       },
     }
   }
@@ -297,7 +296,7 @@ impl RuntimeAuthority {
       global_scope_entry.allow.extend(global_scope.allow);
       global_scope_entry.deny.extend(global_scope.deny);
 
-      self.scope_manager.global_scope_cache = Default::default();
+      self.scope_manager.global_scope_cache = StateManager::new();
     }
 
     // denied commands
@@ -708,8 +707,8 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<T> {
 pub struct ScopeManager {
   command_scope: BTreeMap<ScopeKey, ResolvedScope>,
   global_scope: BTreeMap<String, ResolvedScope>,
-  command_cache: BTreeMap<ScopeKey, TypeMap![Send + Sync]>,
-  global_scope_cache: TypeMap![Send + Sync],
+  command_cache: BTreeMap<ScopeKey, StateManager>,
+  global_scope_cache: StateManager,
 }
 
 /// Marks a type as a scope object.
@@ -737,7 +736,7 @@ impl ScopeManager {
     key: &str,
   ) -> crate::Result<ScopeValue<T>> {
     match self.global_scope_cache.try_get::<ScopeValue<T>>() {
-      Some(cached) => Ok(cached.clone()),
+      Some(cached) => Ok(cached.inner().clone()),
       None => {
         let mut allow = Vec::new();
         let mut deny = Vec::new();
@@ -774,7 +773,7 @@ impl ScopeManager {
   ) -> crate::Result<ScopeValue<T>> {
     let cache = self.command_cache.get(key).unwrap();
     match cache.try_get::<ScopeValue<T>>() {
-      Some(cached) => Ok(cached.clone()),
+      Some(cached) => Ok(cached.inner().clone()),
       None => {
         let resolved_scope = self
           .command_scope

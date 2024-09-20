@@ -528,7 +528,7 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async clearAllBrowsingData(): Promise<void> {
-    return invoke('plugin:webview|clear_all_webview_browsing_data')
+    return invoke('plugin:webview|clear_all_browsing_data')
   }
 
   // Listeners

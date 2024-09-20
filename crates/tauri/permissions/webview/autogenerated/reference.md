@@ -19,25 +19,12 @@ Default permissions for the plugin.
 <tr>
 <td>
 
-`core:webview:allow-clear-browsing-data `
+`core:webview:allow-clear-all-browsing-data`
 
 </td>
 <td>
 
-Enables the clear_browsing_data  command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:deny-clear-browsing-data `
-
-</td>
-<td>
-
-Denies the clear_browsing_data  command without any pre-configured scope.
+Enables the clear_all_browsing_data command without any pre-configured scope.
 
 </td>
 </tr>
@@ -45,51 +32,12 @@ Denies the clear_browsing_data  command without any pre-configured scope.
 <tr>
 <td>
 
-`core:webview:allow-clear-browsing-data`
+`core:webview:deny-clear-all-browsing-data`
 
 </td>
 <td>
 
-Enables the clear_browsing_data command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:deny-clear-browsing-data`
-
-</td>
-<td>
-
-Denies the clear_browsing_data command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:allow-clear-webview-data`
-
-</td>
-<td>
-
-Enables the clear_webview_data command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:deny-clear-webview-data`
-
-</td>
-<td>
-
-Denies the clear_webview_data command without any pre-configured scope.
+Denies the clear_all_browsing_data command without any pre-configured scope.
 
 </td>
 </tr>

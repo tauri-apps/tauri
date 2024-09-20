@@ -699,7 +699,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state().set(state)
   }
 
-  /// Removes the state managed by the application for T.  Returns `true` if it actuall removed
+  /// Removes the state managed by the application for T.  Returns `true` if it was actually removed
   fn unmanage<T>(&self) -> bool
   where
     T: Send + Sync + 'static,

@@ -15,7 +15,7 @@ use http::{
   HeaderMap, StatusCode,
 };
 use minisign_verify::{PublicKey, Signature};
-use percent_encoding::NON_ALPHANUMERIC;
+use percent_encoding::CONTROLS;
 use semver::Version;
 use serde::{de::Error as DeError, Deserialize, Deserializer, Serialize};
 use tauri_utils::{platform::current_exe, Env};
@@ -376,7 +376,8 @@ impl<R: Runtime> UpdateBuilder<R> {
       // The main objective is if the update URL is defined via the Cargo.toml
       // the URL will be generated dynamically
       let version = self.current_version.to_string();
-      let encoded_version = percent_encoding::percent_encode(version.as_bytes(), NON_ALPHANUMERIC);
+      let ascii_set = const { &CONTROLS.add(b'+') };
+      let encoded_version = percent_encoding::percent_encode(version.as_bytes(), ascii_set);
 
       let fixed_link = url
         .replace("{{current_version}}", &encoded_version.to_string())

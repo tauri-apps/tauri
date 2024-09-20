@@ -4109,7 +4109,6 @@ fn create_webview<T: UserEvent>(
     .lock()
     .expect("poisoned WebContext store");
   let is_first_context = web_context.is_empty();
-  // force a unique WebContext when automation is false;
   // the context must be stored on the HashMap because it must outlive the WebView on macOS
   let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
   let web_context_key = webview_attributes.data_directory;

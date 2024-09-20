@@ -123,6 +123,9 @@
   let cursorIgnoreEvents = false
   let windowTitle = 'Awesome Tauri Example!'
 
+  /** @type {import('@tauri-apps/api/window').Theme | undefined} */
+  let theme
+
   let effects = []
   let selectedEffect
   let effectState
@@ -204,6 +207,21 @@
     )
     await new Promise((resolve) => setTimeout(resolve, 3000))
     await webviewMap[selectedWebview].requestUserAttention(null)
+  }
+
+  async function switchTheme() {
+    switch (theme) {
+      case 'dark':
+        theme = 'light'
+        break
+      case 'light':
+        theme = undefined
+        break
+      case undefined:
+        theme = 'dark'
+        break
+    }
+    await webviewMap[selectedWebview].setTheme(theme)
   }
 
   async function updateProgressBar() {
@@ -379,6 +397,7 @@
         title="Minimizes the window, requests attention for 3s and then resets it"
         >Request attention</button
       >
+      <button class="btn" on:click={switchTheme}>Switch Theme</button>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
       <label>

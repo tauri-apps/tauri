@@ -6,7 +6,7 @@
 use crate::bundle::{
   common::CommandExt,
   path_utils::{copy_file, FileOpts},
-  settings::Settings,
+  settings::{Arch, Settings},
   windows::{
     sign::try_sign,
     util::{
@@ -217,12 +217,12 @@ fn app_installer_output_path(
   updater: bool,
 ) -> crate::Result<PathBuf> {
   let arch = match settings.binary_arch() {
-    "x86" => "x86",
-    "x86_64" => "x64",
-    "aarch64" => "arm64",
+    Arch::X86_64 => "x64",
+    Arch::X86 => "x86",
+    Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {}",
+        "Unsupported architecture: {:?}",
         target
       )))
     }
@@ -330,12 +330,12 @@ fn run_candle(
   extensions: Vec<PathBuf>,
 ) -> crate::Result<()> {
   let arch = match settings.binary_arch() {
-    "x86_64" => "x64",
-    "x86" => "x86",
-    "aarch64" => "arm64",
+    Arch::X86_64 => "x64",
+    Arch::X86 => "x86",
+    Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported target: {}",
+        "unsupported architecture: {:?}",
         target
       )))
     }
@@ -421,12 +421,12 @@ pub fn build_wix_app_installer(
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
-    "x86_64" => "x64",
-    "x86" => "x86",
-    "aarch64" => "arm64",
+    Arch::X86_64 => "x64",
+    Arch::X86 => "x86",
+    Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported target: {}",
+        "unsupported architecture: {:?}",
         target
       )))
     }

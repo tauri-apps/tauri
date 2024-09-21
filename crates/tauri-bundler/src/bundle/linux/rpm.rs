@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Settings;
+use crate::{bundle::settings::Arch, Settings};
 
 use anyhow::Context;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
@@ -23,9 +23,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let release = settings.rpm().release.as_str();
   let epoch = settings.rpm().epoch;
   let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "arm" => "armhfp",
-    other => other,
+    Arch::X86_64 => "x86_64",
+    Arch::X86 => "i386",
+    Arch::AArch64 => "aarch64",
+    Arch::Armhf => "armhfp",
+    Arch::Armel => "armel",
+    target => {
+      return Err(crate::Error::ArchError(format!(
+        "Unsupported architecture: {:?}",
+        target
+      )));
+    }
   };
 
   let summary = settings.short_description().trim();

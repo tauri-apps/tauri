@@ -111,6 +111,7 @@ walkdir = "2"
 elf = "0.7"
 memchr = "2"
 tempfile = "3"
+uuid = { version = "1", features = ["v5"] }
 
 [dev-dependencies]
 insta = "1"

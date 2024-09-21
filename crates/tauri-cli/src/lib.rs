@@ -25,6 +25,7 @@ mod helpers;
 mod icon;
 mod info;
 mod init;
+mod inspect;
 mod interface;
 mod migrate;
 mod mobile;
@@ -151,6 +152,7 @@ enum Commands {
   Completions(completions::Options),
   Permission(acl::permission::Cli),
   Capability(acl::capability::Cli),
+  Inspect(inspect::Cli),
 }
 
 fn format_error<I: CommandFactory>(err: clap::Error) -> clap::Error {
@@ -268,6 +270,7 @@ where
     #[cfg(target_os = "macos")]
     Commands::Ios(c) => mobile::ios::command(c, cli.verbose)?,
     Commands::Migrate => migrate::command()?,
+    Commands::Inspect(cli) => inspect::command(cli)?,
   }
 
   Ok(())

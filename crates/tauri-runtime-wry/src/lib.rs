@@ -66,8 +66,8 @@ use tauri_utils::TitleBarStyle;
 use tauri_utils::{config::WindowConfig, Theme};
 use url::Url;
 use wry::{
-  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext, WebView,
-  WebViewBuilder,
+  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
+  WebView, WebViewBuilder,
 };
 
 pub use tao;
@@ -131,7 +131,16 @@ mod undecorated_resizing;
 mod webview;
 pub use webview::Webview;
 
-pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, (WebContext, HashSet<String>)>>>;
+#[derive(Debug)]
+pub struct WebContext {
+  pub inner: WryWebContext,
+  pub referenced_by_webviews: HashSet<String>,
+  // on Linux the custom protocols are associated with the context
+  // and you cannot register a URI scheme more than once
+  pub registered_custom_protocols: HashSet<String>,
+}
+
+pub type WebContextStore = Arc<Mutex<HashMap<Option<PathBuf>, WebContext>>>;
 // window
 pub type WindowEventHandler = Box<dyn Fn(&WindowEvent) + Send>;
 pub type WindowEventListeners = Arc<Mutex<HashMap<WindowEventId, WindowEventHandler>>>;
@@ -2033,10 +2042,10 @@ impl Drop for WebviewWrapper {
     if Rc::get_mut(&mut self.inner).is_some() {
       let mut context_store = self.context_store.lock().unwrap();
 
-      if let Some((_, label_store)) = context_store.get_mut(&self.context_key) {
-        label_store.remove(&self.label);
+      if let Some(web_context) = context_store.get_mut(&self.context_key) {
+        web_context.referenced_by_webviews.remove(&self.label);
 
-        if label_store.is_empty() {
+        if web_context.referenced_by_webviews.is_empty() {
           context_store.remove(&self.context_key);
         }
       }
@@ -4089,16 +4098,6 @@ fn create_webview<T: UserEvent>(
     ipc_handler,
   ));
 
-  for (scheme, protocol) in uri_scheme_protocols {
-    webview_builder =
-      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
-        protocol(
-          request,
-          Box::new(move |response| responder.respond(response)),
-        )
-      });
-  }
-
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder.with_initialization_script(&script);
   }
@@ -4113,22 +4112,54 @@ fn create_webview<T: UserEvent>(
   let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
   let web_context_key = webview_attributes.data_directory;
   let entry = web_context.entry(web_context_key.clone());
-  let (web_context, _) = match entry {
+  let web_context = match entry {
     Occupied(occupied) => {
       let occupied = occupied.into_mut();
-      occupied.1.insert(label.clone());
+      occupied.referenced_by_webviews.insert(label.clone());
       occupied
     }
     Vacant(vacant) => {
-      let mut web_context = WebContext::new(web_context_key.clone());
+      let mut web_context = WryWebContext::new(web_context_key.clone());
       web_context.set_allows_automation(if automation_enabled {
         is_first_context
       } else {
         false
       });
-      vacant.insert((web_context, [label.clone()].into()))
+      vacant.insert(WebContext {
+        inner: web_context,
+        referenced_by_webviews: [label.clone()].into(),
+        registered_custom_protocols: HashSet::new(),
+      })
     }
   };
+
+  for (scheme, protocol) in uri_scheme_protocols {
+    // on Linux the custom protocols are associated with the web context
+    // and you cannot register a scheme more than once
+    if cfg!(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    )) {
+      if web_context.registered_custom_protocols.contains(&scheme) {
+        continue;
+      }
+
+      web_context
+        .registered_custom_protocols
+        .insert(scheme.clone());
+    }
+
+    webview_builder =
+      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
+        protocol(
+          request,
+          Box::new(move |response| responder.respond(response)),
+        )
+      });
+  }
 
   if webview_attributes.clipboard {
     webview_builder.attrs.clipboard = true;
@@ -4157,7 +4188,7 @@ fn create_webview<T: UserEvent>(
   }
 
   let webview = webview_builder
-    .with_web_context(web_context)
+    .with_web_context(&mut web_context.inner)
     .build()
     .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 

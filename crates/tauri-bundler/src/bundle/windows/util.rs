@@ -8,8 +8,8 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use regex::Regex;
 use sha2::Digest;
-use ureq::AgentBuilder;
 use url::Url;
 use zip::ZipArchive;
 
@@ -69,18 +69,58 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
   Ok(file_path)
 }
 
-fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {
-  match std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR") {
-    Ok(cdn) if url.starts_with("https://github.com/") => {
+fn generate_mirror_url_from_template(github_url: &str) -> Option<String> {
+  std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
+    .ok()
+    .and_then(|template| {
+      let re =
+        Regex::new(r"https://github.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.*)").unwrap();
+      re.captures(github_url).map(|caps| {
+        template
+          .replace("<owner>", &caps[1])
+          .replace("<repo>", &caps[2])
+          .replace("<version>", &caps[3])
+          .replace("<asset>", &caps[4])
+      })
+    })
+}
+
+fn generate_mirror_url_from_base(github_url: &str) -> crate::Result<Option<String>> {
+  std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR")
+    .ok()
+    .map(|cdn| {
       let mut parsed_cdn = Url::parse(&cdn)?;
-      parsed_cdn.set_path(url);
-      Ok((AgentBuilder::new().build(), parsed_cdn.into()))
-    }
-    _ => Ok((
-      AgentBuilder::new().try_proxy_from_env(true).build(),
-      url.to_owned(),
-    )),
+      parsed_cdn.set_path(github_url);
+      Ok(parsed_cdn.into())
+    })
+    .transpose()
+}
+
+fn generate_alternative_url(url: &str) -> crate::Result<Option<(ureq::Agent, String)>> {
+  if !url.starts_with("https://github.com/") {
+    return Ok(None);
   }
+
+  let mirror_url = generate_mirror_url_from_template(url);
+  let cdn_url = generate_mirror_url_from_base(url)?;
+
+  Ok(
+    mirror_url
+      .or(cdn_url)
+      .map(|alternative_url| (ureq::AgentBuilder::new().build(), alternative_url)),
+  )
+}
+
+fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {
+  generate_alternative_url(url)?.map_or_else(
+    || {
+      Ok((
+        ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
+        url.to_owned(),
+      ))
+    },
+    Ok,
+  )
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
@@ -194,5 +234,61 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_INTEL => Some("x86"),
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
     _ => None,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::generate_mirror_url_from_template;
+  use std::env;
+
+  const URL: &str =
+    "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
+
+  #[test]
+  fn test_generate_mirror_url_no_env_var() {
+    env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
+
+    assert!(generate_mirror_url_from_template(URL).is_none());
+  }
+
+  #[test]
+  fn test_generate_mirror_url_non_github_url() {
+    env::set_var(
+      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+    );
+
+    let url = "https://someotherwebsite.com/somefile.zip";
+    assert!(generate_mirror_url_from_template(url).is_none());
+  }
+
+  #[test]
+  fn test_generate_mirror_url_correctly1() {
+    env::set_var(
+      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+    );
+
+    let expected_url =
+      "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
+    assert_eq!(
+      generate_mirror_url_from_template(URL),
+      Some(expected_url.to_string())
+    );
+  }
+
+  #[test]
+  fn test_generate_mirror_url_correctly2() {
+    env::set_var(
+      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+      "https://mirror.example.com/<asset>",
+    );
+
+    let expected_url = "https://mirror.example.com/wix311-binaries.zip";
+    assert_eq!(
+      generate_mirror_url_from_template(URL),
+      Some(expected_url.to_string())
+    );
   }
 }

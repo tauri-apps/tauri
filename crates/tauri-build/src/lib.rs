@@ -473,10 +473,12 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let mut config = serde_json::from_value(tauri_utils::config::parse::read_from(
-    target,
-    env::current_dir().unwrap(),
-  )?)?;
+  let (config, merged_config_path) =
+    tauri_utils::config::parse::read_from(target, env::current_dir().unwrap())?;
+  if let Some(merged_config_path) = merged_config_path {
+    println!("cargo:rerun-if-changed={}", merged_config_path.display());
+  }
+  let mut config = serde_json::from_value(config)?;
   if let Ok(env) = env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value = serde_json::from_str(&env)?;
     json_patch::merge(&mut config, &merge_config);

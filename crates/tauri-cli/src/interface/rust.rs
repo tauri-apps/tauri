@@ -462,15 +462,7 @@ fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
 }
 
 impl Rust {
-  pub fn build_options(
-    &self,
-    args: &mut Vec<String>,
-    features: &mut Option<Vec<String>>,
-    mobile: bool,
-  ) {
-    features
-      .get_or_insert(Vec::new())
-      .push("tauri/custom-protocol".into());
+  pub fn build_options(&self, args: &mut Vec<String>, mobile: bool) {
     shared_options(mobile, args);
   }
 

@@ -236,9 +236,11 @@ fn main() {
   alias("desktop", !mobile);
   alias("mobile", mobile);
 
+  let has_default = has_feature("default");
+
   // a workaround for default features activation based on target platform
   // https://github.com/rust-lang/cargo/issues/1197
-  if has_feature("default")
+  if has_default
     && ["native-tls", "native-tls-vendored", "rustls-tls"]
       .iter()
       .all(|f| !has_feature(f))
@@ -248,6 +250,11 @@ fn main() {
     } else {
       println!("cargo:rustc-cfg=feature=\"native-tls\"");
     }
+  }
+
+  // a workaround for default features activation based on profile
+  if has_default && env::var("PROFILE").as_deref() == Ok("release") {
+    println!("cargo:rustc-cfg=feature=\"custom-protocol\"");
   }
 
   let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());

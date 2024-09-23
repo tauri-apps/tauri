@@ -189,7 +189,8 @@ pub fn setup(
     .features
     .get_or_insert(Vec::new())
     .extend(config_.build.features.clone().unwrap_or_default());
-  interface.build_options(&mut options.args, &mut options.features, mobile);
+
+  interface.build_options(&mut options.args, mobile);
 
   Ok(())
 }

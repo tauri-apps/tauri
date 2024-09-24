@@ -26,7 +26,7 @@ export interface TrayIconClickEvent {
   /** Mouse button that triggered this event. */
   button: MouseButton
   /** Mouse button state when this event was triggered. */
-  button_state: MouseButtonState
+  buttonState: MouseButtonState
 }
 
 /** A double click happened on the tray icon. **Windows Only** */

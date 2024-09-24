@@ -134,10 +134,12 @@ impl StateManager {
     })
   }
 
-  pub(crate) fn unmanage<T: Send + Sync + 'static>(&self) -> bool {
+  pub(crate) fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
     self.with_map_mut(|map| {
       let type_id = TypeId::of::<T>();
-      map.remove(&type_id).is_some()
+      map
+        .remove(&type_id)
+        .and_then(|ptr| ptr.downcast().ok().map(|b| *b))
     })
   }
 

@@ -5,8 +5,8 @@
 
 use super::{app, icon::create_icns_file};
 use crate::{
-  bundle::{common::CommandExt, Bundle},
-  Arch, PackageType, Settings,
+  bundle::{common::CommandExt, settings::Arch, Bundle},
+  PackageType, Settings,
 };
 
 use anyhow::Context;

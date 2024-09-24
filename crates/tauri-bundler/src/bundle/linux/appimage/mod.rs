@@ -10,7 +10,7 @@ use super::{
   },
   debian,
 };
-use crate::Settings;
+use crate::{bundle::settings::Arch, Settings};
 use anyhow::Context;
 use handlebars::Handlebars;
 use std::{
@@ -24,11 +24,17 @@ use std::{
 /// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // generate the deb binary name
-  let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    "armv7" => "armhf",
-    other => other,
+  let arch: &str = match settings.binary_arch() {
+    Arch::X86_64 => "amd64",
+    Arch::X86 => "i386",
+    Arch::AArch64 => "aarch64",
+    Arch::Armhf => "armhf",
+    target => {
+      return Err(crate::Error::ArchError(format!(
+        "Unsupported architecture: {:?}",
+        target
+      )));
+    }
   };
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 

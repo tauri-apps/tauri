@@ -44,9 +44,11 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
     run_item_main_thread!(self, move |self_: Self| {
       #[cfg(target_os = "macos")]
       if let Ok(view) = window.ns_view() {
-        self_
-          .inner()
-          .show_context_menu_for_nsview(view as _, position);
+        unsafe {
+          self_
+            .inner()
+            .show_context_menu_for_nsview(view as _, position);
+        }
       }
 
       #[cfg(any(
@@ -64,9 +66,11 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
 
       #[cfg(windows)]
       if let Ok(hwnd) = window.hwnd() {
-        self_
-          .inner()
-          .show_context_menu_for_hwnd(hwnd.0 as _, position)
+        unsafe {
+          self_
+            .inner()
+            .show_context_menu_for_hwnd(hwnd.0 as _, position)
+        }
       }
     })
   }

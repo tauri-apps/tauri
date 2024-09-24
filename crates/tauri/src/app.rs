@@ -267,8 +267,8 @@ impl<R: Runtime> AssetResolver<R> {
   /// Gets the app asset associated with the given path.
   ///
   /// Resolves to the embedded asset that is part of the app
-  /// in dev when [`devPath`](https://tauri.app/v1/api/config/#buildconfig.devpath) points to a folder in your filesystem
-  /// or in production when [`distDir`](https://tauri.app/v1/api/config/#buildconfig.distdir)
+  /// in dev when [`devUrl`](https://v2.tauri.app/reference/config/#devurl) points to a folder in your filesystem
+  /// or in production when [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist)
   /// points to your frontend assets.
   ///
   /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
@@ -683,6 +683,31 @@ macro_rules! shared_app_impl {
           RuntimeOrDispatch::RuntimeHandle(h) => h.cursor_position()?,
           _ => unreachable!(),
         })
+      }
+
+      /// Set the app theme.
+      pub fn set_theme(&self, theme: Option<Theme>) {
+        #[cfg(windows)]
+        for window in self.manager.windows().values() {
+          if let (Some(menu), Ok(hwnd)) = (window.menu(), window.hwnd()) {
+            let raw_hwnd = hwnd.0 as isize;
+            let _ = self.run_on_main_thread(move || {
+              let _ = unsafe {
+                menu.inner().set_theme_for_hwnd(
+                  raw_hwnd,
+                  theme
+                    .map(crate::menu::map_to_menu_theme)
+                    .unwrap_or(muda::MenuTheme::Auto),
+                )
+              };
+            });
+          };
+        }
+        match self.runtime() {
+          RuntimeOrDispatch::Runtime(h) => h.set_theme(theme),
+          RuntimeOrDispatch::RuntimeHandle(h) => h.set_theme(theme),
+          _ => unreachable!(),
+        }
       }
 
       /// Returns the default window icon.

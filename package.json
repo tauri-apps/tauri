@@ -19,10 +19,16 @@
     "build:api": "pnpm run --filter \"@tauri-apps/api\" build",
     "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
     "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
-    "test": "pnpm run -r build"
+    "test": "pnpm run -r test",
+    "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
     "prettier": "^3.3.3"
   },
-  "packageManager": "pnpm@9.9.0"
+  "packageManager": "pnpm@9.9.0",
+  "pnpm": {
+    "overrides": {
+      "rollup@>=4.0.0 <4.22.4": ">=4.22.4"
+    }
+  }
 }

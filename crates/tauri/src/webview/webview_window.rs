@@ -27,7 +27,10 @@ use crate::{
   },
 };
 use serde::Serialize;
-use tauri_utils::config::{WebviewUrl, WindowConfig};
+use tauri_utils::{
+  config::{WebviewUrl, WindowConfig},
+  Theme,
+};
 use url::Url;
 
 use crate::{
@@ -1581,6 +1584,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets the title bar style. **macOS only**.
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self.webview.window().set_title_bar_style(style)
+  }
+
+  /// Set the window theme.
+  pub fn set_theme(&self, theme: Option<Theme>) -> crate::Result<()> {
+    self.webview.window().set_theme(theme)
   }
 }
 

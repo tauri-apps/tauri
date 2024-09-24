@@ -763,7 +763,7 @@ impl WindowBuilder for WindowBuilderWrapper {
     if config.transparent {
       eprintln!(
         "The window is set to be transparent but the `macos-private-api` is not enabled.
-        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://tauri.app/docs/api/config#tauri.macOSPrivateApi>
+        This can be enabled via the `tauri.macOSPrivateApi` configuration property <https://v2.tauri.app/reference/config/#macosprivateapi>
       ");
     }
 
@@ -1204,6 +1204,7 @@ pub enum WindowMessage {
   SetIgnoreCursorEvents(bool),
   SetProgressBar(ProgressBarState),
   SetTitleBarStyle(tauri_utils::TitleBarStyle),
+  SetTheme(Option<Theme>),
   DragWindow,
   ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
@@ -2026,6 +2027,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
       Message::Window(self.window_id, WindowMessage::SetTitleBarStyle(style)),
     )
   }
+
+  fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetTheme(theme)),
+    )
+  }
 }
 
 #[derive(Clone)]
@@ -2284,6 +2292,18 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
+  }
+
+  fn set_theme(&self, theme: Option<Theme>) {
+    self
+      .context
+      .main_thread
+      .window_target
+      .set_theme(match theme {
+        Some(Theme::Light) => Some(TaoTheme::Light),
+        Some(Theme::Dark) => Some(TaoTheme::Dark),
+        _ => None,
+      });
   }
 
   #[cfg(target_os = "macos")]
@@ -2562,6 +2582,14 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
+  }
+
+  fn set_theme(&self, theme: Option<Theme>) {
+    self.event_loop.set_theme(match theme {
+      Some(Theme::Light) => Some(TaoTheme::Light),
+      Some(Theme::Dark) => Some(TaoTheme::Dark),
+      _ => None,
+    });
   }
 
   #[cfg(target_os = "macos")]
@@ -2995,6 +3023,13 @@ fn handle_user_message<T: UserEvent>(
                 eprintln!("unknown title bar style applied: {unknown}");
               }
             };
+          }
+          WindowMessage::SetTheme(theme) => {
+            window.set_theme(match theme {
+              Some(Theme::Light) => Some(TaoTheme::Light),
+              Some(Theme::Dark) => Some(TaoTheme::Dark),
+              _ => None,
+            });
           }
         }
       }

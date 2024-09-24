@@ -76,7 +76,7 @@ impl<R: Runtime> MenuManager<R> {
           let theme = theme
             .map(crate::menu::map_to_menu_theme)
             .unwrap_or(muda::MenuTheme::Auto);
-          let _ = menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme);
+          let _ = unsafe { menu.inner().init_for_hwnd_with_theme(raw.hwnd as _, theme) };
         }
         #[cfg(any(
           target_os = "linux",

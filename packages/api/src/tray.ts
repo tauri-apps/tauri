@@ -207,7 +207,23 @@ export class TrayIcon extends Resource {
 
     const handler = new Channel<TrayIconEvent>()
     if (options?.action) {
-      handler.onmessage = options.action
+      const action = options.action
+      handler.onmessage = (e) => {
+        if ('click' in e) {
+          e.click.rect.position = mapPosition(e.click.rect.position)
+          e.click.rect.size = mapSize(e.click.rect.size)
+        } else if ('enter' in e) {
+          e.enter.rect.position = mapPosition(e.enter.rect.position)
+          e.enter.rect.size = mapSize(e.enter.rect.size)
+        } else if ('move' in e) {
+          e.move.rect.position = mapPosition(e.move.rect.position)
+          e.move.rect.size = mapSize(e.move.rect.size)
+        } else if ('leave' in e) {
+          e.leave.rect.position = mapPosition(e.leave.rect.position)
+          e.leave.rect.size = mapSize(e.leave.rect.size)
+        }
+        action(e)
+      }
       delete options.action
     }
 
@@ -309,4 +325,11 @@ export class TrayIcon extends Resource {
       onLeft
     })
   }
+}
+
+function mapPosition(pos: any): PhysicalPosition {
+  return new PhysicalPosition(pos.Physical.x, pos.Physical.y)
+}
+function mapSize(pos: any): PhysicalSize {
+  return new PhysicalSize(pos.Physical.width, pos.Physical.height)
 }

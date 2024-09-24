@@ -210,16 +210,24 @@ export class TrayIcon extends Resource {
       const action = options.action
       handler.onmessage = (e) => {
         if ('click' in e) {
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.click.rect.position = mapPosition(e.click.rect.position)
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.click.rect.size = mapSize(e.click.rect.size)
         } else if ('enter' in e) {
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.enter.rect.position = mapPosition(e.enter.rect.position)
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.enter.rect.size = mapSize(e.enter.rect.size)
         } else if ('move' in e) {
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.move.rect.position = mapPosition(e.move.rect.position)
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.move.rect.size = mapSize(e.move.rect.size)
         } else if ('leave' in e) {
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.leave.rect.position = mapPosition(e.leave.rect.position)
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.leave.rect.size = mapSize(e.leave.rect.size)
         }
         action(e)
@@ -327,9 +335,13 @@ export class TrayIcon extends Resource {
   }
 }
 
-function mapPosition(pos: any): PhysicalPosition {
+function mapPosition(pos: {
+  Physical: { x: number; y: number }
+}): PhysicalPosition {
   return new PhysicalPosition(pos.Physical.x, pos.Physical.y)
 }
-function mapSize(pos: any): PhysicalSize {
+function mapSize(pos: {
+  Physical: { width: number; height: number }
+}): PhysicalSize {
   return new PhysicalSize(pos.Physical.width, pos.Physical.height)
 }

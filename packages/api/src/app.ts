@@ -4,6 +4,7 @@
 
 import { invoke } from './core'
 import { Image } from './image'
+import { Theme } from './window'
 
 /**
  * Application metadata and related APIs.
@@ -101,4 +102,31 @@ async function defaultWindowIcon(): Promise<Image | null> {
   )
 }
 
-export { getName, getVersion, getTauriVersion, show, hide, defaultWindowIcon }
+/**
+ * Set app's theme, pass in `null` or `undefined` to follow system theme
+ *
+ * @example
+ * ```typescript
+ * import { setTheme } from '@tauri-apps/api/app';
+ * await setTheme('dark');
+ * ```
+ *
+ * #### Platform-specific
+ *
+ * - **iOS / Android:** Unsupported.
+ *
+ * @since 2.0.0
+ */
+async function setTheme(theme?: Theme | null): Promise<void> {
+  return invoke('plugin:app|set_app_theme', { theme })
+}
+
+export {
+  getName,
+  getVersion,
+  getTauriVersion,
+  show,
+  hide,
+  defaultWindowIcon,
+  setTheme
+}

@@ -2004,9 +2004,8 @@ tauri::Builder::default()
       .set_theme(theme)
       .map_err(Into::<crate::Error>::into)?;
     #[cfg(windows)]
-    if let (Some(window_menu), Ok(hwnd)) = (&*self.menu_lock(), self.hwnd()) {
+    if let (Some(menu), Ok(hwnd)) = (self.menu(), self.hwnd()) {
       let raw_hwnd = hwnd.0 as isize;
-      let menu = window_menu.menu.clone();
       self.run_on_main_thread(move || {
         let _ = unsafe {
           menu.inner().set_theme_for_hwnd(

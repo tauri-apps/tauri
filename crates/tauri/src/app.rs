@@ -689,9 +689,8 @@ macro_rules! shared_app_impl {
       pub fn set_theme(&self, theme: Option<Theme>) {
         #[cfg(windows)]
         for window in self.manager.windows().values() {
-          if let (Some(window_menu), Ok(hwnd)) = (&*window.menu_lock(), window.hwnd()) {
+          if let (Some(menu), Ok(hwnd)) = (window.menu(), window.hwnd()) {
             let raw_hwnd = hwnd.0 as isize;
-            let menu = window_menu.menu.clone();
             let _ = self.run_on_main_thread(move || {
               let _ = unsafe {
                 menu.inner().set_theme_for_hwnd(

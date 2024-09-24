@@ -110,6 +110,7 @@ async function defaultWindowIcon(): Promise<Image | null> {
  * import { setTheme } from '@tauri-apps/api/app';
  * await setTheme('dark');
  *
+ * @since 2.0.0
  */
 async function setTheme(theme?: Theme | null): Promise<void> {
   return invoke('plugin:app|set_app_theme', { theme })

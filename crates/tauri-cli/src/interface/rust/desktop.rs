@@ -178,7 +178,7 @@ fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
   config_features: Vec<String>,
   on_exit: F,
 ) -> crate::Result<Arc<SharedChild>> {
-  let mut build_cmd = build_command(options, available_targets, config_features)?;
+  let mut build_cmd = build_command(options, available_targets, config_features, true)?;
   let runner = build_cmd.get_program().to_string_lossy().into_owned();
   build_cmd
     .env(
@@ -267,7 +267,7 @@ fn build_production_app(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
 ) -> crate::Result<()> {
-  let mut build_cmd = build_command(options, available_targets, config_features)?;
+  let mut build_cmd = build_command(options, available_targets, config_features, false)?;
   let runner = build_cmd.get_program().to_string_lossy().into_owned();
   match build_cmd.piped() {
     Ok(status) if status.success() => Ok(()),
@@ -289,6 +289,7 @@ fn build_command(
   options: Options,
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
+  dev: bool,
 ) -> crate::Result<Command> {
   let runner = options.runner.unwrap_or_else(|| "cargo".into());
 
@@ -304,16 +305,26 @@ fn build_command(
     args.extend(options.args);
   }
 
+  let has_custom_profile = args.contains(&"--profile".to_string());
+
   let mut features = config_features;
   if let Some(f) = options.features {
     features.extend(f);
+  }
+  // custom-protocol is handled in tauri's build.rs script
+  // which makes `cargo build` same as `tauri dev`
+  // and `cargo build --release` same as `tauri build`
+  // but for `tauri build --debug` we need to build the code
+  // in `debug` profile and activate `custom-protocol` feature.
+  if !dev && options.debug && !has_custom_profile {
+    features.push("tauri/custom-protocol".into());
   }
   if !features.is_empty() {
     args.push("--features".into());
     args.push(features.join(","));
   }
 
-  if !options.debug && !args.contains(&"--profile".to_string()) {
+  if !options.debug && !has_custom_profile {
     args.push("--release".into());
   }
 

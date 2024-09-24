@@ -207,7 +207,7 @@ fn build_dev_app<F: FnOnce(Option<i32>, ExitReason) + Send + 'static>(
       "`{}` command not found.{}",
       runner,
       if runner == "cargo" {
-        " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+        " Please follow the Tauri setup guide: https://v2.tauri.app/start/prerequisites/"
       } else {
         ""
       }
@@ -276,7 +276,7 @@ fn build_production_app(
       "`{}` command not found.{}",
       runner,
       if runner == "cargo" {
-        " Please follow the Tauri setup guide: https://tauri.app/v1/guides/getting-started/prerequisites"
+        " Please follow the Tauri setup guide: https://v2.tauri.app/start/prerequisites/"
       } else {
         ""
       }

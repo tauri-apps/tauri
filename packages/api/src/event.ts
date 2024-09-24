@@ -5,7 +5,7 @@
 /**
  * The event system allows you to emit events to the backend and listen to events from it.
  *
- * This package is also accessible with `window.__TAURI__.event` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.event` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 

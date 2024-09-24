@@ -79,6 +79,7 @@ impl From<tray_icon::MouseButton> for MouseButton {
 #[non_exhaustive]
 pub enum TrayIconEvent {
   /// A click happened on the tray icon.
+  #[serde(rename_all = "camelCase")]
   Click {
     /// Id of the tray icon which triggered this event.
     id: TrayIconId,

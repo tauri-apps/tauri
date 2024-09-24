@@ -197,8 +197,8 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
-    assert!(state.unmanage::<u32>());
-    assert!(!state.unmanage::<u32>());
+    assert!(state.unmanage::<u32>().is_some());
+    assert!(state.unmanage::<u32>().is_none());
     assert_eq!(state.try_get::<u32>(), None);
     assert!(state.set(2u32));
     assert_eq!(*state.get::<u32>(), 2);

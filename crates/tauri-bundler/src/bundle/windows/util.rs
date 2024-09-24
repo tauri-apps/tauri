@@ -109,15 +109,12 @@ fn generate_alternative_url(url: &str) -> crate::Result<Option<(ureq::Agent, Str
 }
 
 fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {
-  generate_alternative_url(url)?.map_or_else(
-    || {
-      Ok((
+  generate_alternative_url(url).map(|alt_url| {
+    alt_url.unwrap_or_else(|| (
         ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
         url.to_owned(),
       ))
-    },
-    Ok,
-  )
+  })
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {

@@ -24,7 +24,7 @@
 // generate postinst or prerm files.
 
 use super::{super::common, freedesktop};
-use crate::Settings;
+use crate::{bundle::settings::Arch, Settings};
 use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
@@ -41,12 +41,17 @@ use std::{
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
-    "arm" => "armhf",
-    "aarch64" => "arm64",
-    other => other,
+    Arch::X86_64 => "amd64",
+    Arch::X86 => "i386",
+    Arch::AArch64 => "arm64",
+    Arch::Armhf => "armhf",
+    Arch::Armel => "armel",
+    target => {
+      return Err(crate::Error::ArchError(format!(
+        "Unsupported architecture: {:?}",
+        target
+      )));
+    }
   };
   let package_base_name = format!(
     "{}_{}_{}",

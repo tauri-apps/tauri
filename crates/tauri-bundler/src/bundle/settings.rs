@@ -683,6 +683,22 @@ impl BundleBinary {
   }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Arch {
+  /// For the x86_64 / x64 / AMD64 instruction sets (64 bits).
+  X86_64,
+  /// For the x86 / i686 / i686 / 8086 instruction sets (32 bits).
+  X86,
+  /// For the AArch64 / ARM64 instruction sets (64 bits).
+  AArch64,
+  /// For the AArch32 / ARM32 instruction sets with hard-float (32 bits).
+  Armhf,
+  /// For the AArch32 / ARM32 instruction sets with soft-float (32 bits).
+  Armel,
+  /// For universal macOS applications.
+  Universal,
+}
+
 /// The Settings exposed by the module.
 #[derive(Clone, Debug)]
 pub struct Settings {
@@ -845,17 +861,19 @@ impl Settings {
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
-  pub fn binary_arch(&self) -> &str {
+  pub fn binary_arch(&self) -> Arch {
     if self.target.starts_with("x86_64") {
-      "x86_64"
+      Arch::X86_64
     } else if self.target.starts_with('i') {
-      "x86"
+      Arch::X86
+    } else if self.target.starts_with("arm") && self.target.ends_with("hf") {
+      Arch::Armhf
     } else if self.target.starts_with("arm") {
-      "arm"
+      Arch::Armel
     } else if self.target.starts_with("aarch64") {
-      "aarch64"
+      Arch::AArch64
     } else if self.target.starts_with("universal") {
-      "universal"
+      Arch::Universal
     } else {
       panic!("Unexpected target triple {}", self.target)
     }

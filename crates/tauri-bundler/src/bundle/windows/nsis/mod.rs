@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use crate::bundle::settings::Arch;
 use crate::bundle::windows::sign::{sign_command, try_sign};
 
 use crate::{
@@ -152,12 +153,12 @@ fn build_nsis_app_installer(
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
-    "x86_64" => "x64",
-    "x86" => "x86",
-    "aarch64" => "arm64",
+    Arch::X86_64 => "x64",
+    Arch::X86 => "x86",
+    Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported target: {}",
+        "unsupported architecture: {:?}",
         target
       )))
     }

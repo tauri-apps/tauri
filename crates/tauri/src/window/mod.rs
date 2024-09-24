@@ -1981,6 +1981,7 @@ tauri::Builder::default()
       })
       .map_err(Into::into)
   }
+
   /// Sets the title bar style. **macOS only**.
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self
@@ -1988,6 +1989,35 @@ tauri::Builder::default()
       .dispatcher
       .set_title_bar_style(style)
       .map_err(Into::into)
+  }
+
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_theme(&self, theme: Option<Theme>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_theme(theme)
+      .map_err(Into::<crate::Error>::into)?;
+    #[cfg(windows)]
+    if let (Some(menu), Ok(hwnd)) = (self.menu(), self.hwnd()) {
+      let raw_hwnd = hwnd.0 as isize;
+      self.run_on_main_thread(move || {
+        let _ = unsafe {
+          menu.inner().set_theme_for_hwnd(
+            raw_hwnd,
+            theme
+              .map(crate::menu::map_to_menu_theme)
+              .unwrap_or(muda::MenuTheme::Auto),
+          )
+        };
+      })?;
+    };
+    Ok(())
   }
 }
 

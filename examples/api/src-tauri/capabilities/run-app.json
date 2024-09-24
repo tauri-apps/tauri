@@ -20,6 +20,8 @@
     "core:default",
     "core:app:allow-app-hide",
     "core:app:allow-app-show",
+    "core:app:allow-set-app-theme",
+    "core:window:allow-set-theme",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",
     "core:window:allow-set-resizable",

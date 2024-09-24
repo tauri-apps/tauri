@@ -1469,6 +1469,32 @@ Denies the set_skip_taskbar command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-set-theme`
+
+</td>
+<td>
+
+Enables the set_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-theme`
+
+</td>
+<td>
+
+Denies the set_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-title`
 
 </td>

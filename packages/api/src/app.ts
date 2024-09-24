@@ -109,6 +109,11 @@ async function defaultWindowIcon(): Promise<Image | null> {
  * ```typescript
  * import { setTheme } from '@tauri-apps/api/app';
  * await setTheme('dark');
+ * ```
+ *
+ * #### Platform-specific
+ *
+ * - **iOS / Android:** Unsupported.
  *
  * @since 2.0.0
  */

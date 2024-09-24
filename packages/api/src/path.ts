@@ -5,7 +5,7 @@
 /**
  * The path module provides utilities for working with file and directory paths.
  *
- * This package is also accessible with `window.__TAURI__.path` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.path` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  *
  * It is recommended to allowlist only the APIs you use for optimal bundle size and security.
  * @module
@@ -45,7 +45,7 @@ enum BaseDirectory {
 
 /**
  * Returns the path to the suggested directory for your app's config files.
- * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * Resolves to `${configDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
  * @example
  * ```typescript
  * import { appConfigDir } from '@tauri-apps/api/path';
@@ -62,7 +62,7 @@ async function appConfigDir(): Promise<string> {
 
 /**
  * Returns the path to the suggested directory for your app's data files.
- * Resolves to `${dataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * Resolves to `${dataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
  * @example
  * ```typescript
  * import { appDataDir } from '@tauri-apps/api/path';
@@ -79,7 +79,7 @@ async function appDataDir(): Promise<string> {
 
 /**
  * Returns the path to the suggested directory for your app's local data files.
- * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * Resolves to `${localDataDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
  * @example
  * ```typescript
  * import { appLocalDataDir } from '@tauri-apps/api/path';
@@ -96,7 +96,7 @@ async function appLocalDataDir(): Promise<string> {
 
 /**
  * Returns the path to the suggested directory for your app's cache files.
- * Resolves to `${cacheDir}/${bundleIdentifier}`, where `bundleIdentifier` is the value [`tauri.bundle.identifier`](https://tauri.app/v1/api/config/#bundleconfig.identifier) is configured in `tauri.conf.json`.
+ * Resolves to `${cacheDir}/${bundleIdentifier}`, where `bundleIdentifier` is the [`identifier`](https://v2.tauri.app/reference/config/#identifier) value configured in `tauri.conf.json`.
  * @example
  * ```typescript
  * import { appCacheDir } from '@tauri-apps/api/path';

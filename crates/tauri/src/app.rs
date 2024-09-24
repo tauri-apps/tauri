@@ -267,8 +267,8 @@ impl<R: Runtime> AssetResolver<R> {
   /// Gets the app asset associated with the given path.
   ///
   /// Resolves to the embedded asset that is part of the app
-  /// in dev when [`devPath`](https://tauri.app/v1/api/config/#buildconfig.devpath) points to a folder in your filesystem
-  /// or in production when [`distDir`](https://tauri.app/v1/api/config/#buildconfig.distdir)
+  /// in dev when [`devUrl`](https://v2.tauri.app/reference/config/#devurl) points to a folder in your filesystem
+  /// or in production when [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist)
   /// points to your frontend assets.
   ///
   /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.

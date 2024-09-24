@@ -267,7 +267,7 @@
     <a
       class="nv justify-between"
       target="_blank"
-      href="https://tauri.app/v1/guides/"
+      href="https://v2.tauri.app/start/"
     >
       Documentation
       <span class="i-codicon-link-external" />

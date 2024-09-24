@@ -47,7 +47,7 @@ importers:
         version: 4.2.19
       unocss:
         specifier: ^0.61.0
-        version: 0.61.9(postcss@8.4.47)(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
+        version: 0.61.9(postcss@8.4.47)(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
       vite:
         specifier: ^5.4.7
         version: 5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6)
@@ -3053,11 +3053,11 @@ snapshots:
       '@typescript-eslint/types': 8.2.0
       eslint-visitor-keys: 3.4.3
 
-  '@unocss/astro@0.61.9(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))':
+  '@unocss/astro@0.61.9(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))':
     dependencies:
       '@unocss/core': 0.61.9
       '@unocss/reset': 0.61.9
-      '@unocss/vite': 0.61.9(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
+      '@unocss/vite': 0.61.9(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
     optionalDependencies:
       vite: 5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6)
     transitivePeerDependencies:
@@ -3198,7 +3198,7 @@ snapshots:
     dependencies:
       '@unocss/core': 0.61.9
 
-  '@unocss/vite@0.61.9(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))':
+  '@unocss/vite@0.61.9(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@rollup/pluginutils': 5.1.0(rollup@4.22.4)
@@ -4266,9 +4266,9 @@ snapshots:
       pathe: 1.1.2
       ufo: 1.5.4
 
-  unocss@0.61.9(postcss@8.4.47)(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6)):
+  unocss@0.61.9(postcss@8.4.47)(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6)):
     dependencies:
-      '@unocss/astro': 0.61.9(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
+      '@unocss/astro': 0.61.9(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
       '@unocss/cli': 0.61.9(rollup@4.22.4)
       '@unocss/core': 0.61.9
       '@unocss/extractor-arbitrary-variants': 0.61.9
@@ -4287,7 +4287,7 @@ snapshots:
       '@unocss/transformer-compile-class': 0.61.9
       '@unocss/transformer-directives': 0.61.9
       '@unocss/transformer-variant-group': 0.61.9
-      '@unocss/vite': 0.61.9(rollup@4.22.4)(vite@5.4.6(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
+      '@unocss/vite': 0.61.9(rollup@4.22.4)(vite@5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6))
     optionalDependencies:
       vite: 5.4.7(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6)
     transitivePeerDependencies:

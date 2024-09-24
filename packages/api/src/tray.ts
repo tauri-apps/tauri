@@ -26,7 +26,7 @@ export interface TrayIconClickEvent {
   /** Mouse button that triggered this event. */
   button: MouseButton
   /** Mouse button state when this event was triggered. */
-  button_state: MouseButtonState
+  buttonState: MouseButtonState
 }
 
 /** A double click happened on the tray icon. **Windows Only** */
@@ -109,7 +109,7 @@ export type TrayIconEvent =
 /**
  * Tray icon types and utilities.
  *
- * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 

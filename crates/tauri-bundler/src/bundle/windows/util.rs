@@ -85,42 +85,37 @@ fn generate_mirror_url_from_template(github_url: &str) -> Option<String> {
     })
 }
 
-fn generate_mirror_url_from_base(github_url: &str) -> crate::Result<Option<String>> {
+fn generate_mirror_url_from_base(github_url: &str) -> Option<String> {
   std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR")
     .ok()
-    .map(|cdn| {
-      let mut parsed_cdn = Url::parse(&cdn)?;
-      parsed_cdn.set_path(github_url);
-      Ok(parsed_cdn.into())
+    .and_then(|cdn| Url::parse(&cdn).ok())
+    .map(|mut cdn| {
+      cdn.set_path(github_url);
+      cdn.to_string()
     })
-    .transpose()
 }
 
-fn generate_alternative_url(url: &str) -> crate::Result<Option<(ureq::Agent, String)>> {
+fn generate_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
   if !url.starts_with("https://github.com/") {
-    return Ok(None);
+    return None;
   }
 
   generate_mirror_url_from_template(url)
-    .or_else(|_| generate_mirror_url_from_base(url))
-    .map(|alt_url| alt_url.map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url)))
+    .or_else(|| generate_mirror_url_from_base(url))
+    .map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url))
 }
 
-fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {
-  generate_alternative_url(url).map(|alt_url| {
-    alt_url.unwrap_or_else(|| {
-      (
-        ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
-        url.to_owned(),
-      )
-    })
-  })
+fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
+  generate_alternative_url(url).unwrap_or((
+    ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
+    url.to_owned(),
+  ))
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
   log::info!(action = "Downloading"; "{}", url);
 
-  let (agent, final_url) = create_agent_and_url(url)?;
+  let (agent, final_url) = create_agent_and_url(url);
 
   let response = agent.get(&final_url).call().map_err(Box::new)?;
   let mut bytes = Vec::new();

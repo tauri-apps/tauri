@@ -3,6 +3,7 @@
   import { writable } from 'svelte/store'
   import { invoke } from '@tauri-apps/api/core'
   import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+  import { setTheme } from '@tauri-apps/api/app'
 
   import Welcome from './views/Welcome.svelte'
   import Communication from './views/Communication.svelte'
@@ -83,6 +84,7 @@
   function toggleDark() {
     isDark = !isDark
     applyTheme(isDark)
+    setTheme(isDark ? 'dark' : 'light')
   }
 
   // Console

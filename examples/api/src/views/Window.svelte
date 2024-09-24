@@ -123,8 +123,8 @@
   let cursorIgnoreEvents = false
   let windowTitle = 'Awesome Tauri Example!'
 
-  /** @type {import('@tauri-apps/api/window').Theme | undefined} */
-  let theme
+  /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
+  let theme = 'auto'
 
   let effects = []
   let selectedEffect
@@ -215,13 +215,13 @@
         theme = 'light'
         break
       case 'light':
-        theme = undefined
+        theme = 'auto'
         break
-      case undefined:
+      case 'auto':
         theme = 'dark'
         break
     }
-    await webviewMap[selectedWebview].setTheme(theme)
+    await webviewMap[selectedWebview].setTheme(theme === 'auto' ? null : theme)
   }
 
   async function updateProgressBar() {
@@ -397,7 +397,7 @@
         title="Minimizes the window, requests attention for 3s and then resets it"
         >Request attention</button
       >
-      <button class="btn" on:click={switchTheme}>Switch Theme</button>
+      <button class="btn" on:click={switchTheme}>Switch Theme ({theme})</button>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
       <label>

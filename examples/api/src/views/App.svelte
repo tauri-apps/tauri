@@ -2,8 +2,8 @@
   import { show, hide, setTheme } from '@tauri-apps/api/app'
 
   export let onMessage
-  /** @type {import('@tauri-apps/api/window').Theme | undefined} */
-  let theme
+  /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
+  let theme = 'auto'
 
   function showApp() {
     hideApp()
@@ -29,13 +29,13 @@
         theme = 'light'
         break
       case 'light':
-        theme = undefined
+        theme = 'auto'
         break
-      case undefined:
+      case 'auto':
         theme = 'dark'
         break
     }
-    setTheme(theme)
+    setTheme(theme === 'auto' ? null : theme)
   }
 </script>
 
@@ -47,5 +47,5 @@
     on:click={showApp}>Show</button
   >
   <button class="btn" id="hide" on:click={hideApp}>Hide</button>
-  <button class="btn" id="hide" on:click={switchTheme}>Switch Theme</button>
+  <button class="btn" id="hide" on:click={switchTheme}>Switch Theme ({theme})</button>
 </div>

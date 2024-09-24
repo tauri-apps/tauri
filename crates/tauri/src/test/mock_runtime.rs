@@ -243,6 +243,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
+  fn set_theme(&self, theme: Option<Theme>) {
+    unimplemented!()
+  }
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
@@ -955,6 +959,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   ) -> Result<()> {
     Ok(())
   }
+
+  fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
+    Ok(())
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -1093,6 +1101,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
+  }
+
+  fn set_theme(&self, theme: Option<Theme>) {
     unimplemented!()
   }
 

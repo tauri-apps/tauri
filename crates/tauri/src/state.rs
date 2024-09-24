@@ -45,6 +45,12 @@ impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   }
 }
 
+impl<T: Send + Sync + 'static + PartialEq> PartialEq for State<'_, T> {
+  fn eq(&self, other: &Self) -> bool {
+    self.0 == other.0
+  }
+}
+
 impl<'r, T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'r, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_tuple("State").field(&self.0).finish()
@@ -156,5 +162,128 @@ impl StateManager {
         .and_then(|ptr| ptr.downcast_ref::<T>())
         .map(State)
     })
+  }
+}
+
+// Ported from https://github.com/SergioBenitez/state/blob/556c1b94db8ce8427a0e72de7983ab5a9af4cc41/tests/main.rs
+#[cfg(test)]
+mod tests {
+  use super::StateManager;
+
+  use std::sync::{Arc, RwLock};
+  use std::thread;
+
+  // Tiny structures to test that dropping works as expected.
+  struct DroppingStruct(Arc<RwLock<bool>>);
+  struct DroppingStructWrap(#[allow(dead_code)] DroppingStruct);
+
+  impl Drop for DroppingStruct {
+    fn drop(&mut self) {
+      *self.0.write().unwrap() = true;
+    }
+  }
+
+  #[test]
+  fn simple_set_get() {
+    let state = StateManager::new();
+    assert!(state.set(1u32));
+    assert_eq!(*state.get::<u32>(), 1);
+  }
+
+  #[test]
+  fn simple_set_get_unmanage() {
+    let state = StateManager::new();
+    assert!(state.set(1u32));
+    assert_eq!(*state.get::<u32>(), 1);
+    assert_eq!(state.unmanage::<u32>(), true);
+    assert_eq!(state.unmanage::<u32>(), false);
+    assert_eq!(state.try_get::<u32>(), None);
+    assert!(state.set(2u32));
+    assert_eq!(*state.get::<u32>(), 2);
+  }
+
+  #[test]
+  fn dst_set_get() {
+    let state = StateManager::new();
+    assert!(state.set::<[u32; 4]>([1, 2, 3, 4u32]));
+    assert_eq!(*state.get::<[u32; 4]>(), [1, 2, 3, 4]);
+  }
+
+  #[test]
+  fn set_get_remote() {
+    let state = Arc::new(StateManager::new());
+    let sate_ = Arc::clone(&state);
+    thread::spawn(move || {
+      sate_.set(10isize);
+    })
+    .join()
+    .unwrap();
+
+    assert_eq!(*state.get::<isize>(), 10);
+  }
+
+  #[test]
+  fn two_put_get() {
+    let state = StateManager::new();
+    assert!(state.set("Hello, world!".to_string()));
+
+    let s_old = state.get::<String>();
+    assert_eq!(*s_old, "Hello, world!");
+
+    assert!(!state.set::<String>("Bye bye!".into()));
+    assert_eq!(*state.get::<String>(), "Hello, world!");
+    assert_eq!(state.get::<String>(), s_old);
+  }
+
+  #[test]
+  fn many_puts_only_one_succeeds() {
+    let state = Arc::new(StateManager::new());
+    let mut threads = vec![];
+    for _ in 0..1000 {
+      let state_ = Arc::clone(&state);
+      threads.push(thread::spawn(move || state_.set(10i64)))
+    }
+
+    let results: Vec<bool> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+    assert_eq!(results.into_iter().filter(|&b| b).count(), 1);
+    assert_eq!(*state.get::<i64>(), 10);
+  }
+
+  // Ensure setting when already set doesn't cause a drop.
+  #[test]
+  fn test_no_drop_on_set() {
+    let state = StateManager::new();
+    let drop_flag = Arc::new(RwLock::new(false));
+    let dropping_struct = DroppingStruct(drop_flag.clone());
+
+    let _drop_flag_ignore = Arc::new(RwLock::new(false));
+    let _dropping_struct_ignore = DroppingStruct(_drop_flag_ignore.clone());
+
+    state.set::<DroppingStruct>(dropping_struct);
+    assert!(!state.set::<DroppingStruct>(_dropping_struct_ignore));
+    assert_eq!(*drop_flag.read().unwrap(), false);
+  }
+
+  // Ensure dropping a type_map drops its contents.
+  #[test]
+  fn drop_inners_on_drop() {
+    let drop_flag_a = Arc::new(RwLock::new(false));
+    let dropping_struct_a = DroppingStruct(drop_flag_a.clone());
+
+    let drop_flag_b = Arc::new(RwLock::new(false));
+    let dropping_struct_b = DroppingStructWrap(DroppingStruct(drop_flag_b.clone()));
+
+    {
+      let state = StateManager::new();
+      state.set(dropping_struct_a);
+      assert_eq!(*drop_flag_a.read().unwrap(), false);
+
+      state.set(dropping_struct_b);
+      assert_eq!(*drop_flag_a.read().unwrap(), false);
+      assert_eq!(*drop_flag_b.read().unwrap(), false);
+    }
+
+    assert_eq!(*drop_flag_a.read().unwrap(), true);
+    assert_eq!(*drop_flag_b.read().unwrap(), true);
   }
 }

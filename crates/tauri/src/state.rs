@@ -195,8 +195,8 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
-    assert_eq!(state.unmanage::<u32>(), true);
-    assert_eq!(state.unmanage::<u32>(), false);
+    assert!(state.unmanage::<u32>());
+    assert!(!state.unmanage::<u32>());
     assert_eq!(state.try_get::<u32>(), None);
     assert!(state.set(2u32));
     assert_eq!(*state.get::<u32>(), 2);
@@ -261,7 +261,7 @@ mod tests {
 
     state.set::<DroppingStruct>(dropping_struct);
     assert!(!state.set::<DroppingStruct>(_dropping_struct_ignore));
-    assert_eq!(*drop_flag.read().unwrap(), false);
+    assert!(!*drop_flag.read().unwrap());
   }
 
   // Ensure dropping a type_map drops its contents.
@@ -276,14 +276,14 @@ mod tests {
     {
       let state = StateManager::new();
       state.set(dropping_struct_a);
-      assert_eq!(*drop_flag_a.read().unwrap(), false);
+      assert!(!*drop_flag_a.read().unwrap());
 
       state.set(dropping_struct_b);
-      assert_eq!(*drop_flag_a.read().unwrap(), false);
-      assert_eq!(*drop_flag_b.read().unwrap(), false);
+      assert!(!*drop_flag_a.read().unwrap());
+      assert!(!*drop_flag_b.read().unwrap());
     }
 
-    assert_eq!(*drop_flag_a.read().unwrap(), true);
-    assert_eq!(*drop_flag_b.read().unwrap(), true);
+    assert!(*drop_flag_a.read().unwrap());
+    assert!(*drop_flag_b.read().unwrap());
   }
 }

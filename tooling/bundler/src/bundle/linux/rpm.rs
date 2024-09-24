@@ -28,7 +28,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let summary = settings.short_description().trim();
 
-  let rpm_name = crate::bundle::bundle_name_with_suffix(settings, release, "dmg");
+  let rpm_name = crate::bundle::bundle_name_with_suffix(settings, release, "rpm");
 
   let base_dir = settings.project_out_directory().join("bundle/rpm");
   let package_dir = base_dir.join(Path::new(&rpm_name).file_stem().unwrap());

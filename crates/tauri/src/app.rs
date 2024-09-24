@@ -693,12 +693,14 @@ macro_rules! shared_app_impl {
             let raw_hwnd = hwnd.0 as isize;
             let menu = window_menu.menu.clone();
             let _ = self.run_on_main_thread(move || {
-              let _ = menu.inner().set_theme_for_hwnd(
-                raw_hwnd,
-                theme
-                  .map(crate::menu::map_to_menu_theme)
-                  .unwrap_or(muda::MenuTheme::Auto),
-              );
+              let _ = unsafe {
+                menu.inner().set_theme_for_hwnd(
+                  raw_hwnd,
+                  theme
+                    .map(crate::menu::map_to_menu_theme)
+                    .unwrap_or(muda::MenuTheme::Auto),
+                )
+              };
             });
           };
         }

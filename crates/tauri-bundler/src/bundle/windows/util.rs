@@ -101,14 +101,11 @@ fn generate_alternative_url(url: &str) -> crate::Result<Option<(ureq::Agent, Str
     return Ok(None);
   }
 
-  let mirror_url = generate_mirror_url_from_template(url);
-  let cdn_url = generate_mirror_url_from_base(url)?;
-
-  Ok(
-    mirror_url
-      .or(cdn_url)
-      .map(|alternative_url| (ureq::AgentBuilder::new().build(), alternative_url)),
-  )
+  generate_mirror_url_from_template(url)
+    .or_else(|_| generate_mirror_url_from_base(url))
+    .map(|alt_url| {
+      alt_url.map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url))
+    })
 }
 
 fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {

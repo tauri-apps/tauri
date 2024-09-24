@@ -5,7 +5,7 @@
 
 use super::{app, icon::create_icns_file};
 use crate::{
-  bundle::{common::CommandExt, Bundle},
+  bundle::{common::CommandExt, settings::Arch, Bundle},
   PackageType, Settings,
 };
 
@@ -43,8 +43,15 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
     settings.product_name(),
     settings.version_string(),
     match settings.binary_arch() {
-      "x86_64" => "x64",
-      other => other,
+      Arch::X86_64 => "x64",
+      Arch::AArch64 => "aarch64",
+      Arch::Universal => "universal",
+      target => {
+        return Err(crate::Error::ArchError(format!(
+          "Unsupported architecture: {:?}",
+          target
+        )));
+      }
     }
   );
   let dmg_name = format!("{}.dmg", &package_base_name);

@@ -252,32 +252,30 @@ mod tests {
     assert!(generate_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
   }
 
-  #[test]
-  fn test_generate_mirror_url_correctly1() {
-    env::set_var(
-      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
-      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
-    );
-
-    let expected_url =
-      "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
-    assert_eq!(
-      generate_mirror_url_from_template(GITHUB_ASSET_URL),
-      Some(expected_url.to_string())
-    );
+  struct TestCase {
+    template: &'static str,
+    expected_url: &'static str,
   }
 
   #[test]
-  fn test_generate_mirror_url_correctly2() {
-    env::set_var(
-      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
-      "https://mirror.example.com/<asset>",
-    );
+  fn test_generate_mirror_url_correctly() {
+    let test_cases = vec![
+            TestCase {
+                template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+                expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
+            },
+            TestCase {
+                template: "https://mirror.example.com/<asset>",
+                expected_url: "https://mirror.example.com/wix311-binaries.zip",
+            },
+        ];
 
-    let expected_url = "https://mirror.example.com/wix311-binaries.zip";
-    assert_eq!(
-      generate_mirror_url_from_template(GITHUB_ASSET_URL),
-      Some(expected_url.to_string())
-    );
+    for case in test_cases {
+      env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template);
+      assert_eq!(
+        generate_mirror_url_from_template(GITHUB_ASSET_URL),
+        Some(case.expected_url.to_string())
+      );
+    }
   }
 }

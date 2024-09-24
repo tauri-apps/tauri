@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
+use super::{
+  get_profile, AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget,
+};
 use crate::CommandExt;
 
 use anyhow::Context;
@@ -291,6 +293,8 @@ fn build_command(
   config_features: Vec<String>,
   dev: bool,
 ) -> crate::Result<Command> {
+  let profile = get_profile(&options).to_owned();
+
   let runner = options.runner.unwrap_or_else(|| "cargo".into());
 
   if let Some(target) = &options.target {
@@ -305,8 +309,6 @@ fn build_command(
     args.extend(options.args);
   }
 
-  let has_custom_profile = args.contains(&"--profile".to_string());
-
   let mut features = config_features;
   if let Some(f) = options.features {
     features.extend(f);
@@ -316,15 +318,16 @@ fn build_command(
   // and `cargo build --release` same as `tauri build`
   // but for `tauri build --debug` we need to build the code
   // in `debug` profile and activate `custom-protocol` feature.
-  if !dev && options.debug && !has_custom_profile {
-    features.push("tauri/custom-protocol".into());
+  let custom_protocol_feat = "tauri/custom-protocol".to_string();
+  if !dev && (options.debug || profile == "debug") && !features.contains(&custom_protocol_feat) {
+    features.push(custom_protocol_feat);
   }
   if !features.is_empty() {
     args.push("--features".into());
     args.push(features.join(","));
   }
 
-  if !options.debug && !has_custom_profile {
+  if !options.debug && !args.contains(&"--profile".to_string()) {
     args.push("--release".into());
   }
 

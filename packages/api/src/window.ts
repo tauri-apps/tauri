@@ -1676,6 +1676,23 @@ class Window {
     })
   }
 
+  /**
+   * Set window theme, pass in `null` or `undefined` to follow system theme
+   *
+   * #### Platform-specific
+   *
+   * - **Linux / macOS**: Theme is app-wide and not specific to this window.
+   * - **iOS / Android:** Unsupported.
+   *
+   * @since 2.0.0
+   */
+  async setTheme(theme?: Theme | null): Promise<void> {
+    return invoke('plugin:window|set_theme', {
+      label: this.label,
+      value: theme
+    })
+  }
+
   // Listeners
 
   /**

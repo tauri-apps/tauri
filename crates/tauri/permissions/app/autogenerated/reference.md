@@ -122,6 +122,32 @@ Denies the name command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-set-app-theme`
+
+</td>
+<td>
+
+Enables the set_app_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-app-theme`
+
+</td>
+<td>
+
+Denies the set_app_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-tauri-version`
 
 </td>

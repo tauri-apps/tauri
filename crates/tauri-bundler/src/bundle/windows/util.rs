@@ -103,17 +103,17 @@ fn generate_alternative_url(url: &str) -> crate::Result<Option<(ureq::Agent, Str
 
   generate_mirror_url_from_template(url)
     .or_else(|_| generate_mirror_url_from_base(url))
-    .map(|alt_url| {
-      alt_url.map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url))
-    })
+    .map(|alt_url| alt_url.map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url)))
 }
 
 fn create_agent_and_url(url: &str) -> crate::Result<(ureq::Agent, String)> {
   generate_alternative_url(url).map(|alt_url| {
-    alt_url.unwrap_or_else(|| (
+    alt_url.unwrap_or_else(|| {
+      (
         ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
         url.to_owned(),
-      ))
+      )
+    })
   })
 }
 
@@ -236,14 +236,15 @@ mod tests {
   use super::generate_mirror_url_from_template;
   use std::env;
 
-  const URL: &str =
+  const GITHUB_ASSET_URL: &str =
     "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
+  const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
 
   #[test]
   fn test_generate_mirror_url_no_env_var() {
     env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
 
-    assert!(generate_mirror_url_from_template(URL).is_none());
+    assert!(generate_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
   }
 
   #[test]
@@ -253,8 +254,7 @@ mod tests {
       "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
     );
 
-    let url = "https://someotherwebsite.com/somefile.zip";
-    assert!(generate_mirror_url_from_template(url).is_none());
+    assert!(generate_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
   }
 
   #[test]
@@ -267,7 +267,7 @@ mod tests {
     let expected_url =
       "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
     assert_eq!(
-      generate_mirror_url_from_template(URL),
+      generate_mirror_url_from_template(GITHUB_ASSET_URL),
       Some(expected_url.to_string())
     );
   }
@@ -281,7 +281,7 @@ mod tests {
 
     let expected_url = "https://mirror.example.com/wix311-binaries.zip";
     assert_eq!(
-      generate_mirror_url_from_template(URL),
+      generate_mirror_url_from_template(GITHUB_ASSET_URL),
       Some(expected_url.to_string())
     );
   }

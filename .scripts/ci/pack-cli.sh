@@ -10,7 +10,7 @@ for o in outputs/*; do
   pushd "$o"
 
   chmod +x cargo-tauri*
-  cp ../../tooling/cli/LICENSE* ../../tooling/cli/README.md .
+  cp ../../crates/tauri-cli/LICENSE* ../../crates/tauri-cli/README.md .
 
   target=$(basename "$o" | cut -d. -f1)
   if grep -qE '(apple|windows)' <<< "$target"; then

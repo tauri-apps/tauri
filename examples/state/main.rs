@@ -4,80 +4,42 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{
-  collections::HashMap,
-  sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc, Mutex,
-  },
-};
+use std::sync::Mutex;
 
 use tauri::State;
 
-struct Counter(AtomicUsize);
-
-#[derive(Default)]
-struct Database(Arc<Mutex<HashMap<String, String>>>);
-
-struct Client;
-
-impl Client {
-  fn send(&self) {}
-}
-
-#[derive(Default)]
-struct Connection(Mutex<Option<Client>>);
+struct Counter(Mutex<usize>);
 
 #[tauri::command]
-fn connect(connection: State<'_, Connection>) {
-  *connection.0.lock().unwrap() = Some(Client {});
+fn increment(counter: State<'_, Counter>) -> usize {
+  let mut c = counter.0.lock().unwrap();
+  *c += 1;
+  *c
 }
 
 #[tauri::command]
-fn disconnect(connection: State<'_, Connection>) {
-  // drop the connection
-  *connection.0.lock().unwrap() = None;
+fn decrement(counter: State<'_, Counter>) -> usize {
+  let mut c = counter.0.lock().unwrap();
+  *c -= 1;
+  *c
 }
 
 #[tauri::command]
-fn connection_send(connection: State<'_, Connection>) {
-  connection
-    .0
-    .lock()
-    .unwrap()
-    .as_ref()
-    .expect("connection not initialize; use the `connect` command first")
-    .send();
+fn reset(counter: State<'_, Counter>) -> usize {
+  let mut c = counter.0.lock().unwrap();
+  *c = 0;
+  *c
 }
 
 #[tauri::command]
-fn increment_counter(counter: State<'_, Counter>) -> usize {
-  counter.0.fetch_add(1, Ordering::Relaxed) + 1
-}
-
-#[tauri::command]
-fn db_insert(key: String, value: String, db: State<'_, Database>) {
-  db.0.lock().unwrap().insert(key, value);
-}
-
-#[tauri::command]
-fn db_read(key: String, db: State<'_, Database>) -> Option<String> {
-  db.0.lock().unwrap().get(&key).cloned()
+fn get(counter: State<'_, Counter>) -> usize {
+  *counter.0.lock().unwrap()
 }
 
 fn main() {
   tauri::Builder::default()
-    .manage(Counter(AtomicUsize::new(0)))
-    .manage(Database(Default::default()))
-    .manage(Connection(Default::default()))
-    .invoke_handler(tauri::generate_handler![
-      increment_counter,
-      db_insert,
-      db_read,
-      connect,
-      disconnect,
-      connection_send
-    ])
+    .manage(Counter(Mutex::new(0)))
+    .invoke_handler(tauri::generate_handler![increment, decrement, reset, get])
     .run(tauri::generate_context!(
       "../../examples/state/tauri.conf.json"
     ))

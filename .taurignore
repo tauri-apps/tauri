@@ -1,0 +1,16 @@
+.changes
+.devcontainer
+.docker
+.github
+.scripts
+.vscode
+audits
+bench
+packages/api
+packages/cli
+crates/tauri-cli
+crates/tauri-bundler
+crates/tauri-driver
+crates/tauri-macos-sign
+crates/tauri-schema-generator
+crates/tests

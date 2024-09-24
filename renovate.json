@@ -15,7 +15,7 @@
     },
     {
       "enabled": true,
-      "paths": ["core/tauri/**"],
+      "paths": ["crates/tauri/**"],
       "groupName": "Tauri Core",
       "groupSlug": "allTauriCore",
       "commitMessagePrefix": "chore(deps)",
@@ -27,7 +27,7 @@
     },
     {
       "enabled": true,
-      "paths": ["core/tauri-build/**"],
+      "paths": ["crates/tauri-build/**"],
       "groupName": "Tauri Build",
       "groupSlug": "allTauriBuild",
       "commitMessagePrefix": "chore(deps)",
@@ -39,7 +39,7 @@
     },
     {
       "enabled": true,
-      "paths": ["core/tauri-codegen/**"],
+      "paths": ["crates/tauri-codegen/**"],
       "groupName": "Tauri Codegen",
       "groupSlug": "allTauriCodegen",
       "commitMessagePrefix": "chore(deps)",
@@ -50,7 +50,7 @@
     },
     {
       "enabled": true,
-      "paths": ["core/tauri-macros/**"],
+      "paths": ["crates/tauri-macros/**"],
       "groupName": "Tauri Macros",
       "groupSlug": "allTauriMacros",
       "commitMessagePrefix": "chore(deps)",
@@ -61,7 +61,7 @@
     },
     {
       "enabled": true,
-      "paths": ["core/tauri-utils/**"],
+      "paths": ["crates/tauri-utils/**"],
       "groupName": "Tauri Utils",
       "groupSlug": "allTauriUtils",
       "commitMessagePrefix": "chore(deps)",
@@ -72,7 +72,7 @@
     },
     {
       "enabled": true,
-      "paths": ["tooling/cli/**"],
+      "paths": ["crates/tauri-cli/**"],
       "groupName": "Tauri CLI",
       "groupSlug": "allTauriCLI",
       "commitMessagePrefix": "chore(deps)",
@@ -85,7 +85,7 @@
     },
     {
       "enabled": true,
-      "paths": ["tooling/bundler/**"],
+      "paths": ["crates/tauri-bundler/**"],
       "groupName": "Tauri Bundler",
       "groupSlug": "allTauriBundler",
       "commitMessagePrefix": "chore(deps)",
@@ -96,7 +96,18 @@
     },
     {
       "enabled": true,
-      "paths": ["tooling/cli/node"],
+      "paths": ["crates/tauri-macos-sign/**"],
+      "groupName": "Tauri macOSSign",
+      "groupSlug": "allTauriMacOSSign",
+      "commitMessagePrefix": "chore(deps)",
+      "lockFileMaintenance": {
+        "enabled": true
+      },
+      "rebaseConflictedPrs": false
+    },
+    {
+      "enabled": true,
+      "paths": ["packages/cli"],
       "groupName": "Tauri JS CLI",
       "groupSlug": "allTauriJSCLI",
       "commitMessagePrefix": "chore(deps)",
@@ -107,7 +118,7 @@
     },
     {
       "enabled": true,
-      "paths": ["tooling/api/**"],
+      "paths": ["packages/api/**"],
       "groupName": "Tauri API Definitions",
       "groupSlug": "allTauriAPIDefinitions",
       "commitMessagePrefix": "chore(deps)",

@@ -8,13 +8,12 @@ on:
   push:
     branches:
       - dev
-      - 1.x
   pull_request:
     paths:
       - '.github/workflows/test-cli-rs.yml'
-      - 'core/tauri-utils/**'
-      - 'tooling/bundler/**'
-      - 'tooling/cli/**'
+      - 'crates/tauri-utils/**'
+      - 'crates/tauri-bundler/**'
+      - 'crates/tauri-cli/**'
 
 env:
   RUST_BACKTRACE: 1
@@ -32,23 +31,14 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - {
-              target: x86_64-pc-windows-msvc,
-              os: windows-latest
-            }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest }
           - {
               target: aarch64-pc-windows-msvc,
               os: windows-latest,
               args: --no-default-features --features native-tls-vendored
             }
-          - {
-              target: x86_64-unknown-linux-gnu,
-              os: ubuntu-latest
-            }
-          - {
-              target: x86_64-apple-darwin,
-              os: macos-latest
-            }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest }
+          - { target: x86_64-apple-darwin, os: macos-latest }
 
     steps:
       - uses: actions/checkout@v4
@@ -62,11 +52,9 @@ jobs:
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: tooling/cli
 
       - name: test CLI
-        run: cargo test --manifest-path ./tooling/cli/Cargo.toml ${{ matrix.platform.args }}
+        run: cargo test --manifest-path ./crates/tauri-cli/Cargo.toml ${{ matrix.platform.args }}

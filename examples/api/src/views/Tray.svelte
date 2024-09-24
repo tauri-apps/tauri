@@ -48,8 +48,8 @@
     />
 
     <label>
+      <input type="checkbox" class="checkbox" bind:checked={menuOnLeftClick} />
       Menu on left click
-      <input type="checkbox" bind:checked={menuOnLeftClick} />
     </label>
   </div>
 
@@ -62,8 +62,8 @@
     />
 
     <label>
+      <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
       Icon as template
-      <input type="checkbox" bind:checked={iconAsTemplate} />
     </label>
   </div>
 

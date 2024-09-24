@@ -12,12 +12,11 @@ use serde::Serialize;
 use tauri::{
   ipc::Channel,
   webview::{PageLoadEvent, WebviewWindowBuilder},
-  App, AppHandle, Manager, RunEvent, Runtime, WebviewUrl,
+  App, Emitter, Listener, Runtime, WebviewUrl,
 };
+#[allow(unused)]
+use tauri::{Manager, RunEvent};
 use tauri_plugin_sample::{PingRequest, SampleExt};
-
-pub type SetupHook = Box<dyn FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send>;
-pub type OnEvent = Box<dyn FnMut(&AppHandle, RunEvent)>;
 
 #[derive(Clone, Serialize)]
 struct Reply {
@@ -27,7 +26,7 @@ struct Reply {
 #[cfg(target_os = "macos")]
 pub struct AppMenu<R: Runtime>(pub std::sync::Mutex<Option<tauri::menu::Menu<R>>>);
 
-#[cfg(desktop)]
+#[cfg(all(desktop, not(test)))]
 pub struct PopupMenu<R: Runtime>(tauri::menu::Menu<R>);
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -41,6 +40,11 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 ) {
   #[allow(unused_mut)]
   let mut builder = builder
+    .plugin(
+      tauri_plugin_log::Builder::default()
+        .level(log::LevelFilter::Info)
+        .build(),
+    )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(all(desktop, not(test)))]
@@ -70,7 +74,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
-          .content_protected(true)
           .menu(tauri::menu::Menu::default(app.handle())?);
       }
 
@@ -142,6 +145,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
     .invoke_handler(tauri::generate_handler![
       cmd::log_operation,
       cmd::perform_request,
+      cmd::echo
     ])
     .build(tauri::tauri_build_context!())
     .expect("error while building tauri application");

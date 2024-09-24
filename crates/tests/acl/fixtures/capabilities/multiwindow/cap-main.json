@@ -1,0 +1,20 @@
+{
+  "identifier": "run-app",
+  "description": "ap capability",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "fs:read",
+      "allow": [
+        {
+          "path": "$CONFIG/*"
+        }
+      ]
+    },
+    "fs:allow-app",
+    "fs:deny-home",
+    "fs:allow-read-resources",
+    "fs:allow-move-temp",
+    "fs:read-download-dir"
+  ]
+}

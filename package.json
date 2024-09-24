@@ -11,16 +11,19 @@
     "url": "https://github.com/tauri-apps/tauri.git"
   },
   "scripts": {
-    "format": "prettier --write . --config .prettierrc --ignore-path .prettierignore",
-    "format:check": "prettier --check . --config .prettierrc --ignore-path .prettierignore",
-    "postinstall": "husky install"
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "eslint:check": "pnpm run -r eslint:check",
+    "ts:check": "pnpm run -r ts:check",
+    "build": "pnpm run -r build",
+    "build:api": "pnpm run --filter \"@tauri-apps/api\" build",
+    "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
+    "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
+    "test": "pnpm run -r test",
+    "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "covector": "^0.9.0",
-    "husky": "^6.0.0",
-    "prettier": "^3.3.2"
+    "prettier": "^3.3.3"
   },
-  "dependencies": {
-    "typescript": "^5.4.5"
-  }
+  "packageManager": "pnpm@9.9.0"
 }

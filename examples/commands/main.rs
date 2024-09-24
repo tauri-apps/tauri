@@ -219,7 +219,7 @@ fn borrow_cmd_async(the_argument: &str) -> &str {
 
 #[command]
 fn raw_request(request: Request<'_>) -> Response {
-  println!("{:?}", request);
+  println!("{request:?}");
   Response::new(include_bytes!("./README.md").to_vec())
 }
 

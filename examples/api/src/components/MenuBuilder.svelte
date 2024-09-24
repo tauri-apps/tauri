@@ -42,7 +42,7 @@
 
   <div>
     {#each items as item}
-      <div class="flex flex-row gap-1">
+      <div class="flex flex-row gap-1 items-center">
         <div class={itemIcon(item)} />
         <p>{itemToString(item)}</p>
       </div>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -9,16 +9,11 @@
 
   <body>
     <h1>File Associations</h1>
-    <div id="files"></div>
+    <pre id="files"></pre>
 
     <script>
-      const d = document.getElementById('files')
-      d.textContent = window.openedUrls
-
-      window.onFileOpen = (files) => {
-        console.log(files)
-        d.textContent = files
-      }
+      const filesView = document.getElementById('files')
+      filesView.textContent = window.openedFiles.join('\n')
     </script>
   </body>
 </html>

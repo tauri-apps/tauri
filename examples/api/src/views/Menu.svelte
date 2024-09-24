@@ -40,8 +40,10 @@
   }
 </script>
 
-<div>
+<div class="grid gap-4">
   <MenuBuilder bind:items on:itemClick={onItemClick} />
-  <button class="btn" on:click={create}>Create menu</button>
-  <button class="btn" on:click={popup}>Popup</button>
+  <div>
+    <button class="btn" on:click={create}>Create menu</button>
+    <button class="btn" on:click={popup}>Popup</button>
+  </div>
 </div>

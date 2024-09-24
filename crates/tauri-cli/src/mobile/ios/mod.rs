@@ -447,15 +447,9 @@ pub fn synchronize_project_config(
     .find(|l| l.comment.contains("_iOS"))
   {
     for build_configuration_ref in xc_configuration_list.build_configurations {
-      pbxproj.set_build_settings(
-        &build_configuration_ref.id,
-        "CODE_SIGN_STYLE",
-        if manual_signing {
-          "Manual"
-        } else {
-          "Automatic"
-        },
-      );
+      if manual_signing {
+        pbxproj.set_build_settings(&build_configuration_ref.id, "CODE_SIGN_STYLE", "Manual");
+      }
 
       if let Some(team) = config.development_team() {
         pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", team);

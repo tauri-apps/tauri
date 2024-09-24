@@ -113,9 +113,9 @@ fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
 }
 
 pub fn download(url: &str) -> crate::Result<Vec<u8>> {
-  log::info!(action = "Downloading"; "{}", url);
-
   let (agent, final_url) = create_agent_and_url(url);
+
+  log::info!(action = "Downloading"; "{}", url);
 
   let response = agent.get(&final_url).call().map_err(Box::new)?;
   let mut bytes = Vec::new();

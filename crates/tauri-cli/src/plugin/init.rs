@@ -56,6 +56,9 @@ pub struct Options {
   #[clap(long)]
   #[clap(default_value_t = PluginIosFramework::default())]
   pub(crate) ios_framework: PluginIosFramework,
+  /// Generate github workflows
+  #[clap(long)]
+  pub(crate) github_workflows: bool,
 
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(long, hide(true))]
@@ -193,6 +196,7 @@ pub fn command(mut options: Options) -> Result<()> {
                 return Ok(None);
               }
             }
+            ".github" if !options.github_workflows => return Ok(None),
             "android" => {
               if options.android || options.mobile {
                 return generate_android_out_file(

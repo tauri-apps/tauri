@@ -69,7 +69,7 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
   Ok(file_path)
 }
 
-fn generate_mirror_url_from_template(github_url: &str) -> Option<String> {
+fn generate_github_mirror_url_from_template(github_url: &str) -> Option<String> {
   std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
     .ok()
     .and_then(|template| {
@@ -85,7 +85,7 @@ fn generate_mirror_url_from_template(github_url: &str) -> Option<String> {
     })
 }
 
-fn generate_mirror_url_from_base(github_url: &str) -> Option<String> {
+fn generate_github_mirror_url_from_base(github_url: &str) -> Option<String> {
   std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR")
     .ok()
     .and_then(|cdn| Url::parse(&cdn).ok())
@@ -95,18 +95,18 @@ fn generate_mirror_url_from_base(github_url: &str) -> Option<String> {
     })
 }
 
-fn generate_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
+fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
   if !url.starts_with("https://github.com/") {
     return None;
   }
 
-  generate_mirror_url_from_template(url)
-    .or_else(|| generate_mirror_url_from_base(url))
+  generate_github_mirror_url_from_template(url)
+    .or_else(|| generate_github_mirror_url_from_base(url))
     .map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url))
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
-  generate_alternative_url(url).unwrap_or((
+  generate_github_alternative_url(url).unwrap_or((
     ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
     url.to_owned(),
   ))
@@ -228,7 +228,7 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
 
 #[cfg(test)]
 mod tests {
-  use super::generate_mirror_url_from_template;
+  use super::generate_github_mirror_url_from_template;
   use std::env;
 
   const GITHUB_ASSET_URL: &str =
@@ -239,7 +239,7 @@ mod tests {
   fn test_generate_mirror_url_no_env_var() {
     env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
 
-    assert!(generate_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
+    assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
   }
 
   #[test]
@@ -249,7 +249,7 @@ mod tests {
       "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
     );
 
-    assert!(generate_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
+    assert!(generate_github_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
   }
 
   struct TestCase {
@@ -273,7 +273,7 @@ mod tests {
     for case in test_cases {
       env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template);
       assert_eq!(
-        generate_mirror_url_from_template(GITHUB_ASSET_URL),
+        generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
         Some(case.expected_url.to_string())
       );
     }

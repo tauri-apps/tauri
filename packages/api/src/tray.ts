@@ -29,6 +29,23 @@ export interface TrayIconClickEvent {
   button_state: MouseButtonState
 }
 
+/** A double click happened on the tray icon. **Windows Only** */
+export interface TrayIconDoubleClickEvent {
+  /** Id of the tray icon which triggered this event. */
+  id: string
+  /** Physical X Position of the click the triggered this event. */
+  x: number
+  /** Physical Y Position of the click the triggered this event. */
+  y: number
+  /** Position and size of the tray icon. */
+  rect: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
+  /** Mouse button that triggered this event. */
+  button: MouseButton
+}
+
 /** The mouse entered the tray icon region. */
 export interface TrayIconEnterEvent {
   /** Id of the tray icon which triggered this event. */
@@ -84,6 +101,7 @@ export interface TrayIconLeaveEvent {
  */
 export type TrayIconEvent =
   | { click: TrayIconClickEvent }
+  | { doubleClick: TrayIconDoubleClickEvent }
   | { enter: TrayIconEnterEvent }
   | { move: TrayIconMoveEvent }
   | { leave: TrayIconLeaveEvent }
@@ -214,6 +232,11 @@ export class TrayIcon extends Resource {
           e.click.rect.position = mapPosition(e.click.rect.position)
           // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.click.rect.size = mapSize(e.click.rect.size)
+        } else if ('doubleClick' in e) {
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
+          e.doubleClick.rect.position = mapPosition(e.doubleClick.rect.position)
+          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
+          e.doubleClick.rect.size = mapSize(e.doubleClick.rect.size)
         } else if ('enter' in e) {
           // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
           e.enter.rect.position = mapPosition(e.enter.rect.position)

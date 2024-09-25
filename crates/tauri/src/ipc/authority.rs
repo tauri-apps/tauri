@@ -660,16 +660,16 @@ impl<T: ScopeObjectMatch> CommandScope<T> {
   /// #   }
   /// # }
   /// #
-  /// # fn do_work(_: String) -> Result<String, ()> {
+  /// # fn do_work(_: String) -> Result<String, &'static str> {
   /// #   Ok("Output".into())
   /// # }
   /// #
   /// #[command]
-  /// fn my_command(scope: CommandScope<Scope>, input: String) -> Result<String, ()> {
+  /// fn my_command(scope: CommandScope<Scope>, input: String) -> Result<String, &'static str> {
   ///   if scope.matches(&input) {
   ///     do_work(input)
   ///   } else {
-  ///     Err(())
+  ///     Err("Scope didn't match input")
   ///   }
   /// }
   /// ```

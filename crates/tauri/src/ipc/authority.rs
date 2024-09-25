@@ -628,8 +628,9 @@ impl<T: ScopeObject> CommandScope<T> {
 impl<T: ScopeObjectMatch> CommandScope<T> {
   /// Ensure all deny scopes were not matched and any allow scopes were.
   ///
-  /// This **WILL** return `true` if the allow scopes are empty and the deny scopes did not trigger.
-  /// If you require at least 1 allow scope, then ensure it is not empty before calling this method.
+  /// This **WILL** return `true` if the allow scopes are empty and the deny
+  /// scopes did not trigger. If you require at least one allow scope, then
+  /// ensure the allow scopes are not empty before calling this method.
   ///
   /// ```
   /// # use tauri::ipc::CommandScope;
@@ -659,17 +660,21 @@ impl<T: ScopeObjectMatch> CommandScope<T> {
   /// #   }
   /// # }
   /// #
+  /// # fn do_work(_: String) -> Result<String, ()> {
+  /// #   Ok("Output".into())
+  /// # }
+  /// #
   /// #[command]
   /// fn my_command(scope: CommandScope<Scope>, input: String) -> Result<String, ()> {
   ///   if scope.matches(&input) {
-  ///     Ok("Ok".into())
+  ///     do_work(input)
   ///   } else {
   ///     Err(())
   ///   }
   /// }
   /// ```
   pub fn matches(&self, input: &T::Input) -> bool {
-    // first make sure the text doesn't match any existing deny scope
+    // first make sure the input doesn't match any existing deny scope
     if self.deny.iter().any(|s| s.matches(input)) {
       return false;
     }

@@ -457,7 +457,7 @@ Section WebView2
     DetailPrint "$(webview2Downloading)"
     NSISdl::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
     Pop $0
-    ${If} $0 == 0
+    ${If} $0 == "success"
       DetailPrint "$(webview2DownloadSuccess)"
     ${Else}
       DetailPrint "$(webview2DownloadError)"

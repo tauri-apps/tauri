@@ -41,13 +41,13 @@ export type TrayIconEvent<T extends TrayIconEventType = TrayIconEventType> = {
       /** Mouse button that triggered this event. */
       button: MouseButton
     }
-  : {}) &
+  : never) &
   (T extends 'Click'
     ? {
         /** Mouse button state when this event was triggered. */
         buttonState: MouseButtonState
       }
-    : {})
+    : never)
 
 /**
  * Tray icon types and utilities.
@@ -170,16 +170,30 @@ export class TrayIcon extends Resource {
     if (options?.action) {
       const action = options.action
       handler.onmessage = (e) => {
-        e.rect.position = new PhysicalPosition(
-          e.rect.position.x,
-          e.rect.position.y
-        )
-        e.rect.size = new PhysicalSize(
-          // @ts-expect-error `e.rect.size` is `Position::Physical` enum variant in Rust
-          e.rect.size.Physical.height,
-          // @ts-expect-error `e.rect.size` is `Position::Physical` enum variant in Rust
-          e.rect.size.Physical.width
-        )
+        if (
+          'Physical' in e.rect.position &&
+          e.rect.position.Physical &&
+          typeof e.rect.position.Physical === 'object' &&
+          'x' in e.rect.position.Physical &&
+          'y' in e.rect.position.Physical
+        ) {
+          e.rect.position = new PhysicalPosition(
+            e.rect.position.Physical.x as number,
+            e.rect.position.Physical.y as number
+          )
+        }
+        if (
+          'Physical' in e.rect.size &&
+          e.rect.size.Physical &&
+          typeof e.rect.size.Physical === 'object' &&
+          'x' in e.rect.size.Physical &&
+          'y' in e.rect.size.Physical
+        ) {
+          e.rect.size = new PhysicalSize(
+            e.rect.size.Physical.x as number,
+            e.rect.size.Physical.y as number
+          )
+        }
         e.position = new PhysicalPosition(e.position.x, e.position.y)
 
         action(e)

@@ -625,6 +625,23 @@ impl<T: ScopeObject> CommandScope<T> {
   }
 }
 
+impl<T: ScopeObjectMatch> CommandScope<T> {
+  /// Ensure all deny scopes were not matched and any allow scopes were.
+  pub fn is_matched(&self, input: &T::Input) -> bool {
+    // first make sure the text doesn't match any existing deny scope
+    if self.deny.iter().any(|s| s.matches(input)) {
+      return false;
+    }
+
+    // if there are allow scopes, ensure the input matches at least 1
+    if self.allow.is_empty() {
+      true
+    } else {
+      self.allow.iter().any(|s| s.matches(input))
+    }
+  }
+}
+
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
@@ -727,6 +744,17 @@ impl<T: Send + Sync + Debug + DeserializeOwned + 'static> ScopeObject for T {
   fn deserialize<R: Runtime>(_app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error> {
     serde_json::from_value(raw.into())
   }
+}
+
+/// A [`ScopeObject`] whose validation can be represented as a `bool`.
+pub trait ScopeObjectMatch: ScopeObject {
+  /// The type of input expected to validate against the scope.
+  ///
+  /// This will be borrowed, so if you want to match on a `&str` this type should be `str`.
+  type Input: ?Sized;
+
+  /// Check if the input matches against the scope.
+  fn matches(&self, input: &Self::Input) -> bool;
 }
 
 impl ScopeManager {

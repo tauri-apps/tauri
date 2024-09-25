@@ -29,7 +29,7 @@ pub(crate) mod protocol;
 
 pub use authority::{
   CapabilityBuilder, CommandScope, GlobalScope, Origin, RuntimeAuthority, RuntimeCapability,
-  ScopeObject, ScopeValue,
+  ScopeObject, ScopeObjectMatch, ScopeValue,
 };
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{private, CommandArg, CommandItem};

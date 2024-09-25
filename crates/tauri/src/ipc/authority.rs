@@ -627,6 +627,47 @@ impl<T: ScopeObject> CommandScope<T> {
 
 impl<T: ScopeObjectMatch> CommandScope<T> {
   /// Ensure all deny scopes were not matched and any allow scopes were.
+  ///
+  /// This **WILL** return `true` if the allow scopes are empty and the deny scopes did not trigger.
+  /// If you require at least 1 allow scope, then ensure it is not empty before calling this method.
+  ///
+  /// ```
+  /// # use tauri::ipc::CommandScope;
+  /// # fn command(scope: CommandScope<()>) -> Result<(), &'static str> {
+  /// if scope.allows().is_empty() {
+  ///   return Err("you need to specify at least 1 allow scope!");
+  /// }
+  /// # Ok(())
+  /// # }
+  /// ```
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// # use serde::{Serialize, Deserialize};
+  /// # use url::Url;
+  /// # use tauri::{ipc::{CommandScope, ScopeObjectMatch}, command};
+  /// #
+  /// #[derive(Debug, Clone, Serialize, Deserialize)]
+  /// # pub struct Scope;
+  /// #
+  /// # impl ScopeObjectMatch for Scope {
+  /// #   type Input = str;
+  /// #
+  /// #   fn matches(&self, input: &str) -> bool {
+  /// #     true
+  /// #   }
+  /// # }
+  /// #
+  /// #[command]
+  /// fn my_command(scope: CommandScope<Scope>, input: String) -> Result<String, ()> {
+  ///   if scope.matches(&input) {
+  ///     Ok("Ok".into())
+  ///   } else {
+  ///     Err(())
+  ///   }
+  /// }
+  /// ```
   pub fn matches(&self, input: &T::Input) -> bool {
     // first make sure the text doesn't match any existing deny scope
     if self.deny.iter().any(|s| s.matches(input)) {
@@ -747,6 +788,40 @@ impl<T: Send + Sync + Debug + DeserializeOwned + 'static> ScopeObject for T {
 }
 
 /// A [`ScopeObject`] whose validation can be represented as a `bool`.
+///
+/// # Example
+///
+/// ```
+/// # use serde::{Deserialize, Serialize};
+/// # use tauri::{ipc::ScopeObjectMatch, Url};
+/// #
+/// #[derive(Debug, Clone, Serialize, Deserialize)]
+/// #[serde(rename_all = "camelCase")]
+/// pub enum Scope {
+///   Domain(Url),
+///   StartsWith(String),
+/// }
+///
+/// impl ScopeObjectMatch for Scope {
+///   type Input = str;
+///
+///   fn matches(&self, input: &str) -> bool {
+///     match self {
+///       Scope::Domain(url) => {
+///         let parsed: Url = match input.parse() {
+///           Ok(parsed) => parsed,
+///           Err(_) => return false,
+///         };
+///
+///         let domain = parsed.domain();
+///
+///         domain.is_some() && domain == url.domain()
+///       }
+///       Scope::StartsWith(start) => input.starts_with(start),
+///     }
+///   }
+/// }
+/// ```
 pub trait ScopeObjectMatch: ScopeObject {
   /// The type of input expected to validate against the scope.
   ///

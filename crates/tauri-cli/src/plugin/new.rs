@@ -37,6 +37,9 @@ pub struct Options {
   #[clap(long)]
   #[clap(default_value_t = PluginIosFramework::default())]
   pub(crate) ios_framework: PluginIosFramework,
+  /// Generate github workflows
+  #[clap(long)]
+  github_workflows: bool,
 
   /// Initializes a Tauri core plugin (internal usage)
   #[clap(long, hide(true))]
@@ -58,6 +61,7 @@ impl From<Options> for super::init::Options {
       ios: o.ios,
       mobile: o.mobile,
       ios_framework: o.ios_framework,
+      github_workflows: o.github_workflows,
 
       tauri: o.tauri,
       tauri_path: o.tauri_path,

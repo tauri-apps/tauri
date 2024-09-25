@@ -186,12 +186,12 @@ export class TrayIcon extends Resource {
           'Physical' in e.rect.size &&
           e.rect.size.Physical &&
           typeof e.rect.size.Physical === 'object' &&
-          'x' in e.rect.size.Physical &&
-          'y' in e.rect.size.Physical
+          'width' in e.rect.size.Physical &&
+          'height' in e.rect.size.Physical
         ) {
           e.rect.size = new PhysicalSize(
-            e.rect.size.Physical.x as number,
-            e.rect.size.Physical.y as number
+            e.rect.size.Physical.width as number,
+            e.rect.size.Physical.height as number
           )
         }
         e.position = new PhysicalPosition(e.position.x, e.position.y)

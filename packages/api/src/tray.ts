@@ -16,15 +16,7 @@ export type TrayIconEventType =
   | 'Move'
   | 'Leave'
 
-/**
- * Describes a tray icon event.
- *
- * #### Platform-specific:
- *
- * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
- * the icon will still show a context menu on right click.
- */
-export type TrayIconEvent<T extends TrayIconEventType = TrayIconEventType> = {
+export type TrayIconEventBase<T extends TrayIconEventType> = {
   /** The tray icon event type */
   type: T
   /** Id of the tray icon which triggered this event. */
@@ -36,18 +28,29 @@ export type TrayIconEvent<T extends TrayIconEventType = TrayIconEventType> = {
     position: PhysicalPosition
     size: PhysicalSize
   }
-} & (T extends 'Click' | 'DoubleClick'
-  ? {
-      /** Mouse button that triggered this event. */
-      button: MouseButton
-    }
-  : never) &
-  (T extends 'Click'
-    ? {
-        /** Mouse button state when this event was triggered. */
-        buttonState: MouseButtonState
-      }
-    : never)
+}
+
+export type TrayIconClickEvent = {
+  /** Mouse button that triggered this event. */
+  button: MouseButton
+  /** Mouse button state when this event was triggered. */
+  buttonState: MouseButtonState
+}
+
+/**
+ * Describes a tray icon event.
+ *
+ * #### Platform-specific:
+ *
+ * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
+ * the icon will still show a context menu on right click.
+ */
+export type TrayIconEvent =
+  | (TrayIconEventBase<'Click'> & TrayIconClickEvent)
+  | (TrayIconEventBase<'DoubleClick'> & Omit<TrayIconClickEvent, 'buttonState'>)
+  | TrayIconEventBase<'Enter'>
+  | TrayIconEventBase<'Move'>
+  | TrayIconEventBase<'Leave'>
 
 /**
  * Tray icon types and utilities.

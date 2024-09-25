@@ -75,7 +75,7 @@ impl From<tray_icon::MouseButton> for MouseButton {
 /// - **Linux**: Unsupported. The event is not emmited even though the icon is shown
 ///   and will still show a context menu on right click.
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(tag = "type")]
 #[non_exhaustive]
 pub enum TrayIconEvent {
   /// A click happened on the tray icon.
@@ -561,5 +561,49 @@ impl<R: Runtime> TrayIcon<R> {
 impl<R: Runtime> Resource for TrayIcon<R> {
   fn close(self: std::sync::Arc<Self>) {
     self.app_handle.remove_tray_by_id(&self.id);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn tray_event_json_serialization() {
+    use super::*;
+    let event = TrayIconEvent::Click {
+      button: MouseButton::Left,
+      button_state: MouseButtonState::Down,
+      id: TrayIconId::new("id"),
+      position: crate::PhysicalPosition::default(),
+      rect: Rect::default(),
+    };
+
+    let value = serde_json::to_value(&event).unwrap();
+    assert_eq!(
+      value,
+      serde_json::json!({
+          "type": "Click",
+          "button": "Left",
+          "buttonState": "Down",
+          "id": "id",
+          "position": {
+              "x": 0.0,
+              "y": 0.0,
+          },
+          "rect": {
+              "size": {
+                  "Logical": {
+                      "width": 0.0,
+                      "height": 0.0,
+                  }
+              },
+              "position": {
+                  "Logical": {
+                      "x": 0.0,
+                      "y": 0.0,
+                  }
+              },
+          }
+      })
+    )
   }
 }

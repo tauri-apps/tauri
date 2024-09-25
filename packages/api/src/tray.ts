@@ -9,87 +9,12 @@ import { PhysicalPosition, PhysicalSize } from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'
 export type MouseButton = 'Left' | 'Right' | 'Middle'
-
-/** A click happened on the tray icon. */
-export interface TrayIconClickEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-  /** Mouse button that triggered this event. */
-  button: MouseButton
-  /** Mouse button state when this event was triggered. */
-  buttonState: MouseButtonState
-}
-
-/** A double click happened on the tray icon. **Windows Only** */
-export interface TrayIconDoubleClickEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-  /** Mouse button that triggered this event. */
-  button: MouseButton
-}
-
-/** The mouse entered the tray icon region. */
-export interface TrayIconEnterEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-}
-
-/** The mouse moved over the tray icon region. */
-export interface TrayIconMoveEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-}
-
-/** The mouse left the tray icon region. */
-export interface TrayIconLeaveEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-}
+export type TrayIconEventType =
+  | 'Click'
+  | 'DoubleClick'
+  | 'Enter'
+  | 'Move'
+  | 'Leave'
 
 /**
  * Describes a tray icon event.
@@ -99,12 +24,30 @@ export interface TrayIconLeaveEvent {
  * - **Linux**: Unsupported. The event is not emitted even though the icon is shown,
  * the icon will still show a context menu on right click.
  */
-export type TrayIconEvent =
-  | { click: TrayIconClickEvent }
-  | { doubleClick: TrayIconDoubleClickEvent }
-  | { enter: TrayIconEnterEvent }
-  | { move: TrayIconMoveEvent }
-  | { leave: TrayIconLeaveEvent }
+export type TrayIconEvent<T extends TrayIconEventType = TrayIconEventType> = {
+  /** The tray icon event type */
+  type: T
+  /** Id of the tray icon which triggered this event. */
+  id: string
+  /** Physical position of the click the triggered this event. */
+  position: PhysicalPosition
+  /** Position and size of the tray icon. */
+  rect: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
+} & (T extends 'Click' | 'DoubleClick'
+  ? {
+      /** Mouse button that triggered this event. */
+      button: MouseButton
+    }
+  : {}) &
+  (T extends 'Click'
+    ? {
+        /** Mouse button state when this event was triggered. */
+        buttonState: MouseButtonState
+      }
+    : {})
 
 /**
  * Tray icon types and utilities.
@@ -227,32 +170,18 @@ export class TrayIcon extends Resource {
     if (options?.action) {
       const action = options.action
       handler.onmessage = (e) => {
-        if ('click' in e) {
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.click.rect.position = mapPosition(e.click.rect.position)
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.click.rect.size = mapSize(e.click.rect.size)
-        } else if ('doubleClick' in e) {
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.doubleClick.rect.position = mapPosition(e.doubleClick.rect.position)
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.doubleClick.rect.size = mapSize(e.doubleClick.rect.size)
-        } else if ('enter' in e) {
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.enter.rect.position = mapPosition(e.enter.rect.position)
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.enter.rect.size = mapSize(e.enter.rect.size)
-        } else if ('move' in e) {
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.move.rect.position = mapPosition(e.move.rect.position)
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.move.rect.size = mapSize(e.move.rect.size)
-        } else if ('leave' in e) {
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.leave.rect.position = mapPosition(e.leave.rect.position)
-          // @ts-expect-error `TrayIconEvent` doesn't quite match the value yet so we reconstruct the incorrect fields
-          e.leave.rect.size = mapSize(e.leave.rect.size)
-        }
+        e.rect.position = new PhysicalPosition(
+          e.rect.position.x,
+          e.rect.position.y
+        )
+        e.rect.size = new PhysicalSize(
+          // @ts-expect-error `e.rect.size` is `Position::Physical` enum variant in Rust
+          e.rect.size.Physical.height,
+          // @ts-expect-error `e.rect.size` is `Position::Physical` enum variant in Rust
+          e.rect.size.Physical.width
+        )
+        e.position = new PhysicalPosition(e.position.x, e.position.y)
+
         action(e)
       }
       delete options.action
@@ -356,15 +285,4 @@ export class TrayIcon extends Resource {
       onLeft
     })
   }
-}
-
-function mapPosition(pos: {
-  Physical: { x: number; y: number }
-}): PhysicalPosition {
-  return new PhysicalPosition(pos.Physical.x, pos.Physical.y)
-}
-function mapSize(pos: {
-  Physical: { width: number; height: number }
-}): PhysicalSize {
-  return new PhysicalSize(pos.Physical.width, pos.Physical.height)
 }

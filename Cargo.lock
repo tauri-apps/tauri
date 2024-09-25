@@ -8189,9 +8189,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.18.0"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f1730884cee088bb1dc1570c0a8b70a59e740ee780563407fd249e3e11ef26ff"
+checksum = "533fc2d4105e0e3d96ce1c71f2d308c9fbbe2ef9c587cab63dd627ab5bde218f"
 dependencies = [
  "core-graphics 0.24.0",
  "crossbeam-channel",

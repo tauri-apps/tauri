@@ -627,7 +627,7 @@ impl<T: ScopeObject> CommandScope<T> {
 
 impl<T: ScopeObjectMatch> CommandScope<T> {
   /// Ensure all deny scopes were not matched and any allow scopes were.
-  pub fn is_matched(&self, input: &T::Input) -> bool {
+  pub fn matches(&self, input: &T::Input) -> bool {
     // first make sure the text doesn't match any existing deny scope
     if self.deny.iter().any(|s| s.matches(input)) {
       return false;

@@ -60,12 +60,10 @@ export type TrayIconEvent =
 type RustTrayIconEvent = Omit<TrayIconEvent, 'rect'> & {
   rect: {
     position: {
-      Physical?: { x: number; y: number }
-      Logical?: { x: number; y: number }
+      Physical: { x: number; y: number }
     }
     size: {
-      Physical?: { width: number; height: number }
-      Logical?: { width: number; height: number }
+      Physical: { width: number; height: number }
     }
   }
 }
@@ -297,41 +295,16 @@ export class TrayIcon extends Resource {
 function mapEvent(e: RustTrayIconEvent): TrayIconEvent {
   const out = e as unknown as TrayIconEvent
 
-  // `e.position` is a `PhsyicalPosition` struct on Rust side and gets serialized into `{ x: number, y: number }`
-  // but we need it to be an instance of `PhysicalPosition` JS class
   out.position = new PhysicalPosition(e.position.x, e.position.y)
 
-  // `e.rect.position` is a `Position` enum on Rust side and gets serialized into
-  // `{ "Physical": { x: number, y: number } }` or
-  // `{ "Logical": { x: number, y: number } }`
-  // but we need it to be an instance of `PhysicalPosition` or `LogicalPosition` JS class
-  if (e.rect.position.Physical) {
-    out.rect.position = new PhysicalPosition(
-      e.rect.position.Physical.x as number,
-      e.rect.position.Physical.y as number
-    )
-  } else if (e.rect.position.Logical) {
-    out.rect.position = new LogicalPosition(
-      e.rect.position.Logical.x as number,
-      e.rect.position.Logical.y as number
-    )
-  }
-
-  // `e.rect.size` is a `Size` enum on Rust side and gets serialized into
-  // `{ "Physical": { width: number, height: number } }` or
-  // `{ "Logical": { width: number, height: number } }`
-  // but we need it to be an instance of `PhysicalSize` or `LogicalSize` JS class
-  if (e.rect.size.Physical) {
-    out.rect.size = new PhysicalSize(
-      e.rect.size.Physical.width as number,
-      e.rect.size.Physical.height as number
-    )
-  } else if (e.rect.size.Logical) {
-    out.rect.size = new LogicalSize(
-      e.rect.size.Logical.width as number,
-      e.rect.size.Logical.height as number
-    )
-  }
+  out.rect.position = new PhysicalPosition(
+    e.rect.position.Physical.x,
+    e.rect.position.Physical.y
+  )
+  out.rect.size = new PhysicalSize(
+    e.rect.size.Physical.width,
+    e.rect.size.Physical.height
+  )
 
   return out
 }

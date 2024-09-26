@@ -568,13 +568,18 @@ impl<R: Runtime> Resource for TrayIcon<R> {
 mod tests {
   #[test]
   fn tray_event_json_serialization() {
+    // NOTE: if this is test is ever changed, you probably need to change `TrayIconEvent` in JS as well
+
     use super::*;
     let event = TrayIconEvent::Click {
       button: MouseButton::Left,
       button_state: MouseButtonState::Down,
       id: TrayIconId::new("id"),
       position: crate::PhysicalPosition::default(),
-      rect: Rect::default(),
+      rect: crate::Rect {
+        position: tray_icon::Rect::default().position.into(),
+        size: tray_icon::Rect::default().size.into(),
+      },
     };
 
     let value = serde_json::to_value(&event).unwrap();
@@ -591,19 +596,19 @@ mod tests {
           },
           "rect": {
               "size": {
-                  "Logical": {
+                  "Physical": {
                       "width": 0.0,
                       "height": 0.0,
                   }
               },
               "position": {
-                  "Logical": {
+                  "Physical": {
                       "x": 0.0,
                       "y": 0.0,
                   }
               },
           }
       })
-    )
+    );
   }
 }

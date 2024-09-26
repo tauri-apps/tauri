@@ -26,7 +26,7 @@ impl super::WindowExt for tao::window::Window {
         )
       };
       unsafe { sheet.setAlphaValue(0.5) };
-      ns_window.beginSheet_completionHandler(sheet, None)
+      ns_window.beginSheet_completionHandler(&sheet, None)
     } else if let Some(attached) = unsafe { ns_window.attachedSheet() } {
       unsafe { ns_window.endSheet(&attached) };
     }

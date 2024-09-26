@@ -597,14 +597,14 @@ mod tests {
           "rect": {
               "size": {
                   "Physical": {
-                      "width": 0.0,
-                      "height": 0.0,
+                      "width": 0,
+                      "height": 0,
                   }
               },
               "position": {
                   "Physical": {
-                      "x": 0.0,
-                      "y": 0.0,
+                      "x": 0,
+                      "y": 0,
                   }
               },
           }

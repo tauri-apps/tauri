@@ -5,12 +5,7 @@
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
 import { Image, transformImage } from './image'
-import {
-  LogicalPosition,
-  LogicalSize,
-  PhysicalPosition,
-  PhysicalSize
-} from './dpi'
+import { PhysicalPosition, PhysicalSize } from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'
 export type MouseButton = 'Left' | 'Right' | 'Middle'

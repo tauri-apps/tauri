@@ -30,8 +30,8 @@ export type TrayIconEventBase<T extends TrayIconEventType> = {
   position: PhysicalPosition
   /** Position and size of the tray icon. */
   rect: {
-    position: PhysicalPosition | LogicalPosition
-    size: PhysicalSize | LogicalSize
+    position: PhysicalPosition
+    size: PhysicalSize
   }
 }
 

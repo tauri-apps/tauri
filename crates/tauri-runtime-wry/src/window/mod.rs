@@ -21,16 +21,14 @@ pub trait WindowExt {
   /// ## Platform-specific:
   ///
   /// - **Android / iOS**: Unsupported.
-  fn set_enabled(&self, #[allow(unused)] enabled: bool) {}
+  fn set_enabled(&self, enabled: bool);
 
   /// Whether the window is enabled or disabled.
   ///
   /// ## Platform-specific:
   ///
   /// - **Android / iOS**: Unsupported, always returns `true`.
-  fn is_enabled(&self) -> bool {
-    true
-  }
+  fn is_enabled(&self) -> bool;
 
   /// Center the window
   ///
@@ -48,6 +46,14 @@ pub trait WindowExt {
       std::sync::Arc<tao::window::Window>,
     >,
   );
+}
+
+#[cfg(mobile)]
+impl WindowExt for tao::window::Window {
+  fn set_enabled(&self, _: bool) {}
+  fn is_enabled(&self) -> bool {
+    true
+  }
 }
 
 pub fn calculate_window_center_position(

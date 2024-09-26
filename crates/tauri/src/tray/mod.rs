@@ -568,7 +568,7 @@ impl<R: Runtime> Resource for TrayIcon<R> {
 mod tests {
   #[test]
   fn tray_event_json_serialization() {
-    // NOTE: if this is test is ever changed, you probably need to change `TrayIconEvent` in JS as well
+    // NOTE: if this test is ever changed, you probably need to change `TrayIconEvent` in JS as well
 
     use super::*;
     let event = TrayIconEvent::Click {

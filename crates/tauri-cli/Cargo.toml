@@ -39,12 +39,10 @@ path = "src/main.rs"
 cargo-mobile2 = { version = "0.17.2", default-features = false }
 
 [dependencies]
-# temporary until https://github.com/paritytech/jsonrpsee/pull/1464 is released
-tower = { version = "0.4", default-features = false, features = ["util"] }
-jsonrpsee = { version = "0.24", features = ["server"] }
-jsonrpsee-core = "0.24"
-jsonrpsee-client-transport = { version = "0.24", features = ["ws"] }
-jsonrpsee-ws-client = { version = "0.24", default-features = false }
+jsonrpsee = { version = "0.24.5", features = ["server"] }
+jsonrpsee-core = "0.24.5"
+jsonrpsee-client-transport = { version = "0.24.5", features = ["ws"] }
+jsonrpsee-ws-client = { version = "0.24.5", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = ["derive", "env"] }

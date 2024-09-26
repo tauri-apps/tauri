@@ -126,6 +126,8 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_webview_position", false),
       ("set_webview_focus", false),
       ("set_webview_zoom", false),
+      ("webview_hide", false),
+      ("webview_show", false),
       ("print", false),
       ("reparent", false),
       ("clear_all_browsing_data", false),

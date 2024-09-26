@@ -176,6 +176,8 @@ mod desktop_commands {
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
+  setter!(webview_hide, hide);
+  setter!(webview_show, show);
   setter!(set_webview_zoom, set_zoom, f64);
   setter!(clear_all_browsing_data, clear_all_browsing_data);
 
@@ -261,6 +263,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
             desktop_commands::set_webview_zoom,
+            desktop_commands::webview_hide,
+            desktop_commands::webview_show,
             desktop_commands::print,
             desktop_commands::reparent,
             desktop_commands::clear_all_browsing_data,

@@ -10,9 +10,9 @@ use gtk::prelude::*;
   target_os = "netbsd",
   target_os = "openbsd"
 ))]
-use tao::platform::macos::WindowExtUnix;
+use tao::platform::unix::WindowExtUnix;
 
-impl WindowExt for tao::window::Window {
+impl super::WindowExt for tao::window::Window {
   fn set_enabled(&self, enabled: bool) {
     self.gtk_window().set_sensitive(enabled);
   }
@@ -24,7 +24,7 @@ impl WindowExt for tao::window::Window {
   fn center(&self) {
     if let Some(monitor) = self.current_monitor() {
       let window_size = self.outer_size();
-      let new_pos = calculate_window_center_position(window_size, monitor);
+      let new_pos = super::calculate_window_center_position(window_size, monitor);
       self.set_outer_position(new_pos);
     }
   }

@@ -625,6 +625,69 @@ impl<T: ScopeObject> CommandScope<T> {
   }
 }
 
+impl<T: ScopeObjectMatch> CommandScope<T> {
+  /// Ensure all deny scopes were not matched and any allow scopes were.
+  ///
+  /// This **WILL** return `true` if the allow scopes are empty and the deny
+  /// scopes did not trigger. If you require at least one allow scope, then
+  /// ensure the allow scopes are not empty before calling this method.
+  ///
+  /// ```
+  /// # use tauri::ipc::CommandScope;
+  /// # fn command(scope: CommandScope<()>) -> Result<(), &'static str> {
+  /// if scope.allows().is_empty() {
+  ///   return Err("you need to specify at least 1 allow scope!");
+  /// }
+  /// # Ok(())
+  /// # }
+  /// ```
+  ///
+  /// # Example
+  ///
+  /// ```
+  /// # use serde::{Serialize, Deserialize};
+  /// # use url::Url;
+  /// # use tauri::{ipc::{CommandScope, ScopeObjectMatch}, command};
+  /// #
+  /// #[derive(Debug, Clone, Serialize, Deserialize)]
+  /// # pub struct Scope;
+  /// #
+  /// # impl ScopeObjectMatch for Scope {
+  /// #   type Input = str;
+  /// #
+  /// #   fn matches(&self, input: &str) -> bool {
+  /// #     true
+  /// #   }
+  /// # }
+  /// #
+  /// # fn do_work(_: String) -> Result<String, &'static str> {
+  /// #   Ok("Output".into())
+  /// # }
+  /// #
+  /// #[command]
+  /// fn my_command(scope: CommandScope<Scope>, input: String) -> Result<String, &'static str> {
+  ///   if scope.matches(&input) {
+  ///     do_work(input)
+  ///   } else {
+  ///     Err("Scope didn't match input")
+  ///   }
+  /// }
+  /// ```
+  pub fn matches(&self, input: &T::Input) -> bool {
+    // first make sure the input doesn't match any existing deny scope
+    if self.deny.iter().any(|s| s.matches(input)) {
+      return false;
+    }
+
+    // if there are allow scopes, ensure the input matches at least 1
+    if self.allow.is_empty() {
+      true
+    } else {
+      self.allow.iter().any(|s| s.matches(input))
+    }
+  }
+}
+
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`CommandScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
@@ -727,6 +790,51 @@ impl<T: Send + Sync + Debug + DeserializeOwned + 'static> ScopeObject for T {
   fn deserialize<R: Runtime>(_app: &AppHandle<R>, raw: Value) -> Result<Self, Self::Error> {
     serde_json::from_value(raw.into())
   }
+}
+
+/// A [`ScopeObject`] whose validation can be represented as a `bool`.
+///
+/// # Example
+///
+/// ```
+/// # use serde::{Deserialize, Serialize};
+/// # use tauri::{ipc::ScopeObjectMatch, Url};
+/// #
+/// #[derive(Debug, Clone, Serialize, Deserialize)]
+/// #[serde(rename_all = "camelCase")]
+/// pub enum Scope {
+///   Domain(Url),
+///   StartsWith(String),
+/// }
+///
+/// impl ScopeObjectMatch for Scope {
+///   type Input = str;
+///
+///   fn matches(&self, input: &str) -> bool {
+///     match self {
+///       Scope::Domain(url) => {
+///         let parsed: Url = match input.parse() {
+///           Ok(parsed) => parsed,
+///           Err(_) => return false,
+///         };
+///
+///         let domain = parsed.domain();
+///
+///         domain.is_some() && domain == url.domain()
+///       }
+///       Scope::StartsWith(start) => input.starts_with(start),
+///     }
+///   }
+/// }
+/// ```
+pub trait ScopeObjectMatch: ScopeObject {
+  /// The type of input expected to validate against the scope.
+  ///
+  /// This will be borrowed, so if you want to match on a `&str` this type should be `str`.
+  type Input: ?Sized;
+
+  /// Check if the input matches against the scope.
+  fn matches(&self, input: &Self::Input) -> bool;
 }
 
 impl ScopeManager {

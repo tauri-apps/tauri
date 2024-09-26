@@ -231,7 +231,7 @@ export class TrayIcon extends Resource {
   /**
    * Sets the tooltip for this tray icon.
    *
-   * ## Platform-specific:
+   * #### Platform-specific:
    *
    * - **Linux:** Unsupported
    */
@@ -242,7 +242,7 @@ export class TrayIcon extends Resource {
   /**
    * Sets the tooltip for this tray icon.
    *
-   * ## Platform-specific:
+   * #### Platform-specific:
    *
    * - **Linux:** The title will not be shown unless there is an icon
    * as well.  The title is useful for numerical and other frequently

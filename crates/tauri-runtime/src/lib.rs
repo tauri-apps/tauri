@@ -597,6 +597,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
+
+  /// Whether the window is enabled or disable.
+  fn is_enabled(&self) -> Result<bool>;
+
   /// Gets the window's current title.
   fn title(&self) -> Result<String>;
 
@@ -669,6 +673,13 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;
+
+  /// Enable or disable the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS**: Unsupported.
+  fn set_enabled(&self, enabled: bool) -> Result<()>;
 
   /// Updates the window's native maximize button state.
   ///

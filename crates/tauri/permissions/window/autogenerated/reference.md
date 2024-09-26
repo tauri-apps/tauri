@@ -18,6 +18,7 @@ Default permissions for the plugin.
 - `allow-is-minimizable`
 - `allow-is-closable`
 - `allow-is-visible`
+- `allow-is-enabled`
 - `allow-title`
 - `allow-current-monitor`
 - `allow-primary-monitor`
@@ -396,6 +397,32 @@ Enables the is_decorated command without any pre-configured scope.
 <td>
 
 Denies the is_decorated command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-is-enabled`
+
+</td>
+<td>
+
+Enables the is_enabled command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-is-enabled`
+
+</td>
+<td>
+
+Denies the is_enabled command without any pre-configured scope.
 
 </td>
 </tr>
@@ -1072,6 +1099,32 @@ Enables the set_effects command without any pre-configured scope.
 <td>
 
 Denies the set_effects command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-set-enabled`
+
+</td>
+<td>
+
+Enables the set_enabled command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-enabled`
+
+</td>
+<td>
+
+Denies the set_enabled command without any pre-configured scope.
 
 </td>
 </tr>

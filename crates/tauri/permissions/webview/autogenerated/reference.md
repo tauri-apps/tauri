@@ -123,6 +123,32 @@ Denies the get_all_webviews command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-hide-webview`
+
+</td>
+<td>
+
+Enables the hide_webview command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-hide-webview`
+
+</td>
+<td>
+
+Denies the hide_webview command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-internal-toggle-devtools`
 
 </td>
@@ -305,6 +331,32 @@ Denies the set_webview_zoom command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-show-webview`
+
+</td>
+<td>
+
+Enables the show_webview command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-show-webview`
+
+</td>
+<td>
+
+Denies the show_webview command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-webview-close`
 
 </td>
@@ -331,6 +383,32 @@ Denies the webview_close command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-webview-hide`
+
+</td>
+<td>
+
+Enables the webview_hide command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-webview-hide`
+
+</td>
+<td>
+
+Denies the webview_hide command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-webview-position`
 
 </td>
@@ -350,6 +428,32 @@ Enables the webview_position command without any pre-configured scope.
 <td>
 
 Denies the webview_position command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:allow-webview-show`
+
+</td>
+<td>
+
+Enables the webview_show command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-webview-show`
+
+</td>
+<td>
+
+Denies the webview_show command without any pre-configured scope.
 
 </td>
 </tr>

@@ -57,6 +57,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("is_minimizable", true),
       ("is_closable", true),
       ("is_visible", true),
+      ("is_enabled", true),
       ("title", true),
       ("current_monitor", true),
       ("primary_monitor", true),
@@ -67,6 +68,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       // setters
       ("center", false),
       ("request_user_attention", false),
+      ("set_enabled", false),
       ("set_resizable", false),
       ("set_maximizable", false),
       ("set_minimizable", false),

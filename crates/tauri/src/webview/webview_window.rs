@@ -1147,6 +1147,11 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_resizable()
   }
 
+  /// Whether the window is enabled or disabled.
+  pub fn is_enabled(&self) -> crate::Result<bool> {
+    self.webview.window().is_enabled()
+  }
+
   /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
@@ -1310,6 +1315,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// When resizable is set to false, native window's maximize button is automatically disabled.
   pub fn set_resizable(&self, resizable: bool) -> crate::Result<()> {
     self.webview.window().set_resizable(resizable)
+  }
+
+  /// Enable or disable the window.
+  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
+    self.webview.window().set_enabled(enabled)
   }
 
   /// Determines if this window's native maximize button should be enabled.

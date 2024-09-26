@@ -5,7 +5,7 @@
 /**
  * Provides APIs to create webviews, communicate with other webviews and manipulate the current webview.
  *
- * ## Webview events
+ * #### Webview events
  *
  * Events can be listened to using {@link Webview.listen}:
  * ```typescript
@@ -687,7 +687,7 @@ interface WebviewOptions {
   /**
    * Whether page zooming by hotkeys is enabled
    *
-   * ## Platform-specific:
+   * #### Platform-specific:
    *
    * - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
    * - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,

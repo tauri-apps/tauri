@@ -5,7 +5,12 @@
 import type { Menu, Submenu } from './menu'
 import { Channel, invoke, Resource } from './core'
 import { Image, transformImage } from './image'
-import { PhysicalPosition, PhysicalSize } from './dpi'
+import {
+  LogicalPosition,
+  LogicalSize,
+  PhysicalPosition,
+  PhysicalSize
+} from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'
 export type MouseButton = 'Left' | 'Right' | 'Middle'
@@ -25,8 +30,8 @@ export type TrayIconEventBase<T extends TrayIconEventType> = {
   position: PhysicalPosition
   /** Position and size of the tray icon. */
   rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
+    position: PhysicalPosition | LogicalPosition
+    size: PhysicalSize | LogicalSize
   }
 }
 
@@ -51,6 +56,19 @@ export type TrayIconEvent =
   | TrayIconEventBase<'Enter'>
   | TrayIconEventBase<'Move'>
   | TrayIconEventBase<'Leave'>
+
+type RustTrayIconEvent = Omit<TrayIconEvent, 'rect'> & {
+  rect: {
+    position: {
+      Physical?: { x: number; y: number }
+      Logical?: { x: number; y: number }
+    }
+    size: {
+      Physical?: { width: number; height: number }
+      Logical?: { width: number; height: number }
+    }
+  }
+}
 
 /**
  * Tray icon types and utilities.
@@ -169,38 +187,10 @@ export class TrayIcon extends Resource {
       options.icon = transformImage(options.icon)
     }
 
-    const handler = new Channel<TrayIconEvent>()
+    const handler = new Channel<RustTrayIconEvent>()
     if (options?.action) {
       const action = options.action
-      handler.onmessage = (e) => {
-        if (
-          'Physical' in e.rect.position &&
-          e.rect.position.Physical &&
-          typeof e.rect.position.Physical === 'object' &&
-          'x' in e.rect.position.Physical &&
-          'y' in e.rect.position.Physical
-        ) {
-          e.rect.position = new PhysicalPosition(
-            e.rect.position.Physical.x as number,
-            e.rect.position.Physical.y as number
-          )
-        }
-        if (
-          'Physical' in e.rect.size &&
-          e.rect.size.Physical &&
-          typeof e.rect.size.Physical === 'object' &&
-          'width' in e.rect.size.Physical &&
-          'height' in e.rect.size.Physical
-        ) {
-          e.rect.size = new PhysicalSize(
-            e.rect.size.Physical.width as number,
-            e.rect.size.Physical.height as number
-          )
-        }
-        e.position = new PhysicalPosition(e.position.x, e.position.y)
-
-        action(e)
-      }
+      handler.onmessage = (e) => action(mapEvent(e))
       delete options.action
     }
 
@@ -302,4 +292,46 @@ export class TrayIcon extends Resource {
       onLeft
     })
   }
+}
+
+function mapEvent(e: RustTrayIconEvent): TrayIconEvent {
+  const out = e as unknown as TrayIconEvent
+
+  // `e.position` is a `PhsyicalPosition` struct on Rust side and gets serialized into `{ x: number, y: number }`
+  // but we need it to be an instance of `PhysicalPosition` JS class
+  out.position = new PhysicalPosition(e.position.x, e.position.y)
+
+  // `e.rect.position` is a `Position` enum on Rust side and gets serialized into
+  // `{ "Physical": { x: number, y: number } }` or
+  // `{ "Logical": { x: number, y: number } }`
+  // but we need it to be an instance of `PhysicalPosition` or `LogicalPosition` JS class
+  if (e.rect.position.Physical) {
+    out.rect.position = new PhysicalPosition(
+      e.rect.position.Physical.x as number,
+      e.rect.position.Physical.y as number
+    )
+  } else if (e.rect.position.Logical) {
+    out.rect.position = new LogicalPosition(
+      e.rect.position.Logical.x as number,
+      e.rect.position.Logical.y as number
+    )
+  }
+
+  // `e.rect.size` is a `Size` enum on Rust side and gets serialized into
+  // `{ "Physical": { width: number, height: number } }` or
+  // `{ "Logical": { width: number, height: number } }`
+  // but we need it to be an instance of `PhysicalSize` or `LogicalSize` JS class
+  if (e.rect.size.Physical) {
+    out.rect.size = new PhysicalSize(
+      e.rect.size.Physical.width as number,
+      e.rect.size.Physical.height as number
+    )
+  } else if (e.rect.size.Logical) {
+    out.rect.size = new LogicalSize(
+      e.rect.size.Logical.width as number,
+      e.rect.size.Logical.height as number
+    )
+  }
+
+  return out
 }

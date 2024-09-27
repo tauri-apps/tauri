@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.0.0-rc.17]
+
+### New Features
+
+- [`a944b9b05`](https://www.github.com/tauri-apps/tauri/commit/a944b9b05bc5ae6125ff451e86c5b207c511f3d7) ([#11118](https://www.github.com/tauri-apps/tauri/pull/11118) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `--github-workflows` flag for `tauri plugin new/init`.
+- [`f57a729cd`](https://www.github.com/tauri-apps/tauri/commit/f57a729cd8f7e10d8daf0b9d5b85f9c7ad530496) ([#11039](https://www.github.com/tauri-apps/tauri/pull/11039) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `tauri inspect wix-upgrade-code` to print default Upgrade Code for your MSI installer derived from `productName`.
+
+### Bug Fixes
+
+- [`62b52f60a`](https://www.github.com/tauri-apps/tauri/commit/62b52f60a22ef84c4a2a2d9e662038b49f58e16c) ([#11064](https://www.github.com/tauri-apps/tauri/pull/11064) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `tauri add` failing to add NPM depenency with `npm` package manager.
+- [`56e087471`](https://www.github.com/tauri-apps/tauri/commit/56e087471a347f6bee7422221a956925c60b17e3) ([#11100](https://www.github.com/tauri-apps/tauri/pull/11100) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS xcode-script usage with `bun`.
+- [`b88e22a5f`](https://www.github.com/tauri-apps/tauri/commit/b88e22a5fe4e2e4376d6cad64d1e74d104ca8927) ([#11063](https://www.github.com/tauri-apps/tauri/pull/11063) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The cli now only sets the iOS deployment target environment variable when building for iOS.
+- [`8d22c0c81`](https://www.github.com/tauri-apps/tauri/commit/8d22c0c814e7227d5e56ce9a08929045ccea1a1b) ([#11101](https://www.github.com/tauri-apps/tauri/pull/11101) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Only modify the iOS Xcode project "sign style" if we need to enforce manual signing.
+- [`df24cb944`](https://www.github.com/tauri-apps/tauri/commit/df24cb944249ee398f6c8ba8c19757b398eec701) ([#11168](https://www.github.com/tauri-apps/tauri/pull/11168) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes Xcode pbxproj file parsing not expecting `_` in build configuration IDs.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.17`
+
+### Breaking Changes
+
+- [`a944b9b05`](https://www.github.com/tauri-apps/tauri/commit/a944b9b05bc5ae6125ff451e86c5b207c511f3d7) ([#11118](https://www.github.com/tauri-apps/tauri/pull/11118) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) `tauri plugin init/new` will no longer generate a `.github` directory with workflows by default, instead use the new `--github-workflows` flag.
+
 ## \[2.0.0-rc.16]
 
 ### New Features

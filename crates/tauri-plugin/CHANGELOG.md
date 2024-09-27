@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0-rc.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+
 ## \[2.0.0-rc.12]
 
 ### Dependencies

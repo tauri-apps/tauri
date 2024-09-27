@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.12]
+
+### New Features
+
+- [`1d8b67b29`](https://www.github.com/tauri-apps/tauri/commit/1d8b67b2970a09ec478093e127612fac823de805) ([#11162](https://www.github.com/tauri-apps/tauri/pull/11162) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Support async functions for `mobile_entry_point` macro
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+- Upgraded to `tauri-codegen@2.0.0-rc.13`
+
 ## \[2.0.0-rc.11]
 
 ### Dependencies

@@ -1,5 +1,5 @@
 
-## Permission Table 
+## Permission Table
 
 <table>
 <tr>

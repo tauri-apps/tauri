@@ -29,11 +29,32 @@ fn get_env_var(name: &str, error: &mut Option<TokenStream2>, function: &ItemFn) 
 
 pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
   let function = parse_macro_input!(item as ItemFn);
-  let function_name = &function.sig.ident;
+  let function_name = function.sig.ident.clone();
 
   let mut error = None;
   let domain = get_env_var("TAURI_ANDROID_PACKAGE_NAME_PREFIX", &mut error, &function);
   let app_name = get_env_var("TAURI_ANDROID_PACKAGE_NAME_APP_NAME", &mut error, &function);
+
+  let (wrapper, wrapper_name) = if function.sig.asyncness.is_some() {
+    let wrapper_name = syn::Ident::new(&format!("{function_name}_wrapper"), function_name.span());
+    (
+      quote! {
+        #function
+
+        fn #wrapper_name() {
+          ::tauri::async_runtime::block_on(#function_name());
+        }
+      },
+      wrapper_name,
+    )
+  } else {
+    (
+      quote! {
+        #function
+      },
+      function_name,
+    )
+  };
 
   if let Some(e) = error {
     quote!(#e).into()
@@ -49,7 +70,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         }
       }
 
-      #function
+      #wrapper
 
       fn _start_app() {
         #[cfg(target_os = "ios")]
@@ -58,7 +79,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
         {
           ::tauri::android_binding!(#domain, #app_name, _start_app, ::tauri::wry);
         }
-        stop_unwind(#function_name);
+        stop_unwind(#wrapper_name);
       }
 
       // be careful when renaming this, the `start_app` symbol is checked by the CLI

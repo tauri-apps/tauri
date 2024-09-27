@@ -4,6 +4,8 @@
   "description": "permissions to run the app",
   "windows": ["main", "main-*"],
   "permissions": [
+    "core:window:allow-is-enabled",
+    "core:window:allow-set-enabled",
     {
       "identifier": "allow-log-operation",
       "allow": [

@@ -49,9 +49,12 @@ percent-encoding = "2.1"
 objc2 = "0.5.2"
 objc2-foundation = { version = "0.2.2", features = [] }
 objc2-app-kit = { version = "0.2.2", features = [
+  "block2",
+  "NSApplication",
   "NSResponder",
   "NSView",
   "NSWindow",
+  "NSGraphics",
 ] }
 
 [target."cfg(target_os = \"android\")".dependencies]

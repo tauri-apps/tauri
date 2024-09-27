@@ -1370,6 +1370,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
+  /// Whether the window is enabled or disabled.
+  pub fn is_enabled(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_enabled().map_err(Into::into)
+  }
+
   /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
@@ -1647,6 +1652,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_title(title.to_string())
+      .map_err(Into::into)
+  }
+
+  /// Enable or disable the window.
+  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_enabled(enabled)
       .map_err(Into::into)
   }
 

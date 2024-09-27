@@ -971,6 +971,14 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
     Ok(())
   }
+
+  fn set_enabled(&self, enabled: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn is_enabled(&self) -> Result<bool> {
+    Ok(true)
+  }
 }
 
 #[derive(Debug, Clone)]

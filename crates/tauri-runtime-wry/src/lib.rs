@@ -127,9 +127,11 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
   target_os = "openbsd"
 ))]
 mod undecorated_resizing;
-
 mod webview;
+mod window;
+
 pub use webview::Webview;
+use window::WindowExt as _;
 
 #[derive(Debug)]
 pub struct WebContext {
@@ -1166,9 +1168,11 @@ pub enum WindowMessage {
   GtkBox(Sender<GtkBox>),
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
+  IsEnabled(Sender<bool>),
   // Setters
   Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
+  SetEnabled(bool),
   SetResizable(bool),
   SetMaximizable(bool),
   SetMinimizable(bool),
@@ -1700,6 +1704,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     window_getter!(self, WindowMessage::Theme)
   }
 
+  fn is_enabled(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsEnabled)
+  }
+
   #[cfg(any(
     target_os = "linux",
     target_os = "dragonfly",
@@ -1772,6 +1780,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetResizable(resizable)),
+    )
+  }
+
+  fn set_enabled(&self, enabled: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetEnabled(enabled)),
     )
   }
 
@@ -2865,40 +2880,10 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Theme(tx) => {
             tx.send(map_theme(&window.theme())).unwrap();
           }
-          // Setters
-          WindowMessage::Center => {
-            #[cfg(not(target_os = "macos"))]
-            if let Some(monitor) = window.current_monitor() {
-              #[allow(unused_mut)]
-              let mut window_size = window.outer_size();
-              #[cfg(windows)]
-              if window.is_decorated() {
-                use windows::Win32::Foundation::RECT;
-                use windows::Win32::Graphics::Dwm::{
-                  DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS,
-                };
-                let mut rect = RECT::default();
-                let result = unsafe {
-                  DwmGetWindowAttribute(
-                    HWND(window.hwnd() as _),
-                    DWMWA_EXTENDED_FRAME_BOUNDS,
-                    &mut rect as *mut _ as *mut _,
-                    std::mem::size_of::<RECT>() as u32,
-                  )
-                };
-                if result.is_ok() {
-                  window_size.height = (rect.bottom - rect.top) as u32;
-                }
-              }
-              window.set_outer_position(calculate_window_center_position(window_size, monitor));
-            }
+          WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
 
-            #[cfg(target_os = "macos")]
-            {
-              let ns_window: &objc2_app_kit::NSWindow = unsafe { &*window.ns_window().cast() };
-              ns_window.center();
-            }
-          }
+          // Setters
+          WindowMessage::Center => window.center(),
           WindowMessage::RequestUserAttention(request_type) => {
             window.request_user_attention(request_type.map(|r| r.0));
           }
@@ -2919,6 +2904,7 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::Unmaximize => window.set_maximized(false),
           WindowMessage::Minimize => window.set_minimized(true),
           WindowMessage::Unminimize => window.set_minimized(false),
+          WindowMessage::SetEnabled(enabled) => window.set_enabled(enabled),
           WindowMessage::Show => window.set_visible(true),
           WindowMessage::Hide => window.set_visible(false),
           WindowMessage::Close => {
@@ -3421,7 +3407,7 @@ fn handle_user_message<T: UserEvent>(
         let surface = if is_window_transparent {
           if let Ok(context) = softbuffer::Context::new(window.clone()) {
             if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-              clear_window_surface(&window, &mut surface);
+              window.clear_surface(&mut surface);
               Some(surface)
             } else {
               None
@@ -3499,7 +3485,7 @@ fn handle_event_loop<T: UserEvent>(
           if window.is_window_transparent {
             if let Some(surface) = &mut window.surface {
               if let Some(window) = &window.inner {
-                clear_window_surface(window, surface)
+                window.clear_surface(surface);
               }
             }
           }
@@ -3842,7 +3828,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
           }
         }
       }
-      let position = calculate_window_center_position(window_size, monitor);
+      let position = window::calculate_window_center_position(window_size, monitor);
       let logical_position = position.to_logical::<f64>(scale_factor);
       window_builder = window_builder.position(logical_position.x, logical_position.y);
     }
@@ -3914,7 +3900,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let surface = if is_window_transparent {
     if let Ok(context) = softbuffer::Context::new(window.clone()) {
       if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-        clear_window_surface(&window, &mut surface);
+        window.clear_surface(&mut surface);
         Some(surface)
       } else {
         None
@@ -4397,50 +4383,4 @@ fn inner_size(
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
   window.inner_size()
-}
-
-fn calculate_window_center_position(
-  window_size: TaoPhysicalSize<u32>,
-  target_monitor: MonitorHandle,
-) -> TaoPhysicalPosition<i32> {
-  #[cfg(windows)]
-  {
-    use tao::platform::windows::MonitorHandleExtWindows;
-    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
-    let mut monitor_info = MONITORINFO {
-      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-      ..Default::default()
-    };
-    let status =
-      unsafe { GetMonitorInfoW(HMONITOR(target_monitor.hmonitor() as _), &mut monitor_info) };
-    if status.into() {
-      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
-      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
-      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
-      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
-      return TaoPhysicalPosition::new(x, y);
-    }
-  }
-  let screen_size = target_monitor.size();
-  let monitor_pos = target_monitor.position();
-  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-  TaoPhysicalPosition::new(x, y)
-}
-
-#[cfg(windows)]
-fn clear_window_surface(
-  window: &Window,
-  surface: &mut softbuffer::Surface<Arc<Window>, Arc<Window>>,
-) {
-  let size = window.inner_size();
-  if let (Some(width), Some(height)) = (
-    std::num::NonZeroU32::new(size.width),
-    std::num::NonZeroU32::new(size.height),
-  ) {
-    surface.resize(width, height).unwrap();
-    let mut buffer = surface.buffer_mut().unwrap();
-    buffer.fill(0);
-    let _ = buffer.present();
-  }
 }

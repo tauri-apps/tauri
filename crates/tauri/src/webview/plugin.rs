@@ -57,7 +57,7 @@ mod desktop_commands {
       .webviews()
       .values()
       .map(|webview| WebviewRef {
-        window_label: webview.window().label().into(),
+        window_label: webview.window_ref().label().into(),
         label: webview.label().into(),
       })
       .collect()

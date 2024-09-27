@@ -1258,6 +1258,35 @@ pub struct WindowEffectsConfig {
   pub color: Option<Color>,
 }
 
+/// Enable prevent overflow with a margin
+#[skip_serializing_none]
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreventOverflowMargin {
+  /// Horizontal margin in physical unit
+  pub width: u32,
+  /// Vertical margin in physical unit
+  pub height: u32,
+}
+
+/// Prevent overflow with a margin
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum PreventOverflowMarginConfig {
+  /// Enable prevent overflow or not
+  Enable(bool),
+  /// Enable prevent overflow with a margin
+  Margin(PreventOverflowMargin),
+}
+
+impl Default for PreventOverflowMarginConfig {
+  fn default() -> Self {
+    Self::Enable(true)
+  }
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1311,6 +1340,8 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
+  /// Whether or not to prevent window overflow
+  pub prevent_overflow: Option<PreventOverflowMarginConfig>,
   /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
@@ -1491,6 +1522,7 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
+      prevent_overflow: None,
       resizable: true,
       maximizable: true,
       minimizable: true,
@@ -2446,6 +2478,32 @@ mod build {
     }
   }
 
+  impl ToTokens for PreventOverflowMargin {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let width = self.width;
+      let height = self.height;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::PreventOverflowMargin,
+        width,
+        height
+      )
+    }
+  }
+
+  impl ToTokens for PreventOverflowMarginConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::PreventOverflowMarginConfig };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        Self::Enable(enable) => quote! { #prefix::Enable(#enable) },
+        Self::Margin(margin) => quote! { #prefix::Margin(#margin) },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -2462,6 +2520,7 @@ mod build {
       let min_height = opt_lit(self.min_height.as_ref());
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
+      let prevent_overflow = opt_lit(self.prevent_overflow.as_ref());
       let resizable = self.resizable;
       let maximizable = self.maximizable;
       let minimizable = self.minimizable;
@@ -2509,6 +2568,7 @@ mod build {
         min_height,
         max_width,
         max_height,
+        prevent_overflow,
         resizable,
         maximizable,
         minimizable,

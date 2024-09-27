@@ -2133,6 +2133,14 @@ interface Effects {
 }
 
 /**
+ * Minimum margin to work area
+ */
+interface PreventOverflowMargin {
+  width: number
+  height: number
+}
+
+/**
  * Configuration for the window to create.
  *
  * @since 1.0.0
@@ -2156,6 +2164,8 @@ interface WindowOptions {
   maxWidth?: number
   /** The maximum height. Only applies if `maxWidth` is also set. */
   maxHeight?: number
+  /** Prevent initial window from getting bigger than work area */
+  preventOverflow?: boolean | PreventOverflowMargin
   /** Whether the window is resizable or not. */
   resizable?: boolean
   /** Window title. */

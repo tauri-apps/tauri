@@ -264,6 +264,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn inner_size_constraints(self, constraints: WindowSizeConstraints) -> Self;
 
+  /// Window max inner size.
+  #[must_use]
+  fn prevent_overflow(self, margin: Option<dpi::Size>) -> Self;
+
   /// Whether the window is resizable or not.
   /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]

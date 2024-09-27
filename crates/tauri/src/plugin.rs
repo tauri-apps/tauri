@@ -527,6 +527,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   }
 
   /// Registers a URI scheme protocol available to all webviews.
+  ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
   /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
@@ -547,7 +548,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("myplugin")
-  ///     .register_uri_scheme_protocol("myscheme", |app, req| {
+  ///     .register_uri_scheme_protocol("myscheme", |app, req, _webview_label| {
   ///       http::Response::builder().body(Vec::new()).unwrap()
   ///     })
   ///     .build()
@@ -557,7 +558,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     T: Into<Cow<'static, [u8]>>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>) -> http::Response<T> + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str) -> http::Response<T> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -566,8 +567,8 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |app, request, responder| {
-          responder.respond(protocol(app, request))
+        protocol: Box::new(move |app, request, webview_label, responder| {
+          responder.respond(protocol(app, request, webview_label))
         }),
       }),
     );
@@ -589,7 +590,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("myplugin")
-  ///     .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, responder| {
+  ///     .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, _webview_label, responder| {
   ///       // skip leading `/`
   ///       let path = request.uri().path()[1..].to_string();
   ///       std::thread::spawn(move || {
@@ -616,7 +617,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,

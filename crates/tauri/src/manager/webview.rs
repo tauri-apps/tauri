@@ -61,7 +61,7 @@ pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
   pub protocol:
-    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
+    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str, UriSchemeResponder) + Send + Sync>,
 }
 
 pub struct WebviewManager<R: Runtime> {
@@ -210,11 +210,13 @@ impl<R: Runtime> WebviewManager<R> {
     for (uri_scheme, protocol) in &*self.uri_scheme_protocols.lock().unwrap() {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
-      let app_handle = Mutex::new(manager.app_handle().clone());
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
+      let app_handle = manager.app_handle().clone();
+      let webview_label = label.to_string();
+      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |request, responder| {
         (protocol.protocol)(
-          &app_handle.lock().unwrap(),
-          p,
+          &app_handle,
+          request,
+          &webview_label,
           UriSchemeResponder(responder),
         )
       });

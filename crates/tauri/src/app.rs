@@ -1665,6 +1665,7 @@ tauri::Builder::default()
   }
 
   /// Registers a URI scheme protocol available to all webviews.
+  ///
   /// Leverages [setURLSchemeHandler](https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/2875766-seturlschemehandler) on macOS,
   /// [AddWebResourceRequestedFilter](https://docs.microsoft.com/en-us/dotnet/api/microsoft.web.webview2.core.corewebview2.addwebresourcerequestedfilter?view=webview2-dotnet-1.0.774.44) on Windows
   /// and [webkit-web-context-register-uri-scheme](https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme) on Linux.
@@ -1677,7 +1678,7 @@ tauri::Builder::default()
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .register_uri_scheme_protocol("app-files", |_app, request| {
+  ///   .register_uri_scheme_protocol("app-files", |_app, request, _webview_label| {
   ///     // skip leading `/`
   ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
   ///       http::Response::builder()
@@ -1696,7 +1697,7 @@ tauri::Builder::default()
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     T: Into<Cow<'static, [u8]>>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>) -> http::Response<T> + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str) -> http::Response<T> + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1705,8 +1706,8 @@ tauri::Builder::default()
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |app, request, responder| {
-          responder.respond(protocol(app, request))
+        protocol: Box::new(move |app, request, webview_label, responder| {
+          responder.respond(protocol(app, request, webview_label))
         }),
       }),
     );
@@ -1724,7 +1725,7 @@ tauri::Builder::default()
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, responder| {
+  ///   .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, _webview_label, responder| {
   ///     // skip leading `/`
   ///     let path = request.uri().path()[1..].to_string();
   ///     std::thread::spawn(move || {
@@ -1749,7 +1750,7 @@ tauri::Builder::default()
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
+    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,

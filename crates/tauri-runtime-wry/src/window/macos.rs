@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use objc2::ClassType;
-use objc2_app_kit::{NSBackingStoreType, NSFrameRect, NSWindow, NSWindowStyleMask};
-use objc2_foundation::{CGFloat, CGPoint, MainThreadMarker, NSRect};
+use objc2_app_kit::{NSBackingStoreType, NSWindow, NSWindowStyleMask};
+use objc2_foundation::MainThreadMarker;
 use tao::platform::macos::WindowExtMacOS;
 
 impl super::WindowExt for tao::window::Window {
@@ -34,7 +33,7 @@ impl super::WindowExt for tao::window::Window {
 
   fn is_enabled(&self) -> bool {
     let ns_window: &NSWindow = unsafe { &*self.ns_window().cast() };
-    unsafe { ns_window.attachedSheet() }.is_some()
+    unsafe { ns_window.attachedSheet() }.is_none()
   }
 
   fn center(&self) {

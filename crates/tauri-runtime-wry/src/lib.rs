@@ -1241,6 +1241,8 @@ pub enum WebviewMessage {
   Navigate(Url),
   Print,
   Close,
+  Show,
+  Hide,
   SetPosition(Position),
   SetSize(Size),
   SetBounds(tauri_runtime::Rect),
@@ -1534,6 +1536,28 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::ClearAllBrowsingData,
+      ),
+    )
+  }
+
+  fn hide(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::Hide,
+      ),
+    )
+  }
+
+  fn show(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::Show,
       ),
     )
   }
@@ -3122,6 +3146,16 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::Navigate(url) => {
             if let Err(e) = webview.load_url(url.as_str()) {
               log::error!("failed to navigate to url {}: {}", url, e);
+            }
+          }
+          WebviewMessage::Show => {
+            if let Err(e) = webview.set_visible(true) {
+              log::error!("failed to change webview visibility: {e}");
+            }
+          }
+          WebviewMessage::Hide => {
+            if let Err(e) = webview.set_visible(false) {
+              log::error!("failed to change webview visibility: {e}");
             }
           }
           WebviewMessage::Print => {

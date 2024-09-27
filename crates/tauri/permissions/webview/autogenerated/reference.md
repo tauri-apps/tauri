@@ -7,7 +7,7 @@ Default permissions for the plugin.
 - `allow-webview-size`
 - `allow-internal-toggle-devtools`
 
-## Permission Table 
+## Permission Table
 
 <table>
 <tr>
@@ -116,32 +116,6 @@ Enables the get_all_webviews command without any pre-configured scope.
 <td>
 
 Denies the get_all_webviews command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:allow-hide-webview`
-
-</td>
-<td>
-
-Enables the hide_webview command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:deny-hide-webview`
-
-</td>
-<td>
-
-Denies the hide_webview command without any pre-configured scope.
 
 </td>
 </tr>
@@ -324,32 +298,6 @@ Enables the set_webview_zoom command without any pre-configured scope.
 <td>
 
 Denies the set_webview_zoom command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:allow-show-webview`
-
-</td>
-<td>
-
-Enables the show_webview command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:webview:deny-show-webview`
-
-</td>
-<td>
-
-Denies the show_webview command without any pre-configured scope.
 
 </td>
 </tr>

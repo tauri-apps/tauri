@@ -580,6 +580,14 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   fn clear_all_browsing_data(&self) -> Result<()> {
     Ok(())
   }
+
+  fn hide(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn show(&self) -> Result<()> {
+    Ok(())
+  }
 }
 
 impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {

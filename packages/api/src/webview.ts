@@ -484,6 +484,38 @@ class Webview {
   }
 
   /**
+   * Hide the webview.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().hide();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async hide(): Promise<void> {
+    return invoke('plugin:webview|webview_hide', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Show the webview.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().show();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async show(): Promise<void> {
+    return invoke('plugin:webview|webview_show', {
+      label: this.label
+    })
+  }
+
+  /**
    * Set webview zoom level.
    * @example
    * ```typescript

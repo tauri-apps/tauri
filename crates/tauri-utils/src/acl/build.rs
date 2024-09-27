@@ -306,7 +306,7 @@ commands.deny = ["{command}"]
 }
 
 const PERMISSION_TABLE_HEADER: &str =
-  "## Permission Table \n\n<table>\n<tr>\n<th>Identifier</th>\n<th>Description</th>\n</tr>\n";
+  "## Permission Table\n\n<table>\n<tr>\n<th>Identifier</th>\n<th>Description</th>\n</tr>\n";
 
 /// Generate a markdown documentation page containing the list of permissions of the plugin.
 pub fn generate_docs(

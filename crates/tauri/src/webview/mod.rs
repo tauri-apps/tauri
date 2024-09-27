@@ -792,19 +792,19 @@ fn main() {
 /// Webview.
 #[default_runtime(crate::Wry, wry)]
 pub struct Webview<R: Runtime> {
-  window_label: Arc<Mutex<String>>,
+  pub(crate) window: Arc<Mutex<Window<R>>>,
+  /// The webview created by the runtime.
+  pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
   /// The manager to associate this webview with.
   pub(crate) manager: Arc<AppManager<R>>,
   pub(crate) app_handle: AppHandle<R>,
-  /// The webview created by the runtime.
-  pub(crate) webview: DetachedWebview<EventLoopMessage, R>,
   pub(crate) resources_table: Arc<Mutex<ResourceTable>>,
 }
 
 impl<R: Runtime> std::fmt::Debug for Webview<R> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_struct("Window")
-      .field("window_label", &self.window_label)
+      .field("window", &self.window.lock().unwrap())
       .field("webview", &self.webview)
       .finish()
   }
@@ -813,10 +813,10 @@ impl<R: Runtime> std::fmt::Debug for Webview<R> {
 impl<R: Runtime> Clone for Webview<R> {
   fn clone(&self) -> Self {
     Self {
-      window_label: self.window_label.clone(),
+      window: self.window.clone(),
+      webview: self.webview.clone(),
       manager: self.manager.clone(),
       app_handle: self.app_handle.clone(),
-      webview: self.webview.clone(),
       resources_table: self.resources_table.clone(),
     }
   }
@@ -842,9 +842,9 @@ impl<R: Runtime> Webview<R> {
   /// Create a new webview that is attached to the window.
   pub(crate) fn new(window: Window<R>, webview: DetachedWebview<EventLoopMessage, R>) -> Self {
     Self {
-      window_label: Arc::new(Mutex::new(window.label().into())),
       manager: window.manager.clone(),
       app_handle: window.app_handle.clone(),
+      window: Arc::new(Mutex::new(window)),
       webview,
       resources_table: Default::default(),
     }
@@ -943,18 +943,27 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.set_focus().map_err(Into::into)
   }
 
+  /// Hide the webview.
+  pub fn hide(&self) -> crate::Result<()> {
+    self.webview.dispatcher.hide().map_err(Into::into)
+  }
+
+  /// Show the webview.
+  pub fn show(&self) -> crate::Result<()> {
+    self.webview.dispatcher.show().map_err(Into::into)
+  }
+
   /// Move the webview to the given window.
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     #[cfg(not(feature = "unstable"))]
     {
-      let current_window = self.window();
-      if current_window.is_webview_window() || window.is_webview_window() {
+      if self.window_ref().is_webview_window() || window.is_webview_window() {
         return Err(crate::Error::CannotReparentWebviewWindow);
       }
     }
 
+    *self.window.lock().unwrap() = window.clone();
     self.webview.dispatcher.reparent(window.window.id)?;
-    *self.window_label.lock().unwrap() = window.label().to_string();
     Ok(())
   }
 
@@ -990,14 +999,16 @@ impl<R: Runtime> Webview<R> {
 impl<R: Runtime> Webview<R> {
   /// The window that is hosting this webview.
   pub fn window(&self) -> Window<R> {
-    self
-      .manager
-      .get_window(&self.window_label.lock().unwrap())
-      .expect("could not locate webview parent window")
+    self.window.lock().unwrap().clone()
+  }
+
+  /// A reference to the window that is hosting this webview.
+  pub fn window_ref(&self) -> MutexGuard<'_, Window<R>> {
+    self.window.lock().unwrap()
   }
 
   pub(crate) fn window_label(&self) -> String {
-    self.window_label.lock().unwrap().clone()
+    self.window_ref().label().to_string()
   }
 
   /// Executes a closure, providing it with the webview handle that is specific to the current platform.
@@ -1183,7 +1194,7 @@ fn main() {
       let runtime_authority = manager.runtime_authority.lock().unwrap();
       let acl = runtime_authority.resolve_access(
         &request.cmd,
-        message.webview.window().label(),
+        message.webview.window_ref().label(),
         message.webview.label(),
         &acl_origin,
       );

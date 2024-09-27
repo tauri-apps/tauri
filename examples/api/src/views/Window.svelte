@@ -138,16 +138,42 @@
 
   let windowIconPath
 
-  function setTitle_() {
+  function setTitle() {
     webviewMap[selectedWebview].setTitle(windowTitle)
   }
 
-  function hide_() {
-    webviewMap[selectedWebview].hide()
-    setTimeout(webviewMap[selectedWebview].show, 2000)
+  async function hide() {
+    let visible = await webviewMap[selectedWebview].isVisible()
+    onMessage('window is ' + (visible ? 'visible' : 'invisible'))
+    await webviewMap[selectedWebview].hide()
+
+    setTimeout(async () => {
+      visible = await webviewMap[selectedWebview].isVisible()
+      onMessage('window is ' + (visible ? 'visible' : 'invisible'))
+
+      await webviewMap[selectedWebview].show()
+      visible = await webviewMap[selectedWebview].isVisible()
+      onMessage('window is ' + (visible ? 'visible' : 'invisible'))
+    }, 2000)
   }
 
-  function minimize_() {
+  async function disable() {
+    let enabled = await webviewMap[selectedWebview].isEnabled()
+    onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
+
+    await webviewMap[selectedWebview].setEnabled(false)
+
+    setTimeout(async () => {
+      enabled = await webviewMap[selectedWebview].isEnabled()
+      onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
+
+      await webviewMap[selectedWebview].setEnabled(true)
+      enabled = await webviewMap[selectedWebview].isEnabled()
+      onMessage('window is ' + (enabled ? 'enabled' : 'disabled'))
+    }, 2000)
+  }
+
+  function minimize() {
     webviewMap[selectedWebview].minimize()
     setTimeout(webviewMap[selectedWebview].unminimize, 2000)
   }
@@ -200,7 +226,7 @@
     resizeEventUnlisten = await window.listen('tauri://resize', loadWindowSize)
   }
 
-  async function requestUserAttention_() {
+  async function requestUserAttention() {
     await webviewMap[selectedWebview].minimize()
     await webviewMap[selectedWebview].requestUserAttention(
       UserAttentionType.Critical
@@ -363,7 +389,7 @@
       </div>
       <div class="grid gap-1 grow">
         <h4 class="my-2">Set Window Title</h4>
-        <form class="flex gap-2" on:submit|preventDefault={setTitle_}>
+        <form class="flex gap-2" on:submit|preventDefault={setTitle}>
           <input class="input flex-1 min-w-10" bind:value={windowTitle} />
           <button class="btn" type="submit">Set</button>
         </form>
@@ -380,20 +406,23 @@
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
-        on:click={minimize_}
+        on:click={minimize}
       >
         Minimize
       </button>
-      <button
-        class="btn"
-        title="Visible again after 2 seconds"
-        on:click={hide_}
-      >
+      <button class="btn" title="Visible again after 2 seconds" on:click={hide}>
         Hide
       </button>
       <button
         class="btn"
-        on:click={requestUserAttention_}
+        title="Enabled again after 2 seconds"
+        on:click={disable}
+      >
+        Disable
+      </button>
+      <button
+        class="btn"
+        on:click={requestUserAttention}
         title="Minimizes the window, requests attention for 3s and then resets it"
         >Request attention</button
       >
@@ -531,14 +560,16 @@
           Inner Logical Size
         </div>
         <span>Width: {innerSize.toLogical(scaleFactor).width.toFixed(3)}</span>
-        <span>Height: {innerSize.toLogical(scaleFactor).height.toFixed(3)}</span>
+        <span>Height: {innerSize.toLogical(scaleFactor).height.toFixed(3)}</span
+        >
       </div>
       <div>
         <div class="text-accent dark:text-darkAccent font-700 m-block-1">
           Outer Logical Size
         </div>
         <span>Width: {outerSize.toLogical(scaleFactor).width.toFixed(3)}</span>
-        <span>Height: {outerSize.toLogical(scaleFactor).height.toFixed(3)}</span>
+        <span>Height: {outerSize.toLogical(scaleFactor).height.toFixed(3)}</span
+        >
       </div>
       <div>
         <div class="text-accent dark:text-darkAccent font-700 m-block-1">

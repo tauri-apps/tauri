@@ -760,7 +760,7 @@ Pbxproj {
                 },
             ],
         },
-        "DB0E254D0FD84970B57F6410": XCBuildConfiguration {
+        "DB_0E254D0FD84970B57F6410": XCBuildConfiguration {
             build_settings: [
                 BuildSettings {
                     identation: "\t\t\t\t",
@@ -894,7 +894,7 @@ Pbxproj {
                     comments: "/* debug */",
                 },
                 BuildConfigurationRef {
-                    id: "DB0E254D0FD84970B57F6410",
+                    id: "DB_0E254D0FD84970B57F6410",
                     comments: "/* release */",
                 },
             ],

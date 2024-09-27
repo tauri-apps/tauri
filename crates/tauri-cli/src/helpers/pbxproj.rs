@@ -39,7 +39,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
         if line == "/* End XCBuildConfiguration section */" {
           state = State::Idle;
         } else if let Some((_identation, token)) = split_at_identation(line) {
-          let id: String = token.chars().take_while(|c| c.is_alphanumeric()).collect();
+          let id: String = token.chars().take_while(|c| !c.is_whitespace()).collect();
           proj.xc_build_configuration.insert(
             id.clone(),
             XCBuildConfiguration {
@@ -316,8 +316,12 @@ mod tests {
     let mut pbxproj =
       super::parse(fixtures_path.join("project.pbxproj")).expect("failed to parse pbxproj");
 
-    pbxproj.set_build_settings("DB0E254D0FD84970B57F6410", "PRODUCT_NAME", "\"Tauri Test\"");
-    pbxproj.set_build_settings("DB0E254D0FD84970B57F6410", "UNKNOWN", "9283j49238h");
+    pbxproj.set_build_settings(
+      "DB_0E254D0FD84970B57F6410",
+      "PRODUCT_NAME",
+      "\"Tauri Test\"",
+    );
+    pbxproj.set_build_settings("DB_0E254D0FD84970B57F6410", "UNKNOWN", "9283j49238h");
 
     insta::assert_snapshot!("project-modified.pbxproj", pbxproj.serialize());
   }

@@ -425,7 +425,7 @@ pub fn synchronize_project_config(
   config: &AppleConfig,
   tauri_config: &ConfigHandle,
   pbxproj: &mut pbxproj::Pbxproj,
-  export_options_list: &mut plist::Dictionary,
+  export_options_plist: &mut plist::Dictionary,
   project_config: &ProjectConfig,
   debug: bool,
 ) -> Result<()> {
@@ -522,7 +522,7 @@ pub fn synchronize_project_config(
 
   if let Some(build_configuration) = build_configuration {
     if let Some(style) = build_configuration.get_build_setting("CODE_SIGN_STYLE") {
-      export_options_list.insert(
+      export_options_plist.insert(
         "signingStyle".to_string(),
         style.value.to_lowercase().into(),
       );
@@ -532,7 +532,7 @@ pub fn synchronize_project_config(
       .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
       .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
     {
-      export_options_list.insert(
+      export_options_plist.insert(
         "signingCertificate".to_string(),
         identity.value.trim_matches('"').into(),
       );
@@ -542,7 +542,7 @@ pub fn synchronize_project_config(
       .get_build_setting("\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"")
       .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
     {
-      export_options_list.insert("teamID".to_string(), id.value.trim_matches('"').into());
+      export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
     }
 
     let profile_uuid = project_config
@@ -557,7 +557,7 @@ pub fn synchronize_project_config(
     if let Some(profile_uuid) = profile_uuid {
       let mut provisioning_profiles = plist::Dictionary::new();
       provisioning_profiles.insert(config.app().identifier().to_string(), profile_uuid.into());
-      export_options_list.insert(
+      export_options_plist.insert(
         "provisioningProfiles".to_string(),
         provisioning_profiles.into(),
       );

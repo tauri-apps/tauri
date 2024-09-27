@@ -943,6 +943,16 @@ impl<R: Runtime> Webview<R> {
     self.webview.dispatcher.set_focus().map_err(Into::into)
   }
 
+  /// Hide the webview.
+  pub fn hide(&self) -> crate::Result<()> {
+    self.webview.dispatcher.hide().map_err(Into::into)
+  }
+
+  /// Show the webview.
+  pub fn show(&self) -> crate::Result<()> {
+    self.webview.dispatcher.show().map_err(Into::into)
+  }
+
   /// Move the webview to the given window.
   pub fn reparent(&self, window: &Window<R>) -> crate::Result<()> {
     #[cfg(not(feature = "unstable"))]

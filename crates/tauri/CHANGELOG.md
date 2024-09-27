@@ -1,5 +1,36 @@
 # Changelog
 
+## \[2.0.0-rc.16]
+
+### New Features
+
+- [`a247170e1`](https://www.github.com/tauri-apps/tauri/commit/a247170e1f620a9b012274b11cfe51e90327d6e9) ([#11056](https://www.github.com/tauri-apps/tauri/pull/11056) by [@SpikeHD](https://www.github.com/tauri-apps/tauri/../../SpikeHD)) Expose the ability to enabled browser extensions in WebView2 on Windows.
+- [`9014a3f17`](https://www.github.com/tauri-apps/tauri/commit/9014a3f1765ca406ea5c3e5224267a79c52cd53d) ([#11066](https://www.github.com/tauri-apps/tauri/pull/11066) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewWindow::clear_all_browsing_data` and `Webview::clear_all_browsing_data` to clear the webview browsing data.
+- [`0ddfc59d6`](https://www.github.com/tauri-apps/tauri/commit/0ddfc59d6785e3b6a85a674a2f80d4c0affd2898) ([#11071](https://www.github.com/tauri-apps/tauri/pull/11071) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Manager::unmanage` to remove previously managed state.
+- [`1d8b67b29`](https://www.github.com/tauri-apps/tauri/commit/1d8b67b2970a09ec478093e127612fac823de805) ([#11162](https://www.github.com/tauri-apps/tauri/pull/11162) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Support async functions for `mobile_entry_point` macro
+- [`5621174b0`](https://www.github.com/tauri-apps/tauri/commit/5621174b05f615e1589292ccd3954dc7e6b5569f) ([#11132](https://www.github.com/tauri-apps/tauri/pull/11132) by [@chippers](https://www.github.com/tauri-apps/tauri/../../chippers)) Add `ScopeObjectMatch` for easy scope validation those that can be represented by a boolean return value.
+- [`95df53a2e`](https://www.github.com/tauri-apps/tauri/commit/95df53a2ed96873cd35a4b14a5e312d07e4e3004) ([#11143](https://www.github.com/tauri-apps/tauri/pull/11143) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add the ability to set theme dynamically using `Window::set_theme`, `App::set_theme`
+- [`d9d2502b4`](https://www.github.com/tauri-apps/tauri/commit/d9d2502b41e39efde679e30c8955006e2ba9ea64) ([#11140](https://www.github.com/tauri-apps/tauri/pull/11140) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Webview::hide` and `Webview::show` methods.
+- [`de7414aab`](https://www.github.com/tauri-apps/tauri/commit/de7414aab935e45540594ea930eb60bae4dbc979) ([#11154](https://www.github.com/tauri-apps/tauri/pull/11154) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Window::set_enabled` and `Window::is_enabled` methods
+
+### Bug Fixes
+
+- [`948772a65`](https://www.github.com/tauri-apps/tauri/commit/948772a657eb3caf20843628abac9109e3b67d41) ([#11114](https://www.github.com/tauri-apps/tauri/pull/11114) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Change the `button_state` tray event field to camelCase `buttonState`.
+- [`a49fc999f`](https://www.github.com/tauri-apps/tauri/commit/a49fc999fc3eba3bfd47480b0a8c68c0b45e3127) ([#11161](https://www.github.com/tauri-apps/tauri/pull/11161) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix internal crash when trying to close the same window multiple times.
+- [`62b3a5cd1`](https://www.github.com/tauri-apps/tauri/commit/62b3a5cd1c804440c2130ab36cc3eadb3baf61cb) ([#11043](https://www.github.com/tauri-apps/tauri/pull/11043) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `localStorage` not shared between webviews that use the same data directory.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.0.0-rc.14`
+- Upgraded to `tauri-runtime@2.0.0-rc.13`
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+- Upgraded to `tauri-macros@2.0.0-rc.12`
+- Upgraded to `tauri-build@2.0.0-rc.13`
+
+### Breaking Changes
+
+- [`0b4495996`](https://www.github.com/tauri-apps/tauri/commit/0b4495996d3131a5ee80fbb2c71a28203e491ee7) ([#11121](https://www.github.com/tauri-apps/tauri/pull/11121) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Simplified emitted tray event JS value and updated `TrayIconEvent` type definition to match it.
+
 ## \[2.0.0-rc.15]
 
 ### New Features

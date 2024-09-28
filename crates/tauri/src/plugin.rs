@@ -548,7 +548,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("myplugin")
-  ///     .register_uri_scheme_protocol("myscheme", |app, req, _webview_label| {
+  ///     .register_uri_scheme_protocol("myscheme", |_ctx, req| {
   ///       http::Response::builder().body(Vec::new()).unwrap()
   ///     })
   ///     .build()
@@ -593,7 +593,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("myplugin")
-  ///     .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, _webview_label, responder| {
+  ///     .register_asynchronous_uri_scheme_protocol("app-files", |_ctx, request, responder| {
   ///       // skip leading `/`
   ///       let path = request.uri().path()[1..].to_string();
   ///       std::thread::spawn(move || {

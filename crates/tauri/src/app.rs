@@ -1678,7 +1678,7 @@ tauri::Builder::default()
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .register_uri_scheme_protocol("app-files", |_app, request, _webview_label| {
+  ///   .register_uri_scheme_protocol("app-files", |_ctx, request| {
   ///     // skip leading `/`
   ///     if let Ok(data) = std::fs::read(&request.uri().path()[1..]) {
   ///       http::Response::builder()
@@ -1728,7 +1728,7 @@ tauri::Builder::default()
   /// # Examples
   /// ```
   /// tauri::Builder::default()
-  ///   .register_asynchronous_uri_scheme_protocol("app-files", |_app, request, _webview_label, responder| {
+  ///   .register_asynchronous_uri_scheme_protocol("app-files", |_ctx, request, responder| {
   ///     // skip leading `/`
   ///     let path = request.uri().path()[1..].to_string();
   ///     std::thread::spawn(move || {

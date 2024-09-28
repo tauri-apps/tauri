@@ -190,9 +190,8 @@ fn main() {
   download_video();
 
   tauri::Builder::default()
-    .register_asynchronous_uri_scheme_protocol(
-      "stream",
-      move |_app, request, _webview_label, responder| match get_stream_response(request) {
+    .register_asynchronous_uri_scheme_protocol("stream", move |_ctx, request, responder| {
+      match get_stream_response(request) {
         Ok(http_response) => responder.respond(http_response),
         Err(e) => responder.respond(
           ResponseBuilder::new()
@@ -201,8 +200,8 @@ fn main() {
             .body(e.to_string().as_bytes().to_vec())
             .unwrap(),
         ),
-      },
-    )
+      }
+    })
     .run(tauri::generate_context!(
       "../../examples/streaming/tauri.conf.json"
     ))

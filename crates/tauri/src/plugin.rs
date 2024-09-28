@@ -10,7 +10,7 @@ use crate::{
   manager::webview::UriSchemeProtocol,
   utils::config::PluginConfig,
   webview::PageLoadPayload,
-  AppHandle, Error, RunEvent, Runtime, Webview, Window,
+  AppHandle, Error, RunEvent, Runtime, UriSchemeContext, Webview, Window,
 };
 use serde::{
   de::{Deserialize, DeserializeOwned, Deserializer, Error as DeError},
@@ -558,7 +558,10 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     T: Into<Cow<'static, [u8]>>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str) -> http::Response<T> + Send + Sync + 'static,
+    H: Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>) -> http::Response<T>
+      + Send
+      + Sync
+      + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -567,8 +570,8 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |app, request, webview_label, responder| {
-          responder.respond(protocol(app, request, webview_label))
+        protocol: Box::new(move |ctx, request, responder| {
+          responder.respond(protocol(ctx, request))
         }),
       }),
     );
@@ -617,7 +620,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str, UriSchemeResponder) + Send + Sync + 'static,
+    H: Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,

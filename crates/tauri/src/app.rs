@@ -1697,7 +1697,10 @@ tauri::Builder::default()
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
     T: Into<Cow<'static, [u8]>>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str) -> http::Response<T> + Send + Sync + 'static,
+    H: Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>) -> http::Response<T>
+      + Send
+      + Sync
+      + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1706,8 +1709,8 @@ tauri::Builder::default()
     self.uri_scheme_protocols.insert(
       uri_scheme.into(),
       Arc::new(UriSchemeProtocol {
-        protocol: Box::new(move |app, request, webview_label, responder| {
-          responder.respond(protocol(app, request, webview_label))
+        protocol: Box::new(move |ctx, request, responder| {
+          responder.respond(protocol(ctx, request))
         }),
       }),
     );
@@ -1750,7 +1753,7 @@ tauri::Builder::default()
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str, UriSchemeResponder) + Send + Sync + 'static,
+    H: Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync + 'static,
   >(
     mut self,
     uri_scheme: N,
@@ -1999,6 +2002,24 @@ impl UriSchemeResponder {
   pub fn respond<T: Into<Cow<'static, [u8]>>>(self, response: http::Response<T>) {
     let (parts, body) = response.into_parts();
     (self.0)(http::Response::from_parts(parts, body.into()))
+  }
+}
+
+/// Uri scheme protocol context
+pub struct UriSchemeContext<'a, R: Runtime> {
+  pub(crate) app_handle: &'a AppHandle<R>,
+  pub(crate) webview_label: &'a str,
+}
+
+impl<'a, R: Runtime> UriSchemeContext<'a, R> {
+  /// Get a reference to an [`AppHandle`].
+  pub fn app_handle(&self) -> &'a AppHandle<R> {
+    self.app_handle
+  }
+
+  /// Get the webview label that made the uri scheme request.
+  pub fn webview_label(&self) -> &'a str {
+    self.webview_label
   }
 }
 

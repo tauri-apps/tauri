@@ -25,7 +25,8 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
+  Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview,
+  Window,
 };
 
 use super::{
@@ -61,7 +62,7 @@ pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
   pub protocol:
-    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, &str, UriSchemeResponder) + Send + Sync>,
+    Box<dyn Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 pub struct WebviewManager<R: Runtime> {
@@ -212,13 +213,13 @@ impl<R: Runtime> WebviewManager<R> {
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();
       let webview_label = label.to_string();
+
       pending.register_uri_scheme_protocol(uri_scheme.clone(), move |request, responder| {
-        (protocol.protocol)(
-          &app_handle,
-          request,
-          &webview_label,
-          UriSchemeResponder(responder),
-        )
+        let context = UriSchemeContext {
+          app_handle: &app_handle,
+          webview_label: webview_label.as_str(),
+        };
+        (protocol.protocol)(context, request, UriSchemeResponder(responder))
       });
     }
 

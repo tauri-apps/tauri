@@ -871,6 +871,43 @@ class Window {
   }
 
   /**
+   * Enable or disable the window.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setEnabled(false);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.0.0
+   */
+  async setEnabled(enabled: boolean): Promise<void> {
+    return invoke('plugin:window|set_enabled', {
+      label: this.label,
+      value: enabled
+    })
+  }
+
+  /**
+   * Whether the window is enabled or disabled.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setEnabled(false);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.0.0
+   */
+  async isEnabled(): Promise<boolean> {
+    return invoke('plugin:window|is_enabled', {
+      label: this.label
+    })
+  }
+
+  /**
    * Sets whether the window's native maximize button is enabled or not.
    * If resizable is set to false, this setting is ignored.
    *

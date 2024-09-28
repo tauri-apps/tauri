@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.0-rc.13]
+
+### Bug Fixes
+
+- [`1efa5e718`](https://www.github.com/tauri-apps/tauri/commit/1efa5e7184009537b688a395596c696173ae0231) ([#11099](https://www.github.com/tauri-apps/tauri/pull/11099) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Rerun build script if the platform-specific configuration file changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+- Upgraded to `tauri-codegen@2.0.0-rc.13`
+
 ## \[2.0.0-rc.12]
 
 ### Dependencies

@@ -226,13 +226,6 @@ fn alias(alias: &str, has_feature: bool) {
 }
 
 fn main() {
-  let custom_protocol = has_feature("custom-protocol");
-  let dev = !custom_protocol;
-  alias("custom_protocol", custom_protocol);
-  alias("dev", dev);
-
-  println!("cargo:dev={dev}");
-
   let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
   alias("desktop", !mobile);
@@ -255,9 +248,18 @@ fn main() {
   }
 
   // a workaround for default features activation based on profile
-  if has_default && env::var("PROFILE").as_deref() == Ok("release") {
+  let custom_protocol = if has_default && env::var("PROFILE").as_deref() == Ok("release") {
     println!("cargo:rustc-cfg=feature=\"custom-protocol\"");
-  }
+    true
+  } else {
+    has_feature("custom-protocol")
+  };
+
+  let dev = !custom_protocol;
+  alias("custom_protocol", custom_protocol);
+  alias("dev", dev);
+
+  println!("cargo:dev={dev}");
 
   let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 

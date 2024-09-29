@@ -190,7 +190,7 @@ fn main() {
   download_video();
 
   tauri::Builder::default()
-    .register_asynchronous_uri_scheme_protocol("stream", move |_app, request, responder| {
+    .register_asynchronous_uri_scheme_protocol("stream", move |_ctx, request, responder| {
       match get_stream_response(request) {
         Ok(http_response) => responder.respond(http_response),
         Err(e) => responder.respond(

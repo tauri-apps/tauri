@@ -57,6 +57,13 @@ impl Keychain {
     certificate_encoded: &OsString,
     certificate_password: &OsString,
   ) -> Result<Self> {
+    let tmp_dir = tempfile::tempdir()?;
+    let cert_path = tmp_dir.path().join("cert.p12");
+    super::decode_base64(certificate_encoded, &cert_path)?;
+    Self::with_certificate_file(&cert_path, certificate_password)
+  }
+
+  pub fn with_certificate_file(cert_path: &Path, certificate_password: &OsString) -> Result<Self> {
     let home_dir =
       dirs_next::home_dir().ok_or_else(|| anyhow::anyhow!("failed to resolve home dir"))?;
     let keychain_path = home_dir.join("Library").join("Keychains").join(format!(
@@ -68,10 +75,6 @@ impl Keychain {
     let keychain_list_output = Command::new("security")
       .args(["list-keychain", "-d", "user"])
       .output()?;
-
-    let tmp_dir = tempfile::tempdir()?;
-    let cert_path = tmp_dir.path().join("cert.p12");
-    super::decode_base64(certificate_encoded, &cert_path)?;
 
     assert_command(
       Command::new("security")
@@ -92,7 +95,7 @@ impl Keychain {
     assert_command(
       Command::new("security")
         .arg("import")
-        .arg(&cert_path)
+        .arg(cert_path)
         .arg("-P")
         .arg(certificate_password)
         .args([
@@ -212,5 +215,9 @@ impl Keychain {
     assert_command(codesign.piped(), "failed to sign app")?;
 
     Ok(())
+  }
+
+  pub fn path(&self) -> Option<&Path> {
+    self.path.as_deref()
   }
 }

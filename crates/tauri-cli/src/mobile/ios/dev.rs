@@ -344,6 +344,7 @@ fn use_network_address_for_dev_url(
 
   if let Some(ip) = ip {
     std::env::set_var("TAURI_DEV_HOST", ip.to_string());
+    std::env::set_var("TRUNK_SERVE_ADDRESS", ip.to_string());
     if ip.is_ipv6() {
       // in this case we can't ping the server for some reason
       dev_options.no_dev_server_wait = true;

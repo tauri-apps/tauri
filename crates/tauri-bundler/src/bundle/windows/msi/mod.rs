@@ -562,13 +562,6 @@ pub fn build_wix_app_installer(
       )
     });
   data.insert("upgrade_code", to_json(upgrade_code.to_string()));
-
-  let product_code = Uuid::new_v5(
-    &Uuid::NAMESPACE_DNS,
-    settings.bundle_identifier().as_bytes(),
-  )
-  .to_string();
-  data.insert("product_code", to_json(product_code.as_str()));
   data.insert(
     "allow_downgrades",
     to_json(settings.windows().allow_downgrades),

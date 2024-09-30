@@ -13,7 +13,7 @@
 
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
     <Product
-            Id="{{product_code}}"
+            Id="*"
             Name="{{product_name}}"
             UpgradeCode="{{upgrade_code}}"
             Language="!(loc.TauriLanguage)"

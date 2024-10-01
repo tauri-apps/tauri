@@ -11,6 +11,7 @@ use std::{
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
+pub mod certificate;
 mod keychain;
 mod provisioning_profile;
 

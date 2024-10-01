@@ -526,16 +526,38 @@ pub fn synchronize_project_config(
         "signingStyle".to_string(),
         style.value.to_lowercase().into(),
       );
+    } else {
+      export_options_plist.insert("signingStyle".to_string(), "automatic".into());
     }
 
-    if let Some(identity) = build_configuration
-      .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
-      .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
-    {
-      export_options_plist.insert(
-        "signingCertificate".to_string(),
-        identity.value.trim_matches('"').into(),
-      );
+    if manual_signing {
+      if let Some(identity) = build_configuration
+        .get_build_setting("\"CODE_SIGN_IDENTITY[sdk=iphoneos*]\"")
+        .or_else(|| build_configuration.get_build_setting("CODE_SIGN_IDENTITY"))
+      {
+        export_options_plist.insert(
+          "signingCertificate".to_string(),
+          identity.value.trim_matches('"').into(),
+        );
+      }
+
+      let profile_uuid = project_config
+        .provisioning_profile_uuid
+        .clone()
+        .or_else(|| {
+          build_configuration
+            .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
+            .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
+            .map(|setting| setting.value.trim_matches('"').to_string())
+        });
+      if let Some(profile_uuid) = profile_uuid {
+        let mut provisioning_profiles = plist::Dictionary::new();
+        provisioning_profiles.insert(config.app().identifier().to_string(), profile_uuid.into());
+        export_options_plist.insert(
+          "provisioningProfiles".to_string(),
+          provisioning_profiles.into(),
+        );
+      }
     }
 
     if let Some(id) = build_configuration
@@ -543,24 +565,6 @@ pub fn synchronize_project_config(
       .or_else(|| build_configuration.get_build_setting("DEVELOPMENT_TEAM"))
     {
       export_options_plist.insert("teamID".to_string(), id.value.trim_matches('"').into());
-    }
-
-    let profile_uuid = project_config
-      .provisioning_profile_uuid
-      .clone()
-      .or_else(|| {
-        build_configuration
-          .get_build_setting("\"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]\"")
-          .or_else(|| build_configuration.get_build_setting("PROVISIONING_PROFILE_SPECIFIER"))
-          .map(|setting| setting.value.trim_matches('"').to_string())
-      });
-    if let Some(profile_uuid) = profile_uuid {
-      let mut provisioning_profiles = plist::Dictionary::new();
-      provisioning_profiles.insert(config.app().identifier().to_string(), profile_uuid.into());
-      export_options_plist.insert(
-        "provisioningProfiles".to_string(),
-        provisioning_profiles.into(),
-      );
     }
   }
 

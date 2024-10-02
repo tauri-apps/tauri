@@ -290,16 +290,9 @@ export class TrayIcon extends Resource {
 function mapEvent(e: RustTrayIconEvent): TrayIconEvent {
   const out = e as unknown as TrayIconEvent
 
-  out.position = new PhysicalPosition(e.position.x, e.position.y)
-
-  out.rect.position = new PhysicalPosition(
-    e.rect.position.Physical.x,
-    e.rect.position.Physical.y
-  )
-  out.rect.size = new PhysicalSize(
-    e.rect.size.Physical.width,
-    e.rect.size.Physical.height
-  )
+  out.position = new PhysicalPosition(e.position)
+  out.rect.position = new PhysicalPosition(e.rect.position)
+  out.rect.size = new PhysicalSize(e.rect.size)
 
   return out
 }

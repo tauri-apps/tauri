@@ -359,9 +359,9 @@ class Webview {
    * @returns The webview's position.
    */
   async position(): Promise<PhysicalPosition> {
-    return invoke<{ x: number; y: number }>('plugin:webview|webview_position', {
+    return invoke<PhysicalPosition>('plugin:webview|webview_position', {
       label: this.label
-    }).then(({ x, y }) => new PhysicalPosition(x, y))
+    }).then((p) => new PhysicalPosition(p))
   }
 
   /**
@@ -376,12 +376,9 @@ class Webview {
    * @returns The webview's size.
    */
   async size(): Promise<PhysicalSize> {
-    return invoke<{ width: number; height: number }>(
-      'plugin:webview|webview_size',
-      {
-        label: this.label
-      }
-    ).then(({ width, height }) => new PhysicalSize(width, height))
+    return invoke<PhysicalSize>('plugin:webview|webview_size', {
+      label: this.label
+    }).then((s) => new PhysicalSize(s))
   }
 
   // Setters
@@ -414,21 +411,9 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
-    if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${size.type}`] = {
-      width: size.width,
-      height: size.height
-    }
-
     return invoke('plugin:webview|set_webview_size', {
       label: this.label,
-      value
+      value: size.toIpc()
     })
   }
 
@@ -446,24 +431,9 @@ class Webview {
   async setPosition(
     position: LogicalPosition | PhysicalPosition
   ): Promise<void> {
-    if (
-      !position ||
-      (position.type !== 'Logical' && position.type !== 'Physical')
-    ) {
-      throw new Error(
-        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${position.type}`] = {
-      x: position.x,
-      y: position.y
-    }
-
     return invoke('plugin:webview|set_webview_position', {
       label: this.label,
-      value
+      value: position.toIpc()
     })
   }
 
@@ -603,7 +573,7 @@ class Webview {
           payload: {
             type: 'enter',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -616,7 +586,7 @@ class Webview {
           ...event,
           payload: {
             type: 'over',
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -630,7 +600,7 @@ class Webview {
           payload: {
             type: 'drop',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -650,10 +620,6 @@ class Webview {
       unlistenDragLeave()
     }
   }
-}
-
-function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
-  return new PhysicalPosition(m.x, m.y)
 }
 
 /**

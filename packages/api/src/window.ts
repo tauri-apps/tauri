@@ -528,9 +528,9 @@ class Window {
    * @returns The window's inner position.
    */
   async innerPosition(): Promise<PhysicalPosition> {
-    return invoke<{ x: number; y: number }>('plugin:window|inner_position', {
+    return invoke<PhysicalPosition>('plugin:window|inner_position', {
       label: this.label
-    }).then(({ x, y }) => new PhysicalPosition(x, y))
+    }).then((p) => new PhysicalPosition(p))
   }
 
   /**
@@ -544,9 +544,9 @@ class Window {
    * @returns The window's outer position.
    */
   async outerPosition(): Promise<PhysicalPosition> {
-    return invoke<{ x: number; y: number }>('plugin:window|outer_position', {
+    return invoke<PhysicalPosition>('plugin:window|outer_position', {
       label: this.label
-    }).then(({ x, y }) => new PhysicalPosition(x, y))
+    }).then((p) => new PhysicalPosition(p))
   }
 
   /**
@@ -561,12 +561,9 @@ class Window {
    * @returns The window's inner size.
    */
   async innerSize(): Promise<PhysicalSize> {
-    return invoke<{ width: number; height: number }>(
-      'plugin:window|inner_size',
-      {
-        label: this.label
-      }
-    ).then(({ width, height }) => new PhysicalSize(width, height))
+    return invoke<PhysicalSize>('plugin:window|inner_size', {
+      label: this.label
+    }).then((s) => new PhysicalSize(s))
   }
 
   /**
@@ -581,12 +578,9 @@ class Window {
    * @returns The window's outer size.
    */
   async outerSize(): Promise<PhysicalSize> {
-    return invoke<{ width: number; height: number }>(
-      'plugin:window|outer_size',
-      {
-        label: this.label
-      }
-    ).then(({ width, height }) => new PhysicalSize(width, height))
+    return invoke<PhysicalSize>('plugin:window|outer_size', {
+      label: this.label
+    }).then((s) => new PhysicalSize(s))
   }
 
   /**
@@ -1269,21 +1263,9 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
-    if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${size.type}`] = {
-      width: size.width,
-      height: size.height
-    }
-
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value
+      value: size.toIpc()
     })
   }
 
@@ -1301,24 +1283,9 @@ class Window {
   async setMinSize(
     size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
-    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    let value = null as Record<string, unknown> | null
-    if (size) {
-      value = {}
-      value[`${size.type}`] = {
-        width: size.width,
-        height: size.height
-      }
-    }
-
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value
+      value: size?.toIpc()
     })
   }
 
@@ -1336,24 +1303,9 @@ class Window {
   async setMaxSize(
     size: LogicalSize | PhysicalSize | null | undefined
   ): Promise<void> {
-    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    let value = null as Record<string, unknown> | null
-    if (size) {
-      value = {}
-      value[`${size.type}`] = {
-        width: size.width,
-        height: size.height
-      }
-    }
-
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value
+      value: size?.toIpc()
     })
   }
 
@@ -1400,24 +1352,9 @@ class Window {
   async setPosition(
     position: LogicalPosition | PhysicalPosition
   ): Promise<void> {
-    if (
-      !position ||
-      (position.type !== 'Logical' && position.type !== 'Physical')
-    ) {
-      throw new Error(
-        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${position.type}`] = {
-      x: position.x,
-      y: position.y
-    }
-
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value
+      value: position.toIpc()
     })
   }
 
@@ -1586,24 +1523,9 @@ class Window {
   async setCursorPosition(
     position: LogicalPosition | PhysicalPosition
   ): Promise<void> {
-    if (
-      !position ||
-      (position.type !== 'Logical' && position.type !== 'Physical')
-    ) {
-      throw new Error(
-        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${position.type}`] = {
-      x: position.x,
-      y: position.y
-    }
-
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value
+      value: position.toIpc()
     })
   }
 
@@ -1751,7 +1673,7 @@ class Window {
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
-      e.payload = mapPhysicalSize(e.payload)
+      e.payload = new PhysicalSize(e.payload)
       handler(e)
     })
   }
@@ -1775,7 +1697,7 @@ class Window {
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
-      e.payload = mapPhysicalPosition(e.payload)
+      e.payload = new PhysicalPosition(e.payload)
       handler(e)
     })
   }
@@ -1853,7 +1775,7 @@ class Window {
           payload: {
             type: 'enter',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -1866,7 +1788,7 @@ class Window {
           ...event,
           payload: {
             type: 'over',
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -1880,7 +1802,7 @@ class Window {
           payload: {
             type: 'drop',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -2299,17 +2221,9 @@ function mapMonitor(m: Monitor | null): Monitor | null {
     : {
         name: m.name,
         scaleFactor: m.scaleFactor,
-        position: mapPhysicalPosition(m.position),
-        size: mapPhysicalSize(m.size)
+        position: new PhysicalPosition(m.position),
+        size: new PhysicalSize(m.size)
       }
-}
-
-function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
-  return new PhysicalPosition(m.x, m.y)
-}
-
-function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
-  return new PhysicalSize(m.width, m.height)
 }
 
 /**
@@ -2391,7 +2305,7 @@ async function availableMonitors(): Promise<Monitor[]> {
  */
 async function cursorPosition(): Promise<PhysicalPosition> {
   return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
-    mapPhysicalPosition
+    (v) => new PhysicalPosition(v)
   )
 }
 

@@ -17,9 +17,7 @@
   } else {
     const data = JSON.stringify(message, (_k, val) => {
       if (val instanceof Map) {
-        let o = {}
-        val.forEach((v, k) => (o[k] = v))
-        return o
+        return Object.fromEntries(val.entries())
       } else if (val instanceof Uint8Array) {
         return Array.from(val)
       } else if (val instanceof ArrayBuffer) {

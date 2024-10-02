@@ -1265,7 +1265,7 @@ class Window {
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value: size.toIpc()
+      value: size
     })
   }
 
@@ -1285,7 +1285,7 @@ class Window {
   ): Promise<void> {
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value: size?.toIpc()
+      value: size
     })
   }
 
@@ -1305,7 +1305,7 @@ class Window {
   ): Promise<void> {
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value: size?.toIpc()
+      value: size
     })
   }
 
@@ -1354,7 +1354,7 @@ class Window {
   ): Promise<void> {
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value: position.toIpc()
+      value: position
     })
   }
 
@@ -1525,7 +1525,7 @@ class Window {
   ): Promise<void> {
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value: position.toIpc()
+      value: position
     })
   }
 

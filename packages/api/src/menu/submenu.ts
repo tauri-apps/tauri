@@ -247,7 +247,7 @@ export class Submenu extends MenuItemBase {
       rid: this.rid,
       kind: this.kind,
       window: window?.label ?? null,
-      at: at?.toIpc()
+      at
     })
   }
 

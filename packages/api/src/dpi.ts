@@ -63,17 +63,15 @@ class LogicalSize {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const size = new LogicalSize(400, 500);
-   * await invoke("do_something_with_size", { size: size.toIpc() })
+   * await invoke("do_something_with_size", { size: size.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
-  toIpc(): { Logical: { width: number; height: number } } {
+  toJSON() {
     return {
-      Logical: {
-        width: this.width,
-        height: this.height
-      }
+      width: this.width,
+      height: this.height
     }
   }
 }
@@ -135,12 +133,12 @@ class PhysicalSize {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const size = new PhysicalSize(400, 500);
-   * await invoke("do_something_with_size", { size: size.toIpc() })
+   * await invoke("do_something_with_size", { size: size.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
-  toIpc(): { Physical: { width: number; height: number } } {
+  toJSON() {
     return {
       Physical: {
         width: this.width,
@@ -211,12 +209,12 @@ class LogicalPosition {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const position = new LogicalPosition(400, 500);
-   * await invoke("do_something_with_position", { size: size.toIpc() })
+   * await invoke("do_something_with_position", { size: size.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
-  toIpc(): { Logical: { x: number; y: number } } {
+  toJSON() {
     return {
       Logical: {
         x: this.x,
@@ -284,12 +282,12 @@ class PhysicalPosition {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const position = new PhysicalPosition(400, 500);
-   * await invoke("do_something_with_position", { size: size.toIpc() })
+   * await invoke("do_something_with_position", { size: size.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
-  toIpc(): { Physical: { x: number; y: number } } {
+  toJSON() {
     return {
       Physical: {
         x: this.x,

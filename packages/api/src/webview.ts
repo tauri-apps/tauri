@@ -413,7 +413,7 @@ class Webview {
   async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
     return invoke('plugin:webview|set_webview_size', {
       label: this.label,
-      value: size.toIpc()
+      value: size
     })
   }
 
@@ -433,7 +433,7 @@ class Webview {
   ): Promise<void> {
     return invoke('plugin:webview|set_webview_position', {
       label: this.label,
-      value: position.toIpc()
+      value: position
     })
   }
 

@@ -220,7 +220,6 @@ where
     .ok()
     .and_then(|v| v.parse().ok())
     .unwrap_or(cli.verbose);
-  println!("{verbosity_number}");
   // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
   std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
 

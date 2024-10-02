@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.1]
+
+### What's Changed
+
+- [`be683e2ac`](https://www.github.com/tauri-apps/tauri/commit/be683e2ac36df9c51a5c050d9d500247bd019090) ([#11199](https://www.github.com/tauri-apps/tauri/pull/11199) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Publish package with the latest NPM tag.
+
 ## \[2.0.0]
 
 ### What's Changed

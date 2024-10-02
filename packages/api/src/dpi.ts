@@ -70,8 +70,10 @@ class LogicalSize {
    */
   toIPC() {
     return {
-      width: this.width,
-      height: this.height
+      Logical: {
+        width: this.width,
+        height: this.height
+      }
     }
   }
 
@@ -158,8 +160,10 @@ class PhysicalSize {
    */
   toIPC() {
     return {
-      width: this.width,
-      height: this.height
+      Physical: {
+        width: this.width,
+        height: this.height
+      }
     }
   }
 
@@ -250,8 +254,10 @@ class LogicalPosition {
    */
   toIPC() {
     return {
-      x: this.x,
-      y: this.y
+      Logical: {
+        x: this.x,
+        y: this.y
+      }
     }
   }
 
@@ -323,8 +329,10 @@ class PhysicalPosition {
    */
   toIPC() {
     return {
-      x: this.x,
-      y: this.y
+      Physical: {
+        x: this.x,
+        y: this.y
+      }
     }
   }
 

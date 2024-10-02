@@ -88,6 +88,40 @@
       return
     }
 
+    // `postMessage` uses `structuredClone` to serialize the data before sending it
+    // unlike `JSON.stringify`, we can't extend a type with a method similar to `toJSON`
+    // so that `structuredClone` would use, so untl https://github.com/whatwg/html/issues/7428
+    // we manually call `toIPC`
+    function recursiveCallToIPC(data) {
+      if (
+        typeof data === 'object' &&
+        'constrcutor' in data &&
+        data.constructor === Array
+      ) {
+        return data.map((v) => recursiveCallToIPC(v))
+      }
+
+      if (typeof data === 'object' && 'toIPC' in data) {
+        return data.toIPC()
+      }
+
+      if (
+        typeof data === 'object' &&
+        'constructor' in data &&
+        data.constructor === Object
+      ) {
+        const acc = {}
+        Object.entries(data).forEach(([k, v]) => {
+          acc[k] = recursiveCallToIPC(v)
+        })
+        return acc
+      }
+
+      return data
+    }
+
+    data.payload = recursiveCallToIPC(data.payload)
+
     isolation.frame.contentWindow.postMessage(
       data,
       '*' /* todo: set this to the secure origin */

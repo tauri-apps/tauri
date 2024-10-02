@@ -63,16 +63,34 @@ class LogicalSize {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const size = new LogicalSize(400, 500);
+   * await invoke("do_something_with_size", { size: size.toIPC() })
+   * ```
+   *
+   * @since 2.0.0
+   */
+  toIPC() {
+    return {
+      width: this.width,
+      height: this.height
+    }
+  }
+
+  /**
+   * Converts this size into JSON value, that can be deserialized
+   * correctly on the Rust side using `tauri::LogicalSize` struct.
+   * @example
+   * ```typescript
+   * import { LogicalSize } from '@tauri-apps/api/dpi';
+   * import { invoke } from '@tauri-apps/api/core';
+   *
+   * const size = new LogicalSize(400, 500);
    * await invoke("do_something_with_size", { size: size.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
   toJSON() {
-    return {
-      width: this.width,
-      height: this.height
-    }
+    return this.toIPC()
   }
 }
 
@@ -133,18 +151,34 @@ class PhysicalSize {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const size = new PhysicalSize(400, 500);
+   * await invoke("do_something_with_size", { size: size.toIPC() })
+   * ```
+   *
+   * @since 2.0.0
+   */
+  toIPC() {
+    return {
+      width: this.width,
+      height: this.height
+    }
+  }
+
+  /**
+   * Converts this size into JSON value, that can be deserialized
+   * correctly on the Rust side using `tauri::PhysicalSize` struct.
+   * @example
+   * ```typescript
+   * import { PhysicalSize } from '@tauri-apps/api/dpi';
+   * import { invoke } from '@tauri-apps/api/core';
+   *
+   * const size = new PhysicalSize(400, 500);
    * await invoke("do_something_with_size", { size: size.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
   toJSON() {
-    return {
-      Physical: {
-        width: this.width,
-        height: this.height
-      }
-    }
+    return this.toIPC()
   }
 }
 
@@ -209,18 +243,34 @@ class LogicalPosition {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const position = new LogicalPosition(400, 500);
-   * await invoke("do_something_with_position", { size: size.toJSON() })
+   * await invoke("do_something_with_position", { position: position.toIPC() })
+   * ```
+   *
+   * @since 2.0.0
+   */
+  toIPC() {
+    return {
+      x: this.x,
+      y: this.y
+    }
+  }
+
+  /**
+   * Converts this position into JSON value, that can be deserialized
+   * correctly on the Rust side using `tauri::LogicalPosition` struct.
+   * @example
+   * ```typescript
+   * import { LogicalPosition } from '@tauri-apps/api/dpi';
+   * import { invoke } from '@tauri-apps/api/core';
+   *
+   * const position = new LogicalPosition(400, 500);
+   * await invoke("do_something_with_position", { position: position.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
   toJSON() {
-    return {
-      Logical: {
-        x: this.x,
-        y: this.y
-      }
-    }
+    return this.toIPC()
   }
 }
 
@@ -258,22 +308,6 @@ class PhysicalPosition {
   }
 
   /**
-   * Converts the physical position to a logical one.
-   * @example
-   * ```typescript
-   * import { getCurrentWindow } from '@tauri-apps/api/window';
-   *
-   * const appWindow = getCurrentWindow();
-   * const factor = await appWindow.scaleFactor();
-   * const position = await appWindow.innerPosition(); // PhysicalPosition
-   * const logical = position.toLogical(factor);
-   * ```
-   */
-  toLogical(scaleFactor: number): LogicalPosition {
-    return new LogicalPosition(this.x / scaleFactor, this.y / scaleFactor)
-  }
-
-  /**
    * Converts this position into IPC-compatible value, so it can be
    * deserialized correctly on the Rust side using `tauri::PhysicalPosition` struct.
    * @example
@@ -282,18 +316,34 @@ class PhysicalPosition {
    * import { invoke } from '@tauri-apps/api/core';
    *
    * const position = new PhysicalPosition(400, 500);
-   * await invoke("do_something_with_position", { size: size.toJSON() })
+   * await invoke("do_something_with_position", { position: position.toIPC() })
+   * ```
+   *
+   * @since 2.0.0
+   */
+  toIPC() {
+    return {
+      x: this.x,
+      y: this.y
+    }
+  }
+
+  /**
+   * Converts this position into JSON value, that can be deserialized
+   * correctly on the Rust side using `tauri::PhysicalPosition` struct.
+   * @example
+   * ```typescript
+   * import { PhysicalPosition } from '@tauri-apps/api/dpi';
+   * import { invoke } from '@tauri-apps/api/core';
+   *
+   * const position = new PhysicalPosition(400, 500);
+   * await invoke("do_something_with_position", { position: position.toJSON() })
    * ```
    *
    * @since 2.0.0
    */
   toJSON() {
-    return {
-      Physical: {
-        x: this.x,
-        y: this.y
-      }
-    }
+    return this.toIPC()
   }
 }
 

@@ -23,11 +23,13 @@
       } else if (val instanceof ArrayBuffer) {
         return Array.from(new Uint8Array(val))
       }  else if (
-        val instanceof Object &&
+        typeof val === "object" &&
         '__TAURI_CHANNEL_MARKER__' in val &&
         typeof val.id === 'number'
       ) {
         return `__CHANNEL__:${val.id}`
+      } else if (typeof val === "object" &&'toIPC' in val){
+        return val.toIPC()
       } else {
         return val
       }

@@ -105,6 +105,10 @@ jobs:
           createRelease: true
           recognizeContributors: true
 
+      - name: Sync Cargo.lock
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo tree --depth 0
+
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
         uses: tauri-apps/create-pull-request@v3

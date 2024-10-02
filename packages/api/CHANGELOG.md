@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.0]
+
+### What's Changed
+
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
 ## \[2.0.0-rc.6]
 
 ### New Features

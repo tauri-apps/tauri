@@ -220,13 +220,11 @@
     "tauri-cli": {
       "path": "./crates/tauri-cli",
       "manager": "rust",
-      "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"],
-      "postversion": "cargo check"
+      "dependencies": ["tauri-bundler", "tauri-utils", "tauri-macos-sign"]
     },
     "tauri-driver": {
       "path": "./crates/tauri-driver",
-      "manager": "rust",
-      "postversion": "cargo check"
+      "manager": "rust"
     }
   }
 }

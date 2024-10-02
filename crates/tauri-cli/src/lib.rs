@@ -216,10 +216,17 @@ where
     Err(e) => e.exit(),
   };
 
+  let verbosity_number = std::env::var("TAURI_CLI_VERBOSITY")
+    .ok()
+    .and_then(|v| v.parse().ok())
+    .unwrap_or(cli.verbose);
+  // set the verbosity level so subsequent CLI calls (xcode-script, android-studio-script) refer to it
+  std::env::set_var("TAURI_CLI_VERBOSITY", verbosity_number.to_string());
+
   let mut builder = Builder::from_default_env();
   let init_res = builder
     .format_indent(Some(12))
-    .filter(None, verbosity_level(cli.verbose).to_level_filter())
+    .filter(None, verbosity_level(verbosity_number).to_level_filter())
     .format(|f, record| {
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {

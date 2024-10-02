@@ -1,6 +1,6 @@
 [package]
 name = "tauri-driver"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Tauri Programme within The Commons Conservancy"]
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"

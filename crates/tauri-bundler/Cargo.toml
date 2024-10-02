@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.0.0-rc.15"
+version = "2.0.0"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -15,7 +15,7 @@ rust-version = "1.78"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.0.0-rc.13", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.0.0", path = "../tauri-utils", features = [
   "resources",
 ] }
 image = "0.25.0"
@@ -59,7 +59,7 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
 plist = "1"
-tauri-macos-sign = { version = "1.0.0", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.0.0", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"

@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.0.0-rc.18]
+
+### Enhancements
+
+- [`a08e6ffa6`](https://www.github.com/tauri-apps/tauri/commit/a08e6ffa6fe499553be3c4c620726d6031cd6dd3) ([#11185](https://www.github.com/tauri-apps/tauri/pull/11185) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Enhance port forwarding on `android dev` to be more resilient and tolerate delays when booting up devices.
+- [`6cfe7edf6`](https://www.github.com/tauri-apps/tauri/commit/6cfe7edf63636fdf66c429efdeb7bc9a0f404e9f) ([#11186](https://www.github.com/tauri-apps/tauri/pull/11186) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Retain logger verbosity on the `android-studio-script` and `xcode-script` commands.
+- [`60a5aea53`](https://www.github.com/tauri-apps/tauri/commit/60a5aea53db02ae6af325812ab97555f2c013d70) ([#11181](https://www.github.com/tauri-apps/tauri/pull/11181) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set the `TRUNK_SERVE_ADDRESS` environment variable when running on iOS physical devices to support Trunk.
+
+### Bug Fixes
+
+- [`f5d61822b`](https://www.github.com/tauri-apps/tauri/commit/f5d61822bf5988827776dd58bed75c19364e86bd) ([#11184](https://www.github.com/tauri-apps/tauri/pull/11184) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS application not including the provided capabilities (entitlements).
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.0-rc.18`
+
 ## \[2.0.0-rc.17]
 
 ### New Features

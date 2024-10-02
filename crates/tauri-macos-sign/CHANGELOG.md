@@ -1,5 +1,11 @@
 # Changelog
 
+## \[0.1.1-rc.1]
+
+### Enhancements
+
+- [`f5d61822b`](https://www.github.com/tauri-apps/tauri/commit/f5d61822bf5988827776dd58bed75c19364e86bd) ([#11184](https://www.github.com/tauri-apps/tauri/pull/11184) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `Keychain::with_certificate_file` and `certificate::generate_self_signed`.
+
 ## \[0.1.1-rc.0]
 
 ### Bug Fixes

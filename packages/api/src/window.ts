@@ -581,7 +581,7 @@ class Window {
    * @returns The window's outer size.
    */
   async outerSize(): Promise<PhysicalSize> {
-    return invoke<PhysicalSize>('plugin:window|outer_size', {
+    return invoke<{ width: number; height: number }>('plugin:window|outer_size', {
       label: this.label
     }).then((s) => new PhysicalSize(s))
   }

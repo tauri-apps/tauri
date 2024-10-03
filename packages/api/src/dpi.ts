@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+import { ToIPCSymbol } from './core'
+
 /**
  * A size represented in logical pixels.
  *
@@ -68,7 +70,7 @@ class LogicalSize {
    *
    * @since 2.0.0
    */
-  toIPC() {
+  [ToIPCSymbol]() {
     return {
       Logical: {
         width: this.width,
@@ -92,7 +94,7 @@ class LogicalSize {
    * @since 2.0.0
    */
   toJSON() {
-    return this.toIPC()
+    return this[ToIPCSymbol]()
   }
 }
 
@@ -158,7 +160,7 @@ class PhysicalSize {
    *
    * @since 2.0.0
    */
-  toIPC() {
+  [ToIPCSymbol]() {
     return {
       Physical: {
         width: this.width,
@@ -182,7 +184,7 @@ class PhysicalSize {
    * @since 2.0.0
    */
   toJSON() {
-    return this.toIPC()
+    return this[ToIPCSymbol]()
   }
 }
 
@@ -252,7 +254,7 @@ class LogicalPosition {
    *
    * @since 2.0.0
    */
-  toIPC() {
+  [ToIPCSymbol]() {
     return {
       Logical: {
         x: this.x,
@@ -276,7 +278,7 @@ class LogicalPosition {
    * @since 2.0.0
    */
   toJSON() {
-    return this.toIPC()
+    return this[ToIPCSymbol]()
   }
 }
 
@@ -327,7 +329,7 @@ class PhysicalPosition {
    *
    * @since 2.0.0
    */
-  toIPC() {
+  [ToIPCSymbol]() {
     return {
       Physical: {
         x: this.x,
@@ -351,7 +353,7 @@ class PhysicalPosition {
    * @since 2.0.0
    */
   toJSON() {
-    return this.toIPC()
+    return this[ToIPCSymbol]()
   }
 }
 

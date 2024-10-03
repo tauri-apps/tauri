@@ -16,6 +16,11 @@
     }
   } else {
     const data = JSON.stringify(message, (_k, val) => {
+      // if this value changes, make sure to update it in:
+      // 1. ipc.js
+      // 2. core.ts
+      const ToIPCSymbol = '__TAURI_TO_IPC__'
+
       if (val instanceof Map) {
         return Object.fromEntries(val.entries())
       } else if (val instanceof Uint8Array) {
@@ -28,8 +33,8 @@
         typeof val.id === 'number'
       ) {
         return `__CHANNEL__:${val.id}`
-      } else if (typeof val === "object" && 'toIPC' in val) {
-        return val.toIPC()
+      } else if (typeof val === "object" && ToIPCSymbol in val) {
+        return val[ToIPCSymbol]()
       } else {
         return val
       }

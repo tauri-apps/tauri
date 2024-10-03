@@ -8,7 +8,7 @@
  * @since 2.0.0
  */
 class LogicalSize {
-  type = 'Logical' as const
+  readonly type = 'Logical'
   width: number
   height: number
 
@@ -102,7 +102,7 @@ class LogicalSize {
  * @since 2.0.0
  */
 class PhysicalSize {
-  type = 'Physical' as const
+  readonly type = 'Physical'
   width: number
   height: number
 
@@ -192,7 +192,7 @@ class PhysicalSize {
  * @since 2.0.0
  */
 class LogicalPosition {
-  type = 'Logical' as const
+  readonly type = 'Logical'
   x: number
   y: number
 
@@ -286,7 +286,7 @@ class LogicalPosition {
  * @since 2.0.0
  */
 class PhysicalPosition {
-  type = 'Physical' as const
+  readonly type = 'Physical'
   x: number
   y: number
 

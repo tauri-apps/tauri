@@ -528,7 +528,7 @@ class Window {
    * @returns The window's inner position.
    */
   async innerPosition(): Promise<PhysicalPosition> {
-    return invoke<PhysicalPosition>('plugin:window|inner_position', {
+    return invoke<{ x: number; y: number }>('plugin:window|inner_position', {
       label: this.label
     }).then((p) => new PhysicalPosition(p))
   }
@@ -544,7 +544,7 @@ class Window {
    * @returns The window's outer position.
    */
   async outerPosition(): Promise<PhysicalPosition> {
-    return invoke<PhysicalPosition>('plugin:window|outer_position', {
+    return invoke<{ x: number; y: number }>('plugin:window|outer_position', {
       label: this.label
     }).then((p) => new PhysicalPosition(p))
   }
@@ -561,9 +561,12 @@ class Window {
    * @returns The window's inner size.
    */
   async innerSize(): Promise<PhysicalSize> {
-    return invoke<PhysicalSize>('plugin:window|inner_size', {
-      label: this.label
-    }).then((s) => new PhysicalSize(s))
+    return invoke<{ width: number; height: number }>(
+      'plugin:window|inner_size',
+      {
+        label: this.label
+      }
+    ).then((s) => new PhysicalSize(s))
   }
 
   /**

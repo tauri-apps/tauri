@@ -359,7 +359,7 @@ class Webview {
    * @returns The webview's position.
    */
   async position(): Promise<PhysicalPosition> {
-    return invoke<PhysicalPosition>('plugin:webview|webview_position', {
+    return invoke<{ x: number; y: number }>('plugin:webview|webview_position', {
       label: this.label
     }).then((p) => new PhysicalPosition(p))
   }
@@ -376,9 +376,12 @@ class Webview {
    * @returns The webview's size.
    */
   async size(): Promise<PhysicalSize> {
-    return invoke<PhysicalSize>('plugin:webview|webview_size', {
-      label: this.label
-    }).then((s) => new PhysicalSize(s))
+    return invoke<{ width: number; height: number }>(
+      'plugin:webview|webview_size',
+      {
+        label: this.label
+      }
+    ).then((s) => new PhysicalSize(s))
   }
 
   // Setters

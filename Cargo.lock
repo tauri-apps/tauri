@@ -14,7 +14,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "serde_json",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
 ]
 
 [[package]]
@@ -4695,7 +4695,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4979f22fdb869068da03c9f7528f8297c6fd2606bc3a4affe42e6a823fdb8da4"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -8697,7 +8697,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8741,7 +8741,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "thiserror",
  "tokio",
  "tracing",
@@ -8757,7 +8757,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8771,7 +8771,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-codegen",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "tauri-winres",
  "toml 0.8.19",
  "walkdir",
@@ -8779,7 +8779,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -8808,7 +8808,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "tempfile",
  "thiserror",
  "time",
@@ -8823,7 +8823,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -8888,7 +8888,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.6.0",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "tempfile",
  "tokio",
  "toml 0.8.19",
@@ -8913,7 +8913,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -8929,7 +8929,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "syn 2.0.79",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "thiserror",
  "time",
  "url",
@@ -8939,7 +8939,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-driver"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "futures",
@@ -8977,7 +8977,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macos-sign"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "apple-codesign",
@@ -8997,14 +8997,14 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.79",
  "tauri-codegen",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
 ]
 
 [[package]]
@@ -9026,7 +9026,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "glob",
@@ -9034,7 +9034,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "toml 0.8.19",
  "walkdir",
 ]
@@ -9068,13 +9068,13 @@ dependencies = [
  "log",
  "serde",
  "tauri",
- "tauri-plugin 2.0.0",
+ "tauri-plugin 2.0.1",
  "thiserror",
 ]
 
 [[package]]
 name = "tauri-runtime"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "dpi",
  "gtk",
@@ -9083,7 +9083,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "thiserror",
  "url",
  "windows",
@@ -9091,7 +9091,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "gtk",
  "http 1.1.0",
@@ -9105,7 +9105,7 @@ dependencies = [
  "softbuffer",
  "tao",
  "tauri-runtime",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "tracing",
  "url",
  "webkit2gtk",
@@ -9121,7 +9121,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.0.0",
+ "tauri-utils 2.0.1",
  "url",
 ]
 
@@ -9206,7 +9206,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "aes-gcm",
  "brotli",
@@ -10467,7 +10467,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.48.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

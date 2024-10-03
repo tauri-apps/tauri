@@ -766,6 +766,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Adds a capability to the app.
   ///
+  /// Note that by default every capability file in the `src-tauri/capabilities` folder
+  /// are automatically added to the application, so you should use a different directory
+  /// for the runtime-added capabilities or use [tauri_build::Builder::capabilities_path_pattern].
+  ///
   /// # Examples
   /// ```
   /// use tauri::Manager;
@@ -773,10 +777,12 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     #[cfg(feature = "beta")]
-  ///     app.add_capability(include_str!("../capabilities/beta.json"));
+  ///     app.add_capability(include_str!("../capabilities/beta/cap.json"));
   ///     Ok(())
   ///   });
   /// ```
+  ///
+  /// [tauri_build::Builder::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
   fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()

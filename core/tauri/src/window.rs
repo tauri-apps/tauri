@@ -351,19 +351,36 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
     }
     .map(|window| self.manager.attach_window(self.app_handle.clone(), window))?;
 
-    self.manager.eval_script_all(format!(
-      "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
-      window_labels_array = serde_json::to_string(&self.manager.labels())?,
-    ))?;
+    let manager = self.manager.clone();
+    let label = window.label().to_string();
 
-    self.manager.emit_filter(
-      "tauri://window-created",
-      None,
-      Some(WindowCreatedEvent {
-        label: window.label().into(),
-      }),
-      |w| w != &window,
-    )?;
+    let window_created_hook = move || {
+      manager.eval_script_all(format!(
+        "window.__TAURI_METADATA__.__windows = {window_labels_array}.map(function (label) {{ return {{ label: label }} }})",
+        window_labels_array = serde_json::to_string(&manager.labels())?,
+      ))?;
+
+      manager.emit_filter(
+        "tauri://window-created",
+        None,
+        Some(WindowCreatedEvent {
+          label: label.clone(),
+        }),
+        |w| w.label() != label,
+      )?;
+
+      crate::Result::Ok(())
+    };
+
+    if cfg!(feature = "tracing") {
+      std::thread::spawn(move || {
+        if let Err(e) = window_created_hook() {
+          log::error!("failed to trigger window creation hooks: {e}");
+        }
+      });
+    } else {
+      window_created_hook()?;
+    }
 
     Ok(window)
   }

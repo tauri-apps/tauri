@@ -6,6 +6,7 @@ use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_option
 use crate::{
   helpers::config::get as get_tauri_config,
   interface::{AppInterface, Interface},
+  mobile::CliOptions,
   Result,
 };
 use clap::{ArgAction, Parser};
@@ -87,36 +88,17 @@ pub fn command(options: Options) -> Result<()> {
       .dev_url
       .clone();
 
-    if let Some(port) = dev_url.and_then(|url| url.port_or_known_default()) {
-      let forward = format!("tcp:{port}");
-      log::info!("Forwarding port {port} with adb");
+    if let Some(url) = dev_url {
+      let localhost = match url.host() {
+        Some(url::Host::Domain(d)) => d == "localhost",
+        Some(url::Host::Ipv4(i)) => i == std::net::Ipv4Addr::LOCALHOST,
+        _ => false,
+      };
 
-      let devices = adb::device_list(&env).unwrap_or_default();
-
-      // clear port forwarding for all devices
-      for device in &devices {
-        remove_adb_reverse(&env, device.serial_no(), &forward);
-      }
-
-      // if there's a known target, we should force use it
-      if let Some(target_device) = &cli_options.target_device {
-        run_adb_reverse(&env, &target_device.id, &forward, &forward).with_context(|| {
-          format!(
-            "failed to forward port with adb, is the {} device connected?",
-            target_device.name,
-          )
-        })?;
-      } else if devices.len() == 1 {
-        let device = devices.first().unwrap();
-        run_adb_reverse(&env, device.serial_no(), &forward, &forward).with_context(|| {
-          format!(
-            "failed to forward port with adb, is the {} device connected?",
-            device.name(),
-          )
-        })?;
-      } else if devices.len() > 1 {
-        anyhow::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
-      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
+      if localhost {
+        if let Some(port) = url.port_or_known_default() {
+          adb_forward_port(port, &env, &cli_options)?;
+        }
       }
     }
   }
@@ -180,6 +162,102 @@ fn validate_lib(path: &Path) -> Result<()> {
   Ok(())
 }
 
+fn adb_forward_port(
+  port: u16,
+  env: &cargo_mobile2::android::env::Env,
+  cli_options: &CliOptions,
+) -> Result<()> {
+  let forward = format!("tcp:{port}");
+  log::info!("Forwarding port {port} with adb");
+
+  let mut devices = adb::device_list(env).unwrap_or_default();
+  // if we could not detect any running device, let's wait a few seconds, it might be booting up
+  if devices.is_empty() {
+    log::warn!(
+      "ADB device list is empty, waiting a few seconds to see if there's any booting device..."
+    );
+
+    let max = 5;
+    let mut count = 0;
+    loop {
+      std::thread::sleep(std::time::Duration::from_secs(1));
+
+      devices = adb::device_list(env).unwrap_or_default();
+      if !devices.is_empty() {
+        break;
+      }
+
+      count += 1;
+      if count == max {
+        break;
+      }
+    }
+  }
+
+  let target_device = if let Some(target_device) = &cli_options.target_device {
+    Some((target_device.id.clone(), target_device.name.clone()))
+  } else if devices.len() == 1 {
+    let device = devices.first().unwrap();
+    Some((device.serial_no().to_string(), device.name().to_string()))
+  } else if devices.len() > 1 {
+    anyhow::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+      devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
+  } else {
+    // when building the app without running to a device, we might have an empty devices list
+    None
+  };
+
+  if let Some((target_device_serial_no, target_device_name)) = target_device {
+    let mut already_forwarded = false;
+
+    // clear port forwarding for all devices
+    for device in &devices {
+      let reverse_list_output = adb_reverse_list(env, device.serial_no())?;
+
+      // check if the device has the port forwarded
+      if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
+        // device matches our target, we can skip forwarding
+        if device.serial_no() == target_device_serial_no {
+          log::debug!(
+            "device {} already has the forward for {}",
+            device.name(),
+            forward
+          );
+          already_forwarded = true;
+        }
+        break;
+      }
+    }
+
+    // if there's a known target, we should forward the port to it
+    if already_forwarded {
+      log::info!("{forward} already forwarded to {target_device_name}");
+    } else {
+      loop {
+        run_adb_reverse(env, &target_device_serial_no, &forward, &forward).with_context(|| {
+          format!("failed to forward port with adb, is the {target_device_name} device connected?",)
+        })?;
+
+        let reverse_list_output = adb_reverse_list(env, &target_device_serial_no)?;
+        // wait and retry until the port has actually been forwarded
+        if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
+          break;
+        } else {
+          log::warn!(
+            "waiting for the port to be forwarded to {}...",
+            target_device_name
+          );
+          std::thread::sleep(std::time::Duration::from_secs(1));
+        }
+      }
+    }
+  } else {
+    log::warn!("no running devices detected with ADB; skipping port forwarding");
+  }
+
+  Ok(())
+}
+
 fn run_adb_reverse(
   env: &cargo_mobile2::android::env::Env,
   device_serial_no: &str,
@@ -193,15 +271,13 @@ fn run_adb_reverse(
     .run()
 }
 
-fn remove_adb_reverse(
+fn adb_reverse_list(
   env: &cargo_mobile2::android::env::Env,
   device_serial_no: &str,
-  remote: &str,
-) {
-  // ignore errors in case the port is not forwarded
-  let _ = adb::adb(env, ["-s", device_serial_no, "reverse", "--remove", remote])
+) -> std::io::Result<std::process::Output> {
+  adb::adb(env, ["-s", device_serial_no, "reverse", "--list"])
     .stdin_file(os_pipe::dup_stdin().unwrap())
-    .stdout_file(os_pipe::dup_stdout().unwrap())
-    .stderr_file(os_pipe::dup_stdout().unwrap())
-    .run();
+    .stdout_capture()
+    .stderr_capture()
+    .run()
 }

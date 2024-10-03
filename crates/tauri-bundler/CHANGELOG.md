@@ -1,5 +1,27 @@
 # Changelog
 
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+- Upgraded to `tauri-macos-sign@2.0.0`
+
+## \[2.0.1-rc.15]
+
+### Bug Fixes
+
+- [`e10fdb786`](https://www.github.com/tauri-apps/tauri/commit/e10fdb786cc3e23b957238835881c41fa6acf8d4) ([#11182](https://www.github.com/tauri-apps/tauri/pull/11182) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Revert recent change that generated MSI installers with the same product code which prevented updates to happen, it is now ranomized like it previously was.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@0.1.1-rc.1`
+
 ## \[2.0.1-rc.14]
 
 ### New Features

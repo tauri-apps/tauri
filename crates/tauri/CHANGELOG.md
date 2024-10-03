@@ -1,5 +1,31 @@
 # Changelog
 
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+- Upgraded to `tauri-runtime@2.0.0`
+- Upgraded to `tauri-runtime-wry@2.0.0`
+- Upgraded to `tauri-macros@2.0.0`
+- Upgraded to `tauri-build@2.0.0`
+
+## \[2.0.0-rc.17]
+
+### Breaking Changes
+
+- [`354be36d4`](https://www.github.com/tauri-apps/tauri/commit/354be36d4efed6c0c53639af44607f7b050adfd2) ([#11163](https://www.github.com/tauri-apps/tauri/pull/11163) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Changed uri scheme protocol handler to take `UriSchemeContext` as first argument instead of `AppHandle`. `UriSchemeContext` can be used to access an app handle or the webview label that made the request. The following methods are affected:
+
+  - `tauri::Builder::register_uri_scheme_protocol`
+  - `tauri::Builder::register_asynchronous_uri_scheme_protocol`
+  - `tauri::plugin::Builder::register_uri_scheme_protocol`
+  - `tauri::plugin::Builder::register_asynchronous_uri_scheme_protocol`
+
 ## \[2.0.0-rc.16]
 
 ### New Features

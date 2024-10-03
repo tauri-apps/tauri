@@ -28,7 +28,7 @@
         typeof val.id === 'number'
       ) {
         return `__CHANNEL__:${val.id}`
-      } else if (typeof val === "object" && 'toIPC' in val){
+      } else if (typeof val === "object" && 'toIPC' in val) {
         return val.toIPC()
       } else {
         return val

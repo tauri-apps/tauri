@@ -768,7 +768,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// Note that by default every capability file in the `src-tauri/capabilities` folder
   /// are automatically added to the application, so you should use a different directory
-  /// for the runtime-added capabilities or use [tauri_build::Builder::capabilities_path_pattern].
+  /// for the runtime-added capabilities or use [tauri_build::Attributes::capabilities_path_pattern].
   ///
   /// # Examples
   /// ```
@@ -778,11 +778,33 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///   .setup(|app| {
   ///     #[cfg(feature = "beta")]
   ///     app.add_capability(include_str!("../capabilities/beta/cap.json"));
+  ///
+  ///     #[cfg(feature = "stable")]
+  ///     app.add_capability(include_str!("../capabilities/stable/cap.json"));
   ///     Ok(())
   ///   });
   /// ```
   ///
-  /// [tauri_build::Builder::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
+  /// The above example assumes the following directory layout:
+  /// ```md
+  /// ├── capabilities
+  /// │   ├── app (default capabilities used by any app flavor)
+  /// |   |   |-- cap.json
+  /// │   ├── beta (capabilities only added to a `beta` flavor)
+  /// |   |   |-- cap.json
+  /// │   ├── stable (capabilities only added to a `stable` flavor)
+  /// |       |-- cap.json
+  /// ```
+  ///
+  /// For this layout to be properly parsed by Tauri, we need to change the build script to
+  ///
+  /// ```skip
+  /// // only pick up capabilities in the capabilities/app folder by default
+  /// let attributes = tauri_build::Attributes::new().capabilities_path_pattern("./capabilities/app/*.json");
+  /// tauri_build::try_build(attributes).unwrap();
+  /// ```
+  ///
+  /// [tauri_build::Attributes::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
   fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()

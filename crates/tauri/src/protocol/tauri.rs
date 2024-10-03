@@ -7,15 +7,13 @@ use std::{borrow::Cow, sync::Arc};
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
 
 use crate::{
-  manager::{webview::PROXY_DEV_SERVER, AppManager},
+  manager::AppManager,
   webview::{UriSchemeProtocolHandler, WebResourceRequestHandler},
   Runtime,
 };
 
-#[cfg(all(dev, mobile))]
 use std::{collections::HashMap, sync::Mutex};
 
-#[cfg(all(dev, mobile))]
 #[derive(Clone)]
 struct CachedResponse {
   status: http::StatusCode,
@@ -28,18 +26,8 @@ pub fn get<R: Runtime>(
   window_origin: &str,
   web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
 ) -> UriSchemeProtocolHandler {
-  #[cfg(all(dev, mobile))]
-  let url = {
-    let mut url = manager.get_url().as_str().to_string();
-    if url.ends_with('/') {
-      url.pop();
-    }
-    url
-  };
-
   let window_origin = window_origin.to_string();
 
-  #[cfg(all(dev, mobile))]
   let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
   Box::new(move |request, responder| {
@@ -48,8 +36,7 @@ pub fn get<R: Runtime>(
       &manager,
       &window_origin,
       web_resource_request_handler.as_deref(),
-      #[cfg(all(dev, mobile))]
-      (&url, &response_cache),
+      &response_cache,
     ) {
       Ok(response) => responder.respond(response),
       Err(e) => responder.respond(
@@ -66,16 +53,15 @@ pub fn get<R: Runtime>(
 
 fn get_response<R: Runtime>(
   request: Request<Vec<u8>>,
-  #[allow(unused_variables)] manager: &AppManager<R>,
+  manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
-  #[cfg(all(dev, mobile))] (url, response_cache): (
-    &str,
-    &Arc<Mutex<HashMap<String, CachedResponse>>>,
-  ),
+  response_cache: &Arc<Mutex<HashMap<String, CachedResponse>>>,
 ) -> Result<HttpResponse<Cow<'static, [u8]>>, Box<dyn std::error::Error>> {
+  let proxy_dev_server_url = manager.proxy_dev_server_url();
+
   // use the entire URI as we are going to proxy the request
-  let path = if PROXY_DEV_SERVER {
+  let path = if proxy_dev_server_url.is_some() {
     request.uri().to_string()
   } else {
     // ignore query string and fragment
@@ -97,14 +83,13 @@ fn get_response<R: Runtime>(
 
   let mut builder = HttpResponse::builder().header("Access-Control-Allow-Origin", window_origin);
 
-  #[cfg(all(dev, mobile))]
-  let mut response = {
+  let mut response = if let Some(proxy_dev_server_url) = proxy_dev_server_url {
     let decoded_path = percent_encoding::percent_decode(path.as_bytes())
       .decode_utf8_lossy()
       .to_string();
     let url = format!(
       "{}/{}",
-      url.trim_end_matches('/'),
+      proxy_dev_server_url.as_str().trim_end_matches('/'),
       decoded_path.trim_start_matches('/')
     );
 
@@ -148,10 +133,7 @@ fn get_response<R: Runtime>(
         return Err(Box::new(e));
       }
     }
-  };
-
-  #[cfg(not(all(dev, mobile)))]
-  let mut response = {
+  } else {
     let asset = manager.get_asset(path)?;
     builder = builder.header(CONTENT_TYPE, &asset.mime_type);
     if let Some(csp) = &asset.csp_header {
@@ -159,6 +141,7 @@ fn get_response<R: Runtime>(
     }
     builder.body(asset.bytes.into())?
   };
+
   if let Some(handler) = &web_resource_request_handler {
     handler(request, &mut response);
   }

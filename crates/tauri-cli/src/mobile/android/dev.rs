@@ -103,7 +103,7 @@ impl From<Options> for DevOptions {
       no_dev_server: options.no_dev_server,
       port: options.port,
       release_mode: options.release_mode,
-      host: None,
+      host: options.host.unwrap_or_default(),
     }
   }
 }
@@ -197,12 +197,7 @@ fn run_dev(
   noise_level: NoiseLevel,
 ) -> Result<()> {
   // when running on an actual device we must use the network IP
-  if options.host.is_some()
-    || device
-      .as_ref()
-      .map(|device| !device.serial_no().starts_with("emulator"))
-      .unwrap_or(false)
-  {
+  if options.host.is_some() {
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }
 

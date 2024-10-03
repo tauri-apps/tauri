@@ -34,12 +34,6 @@ use super::{
   AppManager,
 };
 
-// we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
-// and we do not get a secure context without the custom protocol that proxies to the dev server
-// additionally, we need the custom protocol to inject the initialization scripts on Android
-// must also keep in sync with the `let mut response` assignment in prepare_uri_scheme_protocol
-pub(crate) const PROXY_DEV_SERVER: bool = cfg!(all(dev, mobile));
-
 pub(crate) const PROCESS_IPC_MESSAGE_FN: &str =
   include_str!("../../scripts/process-ipc-message-fn.js");
 
@@ -403,10 +397,12 @@ impl<R: Runtime> WebviewManager<R> {
 
     let app_manager = manager.manager();
 
+    let proxy_dev_server = app_manager.proxy_dev_server_url().is_some();
+
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
-        let url = if PROXY_DEV_SERVER {
+        let url = if proxy_dev_server {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
           app_manager.get_url()
@@ -426,7 +422,7 @@ impl<R: Runtime> WebviewManager<R> {
         let config_url = app_manager.get_url();
         let is_local = config_url.make_relative(url).is_some();
         let mut url = url.clone();
-        if is_local && PROXY_DEV_SERVER {
+        if is_local && proxy_dev_server {
           url.set_scheme("tauri").unwrap();
           url.set_host(Some("localhost")).unwrap();
         }

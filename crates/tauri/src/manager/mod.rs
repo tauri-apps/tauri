@@ -6,6 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
+  net::Ipv4Addr,
   sync::{Arc, Mutex, MutexGuard},
 };
 
@@ -330,6 +331,20 @@ impl<R: Runtime> AppManager<R> {
   #[cfg(dev)]
   fn base_path(&self) -> Option<&Url> {
     self.config.build.dev_url.as_ref()
+  }
+
+  pub(crate) fn proxy_dev_server_url(&self) -> Option<Url> {
+    let proxy = cfg!(mobile)
+      && cfg!(dev)
+      && self.config.build.dev_url.as_ref().map_or(false, |url| {
+        url.host().map_or(false, |host| match host {
+          url::Host::Domain(d) => d != "localhost",
+          url::Host::Ipv4(ip) => ip != Ipv4Addr::LOCALHOST,
+          _ => false,
+        })
+      });
+
+    proxy.then(|| self.get_url().into_owned())
   }
 
   pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {

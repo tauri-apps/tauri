@@ -259,7 +259,7 @@ export class Resource {
 }
 
 /**
- * Symbol to be used to implement a special function
+ * A key to be used to implement a special function
  * on your types that define how your type should be serialized
  * when passing across the IPC.
  * @example
@@ -274,7 +274,7 @@ export class Resource {
  * `UserId::String("id")` would be serialized into `{ String: "id" }`
  * and so we need to pass the same structure back to Rust
  * ```ts
- * import { ToIPCSymbol } from "@tauri-apps/api/core"
+ * import { ToIPCKey } from "@tauri-apps/api/core"
  *
  * class UserIdString {
  *   id
@@ -282,7 +282,7 @@ export class Resource {
  *     this.id = id
  *   }
  *
- *   [ToIPCSymbol]() {
+ *   [ToIPCKey]() {
  *     return { String: this.id }
  *   }
  * }
@@ -293,7 +293,7 @@ export class Resource {
  *     this.id = id
  *   }
  *
- *   [ToIPCSymbol]() {
+ *   [ToIPCKey]() {
  *     return { Number: this.id }
  *   }
  * }
@@ -306,7 +306,7 @@ export class Resource {
 // if this value changes, make sure to update it in:
 // 1. ipc.js
 // 2. process-ipc-message-fn.js
-export const ToIPCSymbol = '__TAURI_TO_IPC__'
+export const ToIPCKey = '__TAURI_TO_IPC_KEY__'
 
 function isTauri(): boolean {
   return 'isTauri' in window && !!window.isTauri

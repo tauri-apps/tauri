@@ -19,7 +19,7 @@
       // if this value changes, make sure to update it in:
       // 1. ipc.js
       // 2. core.ts
-      const ToIPCSymbol = '__TAURI_TO_IPC__'
+      const ToIPCKey = '__TAURI_TO_IPC_KEY__'
 
       if (val instanceof Map) {
         return Object.fromEntries(val.entries())
@@ -33,8 +33,8 @@
         typeof val.id === 'number'
       ) {
         return `__CHANNEL__:${val.id}`
-      } else if (typeof val === "object" && ToIPCSymbol in val) {
-        return val[ToIPCSymbol]()
+      } else if (typeof val === "object" && ToIPCKey in val) {
+        return val[ToIPCKey]()
       } else {
         return val
       }

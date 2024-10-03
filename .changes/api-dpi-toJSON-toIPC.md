@@ -1,5 +1,5 @@
 ---
-"@tauri-apps/cli": "patch:feat"
+"@tauri-apps/api": "minor:enhanced"
 ---
 
 Improved support for `dpi` module types to allow these types to be used without manual conversions with `invoke`:

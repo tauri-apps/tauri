@@ -2310,7 +2310,7 @@ async function availableMonitors(): Promise<Monitor[]> {
  * The coordinates can be negative if the top-left hand corner of the window is outside of the visible screen region.
  */
 async function cursorPosition(): Promise<PhysicalPosition> {
-  return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
+  return invoke<{ x: number; y: number }>('plugin:window|cursor_position').then(
     (v) => new PhysicalPosition(v)
   )
 }

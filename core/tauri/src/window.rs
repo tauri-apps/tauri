@@ -372,7 +372,7 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       crate::Result::Ok(())
     };
 
-    #[cfg(not(feature = "tracing")]
+    #[cfg(not(feature = "tracing"))]
     window_created_hook()?;
     #[cfg(feature = "tracing")]
     std::thread::spawn(move || {

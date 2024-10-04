@@ -372,15 +372,14 @@ impl<'a, R: Runtime> WindowBuilder<'a, R> {
       crate::Result::Ok(())
     };
 
-    if cfg!(feature = "tracing") {
-      std::thread::spawn(move || {
-        if let Err(e) = window_created_hook() {
-          log::error!("failed to trigger window creation hooks: {e}");
-        }
-      });
-    } else {
-      window_created_hook()?;
-    }
+    #[cfg(not(feature = "tracing")]
+    window_created_hook()?;
+    #[cfg(feature = "tracing")]
+    std::thread::spawn(move || {
+      if let Err(e) = window_created_hook() {
+        log::error!("failed to trigger window creation hooks: {e}");
+      }
+    });
 
     Ok(window)
   }

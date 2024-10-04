@@ -2,4 +2,4 @@
 "tauri-bundler": patch:fix
 ---
 
-Fixed Command arguments for Windows -> msi -> elevatedUpdateTask. This works with spaces in project name on windows
+On Windows, fixed command arguments for `bundle -> windows -> msi -> elevatedUpdateTask`. to work with spaces in `productName`

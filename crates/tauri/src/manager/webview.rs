@@ -259,7 +259,7 @@ impl<R: Runtime> WebviewManager<R> {
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol = crate::ipc::protocol::get(manager.manager_owned(), pending.label.clone());
+      let protocol = crate::ipc::protocol::get(manager.manager_owned());
       pending.register_uri_scheme_protocol("ipc", move |request, responder| {
         protocol(request, UriSchemeResponder(responder))
       });

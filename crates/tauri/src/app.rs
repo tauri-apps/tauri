@@ -1215,6 +1215,10 @@ pub struct Builder<R: Runtime> {
   #[cfg(desktop)]
   menu: Option<Box<dyn FnOnce(&AppHandle<R>) -> crate::Result<Menu<R>> + Send>>,
 
+  /// Menu event listeners for any menu event.
+  #[cfg(desktop)]
+  menu_event_listeners: Vec<GlobalMenuEventListener<AppHandle<R>>>,
+
   /// Enable macOS default menu creation.
   #[allow(unused)]
   enable_macos_default_menu: bool,
@@ -1284,6 +1288,8 @@ impl<R: Runtime> Builder<R> {
       state: StateManager::new(),
       #[cfg(desktop)]
       menu: None,
+      #[cfg(desktop)]
+      menu_event_listeners: Vec::new(),
       enable_macos_default_menu: true,
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
@@ -1606,6 +1612,29 @@ tauri::Builder::default()
     self
   }
 
+  /// Registers an event handler for any menu event.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::menu::*;
+  ///
+  /// tauri::Builder::default()
+  ///   .on_menu_event(|app, event| {
+  ///      if event.id() == "quit" {
+  ///        app.exit();
+  ///      }
+  ///   });
+  /// ```
+  #[must_use]
+  #[cfg(desktop)]
+  pub fn on_menu_event<F: Fn(&AppHandle<R>, MenuEvent) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.menu_event_listeners.push(Box::new(f));
+    self
+  }
+
   /// Enable or disable the default menu on macOS. Enabled by default.
   ///
   /// # Examples
@@ -1811,6 +1840,7 @@ tauri::Builder::default()
       self.on_page_load,
       self.uri_scheme_protocols,
       self.state,
+      self.menu_event_listeners,
       self.window_event_listeners,
       self.webview_event_listeners,
       #[cfg(desktop)]

@@ -24,6 +24,7 @@ use super::{CallbackFn, InvokeResponse};
 const TAURI_CALLBACK_HEADER_NAME: &str = "Tauri-Callback";
 const TAURI_ERROR_HEADER_NAME: &str = "Tauri-Error";
 const TAURI_INVOKE_KEY_HEADER_NAME: &str = "Tauri-Invoke-Key";
+const TAURI_WEBVIEW_LABEL_HEADER_NAME: &str = "Tauri-Webview-Label";
 
 const TAURI_RESPONSE_HEADER_NAME: &str = "Tauri-Response";
 const TAURI_RESPONSE_HEADER_ERROR: &str = "error";
@@ -316,6 +317,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
           body: message.payload.into(),
           headers: options.headers.0,
           invoke_key: message.invoke_key,
+          label: label.to_string(),
         };
 
         #[cfg(feature = "tracing")]
@@ -532,6 +534,14 @@ fn parse_invoke_request<R: Runtime>(
       .map_err(|_| "Tauri error header value must be a numeric string")?,
   );
 
+  let label = parts
+    .headers
+    .get(TAURI_WEBVIEW_LABEL_HEADER_NAME)
+    .ok_or("missing Tauri-Webview-Label header")?
+    .to_str()
+    .map_err(|_| "Tauri webview label header value must be a string")?
+    .to_owned();
+
   #[cfg(feature = "tracing")]
   let span = tracing::trace_span!("ipc::request::deserialize").entered();
 
@@ -561,6 +571,7 @@ fn parse_invoke_request<R: Runtime>(
     body,
     headers: parts.headers,
     invoke_key,
+    label,
   };
 
   Ok(payload)

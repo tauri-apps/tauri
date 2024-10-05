@@ -132,6 +132,8 @@ pub struct InvokeRequest {
   pub headers: HeaderMap,
   /// The invoke key. Must match what was passed to the app manager.
   pub invoke_key: String,
+  /// The label of the webview that requested this command.
+  pub label: String,
 }
 
 /// The platform webview handle. Accessed with [`Webview#method.with_webview`];

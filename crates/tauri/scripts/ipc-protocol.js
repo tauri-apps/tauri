@@ -35,6 +35,7 @@
           'Tauri-Callback': callback,
           'Tauri-Error': error,
           'Tauri-Invoke-Key': __TAURI_INVOKE_KEY__,
+          'Tauri-Webview-Label': window.__TAURI_INTERNALS__.metadata.currentWebview.label,
           ...((options && options.headers) || {})
         }
       })

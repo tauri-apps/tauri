@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.2]
+
+### Bug Fixes
+
+- [`858b3516a`](https://www.github.com/tauri-apps/tauri/commit/858b3516a008ae5e6f2af489805896e2c142be10) ([#11217](https://www.github.com/tauri-apps/tauri/pull/11217) by [@kittuov](https://www.github.com/tauri-apps/tauri/../../kittuov)) On Windows, fixed command arguments for `bundle -> windows -> msi -> elevatedUpdateTask`. to work with spaces in `productName`
+
 ## \[2.0.1]
 
 ### What's Changed

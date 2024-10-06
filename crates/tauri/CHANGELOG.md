@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.2]
+
+### Enhancements
+
+- [`03e759042`](https://www.github.com/tauri-apps/tauri/commit/03e759042913e2ae9d45f299d6b6ad4b64ac3d2c) ([#11235](https://www.github.com/tauri-apps/tauri/pull/11235) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `App::invoke_key` and `AppHandle::invoke_key` for custom invoke systems that rely on manual `Webview::on_message` calls.
+
 ## \[2.0.1]
 
 ### What's Changed

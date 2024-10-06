@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.2]
+
+### What's Changed
+
+- [`4475fbb50`](https://www.github.com/tauri-apps/tauri/commit/4475fbb502c5ffb3cea4de6bef1c7869be39bed6) ([#11208](https://www.github.com/tauri-apps/tauri/pull/11208) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update cargo-mobile2 to 0.17.3, fixing lib name validation.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.2`
+
 ## \[2.0.1]
 
 ### Dependencies

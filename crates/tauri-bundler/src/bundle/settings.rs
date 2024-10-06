@@ -890,6 +890,16 @@ impl Settings {
   }
 
   /// Returns the file name of the binary being bundled.
+  pub fn main_binary_mut(&mut self) -> crate::Result<&mut BundleBinary> {
+    self
+      .binaries
+      .iter_mut()
+      .find(|bin| bin.main)
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map_err(Into::into)
+  }
+
+  /// Returns the file name of the binary being bundled.
   pub fn main_binary_name(&self) -> crate::Result<&str> {
     self
       .binaries

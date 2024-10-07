@@ -5,6 +5,7 @@
 ### Bug Fixes
 
 - [`858b3516a`](https://www.github.com/tauri-apps/tauri/commit/858b3516a008ae5e6f2af489805896e2c142be10) ([#11217](https://www.github.com/tauri-apps/tauri/pull/11217) by [@kittuov](https://www.github.com/tauri-apps/tauri/../../kittuov)) On Windows, fixed command arguments for `bundle -> windows -> msi -> elevatedUpdateTask`. to work with spaces in `productName`
+- [`a49a19ffa`](https://www.github.com/tauri-apps/tauri/commit/a49a19ffa304f031fb1a04d31a567cc7f42a380a) ([#11218](https://www.github.com/tauri-apps/tauri/pull/11218)) Fix bundling `appimage`, `deb` and `rpm` bundles failing to open when using `mainBinaryName` with spaces.
 
 ## \[2.0.1]
 

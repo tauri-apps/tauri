@@ -4,4 +4,4 @@
 "tauri-cli": patch
 ---
 
-feat(bundler): add `Italian` to supported NSIS languages
+Add `Italian` to supported NSIS installer languages

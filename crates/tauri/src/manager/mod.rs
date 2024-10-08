@@ -21,7 +21,7 @@ use tauri_utils::{
 
 use crate::{
   app::{
-    AppHandle, GlobalMenuEventListener, GlobalWebviewEventListener, GlobalWindowEventListener,
+    AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
   },
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
@@ -251,7 +251,7 @@ impl<R: Runtime> AppManager<R> {
     on_page_load: Option<Arc<OnPageLoad<R>>>,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
-    menu_event_listener: Vec<GlobalMenuEventListener<AppHandle<R>>>,
+    #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     webiew_event_listeners: Vec<GlobalWebviewEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<

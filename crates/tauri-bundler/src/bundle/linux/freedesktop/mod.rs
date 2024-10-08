@@ -99,6 +99,7 @@ pub fn generate_desktop_file(
   data_dir: &Path,
 ) -> crate::Result<(PathBuf, PathBuf)> {
   let bin_name = settings.main_binary_name()?;
+
   let product_name = settings.product_name();
   let desktop_file_name = format!("{product_name}.desktop");
   let path = PathBuf::from("usr/share/applications").join(desktop_file_name);
@@ -150,6 +151,12 @@ pub fn generate_desktop_file(
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
 
+  let bin_name_exec = if bin_name.contains(" ") {
+    format!("\"{bin_name}\"")
+  } else {
+    bin_name.to_string()
+  };
+
   handlebars.render_to_write(
     "main.desktop",
     &DesktopTemplateParams {
@@ -162,7 +169,7 @@ pub fn generate_desktop_file(
       } else {
         None
       },
-      exec: bin_name,
+      exec: &bin_name_exec,
       icon: bin_name,
       name: settings.product_name(),
       mime_type,

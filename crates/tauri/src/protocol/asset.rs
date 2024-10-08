@@ -199,6 +199,10 @@ fn get_response(
       })?;
       resp.body(buf.into())
     }
+  } else if request.method() == http::Method::HEAD {
+    // if the HEAD method is used, we should not return a body
+    resp = resp.header(CONTENT_LENGTH, len);
+    resp.body(Vec::new().into())
   } else {
     // avoid reading the file if we already read it
     // as part of mime type detection

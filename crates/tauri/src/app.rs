@@ -878,6 +878,15 @@ macro_rules! shared_app_impl {
           webview.resources_table().clear();
         }
       }
+
+      /// Gets the invoke key that must be referenced when using [`crate::webview::InvokeRequest`].
+      ///
+      /// # Security
+      ///
+      /// DO NOT expose this key to third party scripts as might grant access to the backend from external URLs and iframes.
+      pub fn invoke_key(&self) -> &str {
+        self.manager.invoke_key()
+      }
     }
 
     impl<R: Runtime> Listener<R> for $app {

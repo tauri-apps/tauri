@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.2]
+
+### What's Changed
+
+- [`4475fbb50`](https://www.github.com/tauri-apps/tauri/commit/4475fbb502c5ffb3cea4de6bef1c7869be39bed6) ([#11208](https://www.github.com/tauri-apps/tauri/pull/11208) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update cargo-mobile2 to 0.17.3, fixing lib name validation.
+- [`a49a19ffa`](https://www.github.com/tauri-apps/tauri/commit/a49a19ffa304f031fb1a04d31a567cc7f42a380a) ([#11218](https://www.github.com/tauri-apps/tauri/pull/11218)) Fix bundling `appimage`, `deb` and `rpm` bundles failing to open when using `mainBinaryName` with spaces.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.2`
+
 ## \[2.0.1]
 
 ### What's Changed

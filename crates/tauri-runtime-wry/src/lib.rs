@@ -3963,52 +3963,45 @@ fn create_webview<T: UserEvent>(
     ..
   } = pending;
 
-  let builder = match kind {
-    #[cfg(not(any(
-      target_os = "windows",
-      target_os = "macos",
-      target_os = "ios",
-      target_os = "android"
-    )))]
-    WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      WebViewBuilder::new_gtk(vbox)
+  let mut web_context = context
+    .main_thread
+    .web_context
+    .lock()
+    .expect("poisoned WebContext store");
+  let is_first_context = web_context.is_empty();
+  // the context must be stored on the HashMap because it must outlive the WebView on macOS
+  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
+  let web_context_key = webview_attributes.data_directory;
+  let entry = web_context.entry(web_context_key.clone());
+  let web_context = match entry {
+    Occupied(occupied) => {
+      let occupied = occupied.into_mut();
+      occupied.referenced_by_webviews.insert(label.clone());
+      occupied
     }
-    #[cfg(any(
-      target_os = "windows",
-      target_os = "macos",
-      target_os = "ios",
-      target_os = "android"
-    ))]
-    WebviewKind::WindowChild => WebViewBuilder::new_as_child(&window),
-    WebviewKind::WindowContent => {
-      #[cfg(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-      ))]
-      let builder = WebViewBuilder::new(&window);
-      #[cfg(not(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-      )))]
-      let builder = {
-        let vbox = window.default_vbox().unwrap();
-        WebViewBuilder::new_gtk(vbox)
-      };
-      builder
+    Vacant(vacant) => {
+      let mut web_context = WryWebContext::new(web_context_key.clone());
+      web_context.set_allows_automation(if automation_enabled {
+        is_first_context
+      } else {
+        false
+      });
+      vacant.insert(WebContext {
+        inner: web_context,
+        referenced_by_webviews: [label.clone()].into(),
+        registered_custom_protocols: HashSet::new(),
+      })
     }
   };
 
-  let mut webview_builder = builder
+  let mut webview_builder = WebViewBuilder::with_web_context(&mut web_context.inner)
+    .with_id(&label)
     .with_focused(window.is_focused())
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
+    .with_incognito(webview_attributes.incognito)
+    .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
   if webview_attributes.drag_drop_handler_enabled {
@@ -4177,47 +4170,17 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = context
-    .main_thread
-    .web_context
-    .lock()
-    .expect("poisoned WebContext store");
-  let is_first_context = web_context.is_empty();
-  // the context must be stored on the HashMap because it must outlive the WebView on macOS
-  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
-  let web_context_key = webview_attributes.data_directory;
-  let entry = web_context.entry(web_context_key.clone());
-  let web_context = match entry {
-    Occupied(occupied) => {
-      let occupied = occupied.into_mut();
-      occupied.referenced_by_webviews.insert(label.clone());
-      occupied
-    }
-    Vacant(vacant) => {
-      let mut web_context = WryWebContext::new(web_context_key.clone());
-      web_context.set_allows_automation(if automation_enabled {
-        is_first_context
-      } else {
-        false
-      });
-      vacant.insert(WebContext {
-        inner: web_context,
-        referenced_by_webviews: [label.clone()].into(),
-        registered_custom_protocols: HashSet::new(),
-      })
-    }
-  };
-
   for (scheme, protocol) in uri_scheme_protocols {
     // on Linux the custom protocols are associated with the web context
     // and you cannot register a scheme more than once
-    if cfg!(any(
+    #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
       target_os = "freebsd",
       target_os = "netbsd",
       target_os = "openbsd"
-    )) {
+    ))]
+    {
       if web_context.registered_custom_protocols.contains(&scheme) {
         continue;
       }
@@ -4227,21 +4190,16 @@ fn create_webview<T: UserEvent>(
         .insert(scheme.clone());
     }
 
-    webview_builder =
-      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
+    webview_builder = webview_builder.with_asynchronous_custom_protocol(
+      scheme,
+      move |webview_id, request, responder| {
         protocol(
+          webview_id.as_deref(),
           request,
           Box::new(move |response| responder.respond(response)),
         )
-      });
-  }
-
-  if webview_attributes.clipboard {
-    webview_builder.attrs.clipboard = true;
-  }
-
-  if webview_attributes.incognito {
-    webview_builder.attrs.incognito = true;
+      },
+    );
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -4262,10 +4220,47 @@ fn create_webview<T: UserEvent>(
     }
   }
 
-  let webview = webview_builder
-    .with_web_context(&mut web_context.inner)
-    .build()
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+  let webview = match kind {
+    #[cfg(not(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    )))]
+    WebviewKind::WindowChild => {
+      // only way to account for menu bar height, and also works for multiwebviews :)
+      let vbox = window.default_vbox().unwrap();
+      webview_builder.build_gtk(vbox)
+    }
+    #[cfg(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    ))]
+    WebviewKind::WindowChild => webview_builder.build(&window),
+    WebviewKind::WindowContent => {
+      #[cfg(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+      ))]
+      let builder = webview_builder.build(&window);
+      #[cfg(not(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+      )))]
+      let builder = {
+        let vbox = window.default_vbox().unwrap();
+        webview_builder.build_gtk(vbox)
+      };
+      builder
+    }
+  }
+  .map_err(|e| Error::CreateWebview(Box::new(dbg!(e))))?;
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(

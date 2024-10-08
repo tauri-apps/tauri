@@ -10918,9 +10918,8 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.44.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "440600584cfbd8b0d28eace95c1f2c253db05dae43780b79380aa1e868f04c73"
+version = "0.45.0"
+source = "git+https://github.com/tauri-apps/wry?branch=refactor/protocol-webview-id#bfb90569121639aa93133b8db55b985a1cb28cb1"
 dependencies = [
  "base64 0.22.1",
  "block",

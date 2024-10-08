@@ -18,8 +18,11 @@ use std::{
   sync::Arc,
 };
 
-type UriSchemeProtocol = dyn Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
-  + Send
+type UriSchemeProtocol = dyn Fn(
+    Option<&str>,
+    http::Request<Vec<u8>>,
+    Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>,
+  ) + Send
   + Sync
   + 'static;
 
@@ -129,8 +132,11 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
 
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
-    H: Fn(http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
-      + Send
+    H: Fn(
+        Option<&str>,
+        http::Request<Vec<u8>>,
+        Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>,
+      ) + Send
       + Sync
       + 'static,
   >(

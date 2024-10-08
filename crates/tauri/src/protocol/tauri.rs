@@ -42,7 +42,7 @@ pub fn get<R: Runtime>(
   #[cfg(all(dev, mobile))]
   let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
-  Box::new(move |request, responder| {
+  Box::new(move |_, request, responder| {
     match get_response(
       request,
       &manager,

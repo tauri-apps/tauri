@@ -35,8 +35,8 @@ pub fn message_handler<R: Runtime>(
   Box::new(move |webview, request| handle_ipc_message(request, &manager, &webview.label))
 }
 
-pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeProtocolHandler {
-  Box::new(move |request, responder| {
+pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler {
+  Box::new(move |label, request, responder| {
     #[cfg(feature = "tracing")]
     let span = tracing::trace_span!(
       "ipc::request",
@@ -46,7 +46,6 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>, label: String) -> UriSchemeP
     .entered();
 
     let manager = manager.clone();
-    let label = label.clone();
 
     let respond = move |mut response: http::Response<Cow<'static, [u8]>>| {
       response

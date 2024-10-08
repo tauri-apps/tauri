@@ -1630,7 +1630,7 @@ tauri::Builder::default()
   /// tauri::Builder::default()
   ///   .on_menu_event(|app, event| {
   ///      if event.id() == "quit" {
-  ///        app.exit();
+  ///        app.exit(0);
   ///      }
   ///   });
   /// ```

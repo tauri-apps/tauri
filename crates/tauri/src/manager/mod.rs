@@ -20,10 +20,7 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{
-    AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener,
-    OnPageLoad,
-  },
+  app::{AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener, OnPageLoad},
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,

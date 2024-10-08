@@ -2,4 +2,4 @@
 "tauri": patch:bug
 ---
 
-fix: successful response should have no body to a HEAD request, closes #11263 
+Respond with empty body for `HEAD` requests to `asset` protocol

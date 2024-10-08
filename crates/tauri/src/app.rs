@@ -1849,6 +1849,7 @@ tauri::Builder::default()
       self.on_page_load,
       self.uri_scheme_protocols,
       self.state,
+      #[cfg(desktop)]
       self.menu_event_listeners,
       self.window_event_listeners,
       self.webview_event_listeners,

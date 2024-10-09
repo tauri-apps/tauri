@@ -61,17 +61,18 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   let bundle_file_name = format!("{}.app", product_name);
   let bundle_dir = settings.project_out_directory().join("bundle/macos");
 
-  let support_directory_path = output_path.join("support");
-  if output_path.exists() {
-    fs::remove_dir_all(&output_path)
-      .with_context(|| format!("Failed to remove old {}", dmg_name))?;
+  let support_directory_path = output_path
+    .parent()
+    .unwrap()
+    .join("share/create-dmg/support");
+
+  for path in &[&support_directory_path, &output_path] {
+    if path.exists() {
+      fs::remove_dir_all(path).with_context(|| format!("Failed to remove old {}", dmg_name))?;
+    }
+    fs::create_dir_all(path)
+      .with_context(|| format!("Failed to create output directory at {:?}", path))?;
   }
-  fs::create_dir_all(&support_directory_path).with_context(|| {
-    format!(
-      "Failed to create output directory at {:?}",
-      support_directory_path
-    )
-  })?;
 
   // create paths for script
   let bundle_script_path = output_path.join("bundle_dmg.sh");

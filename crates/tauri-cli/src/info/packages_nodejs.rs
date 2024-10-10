@@ -50,7 +50,8 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         Ok(None)
       }
     }
-    PackageManager::Npm => {
+    // Bun and Deno don't support show command
+    PackageManager::Npm | PackageManager::Deno | PackageManager::Bun => {
       let mut cmd = cross_command("npm");
 
       let output = cmd.arg("show").arg(name).arg("version").output()?;
@@ -72,41 +73,13 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         Ok(None)
       }
     }
-    // Bun doesn't support `info` command
-    PackageManager::Bun => {
-      let mut cmd = cross_command("npm");
-
-      let output = cmd.arg("show").arg(name).arg("version").output()?;
-      if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace('\n', "")))
-      } else {
-        Ok(None)
-      }
-    }
   }
 }
 
 pub fn package_manager(app_dir: &PathBuf) -> PackageManager {
-  let mut use_npm = false;
-  let mut use_pnpm = false;
-  let mut use_yarn = false;
-  let mut use_bun = false;
+  let found = PackageManager::from_project(app_dir);
 
-  for entry in std::fs::read_dir(app_dir)
-    .unwrap()
-    .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
-  {
-    match entry.as_str() {
-      "pnpm-lock.yaml" => use_pnpm = true,
-      "package-lock.json" => use_npm = true,
-      "yarn.lock" => use_yarn = true,
-      "bun.lockb" => use_bun = true,
-      _ => {}
-    }
-  }
-
-  if !use_npm && !use_pnpm && !use_yarn && !use_bun {
+  if found.is_empty() {
     println!(
       "{}: no lock files found, defaulting to npm",
       "WARNING".yellow()
@@ -114,23 +87,9 @@ pub fn package_manager(app_dir: &PathBuf) -> PackageManager {
     return PackageManager::Npm;
   }
 
-  let mut found = Vec::new();
-
-  if use_npm {
-    found.push(PackageManager::Npm);
-  }
-  if use_pnpm {
-    found.push(PackageManager::Pnpm);
-  }
-  if use_yarn {
-    found.push(PackageManager::Yarn);
-  }
-  if use_bun {
-    found.push(PackageManager::Bun);
-  }
+  let pkg_manger = found[0];
 
   if found.len() > 1 {
-    let pkg_manger = found[0];
     println!(
           "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
           "WARNING".yellow(),
@@ -140,19 +99,14 @@ pub fn package_manager(app_dir: &PathBuf) -> PackageManager {
     return pkg_manger;
   }
 
-  if use_npm {
-    PackageManager::Npm
-  } else if use_pnpm {
-    PackageManager::Pnpm
-  } else if use_bun {
-    PackageManager::Bun
-  } else if manager_version("yarn")
-    .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
-    .unwrap_or(false)
+  if pkg_manger == PackageManager::Yarn
+    && manager_version("yarn")
+      .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
+      .unwrap_or(false)
   {
     PackageManager::YarnBerry
   } else {
-    PackageManager::Yarn
+    pkg_manger
   }
 }
 

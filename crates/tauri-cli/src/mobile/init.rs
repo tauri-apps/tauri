@@ -90,6 +90,9 @@ pub fn exec(
 
             return (binary, build_args);
           }
+        } else if bin_stem == "deno" {
+          build_args.insert(0, "task");
+          return (std::ffi::OsString::from("deno"), build_args);
         } else if !cfg!(debug_assertions) && bin_stem == "cargo-tauri" {
           return (std::ffi::OsString::from("cargo"), build_args);
         }

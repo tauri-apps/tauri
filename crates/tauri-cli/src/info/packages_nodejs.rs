@@ -96,7 +96,6 @@ pub fn package_manager(app_dir: &PathBuf) -> PackageManager {
           found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
           pkg_manger
         );
-    return pkg_manger;
   }
 
   if pkg_manger == PackageManager::Yarn

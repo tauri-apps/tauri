@@ -34,7 +34,7 @@ impl Display for PackageManager {
         PackageManager::Pnpm => "pnpm",
         PackageManager::Yarn => "yarn",
         PackageManager::YarnBerry => "yarn berry",
-        PackageManager::Bun => "deno",
+        PackageManager::Deno => "deno",
         PackageManager::Bun => "bun",
       }
     )

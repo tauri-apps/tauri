@@ -20,6 +20,7 @@ enum PackageManager {
   Pnpm,
   Yarn,
   YarnBerry,
+  Deno,
   Bun,
 }
 
@@ -33,6 +34,7 @@ impl Display for PackageManager {
         PackageManager::Pnpm => "pnpm",
         PackageManager::Yarn => "yarn",
         PackageManager::YarnBerry => "yarn berry",
+        PackageManager::Bun => "deno",
         PackageManager::Bun => "bun",
       }
     )
@@ -74,7 +76,8 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
         Ok(None)
       }
     }
-    PackageManager::Npm => {
+    // Bun and Deno don't support `info` command
+    PackageManager::Npm | PackageManager::Bun | PackageManager::Deno => {
       let mut cmd = cross_command("npm");
 
       let output = cmd.arg("show").arg(name).arg("version").output()?;
@@ -89,18 +92,6 @@ fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Option<S
       let mut cmd = cross_command("pnpm");
 
       let output = cmd.arg("info").arg(name).arg("version").output()?;
-      if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        Ok(Some(stdout.replace('\n', "")))
-      } else {
-        Ok(None)
-      }
-    }
-    // Bun doesn't support `info` command
-    PackageManager::Bun => {
-      let mut cmd = cross_command("npm");
-
-      let output = cmd.arg("show").arg(name).arg("version").output()?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
         Ok(Some(stdout.replace('\n', "")))
@@ -135,7 +126,8 @@ fn npm_package_version<P: AsRef<Path>>(
         .output()?,
       Some(regex::Regex::new("\"Version\":\"([\\da-zA-Z\\-\\.]+)\"").unwrap()),
     ),
-    PackageManager::Npm => (
+    // Bun and Deno don't support `list` command
+    PackageManager::Npm | PackageManager::Bun | PackageManager::Deno => (
       cross_command("npm")
         .arg("list")
         .arg(name)
@@ -149,16 +141,6 @@ fn npm_package_version<P: AsRef<Path>>(
         .arg("list")
         .arg(name)
         .args(["--parseable", "--depth", "0"])
-        .current_dir(app_dir)
-        .output()?,
-      None,
-    ),
-    // Bun doesn't support `list` command
-    PackageManager::Bun => (
-      cross_command("npm")
-        .arg("list")
-        .arg(name)
-        .args(["version", "--depth", "0"])
         .current_dir(app_dir)
         .output()?,
       None,
@@ -179,24 +161,23 @@ fn npm_package_version<P: AsRef<Path>>(
 }
 
 fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
-  let mut use_npm = false;
-  let mut use_pnpm = false;
-  let mut use_yarn = false;
-  let mut use_bun = false;
+  let mut found = Vec::new();
 
   for name in app_dir_entries {
     if name.as_ref() == "package-lock.json" {
-      use_npm = true;
+      found.push(PackageManager::Npm);
     } else if name.as_ref() == "pnpm-lock.yaml" {
-      use_pnpm = true;
+      found.push(PackageManager::Pnpm);
     } else if name.as_ref() == "yarn.lock" {
-      use_yarn = true;
+      found.push(PackageManager::Yarn);
     } else if name.as_ref() == "bun.lockb" {
-      use_bun = true;
+      found.push(PackageManager::Bun);
+    } else if name.as_ref() == "deno.lock" {
+      found.push(PackageManager::Deno);
     }
   }
 
-  if !use_npm && !use_pnpm && !use_yarn && !use_bun {
+  if found.is_empty() {
     println!(
       "{}: no lock files found, defaulting to npm",
       "WARNING".yellow()
@@ -204,40 +185,25 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
     return PackageManager::Npm;
   }
 
-  let mut found = Vec::new();
-
-  if use_npm {
-    found.push(PackageManager::Npm);
-  }
-  if use_pnpm {
-    found.push(PackageManager::Pnpm);
-  }
-  if use_yarn {
-    found.push(PackageManager::Yarn);
-  }
-  if use_bun {
-    found.push(PackageManager::Bun);
-  }
+  let pkg_manger = found[0];
 
   if found.len() > 1 {
-    let pkg_manger = found[0];
     println!(
-      "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
-      "WARNING".yellow(),
-      found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
-      pkg_manger
-    );
-    return pkg_manger;
+          "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
+          "WARNING".yellow(),
+          found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
+          pkg_manger
+        );
   }
 
-  if use_npm {
-    PackageManager::Npm
-  } else if use_pnpm {
-    PackageManager::Pnpm
-  } else if use_bun {
-    PackageManager::Bun
+  if pkg_manger == PackageManager::Yarn
+    && manager_version("yarn")
+      .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
+      .unwrap_or(false)
+  {
+    PackageManager::YarnBerry
   } else {
-    PackageManager::Yarn
+    pkg_manger
   }
 }
 
@@ -249,14 +215,6 @@ pub fn items(app_dir: Option<&PathBuf>, metadata: &VersionMetadata) -> Vec<Secti
       .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
       .collect::<Vec<String>>();
     package_manager = get_package_manager(&app_dir_entries);
-  }
-
-  if package_manager == PackageManager::Yarn
-    && manager_version("yarn")
-      .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
-      .unwrap_or(false)
-  {
-    package_manager = PackageManager::YarnBerry;
   }
 
   let mut items = Vec::new();

@@ -301,8 +301,8 @@ fn main() {
     if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
       let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
         "$PACKAGE",
-        &env::var("WRY_ANDROID_PACKAGE")
-          .expect("missing `WRY_ANDROID_PACKAGE` environment variable"),
+        &env::var("WRY_ANDROID_PACKAGE_NO_ESCAPE")
+          .expect("missing `WRY_ANDROID_PACKAGE_NO_ESCAPE` environment variable"),
       );
       std::fs::write(
         project_dir.join("app").join("proguard-tauri.pro"),

@@ -302,7 +302,7 @@ fn main() {
       // monkey-patch for proguard-wry.pro file since wry doesn't implement
       // logic for un/escaping the kotling keyword in identifiers
       let wry_proguard = kotlin_out_dir.join("proguard-wry.pro");
-      let content = fs::read_to_string(&wry_proguard).expect("failed to ready proguard-wry.pro");
+      let content = fs::read_to_string(&wry_proguard).expect("failed to read proguard-wry.pro");
       fs::write(wry_proguard, content.replace(&package, &package_no_escape))
         .expect("failed to write proguard-wry.pro");
     }

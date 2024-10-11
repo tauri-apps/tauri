@@ -60,7 +60,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
 
     match *request.method() {
       Method::POST => {
-        if let Some(webview) = manager.get_webview(&label) {
+        if let Some(webview) = manager.get_webview(label) {
           match parse_invoke_request(&manager, request) {
             Ok(request) => {
               #[cfg(feature = "tracing")]

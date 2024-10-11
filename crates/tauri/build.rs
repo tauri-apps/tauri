@@ -260,13 +260,15 @@ fn main() {
   }
 
   if target_os == "android" {
-    if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
-      fn env_var(var: &str) -> String {
-        std::env::var(var).unwrap_or_else(|_| {
-          panic!("`{var}` is not set, which is needed to generate the kotlin files for android.")
-        })
-      }
+    fn env_var(var: &str) -> String {
+      std::env::var(var).unwrap_or_else(|_| {
+        panic!("`{var}` is not set, which is needed to generate the kotlin files for android.")
+      })
+    }
 
+    let package_no_escape = env_var("WRY_ANDROID_PACKAGE_NO_ESCAPE");
+
+    if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
       let package = env_var("WRY_ANDROID_PACKAGE");
       let library = env_var("WRY_ANDROID_LIBRARY");
 
@@ -296,14 +298,18 @@ fn main() {
 
         println!("cargo:rerun-if-changed={}", out_path.display());
       }
+
+      // monkey-patch for proguard-wry.pro file since wry doesn't implement
+      // logic for un/escaping the kotling keyword in identifiers
+      let wry_proguard = kotlin_out_dir.join("proguard-wry.pro");
+      let content = fs::read_to_string(&wry_proguard).expect("failed to ready proguard-wry.pro");
+      fs::write(wry_proguard, content.replace(&package, &package_no_escape))
+        .expect("failed to write proguard-wry.pro");
     }
 
     if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-      let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
-        "$PACKAGE",
-        &env::var("WRY_ANDROID_PACKAGE_NO_ESCAPE")
-          .expect("missing `WRY_ANDROID_PACKAGE_NO_ESCAPE` environment variable"),
-      );
+      let tauri_proguard =
+        include_str!("./mobile/proguard-tauri.pro").replace("$PACKAGE", &package_no_escape);
       std::fs::write(
         project_dir.join("app").join("proguard-tauri.pro"),
         tauri_proguard,

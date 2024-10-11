@@ -17,7 +17,7 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { git = "https://github.com/tauri-apps/wry", branch = "refactor/protocol-webview-id", default-features = false, features = [
+wry = { git = "https://github.com/tauri-apps/wry", branch = "dev", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",

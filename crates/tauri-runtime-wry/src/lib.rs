@@ -30,7 +30,7 @@ use tauri_runtime::{
   UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 use objc2::rc::Retained;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
@@ -3339,9 +3339,13 @@ fn handle_user_message<T: UserEvent>(
               use wry::WebViewExtIOS;
 
               f(Webview {
-                webview: webview.inner.webview().cast(),
-                manager: webview.inner.manager().cast(),
-                view_controller: window.ui_view_controller().cast(),
+                webview: Retained::into_raw(webview.inner.webview())
+                  as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
+                manager: Retained::into_raw(webview.inner.manager())
+                  as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
+                view_controller: window.ui_view_controller(),
               });
             }
             #[cfg(windows)]
@@ -4369,7 +4373,7 @@ fn inner_size(
   if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
-    let view = unsafe { objc2::rc::Retained::cast::<objc2_app_kit::NSView>(webview.webview()) };
+    let view = unsafe { Retained::cast::<objc2_app_kit::NSView>(webview.webview()) };
     let view_frame = view.frame();
     let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     return logical.to_physical(window.scale_factor());

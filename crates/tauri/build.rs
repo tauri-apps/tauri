@@ -260,13 +260,13 @@ fn main() {
   }
 
   if target_os == "android" {
-    if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
-      fn env_var(var: &str) -> String {
-        std::env::var(var).unwrap_or_else(|_| {
-          panic!("`{var}` is not set, which is needed to generate the kotlin files for android.")
-        })
-      }
+    fn env_var(var: &str) -> String {
+      std::env::var(var).unwrap_or_else(|_| {
+        panic!("`{var}` is not set, which is needed to generate the kotlin files for android.")
+      })
+    }
 
+    if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
       let package = env_var("WRY_ANDROID_PACKAGE");
       let library = env_var("WRY_ANDROID_LIBRARY");
 
@@ -299,11 +299,9 @@ fn main() {
     }
 
     if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-      let tauri_proguard = include_str!("./mobile/proguard-tauri.pro").replace(
-        "$PACKAGE",
-        &env::var("WRY_ANDROID_PACKAGE")
-          .expect("missing `WRY_ANDROID_PACKAGE` environment variable"),
-      );
+      let package_unescaped = env_var("TAURI_ANDROID_PACKAGE_UNESCAPED");
+      let tauri_proguard =
+        include_str!("./mobile/proguard-tauri.pro").replace("$PACKAGE", &package_unescaped);
       std::fs::write(
         project_dir.join("app").join("proguard-tauri.pro"),
         tauri_proguard,

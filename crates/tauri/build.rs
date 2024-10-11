@@ -266,9 +266,9 @@ fn main() {
       })
     }
 
-    let package_no_escape = env_var("WRY_ANDROID_PACKAGE_NO_ESCAPE");
-
     if let Ok(kotlin_out_dir) = std::env::var("WRY_ANDROID_KOTLIN_FILES_OUT_DIR") {
+      let package_no_escape = env_var("WRY_ANDROID_PACKAGE_NO_ESCAPE");
+
       let package = env_var("WRY_ANDROID_PACKAGE");
       let library = env_var("WRY_ANDROID_LIBRARY");
 
@@ -308,6 +308,7 @@ fn main() {
     }
 
     if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
+      let package_no_escape = env_var("WRY_ANDROID_PACKAGE_NO_ESCAPE");
       let tauri_proguard =
         include_str!("./mobile/proguard-tauri.pro").replace("$PACKAGE", &package_no_escape);
       std::fs::write(

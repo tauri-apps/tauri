@@ -4194,7 +4194,7 @@ fn create_webview<T: UserEvent>(
       scheme,
       move |webview_id, request, responder| {
         protocol(
-          webview_id.as_deref(),
+          webview_id,
           request,
           Box::new(move |response| responder.respond(response)),
         )

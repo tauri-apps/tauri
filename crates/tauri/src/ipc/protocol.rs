@@ -588,6 +588,7 @@ mod tests {
       Default::default(),
       Default::default(),
       Default::default(),
+      Default::default(),
       "".into(),
       crate::generate_invoke_key().unwrap(),
     );
@@ -698,6 +699,7 @@ mod tests {
       None,
       Default::default(),
       StateManager::new(),
+      Default::default(),
       Default::default(),
       Default::default(),
       Default::default(),

@@ -248,6 +248,7 @@ impl<R: Runtime> AppManager<R> {
     on_page_load: Option<Arc<OnPageLoad<R>>>,
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
+    #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     webiew_event_listeners: Vec<GlobalWebviewEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -290,7 +291,7 @@ impl<R: Runtime> AppManager<R> {
       menu: menu::MenuManager {
         menus: Default::default(),
         menu: Default::default(),
-        global_event_listeners: Default::default(),
+        global_event_listeners: Mutex::new(menu_event_listener),
         event_listeners: Mutex::new(window_menu_event_listeners),
       },
       plugins: Mutex::new(plugins),
@@ -727,6 +728,7 @@ mod test {
       None,
       Default::default(),
       StateManager::new(),
+      Default::default(),
       Default::default(),
       Default::default(),
       Default::default(),

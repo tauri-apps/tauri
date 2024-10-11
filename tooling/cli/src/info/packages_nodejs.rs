@@ -185,25 +185,25 @@ fn get_package_manager<T: AsRef<str>>(app_dir_entries: &[T]) -> PackageManager {
     return PackageManager::Npm;
   }
 
-  let pkg_manger = found[0];
+  let pkg_manager = found[0];
 
   if found.len() > 1 {
     println!(
           "{}: Only one package manager should be used, but found {}.\n         Please remove unused package manager lock files, will use {} for now!",
           "WARNING".yellow(),
           found.iter().map(ToString::to_string).collect::<Vec<_>>().join(" and "),
-          pkg_manger
+          pkg_manager
         );
   }
 
-  if pkg_manger == PackageManager::Yarn
+  if pkg_manager == PackageManager::Yarn
     && manager_version("yarn")
       .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
       .unwrap_or(false)
   {
     PackageManager::YarnBerry
   } else {
-    pkg_manger
+    pkg_manager
   }
 }
 

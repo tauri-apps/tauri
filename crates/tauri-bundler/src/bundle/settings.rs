@@ -501,6 +501,7 @@ pub struct WindowsSettings {
   /// Nsis configuration.
   pub nsis: Option<NsisSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
+  #[deprecated = "This is used for the MSI installer and will be removed in 3.0.0, use `BundleSettings::icon` field instead."]
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
@@ -526,19 +527,24 @@ pub struct WindowsSettings {
   pub sign_command: Option<CustomSignCommandSettings>,
 }
 
-impl Default for WindowsSettings {
-  fn default() -> Self {
-    Self {
-      digest_algorithm: None,
-      certificate_thumbprint: None,
-      timestamp_url: None,
-      tsp: false,
-      wix: None,
-      nsis: None,
-      icon_path: PathBuf::from("icons/icon.ico"),
-      webview_install_mode: Default::default(),
-      allow_downgrades: true,
-      sign_command: None,
+#[allow(deprecated)]
+mod _default {
+  use super::*;
+
+  impl Default for WindowsSettings {
+    fn default() -> Self {
+      Self {
+        digest_algorithm: None,
+        certificate_thumbprint: None,
+        timestamp_url: None,
+        tsp: false,
+        wix: None,
+        nsis: None,
+        icon_path: PathBuf::from("icons/icon.ico"),
+        webview_install_mode: Default::default(),
+        allow_downgrades: true,
+        sign_command: None,
+      }
     }
   }
 }

@@ -34,7 +34,7 @@ impl Display for PackageManager {
 
 impl PackageManager {
   pub fn from_project<P: AsRef<Path>>(path: P) -> Vec<Self> {
-    let mut use_npm = false;
+    let mut use_npm: bool = false;
     let mut use_pnpm = false;
     let mut use_yarn = false;
     let mut use_bun = false;

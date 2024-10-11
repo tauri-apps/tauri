@@ -9,7 +9,7 @@ use crate::Result;
 pub mod add;
 mod ls;
 mod new;
-mod rm;
+pub mod rm;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Manage or create permissions for your app or plugin")]

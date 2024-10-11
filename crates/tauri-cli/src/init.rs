@@ -171,6 +171,7 @@ fn default_dev_command(pm: PackageManager) -> &'static str {
     PackageManager::Npm => "npm run dev",
     PackageManager::Pnpm => "pnpm dev",
     PackageManager::Bun => "bun dev",
+    PackageManager::Deno => "deno task dev",
   }
 }
 
@@ -181,6 +182,7 @@ fn default_build_command(pm: PackageManager) -> &'static str {
     PackageManager::Npm => "npm run build",
     PackageManager::Pnpm => "pnpm build",
     PackageManager::Bun => "bun build",
+    PackageManager::Deno => "deno task build",
   }
 }
 

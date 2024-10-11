@@ -62,17 +62,10 @@ pub fn items(metadata: &VersionMetadata) -> Vec<SectionItem> {
         .ok()
         .unwrap_or_default()
     }),
-    SectionItem::new().action(|| {
-      manager_version("pnpm")
-        .map(|v| format!("pnpm: {}", v))
-        .into()
-    }),
-    SectionItem::new().action(|| {
-      manager_version("yarn")
-        .map(|v| format!("yarn: {}", v))
-        .into()
-    }),
-    SectionItem::new().action(|| manager_version("npm").map(|v| format!("npm: {}", v)).into()),
-    SectionItem::new().action(|| manager_version("bun").map(|v| format!("bun: {}", v)).into()),
+    SectionItem::new().action(|| manager_version("pnpm").map(|v| format!("pnpm: {v}")).into()),
+    SectionItem::new().action(|| manager_version("yarn").map(|v| format!("yarn: {v}")).into()),
+    SectionItem::new().action(|| manager_version("npm").map(|v| format!("npm: {v}")).into()),
+    SectionItem::new().action(|| manager_version("bun").map(|v| format!("bun: {v}")).into()),
+    SectionItem::new().action(|| manager_version("deno").map(|v| format!("deno: {v}")).into()),
   ]
 }

@@ -9,7 +9,7 @@ use clap_complete::{generate, Shell};
 
 use std::{fs::write, path::PathBuf};
 
-const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn", "bun"];
+const PKG_MANAGERS: &[&str] = &["cargo", "pnpm", "npm", "yarn", "bun", "deno"];
 
 #[derive(Debug, Clone, Parser)]
 #[clap(about = "Generate Tauri CLI shell completions for Bash, Zsh, PowerShell or Fish")]
@@ -28,6 +28,10 @@ fn completions_for(shell: Shell, manager: &'static str, cmd: Command) -> Vec<u8>
     Command::new(manager)
       .bin_name(manager)
       .subcommand(Command::new("run").subcommand(tauri))
+  } else if manager == "deno" {
+    Command::new(manager)
+      .bin_name(manager)
+      .subcommand(Command::new("task").subcommand(tauri))
   } else {
     Command::new(manager).bin_name(manager).subcommand(tauri)
   };
@@ -41,13 +45,15 @@ fn get_completions(shell: Shell, cmd: Command) -> Result<String> {
   let completions = if shell == Shell::Bash {
     let mut completions =
       String::from_utf8_lossy(&completions_for(shell, "cargo", cmd)).into_owned();
-    for manager in PKG_MANAGERS {
+    for &manager in PKG_MANAGERS {
       completions.push_str(&format!(
         "complete -F _cargo -o bashdefault -o default {} tauri\n",
-        if manager == &"npm" {
+        if manager == "npm" {
           "npm run"
-        } else if manager == &"bun" {
+        } else if manager == "bun" {
           "bun run"
+        } else if manager == "deno" {
+          "deno task"
         } else {
           manager
         }

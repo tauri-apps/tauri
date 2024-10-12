@@ -605,7 +605,7 @@ pub fn build_wix_app_installer(
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
   #[allow(deprecated)]
-  let icon_path = if settings.windows().icon_path.as_os_str().is_empty() {
+  let icon_path = if !settings.windows().icon_path.as_os_str().is_empty() {
     settings.windows().icon_path.clone()
   } else {
     settings

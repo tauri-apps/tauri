@@ -1,5 +1,5 @@
 ---
-"tauri": "minor:bug"
+"tauri": "patch:bug"
 "tauri-runtime": "minor:bug"
 "tauri-runtime-wry": "minor:bug"
 ---

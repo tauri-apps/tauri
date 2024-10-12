@@ -45,6 +45,10 @@ pub type OwnedInvokeResponder<R> =
   dyn FnOnce(Webview<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + 'static;
 
 /// Possible values of an IPC payload.
+///
+/// ### Android
+/// On Android, [InvokeBody::Raw] is not supported. The enum will always contain [InvokeBody::Json].
+/// When targeting Android Devices, consider passing raw bytes as a base64 [[std::string::String]], which is still more efficient than passing them as a number array in [InvokeBody::Json]
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum InvokeBody {

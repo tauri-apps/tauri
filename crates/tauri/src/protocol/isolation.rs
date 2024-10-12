@@ -30,7 +30,7 @@ pub fn get<R: Runtime>(
 
   let assets = assets as Arc<dyn Assets<R>>;
 
-  Box::new(move |request, responder| {
+  Box::new(move |_, request, responder| {
     let response = match request_to_path(&request).as_str() {
       "index.html" => match assets.get(&"index.html".into()) {
         Some(asset) => {

@@ -212,15 +212,17 @@ impl<R: Runtime> WebviewManager<R> {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();
-      let webview_label = label.to_string();
 
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |request, responder| {
-        let context = UriSchemeContext {
-          app_handle: &app_handle,
-          webview_label: webview_label.as_str(),
-        };
-        (protocol.protocol)(context, request, UriSchemeResponder(responder))
-      });
+      pending.register_uri_scheme_protocol(
+        uri_scheme.clone(),
+        move |webview_id, request, responder| {
+          let context = UriSchemeContext {
+            app_handle: &app_handle,
+            webview_label: webview_id,
+          };
+          (protocol.protocol)(context, request, UriSchemeResponder(responder))
+        },
+      );
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
@@ -252,16 +254,16 @@ impl<R: Runtime> WebviewManager<R> {
         &window_origin,
         web_resource_request_handler,
       );
-      pending.register_uri_scheme_protocol("tauri", move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      pending.register_uri_scheme_protocol("tauri", move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
       registered_scheme_protocols.push("tauri".into());
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol = crate::ipc::protocol::get(manager.manager_owned(), pending.label.clone());
-      pending.register_uri_scheme_protocol("ipc", move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      let protocol = crate::ipc::protocol::get(manager.manager_owned());
+      pending.register_uri_scheme_protocol("ipc", move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
       registered_scheme_protocols.push("ipc".into());
     }
@@ -299,8 +301,8 @@ impl<R: Runtime> WebviewManager<R> {
         .asset_protocol
         .clone();
       let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
-      pending.register_uri_scheme_protocol("asset", move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      pending.register_uri_scheme_protocol("asset", move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
     }
 
@@ -319,8 +321,8 @@ impl<R: Runtime> WebviewManager<R> {
         *crypto_keys.aes_gcm().raw(),
         window_origin,
       );
-      pending.register_uri_scheme_protocol(schema, move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      pending.register_uri_scheme_protocol(schema, move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
     }
 

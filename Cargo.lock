@@ -10554,7 +10554,7 @@ version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf221c93e13a30d793f7645a0e7762c55d169dbb0a49671918a2319d289b10bb"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -11005,8 +11005,9 @@ dependencies = [
 
 [[package]]
 name = "wry"
-version = "0.45.0"
-source = "git+https://github.com/tauri-apps/wry?branch=dev#70ac70b1c9383187acee56421ddeb57159908fce"
+version = "0.46.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "469a3765ecc3e8aa9ccdf3c5a52c82697ec03037cd60494488763880d31a1b3a"
 dependencies = [
  "base64 0.22.1",
  "block2",

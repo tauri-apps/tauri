@@ -1202,7 +1202,7 @@ pub fn get_profile_dir(options: &Options) -> &str {
   }
 }
 
-#[allow(unused_variables)]
+#[allow(unused_variables, deprecated)]
 fn tauri_config_to_bundle_settings(
   settings: &RustAppSettings,
   features: &[String],
@@ -1216,18 +1216,6 @@ fn tauri_config_to_bundle_settings(
     .lock()
     .unwrap()
     .all_enabled_features(features);
-
-  #[cfg(windows)]
-  let windows_icon_path = PathBuf::from(
-    config
-      .icon
-      .iter()
-      .find(|i| i.ends_with(".ico"))
-      .cloned()
-      .expect("the bundle config must have a `.ico` icon"),
-  );
-  #[cfg(not(windows))]
-  let windows_icon_path = PathBuf::from("");
 
   #[allow(unused_mut)]
   let mut resources = config
@@ -1440,7 +1428,7 @@ fn tauri_config_to_bundle_settings(
       certificate_thumbprint: config.windows.certificate_thumbprint,
       wix: config.windows.wix.map(wix_settings),
       nsis: config.windows.nsis.map(nsis_settings),
-      icon_path: windows_icon_path,
+      icon_path: PathBuf::new(),
       webview_install_mode: config.windows.webview_install_mode,
       allow_downgrades: config.windows.allow_downgrades,
       sign_command: config.windows.sign_command.map(custom_sign_settings),

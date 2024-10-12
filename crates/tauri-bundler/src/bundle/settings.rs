@@ -501,7 +501,7 @@ pub struct WindowsSettings {
   /// Nsis configuration.
   pub nsis: Option<NsisSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
-  #[deprecated = "This is used for the MSI installer and will be removed in 3.0.0, use `BundleSettings::icon` field instead."]
+  #[deprecated = "This is used for the MSI installer and will be removed in 3.0.0, use `BundleSettings::icon` field and make sure a `.ico` icon exists instead."]
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,

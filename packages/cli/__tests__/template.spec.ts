@@ -44,6 +44,7 @@ describe('[CLI] @tauri-apps/cli template', () => {
 
     await cli.run([
       'init',
+      '-vvv',
       '--directory',
       process.cwd(),
       '--force',
@@ -70,7 +71,7 @@ describe('[CLI] @tauri-apps/cli template', () => {
     const config = readFileSync(configPath).toString()
     writeFileSync(configPath, config.replace('com.tauri.dev', 'com.tauri.test'))
 
-    await cli.run(['build', '--verbose'])
+    await cli.run(['build'])
     process.chdir(cwd)
   })
 })

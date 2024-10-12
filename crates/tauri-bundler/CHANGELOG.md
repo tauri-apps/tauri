@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.3]
+
+### New Features
+
+- [`eda5713ea`](https://www.github.com/tauri-apps/tauri/commit/eda5713eab78d28182071ea25ceca5f1994f37ea) ([#11242](https://www.github.com/tauri-apps/tauri/pull/11242) by [@alex-sandri](https://www.github.com/tauri-apps/tauri/../../alex-sandri)) Add `Italian` to supported NSIS installer languages
+
+### Enhancements
+
+- [`504bb8ec8`](https://www.github.com/tauri-apps/tauri/commit/504bb8ec8cb294c5067357e18328580dd2b950c9) ([#11287](https://www.github.com/tauri-apps/tauri/pull/11287) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Pull upstream changes for the DMG creation script.
+
+### Bug Fixes
+
+- [`069c05e44`](https://www.github.com/tauri-apps/tauri/commit/069c05e44fd6f30083fdc00dd6c0001278898592) ([#11315](https://www.github.com/tauri-apps/tauri/pull/11315) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix CLI crashing and failing to find a `.ico` file when `bundle > icon` option is using globs and doesn't have a string that ends with `.ico`.
+
 ## \[2.0.2]
 
 ### Bug Fixes

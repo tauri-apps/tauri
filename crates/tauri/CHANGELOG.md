@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.1.0]
+
+### New Features
+
+- [`1d3f51e10`](https://www.github.com/tauri-apps/tauri/commit/1d3f51e100b0efc0e4ce164796460e9acdc458da) ([#11228](https://www.github.com/tauri-apps/tauri/pull/11228) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `tauri::Builder::on_menu_event`.
+
+### Bug Fixes
+
+- [`d609bef9f`](https://www.github.com/tauri-apps/tauri/commit/d609bef9fd7cd6eeb2bd701558100bd9cfb6e6f6) ([#11314](https://www.github.com/tauri-apps/tauri/pull/11314) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix android invalid proguard file when using an `identifier` that contains a component that is a reserved kotlin keyword, like `in`, `class`, etc
+- [`04fd3a7db`](https://www.github.com/tauri-apps/tauri/commit/04fd3a7db556a5d83989c9de2a03095061996c9d) ([#11264](https://www.github.com/tauri-apps/tauri/pull/11264) by [@chrox](https://www.github.com/tauri-apps/tauri/../../chrox)) Respond with empty body for `HEAD` requests to `asset` protocol
+- [`4731f0cf3`](https://www.github.com/tauri-apps/tauri/commit/4731f0cf31fc99876f17a9b0e8170c1ef759443b) ([#11290](https://www.github.com/tauri-apps/tauri/pull/11290) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Export the `ipc::Invoke` struct.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix commands, that use `Webview` or `WebviewWindow` as an argument, receiving an incorrect webview when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix events only emitted to first webview only when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix custom protocols receiving an incorrect webview label when using multi webviews
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.1.0`
+- Upgraded to `tauri-runtime-wry@2.1.0`
+
 ## \[2.0.2]
 
 ### Enhancements

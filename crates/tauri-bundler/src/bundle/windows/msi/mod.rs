@@ -612,7 +612,7 @@ pub fn build_wix_app_installer(
       .icon_files()
       .flatten()
       .find(|i| i.ends_with(".ico"))
-      .context("Couldn't find a .ico file")?
+      .context("Couldn't find a .ico icon")?
   };
   let icon_path = copy_icon(settings, "icon.ico", &icon_path)?;
 

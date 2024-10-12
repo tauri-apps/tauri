@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { resolve } from 'node:path'
+import { spawnSync } from 'node:child_process'
 import {
   existsSync,
   readFileSync,
@@ -10,8 +11,16 @@ import {
   rmSync,
   renameSync
 } from 'node:fs'
-import cli from '../main.js'
-import { describe, it } from 'vitest'
+import { beforeAll, describe, it } from 'vitest'
+
+// Build CLI before tests, for local usage only.
+// CI builds the CLI on different platforms and architectures
+if (!process.env.CI) {
+  beforeAll(() => {
+    const cliDir = resolve(__dirname, '..')
+    exec('pnpm', ['build:debug'], { cwd: cliDir })
+  })
+}
 
 describe('[CLI] @tauri-apps/cli template', () => {
   it('init a project and builds it', { timeout: 15 * 60 * 1000 }, async () => {
@@ -30,6 +39,8 @@ describe('[CLI] @tauri-apps/cli template', () => {
       }
       renameSync(outPath, cacheOutPath)
     }
+
+    const cli = await import('../main.js')
 
     await cli.run([
       'init',
@@ -63,3 +74,15 @@ describe('[CLI] @tauri-apps/cli template', () => {
     process.chdir(cwd)
   })
 })
+
+function exec(
+  bin: string,
+  args?: string[],
+  opts?: {
+    cwd?: string
+  }
+) {
+  process.platform === 'win32'
+    ? spawnSync('cmd', ['/c', bin, ...(args ?? [])], { cwd: opts?.cwd })
+    : spawnSync(bin, args, { cwd: opts?.cwd })
+}

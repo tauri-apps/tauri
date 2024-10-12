@@ -21,6 +21,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
   collections::{BTreeMap, HashMap, HashSet},
+  ffi::OsStr,
   fs::{self, File},
   io::Write,
   path::{Path, PathBuf},
@@ -611,7 +612,7 @@ pub fn build_wix_app_installer(
     settings
       .icon_files()
       .flatten()
-      .find(|i| i.ends_with(".ico"))
+      .find(|i| i.extension() == Some(OsStr::new("ico")))
       .context("Couldn't find a .ico icon")?
   };
   let icon_path = copy_icon(settings, "icon.ico", &icon_path)?;

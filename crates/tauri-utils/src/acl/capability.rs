@@ -100,6 +100,7 @@ impl<'de> Deserialize<'de> for PermissionEntry {
 ///     "identifier": "fs:allow-write-text-file",
 ///     "allow": [{ "path": "$HOME/test.txt" }]
 ///   },
+///  ],
 ///  "platforms": ["macOS","windows"]
 /// }
 /// ```

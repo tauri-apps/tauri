@@ -737,7 +737,8 @@ pub trait ContextMenu: sealed::ContextMenuBase + Send + Sync {
   /// The returned [`HMENU`] is valid as long as the [`ContextMenu`] is.
   ///
   /// [`HMENU`]: https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types#HMENU
-  #[cfg(target_os = "windows")]
+  #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
   fn hpopupmenu(&self) -> crate::Result<isize>;
 
   /// Popup this menu as a context menu on the specified window at the cursor position.

@@ -13,6 +13,11 @@ use crate::{AppHandle, Manager, Position, Runtime, Window};
 use muda::{ContextMenu, MenuId};
 
 impl<R: Runtime> super::ContextMenu for Submenu<R> {
+  #[cfg(target_os = "windows")]
+  fn hpopupmenu(&self) -> crate::Result<isize> {
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().hpopupmenu())
+  }
+
   fn popup<T: Runtime>(&self, window: Window<T>) -> crate::Result<()> {
     self.popup_inner(window, None::<Position>)
   }

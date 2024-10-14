@@ -20,7 +20,10 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener, OnPageLoad},
+  app::{
+    AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
+    OnPageLoad,
+  },
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
@@ -216,6 +219,8 @@ pub struct AppManager<R: Runtime> {
 
   /// Runtime-generated invoke key.
   pub(crate) invoke_key: String,
+
+  pub(crate) channel_interceptor: Option<ChannelInterceptor<R>>,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -256,6 +261,7 @@ impl<R: Runtime> AppManager<R> {
       crate::app::GlobalMenuEventListener<Window<R>>,
     >,
     invoke_initialization_script: String,
+    channel_interceptor: Option<ChannelInterceptor<R>>,
     invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
@@ -307,6 +313,7 @@ impl<R: Runtime> AppManager<R> {
       plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
       invoke_key,
+      channel_interceptor,
     }
   }
 
@@ -739,6 +746,7 @@ mod test {
       Default::default(),
       Default::default(),
       "".into(),
+      None,
       crate::generate_invoke_key().unwrap(),
     );
 

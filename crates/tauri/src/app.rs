@@ -5,7 +5,8 @@
 use crate::{
   image::Image,
   ipc::{
-    channel::ChannelDataIpcQueue, CommandArg, CommandItem, Invoke, InvokeError, InvokeHandler,
+    channel::ChannelDataIpcQueue, CallbackFn, CommandArg, CommandItem, Invoke, InvokeError,
+    InvokeHandler, InvokeResponseBody,
   },
   manager::{webview::UriSchemeProtocol, AppManager, Asset},
   plugin::{Plugin, PluginStore},
@@ -15,8 +16,7 @@ use crate::{
     ExitRequestedEventAction, RunEvent as RuntimeRunEvent,
   },
   sealed::{ManagerBase, RuntimeOrDispatch},
-  utils::config::Config,
-  utils::Env,
+  utils::{config::Config, Env},
   webview::PageLoadPayload,
   Context, DeviceEventFilter, Emitter, EventLoopMessage, Listener, Manager, Monitor, Result,
   Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
@@ -66,6 +66,8 @@ pub type SetupHook<R> =
   Box<dyn FnOnce(&mut App<R>) -> std::result::Result<(), Box<dyn std::error::Error>> + Send>;
 /// A closure that is run every time a page starts or finishes loading.
 pub type OnPageLoad<R> = dyn Fn(&Webview<R>, &PageLoadPayload<'_>) + Send + Sync + 'static;
+pub type ChannelInterceptor<R> =
+  Box<dyn Fn(&Webview<R>, CallbackFn, usize, &InvokeResponseBody) -> bool + Send + Sync + 'static>;
 
 /// The exit code on [`RunEvent::ExitRequested`] when [`AppHandle#method.restart`] is called.
 pub const RESTART_EXIT_CODE: i32 = i32::MAX;
@@ -1205,6 +1207,8 @@ pub struct Builder<R: Runtime> {
   /// The script that initializes the `window.__TAURI_INTERNALS__.postMessage` function.
   pub(crate) invoke_initialization_script: String,
 
+  channel_interceptor: Option<ChannelInterceptor<R>>,
+
   /// The setup hook.
   setup: SetupHook<R>,
 
@@ -1291,6 +1295,7 @@ impl<R: Runtime> Builder<R> {
       .render_default(&Default::default())
       .unwrap()
       .into_string(),
+      channel_interceptor: None,
       on_page_load: None,
       plugins: PluginStore::default(),
       uri_scheme_protocols: Default::default(),
@@ -1367,6 +1372,22 @@ impl<R: Runtime> Builder<R> {
   pub fn invoke_system(mut self, initialization_script: String) -> Self {
     self.invoke_initialization_script =
       initialization_script.replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
+    self
+  }
+
+  /// Registers a channel interceptor that can overwrite the default channel implementation.
+  ///
+  /// If the event has been consumed, it must return `true`.
+  ///
+  /// The channel automatically orders the messages, so the third closure argument represents the message number.
+  /// The payload expected by the channel receiver is in the form of `{ id: usize, message: T }`.
+  pub fn channel_interceptor<
+    F: Fn(&Webview<R>, CallbackFn, usize, &InvokeResponseBody) -> bool + Send + Sync + 'static,
+  >(
+    mut self,
+    interceptor: F,
+  ) -> Self {
+    self.channel_interceptor.replace(Box::new(interceptor));
     self
   }
 
@@ -1856,6 +1877,7 @@ tauri::Builder::default()
       #[cfg(desktop)]
       HashMap::new(),
       self.invoke_initialization_script,
+      self.channel_interceptor,
       self.invoke_key,
     ));
 

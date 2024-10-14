@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-22.04, macos-latest, windows-latest]
+        platform: [ubuntu-20.04, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -27,7 +27,7 @@ jobs:
         with:
           toolchain: stable
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-20.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libfuse2
@@ -56,7 +56,7 @@ jobs:
           yarn test
 
   version-or-publish:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 65
     outputs:
       change: ${{ steps.covector.outputs.change }}

@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   eslint-cli:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2
@@ -37,7 +37,7 @@ jobs:
         run: yarn format:check
 
   eslint-api:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v2

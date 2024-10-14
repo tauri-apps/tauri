@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     outputs:
       api: ${{ steps.filter.outputs.api }}
       schema: ${{ steps.filter.outputs.schema }}
@@ -39,7 +39,7 @@ jobs:
               - 'core/tauri-config-schema/schema.json'
 
   api:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     needs: changes
     if: needs.changes.outputs.api == 'true'
     steps:
@@ -52,7 +52,7 @@ jobs:
         run: ./.scripts/ci/has-diff.sh
 
   schema:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     needs: changes
     if: needs.changes.outputs.schema == 'true'
     steps:

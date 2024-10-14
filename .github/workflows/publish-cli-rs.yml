@@ -53,7 +53,7 @@ jobs:
           key: ${{ matrix.config.rust_target }}
 
       - name: install Linux dependencies
-        if: matrix.config.os == 'ubuntu-22.04'
+        if: matrix.config.os == 'ubuntu-20.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev
@@ -73,7 +73,7 @@ jobs:
 
   upload:
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout

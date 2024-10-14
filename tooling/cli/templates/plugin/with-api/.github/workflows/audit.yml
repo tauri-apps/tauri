@@ -19,7 +19,7 @@ on:
 
 jobs:
   audit:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
       - uses: rustsec/audit-check@v1

@@ -4,9 +4,9 @@
   "name": "Ubuntu",
   "build": {
     "dockerfile": "Dockerfile",
-    // Update 'VARIANT' to pick an Ubuntu version: jammy / ubuntu-22.04, focal / ubuntu-20.04, bionic /ubuntu-18.04
-    // Use ubuntu-22.04 or ubuntu-18.04 on local arm64/Apple Silicon.
-    "args": { "VARIANT": "ubuntu-22.04" }
+    // Update 'VARIANT' to pick an Ubuntu version: jammy / ubuntu-20.04, focal / ubuntu-20.04, bionic /ubuntu-18.04
+    // Use ubuntu-20.04 or ubuntu-18.04 on local arm64/Apple Silicon.
+    "args": { "VARIANT": "ubuntu-20.04" }
   },
 
   // Set *default* container specific settings.json values on container create.

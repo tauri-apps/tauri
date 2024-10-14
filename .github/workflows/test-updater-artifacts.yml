@@ -27,7 +27,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-22.04, macos-latest, windows-latest]
+        platform: [ubuntu-20.04, macos-latest, windows-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -37,7 +37,7 @@ jobs:
           toolchain: stable
 
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-20.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
@@ -91,7 +91,7 @@ jobs:
           TAURI_KEY_PASSWORD:
       # upload assets
       - uses: actions/upload-artifact@v3
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-20.04'
         with:
           name: linux-updater-artifacts
           path: ./examples/updater/src-tauri/target/release/bundle/appimage/updater-example_*.AppImage.*

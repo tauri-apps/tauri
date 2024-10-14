@@ -34,7 +34,7 @@ jobs:
             }
           - {
               target: x86_64-unknown-linux-gnu,
-              os: ubuntu-22.04,
+              os: ubuntu-20.04,
               toolchain: '1.60.0'
             }
           - {
@@ -165,7 +165,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-22.04, macos-13, windows-latest]
+        platform: [ubuntu-20.04, macos-13, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -174,7 +174,7 @@ jobs:
       - name: install stable
         uses: dtolnay/rust-toolchain@stable
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-22.04'
+        if: matrix.platform == 'ubuntu-20.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0 webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2
@@ -203,7 +203,7 @@ jobs:
           yarn test
 
   version-or-publish:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     timeout-minutes: 65
     permissions:
       actions: write # required for workflow_dispatch

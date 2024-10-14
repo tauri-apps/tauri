@@ -24,7 +24,6 @@ use super::{CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, R
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
-// TODO: ideally this const references CHANNEL_PLUGIN_NAME
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
 
@@ -101,6 +100,14 @@ impl JavaScriptChannelId {
     let counter = AtomicUsize::new(0);
 
     Channel::new_with_id(callback_id.0, move |body| {
+      let i = counter.fetch_add(1, Ordering::Relaxed);
+
+      if let Some(interceptor) = &webview.manager.channel_interceptor {
+        if interceptor(&webview, callback_id, i, &body) {
+          return Ok(());
+        }
+      }
+
       let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
       webview
@@ -109,8 +116,6 @@ impl JavaScriptChannelId {
         .lock()
         .unwrap()
         .insert(data_id, body);
-
-      let i = counter.fetch_add(1, Ordering::Relaxed);
 
       webview.eval(&format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",

@@ -137,7 +137,7 @@ impl InvokeResponseBody {
 
 /// The IPC request.
 ///
-/// Request can be the parameter of a tauri command.
+/// Includes the `body` and `headers` parameters of a Tauri command invocation.
 /// This allows commands to accept raw bytes - on all platforms except Android.
 #[derive(Debug)]
 pub struct Request<'a> {

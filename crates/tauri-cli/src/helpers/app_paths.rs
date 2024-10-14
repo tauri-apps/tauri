@@ -88,8 +88,7 @@ fn env_tauri_src_dir() -> Option<PathBuf> {
 }
 
 pub fn resolve_tauri_dir() -> Option<PathBuf> {
-  let src_dir =
-    env_tauri_src_dir().or_else(|| current_dir().map(|cwd| cwd.join("src-tauri")).ok())?;
+  let src_dir = env_tauri_src_dir().or_else(|| current_dir().ok())?;
 
   if src_dir.join(ConfigFormat::Json.into_file_name()).exists()
     || src_dir.join(ConfigFormat::Json5.into_file_name()).exists()

@@ -35,7 +35,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y webkit2gtk-4.0
+        sudo apt-get install -y webkit2gtk-4.0 libsoup2.4-dev
 
     - uses: Swatinem/rust-cache@v2
 

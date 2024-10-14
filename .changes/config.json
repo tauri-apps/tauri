@@ -18,7 +18,7 @@
       "getPublishedVersion": "node ../../.scripts/covector/package-latest-version.js cargo ${ pkgFile.pkg.package.name } ${ pkgFile.pkg.package.version }",
       "prepublish": [
         "sudo apt-get update",
-        "sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev",
+        "sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libsoup2.4-dev",
         "cargo install cargo-audit --features=fix",
         {
           "command": "cargo generate-lockfile",

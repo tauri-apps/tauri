@@ -740,6 +740,7 @@ mod test {
       Default::default(),
       Default::default(),
       "".into(),
+      None,
       crate::generate_invoke_key().unwrap(),
     );
 

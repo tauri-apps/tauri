@@ -238,7 +238,7 @@ jobs:
           - '16'
           - '18'
           - '20'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -275,7 +275,7 @@ jobs:
           - '16'
           - '18'
           - '20'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
@@ -321,7 +321,7 @@ jobs:
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
           - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
@@ -363,7 +363,7 @@ jobs:
             ls -la
   publish:
     name: Publish
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     needs:
       #- build-freebsd
       - test-macOS-windows-binding

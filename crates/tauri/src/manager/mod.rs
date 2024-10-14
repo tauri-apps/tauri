@@ -525,8 +525,14 @@ impl<R: Runtime> AppManager<R> {
     let emit_args = EmitArgs::new(event, payload)?;
 
     let listeners = self.listeners();
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
+    listeners.emit_js(webviews.iter(), event, &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())

@@ -299,7 +299,8 @@ fn main() {
     }
 
     if let Some(project_dir) = env::var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
-      let package_unescaped = env_var("TAURI_ANDROID_PACKAGE_UNESCAPED");
+      let package_unescaped = env::var("TAURI_ANDROID_PACKAGE_UNESCAPED")
+        .unwrap_or_else(|_| env_var("WRY_ANDROID_PACKAGE").replace('`', ""));
       let tauri_proguard =
         include_str!("./mobile/proguard-tauri.pro").replace("$PACKAGE", &package_unescaped);
       std::fs::write(

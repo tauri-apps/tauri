@@ -1,5 +1,12 @@
 # Changelog
 
+## \[1.8.1]
+
+### Bug Fixes
+
+- [`c72cd45cc`](https://www.github.com/tauri-apps/tauri/commit/c72cd45ccdef453ee1082d8b55409da41f8c343b) ([#11213](https://www.github.com/tauri-apps/tauri/pull/11213) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes a deadlock on window creation when the `tracing` feature is enabled.
+- [`9ef1be46e`](https://www.github.com/tauri-apps/tauri/commit/9ef1be46e89794334313359879868c98f47167c0) ([#11070](https://www.github.com/tauri-apps/tauri/pull/11070) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Encode `+` when making updater requests which can be cause incorrectly interpolating the endpoint when using `{{current_version}}` in the endpoint where the current version contains a build number, for example `1.8.0+1`.
+
 ## \[1.8.0]
 
 ### New Features

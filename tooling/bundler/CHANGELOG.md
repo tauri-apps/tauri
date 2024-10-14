@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.7.1]
+
+### Bug Fixes
+
+- [`019f94f12`](https://www.github.com/tauri-apps/tauri/commit/019f94f1284eebdf4fd72c4d1ca6ae096f09449d) ([#11131](https://www.github.com/tauri-apps/tauri/pull/11131) by [@0rvar](https://www.github.com/tauri-apps/tauri/../../0rvar)) Fix NSIS installer failing to determine whether webview installer downloaded correctly or not.
+
 ## \[1.7.0]
 
 ### New Features

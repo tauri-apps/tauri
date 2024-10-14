@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v2
@@ -44,7 +44,7 @@ jobs:
           args: --all -- --check
 
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         clippy:
@@ -62,7 +62,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libsoup2.4-dev
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - uses: actions-rs/toolchain@v1
         with:

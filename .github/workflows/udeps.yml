@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       tauri: ${{ steps.filter.outputs.tauri }}
       build: ${{ steps.filter.outputs.build }}
@@ -58,7 +58,7 @@ jobs:
               - 'tooling/cli/**'
 
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: changes
     if: |
       needs.changes.outputs.tauri == 'true' ||
@@ -120,7 +120,7 @@ jobs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
 
   udeps:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: setup
     strategy:
       matrix:
@@ -137,7 +137,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libsoup2.4-dev
+          sudo apt-get install -y libgtk-3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -157,7 +157,7 @@ jobs:
       - name: Install required packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libsoup2.4-dev
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - uses: actions-rs/cargo@v1
         with:

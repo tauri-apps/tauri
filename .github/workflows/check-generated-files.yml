@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       api: ${{ steps.filter.outputs.api }}
       schema: ${{ steps.filter.outputs.schema }}
@@ -39,7 +39,7 @@ jobs:
               - 'core/tauri-config-schema/schema.json'
 
   api:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: changes
     if: needs.changes.outputs.api == 'true'
     steps:
@@ -52,7 +52,7 @@ jobs:
         run: ./.scripts/ci/has-diff.sh
 
   schema:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: changes
     if: needs.changes.outputs.schema == 'true'
     steps:
@@ -67,7 +67,7 @@ jobs:
       - name: install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libsoup2.4-dev
+          sudo apt-get install -y libgtk-3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

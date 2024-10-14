@@ -238,7 +238,7 @@ jobs:
           - '16'
           - '18'
           - '20'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -261,7 +261,7 @@ jobs:
       - name: install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libsoup2.4-dev
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
       - name: Test bindings
         run: yarn test
   test-linux-x64-musl-binding:
@@ -275,7 +275,7 @@ jobs:
           - '16'
           - '18'
           - '20'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
@@ -321,7 +321,7 @@ jobs:
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
           - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
@@ -363,7 +363,7 @@ jobs:
             ls -la
   publish:
     name: Publish
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs:
       #- build-freebsd
       - test-macOS-windows-binding

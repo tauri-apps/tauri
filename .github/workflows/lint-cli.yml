@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   fmt:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v2
@@ -42,7 +42,7 @@ jobs:
           args: --manifest-path ./tooling/cli/Cargo.toml --all -- --check
 
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v2
@@ -57,7 +57,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libsoup2.4-dev
+          sudo apt-get install -y libgtk-3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

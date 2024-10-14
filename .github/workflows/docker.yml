@@ -13,7 +13,7 @@ on:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
@@ -54,7 +54,7 @@ jobs:
 
   docker:
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     strategy:
       fail-fast: false
@@ -115,7 +115,7 @@ jobs:
       - name: install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libsoup2.4-dev
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - name: Test
         run: |

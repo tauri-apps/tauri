@@ -38,7 +38,7 @@ jobs:
             }
           - {
               target: x86_64-unknown-linux-gnu,
-              os: ubuntu-latest,
+              os: ubuntu-22.04,
               toolchain: '1.60.0'
             }
           - {
@@ -75,7 +75,7 @@ jobs:
         if: contains(matrix.platform.target, 'unknown-linux')
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev libsoup2.4-dev
+          sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
       - uses: Swatinem/rust-cache@v2
         with:

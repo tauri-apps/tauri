@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.0.4]
+
+### New Features
+
+- [`bcf279278`](https://www.github.com/tauri-apps/tauri/commit/bcf279278dd36e05836be9568c432a679143258c) ([#11354](https://www.github.com/tauri-apps/tauri/pull/11354)) On Windows, Add `ContextMenu::hpopupmenu` method to get the [`HMENU`](https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types#HMENU) used for popups and tray icon menu.
+
+### Enhancements
+
+- [`e3b09be7f`](https://www.github.com/tauri-apps/tauri/commit/e3b09be7f0b7d47407cf51d6c2aafed741a96efe) ([#11362](https://www.github.com/tauri-apps/tauri/pull/11362)) Added `Builder::channel_interceptor` to intercept messages to be sent to the frontend, complemeting the `Builder::invoke_system` interface.
+- [`3cb73d08c`](https://www.github.com/tauri-apps/tauri/commit/3cb73d08c6d9b1e9f8a60c6ef6c492415cb41029) ([#11355](https://www.github.com/tauri-apps/tauri/pull/11355)) Mark the event commands as async so they do not block the main thread.
+
+### Bug Fixes
+
+- [`f3f521f03`](https://www.github.com/tauri-apps/tauri/commit/f3f521f038fa94ad583392092efe5bf1098fc94a) ([#11348](https://www.github.com/tauri-apps/tauri/pull/11348)) Fix `TAURI_ANDROID_PACKAGE_UNESCAPED not set` panic during compilation for Android when using an older tauri cli.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.1.1`
+
 ## \[2.0.3]
 
 ### New Features

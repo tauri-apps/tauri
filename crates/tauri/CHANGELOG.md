@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.5]
+
+### Enhancements
+
+- [`3cb73d08c`](https://www.github.com/tauri-apps/tauri/commit/3cb73d08c6d9b1e9f8a60c6ef6c492415cb41029) ([#11355](https://www.github.com/tauri-apps/tauri/pull/11355) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Mark the event commands as async so they do not block the main thread.
+
 ## \[2.0.4]
 
 ### New Features

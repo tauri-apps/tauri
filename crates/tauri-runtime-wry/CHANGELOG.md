@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.1.1]
+
+### Bug Fixes
+
+- [`ef2482dde`](https://www.github.com/tauri-apps/tauri/commit/ef2482ddecf533181211ee435931fac650495bc5) ([#11366](https://www.github.com/tauri-apps/tauri/pull/11366)) Update wry to 0.46.1 to fix a crash on macOS older than Sequoia.
+
 ## \[2.1.0]
 
 ### Bug Fixes

@@ -115,7 +115,7 @@
           "pipe": true
         },
         {
-          "command": "yarn publish --access public --loglevel silly",
+          "command": "yarn publish --access public --loglevel silly --tag v1",
           "dryRunCommand": "npm publish --dry-run --access public",
           "pipe": true
         },

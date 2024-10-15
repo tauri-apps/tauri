@@ -21,6 +21,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::{
   collections::{BTreeMap, HashMap, HashSet},
+  ffi::OsStr,
   fs::{self, File},
   io::Write,
   path::{Path, PathBuf},
@@ -604,7 +605,17 @@ pub fn build_wix_app_installer(
   data.insert("main_binary_path", to_json(main_binary_path));
 
   // copy icon from `settings.windows().icon_path` folder to resource folder near msi
-  let icon_path = copy_icon(settings, "icon.ico", &settings.windows().icon_path)?;
+  #[allow(deprecated)]
+  let icon_path = if !settings.windows().icon_path.as_os_str().is_empty() {
+    settings.windows().icon_path.clone()
+  } else {
+    settings
+      .icon_files()
+      .flatten()
+      .find(|i| i.extension() == Some(OsStr::new("ico")))
+      .context("Couldn't find a .ico icon")?
+  };
+  let icon_path = copy_icon(settings, "icon.ico", &icon_path)?;
 
   data.insert("icon_path", to_json(icon_path));
 

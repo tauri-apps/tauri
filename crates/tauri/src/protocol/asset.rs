@@ -12,7 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
-    move |request, responder| match get_response(request, &scope, &window_origin) {
+    move |_, request, responder| match get_response(request, &scope, &window_origin) {
       Ok(response) => responder.respond(response),
       Err(e) => responder.respond(
         http::Response::builder()

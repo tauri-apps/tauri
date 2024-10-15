@@ -20,7 +20,10 @@ use tauri_utils::{
 };
 
 use crate::{
-  app::{AppHandle, GlobalWebviewEventListener, GlobalWindowEventListener, OnPageLoad},
+  app::{
+    AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
+    OnPageLoad,
+  },
   event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
@@ -216,6 +219,8 @@ pub struct AppManager<R: Runtime> {
 
   /// Runtime-generated invoke key.
   pub(crate) invoke_key: String,
+
+  pub(crate) channel_interceptor: Option<ChannelInterceptor<R>>,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -256,6 +261,7 @@ impl<R: Runtime> AppManager<R> {
       crate::app::GlobalMenuEventListener<Window<R>>,
     >,
     invoke_initialization_script: String,
+    channel_interceptor: Option<ChannelInterceptor<R>>,
     invoke_key: String,
   ) -> Self {
     // generate a random isolation key at runtime
@@ -307,6 +313,7 @@ impl<R: Runtime> AppManager<R> {
       plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
       invoke_key,
+      channel_interceptor,
     }
   }
 
@@ -525,8 +532,14 @@ impl<R: Runtime> AppManager<R> {
     let emit_args = EmitArgs::new(event, payload)?;
 
     let listeners = self.listeners();
+    let webviews = self
+      .webview
+      .webviews_lock()
+      .values()
+      .cloned()
+      .collect::<Vec<_>>();
 
-    listeners.emit_js(self.webview.webviews_lock().values(), event, &emit_args)?;
+    listeners.emit_js(webviews.iter(), event, &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -618,12 +631,6 @@ impl<R: Runtime> AppManager<R> {
   #[cfg(desktop)]
   pub(crate) fn on_webview_close(&self, label: &str) {
     self.webview.webviews_lock().remove(label);
-
-    if let Ok(webview_labels_array) = serde_json::to_string(&self.webview.labels()) {
-      let _ = self.webview.eval_script_all(format!(
-          r#"(function () {{ const metadata = window.__TAURI_INTERNALS__.metadata; if (metadata != null) {{ metadata.webviews = {webview_labels_array}.map(function (label) {{ return {{ label: label }} }}) }} }})()"#,
-        ));
-    }
   }
 
   pub fn windows(&self) -> HashMap<String, Window<R>> {
@@ -733,6 +740,7 @@ mod test {
       Default::default(),
       Default::default(),
       "".into(),
+      None,
       crate::generate_invoke_key().unwrap(),
     );
 

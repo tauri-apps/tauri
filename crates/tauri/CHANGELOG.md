@@ -1,5 +1,44 @@
 # Changelog
 
+## \[2.0.4]
+
+### New Features
+
+- [`bcf279278`](https://www.github.com/tauri-apps/tauri/commit/bcf279278dd36e05836be9568c432a679143258c) ([#11354](https://www.github.com/tauri-apps/tauri/pull/11354)) On Windows, Add `ContextMenu::hpopupmenu` method to get the [`HMENU`](https://learn.microsoft.com/en-us/windows/win32/winprog/windows-data-types#HMENU) used for popups and tray icon menu.
+
+### Enhancements
+
+- [`e3b09be7f`](https://www.github.com/tauri-apps/tauri/commit/e3b09be7f0b7d47407cf51d6c2aafed741a96efe) ([#11362](https://www.github.com/tauri-apps/tauri/pull/11362)) Added `Builder::channel_interceptor` to intercept messages to be sent to the frontend, complemeting the `Builder::invoke_system` interface.
+- [`3cb73d08c`](https://www.github.com/tauri-apps/tauri/commit/3cb73d08c6d9b1e9f8a60c6ef6c492415cb41029) ([#11355](https://www.github.com/tauri-apps/tauri/pull/11355)) Mark the event commands as async so they do not block the main thread.
+
+### Bug Fixes
+
+- [`f3f521f03`](https://www.github.com/tauri-apps/tauri/commit/f3f521f038fa94ad583392092efe5bf1098fc94a) ([#11348](https://www.github.com/tauri-apps/tauri/pull/11348)) Fix `TAURI_ANDROID_PACKAGE_UNESCAPED not set` panic during compilation for Android when using an older tauri cli.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.1.1`
+
+## \[2.0.3]
+
+### New Features
+
+- [`1d3f51e10`](https://www.github.com/tauri-apps/tauri/commit/1d3f51e100b0efc0e4ce164796460e9acdc458da) ([#11228](https://www.github.com/tauri-apps/tauri/pull/11228) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `tauri::Builder::on_menu_event`.
+
+### Bug Fixes
+
+- [`d609bef9f`](https://www.github.com/tauri-apps/tauri/commit/d609bef9fd7cd6eeb2bd701558100bd9cfb6e6f6) ([#11314](https://www.github.com/tauri-apps/tauri/pull/11314) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix android invalid proguard file when using an `identifier` that contains a component that is a reserved kotlin keyword, like `in`, `class`, etc
+- [`04fd3a7db`](https://www.github.com/tauri-apps/tauri/commit/04fd3a7db556a5d83989c9de2a03095061996c9d) ([#11264](https://www.github.com/tauri-apps/tauri/pull/11264) by [@chrox](https://www.github.com/tauri-apps/tauri/../../chrox)) Respond with empty body for `HEAD` requests to `asset` protocol
+- [`4731f0cf3`](https://www.github.com/tauri-apps/tauri/commit/4731f0cf31fc99876f17a9b0e8170c1ef759443b) ([#11290](https://www.github.com/tauri-apps/tauri/pull/11290) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Export the `ipc::Invoke` struct.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix commands, that use `Webview` or `WebviewWindow` as an argument, receiving an incorrect webview when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix events only emitted to first webview only when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix custom protocols receiving an incorrect webview label when using multi webviews
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.1.0`
+- Upgraded to `tauri-runtime-wry@2.1.0`
+
 ## \[2.0.2]
 
 ### Enhancements

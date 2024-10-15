@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.0.1"
+version = "2.1.1"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -17,14 +17,14 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.44.0", default-features = false, features = [
+wry = { version = "0.46.1", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
   "linux-body",
 ] }
 tao = { version = "0.30.2", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.0.1", path = "../tauri-runtime" }
+tauri-runtime = { version = "2.1.0", path = "../tauri-runtime" }
 tauri-utils = { version = "2.0.1", path = "../tauri-utils" }
 raw-window-handle = "0.6"
 http = "1.1"
@@ -45,8 +45,10 @@ gtk = { version = "0.18", features = ["v3_24"] }
 webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 percent-encoding = "2.1"
 
-[target.'cfg(target_os = "macos")'.dependencies]
+[target.'cfg(target_vendor = "apple")'.dependencies]
 objc2 = "0.5.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
 objc2-foundation = { version = "0.2.2", features = [] }
 objc2-app-kit = { version = "0.2.2", features = [
   "block2",

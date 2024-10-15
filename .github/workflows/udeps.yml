@@ -20,7 +20,7 @@ concurrency:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       tauri: ${{ steps.filter.outputs.tauri }}
       build: ${{ steps.filter.outputs.build }}
@@ -58,7 +58,7 @@ jobs:
               - 'tooling/cli/**'
 
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: changes
     if: |
       needs.changes.outputs.tauri == 'true' ||
@@ -120,7 +120,7 @@ jobs:
       matrix: ${{ steps.create-matrix.outputs.matrix }}
 
   udeps:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: setup
     strategy:
       matrix:

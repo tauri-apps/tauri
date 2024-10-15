@@ -34,7 +34,7 @@ jobs:
             }
           - {
               target: x86_64-unknown-linux-gnu,
-              os: ubuntu-latest,
+              os: ubuntu-22.04,
               toolchain: '1.60.0'
             }
           - {
@@ -83,7 +83,7 @@ jobs:
           cargo update -p serde_spanned --precise 0.6.1
           cargo update -p winnow --precise 0.4.1
           cargo update -p plist --precise 1.5.1
-          cargo update -p serde_with:3.9.0 --precise 3.0.0
+          cargo update -p serde_with:3.11.0 --precise 3.0.0
           cargo update -p time --precise 0.3.15
           cargo update -p ignore --precise 0.4.18
           cargo update -p raw-window-handle --precise 0.5.0
@@ -126,12 +126,13 @@ jobs:
           cargo update -p tokio-stream --precise 0.1.14
           cargo update -p tokio-util --precise 0.7.10
           cargo update -p os_pipe --precise 1.1.5
-          cargo update -p syn:2.0.77 --precise 2.0.67
+          cargo update -p syn:2.0.79 --precise 2.0.67
           cargo update -p derive_more --precise 0.99.17
           cargo update -p native-tls --precise 0.2.11
           cargo update -p ppv-lite86 --precise 0.2.17
           cargo update -p xml-rs --precise 0.8.20
           cargo update -p mac-notification-sys --precise 0.6.1
+          cargo update -p security-framework-sys --precise 2.11.1
 
       - name: Downgrade crates with MSRV conflict (bundler)
         # This is for the bundler but since cli depends on the bundler we enable it for the cli too
@@ -164,7 +165,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ubuntu-latest, macos-13, windows-latest]
+        platform: [ubuntu-22.04, macos-13, windows-latest]
 
     steps:
       - uses: actions/checkout@v4
@@ -173,7 +174,7 @@ jobs:
       - name: install stable
         uses: dtolnay/rust-toolchain@stable
       - name: install Linux dependencies
-        if: matrix.platform == 'ubuntu-latest'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0 webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2
@@ -202,7 +203,7 @@ jobs:
           yarn test
 
   version-or-publish:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     timeout-minutes: 65
     permissions:
       actions: write # required for workflow_dispatch

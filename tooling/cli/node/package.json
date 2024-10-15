@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "description": "Command line interface for building Tauri apps",
   "funding": {
     "type": "opencollective",
@@ -67,5 +67,8 @@
     "tauri": "node ./tauri.js",
     "format": "prettier --write ./package.json ./tauri.js",
     "format:check": "prettier --check ./package.json ./tauri.js"
+  },
+  "dependencies": {
+    "semver": ">=7.5.2"
   }
 }

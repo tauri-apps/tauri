@@ -1,5 +1,15 @@
 # Changelog
 
+## \[1.6.3]
+
+### New Features
+
+- [`343b11d7c`](https://www.github.com/tauri-apps/tauri/commit/343b11d7c775fc01aa6ff8ab517fd1edd7e483ca) ([#11305](https://www.github.com/tauri-apps/tauri/pull/11305) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add Deno support in tauri-cli operations.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@1.6.3`
+
 ## \[1.6.2]
 
 ### Dependencies

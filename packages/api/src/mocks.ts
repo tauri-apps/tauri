@@ -136,22 +136,16 @@ export function mockIPC(
  * ```
  *
  * @param current Label of window this JavaScript context is running in.
- * @param additionalWindows Label of additional windows the app has.
  *
  * @since 1.0.0
  */
 export function mockWindows(
   current: string,
-  ...additionalWindows: string[]
+  ..._additionalWindows: string[]
 ): void {
   mockInternals()
   window.__TAURI_INTERNALS__.metadata = {
-    windows: [current, ...additionalWindows].map((label) => ({ label })),
     currentWindow: { label: current },
-    webviews: [current, ...additionalWindows].map((label) => ({
-      windowLabel: label,
-      label
-    })),
     currentWebview: { windowLabel: current, label: current }
   }
 }

@@ -21,9 +21,7 @@ declare global {
         options?: InvokeOptions
       }) => void
       metadata: {
-        windows: WindowDef[]
         currentWindow: WindowDef
-        webviews: WebviewDef[]
         currentWebview: WebviewDef
       }
       plugins: {

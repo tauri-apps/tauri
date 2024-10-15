@@ -86,6 +86,7 @@ fn get_response(
     .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
   {
     resp = resp.header(ACCEPT_RANGES, "bytes");
+    resp = resp.header(ACCESS_CONTROL_EXPOSE_HEADERS, "content-range");
 
     let not_satisfiable = || {
       Response::builder()

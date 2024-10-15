@@ -624,9 +624,9 @@ impl<R: Runtime> WebviewManager<R> {
 
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     let script = script.into();
-    self
-      .webviews_lock()
-      .values()
+    let webviews = self.webviews_lock().values().cloned().collect::<Vec<_>>();
+    webviews
+      .iter()
       .try_for_each(|webview| webview.eval(&script))
   }
 

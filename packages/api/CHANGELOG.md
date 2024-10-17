@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.2]
+
+### What's Changed
+
+- [`e968b3d25`](https://www.github.com/tauri-apps/tauri/commit/e968b3d2527b8edf7653e6cf7284dc4a8889b5fe) ([#11219](https://www.github.com/tauri-apps/tauri/pull/11219) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Actually publish package with the latest tag.
+
 ## \[2.0.1]
 
 ### What's Changed

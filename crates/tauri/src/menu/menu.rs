@@ -21,6 +21,11 @@ pub const WINDOW_SUBMENU_ID: &str = "__tauri_window_menu__";
 pub const HELP_SUBMENU_ID: &str = "__tauri_help_menu__";
 
 impl<R: Runtime> super::ContextMenu for Menu<R> {
+  #[cfg(target_os = "windows")]
+  fn hpopupmenu(&self) -> crate::Result<isize> {
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().hpopupmenu())
+  }
+
   fn popup<T: Runtime>(&self, window: Window<T>) -> crate::Result<()> {
     self.popup_inner(window, None::<Position>)
   }

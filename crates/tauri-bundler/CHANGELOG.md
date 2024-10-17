@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.0.3]
+
+### New Features
+
+- [`eda5713ea`](https://www.github.com/tauri-apps/tauri/commit/eda5713eab78d28182071ea25ceca5f1994f37ea) ([#11242](https://www.github.com/tauri-apps/tauri/pull/11242) by [@alex-sandri](https://www.github.com/tauri-apps/tauri/../../alex-sandri)) Add `Italian` to supported NSIS installer languages
+
+### Enhancements
+
+- [`504bb8ec8`](https://www.github.com/tauri-apps/tauri/commit/504bb8ec8cb294c5067357e18328580dd2b950c9) ([#11287](https://www.github.com/tauri-apps/tauri/pull/11287) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Pull upstream changes for the DMG creation script.
+
+### Bug Fixes
+
+- [`069c05e44`](https://www.github.com/tauri-apps/tauri/commit/069c05e44fd6f30083fdc00dd6c0001278898592) ([#11315](https://www.github.com/tauri-apps/tauri/pull/11315) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix CLI crashing and failing to find a `.ico` file when `bundle > icon` option is using globs and doesn't have a string that ends with `.ico`.
+
+## \[2.0.2]
+
+### Bug Fixes
+
+- [`858b3516a`](https://www.github.com/tauri-apps/tauri/commit/858b3516a008ae5e6f2af489805896e2c142be10) ([#11217](https://www.github.com/tauri-apps/tauri/pull/11217) by [@kittuov](https://www.github.com/tauri-apps/tauri/../../kittuov)) On Windows, fixed command arguments for `bundle -> windows -> msi -> elevatedUpdateTask`. to work with spaces in `productName`
+- [`a49a19ffa`](https://www.github.com/tauri-apps/tauri/commit/a49a19ffa304f031fb1a04d31a567cc7f42a380a) ([#11218](https://www.github.com/tauri-apps/tauri/pull/11218)) Fix bundling `appimage`, `deb` and `rpm` bundles failing to open when using `mainBinaryName` with spaces.
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+- Upgraded to `tauri-macos-sign@2.0.1`
+
 ## \[2.0.0]
 
 ### What's Changed

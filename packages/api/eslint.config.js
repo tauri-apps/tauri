@@ -47,7 +47,15 @@ export default [
       '@typescript-eslint/default-param-last': 'off',
       '@typescript-eslint/strict-boolean-expressions': 0,
       'no-return-await': 'warn',
-      '@typescript-eslint/return-await': 'off'
+      '@typescript-eslint/return-await': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_'
+        }
+      ]
     }
   }
 ]

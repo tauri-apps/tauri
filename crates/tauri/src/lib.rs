@@ -766,6 +766,10 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Adds a capability to the app.
   ///
+  /// Note that by default every capability file in the `src-tauri/capabilities` folder
+  /// are automatically enabled unless specific capabilities are configured in [`tauri.conf.json > app > security > capabilities`],
+  /// so you should use a different director for the runtime-added capabilities or use [tauri_build::Attributes::capabilities_path_pattern].
+  ///
   /// # Examples
   /// ```
   /// use tauri::Manager;
@@ -773,10 +777,35 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   /// tauri::Builder::default()
   ///   .setup(|app| {
   ///     #[cfg(feature = "beta")]
-  ///     app.add_capability(include_str!("../capabilities/beta.json"));
+  ///     app.add_capability(include_str!("../capabilities/beta/cap.json"));
+  ///
+  ///     #[cfg(feature = "stable")]
+  ///     app.add_capability(include_str!("../capabilities/stable/cap.json"));
   ///     Ok(())
   ///   });
   /// ```
+  ///
+  /// The above example assumes the following directory layout:
+  /// ```md
+  /// ├── capabilities
+  /// │   ├── app (default capabilities used by any app flavor)
+  /// |   |   |-- cap.json
+  /// │   ├── beta (capabilities only added to a `beta` flavor)
+  /// |   |   |-- cap.json
+  /// │   ├── stable (capabilities only added to a `stable` flavor)
+  /// |       |-- cap.json
+  /// ```
+  ///
+  /// For this layout to be properly parsed by Tauri, we need to change the build script to
+  ///
+  /// ```skip
+  /// // only pick up capabilities in the capabilities/app folder by default
+  /// let attributes = tauri_build::Attributes::new().capabilities_path_pattern("./capabilities/app/*.json");
+  /// tauri_build::try_build(attributes).unwrap();
+  /// ```
+  ///
+  /// [`tauri.conf.json > app > security > capabilities`]: https://tauri.app/reference/config/#capabilities
+  /// [tauri_build::Attributes::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
   fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()

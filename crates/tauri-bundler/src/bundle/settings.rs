@@ -351,6 +351,15 @@ impl Default for WixLanguage {
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
+  /// MSI installer version in the format `major.minor.patch.build` (build is optional).
+  ///
+  /// Because a valid version is required for MSI installer, it will be derived from [`PackageSettings::version`] if this field is not set.
+  ///
+  /// The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.
+  /// The third and fourth fields have a maximum value of 65,535.
+  ///
+  /// See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.
+  pub version: Option<String>,
   /// A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,
   /// otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.
   ///
@@ -501,6 +510,7 @@ pub struct WindowsSettings {
   /// Nsis configuration.
   pub nsis: Option<NsisSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
+  #[deprecated = "This is used for the MSI installer and will be removed in 3.0.0, use `BundleSettings::icon` field and make sure a `.ico` icon exists instead."]
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
@@ -526,19 +536,24 @@ pub struct WindowsSettings {
   pub sign_command: Option<CustomSignCommandSettings>,
 }
 
-impl Default for WindowsSettings {
-  fn default() -> Self {
-    Self {
-      digest_algorithm: None,
-      certificate_thumbprint: None,
-      timestamp_url: None,
-      tsp: false,
-      wix: None,
-      nsis: None,
-      icon_path: PathBuf::from("icons/icon.ico"),
-      webview_install_mode: Default::default(),
-      allow_downgrades: true,
-      sign_command: None,
+#[allow(deprecated)]
+mod _default {
+  use super::*;
+
+  impl Default for WindowsSettings {
+    fn default() -> Self {
+      Self {
+        digest_algorithm: None,
+        certificate_thumbprint: None,
+        timestamp_url: None,
+        tsp: false,
+        wix: None,
+        nsis: None,
+        icon_path: PathBuf::from("icons/icon.ico"),
+        webview_install_mode: Default::default(),
+        allow_downgrades: true,
+        sign_command: None,
+      }
     }
   }
 }
@@ -884,6 +899,16 @@ impl Settings {
     self
       .binaries
       .iter()
+      .find(|bin| bin.main)
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map_err(Into::into)
+  }
+
+  /// Returns the file name of the binary being bundled.
+  pub fn main_binary_mut(&mut self) -> crate::Result<&mut BundleBinary> {
+    self
+      .binaries
+      .iter_mut()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
       .map_err(Into::into)

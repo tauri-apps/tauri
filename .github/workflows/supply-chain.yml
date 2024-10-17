@@ -25,7 +25,7 @@ jobs:
       - name: Install Rust
         run: rustup update stable && rustup default stable
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: ${{ runner.tool_cache }}/cargo-vet
           key: cargo-vet-bin-${{ env.CARGO_VET_VERSION }}

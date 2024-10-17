@@ -1,5 +1,44 @@
 # Changelog
 
+## \[2.0.3]
+
+### New Features
+
+- [`eda5713ea`](https://www.github.com/tauri-apps/tauri/commit/eda5713eab78d28182071ea25ceca5f1994f37ea) ([#11242](https://www.github.com/tauri-apps/tauri/pull/11242) by [@alex-sandri](https://www.github.com/tauri-apps/tauri/../../alex-sandri)) Add `Italian` to supported NSIS installer languages
+- [`b3563e3d6`](https://www.github.com/tauri-apps/tauri/commit/b3563e3d6ae8dc90ee68f25f575cd5538ab1915b) ([#11304](https://www.github.com/tauri-apps/tauri/pull/11304) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add Deno support in tauri-cli operations.
+
+### Bug Fixes
+
+- [`d609bef9f`](https://www.github.com/tauri-apps/tauri/commit/d609bef9fd7cd6eeb2bd701558100bd9cfb6e6f6) ([#11314](https://www.github.com/tauri-apps/tauri/pull/11314) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix android invalid proguard file when using an `identifier` that contains a component that is a reserved kotlin keyword, like `in`, `class`, etc
+- [`069c05e44`](https://www.github.com/tauri-apps/tauri/commit/069c05e44fd6f30083fdc00dd6c0001278898592) ([#11315](https://www.github.com/tauri-apps/tauri/pull/11315) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix CLI crashing and failing to find a `.ico` file when `bundle > icon` option is using globs and doesn't have a string that ends with `.ico`.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.3`
+
+## \[2.0.2]
+
+### What's Changed
+
+- [`4475fbb50`](https://www.github.com/tauri-apps/tauri/commit/4475fbb502c5ffb3cea4de6bef1c7869be39bed6) ([#11208](https://www.github.com/tauri-apps/tauri/pull/11208) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update cargo-mobile2 to 0.17.3, fixing lib name validation.
+- [`a49a19ffa`](https://www.github.com/tauri-apps/tauri/commit/a49a19ffa304f031fb1a04d31a567cc7f42a380a) ([#11218](https://www.github.com/tauri-apps/tauri/pull/11218)) Fix bundling `appimage`, `deb` and `rpm` bundles failing to open when using `mainBinaryName` with spaces.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.2`
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+- Upgraded to `tauri-macos-sign@2.0.1`
+- Upgraded to `tauri-bundler@2.0.1`
+
 ## \[2.0.0]
 
 ### What's Changed

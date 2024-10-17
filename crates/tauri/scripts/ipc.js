@@ -92,22 +92,22 @@
     // unlike `JSON.stringify`, we can't extend a type with a method similar to `toJSON`
     // so that `structuredClone` would use, so until https://github.com/whatwg/html/issues/7428
     // we manually call `toIPC`
-    function processToIPCKey(data) {
+    function serializeIpcPayload(data) {
       // if this value changes, make sure to update it in:
       // 1. process-ipc-message-fn.js
       // 2. core.ts
-      const ToIPCKey = '__TAURI_TO_IPC_KEY__'
+      const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
       if (
         typeof data === 'object' &&
         'constructor' in data &&
         data.constructor === Array
       ) {
-        return data.map((v) => processToIPCKey(v))
+        return data.map((v) => serializeIpcPayload(v))
       }
 
-      if (typeof data === 'object' && ToIPCKey in data) {
-        return data[ToIPCKey]()
+      if (typeof data === 'object' && SERIALIZE_TO_IPC_FN in data) {
+        return data[SERIALIZE_TO_IPC_FN]()
       }
 
       if (
@@ -117,7 +117,7 @@
       ) {
         const acc = {}
         Object.entries(data).forEach(([k, v]) => {
-          acc[k] = processToIPCKey(v)
+          acc[k] = serializeIpcPayload(v)
         })
         return acc
       }
@@ -125,7 +125,7 @@
       return data
     }
 
-    data.payload = processToIPCKey(data.payload)
+    data.payload = serializeIpcPayload(data.payload)
 
     isolation.frame.contentWindow.postMessage(
       data,

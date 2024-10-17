@@ -274,7 +274,7 @@ export class Resource {
  * `UserId::String("id")` would be serialized into `{ String: "id" }`
  * and so we need to pass the same structure back to Rust
  * ```ts
- * import { ToIPCKey } from "@tauri-apps/api/core"
+ * import { SERIALIZE_TO_IPC_FN } from "@tauri-apps/api/core"
  *
  * class UserIdString {
  *   id
@@ -282,7 +282,7 @@ export class Resource {
  *     this.id = id
  *   }
  *
- *   [ToIPCKey]() {
+ *   [SERIALIZE_TO_IPC_FN]() {
  *     return { String: this.id }
  *   }
  * }
@@ -293,7 +293,7 @@ export class Resource {
  *     this.id = id
  *   }
  *
- *   [ToIPCKey]() {
+ *   [SERIALIZE_TO_IPC_FN]() {
  *     return { Number: this.id }
  *   }
  * }
@@ -306,7 +306,7 @@ export class Resource {
 // if this value changes, make sure to update it in:
 // 1. ipc.js
 // 2. process-ipc-message-fn.js
-export const ToIPCKey = '__TAURI_TO_IPC_KEY__'
+export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
 function isTauri(): boolean {
   return 'isTauri' in window && !!window.isTauri

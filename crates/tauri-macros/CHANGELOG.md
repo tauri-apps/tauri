@@ -1,5 +1,81 @@
 # Changelog
 
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+- Upgraded to `tauri-codegen@2.0.1`
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+- Upgraded to `tauri-codegen@2.0.0`
+
+## \[2.0.0-rc.12]
+
+### New Features
+
+- [`1d8b67b29`](https://www.github.com/tauri-apps/tauri/commit/1d8b67b2970a09ec478093e127612fac823de805) ([#11162](https://www.github.com/tauri-apps/tauri/pull/11162) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Support async functions for `mobile_entry_point` macro
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+- Upgraded to `tauri-codegen@2.0.0-rc.13`
+
+## \[2.0.0-rc.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+- Upgraded to `tauri-codegen@2.0.0-rc.12`
+
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-codegen@2.0.0-rc.11`
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-codegen@2.0.0-rc.10`
+
+## \[2.0.0-rc.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-codegen@2.0.0-rc.9`
+
+## \[2.0.0-rc.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-codegen@2.0.0-rc.8`
+
+## \[2.0.0-rc.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-codegen@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### What's Changed

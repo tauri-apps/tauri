@@ -5,19 +5,23 @@
 use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
   helpers::config::get as get_tauri_config,
-  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, Options as InterfaceOptions},
+  mobile::ios::LIB_OUTPUT_FILE_NAME,
   Result,
 };
 
+use anyhow::Context;
 use cargo_mobile2::{apple::target::Target, opts::Profile};
-use clap::Parser;
+use clap::{ArgAction, Parser};
+use object::{Object, ObjectSymbol};
 
 use std::{
   collections::HashMap,
   env::{current_dir, set_current_dir, var, var_os},
   ffi::OsStr,
+  fs::read_to_string,
+  io::Read,
   path::{Path, PathBuf},
-  process::Command,
 };
 
 #[derive(Debug, Parser)]
@@ -29,14 +33,14 @@ pub struct Options {
   #[clap(long)]
   sdk_root: PathBuf,
   /// Value of `FRAMEWORK_SEARCH_PATHS` env var
-  #[clap(long)]
-  framework_search_paths: String,
+  #[clap(long, action = ArgAction::Append, num_args(0..))]
+  framework_search_paths: Vec<String>,
   /// Value of `GCC_PREPROCESSOR_DEFINITIONS` env var
-  #[clap(long)]
-  gcc_preprocessor_definitions: String,
+  #[clap(long, action = ArgAction::Append, num_args(0..))]
+  gcc_preprocessor_definitions: Vec<String>,
   /// Value of `HEADER_SEARCH_PATHS` env var
-  #[clap(long)]
-  header_search_paths: String,
+  #[clap(long, action = ArgAction::Append, num_args(0..))]
+  header_search_paths: Vec<String>,
   /// Value of `CONFIGURATION` env var
   #[clap(long)]
   configuration: String,
@@ -145,15 +149,17 @@ pub fn command(options: Options) -> Result<()> {
     include_dir.as_os_str(),
   );
 
-  host_env.insert(
-    "FRAMEWORK_SEARCH_PATHS",
-    options.framework_search_paths.as_ref(),
-  );
+  let framework_search_paths = options.framework_search_paths.join(" ");
+  host_env.insert("FRAMEWORK_SEARCH_PATHS", framework_search_paths.as_ref());
+
+  let gcc_preprocessor_definitions = options.gcc_preprocessor_definitions.join(" ");
   host_env.insert(
     "GCC_PREPROCESSOR_DEFINITIONS",
-    options.gcc_preprocessor_definitions.as_ref(),
+    gcc_preprocessor_definitions.as_ref(),
   );
-  host_env.insert("HEADER_SEARCH_PATHS", options.header_search_paths.as_ref());
+
+  let header_search_paths = options.header_search_paths.join(" ");
+  host_env.insert("HEADER_SEARCH_PATHS", header_search_paths.as_ref());
 
   let macos_target = Target::macos();
 
@@ -211,46 +217,69 @@ pub fn command(options: Options) -> Result<()> {
       target_env,
     )?;
 
-    let bin_path = interface
-      .app_settings()
-      .app_binary_path(&InterfaceOptions {
-        debug: matches!(profile, Profile::Debug),
-        target: Some(rust_triple.into()),
-        ..Default::default()
-      })?;
-    let out_dir = bin_path.parent().unwrap();
+    let out_dir = interface.app_settings().out_dir(&InterfaceOptions {
+      debug: matches!(profile, Profile::Debug),
+      target: Some(rust_triple.into()),
+      ..Default::default()
+    })?;
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
       return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
     }
 
-    // for some reason the app works on release, but `nm <path>` does not print the start_app symbol
-    if profile == Profile::Debug {
-      validate_lib(&lib_path)?;
-    }
+    validate_lib(&lib_path)?;
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
     std::fs::create_dir_all(&externals_lib_dir)?;
-    std::fs::copy(
-      lib_path,
-      externals_lib_dir.join(format!("lib{}.a", config.app().lib_name())),
-    )?;
+
+    // backwards compatible lib output file name
+    let uses_new_lib_output_file_name = {
+      let pbxproj_contents = read_to_string(
+        project_dir
+          .join(format!("{}.xcodeproj", config.app().name()))
+          .join("project.pbxproj"),
+      )
+      .context("missing project.pbxproj file in the Xcode project")?;
+
+      pbxproj_contents.contains(LIB_OUTPUT_FILE_NAME)
+    };
+
+    let lib_output_file_name = if uses_new_lib_output_file_name {
+      LIB_OUTPUT_FILE_NAME.to_string()
+    } else {
+      format!("lib{}.a", config.app().lib_name())
+    };
+
+    std::fs::copy(lib_path, externals_lib_dir.join(lib_output_file_name))?;
   }
   Ok(())
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  // we ignore `nm` errors
-  if let Ok(output) = Command::new("nm").arg(path).output() {
-    let symbols = String::from_utf8_lossy(&output.stdout);
-    if !symbols.contains("start_app") {
-      anyhow::bail!(
-      "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
-      path.display()
-    );
+  let mut archive = ar::Archive::new(std::fs::File::open(path)?);
+  // Iterate over all entries in the archive:
+  while let Some(entry) = archive.next_entry() {
+    let Ok(mut entry) = entry else {
+      continue;
+    };
+    let mut obj_bytes = Vec::new();
+    entry.read_to_end(&mut obj_bytes)?;
+
+    let file = object::File::parse(&*obj_bytes)?;
+    for symbol in file.symbols() {
+      let Ok(name) = symbol.name() else {
+        continue;
+      };
+      if name.contains("start_app") {
+        return Ok(());
+      }
     }
   }
-  Ok(())
+
+  anyhow::bail!(
+    "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
+    path.display()
+  )
 }

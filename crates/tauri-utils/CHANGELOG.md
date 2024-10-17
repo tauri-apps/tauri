@@ -1,5 +1,77 @@
 # Changelog
 
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+## \[2.0.0-rc.13]
+
+### New Features
+
+- [`a247170e1`](https://www.github.com/tauri-apps/tauri/commit/a247170e1f620a9b012274b11cfe51e90327d6e9) ([#11056](https://www.github.com/tauri-apps/tauri/pull/11056) by [@SpikeHD](https://www.github.com/tauri-apps/tauri/../../SpikeHD)) Expose the ability to enabled browser extensions in WebView2 on Windows.
+- [`f57a729cd`](https://www.github.com/tauri-apps/tauri/commit/f57a729cd8f7e10d8daf0b9d5b85f9c7ad530496) ([#11039](https://www.github.com/tauri-apps/tauri/pull/11039) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `upgradeCode` in `wix` configuration to set an upgrade code for your MSI installer. This is recommended to be set if you plan to change your `productName`.
+
+### Bug Fixes
+
+- [`1efa5e718`](https://www.github.com/tauri-apps/tauri/commit/1efa5e7184009537b688a395596c696173ae0231) ([#11099](https://www.github.com/tauri-apps/tauri/pull/11099) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Rerun build script if the platform-specific configuration file changes.
+
+## \[2.0.0-rc.12]
+
+### New Features
+
+- [`ad294d274`](https://www.github.com/tauri-apps/tauri/commit/ad294d274dd81d2ef91ed73af9163b6e9b8eb964) ([#11032](https://www.github.com/tauri-apps/tauri/pull/11032) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `app > windows > create` option to choose whether to create this window at app startup or not.
+
+## \[2.0.0-rc.11]
+
+### New Features
+
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `mainBinaryName` config option to set the file name for the main binary.
+
+## \[2.0.0-rc.10]
+
+### Bug Fixes
+
+- [`0a47bf043`](https://www.github.com/tauri-apps/tauri/commit/0a47bf04302ca8502d3da21b3bc27818720fe34a) ([#10946](https://www.github.com/tauri-apps/tauri/pull/10946) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that made the `identifier` in `tauri.conf.json` optional while it was actually required.
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- [`d9c8d3cc8`](https://www.github.com/tauri-apps/tauri/commit/d9c8d3cc8d5ca67cd767ffc7a521f801b41ce201) ([#10902](https://www.github.com/tauri-apps/tauri/pull/10902) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Update infer to 0.16, tray icon to 0.17, urlpattern to 0.3, image to 0.25
+
+### Breaking Changes
+
+- [`faa259bac`](https://www.github.com/tauri-apps/tauri/commit/faa259bacf1ace670af763982c6903190faf163a) ([#10907](https://www.github.com/tauri-apps/tauri/pull/10907) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `Assets::iter` function now must return a iterator with `Item = (Cow<'_, str>, Cow<'_, [u8]>)` to be more flexible on contexts where the assets are not `'static`.
+
+## \[2.0.0-rc.8]
+
+### Enhancements
+
+- [`f0acf504a`](https://www.github.com/tauri-apps/tauri/commit/f0acf504a2a972c063188a00143d8bf2b887691d) ([#10858](https://www.github.com/tauri-apps/tauri/pull/10858) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Validate duplicate capability identifier.
+
+## \[2.0.0-rc.7]
+
+### New Features
+
+- [`58dda44a5`](https://www.github.com/tauri-apps/tauri/commit/58dda44a59b915f091602cdfc53385a148469793) ([#10339](https://www.github.com/tauri-apps/tauri/pull/10339) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add a new option `minimumWebview2Version` for Windows NSIS installer to trigger a webview2 update if the user's webview2 is older than this version
+
+### Bug Fixes
+
+- [`03f2a5098`](https://www.github.com/tauri-apps/tauri/commit/03f2a50981b8c01b1c196811fce9d93f1bf0820d) ([#10718](https://www.github.com/tauri-apps/tauri/pull/10718) by [@rdlabo](https://www.github.com/tauri-apps/tauri/../../rdlabo)) Update swift-rs fixing a plugin build when native dependencies are used.
+
+### Breaking Changes
+
+- [`073bb4f45`](https://www.github.com/tauri-apps/tauri/commit/073bb4f459a923541b94970dfa7e087bccaa2cfd) ([#10772](https://www.github.com/tauri-apps/tauri/pull/10772) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Removed the deprecated `webview_fixed_runtime_path` config option, use the `webview_install_mode` instead.
+
 ## \[2.0.0-rc.6]
 
 ### Bug Fixes

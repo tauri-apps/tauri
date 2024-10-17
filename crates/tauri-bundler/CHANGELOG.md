@@ -1,5 +1,152 @@
 # Changelog
 
+## \[2.0.3]
+
+### New Features
+
+- [`eda5713ea`](https://www.github.com/tauri-apps/tauri/commit/eda5713eab78d28182071ea25ceca5f1994f37ea) ([#11242](https://www.github.com/tauri-apps/tauri/pull/11242) by [@alex-sandri](https://www.github.com/tauri-apps/tauri/../../alex-sandri)) Add `Italian` to supported NSIS installer languages
+
+### Enhancements
+
+- [`504bb8ec8`](https://www.github.com/tauri-apps/tauri/commit/504bb8ec8cb294c5067357e18328580dd2b950c9) ([#11287](https://www.github.com/tauri-apps/tauri/pull/11287) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Pull upstream changes for the DMG creation script.
+
+### Bug Fixes
+
+- [`069c05e44`](https://www.github.com/tauri-apps/tauri/commit/069c05e44fd6f30083fdc00dd6c0001278898592) ([#11315](https://www.github.com/tauri-apps/tauri/pull/11315) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix CLI crashing and failing to find a `.ico` file when `bundle > icon` option is using globs and doesn't have a string that ends with `.ico`.
+
+## \[2.0.2]
+
+### Bug Fixes
+
+- [`858b3516a`](https://www.github.com/tauri-apps/tauri/commit/858b3516a008ae5e6f2af489805896e2c142be10) ([#11217](https://www.github.com/tauri-apps/tauri/pull/11217) by [@kittuov](https://www.github.com/tauri-apps/tauri/../../kittuov)) On Windows, fixed command arguments for `bundle -> windows -> msi -> elevatedUpdateTask`. to work with spaces in `productName`
+- [`a49a19ffa`](https://www.github.com/tauri-apps/tauri/commit/a49a19ffa304f031fb1a04d31a567cc7f42a380a) ([#11218](https://www.github.com/tauri-apps/tauri/pull/11218)) Fix bundling `appimage`, `deb` and `rpm` bundles failing to open when using `mainBinaryName` with spaces.
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+- Upgraded to `tauri-macos-sign@2.0.1`
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+- Upgraded to `tauri-macos-sign@2.0.0`
+
+## \[2.0.1-rc.15]
+
+### Bug Fixes
+
+- [`e10fdb786`](https://www.github.com/tauri-apps/tauri/commit/e10fdb786cc3e23b957238835881c41fa6acf8d4) ([#11182](https://www.github.com/tauri-apps/tauri/pull/11182) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Revert recent change that generated MSI installers with the same product code which prevented updates to happen, it is now ranomized like it previously was.
+
+### Dependencies
+
+- Upgraded to `tauri-macos-sign@0.1.1-rc.1`
+
+## \[2.0.1-rc.14]
+
+### New Features
+
+- [`06718b456`](https://www.github.com/tauri-apps/tauri/commit/06718b4569577a004daed9b8455e852a50b4b80f) ([#11096](https://www.github.com/tauri-apps/tauri/pull/11096) by [@thep0y](https://www.github.com/tauri-apps/tauri/../../thep0y)) Add the `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE` environment variable to specify a more accessible mirror template, facilitating companies, organizations, or individuals who cannot access GitHub to download the necessary files through their own mirror servers.
+- [`f57a729cd`](https://www.github.com/tauri-apps/tauri/commit/f57a729cd8f7e10d8daf0b9d5b85f9c7ad530496) ([#11039](https://www.github.com/tauri-apps/tauri/pull/11039) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `upgradeCode` in `wix` configuration to set an upgrade code for your MSI installer. This is recommended to be set if you plan to change your `productName`.
+
+### Bug Fixes
+
+- [`dfba0ede6`](https://www.github.com/tauri-apps/tauri/commit/dfba0ede683656f265681f68cd61c8511ea49847) ([#11084](https://www.github.com/tauri-apps/tauri/pull/11084) by [@olivierlemasle](https://www.github.com/tauri-apps/tauri/../../olivierlemasle)) Detect ARM gnueabi as soft-float (armel) instead of hard-float (armhf). Also change the signature of `tauri_bundler::bundle::Settings::binary_arch` to return an enum instead of a `&str`.
+- [`544328d5a`](https://www.github.com/tauri-apps/tauri/commit/544328d5a304979b92e542e6bacdb539e9e8fbdc) ([#11139](https://www.github.com/tauri-apps/tauri/pull/11139) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix NSIS installer failing to determine whether webview installer downloaded correctly or not.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+
+## \[2.0.1-rc.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+
+## \[2.0.1-rc.12]
+
+### Bug Fixes
+
+- [`94e9d476e`](https://www.github.com/tauri-apps/tauri/commit/94e9d476ef506b1b8c09f55b81620c7839f98086) ([#11011](https://www.github.com/tauri-apps/tauri/pull/11011) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `main_binary_name` in custom wix and nsis templates including `.exe`
+
+## \[2.0.1-rc.11]
+
+### New Features
+
+- [`656618225`](https://www.github.com/tauri-apps/tauri/commit/65661822580c31eb10a44be45842e259c598374c) ([#10866](https://www.github.com/tauri-apps/tauri/pull/10866) by [@thep0y](https://www.github.com/tauri-apps/tauri/../../thep0y)) Add `TAURI_BUNDLER_TOOLS_GITHUB_MIRROR` environment variable to specify a GitHub mirror to download files and tools used by tauri bundler. This is designed for areas like Mainland China where GitHub access can be unreliable.
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `mainBinaryName` config option to set the file name for the main binary.
+- [`b13cb208a`](https://www.github.com/tauri-apps/tauri/commit/b13cb208a3b8973a0d8e14bbdc587550982ec1f0) ([#10962](https://www.github.com/tauri-apps/tauri/pull/10962) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Store main binary name in registry for NSIS installer and delete old main binary on updates if the name changes.
+
+### Enhancements
+
+- [`a1e88d2b5`](https://www.github.com/tauri-apps/tauri/commit/a1e88d2b57219406332599d8e964e28b9b774068) ([#10969](https://www.github.com/tauri-apps/tauri/pull/10969) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Generate a consistent Product code for MSI installer derived from `identifier` instead of generating random one each build.
+
+### Bug Fixes
+
+- [`44d54a071`](https://www.github.com/tauri-apps/tauri/commit/44d54a07107edd38f31be15b49ddca0cacc335e5) ([#11005](https://www.github.com/tauri-apps/tauri/pull/11005) by [@goenning](https://www.github.com/tauri-apps/tauri/../../goenning)) Use appimage files instead of debian files when building appimage
+- [`9d468774a`](https://www.github.com/tauri-apps/tauri/commit/9d468774a94b5f5210a3012db2e58dbfab4755f4) ([#10975](https://www.github.com/tauri-apps/tauri/pull/10975) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The executable and NSIS installer on Windows will now use the `productName` config for the `FileDescription` property instead of `shortDescription`.
+- [`7eb1171e3`](https://www.github.com/tauri-apps/tauri/commit/7eb1171e3a2eb7bc5085ff28fc8610e5af82bdd5) ([#10967](https://www.github.com/tauri-apps/tauri/pull/10967) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix generated `UpgradeCode` for MSI not matching MSI installers created with tauri-bundler@v1.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+
+### Breaking Changes
+
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Changed changelog file location in `deb` to `usr/share/doc/<product_name>/changelog.gz` instead of `usr/share/doc/<main_binary_name>/changelog.gz`. For tauri v1 users, the path is unchanged as `product_name` and `main_binary_name` used the same value.
+- [`35bd9dd3d`](https://www.github.com/tauri-apps/tauri/commit/35bd9dd3dc3d8972bbc4aa5f4a6c6fa14354e9bf) ([#10977](https://www.github.com/tauri-apps/tauri/pull/10977) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Changed resources directory location in `deb` and `rpm` to `/usr/lib/<product_name>` instead of `/usr/lib/<main_binary_name>`. For tauri v1 users, the path is unchanged as `product_name` and `main_binary_name` used the same value.
+
+## \[2.0.1-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+
+## \[2.0.1-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+
+## \[2.0.1-rc.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+
+## \[2.0.1-rc.7]
+
+### Enhancements
+
+- [`5ec74456b`](https://www.github.com/tauri-apps/tauri/commit/5ec74456b9ae45eaa63e225856de1b7eb83abe6f) ([#10825](https://www.github.com/tauri-apps/tauri/pull/10825) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The debian `Maintainer` field now defaults to the Cargo.toml authors, but fallbacks to the `publisher` config value and the second part of the bundle identifier.
+
+## \[2.0.1-rc.6]
+
+### New Features
+
+- [`58dda44a5`](https://www.github.com/tauri-apps/tauri/commit/58dda44a59b915f091602cdfc53385a148469793) ([#10339](https://www.github.com/tauri-apps/tauri/pull/10339) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add a new option `minimumWebview2Version` for Windows NSIS installer to trigger a webview2 update if the user's webview2 is older than this version
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+
+### Breaking Changes
+
+- [`073bb4f45`](https://www.github.com/tauri-apps/tauri/commit/073bb4f459a923541b94970dfa7e087bccaa2cfd) ([#10772](https://www.github.com/tauri-apps/tauri/pull/10772) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Removed the deprecated `webview_fixed_runtime_path` config option, use the `webview_install_mode` instead.
+
 ## \[2.0.1-rc.5]
 
 ### What's Changed

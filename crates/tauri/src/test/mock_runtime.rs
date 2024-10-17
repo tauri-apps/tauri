@@ -243,6 +243,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     unimplemented!()
   }
 
+  fn set_theme(&self, theme: Option<Theme>) {
+    unimplemented!()
+  }
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   fn show(&self) -> Result<()> {
@@ -570,6 +574,18 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn clear_all_browsing_data(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn hide(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn show(&self) -> Result<()> {
     Ok(())
   }
 }
@@ -951,6 +967,18 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   ) -> Result<()> {
     Ok(())
   }
+
+  fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_enabled(&self, enabled: bool) -> Result<()> {
+    Ok(())
+  }
+
+  fn is_enabled(&self) -> Result<bool> {
+    Ok(true)
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -1089,6 +1117,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   }
 
   fn available_monitors(&self) -> Vec<Monitor> {
+    unimplemented!()
+  }
+
+  fn set_theme(&self, theme: Option<Theme>) {
     unimplemented!()
   }
 

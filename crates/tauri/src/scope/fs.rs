@@ -77,59 +77,85 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   pattern: P,
   f: F,
 ) -> crate::Result<()> {
+  // Reconstruct pattern path components with appropraite separator
+  // so `some\path/to/dir/**\*` would be `some/path/to/dir/**/*` on Unix
+  // and  `some\path\to\dir\**\*` on Windows.
   let path: PathBuf = pattern.as_ref().components().collect();
-  list.insert(f(&path.to_string_lossy())?);
 
-  let mut path = path;
-  let mut checked_path = None;
+  // Add pattern as is to be matched with paths as is
+  let path_str = path.to_string_lossy();
+  list.insert(f(&path_str)?);
 
-  // attempt to canonicalize parents in case we have a path like `/data/user/0/appid/**`
-  // where `**` obviously does not exist but we need to canonicalize the parent
-  //
-  // example: given the `/data/user/0/appid/assets/*` path,
-  // it's a glob pattern so it won't exist (canonicalize() fails);
-  //
-  // the second iteration needs to check `/data/user/0/appid/assets` and save the `*` component to append later.
-  //
-  // if it also does not exist, a third iteration is required to check `/data/user/0/appid`
-  // with `assets/*` as the cached value (`checked_path` variable)
-  // on Android that gets canonicalized to `/data/data/appid` so the final value will be `/data/data/appid/assets/*`
-  // which is the value we want to check when we execute the `is_allowed` function
-  let canonicalized = loop {
+  // On Windows, if path starts with a Prefix, try to strip it if possible
+  // so `\\?\C:\\SomeDir` would result in a scope of:
+  //   - `\\?\C:\\SomeDir`
+  //   - `C:\\SomeDir`
+  #[cfg(windows)]
+  {
+    use std::path::Component;
+
+    if matches!(path.components().next(), Some(Component::Prefix(_))) {
+      let simplified = dunce::simplified(&path);
+      let simplified_str = simplified.to_string_lossy();
+      if simplified_str != path_str {
+        list.insert(f(&simplified_str)?);
+      }
+    }
+  }
+
+  // Add canonicalized version of the pattern or canonicalized version of its parents
+  // so `/data/user/0/appid/assets/*` would be canonicalized to `/data/data/appid/assets/*`
+  // and can then be matched against any of them.
+  if let Some(p) = canonicalize_parent(path) {
+    list.insert(f(&p.to_string_lossy())?);
+  }
+
+  Ok(())
+}
+
+/// Attempt to canonicalize path or its parents in case we have a path like `/data/user/0/appid/**`
+/// where `**` obviously does not exist but we need to canonicalize the parent.
+///
+/// example: given the `/data/user/0/appid/assets/*` path,
+/// it's a glob pattern so it won't exist (std::fs::canonicalize() fails);
+///
+/// the second iteration needs to check `/data/user/0/appid/assets` and save the `*` component to append later.
+///
+/// if it also does not exist, a third iteration is required to check `/data/user/0/appid`
+/// with `assets/*` as the cached value (`checked_path` variable)
+/// on Android that gets canonicalized to `/data/data/appid` so the final value will be `/data/data/appid/assets/*`
+/// which is the value we want to check when we execute the `Scope::is_allowed` function
+fn canonicalize_parent(mut path: PathBuf) -> Option<PathBuf> {
+  let mut failed_components = None;
+
+  loop {
     if let Ok(path) = path.canonicalize() {
-      break Some(if let Some(p) = checked_path {
+      break Some(if let Some(p) = failed_components {
         path.join(p)
       } else {
         path
       });
     }
 
-    // get the last component of the path as an OsStr
-    let last = path.iter().next_back().map(PathBuf::from);
-    if let Some(mut p) = last {
-      // remove the last component of the path
-      // so the next iteration checks its parent
-      path.pop();
-      // append the already checked path to the last component
-      if let Some(checked_path) = &checked_path {
-        p.push(checked_path);
+    // grap the last component of the path
+    if let Some(mut last) = path.iter().next_back().map(PathBuf::from) {
+      // remove the last component of the path so the next iteration checks its parent
+      // if there is no more parent components, we failed to canonicalize
+      if !path.pop() {
+        break None;
       }
-      // replace the checked path with the current value
-      checked_path.replace(p);
+
+      // append the already checked path to the last component
+      // to construct `<last>/<checked_path>` and saved it for next iteration
+      if let Some(failed_components) = &failed_components {
+        last.push(failed_components);
+      }
+      failed_components.replace(last);
     } else {
       break None;
     }
-  };
-
-  if let Some(p) = canonicalized {
-    list.insert(f(&p.to_string_lossy())?);
-  } else if cfg!(windows) {
-    list.insert(f(&format!("\\\\?\\{}", path.display()))?);
   }
-
-  Ok(())
 }
-
 impl Scope {
   /// Creates a new scope from a [`FsScope`] configuration.
   pub fn new<R: crate::Runtime, M: crate::Manager<R>>(
@@ -343,11 +369,15 @@ fn escaped_pattern(p: &str) -> Result<Pattern, glob::PatternError> {
 }
 
 fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternError> {
-  Pattern::new(&format!(
-    "{}{}{append}",
-    glob::Pattern::escape(p),
-    MAIN_SEPARATOR
-  ))
+  if p.ends_with(MAIN_SEPARATOR) {
+    Pattern::new(&format!("{}{append}", glob::Pattern::escape(p)))
+  } else {
+    Pattern::new(&format!(
+      "{}{}{append}",
+      glob::Pattern::escape(p),
+      MAIN_SEPARATOR
+    ))
+  }
 }
 
 #[cfg(test)]
@@ -468,6 +498,106 @@ mod tests {
       assert!(!scope.is_allowed("C:\\home\\tauri\\**\\file"));
       assert!(!scope.is_allowed("C:\\home\\tauri\\**\\inner\\file"));
       assert!(scope.is_allowed("C:\\home\\tauri\\anyfile"));
+    }
+  }
+
+  #[cfg(windows)]
+  #[test]
+  fn windows_root_paths() {
+    let scope = new_scope();
+    {
+      // UNC network path
+      scope.allow_directory("\\\\localhost\\c$", true).unwrap();
+      assert!(scope.is_allowed("\\\\localhost\\c$"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\NonExistentFile"));
+      assert!(!scope.is_allowed("\\\\localhost\\d$"));
+      assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim UNC network path
+      scope
+        .allow_directory("\\\\?\\UNC\\localhost\\c$", true)
+        .unwrap();
+      assert!(scope.is_allowed("\\\\localhost\\c$"));
+      assert!(scope.is_allowed("\\\\localhost\\c$\\Windows"));
+      assert!(scope.is_allowed("\\\\?\\UNC\\localhost\\c$\\Windows\\NonExistentFile"));
+      // A non-existent file cannot be canonicalized to a verbatim UNC path, so this will fail to match
+      assert!(!scope.is_allowed("\\\\localhost\\c$\\Windows\\NonExistentFile"));
+      assert!(!scope.is_allowed("\\\\localhost\\d$"));
+      assert!(!scope.is_allowed("\\\\OtherServer\\Share"));
+    }
+
+    let scope = new_scope();
+    {
+      // Device namespace
+      scope.allow_file("\\\\.\\COM1").unwrap();
+      assert!(scope.is_allowed("\\\\.\\COM1"));
+      assert!(!scope.is_allowed("\\\\.\\COM2"));
+    }
+
+    let scope = new_scope();
+    {
+      // Disk root
+      scope.allow_directory("C:\\", true).unwrap();
+      assert!(scope.is_allowed("C:\\Windows"));
+      assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+      assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(!scope.is_allowed("D:\\home"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim disk root
+      scope.allow_directory("\\\\?\\C:\\", true).unwrap();
+      assert!(scope.is_allowed("C:\\Windows"));
+      assert!(scope.is_allowed("C:\\Windows\\system.ini"));
+      assert!(scope.is_allowed("C:\\NonExistentFile"));
+      assert!(!scope.is_allowed("D:\\home"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim path
+      scope.allow_file("\\\\?\\anyfile").unwrap();
+      assert!(scope.is_allowed("\\\\?\\anyfile"));
+      assert!(!scope.is_allowed("\\\\?\\otherfile"));
+    }
+
+    let cwd = std::env::current_dir().unwrap();
+    let disk = {
+      let std::path::Component::Prefix(prefix) = cwd.components().next().unwrap() else {
+        panic!("Expected current dir to start with a prefix");
+      };
+      assert!(
+        matches!(prefix.kind(), std::path::Prefix::Disk(_)),
+        "Expected current dir to be on a disk drive"
+      );
+      prefix.as_os_str().to_string_lossy()
+    };
+
+    let scope = new_scope();
+    {
+      // Disk
+      scope.allow_directory(&*disk, true).unwrap();
+      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
+      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
+      assert!(!scope.is_allowed("C:\\Windows"));
+      assert!(!scope.is_allowed("Q:Cargo.toml"));
+    }
+
+    let scope = new_scope();
+    {
+      // Verbatim disk
+      scope
+        .allow_directory(format!("\\\\?\\{}", disk), true)
+        .unwrap();
+      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
+      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
+      assert!(!scope.is_allowed("C:\\Windows"));
+      assert!(!scope.is_allowed("Q:Cargo.toml"));
     }
   }
 }

@@ -311,6 +311,8 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
+  fn set_theme(&self, theme: Option<Theme>);
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -401,6 +403,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn available_monitors(&self) -> Vec<Monitor>;
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
+
+  fn set_theme(&self, theme: Option<Theme>);
 
   /// Sets the activation policy for the application.
   #[cfg(target_os = "macos")]
@@ -501,6 +505,12 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Bring the window to front and focus the webview.
   fn set_focus(&self) -> Result<()>;
 
+  /// Hide the webview
+  fn hide(&self) -> Result<()>;
+
+  /// Show the webview
+  fn show(&self) -> Result<()>;
+
   /// Executes javascript on the window this [`WindowDispatch`] represents.
   fn eval_script<S: Into<String>>(&self, script: S) -> Result<()>;
 
@@ -512,6 +522,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Set the webview zoom level
   fn set_zoom(&self, scale_factor: f64) -> Result<()>;
+
+  /// Clear all browsing data for this webview.
+  fn clear_all_browsing_data(&self) -> Result<()>;
 }
 
 /// Window dispatcher. A thread-safe handle to the window APIs.
@@ -590,6 +603,10 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Gets the window's current visibility state.
   fn is_visible(&self) -> Result<bool>;
+
+  /// Whether the window is enabled or disable.
+  fn is_enabled(&self) -> Result<bool>;
+
   /// Gets the window's current title.
   fn title(&self) -> Result<String>;
 
@@ -662,6 +679,13 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window resizable flag.
   fn set_resizable(&self, resizable: bool) -> Result<()>;
+
+  /// Enable or disable the window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android / iOS**: Unsupported.
+  fn set_enabled(&self, enabled: bool) -> Result<()>;
 
   /// Updates the window's native maximize button state.
   ///
@@ -799,4 +823,12 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ///
   /// - **Linux / Windows / iOS / Android:** Unsupported.
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()>;
+
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
+  fn set_theme(&self, theme: Option<Theme>) -> Result<()>;
 }

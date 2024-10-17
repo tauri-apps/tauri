@@ -7,7 +7,7 @@ Default permissions for the plugin.
 - `allow-webview-size`
 - `allow-internal-toggle-devtools`
 
-## Permission Table 
+## Permission Table
 
 <table>
 <tr>
@@ -15,6 +15,32 @@ Default permissions for the plugin.
 <th>Description</th>
 </tr>
 
+
+<tr>
+<td>
+
+`core:webview:allow-clear-all-browsing-data`
+
+</td>
+<td>
+
+Enables the clear_all_browsing_data command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-clear-all-browsing-data`
+
+</td>
+<td>
+
+Denies the clear_all_browsing_data command without any pre-configured scope.
+
+</td>
+</tr>
 
 <tr>
 <td>
@@ -305,6 +331,32 @@ Denies the webview_close command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-webview-hide`
+
+</td>
+<td>
+
+Enables the webview_hide command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-webview-hide`
+
+</td>
+<td>
+
+Denies the webview_hide command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-webview-position`
 
 </td>
@@ -324,6 +376,32 @@ Enables the webview_position command without any pre-configured scope.
 <td>
 
 Denies the webview_position command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:allow-webview-show`
+
+</td>
+<td>
+
+Enables the webview_show command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-webview-show`
+
+</td>
+<td>
+
+Denies the webview_show command without any pre-configured scope.
 
 </td>
 </tr>

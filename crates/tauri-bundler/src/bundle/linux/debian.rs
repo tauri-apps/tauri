@@ -24,7 +24,7 @@
 // generate postinst or prerm files.
 
 use super::{super::common, freedesktop};
-use crate::Settings;
+use crate::{bundle::settings::Arch, Settings};
 use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
@@ -41,12 +41,17 @@ use std::{
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "x86_64" => "amd64",
-    // ARM64 is detected differently, armel isn't supported, so armhf is the only reasonable choice here.
-    "arm" => "armhf",
-    "aarch64" => "arm64",
-    other => other,
+    Arch::X86_64 => "amd64",
+    Arch::X86 => "i386",
+    Arch::AArch64 => "arm64",
+    Arch::Armhf => "armhf",
+    Arch::Armel => "armel",
+    target => {
+      return Err(crate::Error::ArchError(format!(
+        "Unsupported architecture: {:?}",
+        target
+      )));
+    }
   };
   let package_base_name = format!(
     "{}_{}_{}",
@@ -133,8 +138,8 @@ pub fn generate_data(
 fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
-    let bin_name = settings.main_binary_name();
-    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
+    let product_name = settings.product_name();
+    let dest_path = data_dir.join(format!("usr/share/doc/{product_name}/changelog.gz"));
 
     let changelog_file = common::create_file(&dest_path)?;
     let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
@@ -163,7 +168,17 @@ fn generate_control_file(
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
-  let authors = settings.authors_comma_separated().unwrap_or_default();
+  let authors = settings
+    .authors_comma_separated()
+    .or_else(|| settings.publisher().map(ToString::to_string))
+    .unwrap_or_else(|| {
+      settings
+        .bundle_identifier()
+        .split('.')
+        .nth(1)
+        .unwrap_or(settings.bundle_identifier())
+        .to_string()
+    });
 
   writeln!(file, "Maintainer: {authors}")?;
   if let Some(section) = &settings.deb().section {
@@ -296,7 +311,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
 /// Copy the bundle's resource files into an appropriate directory under the
 /// `data_dir`.
 fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()> {
-  let resource_dir = data_dir.join("usr/lib").join(settings.main_binary_name());
+  let resource_dir = data_dir.join("usr/lib").join(settings.product_name());
   settings.copy_resources(&resource_dir)
 }
 

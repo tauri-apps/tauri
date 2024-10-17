@@ -42,7 +42,7 @@ pub fn get<R: Runtime>(
   #[cfg(all(dev, mobile))]
   let response_cache = Arc::new(Mutex::new(HashMap::new()));
 
-  Box::new(move |request, responder| {
+  Box::new(move |_, request, responder| {
     match get_response(
       request,
       &manager,
@@ -102,7 +102,11 @@ fn get_response<R: Runtime>(
     let decoded_path = percent_encoding::percent_decode(path.as_bytes())
       .decode_utf8_lossy()
       .to_string();
-    let url = format!("{url}{decoded_path}");
+    let url = format!(
+      "{}/{}",
+      url.trim_end_matches('/'),
+      decoded_path.trim_start_matches('/')
+    );
 
     let mut proxy_builder = reqwest::ClientBuilder::new()
       .build()

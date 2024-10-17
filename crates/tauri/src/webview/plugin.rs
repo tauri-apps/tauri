@@ -57,7 +57,7 @@ mod desktop_commands {
       .webviews()
       .values()
       .map(|webview| WebviewRef {
-        window_label: webview.window().label().into(),
+        window_label: webview.window_ref().label().into(),
         label: webview.label().into(),
       })
       .collect()
@@ -176,7 +176,10 @@ mod desktop_commands {
   setter!(set_webview_size, set_size, Size);
   setter!(set_webview_position, set_position, Position);
   setter!(set_webview_focus, set_focus);
+  setter!(webview_hide, hide);
+  setter!(webview_show, show);
   setter!(set_webview_zoom, set_zoom, f64);
+  setter!(clear_all_browsing_data, clear_all_browsing_data);
 
   #[command(root = "crate")]
   pub async fn reparent<R: Runtime>(
@@ -260,8 +263,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
             desktop_commands::set_webview_zoom,
+            desktop_commands::webview_hide,
+            desktop_commands::webview_show,
             desktop_commands::print,
             desktop_commands::reparent,
+            desktop_commands::clear_all_browsing_data,
             #[cfg(any(debug_assertions, feature = "devtools"))]
             desktop_commands::internal_toggle_devtools,
           ]);

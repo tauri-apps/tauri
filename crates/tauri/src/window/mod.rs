@@ -1142,7 +1142,7 @@ tauri::Builder::default()
           .map(crate::menu::map_to_menu_theme)
           .unwrap_or(muda::MenuTheme::Auto);
 
-        let _ = menu_.inner().init_for_hwnd_with_theme(hwnd.0 as _, theme);
+        let _ = unsafe { menu_.inner().init_for_hwnd_with_theme(hwnd.0 as _, theme) };
       }
       #[cfg(any(
         target_os = "linux",
@@ -1183,7 +1183,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu.inner().remove_for_hwnd(hwnd.0 as _);
+          let _ = unsafe { menu.inner().remove_for_hwnd(hwnd.0 as _) };
         }
         #[cfg(any(
           target_os = "linux",
@@ -1215,7 +1215,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().hide_for_hwnd(hwnd.0 as _);
+          let _ = unsafe { menu_.inner().hide_for_hwnd(hwnd.0 as _) };
         }
         #[cfg(any(
           target_os = "linux",
@@ -1243,7 +1243,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = menu_.inner().show_for_hwnd(hwnd.0 as _);
+          let _ = unsafe { menu_.inner().show_for_hwnd(hwnd.0 as _) };
         }
         #[cfg(any(
           target_os = "linux",
@@ -1272,7 +1272,7 @@ tauri::Builder::default()
       self.run_on_main_thread(move || {
         #[cfg(windows)]
         if let Ok(hwnd) = window.hwnd() {
-          let _ = tx.send(menu_.inner().is_visible_on_hwnd(hwnd.0 as _));
+          let _ = tx.send(unsafe { menu_.inner().is_visible_on_hwnd(hwnd.0 as _) });
         }
         #[cfg(any(
           target_os = "linux",
@@ -1370,6 +1370,11 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_resizable().map_err(Into::into)
   }
 
+  /// Whether the window is enabled or disabled.
+  pub fn is_enabled(&self) -> crate::Result<bool> {
+    self.window.dispatcher.is_enabled().map_err(Into::into)
+  }
+
   /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific
@@ -1461,12 +1466,9 @@ impl<R: Runtime> Window<R> {
       .map_err(Into::into)
       .and_then(|handle| {
         if let raw_window_handle::RawWindowHandle::AppKit(h) = handle.as_raw() {
-          Ok(unsafe {
-            use objc::*;
-            let ns_window: cocoa::base::id =
-              objc::msg_send![h.ns_view.as_ptr() as cocoa::base::id, window];
-            ns_window as *mut _
-          })
+          let view: &objc2_app_kit::NSView = unsafe { h.ns_view.cast().as_ref() };
+          let ns_window = view.window().expect("view to be installed in window");
+          Ok(objc2::rc::Retained::autorelease_ptr(ns_window).cast())
         } else {
           Err(crate::Error::InvalidWindowHandle)
         }
@@ -1650,6 +1652,15 @@ impl<R: Runtime> Window<R> {
       .window
       .dispatcher
       .set_title(title.to_string())
+      .map_err(Into::into)
+  }
+
+  /// Enable or disable the window.
+  pub fn set_enabled(&self, enabled: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_enabled(enabled)
       .map_err(Into::into)
   }
 
@@ -1980,10 +1991,11 @@ tauri::Builder::default()
       .set_progress_bar(crate::runtime::ProgressBarState {
         status: progress_state.status,
         progress: progress_state.progress,
-        desktop_filename: Some(format!("{}.desktop", self.package_info().crate_name)),
+        desktop_filename: Some(format!("{}.desktop", self.package_info().name)),
       })
       .map_err(Into::into)
   }
+
   /// Sets the title bar style. **macOS only**.
   pub fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> crate::Result<()> {
     self
@@ -1991,6 +2003,35 @@ tauri::Builder::default()
       .dispatcher
       .set_title_bar_style(style)
       .map_err(Into::into)
+  }
+
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_theme(&self, theme: Option<Theme>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_theme(theme)
+      .map_err(Into::<crate::Error>::into)?;
+    #[cfg(windows)]
+    if let (Some(menu), Ok(hwnd)) = (self.menu(), self.hwnd()) {
+      let raw_hwnd = hwnd.0 as isize;
+      self.run_on_main_thread(move || {
+        let _ = unsafe {
+          menu.inner().set_theme_for_hwnd(
+            raw_hwnd,
+            theme
+              .map(crate::menu::map_to_menu_theme)
+              .unwrap_or(muda::MenuTheme::Auto),
+          )
+        };
+      })?;
+    };
+    Ok(())
   }
 }
 

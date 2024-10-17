@@ -412,7 +412,7 @@
 			};
 			name = debug;
 		};
-		DB0E254D0FD84970B57F6410 /* release */ = {
+		DB_0E254D0FD84970B57F6410 /* release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
@@ -454,7 +454,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BF284FE6E7AE0C8DDCCE398B /* debug */,
-				DB0E254D0FD84970B57F6410 /* release */,
+				DB_0E254D0FD84970B57F6410 /* release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = debug;

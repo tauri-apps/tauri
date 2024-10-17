@@ -5,6 +5,7 @@
 
 use super::category::AppCategory;
 use crate::bundle::{common, platform::target_triple};
+use anyhow::Context;
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
@@ -184,7 +185,7 @@ pub struct DebianSettings {
   ///
   /// Default file contents:
   /// ```text
-  #[doc = include_str!("./linux/templates/main.desktop")]
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Define the section in Debian Control file. See : <https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections>
@@ -242,7 +243,7 @@ pub struct RpmSettings {
   ///
   /// Default file contents:
   /// ```text
-  #[doc = include_str!("./linux/templates/main.desktop")]
+  #[doc = include_str!("./linux/freedesktop/main.desktop")]
   /// ```
   pub desktop_template: Option<PathBuf>,
   /// Path to script that will be executed before the package is unpacked. See
@@ -350,6 +351,15 @@ impl Default for WixLanguage {
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
+  /// A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,
+  /// otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.
+  ///
+  /// By default, tauri generates this code by generating a Uuid v5 using the string `<productName>.exe.app.x64` in the DNS namespace.
+  /// You can use Tauri's CLI to generate and print this code for you by running `tauri inspect wix-upgrade-code`.
+  ///
+  /// It is recommended that you set this value in your tauri config file to avoid accidental changes in your upgrade code
+  /// whenever you want to change your product name.
+  pub upgrade_code: Option<uuid::Uuid>,
   /// The app languages to build. See <https://docs.microsoft.com/en-us/windows/win32/msi/localizing-the-error-and-actiontext-tables>.
   pub language: WixLanguage,
   /// By default, the bundler uses an internal template.
@@ -409,7 +419,7 @@ pub struct NsisSettings {
   /// An key-value pair where the key is the language and the
   /// value is the path to a custom `.nsi` file that holds the translated text for tauri's custom messages.
   ///
-  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/templates/nsis-languages/English.nsh> for an example `.nsi` file.
+  /// See <https://github.com/tauri-apps/tauri/blob/dev/crates/tauri-bundler/src/bundle/windows/nsis/languages/English.nsh> for an example `.nsi` file.
   ///
   /// **Note**: the key must be a valid NSIS language and it must be added to [`NsisConfig`]languages array,
   pub custom_language_files: Option<HashMap<String, PathBuf>>,
@@ -491,6 +501,7 @@ pub struct WindowsSettings {
   /// Nsis configuration.
   pub nsis: Option<NsisSettings>,
   /// The path to the application icon. Defaults to `./icons/icon.ico`.
+  #[deprecated = "This is used for the MSI installer and will be removed in 3.0.0, use `BundleSettings::icon` field and make sure a `.ico` icon exists instead."]
   pub icon_path: PathBuf,
   /// The installation mode for the Webview2 runtime.
   pub webview_install_mode: WebviewInstallMode,
@@ -516,19 +527,24 @@ pub struct WindowsSettings {
   pub sign_command: Option<CustomSignCommandSettings>,
 }
 
-impl Default for WindowsSettings {
-  fn default() -> Self {
-    Self {
-      digest_algorithm: None,
-      certificate_thumbprint: None,
-      timestamp_url: None,
-      tsp: false,
-      wix: None,
-      nsis: None,
-      icon_path: PathBuf::from("icons/icon.ico"),
-      webview_install_mode: Default::default(),
-      allow_downgrades: true,
-      sign_command: None,
+#[allow(deprecated)]
+mod _default {
+  use super::*;
+
+  impl Default for WindowsSettings {
+    fn default() -> Self {
+      Self {
+        digest_algorithm: None,
+        certificate_thumbprint: None,
+        timestamp_url: None,
+        tsp: false,
+        wix: None,
+        nsis: None,
+        icon_path: PathBuf::from("icons/icon.ico"),
+        webview_install_mode: Default::default(),
+        allow_downgrades: true,
+        sign_command: None,
+      }
     }
   }
 }
@@ -539,7 +555,9 @@ pub struct BundleSettings {
   /// the app's identifier.
   pub identifier: Option<String>,
   /// The app's publisher. Defaults to the second element in the identifier string.
-  /// Currently maps to the Manufacturer property of the Windows Installer.
+  ///
+  /// Currently maps to the Manufacturer property of the Windows Installer
+  /// and the Maintainer field of debian packages if the Cargo.toml does not have the authors field.
   pub publisher: Option<String>,
   /// A url to the home page of your application. If None, will
   /// fallback to [PackageSettings::homepage].
@@ -615,8 +633,8 @@ pub struct BundleSettings {
 #[derive(Clone, Debug)]
 pub struct BundleBinary {
   name: String,
-  src_path: Option<String>,
   main: bool,
+  src_path: Option<String>,
 }
 
 impl BundleBinary {
@@ -624,8 +642,8 @@ impl BundleBinary {
   pub fn new(name: String, main: bool) -> Self {
     Self {
       name,
-      src_path: None,
       main,
+      src_path: None,
     }
   }
 
@@ -638,13 +656,6 @@ impl BundleBinary {
     }
   }
 
-  /// Sets the src path of the binary.
-  #[must_use]
-  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
-    self.src_path = src_path;
-    self
-  }
-
   /// Mark the binary as the main executable.
   pub fn set_main(&mut self, main: bool) {
     self.main = main;
@@ -655,9 +666,11 @@ impl BundleBinary {
     self.name = name;
   }
 
-  /// Returns the binary name.
-  pub fn name(&self) -> &str {
-    &self.name
+  /// Sets the src path of the binary.
+  #[must_use]
+  pub fn set_src_path(mut self, src_path: Option<String>) -> Self {
+    self.src_path = src_path;
+    self
   }
 
   /// Returns the binary `main` flag.
@@ -665,10 +678,31 @@ impl BundleBinary {
     self.main
   }
 
+  /// Returns the binary name.
+  pub fn name(&self) -> &str {
+    &self.name
+  }
+
   /// Returns the binary source path.
   pub fn src_path(&self) -> Option<&String> {
     self.src_path.as_ref()
   }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Arch {
+  /// For the x86_64 / x64 / AMD64 instruction sets (64 bits).
+  X86_64,
+  /// For the x86 / i686 / i686 / 8086 instruction sets (32 bits).
+  X86,
+  /// For the AArch64 / ARM64 instruction sets (64 bits).
+  AArch64,
+  /// For the AArch32 / ARM32 instruction sets with hard-float (32 bits).
+  Armhf,
+  /// For the AArch32 / ARM32 instruction sets with soft-float (32 bits).
+  Armel,
+  /// For universal macOS applications.
+  Universal,
 }
 
 /// The Settings exposed by the module.
@@ -833,36 +867,70 @@ impl Settings {
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
-  pub fn binary_arch(&self) -> &str {
+  pub fn binary_arch(&self) -> Arch {
     if self.target.starts_with("x86_64") {
-      "x86_64"
+      Arch::X86_64
     } else if self.target.starts_with('i') {
-      "x86"
+      Arch::X86
+    } else if self.target.starts_with("arm") && self.target.ends_with("hf") {
+      Arch::Armhf
     } else if self.target.starts_with("arm") {
-      "arm"
+      Arch::Armel
     } else if self.target.starts_with("aarch64") {
-      "aarch64"
+      Arch::AArch64
     } else if self.target.starts_with("universal") {
-      "universal"
+      Arch::Universal
     } else {
       panic!("Unexpected target triple {}", self.target)
     }
   }
 
   /// Returns the file name of the binary being bundled.
-  pub fn main_binary_name(&self) -> &str {
+  pub fn main_binary(&self) -> crate::Result<&BundleBinary> {
     self
       .binaries
       .iter()
       .find(|bin| bin.main)
-      .expect("failed to find main binary")
-      .name
-      .as_str()
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map_err(Into::into)
+  }
+
+  /// Returns the file name of the binary being bundled.
+  pub fn main_binary_mut(&mut self) -> crate::Result<&mut BundleBinary> {
+    self
+      .binaries
+      .iter_mut()
+      .find(|bin| bin.main)
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map_err(Into::into)
+  }
+
+  /// Returns the file name of the binary being bundled.
+  pub fn main_binary_name(&self) -> crate::Result<&str> {
+    self
+      .binaries
+      .iter()
+      .find(|bin| bin.main)
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
+      .map(|b| b.name())
+      .map_err(Into::into)
   }
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    self.project_out_directory.join(binary.name())
+    let target_os = self
+      .target()
+      .split('-')
+      .nth(2)
+      .unwrap_or(std::env::consts::OS);
+
+    let path = self.project_out_directory.join(binary.name());
+
+    if target_os == "windows" {
+      path.with_extension("exe")
+    } else {
+      path
+    }
   }
 
   /// Returns the list of binaries to bundle.

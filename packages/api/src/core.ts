@@ -5,7 +5,7 @@
 /**
  * Invoke your custom commands.
  *
- * This package is also accessible with `window.__TAURI__.tauri` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.core` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
@@ -123,6 +123,26 @@ async function addPluginListener<T>(
   )
 }
 
+type PermissionState = 'granted' | 'denied' | 'prompt' | 'prompt-with-rationale'
+
+/**
+ * Get permission state for a plugin.
+ *
+ * This should be used by plugin authors to wrap their actual implementation.
+ */
+async function checkPermissions<T>(plugin: string): Promise<T> {
+  return invoke(`plugin:${plugin}|check_permissions`)
+}
+
+/**
+ * Request permissions.
+ *
+ * This should be used by plugin authors to wrap their actual implementation.
+ */
+async function requestPermissions<T>(plugin: string): Promise<T> {
+  return invoke(`plugin:${plugin}|request_permissions`)
+}
+
 /**
  * Command arguments.
  *
@@ -162,11 +182,11 @@ async function invoke<T>(
 
 /**
  * Convert a device file path to an URL that can be loaded by the webview.
- * Note that `asset:` and `http://asset.localhost` must be added to [`tauri.security.csp`](https://tauri.app/v1/api/config/#securityconfig.csp) in `tauri.conf.json`.
+ * Note that `asset:` and `http://asset.localhost` must be added to [`app.security.csp`](https://v2.tauri.app/reference/config/#csp-1) in `tauri.conf.json`.
  * Example CSP value: `"csp": "default-src 'self' ipc: http://ipc.localhost; img-src 'self' asset: http://asset.localhost"` to use the asset protocol on image sources.
  *
- * Additionally, `asset` must be added to [`tauri.allowlist.protocol`](https://tauri.app/v1/api/config/#allowlistconfig.protocol)
- * in `tauri.conf.json` and its access scope must be defined on the `assetScope` array on the same `protocol` object.
+ * Additionally, `"enable" : "true"` must be added to [`app.security.assetProtocol`](https://v2.tauri.app/reference/config/#assetprotocolconfig)
+ * in `tauri.conf.json` and its access scope must be defined on the `scope` array on the same `assetProtocol` object.
  *
  * @param  filePath The file path.
  * @param  protocol The protocol to use. Defaults to `asset`. You only need to set this when using a custom protocol.
@@ -249,6 +269,9 @@ export {
   Channel,
   PluginListener,
   addPluginListener,
+  PermissionState,
+  checkPermissions,
+  requestPermissions,
   invoke,
   convertFileSrc,
   isTauri

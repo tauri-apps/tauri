@@ -4,6 +4,8 @@
   "description": "permissions to run the app",
   "windows": ["main", "main-*"],
   "permissions": [
+    "core:window:allow-is-enabled",
+    "core:window:allow-set-enabled",
     {
       "identifier": "allow-log-operation",
       "allow": [
@@ -20,6 +22,8 @@
     "core:default",
     "core:app:allow-app-hide",
     "core:app:allow-app-show",
+    "core:app:allow-set-app-theme",
+    "core:window:allow-set-theme",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",
     "core:window:allow-set-resizable",

@@ -62,6 +62,7 @@ pub type ConfigHandle = Arc<Mutex<Option<ConfigMetadata>>>;
 
 pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
+    upgrade_code: config.upgrade_code,
     language: tauri_bundler::WixLanguage(match config.language {
       WixLanguage::One(lang) => vec![(lang, Default::default())],
       WixLanguage::List(languages) => languages

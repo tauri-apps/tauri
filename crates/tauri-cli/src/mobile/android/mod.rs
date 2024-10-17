@@ -139,6 +139,7 @@ pub fn get_config(
     "WRY_ANDROID_PACKAGE",
     app.android_identifier_escape_kotlin_keyword(),
   );
+  set_var("TAURI_ANDROID_PACKAGE_UNESCAPED", app.identifier());
   set_var("WRY_ANDROID_LIBRARY", app.lib_name());
   set_var("TAURI_ANDROID_PROJECT_PATH", config.project_dir());
 

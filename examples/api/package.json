@@ -18,8 +18,8 @@
     "@iconify-json/ph": "^1.1.13",
     "@unocss/extractor-svelte": "^0.61.0",
     "unocss": "^0.61.0",
-    "@sveltejs/vite-plugin-svelte": "^3.1.1",
-    "svelte": "^4.2.18",
-    "vite": "^5.4.1"
+    "@sveltejs/vite-plugin-svelte": "^3.1.2",
+    "svelte": "^4.2.19",
+    "vite": "^5.4.7"
   }
 }

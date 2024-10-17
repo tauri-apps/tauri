@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Settings;
+use crate::{bundle::settings::Arch, Settings};
 
 use anyhow::Context;
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
@@ -23,9 +23,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let release = settings.rpm().release.as_str();
   let epoch = settings.rpm().epoch;
   let arch = match settings.binary_arch() {
-    "x86" => "i386",
-    "arm" => "armhfp",
-    other => other,
+    Arch::X86_64 => "x86_64",
+    Arch::X86 => "i386",
+    Arch::AArch64 => "aarch64",
+    Arch::Armhf => "armhfp",
+    Arch::Armel => "armel",
+    target => {
+      return Err(crate::Error::ArchError(format!(
+        "Unsupported architecture: {:?}",
+        target
+      )));
+    }
   };
 
   let summary = settings.short_description().trim();
@@ -141,12 +149,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Add resources
   if settings.resource_files().count() > 0 {
-    let resource_dir = Path::new("/usr/lib").join(settings.main_binary_name());
+    let resource_dir = Path::new("/usr/lib").join(settings.product_name());
     // Create an empty file, needed to add a directory to the RPM package
     // (cf https://github.com/rpm-rs/rpm/issues/177)
     let empty_file_path = &package_dir.join("empty");
     File::create(empty_file_path)?;
-    // Then add the resource directory `/usr/lib/<binary_name>` to the package.
+    // Then add the resource directory `/usr/lib/<product_name>` to the package.
     builder = builder.with_file(
       empty_file_path,
       FileOptions::new(resource_dir.to_string_lossy()).mode(FileMode::Dir { permissions: 0o755 }),

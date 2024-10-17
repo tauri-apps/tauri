@@ -1,5 +1,80 @@
 # Changelog
 
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+
+## \[2.0.0-rc.13]
+
+### Bug Fixes
+
+- [`1efa5e718`](https://www.github.com/tauri-apps/tauri/commit/1efa5e7184009537b688a395596c696173ae0231) ([#11099](https://www.github.com/tauri-apps/tauri/pull/11099) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Rerun build script if the platform-specific configuration file changes.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+
+## \[2.0.0-rc.12]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+
+## \[2.0.0-rc.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+
+## \[2.0.0-rc.8]
+
+### What's Changed
+
+- [`27d018343`](https://www.github.com/tauri-apps/tauri/commit/27d01834312ee7953b6ccd5b0a368e7a69b225e9) ([#10844](https://www.github.com/tauri-apps/tauri/pull/10844) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Changes how the Info.plist is embedded on macOS development to avoid a clippy warning.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+
+## \[2.0.0-rc.7]
+
+### Bug Fixes
+
+- [`88bc35732`](https://www.github.com/tauri-apps/tauri/commit/88bc357325ba278527d8cba956e828f5744c8a34) ([#10734](https://www.github.com/tauri-apps/tauri/pull/10734) by [@chippers](https://www.github.com/tauri-apps/tauri/../../chippers)) Generate context in a separate thread to prevent a stack overflow.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### What's Changed

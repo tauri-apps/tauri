@@ -58,6 +58,9 @@ pub enum Error {
   #[cfg(windows)]
   #[error("`{0}`")]
   Glob(#[from] glob::GlobError),
+  /// Failed to parse the URL
+  #[error("`{0}`")]
+  UrlParse(#[from] url::ParseError),
   /// Failed to validate downloaded file hash.
   #[error("hash mismatch of downloaded file")]
   HashError,

@@ -200,7 +200,7 @@ fn create_info_plist(
   plist.insert("CFBundleDisplayName".into(), settings.product_name().into());
   plist.insert(
     "CFBundleExecutable".into(),
-    settings.main_binary_name().into(),
+    settings.main_binary_name()?.into(),
   );
   if let Some(path) = bundle_icon_file {
     plist.insert(

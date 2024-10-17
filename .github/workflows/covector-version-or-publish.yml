@@ -36,12 +36,12 @@ jobs:
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
 
       - name: build CLI
-        run: cargo build --manifest-path ./crates/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: run integration tests
         run: cargo test --test '*' -- --ignored
@@ -90,7 +90,7 @@ jobs:
       - name: install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
 
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
@@ -104,6 +104,10 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           createRelease: true
           recognizeContributors: true
+
+      - name: Sync Cargo.lock
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo tree --depth 0
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'

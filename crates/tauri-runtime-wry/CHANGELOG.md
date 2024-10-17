@@ -1,5 +1,123 @@
 # Changelog
 
+## \[2.1.1]
+
+### Bug Fixes
+
+- [`ef2482dde`](https://www.github.com/tauri-apps/tauri/commit/ef2482ddecf533181211ee435931fac650495bc5) ([#11366](https://www.github.com/tauri-apps/tauri/pull/11366)) Update wry to 0.46.1 to fix a crash on macOS older than Sequoia.
+
+## \[2.1.0]
+
+### Bug Fixes
+
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix commands, that use `Webview` or `WebviewWindow` as an argument, receiving an incorrect webview when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix events only emitted to first webview only when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix custom protocols receiving an incorrect webview label when using multi webviews
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.1.0`
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+- Upgraded to `tauri-runtime@2.0.1`
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+- Upgraded to `tauri-runtime@2.0.0`
+
+## \[2.0.0-rc.14]
+
+### New Features
+
+- [`a247170e1`](https://www.github.com/tauri-apps/tauri/commit/a247170e1f620a9b012274b11cfe51e90327d6e9) ([#11056](https://www.github.com/tauri-apps/tauri/pull/11056) by [@SpikeHD](https://www.github.com/tauri-apps/tauri/../../SpikeHD)) Expose the ability to enabled browser extensions in WebView2 on Windows.
+- [`9014a3f17`](https://www.github.com/tauri-apps/tauri/commit/9014a3f1765ca406ea5c3e5224267a79c52cd53d) ([#11066](https://www.github.com/tauri-apps/tauri/pull/11066) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewWindow::clear_all_browsing_data` and `Webview::clear_all_browsing_data` to clear the webview browsing data.
+- [`95df53a2e`](https://www.github.com/tauri-apps/tauri/commit/95df53a2ed96873cd35a4b14a5e312d07e4e3004) ([#11143](https://www.github.com/tauri-apps/tauri/pull/11143) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add the ability to set theme dynamically using `Window::set_theme`, `App::set_theme`
+- [`d9d2502b4`](https://www.github.com/tauri-apps/tauri/commit/d9d2502b41e39efde679e30c8955006e2ba9ea64) ([#11140](https://www.github.com/tauri-apps/tauri/pull/11140) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewDispatch::hide` and `WebviewDispatch::show` methods.
+- [`de7414aab`](https://www.github.com/tauri-apps/tauri/commit/de7414aab935e45540594ea930eb60bae4dbc979) ([#11154](https://www.github.com/tauri-apps/tauri/pull/11154) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Window::set_enabled` and `Window::is_enabled` methods
+
+### Bug Fixes
+
+- [`62b3a5cd1`](https://www.github.com/tauri-apps/tauri/commit/62b3a5cd1c804440c2130ab36cc3eadb3baf61cb) ([#11043](https://www.github.com/tauri-apps/tauri/pull/11043) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `localStorage` not shared between webviews that use the same data directory.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.0.0-rc.13`
+- Upgraded to `tauri-utils@2.0.0-rc.13`
+
+## \[2.0.0-rc.13]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.12`
+- Upgraded to `tauri-runtime@2.0.0-rc.12`
+
+## \[2.0.0-rc.12]
+
+### Enhancements
+
+- [`bc4804d48`](https://www.github.com/tauri-apps/tauri/commit/bc4804d4841efefd57fd1f3e147550a3340e2b31) ([#10924](https://www.github.com/tauri-apps/tauri/pull/10924) by [@madsmtm](https://www.github.com/tauri-apps/tauri/../../madsmtm)) Use `objc2` internally and in examples, leading to better memory safety.
+
+### Breaking Changes
+
+- [`bc4804d48`](https://www.github.com/tauri-apps/tauri/commit/bc4804d4841efefd57fd1f3e147550a3340e2b31) ([#10924](https://www.github.com/tauri-apps/tauri/pull/10924) by [@madsmtm](https://www.github.com/tauri-apps/tauri/../../madsmtm)) Change the pointer type of `PlatformWebview`'s `inner`, `controller`, `ns_window` and `view_controller` to `c_void`, to avoid publically depending on `objc`.
+
+## \[2.0.0-rc.11]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.11`
+- Upgraded to `tauri-runtime@2.0.0-rc.11`
+
+## \[2.0.0-rc.10]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.10`
+- Upgraded to `tauri-runtime@2.0.0-rc.10`
+
+## \[2.0.0-rc.9]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.9`
+- Upgraded to `tauri-runtime@2.0.0-rc.9`
+
+## \[2.0.0-rc.8]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.8`
+- Upgraded to `tauri-runtime@2.0.0-rc.8`
+- [`77056b194`](https://www.github.com/tauri-apps/tauri/commit/77056b194a2aa8be1b9865d707b741a6ed72ec56) ([#10895](https://www.github.com/tauri-apps/tauri/pull/10895) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update tao to 0.30 and wry to 0.43.
+
+### Breaking Changes
+
+- [`5048a7293`](https://www.github.com/tauri-apps/tauri/commit/5048a7293b87b5b93aaefd42dedc0e551e08086c) ([#10840](https://www.github.com/tauri-apps/tauri/pull/10840) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `linux-ipc-protocol` feature is now always enabled, so the Cargo feature flag was removed.
+  This increases the minimum webkit2gtk version to a release that does not affect the minimum target Linux distros for Tauri apps.
+
+## \[2.0.0-rc.7]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0-rc.7`
+- Upgraded to `tauri-runtime@2.0.0-rc.7`
+
 ## \[2.0.0-rc.6]
 
 ### Bug Fixes

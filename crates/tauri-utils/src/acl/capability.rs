@@ -100,6 +100,7 @@ impl<'de> Deserialize<'de> for PermissionEntry {
 ///     "identifier": "fs:allow-write-text-file",
 ///     "allow": [{ "path": "$HOME/test.txt" }]
 ///   },
+///  ],
 ///  "platforms": ["macOS","windows"]
 /// }
 /// ```
@@ -193,6 +194,17 @@ pub struct Capability {
   /// `["macOS","windows"]`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+}
+
+impl Capability {
+  /// Whether this capability should be active based on the platform target or not.
+  pub fn is_active(&self, target: &Target) -> bool {
+    self
+      .platforms
+      .as_ref()
+      .map(|platforms| platforms.contains(target))
+      .unwrap_or(true)
+  }
 }
 
 #[cfg(feature = "schema")]

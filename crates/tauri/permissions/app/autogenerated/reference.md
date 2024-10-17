@@ -6,7 +6,7 @@ Default permissions for the plugin.
 - `allow-name`
 - `allow-tauri-version`
 
-## Permission Table 
+## Permission Table
 
 <table>
 <tr>
@@ -115,6 +115,32 @@ Enables the name command without any pre-configured scope.
 <td>
 
 Denies the name command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-set-app-theme`
+
+</td>
+<td>
+
+Enables the set_app_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-app-theme`
+
+</td>
+<td>
+
+Denies the set_app_theme command without any pre-configured scope.
 
 </td>
 </tr>

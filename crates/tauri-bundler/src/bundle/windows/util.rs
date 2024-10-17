@@ -8,7 +8,9 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use regex::Regex;
 use sha2::Digest;
+use url::Url;
 use zip::ZipArchive;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -67,11 +69,55 @@ pub fn download_webview2_offline_installer(base_path: &Path, arch: &str) -> crat
   Ok(file_path)
 }
 
-pub fn download(url: &str) -> crate::Result<Vec<u8>> {
-  log::info!(action = "Downloading"; "{}", url);
+fn generate_github_mirror_url_from_template(github_url: &str) -> Option<String> {
+  std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE")
+    .ok()
+    .and_then(|template| {
+      let re =
+        Regex::new(r"https://github.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.*)").unwrap();
+      re.captures(github_url).map(|caps| {
+        template
+          .replace("<owner>", &caps[1])
+          .replace("<repo>", &caps[2])
+          .replace("<version>", &caps[3])
+          .replace("<asset>", &caps[4])
+      })
+    })
+}
 
-  let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
-  let response = agent.get(url).call().map_err(Box::new)?;
+fn generate_github_mirror_url_from_base(github_url: &str) -> Option<String> {
+  std::env::var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR")
+    .ok()
+    .and_then(|cdn| Url::parse(&cdn).ok())
+    .map(|mut cdn| {
+      cdn.set_path(github_url);
+      cdn.to_string()
+    })
+}
+
+fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
+  if !url.starts_with("https://github.com/") {
+    return None;
+  }
+
+  generate_github_mirror_url_from_template(url)
+    .or_else(|| generate_github_mirror_url_from_base(url))
+    .map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url))
+}
+
+fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
+  generate_github_alternative_url(url).unwrap_or((
+    ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
+    url.to_owned(),
+  ))
+}
+
+pub fn download(url: &str) -> crate::Result<Vec<u8>> {
+  let (agent, final_url) = create_agent_and_url(url);
+
+  log::info!(action = "Downloading"; "{}", final_url);
+
+  let response = agent.get(&final_url).call().map_err(Box::new)?;
   let mut bytes = Vec::new();
   response.into_reader().read_to_end(&mut bytes)?;
   Ok(bytes)
@@ -177,5 +223,59 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_INTEL => Some("x86"),
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
     _ => None,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::generate_github_mirror_url_from_template;
+  use std::env;
+
+  const GITHUB_ASSET_URL: &str =
+    "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip";
+  const NON_GITHUB_ASSET_URL: &str = "https://someotherwebsite.com/somefile.zip";
+
+  #[test]
+  fn test_generate_mirror_url_no_env_var() {
+    env::remove_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE");
+
+    assert!(generate_github_mirror_url_from_template(GITHUB_ASSET_URL).is_none());
+  }
+
+  #[test]
+  fn test_generate_mirror_url_non_github_url() {
+    env::set_var(
+      "TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE",
+      "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+    );
+
+    assert!(generate_github_mirror_url_from_template(NON_GITHUB_ASSET_URL).is_none());
+  }
+
+  struct TestCase {
+    template: &'static str,
+    expected_url: &'static str,
+  }
+
+  #[test]
+  fn test_generate_mirror_url_correctly() {
+    let test_cases = vec![
+            TestCase {
+                template: "https://mirror.example.com/<owner>/<repo>/releases/download/<version>/<asset>",
+                expected_url: "https://mirror.example.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip",
+            },
+            TestCase {
+                template: "https://mirror.example.com/<asset>",
+                expected_url: "https://mirror.example.com/wix311-binaries.zip",
+            },
+        ];
+
+    for case in test_cases {
+      env::set_var("TAURI_BUNDLER_TOOLS_GITHUB_MIRROR_TEMPLATE", case.template);
+      assert_eq!(
+        generate_github_mirror_url_from_template(GITHUB_ASSET_URL),
+        Some(case.expected_url.to_string())
+      );
+    }
   }
 }

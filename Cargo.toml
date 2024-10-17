@@ -9,6 +9,7 @@ members = [
   "crates/tauri-codegen",
   "crates/tauri-plugin",
   "crates/tauri-schema-generator",
+  "crates/tauri-schema-worker",
   "crates/tauri-cli",
   "crates/tauri-bundler",
   "crates/tauri-macos-sign",
@@ -29,7 +30,9 @@ members = [
 
   # examples
   "examples/file-associations/src-tauri",
+  "examples/resources/src-tauri",
   "examples/api/src-tauri",
+  "examples/api/src-tauri/tauri-plugin-sample",
 ]
 resolver = "2"
 
@@ -40,7 +43,7 @@ repository = "https://github.com/tauri-apps/tauri"
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
 edition = "2021"
-rust-version = "1.71"
+rust-version = "1.77.2"
 
 # default to small, optimized workspace release binaries
 [profile.release]
@@ -49,6 +52,7 @@ codegen-units = 1
 lto = true
 incremental = false
 opt-level = "s"
+strip = true
 
 # profiles for tauri-cli
 [profile.dev.package.miniz_oxide]
@@ -65,3 +69,4 @@ opt-level = "s"
 # See https://github.com/GREsau/schemars/issues/120 for reference
 [patch.crates-io]
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
+tauri = { path = "./crates/tauri" }

@@ -243,7 +243,7 @@ pub fn items() -> Vec<SectionItem> {
                 format!(
                   "webkit2gtk-4.1: {}\nVisit {} to learn more about tauri prerequisites",
                   "not installed".red(),
-                  "https://tauri.app/v1/guides/getting-started/prerequisites".cyan()
+                  "https://v2.tauri.app/start/prerequisites/".cyan()
                 ),
                 Status::Error,
               )
@@ -265,7 +265,7 @@ pub fn items() -> Vec<SectionItem> {
                 format!(
                   "rsvg2: {}\nVisit {} to learn more about tauri prerequisites",
                   "not installed".red(),
-                  "https://tauri.app/v1/guides/getting-started/prerequisites".cyan()
+                  "https://v2.tauri.app/start/prerequisites/".cyan()
                 ),
                 Status::Error,
               )

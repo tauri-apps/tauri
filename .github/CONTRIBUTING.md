@@ -37,8 +37,11 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
   - Provide convincing reason to add this feature. Ideally you should open a suggestion issue first and have it greenlighted before working on it.
 
 - If fixing a bug:
+
   - If you are resolving a special issue, add `(fix: #xxxx[,#xxx])` (#xxxx is the issue id) in your PR title for a better release log, e.g. `fix: update entities encoding/decoding (fix #3899)`.
   - Provide detailed description of the bug in the PR, or link to an issue that does.
+
+- If the PR is meant to be released, follow the instructions in `.changes/readme.md` to log your changes. ie. [readme.md](https://github.com/tauri-apps/tauri/blob/dev/.changes/README.md)
 
 ## Development Guide
 
@@ -48,7 +51,7 @@ Hi! We, the maintainers, are really excited that you are interested in contribut
 
 First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know that you want to contribute. This way we can point you in the right direction and help ensure your contribution will be as helpful as possible.
 
-To set up your machine for development, follow the [Tauri setup guide](https://tauri.app/v1/guides/getting-started/prerequisites/) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [PNPM](https://pnpm.io/), it is only required if you are developing the Node CLI or API packages (`packages/cli` and `packages/api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
+To set up your machine for development, follow the [Tauri setup guide](https://v2.tauri.app/start/prerequisites/) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [PNPM](https://pnpm.io/), it is only required if you are developing the Node CLI or API packages (`packages/cli` and `packages/api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
 
 Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To build these automatically, run the `.scripts/setup.sh` (Linux and macOS) or `.scripts/setup.ps1` (Windows) script. This will install the Rust and Node.js CLI and build the JS API. After that, you should be able to run all the examples. Note that the setup script should be executed from the root folder of the repository in order to run correctly.
 

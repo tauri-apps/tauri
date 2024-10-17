@@ -12,7 +12,7 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt};
 
 pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolHandler {
   Box::new(
-    move |request, responder| match get_response(request, &scope, &window_origin) {
+    move |_, request, responder| match get_response(request, &scope, &window_origin) {
       Ok(response) => responder.respond(response),
       Err(e) => responder.respond(
         http::Response::builder()
@@ -86,6 +86,7 @@ fn get_response(
     .and_then(|r| r.to_str().map(|r| r.to_string()).ok())
   {
     resp = resp.header(ACCEPT_RANGES, "bytes");
+    resp = resp.header(ACCESS_CONTROL_EXPOSE_HEADERS, "content-range");
 
     let not_satisfiable = || {
       Response::builder()
@@ -199,6 +200,10 @@ fn get_response(
       })?;
       resp.body(buf.into())
     }
+  } else if request.method() == http::Method::HEAD {
+    // if the HEAD method is used, we should not return a body
+    resp = resp.header(CONTENT_LENGTH, len);
+    resp.body(Vec::new().into())
   } else {
     // avoid reading the file if we already read it
     // as part of mime type detection

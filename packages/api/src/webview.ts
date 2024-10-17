@@ -5,7 +5,7 @@
 /**
  * Provides APIs to create webviews, communicate with other webviews and manipulate the current webview.
  *
- * ## Webview events
+ * #### Webview events
  *
  * Events can be listened to using {@link Webview.listen}:
  * ```typescript
@@ -484,6 +484,38 @@ class Webview {
   }
 
   /**
+   * Hide the webview.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().hide();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async hide(): Promise<void> {
+    return invoke('plugin:webview|webview_hide', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Show the webview.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().show();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async show(): Promise<void> {
+    return invoke('plugin:webview|webview_show', {
+      label: this.label
+    })
+  }
+
+  /**
    * Set webview zoom level.
    * @example
    * ```typescript
@@ -515,6 +547,20 @@ class Webview {
       label: this.label,
       window: typeof window === 'string' ? window : window.label
     })
+  }
+
+  /**
+   * Clears all browsing data for this webview.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().clearAllBrowsingData();
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async clearAllBrowsingData(): Promise<void> {
+    return invoke('plugin:webview|clear_all_browsing_data')
   }
 
   // Listeners
@@ -673,7 +719,7 @@ interface WebviewOptions {
   /**
    * Whether page zooming by hotkeys is enabled
    *
-   * ## Platform-specific:
+   * #### Platform-specific:
    *
    * - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
    * - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,

@@ -121,8 +121,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
 
-  let bin_path = app_settings.app_binary_path(&interface_options)?;
-  let out_dir = bin_path.parent().unwrap();
+  let out_dir = app_settings.out_dir(&interface_options)?;
 
   bundle(
     &options,
@@ -131,7 +130,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
     &interface,
     &app_settings,
     config_,
-    out_dir,
+    &out_dir,
   )
 }
 
@@ -226,17 +225,10 @@ fn sign_updaters(
   let update_enabled_bundles: Vec<&tauri_bundler::Bundle> = bundles
     .iter()
     .filter(|bundle| {
-      if update_settings.v1_compatible {
-        matches!(bundle.package_type, PackageType::Updater)
-      } else {
-        matches!(
-          bundle.package_type,
-          PackageType::Updater
-            | PackageType::Nsis
-            | PackageType::WindowsMsi
-            | PackageType::AppImage
-        )
-      }
+      matches!(
+        bundle.package_type,
+        PackageType::Updater | PackageType::Nsis | PackageType::WindowsMsi | PackageType::AppImage
+      )
     })
     .collect();
 

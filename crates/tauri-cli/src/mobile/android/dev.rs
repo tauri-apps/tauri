@@ -13,8 +13,10 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
-  mobile::{write_options, CliOptions, DevChild, DevProcess, TargetDevice},
+  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  mobile::{
+    use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevProcess, TargetDevice,
+  },
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
@@ -31,7 +33,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::set_current_dir;
+use std::{env::set_current_dir, net::IpAddr};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -62,6 +64,23 @@ pub struct Options {
   pub open: bool,
   /// Runs on the given device name
   pub device: Option<String>,
+  /// Force prompting for an IP to use to connect to the dev server on mobile.
+  #[clap(long)]
+  pub force_ip_prompt: bool,
+  /// Use the public network address for the development server.
+  /// If an actual address it provided, it is used instead of prompting to pick one.
+  ///
+  /// This option is particularly useful along the `--open` flag when you intend on running on a physical device.
+  ///
+  /// This replaces the devUrl configuration value to match the public network address host,
+  /// it is your responsibility to set up your development server to listen on this address
+  /// by using 0.0.0.0 as host for instance.
+  ///
+  /// When this is set or when running on an iOS device the CLI sets the `TAURI_DEV_HOST`
+  /// environment variable so you can check this on your framework's configuration to expose the development server
+  /// on the public network address.
+  #[clap(long)]
+  pub host: Option<Option<IpAddr>>,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -177,6 +196,16 @@ fn run_dev(
   metadata: &AndroidMetadata,
   noise_level: NoiseLevel,
 ) -> Result<()> {
+  // when running on an actual device we must use the network IP
+  if options.host.is_some()
+    || device
+      .as_ref()
+      .map(|device| !device.serial_no().starts_with("emulator"))
+      .unwrap_or(false)
+  {
+    use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
+  }
+
   crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let interface_options = InterfaceOptions {
@@ -186,8 +215,7 @@ fn run_dev(
   };
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&interface_options)?;
-  let out_dir = bin_path.parent().unwrap();
+  let out_dir = app_settings.out_dir(&interface_options)?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("android"), "Android")?;
 
   configure_cargo(&mut env, config)?;

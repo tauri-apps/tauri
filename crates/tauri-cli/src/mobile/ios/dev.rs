@@ -3,18 +3,18 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  device_prompt, ensure_init, env, get_app, get_config, inject_resources, merge_plist,
-  open_and_wait, MobileTarget,
+  device_prompt, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
+  merge_plist, open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
 };
 use crate::{
   dev::Options as DevOptions,
   helpers::{
     app_paths::tauri_dir,
-    config::{get as get_tauri_config, reload as reload_config, ConfigHandle},
+    config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, MobileOptions, Options as InterfaceOptions},
-  mobile::{write_options, CliOptions, DevChild, DevProcess},
+  interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
+  mobile::{use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevProcess},
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
@@ -29,11 +29,7 @@ use cargo_mobile2::{
   opts::{NoiseLevel, Profile},
 };
 
-use std::{
-  env::set_current_dir,
-  net::{IpAddr, Ipv4Addr, SocketAddr},
-  sync::OnceLock,
-};
+use std::{env::set_current_dir, net::IpAddr};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
@@ -82,7 +78,7 @@ pub struct Options {
   /// This option is particularly useful along the `--open` flag when you intend on running on a physical device.
   ///
   /// This replaces the devUrl configuration value to match the public network address host,
-  /// it is your responsability to set up your development server to listen on this address
+  /// it is your responsibility to set up your development server to listen on this address
   /// by using 0.0.0.0 as host for instance.
   ///
   /// When this is set or when running on an iOS device the CLI sets the `TAURI_DEV_HOST`
@@ -191,6 +187,25 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   ])?;
   merged_info_plist.to_file_xml(&info_plist_path)?;
 
+  let mut pbxproj = load_pbxproj(&config)?;
+
+  // synchronize pbxproj
+  synchronize_project_config(
+    &config,
+    &tauri_config,
+    &mut pbxproj,
+    &mut plist::Dictionary::new(),
+    &ProjectConfig {
+      code_sign_identity: None,
+      team_id: None,
+      provisioning_profile_uuid: None,
+    },
+    !options.release_mode,
+  )?;
+  if pbxproj.has_changes() {
+    pbxproj.save()?;
+  }
+
   run_dev(
     interface,
     options,
@@ -203,141 +218,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   )
 }
 
-fn local_ip_address(force: bool) -> &'static IpAddr {
-  static LOCAL_IP: OnceLock<IpAddr> = OnceLock::new();
-  LOCAL_IP.get_or_init(|| {
-    let prompt_for_ip = || {
-      let addresses: Vec<IpAddr> = local_ip_address::list_afinet_netifas()
-        .expect("failed to list networks")
-        .into_iter()
-        .map(|(_, ipaddr)| ipaddr)
-        .filter(|ipaddr| match ipaddr {
-          IpAddr::V4(i) => i != &Ipv4Addr::LOCALHOST,
-          IpAddr::V6(i) => i.to_string().ends_with("::2"),
-
-        })
-        .collect();
-      match addresses.len() {
-        0 => panic!("No external IP detected."),
-        1 => {
-          let ipaddr = addresses.first().unwrap();
-          *ipaddr
-        }
-        _ => {
-          let selected = dialoguer::Select::with_theme(&dialoguer::theme::ColorfulTheme::default())
-            .with_prompt(
-              "Failed to detect external IP, What IP should we use to access your development server?",
-            )
-            .items(&addresses)
-            .default(0)
-            .interact()
-            .expect("failed to select external IP");
-          *addresses.get(selected).unwrap()
-        }
-      }
-    };
-
-    let ip = if force {
-      prompt_for_ip()
-    } else {
-      local_ip_address::local_ip().unwrap_or_else(|_| prompt_for_ip())
-    };
-    log::info!("Using {ip} to access the development server.");
-    ip
-  })
-}
-
-fn use_network_address_for_dev_url(
-  config: &ConfigHandle,
-  options: &mut Options,
-  dev_options: &mut DevOptions,
-) -> crate::Result<()> {
-  let mut dev_url = config
-    .lock()
-    .unwrap()
-    .as_ref()
-    .unwrap()
-    .build
-    .dev_url
-    .clone();
-
-  let ip = if let Some(url) = &mut dev_url {
-    let localhost = match url.host() {
-      Some(url::Host::Domain(d)) => d == "localhost",
-      Some(url::Host::Ipv4(i)) => {
-        i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
-      }
-      _ => false,
-    };
-
-    if localhost {
-      let ip = options
-        .host
-        .unwrap_or_default()
-        .unwrap_or_else(|| *local_ip_address(options.force_ip_prompt));
-      log::info!(
-        "Replacing devUrl host with {ip}. {}.",
-        "If your frontend is not listening on that address, try configuring your development server to use the `TAURI_DEV_HOST` environment variable or 0.0.0.0 as host"
-      );
-
-      *url = url::Url::parse(&format!(
-        "{}://{}{}",
-        url.scheme(),
-        SocketAddr::new(ip, url.port_or_known_default().unwrap()),
-        url.path()
-      ))?;
-
-      if let Some(c) = &mut options.config {
-        if let Some(build) = c
-          .0
-          .as_object_mut()
-          .and_then(|root| root.get_mut("build"))
-          .and_then(|build| build.as_object_mut())
-        {
-          build.insert("devUrl".into(), url.to_string().into());
-        }
-      } else {
-        let mut build = serde_json::Map::new();
-        build.insert("devUrl".into(), url.to_string().into());
-
-        options
-          .config
-          .replace(crate::ConfigValue(serde_json::json!({
-            "build": build
-          })));
-      }
-      reload_config(options.config.as_ref().map(|c| &c.0))?;
-
-      Some(ip)
-    } else {
-      None
-    }
-  } else if !dev_options.no_dev_server {
-    let ip = options
-      .host
-      .unwrap_or_default()
-      .unwrap_or_else(|| *local_ip_address(options.force_ip_prompt));
-    dev_options.host.replace(ip);
-    Some(ip)
-  } else {
-    None
-  };
-
-  if let Some(ip) = ip {
-    std::env::set_var("TAURI_DEV_HOST", ip.to_string());
-    if ip.is_ipv6() {
-      // in this case we can't ping the server for some reason
-      dev_options.no_dev_server_wait = true;
-    }
-  }
-
-  Ok(())
-}
-
 #[allow(clippy::too_many_arguments)]
 fn run_dev(
   mut interface: AppInterface,
-  mut options: Options,
+  options: Options,
   mut dev_options: DevOptions,
   tauri_config: ConfigHandle,
   device: Option<Device>,
@@ -352,18 +236,17 @@ fn run_dev(
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
   {
-    use_network_address_for_dev_url(&tauri_config, &mut options, &mut dev_options)?;
+    use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }
 
   crate::dev::setup(&interface, &mut dev_options, tauri_config.clone())?;
 
   let app_settings = interface.app_settings();
-  let bin_path = app_settings.app_binary_path(&InterfaceOptions {
+  let out_dir = app_settings.out_dir(&InterfaceOptions {
     debug: !dev_options.release_mode,
     target: dev_options.target.clone(),
     ..Default::default()
   })?;
-  let out_dir = bin_path.parent().unwrap();
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
   let set_host = options.host.is_some();
@@ -398,7 +281,7 @@ fn run_dev(
         }
         open_and_wait(config, &env)
       } else if let Some(device) = &device {
-        match run(device, options, config, &env) {
+        match run(device, options, config, noise_level, &env) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
           Err(e) => {
             crate::dev::kill_before_dev_process();
@@ -419,6 +302,7 @@ fn run(
   device: &Device<'_>,
   options: MobileOptions,
   config: &AppleConfig,
+  noise_level: NoiseLevel,
   env: &Env,
 ) -> crate::Result<DevChild> {
   let profile = if options.debug {
@@ -431,7 +315,7 @@ fn run(
     .run(
       config,
       env,
-      NoiseLevel::FranklyQuitePedantic,
+      noise_level,
       false, // do not quit on app exit
       profile,
     )

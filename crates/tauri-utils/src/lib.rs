@@ -362,7 +362,7 @@ pub enum Error {
   Glob(#[from] glob::GlobError),
   /// Glob pattern did not find any results.
   #[cfg(feature = "resources")]
-  #[error("path matching {0} not found.")]
+  #[error("glob pattern {0} path not found or didn't match any files.")]
   GlobPathNotFound(String),
   /// Error walking directory.
   #[cfg(feature = "resources")]

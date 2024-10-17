@@ -1,5 +1,56 @@
 # Changelog
 
+## \[2.0.2]
+
+### What's Changed
+
+- [`e968b3d25`](https://www.github.com/tauri-apps/tauri/commit/e968b3d2527b8edf7653e6cf7284dc4a8889b5fe) ([#11219](https://www.github.com/tauri-apps/tauri/pull/11219) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Actually publish package with the latest tag.
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`be683e2ac`](https://www.github.com/tauri-apps/tauri/commit/be683e2ac36df9c51a5c050d9d500247bd019090) ([#11199](https://www.github.com/tauri-apps/tauri/pull/11199) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Publish package with the latest NPM tag.
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+## \[2.0.0-rc.6]
+
+### New Features
+
+- [`9014a3f17`](https://www.github.com/tauri-apps/tauri/commit/9014a3f1765ca406ea5c3e5224267a79c52cd53d) ([#11066](https://www.github.com/tauri-apps/tauri/pull/11066) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewWindow.clearAllBrowsingData` and `Webview.clearAllBrowsingData` to clear the webview browsing data.
+- [`95df53a2e`](https://www.github.com/tauri-apps/tauri/commit/95df53a2ed96873cd35a4b14a5e312d07e4e3004) ([#11143](https://www.github.com/tauri-apps/tauri/pull/11143) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Add the ability to set theme dynamically using `Window.setTheme` or `setTheme` function from the `app` module
+- [`d9d2502b4`](https://www.github.com/tauri-apps/tauri/commit/d9d2502b41e39efde679e30c8955006e2ba9ea64) ([#11140](https://www.github.com/tauri-apps/tauri/pull/11140) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Webview.hide` and `Webview.show` methods.
+- [`de7414aab`](https://www.github.com/tauri-apps/tauri/commit/de7414aab935e45540594ea930eb60bae4dbc979) ([#11154](https://www.github.com/tauri-apps/tauri/pull/11154) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Window::setEnabled` and `Window::isEnabled` methods
+
+### Bug Fixes
+
+- [`948772a65`](https://www.github.com/tauri-apps/tauri/commit/948772a657eb3caf20843628abac9109e3b67d41) ([#11114](https://www.github.com/tauri-apps/tauri/pull/11114) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Change the `button_state` tray event field to camelCase `buttonState`.
+
+### Breaking Changes
+
+- [`0b4495996`](https://www.github.com/tauri-apps/tauri/commit/0b4495996d3131a5ee80fbb2c71a28203e491ee7) ([#11121](https://www.github.com/tauri-apps/tauri/pull/11121) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Simplified emitted tray event JS value and updated `TrayIconEvent` type definition to match it.
+
+## \[2.0.0-rc.5]
+
+### New Features
+
+- [`ddf69157b`](https://www.github.com/tauri-apps/tauri/commit/ddf69157b54249f3321ca72db6703812019f1ab9) ([#11031](https://www.github.com/tauri-apps/tauri/pull/11031) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `toPhysical` method on `LogicalPositon` and `LogicalSize` classes.
+
+## \[2.0.0-rc.4]
+
+### Enhancements
+
+- [`f81929e25`](https://www.github.com/tauri-apps/tauri/commit/f81929e25104aa1091e464bd012c80649dedf9e5) ([#10799](https://www.github.com/tauri-apps/tauri/pull/10799) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `PermissionState`, `checkPermissions` and `requestPermissions` base APIs to the core module, designed for plugin authors to extend.
+
+### Bug Fixes
+
+- [`fbe76a955`](https://www.github.com/tauri-apps/tauri/commit/fbe76a955a63af9fb33f66d5f747caf858cf179b) ([#10797](https://www.github.com/tauri-apps/tauri/pull/10797) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Uint8Arrays and ArrayBuffers are now properly serialized as an array of numbers.
+
 ## \[2.0.0-rc.3]
 
 ### What's Changed

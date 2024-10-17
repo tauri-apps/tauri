@@ -9,69 +9,32 @@ import { PhysicalPosition, PhysicalSize } from './dpi'
 
 export type MouseButtonState = 'Up' | 'Down'
 export type MouseButton = 'Left' | 'Right' | 'Middle'
+export type TrayIconEventType =
+  | 'Click'
+  | 'DoubleClick'
+  | 'Enter'
+  | 'Move'
+  | 'Leave'
 
-/** A click happened on the tray icon. */
-export interface TrayIconClickEvent {
+export type TrayIconEventBase<T extends TrayIconEventType> = {
+  /** The tray icon event type */
+  type: T
   /** Id of the tray icon which triggered this event. */
   id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
+  /** Physical position of the click the triggered this event. */
+  position: PhysicalPosition
   /** Position and size of the tray icon. */
   rect: {
     position: PhysicalPosition
     size: PhysicalSize
   }
+}
+
+export type TrayIconClickEvent = {
   /** Mouse button that triggered this event. */
   button: MouseButton
   /** Mouse button state when this event was triggered. */
-  button_state: MouseButtonState
-}
-
-/** The mouse entered the tray icon region. */
-export interface TrayIconEnterEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-}
-
-/** The mouse moved over the tray icon region. */
-export interface TrayIconMoveEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
-}
-
-/** The mouse left the tray icon region. */
-export interface TrayIconLeaveEvent {
-  /** Id of the tray icon which triggered this event. */
-  id: string
-  /** Physical X Position of the click the triggered this event. */
-  x: number
-  /** Physical Y Position of the click the triggered this event. */
-  y: number
-  /** Position and size of the tray icon. */
-  rect: {
-    position: PhysicalPosition
-    size: PhysicalSize
-  }
+  buttonState: MouseButtonState
 }
 
 /**
@@ -83,15 +46,27 @@ export interface TrayIconLeaveEvent {
  * the icon will still show a context menu on right click.
  */
 export type TrayIconEvent =
-  | { click: TrayIconClickEvent }
-  | { enter: TrayIconEnterEvent }
-  | { move: TrayIconMoveEvent }
-  | { leave: TrayIconLeaveEvent }
+  | (TrayIconEventBase<'Click'> & TrayIconClickEvent)
+  | (TrayIconEventBase<'DoubleClick'> & Omit<TrayIconClickEvent, 'buttonState'>)
+  | TrayIconEventBase<'Enter'>
+  | TrayIconEventBase<'Move'>
+  | TrayIconEventBase<'Leave'>
+
+type RustTrayIconEvent = Omit<TrayIconEvent, 'rect'> & {
+  rect: {
+    position: {
+      Physical: { x: number; y: number }
+    }
+    size: {
+      Physical: { width: number; height: number }
+    }
+  }
+}
 
 /**
  * Tray icon types and utilities.
  *
- * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://tauri.app/v1/api/config/#appconfig.withglobaltauri) in `tauri.conf.json` is set to `true`.
+ * This package is also accessible with `window.__TAURI__.tray` when [`app.withGlobalTauri`](https://v2.tauri.app/reference/config/#withglobaltauri) in `tauri.conf.json` is set to `true`.
  * @module
  */
 
@@ -205,9 +180,10 @@ export class TrayIcon extends Resource {
       options.icon = transformImage(options.icon)
     }
 
-    const handler = new Channel<TrayIconEvent>()
+    const handler = new Channel<RustTrayIconEvent>()
     if (options?.action) {
-      handler.onmessage = options.action
+      const action = options.action
+      handler.onmessage = (e) => action(mapEvent(e))
       delete options.action
     }
 
@@ -255,7 +231,7 @@ export class TrayIcon extends Resource {
   /**
    * Sets the tooltip for this tray icon.
    *
-   * ## Platform-specific:
+   * #### Platform-specific:
    *
    * - **Linux:** Unsupported
    */
@@ -266,7 +242,7 @@ export class TrayIcon extends Resource {
   /**
    * Sets the tooltip for this tray icon.
    *
-   * ## Platform-specific:
+   * #### Platform-specific:
    *
    * - **Linux:** The title will not be shown unless there is an icon
    * as well.  The title is useful for numerical and other frequently
@@ -309,4 +285,21 @@ export class TrayIcon extends Resource {
       onLeft
     })
   }
+}
+
+function mapEvent(e: RustTrayIconEvent): TrayIconEvent {
+  const out = e as unknown as TrayIconEvent
+
+  out.position = new PhysicalPosition(e.position.x, e.position.y)
+
+  out.rect.position = new PhysicalPosition(
+    e.rect.position.Physical.x,
+    e.rect.position.Physical.y
+  )
+  out.rect.size = new PhysicalSize(
+    e.rect.size.Physical.width,
+    e.rect.size.Physical.height
+  )
+
+  return out
 }

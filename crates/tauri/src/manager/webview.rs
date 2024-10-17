@@ -21,11 +21,12 @@ use url::Url;
 
 use crate::{
   app::{GlobalWebviewEventListener, OnPageLoad, UriSchemeResponder, WebviewEvent},
-  ipc::{InvokeHandler, InvokeResponder},
+  ipc::InvokeHandler,
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  AppHandle, Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Webview, Window,
+  Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview,
+  Window,
 };
 
 use super::{
@@ -61,7 +62,7 @@ pub struct UriSchemeProtocol<R: Runtime> {
   /// Handler for protocol
   #[allow(clippy::type_complexity)]
   pub protocol:
-    Box<dyn Fn(&AppHandle<R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
+    Box<dyn Fn(UriSchemeContext<'_, R>, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>,
 }
 
 pub struct WebviewManager<R: Runtime> {
@@ -75,8 +76,6 @@ pub struct WebviewManager<R: Runtime> {
   /// Webview event listeners to all webviews.
   pub event_listeners: Arc<Vec<GlobalWebviewEventListener<R>>>,
 
-  /// Responder for invoke calls.
-  pub invoke_responder: Option<Arc<InvokeResponder<R>>>,
   /// The script that initializes the invoke system.
   pub invoke_initialization_script: String,
 
@@ -212,14 +211,18 @@ impl<R: Runtime> WebviewManager<R> {
     for (uri_scheme, protocol) in &*self.uri_scheme_protocols.lock().unwrap() {
       registered_scheme_protocols.push(uri_scheme.clone());
       let protocol = protocol.clone();
-      let app_handle = Mutex::new(manager.app_handle().clone());
-      pending.register_uri_scheme_protocol(uri_scheme.clone(), move |p, responder| {
-        (protocol.protocol)(
-          &app_handle.lock().unwrap(),
-          p,
-          UriSchemeResponder(responder),
-        )
-      });
+      let app_handle = manager.app_handle().clone();
+
+      pending.register_uri_scheme_protocol(
+        uri_scheme.clone(),
+        move |webview_id, request, responder| {
+          let context = UriSchemeContext {
+            app_handle: &app_handle,
+            webview_label: webview_id,
+          };
+          (protocol.protocol)(context, request, UriSchemeResponder(responder))
+        },
+      );
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
@@ -251,16 +254,16 @@ impl<R: Runtime> WebviewManager<R> {
         &window_origin,
         web_resource_request_handler,
       );
-      pending.register_uri_scheme_protocol("tauri", move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      pending.register_uri_scheme_protocol("tauri", move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
       registered_scheme_protocols.push("tauri".into());
     }
 
     if !registered_scheme_protocols.contains(&"ipc".into()) {
-      let protocol = crate::ipc::protocol::get(manager.manager_owned(), pending.label.clone());
-      pending.register_uri_scheme_protocol("ipc", move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      let protocol = crate::ipc::protocol::get(manager.manager_owned());
+      pending.register_uri_scheme_protocol("ipc", move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
       registered_scheme_protocols.push("ipc".into());
     }
@@ -298,8 +301,8 @@ impl<R: Runtime> WebviewManager<R> {
         .asset_protocol
         .clone();
       let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
-      pending.register_uri_scheme_protocol("asset", move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      pending.register_uri_scheme_protocol("asset", move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
     }
 
@@ -318,8 +321,8 @@ impl<R: Runtime> WebviewManager<R> {
         *crypto_keys.aes_gcm().raw(),
         window_origin,
       );
-      pending.register_uri_scheme_protocol(schema, move |request, responder| {
-        protocol(request, UriSchemeResponder(responder))
+      pending.register_uri_scheme_protocol(schema, move |webview_id, request, responder| {
+        protocol(webview_id, request, UriSchemeResponder(responder))
       });
     }
 
@@ -621,9 +624,9 @@ impl<R: Runtime> WebviewManager<R> {
 
   pub fn eval_script_all<S: Into<String>>(&self, script: S) -> crate::Result<()> {
     let script = script.into();
-    self
-      .webviews_lock()
-      .values()
+    let webviews = self.webviews_lock().values().cloned().collect::<Vec<_>>();
+    webviews
+      .iter()
       .try_for_each(|webview| webview.eval(&script))
   }
 

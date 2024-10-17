@@ -29,7 +29,7 @@ pub(crate) mod protocol;
 
 pub use authority::{
   CapabilityBuilder, CommandScope, GlobalScope, Origin, RuntimeAuthority, RuntimeCapability,
-  ScopeObject, ScopeValue,
+  ScopeObject, ScopeObjectMatch, ScopeValue,
 };
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{private, CommandArg, CommandItem};
@@ -45,6 +45,10 @@ pub type OwnedInvokeResponder<R> =
   dyn FnOnce(Webview<R>, String, InvokeResponse, CallbackFn, CallbackFn) + Send + 'static;
 
 /// Possible values of an IPC payload.
+///
+/// ### Android
+/// On Android, [InvokeBody::Raw] is not supported. The enum will always contain [InvokeBody::Json].
+/// When targeting Android Devices, consider passing raw bytes as a base64 [[std::string::String]], which is still more efficient than passing them as a number array in [InvokeBody::Json]
 #[derive(Debug, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum InvokeBody {
@@ -132,6 +136,9 @@ impl InvokeResponseBody {
 }
 
 /// The IPC request.
+///
+/// Includes the `body` and `headers` parameters of a Tauri command invocation.
+/// This allows commands to accept raw bytes - on all platforms except Android.
 #[derive(Debug)]
 pub struct Request<'a> {
   body: &'a InvokeBody,
@@ -174,7 +181,7 @@ impl<T: Serialize> IpcResponse for T {
   }
 }
 
-/// The IPC request.
+/// The IPC response.
 pub struct Response {
   body: InvokeResponseBody,
 }
@@ -195,7 +202,6 @@ impl Response {
 /// The message and resolver given to a custom command.
 ///
 /// This struct is used internally by macros and is explicitly **NOT** stable.
-#[doc(hidden)]
 #[default_runtime(crate::Wry, wry)]
 pub struct Invoke<R: Runtime> {
   /// The message passed.

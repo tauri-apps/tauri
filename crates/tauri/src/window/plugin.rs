@@ -92,6 +92,7 @@ mod desktop_commands {
   getter!(is_minimizable, bool);
   getter!(is_closable, bool);
   getter!(is_visible, bool);
+  getter!(is_enabled, bool);
   getter!(title, String);
   getter!(current_monitor, Option<Monitor>);
   getter!(primary_monitor, Option<Monitor>);
@@ -138,6 +139,8 @@ mod desktop_commands {
   setter!(set_visible_on_all_workspaces, bool);
   setter!(set_title_bar_style, TitleBarStyle);
   setter!(set_size_constraints, WindowSizeConstraints);
+  setter!(set_theme, Option<Theme>);
+  setter!(set_enabled, bool);
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -239,6 +242,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::is_minimizable,
             desktop_commands::is_closable,
             desktop_commands::is_visible,
+            desktop_commands::is_enabled,
             desktop_commands::title,
             desktop_commands::current_monitor,
             desktop_commands::primary_monitor,
@@ -275,6 +279,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_position,
             desktop_commands::set_fullscreen,
             desktop_commands::set_focus,
+            desktop_commands::set_enabled,
             desktop_commands::set_skip_taskbar,
             desktop_commands::set_cursor_grab,
             desktop_commands::set_cursor_visible,
@@ -287,6 +292,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_icon,
             desktop_commands::set_visible_on_all_workspaces,
             desktop_commands::set_title_bar_style,
+            desktop_commands::set_theme,
             desktop_commands::toggle_maximize,
             desktop_commands::internal_toggle_maximize,
           ]);

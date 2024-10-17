@@ -37,35 +37,35 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.71.0',
+              toolchain: '1.77.2',
               cross: false,
               command: 'test'
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.71.0',
+              toolchain: '1.77.2',
               cross: false,
               command: 'test'
             }
           - {
               target: aarch64-apple-darwin,
               os: macos-14,
-              toolchain: '1.71.0',
+              toolchain: '1.77.2',
               cross: false,
               command: 'test'
             }
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.71.0',
+              toolchain: '1.77.2',
               cross: false,
               command: 'build'
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.71.0',
+              toolchain: '1.77.2',
               cross: true,
               command: 'build'
             }
@@ -88,6 +88,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libxdo-dev libayatana-appindicator3-dev
 
+      - name: downgrade crates with MSRV conflict
+        run: |
+          cargo update -p ravif --precise 0.11.5
+          cargo update -p aws-config --precise 1.5.5
+          cargo update -p aws-sdk-ssooidc --precise 1.40.0
+          cargo update -p aws-sdk-s3 --precise 1.46.0
+          cargo update -p aws-sdk-sts --precise 1.39.0
+          cargo update -p aws-sdk-sso --precise 1.39.0
+          cargo update -p bitstream-io --precise 2.3.0
+
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: v2
@@ -99,7 +109,6 @@ jobs:
 
       - name: test (using cross)
         if: ${{ matrix.platform.cross }}
-        # update or remove the rev once we update the MSRV from 1.71.0
         run: |
-          cargo install cross --git https://github.com/cross-rs/cross --rev 20c73df79c9aaf78a2ad2e9fe8ae981668a729dc --locked
+          cargo install cross --git https://github.com/cross-rs/cross --rev ac4c11cedc97cd7c27faed36e55377a90e6ed618 --locked
           cross ${{ matrix.platform.command }} --target ${{ matrix.platform.target }} ${{ matrix.features.args }} --manifest-path crates/tauri/Cargo.toml

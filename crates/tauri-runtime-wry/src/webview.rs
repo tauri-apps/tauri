@@ -13,25 +13,17 @@ mod imp {
   pub type Webview = webkit2gtk::WebView;
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 mod imp {
-  use cocoa::base::id;
+  use std::ffi::c_void;
 
   pub struct Webview {
-    pub webview: id,
-    pub manager: id,
-    pub ns_window: id,
-  }
-}
-
-#[cfg(target_os = "ios")]
-mod imp {
-  use cocoa::base::id;
-
-  pub struct Webview {
-    pub webview: id,
-    pub manager: id,
-    pub view_controller: id,
+    pub webview: *mut c_void,
+    pub manager: *mut c_void,
+    #[cfg(target_os = "macos")]
+    pub ns_window: *mut c_void,
+    #[cfg(target_os = "ios")]
+    pub view_controller: *mut c_void,
   }
 }
 

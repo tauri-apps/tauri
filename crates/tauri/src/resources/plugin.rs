@@ -12,7 +12,14 @@ use super::ResourceId;
 
 #[command(root = "crate")]
 fn close<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<()> {
-  webview.resources_table().close(rid)
+  let mut result = webview.resources_table().close(rid);
+  if result.is_err() {
+    result = webview.window().resources_table().close(rid);
+    if result.is_err() {
+      result = webview.app_handle().resources_table().close(rid);
+    }
+  }
+  result
 }
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {

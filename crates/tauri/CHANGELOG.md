@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.5]
+
+### What's Changed
+
+- [`2e88633ba`](https://www.github.com/tauri-apps/tauri/commit/2e88633ba4da8fc289c6d8a29c36f3327f9b576e) ([#11369](https://www.github.com/tauri-apps/tauri/pull/11369) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove references to no longer used `__TAURI_INTERNALS__.metadata.windows` and `__TAURI_INTERNALS__.metadata.webviews`.
+
 ## \[2.0.4]
 
 ### New Features

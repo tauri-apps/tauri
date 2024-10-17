@@ -65,7 +65,7 @@ impl<'de> Deserialize<'de> for WebviewLabel {
 }
 
 #[command(root = "crate")]
-pub fn listen<R: Runtime>(
+pub async fn listen<R: Runtime>(
   webview: Webview<R>,
   event: EventName,
   target: EventTarget,
@@ -75,7 +75,7 @@ pub fn listen<R: Runtime>(
 }
 
 #[command(root = "crate")]
-pub fn unlisten<R: Runtime>(
+pub async fn unlisten<R: Runtime>(
   webview: Webview<R>,
   event: EventName,
   event_id: EventId,
@@ -84,7 +84,7 @@ pub fn unlisten<R: Runtime>(
 }
 
 #[command(root = "crate")]
-pub fn emit<R: Runtime>(
+pub async fn emit<R: Runtime>(
   app: AppHandle<R>,
   event: EventName,
   payload: Option<JsonValue>,
@@ -93,7 +93,7 @@ pub fn emit<R: Runtime>(
 }
 
 #[command(root = "crate")]
-pub fn emit_to<R: Runtime>(
+pub async fn emit_to<R: Runtime>(
   app: AppHandle<R>,
   target: EventTarget,
   event: EventName,

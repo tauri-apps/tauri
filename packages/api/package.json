@@ -1,6 +1,6 @@
 {
   "name": "@tauri-apps/api",
-  "version": "2.0.0-rc.6",
+  "version": "2.0.2",
   "description": "Tauri API definitions",
   "funding": {
     "type": "opencollective",
@@ -38,7 +38,7 @@
   "scripts": {
     "build": "rollup -c --configPlugin typescript",
     "npm-pack": "pnpm build && cd ./dist && npm pack",
-    "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel silly --tag next --no-git-checks",
+    "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel silly --no-git-checks",
     "ts:check": "tsc --noEmit",
     "eslint:check": "eslint src/**.ts",
     "eslint:fix": "eslint src/**.ts --fix"

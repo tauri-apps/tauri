@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.2]
+
+### What's Changed
+
+- [`e968b3d25`](https://www.github.com/tauri-apps/tauri/commit/e968b3d2527b8edf7653e6cf7284dc4a8889b5fe) ([#11219](https://www.github.com/tauri-apps/tauri/pull/11219) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Actually publish package with the latest tag.
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`be683e2ac`](https://www.github.com/tauri-apps/tauri/commit/be683e2ac36df9c51a5c050d9d500247bd019090) ([#11199](https://www.github.com/tauri-apps/tauri/pull/11199) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Publish package with the latest NPM tag.
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
 ## \[2.0.0-rc.6]
 
 ### New Features

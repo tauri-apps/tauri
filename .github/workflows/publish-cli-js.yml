@@ -253,7 +253,7 @@ jobs:
       - name: install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
       - name: Test bindings
         run: pnpm test
   test-linux-x64-musl-binding:
@@ -382,7 +382,7 @@ jobs:
       - name: Publish
         run: |
           echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
-          npm publish --tag next
+          npm publish
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}

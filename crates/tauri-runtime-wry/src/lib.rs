@@ -30,6 +30,8 @@ use tauri_runtime::{
   UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use objc2::rc::Retained;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
@@ -2559,6 +2561,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         pending,
       )?;
 
+      #[allow(clippy::manual_inspect)]
       self
         .context
         .main_thread
@@ -3162,6 +3165,7 @@ fn handle_user_message<T: UserEvent>(
             let _ = webview.print();
           }
           WebviewMessage::Close => {
+            #[allow(clippy::manual_inspect)]
             windows.0.borrow_mut().get_mut(&window_id).map(|window| {
               if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
                 window.webviews.remove(i);
@@ -3321,9 +3325,12 @@ fn handle_user_message<T: UserEvent>(
             {
               use wry::WebViewExtMacOS;
               f(Webview {
-                webview: webview.webview().cast(),
-                manager: webview.manager().cast(),
-                ns_window: webview.ns_window().cast(),
+                webview: Retained::into_raw(webview.webview()) as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
+                manager: Retained::into_raw(webview.manager()) as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
+                ns_window: Retained::into_raw(webview.ns_window()) as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
               });
             }
             #[cfg(target_os = "ios")]
@@ -3332,9 +3339,13 @@ fn handle_user_message<T: UserEvent>(
               use wry::WebViewExtIOS;
 
               f(Webview {
-                webview: webview.inner.webview().cast(),
-                manager: webview.inner.manager().cast(),
-                view_controller: window.ui_view_controller().cast(),
+                webview: Retained::into_raw(webview.inner.webview())
+                  as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
+                manager: Retained::into_raw(webview.inner.manager())
+                  as *mut objc2::runtime::AnyObject
+                  as *mut std::ffi::c_void,
+                view_controller: window.ui_view_controller(),
               });
             }
             #[cfg(windows)]
@@ -3372,6 +3383,7 @@ fn handle_user_message<T: UserEvent>(
       if let Some(window) = window {
         match handler(&window) {
           Ok(webview) => {
+            #[allow(clippy::manual_inspect)]
             windows.0.borrow_mut().get_mut(&window_id).map(|w| {
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
@@ -3960,52 +3972,45 @@ fn create_webview<T: UserEvent>(
     ..
   } = pending;
 
-  let builder = match kind {
-    #[cfg(not(any(
-      target_os = "windows",
-      target_os = "macos",
-      target_os = "ios",
-      target_os = "android"
-    )))]
-    WebviewKind::WindowChild => {
-      // only way to account for menu bar height, and also works for multiwebviews :)
-      let vbox = window.default_vbox().unwrap();
-      WebViewBuilder::new_gtk(vbox)
+  let mut web_context = context
+    .main_thread
+    .web_context
+    .lock()
+    .expect("poisoned WebContext store");
+  let is_first_context = web_context.is_empty();
+  // the context must be stored on the HashMap because it must outlive the WebView on macOS
+  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
+  let web_context_key = webview_attributes.data_directory;
+  let entry = web_context.entry(web_context_key.clone());
+  let web_context = match entry {
+    Occupied(occupied) => {
+      let occupied = occupied.into_mut();
+      occupied.referenced_by_webviews.insert(label.clone());
+      occupied
     }
-    #[cfg(any(
-      target_os = "windows",
-      target_os = "macos",
-      target_os = "ios",
-      target_os = "android"
-    ))]
-    WebviewKind::WindowChild => WebViewBuilder::new_as_child(&window),
-    WebviewKind::WindowContent => {
-      #[cfg(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-      ))]
-      let builder = WebViewBuilder::new(&window);
-      #[cfg(not(any(
-        target_os = "windows",
-        target_os = "macos",
-        target_os = "ios",
-        target_os = "android"
-      )))]
-      let builder = {
-        let vbox = window.default_vbox().unwrap();
-        WebViewBuilder::new_gtk(vbox)
-      };
-      builder
+    Vacant(vacant) => {
+      let mut web_context = WryWebContext::new(web_context_key.clone());
+      web_context.set_allows_automation(if automation_enabled {
+        is_first_context
+      } else {
+        false
+      });
+      vacant.insert(WebContext {
+        inner: web_context,
+        referenced_by_webviews: [label.clone()].into(),
+        registered_custom_protocols: HashSet::new(),
+      })
     }
   };
 
-  let mut webview_builder = builder
+  let mut webview_builder = WebViewBuilder::with_web_context(&mut web_context.inner)
+    .with_id(&label)
     .with_focused(window.is_focused())
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
+    .with_incognito(webview_attributes.incognito)
+    .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
   if webview_attributes.drag_drop_handler_enabled {
@@ -4174,47 +4179,17 @@ fn create_webview<T: UserEvent>(
     webview_builder = webview_builder.with_initialization_script(&script);
   }
 
-  let mut web_context = context
-    .main_thread
-    .web_context
-    .lock()
-    .expect("poisoned WebContext store");
-  let is_first_context = web_context.is_empty();
-  // the context must be stored on the HashMap because it must outlive the WebView on macOS
-  let automation_enabled = std::env::var("TAURI_WEBVIEW_AUTOMATION").as_deref() == Ok("true");
-  let web_context_key = webview_attributes.data_directory;
-  let entry = web_context.entry(web_context_key.clone());
-  let web_context = match entry {
-    Occupied(occupied) => {
-      let occupied = occupied.into_mut();
-      occupied.referenced_by_webviews.insert(label.clone());
-      occupied
-    }
-    Vacant(vacant) => {
-      let mut web_context = WryWebContext::new(web_context_key.clone());
-      web_context.set_allows_automation(if automation_enabled {
-        is_first_context
-      } else {
-        false
-      });
-      vacant.insert(WebContext {
-        inner: web_context,
-        referenced_by_webviews: [label.clone()].into(),
-        registered_custom_protocols: HashSet::new(),
-      })
-    }
-  };
-
   for (scheme, protocol) in uri_scheme_protocols {
     // on Linux the custom protocols are associated with the web context
     // and you cannot register a scheme more than once
-    if cfg!(any(
+    #[cfg(any(
       target_os = "linux",
       target_os = "dragonfly",
       target_os = "freebsd",
       target_os = "netbsd",
       target_os = "openbsd"
-    )) {
+    ))]
+    {
       if web_context.registered_custom_protocols.contains(&scheme) {
         continue;
       }
@@ -4224,21 +4199,16 @@ fn create_webview<T: UserEvent>(
         .insert(scheme.clone());
     }
 
-    webview_builder =
-      webview_builder.with_asynchronous_custom_protocol(scheme, move |request, responder| {
+    webview_builder = webview_builder.with_asynchronous_custom_protocol(
+      scheme,
+      move |webview_id, request, responder| {
         protocol(
+          webview_id,
           request,
           Box::new(move |response| responder.respond(response)),
         )
-      });
-  }
-
-  if webview_attributes.clipboard {
-    webview_builder.attrs.clipboard = true;
-  }
-
-  if webview_attributes.incognito {
-    webview_builder.attrs.incognito = true;
+      },
+    );
   }
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
@@ -4259,10 +4229,47 @@ fn create_webview<T: UserEvent>(
     }
   }
 
-  let webview = webview_builder
-    .with_web_context(&mut web_context.inner)
-    .build()
-    .map_err(|e| Error::CreateWebview(Box::new(e)))?;
+  let webview = match kind {
+    #[cfg(not(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    )))]
+    WebviewKind::WindowChild => {
+      // only way to account for menu bar height, and also works for multiwebviews :)
+      let vbox = window.default_vbox().unwrap();
+      webview_builder.build_gtk(vbox)
+    }
+    #[cfg(any(
+      target_os = "windows",
+      target_os = "macos",
+      target_os = "ios",
+      target_os = "android"
+    ))]
+    WebviewKind::WindowChild => webview_builder.build(&window),
+    WebviewKind::WindowContent => {
+      #[cfg(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+      ))]
+      let builder = webview_builder.build(&window);
+      #[cfg(not(any(
+        target_os = "windows",
+        target_os = "macos",
+        target_os = "ios",
+        target_os = "android"
+      )))]
+      let builder = {
+        let vbox = window.default_vbox().unwrap();
+        webview_builder.build_gtk(vbox)
+      };
+      builder
+    }
+  }
+  .map_err(|e| Error::CreateWebview(Box::new(dbg!(e))))?;
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(
@@ -4366,7 +4373,7 @@ fn inner_size(
   if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
-    let view: &objc2_app_kit::NSView = unsafe { &*webview.webview().cast() };
+    let view = unsafe { Retained::cast::<objc2_app_kit::NSView>(webview.webview()) };
     let view_frame = view.frame();
     let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     return logical.to_physical(window.scale_factor());

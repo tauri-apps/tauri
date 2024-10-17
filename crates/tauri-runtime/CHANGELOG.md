@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.1.0]
+
+### Bug Fixes
+
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix commands, that use `Webview` or `WebviewWindow` as an argument, receiving an incorrect webview when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix events only emitted to first webview only when using multi webviews.
+- [`2d087ee4b`](https://www.github.com/tauri-apps/tauri/commit/2d087ee4b7d3e8849933f81284e4f5ed1aaa6455) ([#11268](https://www.github.com/tauri-apps/tauri/pull/11268) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Linux, fix custom protocols receiving an incorrect webview label when using multi webviews
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+
 ## \[2.0.0-rc.13]
 
 ### New Features

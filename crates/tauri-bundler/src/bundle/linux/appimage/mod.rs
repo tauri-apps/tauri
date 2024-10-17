@@ -15,7 +15,7 @@ use anyhow::Context;
 use handlebars::Handlebars;
 use std::{
   collections::BTreeMap,
-  fs::{remove_dir_all, write},
+  fs,
   path::PathBuf,
   process::{Command, Stdio},
 };
@@ -38,17 +38,32 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   };
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
+  let main_binary = settings.main_binary()?;
+
+  let mut settings = settings.clone();
+  if main_binary.name().contains(" ") {
+    let main_binary_path = settings.binary_path(main_binary);
+    let project_out_directory = settings.project_out_directory();
+
+    let main_binary_name_kebab = heck::AsKebabCase(main_binary.name()).to_string();
+    let new_path = project_out_directory.join(&main_binary_name_kebab);
+    fs::copy(main_binary_path, new_path)?;
+
+    let main_binary = settings.main_binary_mut()?;
+    main_binary.set_name(main_binary_name_kebab);
+  }
+
   // generate deb_folder structure
-  let (data_dir, icons) = debian::generate_data(settings, &package_dir)
+  let (data_dir, icons) = debian::generate_data(&settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
   common::copy_custom_files(&settings.appimage().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
 
   let output_path = settings.project_out_directory().join("bundle/appimage");
   if output_path.exists() {
-    remove_dir_all(&output_path)?;
+    fs::remove_dir_all(&output_path)?;
   }
-  std::fs::create_dir_all(output_path.clone())?;
+  fs::create_dir_all(output_path.clone())?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
   let appimage_filename = format!(
     "{}_{}_{}.AppImage",
@@ -101,7 +116,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   log::info!(action = "Bundling"; "{} ({})", appimage_filename, appimage_path.display());
 
-  write(&sh_file, temp)?;
+  fs::write(&sh_file, temp)?;
 
   // chmod script for execution
   Command::new("chmod")
@@ -119,6 +134,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     .output_ok()
     .context("error running build_appimage.sh")?;
 
-  remove_dir_all(&package_dir)?;
+  fs::remove_dir_all(&package_dir)?;
   Ok(vec![appimage_path])
 }

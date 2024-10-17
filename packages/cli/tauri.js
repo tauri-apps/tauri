@@ -14,9 +14,9 @@ const binStem = path.parse(bin).name.toLowerCase()
 // can successfully detect what command likely started the execution.
 let binName
 
-// deno run -A --unstable --node-modules-dir npm:@tauri-apps/cli
-if (bin === '@tauri-apps/cli') {
-  binName = '@tauri-apps/cli'
+// deno run -A npm:@tauri-apps/cli or deno task tauri
+if (globalThis.navigator?.userAgent?.includes('Deno')) {
+  binName = bin
 }
 // Even if started by a package manager, the binary will be NodeJS.
 // Some distribution still use "nodejs" as the binary name.

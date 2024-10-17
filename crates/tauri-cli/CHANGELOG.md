@@ -1,5 +1,74 @@
 # Changelog
 
+## \[2.0.3]
+
+### New Features
+
+- [`eda5713ea`](https://www.github.com/tauri-apps/tauri/commit/eda5713eab78d28182071ea25ceca5f1994f37ea) ([#11242](https://www.github.com/tauri-apps/tauri/pull/11242) by [@alex-sandri](https://www.github.com/tauri-apps/tauri/../../alex-sandri)) Add `Italian` to supported NSIS installer languages
+- [`b3563e3d6`](https://www.github.com/tauri-apps/tauri/commit/b3563e3d6ae8dc90ee68f25f575cd5538ab1915b) ([#11304](https://www.github.com/tauri-apps/tauri/pull/11304) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add Deno support in tauri-cli operations.
+
+### Bug Fixes
+
+- [`d609bef9f`](https://www.github.com/tauri-apps/tauri/commit/d609bef9fd7cd6eeb2bd701558100bd9cfb6e6f6) ([#11314](https://www.github.com/tauri-apps/tauri/pull/11314) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix android invalid proguard file when using an `identifier` that contains a component that is a reserved kotlin keyword, like `in`, `class`, etc
+- [`069c05e44`](https://www.github.com/tauri-apps/tauri/commit/069c05e44fd6f30083fdc00dd6c0001278898592) ([#11315](https://www.github.com/tauri-apps/tauri/pull/11315) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix CLI crashing and failing to find a `.ico` file when `bundle > icon` option is using globs and doesn't have a string that ends with `.ico`.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.3`
+
+## \[2.0.2]
+
+### What's Changed
+
+- [`4475fbb50`](https://www.github.com/tauri-apps/tauri/commit/4475fbb502c5ffb3cea4de6bef1c7869be39bed6) ([#11208](https://www.github.com/tauri-apps/tauri/pull/11208) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update cargo-mobile2 to 0.17.3, fixing lib name validation.
+- [`a49a19ffa`](https://www.github.com/tauri-apps/tauri/commit/a49a19ffa304f031fb1a04d31a567cc7f42a380a) ([#11218](https://www.github.com/tauri-apps/tauri/pull/11218)) Fix bundling `appimage`, `deb` and `rpm` bundles failing to open when using `mainBinaryName` with spaces.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.2`
+
+## \[2.0.1]
+
+### What's Changed
+
+- [`0ab2b3306`](https://www.github.com/tauri-apps/tauri/commit/0ab2b330644b6419f6cee1d5377bfb5cdda2ccf9) ([#11205](https://www.github.com/tauri-apps/tauri/pull/11205) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Downgrade MSRV to 1.77.2 to support Windows 7.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.1`
+- Upgraded to `tauri-macos-sign@2.0.1`
+- Upgraded to `tauri-bundler@2.0.1`
+
+## \[2.0.0]
+
+### What's Changed
+
+- [`382ed482b`](https://www.github.com/tauri-apps/tauri/commit/382ed482bd08157c39e62f9a0aaad8802f1092cb) Bump MSRV to 1.78.
+- [`637285790`](https://www.github.com/tauri-apps/tauri/commit/6372857905ae9c0aedb7f482ddf6cf9f9836c9f2) Promote to v2 stable!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.0`
+- Upgraded to `tauri-macos-sign@2.0.0`
+- Upgraded to `tauri-bundler@2.0.0`
+
+## \[2.0.0-rc.18]
+
+### Enhancements
+
+- [`a08e6ffa6`](https://www.github.com/tauri-apps/tauri/commit/a08e6ffa6fe499553be3c4c620726d6031cd6dd3) ([#11185](https://www.github.com/tauri-apps/tauri/pull/11185) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Enhance port forwarding on `android dev` to be more resilient and tolerate delays when booting up devices.
+- [`6cfe7edf6`](https://www.github.com/tauri-apps/tauri/commit/6cfe7edf63636fdf66c429efdeb7bc9a0f404e9f) ([#11186](https://www.github.com/tauri-apps/tauri/pull/11186) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Retain logger verbosity on the `android-studio-script` and `xcode-script` commands.
+- [`60a5aea53`](https://www.github.com/tauri-apps/tauri/commit/60a5aea53db02ae6af325812ab97555f2c013d70) ([#11181](https://www.github.com/tauri-apps/tauri/pull/11181) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Set the `TRUNK_SERVE_ADDRESS` environment variable when running on iOS physical devices to support Trunk.
+
+### Bug Fixes
+
+- [`f5d61822b`](https://www.github.com/tauri-apps/tauri/commit/f5d61822bf5988827776dd58bed75c19364e86bd) ([#11184](https://www.github.com/tauri-apps/tauri/pull/11184) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS application not including the provided capabilities (entitlements).
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.1-rc.15`
+- Upgraded to `tauri-macos-sign@0.1.1-rc.1`
+
 ## \[2.0.0-rc.17]
 
 ### New Features

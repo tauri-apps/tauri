@@ -282,19 +282,37 @@ fn clear_env_for_wix(cmd: &mut Command) {
   }
 }
 
-// WiX requires versions to be numeric only in a `major.minor.patch.build` format
-pub fn convert_version(version_str: &str) -> anyhow::Result<String> {
-  let version = semver::Version::parse(version_str).context("invalid app version")?;
-  if version.major > 255 {
+fn validate_wix_version(version_str: &str) -> anyhow::Result<()> {
+  let components = version_str
+    .split('.')
+    .flat_map(|c| c.parse::<u64>().ok())
+    .collect::<Vec<_>>();
+
+  anyhow::ensure!(
+    components.len() >= 3,
+    "app wix version should be in the format major.minor.patch.build (build is optional)"
+  );
+
+  if components[0] > 255 {
     bail!("app version major number cannot be greater than 255");
   }
-  if version.minor > 255 {
+  if components[1] > 255 {
     bail!("app version minor number cannot be greater than 255");
   }
-  if version.patch > 65535 {
+  if components[2] > 65535 {
     bail!("app version patch number cannot be greater than 65535");
   }
 
+  if components.len() == 4 && components[3] > 65535 {
+    bail!("app version build number cannot be greater than 65535");
+  }
+
+  Ok(())
+}
+
+// WiX requires versions to be numeric only in a `major.minor.patch.build` format
+fn convert_version(version_str: &str) -> anyhow::Result<String> {
+  let version = semver::Version::parse(version_str).context("invalid app version")?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
     if build.map(|b| b <= 65535).unwrap_or_default() {
@@ -433,7 +451,18 @@ pub fn build_wix_app_installer(
     }
   };
 
-  let app_version = convert_version(settings.version_string())?;
+  let app_version = if let Some(version) = settings
+    .windows()
+    .wix
+    .as_ref()
+    .and_then(|wix| wix.version.clone())
+  {
+    version
+  } else {
+    convert_version(settings.version_string())?
+  };
+
+  validate_wix_version(&app_version)?;
 
   // target only supports x64.
   log::info!("Target: {}", arch);
@@ -1055,4 +1084,36 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   }
 
   Ok(resources)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn validates_wix_version() {
+    assert!(validate_wix_version("1.1.1").is_ok());
+    assert!(validate_wix_version("1.1.1.1").is_ok());
+    assert!(validate_wix_version("255.1.1.1").is_ok());
+    assert!(validate_wix_version("1.255.1.1").is_ok());
+    assert!(validate_wix_version("1.1.65535.1").is_ok());
+    assert!(validate_wix_version("1.1.1.65535").is_ok());
+
+    assert!(validate_wix_version("256.1.1.1").is_err());
+    assert!(validate_wix_version("1.256.1.1").is_err());
+    assert!(validate_wix_version("1.1.65536.1").is_err());
+    assert!(validate_wix_version("1.1.1.65536").is_err());
+  }
+
+  #[test]
+  fn converts_version_to_wix() {
+    assert_eq!(convert_version("1.1.2").unwrap(), "1.1.2");
+    assert_eq!(convert_version("1.1.2-4").unwrap(), "1.1.2.4");
+    assert_eq!(convert_version("1.1.2-65535").unwrap(), "1.1.2.65535");
+    assert_eq!(convert_version("1.1.2+2").unwrap(), "1.1.2.2");
+
+    assert!(convert_version("1.1.2-alpha").is_err());
+    assert!(convert_version("1.1.2-alpha.4").is_err());
+    assert!(convert_version("1.1.2+asd.3").is_err());
+  }
 }

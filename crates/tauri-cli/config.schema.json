@@ -2170,6 +2170,13 @@
       "description": "Configuration for the MSI bundle using WiX.\n\n See more: <https://v2.tauri.app/reference/config/#wixconfig>",
       "type": "object",
       "properties": {
+        "version": {
+          "description": "MSI installer version in the format `major.minor.patch.build` (build is optional).\n\n Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.\n\n The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.\n The third and foruth fields have a maximum value of 65,535.\n\n See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "upgradeCode": {
           "description": "A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,\n otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.\n\n By default, tauri generates this code by generating a Uuid v5 using the string `<productName>.exe.app.x64` in the DNS namespace.\n You can use Tauri's CLI to generate and print this code for you, run `tauri inspect wix-upgrade-code`.\n\n It is recommended that you set this value in your tauri config file to avoid accidental changes in your upgrade code\n whenever you want to change your product name.",
           "type": [

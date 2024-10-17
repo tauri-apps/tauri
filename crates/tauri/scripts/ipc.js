@@ -100,18 +100,24 @@
 
       if (
         typeof data === 'object' &&
+        data !== null &&
         'constructor' in data &&
         data.constructor === Array
       ) {
         return data.map((v) => serializeIpcPayload(v))
       }
 
-      if (typeof data === 'object' && SERIALIZE_TO_IPC_FN in data) {
+      if (
+        typeof data === 'object' &&
+        data !== null &&
+        SERIALIZE_TO_IPC_FN in data
+      ) {
         return data[SERIALIZE_TO_IPC_FN]()
       }
 
       if (
         typeof data === 'object' &&
+        data !== null &&
         'constructor' in data &&
         data.constructor === Object
       ) {

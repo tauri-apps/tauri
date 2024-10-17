@@ -94,6 +94,7 @@ class LogicalSize {
    * @since 2.0.0
    */
   toJSON() {
+    // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
   }
 }
@@ -184,6 +185,7 @@ class PhysicalSize {
    * @since 2.0.0
    */
   toJSON() {
+    // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
   }
 }
@@ -278,6 +280,7 @@ class LogicalPosition {
    * @since 2.0.0
    */
   toJSON() {
+    // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
   }
 }

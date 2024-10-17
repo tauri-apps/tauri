@@ -264,7 +264,12 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
 /// On iOS, it's `${exe_dir}/assets`.
 ///
 /// Android uses a special URI prefix that is resolved by the Tauri file system plugin `asset://localhost/`
+///
+/// Additionally, the resource directory can be overriden by setting the `TAURI_RESOURCE_DIR` environment variable at compile time.
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
+  if let Some(dir) = option_env!("TAURI_RESOURCE_DIR") {
+    return Ok(PathBuf::from(format!("{}/{}", dir, package_info.name)));
+  }
   #[cfg(target_os = "android")]
   return resource_dir_android(package_info, env);
   #[cfg(not(target_os = "android"))]

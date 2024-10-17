@@ -25,7 +25,7 @@ tauri-utils = { version = "2.0.1", path = "../tauri-utils", features = [
 ] }
 thiserror = "1"
 walkdir = "2"
-brotli = { version = "6", optional = true, default-features = false, features = [
+brotli = { version = "7", optional = true, default-features = false, features = [
   "std",
 ] }
 regex = { version = "1", optional = true }

@@ -46,6 +46,16 @@
   "engines": {
     "node": ">= 10"
   },
+  "files": [
+    "CHANGELOG.md",
+    "README.md",
+    "index.js",
+    "index.d.ts",
+    "main.js",
+    "main.d.ts",
+    "tauri.js",
+    "LICENSE*"
+  ],
   "bin": {
     "tauri": "./tauri.js"
   },

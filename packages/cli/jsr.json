@@ -1,0 +1,24 @@
+{
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@tauri-apps/cli",
+  "version": "2.0.3-alpha.4",
+  "license": "Apache-2.0 OR MIT",
+  "exports": {
+    ".": "./index.js",
+    "./tauri": "./tauri.js",
+    "./main": "./main.js"
+  },
+  "publish": {
+    "include": [
+      "CHANGELOG.md",
+      "README.md",
+      "index.js",
+      "index.d.ts",
+      "main.js",
+      "main.d.ts",
+      "tauri.js",
+      "LICENSE*",
+      "package.json"
+    ]
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "https://jsr.io/schema/config-file.v1.json",
+  "name": "@tauri-apps/cli-win32-x64-msvc",
+  "version": "2.0.3-alpha.4",
+  "license": "Apache-2.0 OR MIT",
+  "exports": "./index.js",
+  "publish": {
+    "include": ["cli.win32-x64-msvc.node", "package.json", "README.md"]
+  }
+}

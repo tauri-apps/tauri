@@ -1346,6 +1346,7 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_deb)
       },
+      recommends: config.linux.deb.recommends,
       provides: config.linux.deb.provides,
       conflicts: config.linux.deb.conflicts,
       replaces: config.linux.deb.replaces,
@@ -1368,6 +1369,7 @@ fn tauri_config_to_bundle_settings(
       } else {
         Some(depends_rpm)
       },
+      recommends: config.linux.rpm.recommends,
       provides: config.linux.rpm.provides,
       conflicts: config.linux.rpm.conflicts,
       obsoletes: config.linux.rpm.obsoletes,

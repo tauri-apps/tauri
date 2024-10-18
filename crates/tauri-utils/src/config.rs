@@ -331,6 +331,8 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of deb dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of dependencies the package provides.
   pub provides: Option<Vec<String>>,
   /// The list of package conflicts.
@@ -398,6 +400,8 @@ pub struct LinuxConfig {
 pub struct RpmConfig {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
   /// The list of RPM dependencies your application conflicts with. They must not be present
@@ -442,6 +446,7 @@ impl Default for RpmConfig {
   fn default() -> Self {
     Self {
       depends: None,
+      recommends: None,
       provides: None,
       conflicts: None,
       obsoletes: None,

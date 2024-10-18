@@ -84,6 +84,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     builder = builder.provides(Dependency::any(dep));
   }
 
+  // Add recommends
+  for dep in settings
+    .rpm()
+    .recommends
+    .as_ref()
+    .cloned()
+    .unwrap_or_default()
+  {
+    builder = builder.recommends(Dependency::any(dep));
+  }
+
   // Add conflicts
   for dep in settings
     .rpm()

@@ -170,6 +170,8 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
+  /// the list of debian dependencies recommendations.
+  pub recommends: Option<Vec<String>>,
   /// the list of dependencies the package provides.
   pub provides: Option<Vec<String>>,
   /// the list of package conflicts.
@@ -222,6 +224,8 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// the list of of RPM dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
   /// The list of RPM dependencies your application conflicts with. They must not be present

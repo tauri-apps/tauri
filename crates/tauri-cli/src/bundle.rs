@@ -9,7 +9,6 @@ use std::{
 };
 
 use anyhow::Context;
-use base64::Engine;
 use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
 use tauri_bundler::PackageType;
 use tauri_utils::platform::Target;
@@ -257,15 +256,14 @@ fn sign_updaters(
   // check if private_key points to a file...
   let maybe_path = Path::new(&private_key);
   let private_key = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)?
+    std::fs::read_to_string(maybe_path)
+      .with_context(|| format!("faild to read {}", maybe_path.display()))?
   } else {
     private_key
   };
-  let secret_key = updater_signature::secret_key(private_key, password)?;
-
-  let pubkey = base64::engine::general_purpose::STANDARD.decode(pubkey)?;
-  let pub_key_decoded = String::from_utf8_lossy(&pubkey);
-  let public_key = minisign::PublicKeyBox::from_string(&pub_key_decoded)?.into_public_key()?;
+  let secret_key =
+    updater_signature::secret_key(private_key, password).context("failed to decode secret key")?;
+  let public_key = updater_signature::pub_key(pubkey).context("failed to decode pubkey")?;
 
   let mut signed_paths = Vec::new();
   for bundle in update_enabled_bundles {

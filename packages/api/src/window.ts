@@ -20,7 +20,9 @@ import {
   LogicalPosition,
   LogicalSize,
   PhysicalPosition,
-  PhysicalSize
+  PhysicalSize,
+  Position,
+  Size
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import {
@@ -1268,10 +1270,10 @@ class Window {
    * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
+  async setSize(size: LogicalSize | PhysicalSize | Size): Promise<void> {
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value: size
+      value: size instanceof Size ? size : new Size(size)
     })
   }
 
@@ -1287,11 +1289,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMinSize(
-    size: LogicalSize | PhysicalSize | null | undefined
+    size: LogicalSize | PhysicalSize | Size | null | undefined
   ): Promise<void> {
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value: size
+      value: size instanceof Size ? size : size ? new Size(size) : null
     })
   }
 
@@ -1307,11 +1309,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMaxSize(
-    size: LogicalSize | PhysicalSize | null | undefined
+    size: LogicalSize | PhysicalSize | Size | null | undefined
   ): Promise<void> {
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value: size
+      value: size instanceof Size ? size : size ? new Size(size) : null
     })
   }
 
@@ -1356,11 +1358,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setPosition(
-    position: LogicalPosition | PhysicalPosition
+    position: LogicalPosition | PhysicalPosition | Position
   ): Promise<void> {
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value: position
+      value: position instanceof Position ? position : new Position(position)
     })
   }
 
@@ -1527,11 +1529,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setCursorPosition(
-    position: LogicalPosition | PhysicalPosition
+    position: LogicalPosition | PhysicalPosition | Position
   ): Promise<void> {
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value: position
+      value: position instanceof Position ? position : new Position(position)
     })
   }
 

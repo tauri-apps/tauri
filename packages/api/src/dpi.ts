@@ -56,43 +56,13 @@ class LogicalSize {
     return new PhysicalSize(this.width * scaleFactor, this.height * scaleFactor)
   }
 
-  /**
-   * Converts this size into IPC-compatible value, so it can be
-   * deserialized correctly on the Rust side using `tauri::LogicalSize` struct.
-   * @example
-   * ```typescript
-   * import { LogicalSize } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const size = new LogicalSize(400, 500);
-   * await invoke("do_something_with_size", { size: size.toIPC() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   [SERIALIZE_TO_IPC_FN]() {
     return {
-      Logical: {
-        width: this.width,
-        height: this.height
-      }
+      width: this.width,
+      height: this.height
     }
   }
 
-  /**
-   * Converts this size into JSON value, that can be deserialized
-   * correctly on the Rust side using `tauri::LogicalSize` struct.
-   * @example
-   * ```typescript
-   * import { LogicalSize } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const size = new LogicalSize(400, 500);
-   * await invoke("do_something_with_size", { size: size.toJSON() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   toJSON() {
     // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
@@ -147,43 +117,78 @@ class PhysicalSize {
     return new LogicalSize(this.width / scaleFactor, this.height / scaleFactor)
   }
 
-  /**
-   * Converts this size into IPC-compatible value, so it can be
-   * deserialized correctly on the Rust side using `tauri::PhysicalSize` struct.
-   * @example
-   * ```typescript
-   * import { PhysicalSize } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const size = new PhysicalSize(400, 500);
-   * await invoke("do_something_with_size", { size: size.toIPC() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   [SERIALIZE_TO_IPC_FN]() {
     return {
-      Physical: {
-        width: this.width,
-        height: this.height
+      width: this.width,
+      height: this.height
+    }
+  }
+
+  toJSON() {
+    // eslint-disable-next-line security/detect-object-injection
+    return this[SERIALIZE_TO_IPC_FN]()
+  }
+}
+
+/**
+ * A size represented either in physical or in logical pixels.
+ *
+ * This type is basically a union type of {@linkcode LogicalSize} and {@linkcode PhysicalSize}
+ * but comes in handy when using `tauri::Size` in Rust as an argument to a command, as this class
+ * automatically serializes into a valid format so it can be deserialized correctly into `tauri::Size`
+ *
+ * So instead of
+ * ```typescript
+ * import { invoke } from '@tauri-apps/api/core';
+ * import { LogicalSize, PhysicalSize } from '@tauri-apps/api/dpi';
+ *
+ * const size: LogicalSize | PhysicalSize = someFunction(); // where someFunction returns either LogicalSize or PhysicalSize
+ * const validSize = size instanceof LogicalSize
+ *   ? { Logical: { width: size.width, height: size.height } }
+ *   : { Physical: { width: size.width, height: size.height } }
+ * await invoke("do_something_with_size", { size: validSize });
+ * ```
+ *
+ * You can just use {@linkcode Size}
+ * ```typescript
+ * import { invoke } from '@tauri-apps/api/core';
+ * import { LogicalSize, PhysicalSize, Size } from '@tauri-apps/api/dpi';
+ *
+ * const size: LogicalSize | PhysicalSize = someFunction(); // where someFunction returns either LogicalSize or PhysicalSize
+ * const validSize = new Size(size);
+ * await invoke("do_something_with_size", { size: validSize });
+ * ```
+ *
+ * @since 2.1.0
+ */
+class Size {
+  size: LogicalSize | PhysicalSize
+
+  constructor(size: LogicalSize | PhysicalSize) {
+    this.size = size
+  }
+
+  toLogical(scaleFactor: number): LogicalSize {
+    return this.size instanceof LogicalSize
+      ? this.size
+      : this.size.toLogical(scaleFactor)
+  }
+
+  toPhysical(scaleFactor: number): PhysicalSize {
+    return this.size instanceof PhysicalSize
+      ? this.size
+      : this.size.toPhysical(scaleFactor)
+  }
+
+  [SERIALIZE_TO_IPC_FN]() {
+    return {
+      [`${this.size.type}`]: {
+        width: this.size.width,
+        height: this.size.height
       }
     }
   }
 
-  /**
-   * Converts this size into JSON value, that can be deserialized
-   * correctly on the Rust side using `tauri::PhysicalSize` struct.
-   * @example
-   * ```typescript
-   * import { PhysicalSize } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const size = new PhysicalSize(400, 500);
-   * await invoke("do_something_with_size", { size: size.toJSON() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   toJSON() {
     // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
@@ -242,43 +247,13 @@ class LogicalPosition {
     return new PhysicalPosition(this.x * scaleFactor, this.x * scaleFactor)
   }
 
-  /**
-   * Converts this position into IPC-compatible value, so it can be
-   * deserialized correctly on the Rust side using `tauri::LogicalPosition` struct.
-   * @example
-   * ```typescript
-   * import { LogicalPosition } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const position = new LogicalPosition(400, 500);
-   * await invoke("do_something_with_position", { position: position.toIPC() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   [SERIALIZE_TO_IPC_FN]() {
     return {
-      Logical: {
-        x: this.x,
-        y: this.y
-      }
+      x: this.x,
+      y: this.y
     }
   }
 
-  /**
-   * Converts this position into JSON value, that can be deserialized
-   * correctly on the Rust side using `tauri::LogicalPosition` struct.
-   * @example
-   * ```typescript
-   * import { LogicalPosition } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const position = new LogicalPosition(400, 500);
-   * await invoke("do_something_with_position", { position: position.toJSON() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   toJSON() {
     // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
@@ -319,45 +294,107 @@ class PhysicalPosition {
   }
 
   /**
-   * Converts this position into IPC-compatible value, so it can be
-   * deserialized correctly on the Rust side using `tauri::PhysicalPosition` struct.
+   * Converts the physical position to a logical one.
    * @example
    * ```typescript
    * import { PhysicalPosition } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
    *
+   * const appWindow = getCurrentWindow();
+   * const factor = await appWindow.scaleFactor();
    * const position = new PhysicalPosition(400, 500);
-   * await invoke("do_something_with_position", { position: position.toIPC() })
+   * const physical = position.toLogical(factor);
    * ```
    *
    * @since 2.0.0
    */
+  toLogical(scaleFactor: number): LogicalPosition {
+    return new LogicalPosition(this.x / scaleFactor, this.x / scaleFactor)
+  }
+
   [SERIALIZE_TO_IPC_FN]() {
     return {
-      Physical: {
-        x: this.x,
-        y: this.y
-      }
+      x: this.x,
+      y: this.y
     }
   }
 
-  /**
-   * Converts this position into JSON value, that can be deserialized
-   * correctly on the Rust side using `tauri::PhysicalPosition` struct.
-   * @example
-   * ```typescript
-   * import { PhysicalPosition } from '@tauri-apps/api/dpi';
-   * import { invoke } from '@tauri-apps/api/core';
-   *
-   * const position = new PhysicalPosition(400, 500);
-   * await invoke("do_something_with_position", { position: position.toJSON() })
-   * ```
-   *
-   * @since 2.0.0
-   */
   toJSON() {
+    // eslint-disable-next-line security/detect-object-injection
     return this[SERIALIZE_TO_IPC_FN]()
   }
 }
 
-export { LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize }
+/**
+ * A position represented either in physical or in logical pixels.
+ *
+ * This type is basically a union type of {@linkcode LogicalSize} and {@linkcode PhysicalSize}
+ * but comes in handy when using `tauri::Position` in Rust as an argument to a command, as this class
+ * automatically serializes into a valid format so it can be deserialized correctly into `tauri::Position`
+ *
+ * So instead of
+ * ```typescript
+ * import { invoke } from '@tauri-apps/api/core';
+ * import { LogicalPosition, PhysicalPosition } from '@tauri-apps/api/dpi';
+ *
+ * const position: LogicalPosition | PhysicalPosition = someFunction(); // where someFunction returns either LogicalPosition or PhysicalPosition
+ * const validPosition = position instanceof LogicalPosition
+ *   ? { Logical: { x: position.x, y: position.y } }
+ *   : { Physical: { x: position.x, y: position.y } }
+ * await invoke("do_something_with_position", { position: validPosition });
+ * ```
+ *
+ * You can just use {@linkcode Position}
+ * ```typescript
+ * import { invoke } from '@tauri-apps/api/core';
+ * import { LogicalPosition, PhysicalPosition, Position } from '@tauri-apps/api/dpi';
+ *
+ * const position: LogicalPosition | PhysicalPosition = someFunction(); // where someFunction returns either LogicalPosition or PhysicalPosition
+ * const validPosition = new Position(position);
+ * await invoke("do_something_with_position", { position: validPosition });
+ * ```
+ *
+ * @since 2.1.0
+ */
+class Position {
+  position: LogicalPosition | PhysicalPosition
+
+  constructor(position: LogicalPosition | PhysicalPosition) {
+    this.position = position
+  }
+
+  toLogical(scaleFactor: number): LogicalPosition {
+    return this.position instanceof LogicalPosition
+      ? this.position
+      : this.position.toLogical(scaleFactor)
+  }
+
+  toPhysical(scaleFactor: number): PhysicalPosition {
+    return this.position instanceof PhysicalPosition
+      ? this.position
+      : this.position.toPhysical(scaleFactor)
+  }
+
+  [SERIALIZE_TO_IPC_FN]() {
+    return {
+      [`${this.position.type}`]: {
+        x: this.position.x,
+        y: this.position.y
+      }
+    }
+  }
+
+  toJSON() {
+    // eslint-disable-next-line security/detect-object-injection
+    return this[SERIALIZE_TO_IPC_FN]()
+  }
+}
+
+export {
+  LogicalPosition,
+  LogicalSize,
+  Size,
+  PhysicalPosition,
+  PhysicalSize,
+  Position
+}

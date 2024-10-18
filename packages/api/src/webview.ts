@@ -18,6 +18,7 @@
 
 import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
+import { Position, Size } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
@@ -413,10 +414,10 @@ class Webview {
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
+  async setSize(size: LogicalSize | PhysicalSize | Size): Promise<void> {
     return invoke('plugin:webview|set_webview_size', {
       label: this.label,
-      value: size
+      value: size instanceof Size ? size : new Size(size)
     })
   }
 
@@ -432,11 +433,11 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setPosition(
-    position: LogicalPosition | PhysicalPosition
+    position: LogicalPosition | PhysicalPosition | Position
   ): Promise<void> {
     return invoke('plugin:webview|set_webview_position', {
       label: this.label,
-      value: position
+      value: position instanceof Position ? position : new Position(position)
     })
   }
 

@@ -589,6 +589,11 @@ class Webview {
    *
    * @returns A promise resolving to a function to unlisten to the event.
    * Note that removing the listener is required if your listener goes out of scope e.g. the component is unmounted.
+   * When the debugger panel is open, the drop position of this event may be inaccurate due to a known limitation.
+   * To retrieve the correct drop position, please detach the debugger.
+   * Note: Even without the debugger open, there is still a vertical offset in the drop position.
+   * This occurs because the origin point is the top-left corner of the window (including the title bar), 
+   * not the top-left corner of the page, which may be expected.
    */
   async onDragDropEvent(
     handler: EventCallback<DragDropEvent>

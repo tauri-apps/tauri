@@ -14,7 +14,7 @@ import { CheckMenuItem } from './checkMenuItem'
 import { IconMenuItem } from './iconMenuItem'
 import { PredefinedMenuItem } from './predefinedMenuItem'
 import { Submenu } from './submenu'
-import { type LogicalPosition, PhysicalPosition } from '../dpi'
+import { type LogicalPosition, PhysicalPosition, Position } from '../dpi'
 import { type Window } from '../window'
 import { invoke } from '../core'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
@@ -240,22 +240,14 @@ export class Menu extends MenuItemBase {
    * If the position, is provided, it is relative to the window's top-left corner.
    */
   async popup(
-    at?: PhysicalPosition | LogicalPosition,
+    at?: PhysicalPosition | LogicalPosition | Position,
     window?: Window
   ): Promise<void> {
-    let atValue = null
-    if (at) {
-      atValue = {} as Record<string, unknown>
-      atValue[`${at instanceof PhysicalPosition ? 'Physical' : 'Logical'}`] = {
-        x: at.x,
-        y: at.y
-      }
-    }
     return invoke('plugin:menu|popup', {
       rid: this.rid,
       kind: this.kind,
       window: window?.label ?? null,
-      at: atValue
+      at: at instanceof Position ? at : at ? new Position(at) : null
     })
   }
 

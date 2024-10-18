@@ -10,6 +10,56 @@
  */
 
 /**
+ * A key to be used to implement a special function
+ * on your types that define how your type should be serialized
+ * when passing across the IPC.
+ * @example
+ * Given a type in Rust that looks like this
+ * ```rs
+ * #[derive(serde::Serialize, serde::Deserialize)
+ * enum UserId {
+ *   String(String),
+ *   Number(u32),
+ * }
+ * ```
+ * `UserId::String("id")` would be serialized into `{ String: "id" }`
+ * and so we need to pass the same structure back to Rust
+ * ```ts
+ * import { SERIALIZE_TO_IPC_FN } from "@tauri-apps/api/core"
+ *
+ * class UserIdString {
+ *   id
+ *   constructor(id) {
+ *     this.id = id
+ *   }
+ *
+ *   [SERIALIZE_TO_IPC_FN]() {
+ *     return { String: this.id }
+ *   }
+ * }
+ *
+ * class UserIdNumber {
+ *   id
+ *   constructor(id) {
+ *     this.id = id
+ *   }
+ *
+ *   [SERIALIZE_TO_IPC_FN]() {
+ *     return { Number: this.id }
+ *   }
+ * }
+ *
+ *
+ * type UserId = UserIdString | UserIdNumber
+ * ```
+ *
+ */
+// if this value changes, make sure to update it in:
+// 1. ipc.js
+// 2. process-ipc-message-fn.js
+export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
+
+/**
  * Transforms a callback function to a string identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
  *
@@ -26,8 +76,6 @@ function transformCallback<T = unknown>(
 
 class Channel<T = unknown> {
   id: number
-  // @ts-expect-error field used by the IPC serializer
-  private readonly __TAURI_CHANNEL_MARKER__ = true
   #onmessage: (response: T) => void = () => {
     // no-op
   }
@@ -80,8 +128,13 @@ class Channel<T = unknown> {
     return this.#onmessage
   }
 
-  toJSON(): string {
+  [SERIALIZE_TO_IPC_FN]() {
     return `__CHANNEL__:${this.id}`
+  }
+
+  toJSON(): string {
+    // eslint-disable-next-line security/detect-object-injection
+    return this[SERIALIZE_TO_IPC_FN]()
   }
 }
 

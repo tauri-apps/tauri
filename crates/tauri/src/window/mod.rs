@@ -2041,7 +2041,7 @@ tauri::Builder::default()
   docsrs,
   doc(cfg(any(target_os = "macos", target_os = "linux", windows)))
 )]
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct ProgressBarState {
   /// The progress bar status.
   pub status: Option<ProgressBarStatus>,

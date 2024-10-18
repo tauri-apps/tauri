@@ -15,6 +15,7 @@ import { invoke } from '../core'
 import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
 import { type MenuOptions } from './menu'
+import { Position } from '../dpi'
 
 function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
   | Submenu
@@ -243,19 +244,11 @@ export class Submenu extends MenuItemBase {
     at?: PhysicalPosition | LogicalPosition,
     window?: Window
   ): Promise<void> {
-    let atValue = null
-    if (at) {
-      atValue = {} as Record<string, unknown>
-      atValue[`${at instanceof PhysicalPosition ? 'Physical' : 'Logical'}`] = {
-        x: at.x,
-        y: at.y
-      }
-    }
     return invoke('plugin:menu|popup', {
       rid: this.rid,
       kind: this.kind,
       window: window?.label ?? null,
-      at: atValue
+      at: at instanceof Position ? at : at ? new Position(at) : null
     })
   }
 

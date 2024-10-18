@@ -18,6 +18,7 @@
 
 import { PhysicalPosition, PhysicalSize } from './dpi'
 import type { LogicalPosition, LogicalSize } from './dpi'
+import { Position, Size } from './dpi'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import {
   TauriEvent,
@@ -361,7 +362,7 @@ class Webview {
   async position(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:webview|webview_position', {
       label: this.label
-    }).then(({ x, y }) => new PhysicalPosition(x, y))
+    }).then((p) => new PhysicalPosition(p))
   }
 
   /**
@@ -381,7 +382,7 @@ class Webview {
       {
         label: this.label
       }
-    ).then(({ width, height }) => new PhysicalSize(width, height))
+    ).then((s) => new PhysicalSize(s))
   }
 
   // Setters
@@ -413,22 +414,10 @@ class Webview {
    * @param size The logical or physical size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
-    if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${size.type}`] = {
-      width: size.width,
-      height: size.height
-    }
-
+  async setSize(size: LogicalSize | PhysicalSize | Size): Promise<void> {
     return invoke('plugin:webview|set_webview_size', {
       label: this.label,
-      value
+      value: size instanceof Size ? size : new Size(size)
     })
   }
 
@@ -444,26 +433,11 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setPosition(
-    position: LogicalPosition | PhysicalPosition
+    position: LogicalPosition | PhysicalPosition | Position
   ): Promise<void> {
-    if (
-      !position ||
-      (position.type !== 'Logical' && position.type !== 'Physical')
-    ) {
-      throw new Error(
-        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${position.type}`] = {
-      x: position.x,
-      y: position.y
-    }
-
     return invoke('plugin:webview|set_webview_position', {
       label: this.label,
-      value
+      value: position instanceof Position ? position : new Position(position)
     })
   }
 
@@ -603,7 +577,7 @@ class Webview {
           payload: {
             type: 'enter',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -616,7 +590,7 @@ class Webview {
           ...event,
           payload: {
             type: 'over',
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -630,7 +604,7 @@ class Webview {
           payload: {
             type: 'drop',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -650,10 +624,6 @@ class Webview {
       unlistenDragLeave()
     }
   }
-}
-
-function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
-  return new PhysicalPosition(m.x, m.y)
 }
 
 /**

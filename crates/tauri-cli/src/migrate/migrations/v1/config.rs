@@ -684,6 +684,15 @@ mod test {
     let mut migrated = original.clone();
     super::migrate_config(&mut migrated).expect("failed to migrate config");
 
+    if original.get("$schema").is_some() {
+      if let Some(map) = migrated.as_object_mut() {
+        map.insert(
+          "$schema".to_string(),
+          serde_json::Value::String("https://schema.tauri.app/config/2".to_string()),
+        );
+      }
+    }
+
     if original
       .get("tauri")
       .and_then(|v| v.get("bundle"))
@@ -708,6 +717,7 @@ mod test {
   #[test]
   fn migrate_full() {
     let original = serde_json::json!({
+      "$schema": "../node_modules/@tauri-apps/cli/schema.json",
       "build": {
         "distDir": "../dist",
         "devPath": "http://localhost:1240",
@@ -797,6 +807,9 @@ mod test {
     });
 
     let migrated = migrate(&original);
+
+    // $schema
+    assert_eq!(migrated["$schema"], "https://schema.tauri.app/config/2");
 
     // plugins > updater
     assert_eq!(

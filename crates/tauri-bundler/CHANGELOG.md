@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.4]
+
+### New Features
+
+- [`c8f55b615`](https://www.github.com/tauri-apps/tauri/commit/c8f55b615d2d98ade5c0f1896139dc283382a176) ([#11388](https://www.github.com/tauri-apps/tauri/pull/11388) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundler > windows > wix > version` to manually specify a wix-compatible version.
+
 ## \[2.0.3]
 
 ### New Features

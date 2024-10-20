@@ -8821,7 +8821,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.0.4"
+version = "2.0.5"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8903,7 +8903,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.0.3"
+version = "2.0.4"
 dependencies = [
  "anyhow",
  "ar",
@@ -8947,7 +8947,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.0.3"
+version = "2.0.4"
 dependencies = [
  "anyhow",
  "ar",

@@ -134,6 +134,7 @@ jobs:
           cargo update -p mac-notification-sys --precise 0.6.1
           cargo update -p security-framework-sys --precise 2.11.1
           cargo update -p openssl --precise 0.10.66
+          cargo update -p openssl-sys --precise 0.9.103
 
       - name: Downgrade crates with MSRV conflict (bundler)
         # This is for the bundler but since cli depends on the bundler we enable it for the cli too

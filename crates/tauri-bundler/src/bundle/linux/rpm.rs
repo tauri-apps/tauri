@@ -38,7 +38,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let summary = settings.short_description().trim();
 
-  let package_base_name = format!("{product_name}-{version}-{release}.{arch}");
+  let package_base_name = format!("{product_name}_{version}-{release}.{arch}");
   let package_name = format!("{package_base_name}.rpm");
 
   let base_dir = settings.project_out_directory().join("bundle/rpm");

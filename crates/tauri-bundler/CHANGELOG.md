@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.5]
+
+### New Features
+
+- [`6dea12a06`](https://www.github.com/tauri-apps/tauri/commit/6dea12a0677a905cb1f14969fe05c53e7cd717c6) ([#11402](https://www.github.com/tauri-apps/tauri/pull/11402) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundle > linux > deb > recommends` and `bundle > linux > rpm > recommends` fields to declare a strong, but not absolute, dependency for your `.deb` and `.rpm` packages.
+
 ## \[2.0.4]
 
 ### New Features

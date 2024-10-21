@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.7]
+
+### New Features
+
+- [`f0da0bde8`](https://www.github.com/tauri-apps/tauri/commit/f0da0bde87a80fdca20c588cefcad86e03b9627c) ([#11439](https://www.github.com/tauri-apps/tauri/pull/11439) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `WebviewWindow::resolve_command_scope` to check a command scope at runtime.
+
 ## \[2.0.6]
 
 ### Dependencies

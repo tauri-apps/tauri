@@ -29,8 +29,8 @@ use crate::{
   app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
-    CallbackFn, CommandArg, CommandItem, Invoke, InvokeBody, InvokeError, InvokeMessage,
-    InvokeResolver, Origin, OwnedInvokeResponder,
+    CallbackFn, CommandArg, CommandItem, CommandScope, Invoke, InvokeBody, InvokeError,
+    InvokeMessage, InvokeResolver, Origin, OwnedInvokeResponder, ScopeObject,
   },
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -879,6 +879,77 @@ impl<R: Runtime> Webview<R> {
       .webview
       .dispatcher
       .on_webview_event(move |event| f(&event.clone().into()));
+  }
+
+  /// Resolves the given command scope for this webview on the currently loaded URL.
+  ///
+  /// If the command is not allowed, returns None.
+  ///
+  /// If the scope cannot be deserialized to the given type, an error is returned.
+  ///
+  /// In a command context this can be directly resolved from the command arguments via [CommandScope]:
+  ///
+  /// ```
+  /// use tauri::ipc::CommandScope;
+  ///
+  /// #[derive(Debug, serde::Deserialize)]
+  /// struct ScopeType {
+  ///   some_value: String,
+  /// }
+  /// #[tauri::command]
+  /// fn my_command(scope: CommandScope<ScopeType>) {
+  ///   // check scope
+  /// }
+  /// ```
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// #[derive(Debug, serde::Deserialize)]
+  /// struct ScopeType {
+  ///   some_value: String,
+  /// }
+  ///
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let webview = app.get_webview_window("main").unwrap();
+  ///     let scope = webview.resolve_command_scope::<ScopeType>("my-plugin", "read");
+  ///     Ok(())
+  ///   });
+  /// ```
+  pub fn resolve_command_scope<T: ScopeObject>(
+    &self,
+    plugin: &str,
+    command: &str,
+  ) -> crate::Result<Option<CommandScope<T>>> {
+    let current_url = self.url()?;
+    let is_local = self.is_local_url(&current_url);
+    let origin = if is_local {
+      Origin::Local
+    } else {
+      Origin::Remote { url: current_url }
+    };
+
+    let cmd_name = format!("plugin:{plugin}|{command}");
+    let resolved_access = self
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .resolve_access(&cmd_name, self.window().label(), self.label(), &origin);
+
+    if let Some(access) = resolved_access {
+      let scope_ids = access
+        .iter()
+        .filter_map(|cmd| cmd.scope_id)
+        .collect::<Vec<_>>();
+      let scope = CommandScope::resolve(self, scope_ids)?;
+      Ok(Some(scope))
+    } else {
+      Ok(None)
+    }
   }
 }
 

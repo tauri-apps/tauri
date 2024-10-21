@@ -314,7 +314,6 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
       .join(format!("../lib/{}", package_info.name))
       .canonicalize()
     {
-      // running from the deb bundle dir
       Ok(bundle_dir)
     } else if let Some(appdir) = &env.appdir {
       let appdir: &std::path::Path = appdir.as_ref();

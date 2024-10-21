@@ -61,3 +61,33 @@ pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
 
   Ok(())
 }
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct CargoUninstallOptions<'a> {
+  pub name: &'a str,
+  pub cwd: Option<&'a std::path::Path>,
+  pub target: Option<&'a str>,
+}
+
+pub fn uninstall_one(options: CargoUninstallOptions) -> crate::Result<()> {
+  let mut cargo = Command::new("cargo");
+  cargo.arg("remove");
+
+  cargo.arg(options.name);
+
+  if let Some(target) = options.target {
+    cargo.args(["--target", target]);
+  }
+
+  if let Some(cwd) = options.cwd {
+    cargo.current_dir(cwd);
+  }
+
+  log::info!("Uninstalling Cargo dependency \"{}\"...", options.name);
+  let status = cargo.status().context("failed to run `cargo remove`")?;
+  if !status.success() {
+    anyhow::bail!("Failed to remove Cargo dependency");
+  }
+
+  Ok(())
+}

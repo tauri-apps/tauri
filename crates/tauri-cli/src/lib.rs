@@ -30,6 +30,7 @@ mod interface;
 mod migrate;
 mod mobile;
 mod plugin;
+mod remove;
 mod signer;
 
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
@@ -146,6 +147,7 @@ enum Commands {
   Migrate,
   Info(info::Options),
   Add(add::Options),
+  Remove(remove::Options),
   Plugin(plugin::Cli),
   Icon(icon::Options),
   Signer(signer::Cli),
@@ -265,6 +267,7 @@ where
     Commands::Bundle(options) => bundle::command(options, cli.verbose)?,
     Commands::Dev(options) => dev::command(options)?,
     Commands::Add(options) => add::command(options)?,
+    Commands::Remove(options) => remove::command(options)?,
     Commands::Icon(options) => icon::command(options)?,
     Commands::Info(options) => info::command(options)?,
     Commands::Init(options) => init::command(options)?,

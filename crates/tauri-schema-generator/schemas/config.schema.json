@@ -2574,6 +2574,16 @@
             "type": "string"
           }
         },
+        "recommends": {
+          "description": "The list of deb dependencies your application recommends.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
         "provides": {
           "description": "The list of dependencies the package provides.",
           "type": [
@@ -2677,6 +2687,16 @@
       "properties": {
         "depends": {
           "description": "The list of RPM dependencies your application relies on.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "recommends": {
+          "description": "The list of RPM dependencies your application recommends.",
           "type": [
             "array",
             "null"

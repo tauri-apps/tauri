@@ -204,7 +204,7 @@ fn get_str_array(helper: &Helper, formatter: impl Fn(&str) -> String) -> Option<
         .map(|val| {
           val.as_str().map(
             #[allow(clippy::redundant_closure)]
-            |s| formatter(s),
+            &formatter,
           )
         })
         .collect()

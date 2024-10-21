@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.3]
+
+### Bug Fixes
+
+- [`fbb45c674`](https://www.github.com/tauri-apps/tauri/commit/fbb45c674ca92fbbe04f1a8360e5f2e477dd4297) ([#11423](https://www.github.com/tauri-apps/tauri/pull/11423) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `addPluginListener` not working.
+
+### What's Changed
+
+- [`2e88633ba`](https://www.github.com/tauri-apps/tauri/commit/2e88633ba4da8fc289c6d8a29c36f3327f9b576e) ([#11369](https://www.github.com/tauri-apps/tauri/pull/11369) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove references to no longer used `__TAURI_INTERNALS__.metadata.windows` and `__TAURI_INTERNALS__.metadata.webviews`.
+
 ## \[2.0.2]
 
 ### What's Changed

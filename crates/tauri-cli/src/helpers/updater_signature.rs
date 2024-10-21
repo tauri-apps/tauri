@@ -4,7 +4,9 @@
 
 use anyhow::Context;
 use base64::Engine;
-use minisign::{sign, KeyPair as KP, SecretKey, SecretKeyBox, SignatureBox};
+use minisign::{
+  sign, KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox,
+};
 use std::{
   fs::{self, File, OpenOptions},
   io::{BufReader, BufWriter, Write},
@@ -132,13 +134,22 @@ pub fn secret_key<S: AsRef<[u8]>>(
   private_key: S,
   password: Option<String>,
 ) -> crate::Result<SecretKey> {
-  let decoded_secret = decode_key(private_key)?;
-  let sk_box = SecretKeyBox::from_string(&decoded_secret)
-    .with_context(|| "failed to load updater private key")?;
+  let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
+  let sk_box =
+    SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
   let sk = sk_box
     .into_secret_key(password)
-    .with_context(|| "incorrect updater private key password")?;
+    .context("incorrect updater private key password")?;
   Ok(sk)
+}
+
+/// Gets the updater secret key from the given private key and password.
+pub fn pub_key<S: AsRef<[u8]>>(public_key: S) -> crate::Result<PublicKey> {
+  let decoded_publick = decode_key(public_key).context("failed to decode base64 pubkey")?;
+  let pk_box =
+    PublicKeyBox::from_string(&decoded_publick).context("failed to load updater pubkey")?;
+  let pk = pk_box.into_public_key()?;
+  Ok(pk)
 }
 
 fn unix_timestamp() -> u64 {

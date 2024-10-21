@@ -198,6 +198,15 @@ fn generate_control_file(
   if !dependencies.is_empty() {
     writeln!(file, "Depends: {}", dependencies.join(", "))?;
   }
+  let dependencies = settings
+    .deb()
+    .recommends
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if !dependencies.is_empty() {
+    writeln!(file, "Recommends: {}", dependencies.join(", "))?;
+  }
   let provides = settings
     .deb()
     .provides

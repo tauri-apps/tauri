@@ -19,10 +19,10 @@ pub struct Sample<R: Runtime>(AppHandle<R>);
 
 impl<R: Runtime> Sample<R> {
   pub fn ping(&self, payload: PingRequest) -> crate::Result<PingResponse> {
-    let _ = payload.on_event.send(Event {
+    payload.on_event.send(Event {
       kind: "ping".to_string(),
       value: payload.value.clone(),
-    });
+    })?;
     Ok(PingResponse {
       value: payload.value,
     })

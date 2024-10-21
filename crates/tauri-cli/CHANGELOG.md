@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.0.4]
+
+### Enhancements
+
+- [`e4c9268b1`](https://www.github.com/tauri-apps/tauri/commit/e4c9268b19c614dc9ebb0895448fd16de7efee80) ([#11258](https://www.github.com/tauri-apps/tauri/pull/11258) by [@regexident](https://www.github.com/tauri-apps/tauri/../../regexident)) Support custom project directory structure where the Tauri app folder is not a subfolder of the frontend project.
+  The frontend and Tauri app project paths can be set with the `TAURI_FRONTEND_PATH` and the `TAURI_APP_PATH` environment variables respectively.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.0.4`
+
 ## \[2.0.3]
 
 ### New Features

@@ -3,5 +3,5 @@
 "@tauri-apps/cli": "patch:enhance"
 ---
 
-Add more context for errors during decoing secret and publick keys for signing updater artifacts.
+Add more context for errors when decoding secret and public keys for signing updater artifacts.
 

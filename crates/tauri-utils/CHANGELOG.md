@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.2]
+
+### New Features
+
+- Add `bundler > windows > wix > version` to manually specify a wix-compatible version.
+
 ## \[2.0.1]
 
 ### What's Changed

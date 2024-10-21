@@ -170,6 +170,8 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
+  /// the list of debian dependencies recommendations.
+  pub recommends: Option<Vec<String>>,
   /// the list of dependencies the package provides.
   pub provides: Option<Vec<String>>,
   /// the list of package conflicts.
@@ -222,6 +224,8 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// the list of of RPM dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
   /// The list of RPM dependencies your application conflicts with. They must not be present
@@ -351,6 +355,15 @@ impl Default for WixLanguage {
 /// Settings specific to the WiX implementation.
 #[derive(Clone, Debug, Default)]
 pub struct WixSettings {
+  /// MSI installer version in the format `major.minor.patch.build` (build is optional).
+  ///
+  /// Because a valid version is required for MSI installer, it will be derived from [`PackageSettings::version`] if this field is not set.
+  ///
+  /// The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.
+  /// The third and fourth fields have a maximum value of 65,535.
+  ///
+  /// See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.
+  pub version: Option<String>,
   /// A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,
   /// otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.
   ///

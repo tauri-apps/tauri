@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.0.3"
+version = "2.0.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4.5", features = ["derive", "env"] }
 anyhow = "1.0"
-tauri-bundler = { version = "2.0.3", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.0.4", default-features = false, path = "../tauri-bundler" }
 colored = "2.1"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -57,7 +57,7 @@ shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = ["serde"] }
 json-patch = "2.0"
-tauri-utils = { version = "2.0.1", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.0.2", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",
@@ -101,10 +101,10 @@ css-color = "0.2"
 resvg = "0.43.0"
 dunce = "1"
 glob = "0.3"
-oxc_parser = "0.24"
-oxc_span = "0.24"
-oxc_allocator = "0.24"
-oxc_ast = "0.24"
+oxc_parser = "0.25"
+oxc_span = "0.25"
+oxc_allocator = "0.25"
+oxc_ast = "0.25"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"

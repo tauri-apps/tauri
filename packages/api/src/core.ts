@@ -118,7 +118,7 @@ async function addPluginListener<T>(
 ): Promise<PluginListener> {
   const handler = new Channel<T>()
   handler.onmessage = cb
-  return invoke(`plugin:${plugin}|register_listener`, { event, handler }).then(
+  return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
     () => new PluginListener(plugin, event, handler.id)
   )
 }

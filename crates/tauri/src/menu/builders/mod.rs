@@ -8,10 +8,9 @@
 
 mod menu;
 pub use menu::MenuBuilder;
+pub use menu::SubmenuBuilder;
 mod normal;
 pub use normal::MenuItemBuilder;
-mod submenu;
-pub use submenu::SubmenuBuilder;
 mod check;
 pub use check::CheckMenuItemBuilder;
 mod icon;

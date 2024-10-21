@@ -331,6 +331,8 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of deb dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of dependencies the package provides.
   pub provides: Option<Vec<String>>,
   /// The list of package conflicts.
@@ -398,6 +400,8 @@ pub struct LinuxConfig {
 pub struct RpmConfig {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
   /// The list of RPM dependencies your application conflicts with. They must not be present
@@ -442,6 +446,7 @@ impl Default for RpmConfig {
   fn default() -> Self {
     Self {
       depends: None,
+      recommends: None,
       provides: None,
       conflicts: None,
       obsoletes: None,
@@ -658,6 +663,15 @@ impl Default for WixLanguage {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct WixConfig {
+  /// MSI installer version in the format `major.minor.patch.build` (build is optional).
+  ///
+  /// Because a valid version is required for MSI installer, it will be derived from [`Config::version`] if this field is not set.
+  ///
+  /// The first field is the major version and has a maximum value of 255. The second field is the minor version and has a maximum value of 255.
+  /// The third and foruth fields have a maximum value of 65,535.
+  ///
+  /// See <https://learn.microsoft.com/en-us/windows/win32/msi/productversion> for more info.
+  pub version: Option<String>,
   /// A GUID upgrade code for MSI installer. This code **_must stay the same across all of your updates_**,
   /// otherwise, Windows will treat your update as a different app and your users will have duplicate versions of your app.
   ///

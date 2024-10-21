@@ -23,7 +23,7 @@ use tauri_utils::platform::Target;
 use url::Url;
 
 use crate::{ipc::InvokeError, sealed::ManagerBase, Runtime};
-use crate::{AppHandle, Manager, StateManager};
+use crate::{AppHandle, Manager, StateManager, Webview};
 
 use super::{CommandArg, CommandItem};
 
@@ -614,6 +614,33 @@ pub struct CommandScope<T: ScopeObject> {
 }
 
 impl<T: ScopeObject> CommandScope<T> {
+  pub(crate) fn resolve<R: Runtime>(
+    webview: &Webview<R>,
+    scope_ids: Vec<u64>,
+  ) -> crate::Result<Self> {
+    let mut allow = Vec::new();
+    let mut deny = Vec::new();
+
+    for scope_id in scope_ids {
+      let scope = webview
+        .manager()
+        .runtime_authority
+        .lock()
+        .unwrap()
+        .scope_manager
+        .get_command_scope_typed::<R, T>(webview.app_handle(), &scope_id)?;
+
+      for s in scope.allows() {
+        allow.push(s.clone());
+      }
+      for s in scope.denies() {
+        deny.push(s.clone());
+      }
+    }
+
+    Ok(CommandScope { allow, deny })
+  }
+
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<Arc<T>> {
     &self.allow
@@ -698,29 +725,7 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
         .collect::<Vec<_>>()
     });
     if let Some(scope_ids) = scope_ids {
-      let mut allow = Vec::new();
-      let mut deny = Vec::new();
-
-      for scope_id in scope_ids {
-        let scope = command
-          .message
-          .webview
-          .manager()
-          .runtime_authority
-          .lock()
-          .unwrap()
-          .scope_manager
-          .get_command_scope_typed::<R, T>(command.message.webview.app_handle(), &scope_id)?;
-
-        for s in scope.allows() {
-          allow.push(s.clone());
-        }
-        for s in scope.denies() {
-          deny.push(s.clone());
-        }
-      }
-
-      Ok(CommandScope { allow, deny })
+      CommandScope::resolve(&command.message.webview, scope_ids).map_err(Into::into)
     } else {
       Ok(CommandScope {
         allow: Default::default(),
@@ -735,6 +740,17 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
 pub struct GlobalScope<T: ScopeObject>(ScopeValue<T>);
 
 impl<T: ScopeObject> GlobalScope<T> {
+  pub(crate) fn resolve<R: Runtime>(webview: &Webview<R>, plugin: &str) -> crate::Result<Self> {
+    webview
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .scope_manager
+      .get_global_scope_typed(webview.app_handle(), plugin)
+      .map(Self)
+  }
+
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<Arc<T>> {
     &self.0.allow
@@ -749,20 +765,11 @@ impl<T: ScopeObject> GlobalScope<T> {
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    command
-      .message
-      .webview
-      .manager()
-      .runtime_authority
-      .lock()
-      .unwrap()
-      .scope_manager
-      .get_global_scope_typed(
-        command.message.webview.app_handle(),
-        command.plugin.unwrap_or(APP_ACL_KEY),
-      )
-      .map_err(InvokeError::from_error)
-      .map(GlobalScope)
+    GlobalScope::resolve(
+      &command.message.webview,
+      command.plugin.unwrap_or(APP_ACL_KEY),
+    )
+    .map_err(InvokeError::from_error)
   }
 }
 

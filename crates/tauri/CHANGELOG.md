@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.0.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.2`
+
+## \[2.0.5]
+
+### New Features
+
+- [`6cd917c22`](https://www.github.com/tauri-apps/tauri/commit/6cd917c227596e4e557496347ccae8ef579f6ea0) ([#11390](https://www.github.com/tauri-apps/tauri/pull/11390) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add new methods on `tauri::menu::MenuBuilder` and `tauri::menu::SubmenuBuilder` to create predefined menu item with specific text.
+
+### Enhancements
+
+- [`eb61d44f9`](https://www.github.com/tauri-apps/tauri/commit/eb61d44f9fc1be591c3d10a6ac1451aa39e6a77b) ([#11398](https://www.github.com/tauri-apps/tauri/pull/11398) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fallback to the Window and AppHandle resource table when closing a resource by ID.
+
+### Bug Fixes
+
+- [`e1bf6ef8c`](https://www.github.com/tauri-apps/tauri/commit/e1bf6ef8cbe3421eeaec47a222446121bcc28354) ([#11374](https://www.github.com/tauri-apps/tauri/pull/11374) by [@chrox](https://www.github.com/tauri-apps/tauri/../../chrox)) Expose `content-range` header in `range` response of `asset` protocol
+
+### What's Changed
+
+- [`2e88633ba`](https://www.github.com/tauri-apps/tauri/commit/2e88633ba4da8fc289c6d8a29c36f3327f9b576e) ([#11369](https://www.github.com/tauri-apps/tauri/pull/11369) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove references to no longer used `__TAURI_INTERNALS__.metadata.windows` and `__TAURI_INTERNALS__.metadata.webviews`.
+
 ## \[2.0.4]
 
 ### New Features

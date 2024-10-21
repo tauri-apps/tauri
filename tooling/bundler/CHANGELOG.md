@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.7.2]
+
+### Bug Fixes
+
+- [`a5f045e52`](https://www.github.com/tauri-apps/tauri/commit/a5f045e527b1d918ef1894ce4ab63e929c43135f) ([#11404](https://www.github.com/tauri-apps/tauri/pull/11404) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix bundler trying to sign binaries for Windows build when actually building for macOS or Linux.
+
 ## \[1.7.1]
 
 ### Bug Fixes

@@ -8881,7 +8881,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -9037,7 +9037,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -9121,7 +9121,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -9150,7 +9150,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.1"
+version = "2.0.2"
 dependencies = [
  "anyhow",
  "glob",
@@ -9192,13 +9192,13 @@ dependencies = [
  "log",
  "serde",
  "tauri",
- "tauri-plugin 2.0.1",
+ "tauri-plugin 2.0.2",
  "thiserror",
 ]
 
 [[package]]
 name = "tauri-runtime"
-version = "2.1.0"
+version = "2.1.1"
 dependencies = [
  "dpi",
  "gtk",

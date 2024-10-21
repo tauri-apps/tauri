@@ -29,8 +29,8 @@ use crate::{
   app::{UriSchemeResponder, WebviewEvent},
   event::{EmitArgs, EventTarget},
   ipc::{
-    CallbackFn, CommandArg, CommandItem, CommandScope, Invoke, InvokeBody, InvokeError,
-    InvokeMessage, InvokeResolver, Origin, OwnedInvokeResponder, ScopeObject,
+    CallbackFn, CommandArg, CommandItem, CommandScope, GlobalScope, Invoke, InvokeBody,
+    InvokeError, InvokeMessage, InvokeResolver, Origin, OwnedInvokeResponder, ScopeObject,
   },
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
@@ -923,7 +923,7 @@ impl<R: Runtime> Webview<R> {
     &self,
     plugin: &str,
     command: &str,
-  ) -> crate::Result<Option<CommandScope<T>>> {
+  ) -> crate::Result<Option<ResolvedScope<T>>> {
     let current_url = self.url()?;
     let is_local = self.is_local_url(&current_url);
     let origin = if is_local {
@@ -945,8 +945,14 @@ impl<R: Runtime> Webview<R> {
         .iter()
         .filter_map(|cmd| cmd.scope_id)
         .collect::<Vec<_>>();
-      let scope = CommandScope::resolve(self, scope_ids)?;
-      Ok(Some(scope))
+
+      let command_scope = CommandScope::resolve(self, scope_ids)?;
+      let global_scope = GlobalScope::resolve(self, plugin)?;
+
+      Ok(Some(ResolvedScope {
+        global_scope,
+        command_scope,
+      }))
     } else {
       Ok(None)
     }
@@ -1770,6 +1776,24 @@ impl<'de, R: Runtime> CommandArg<'de, R> for Webview<R> {
   /// Grabs the [`Webview`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     Ok(command.message.webview())
+  }
+}
+
+/// Resolved scope that can be obtained via [`Webview::resolve_command_scope`].
+pub struct ResolvedScope<T: ScopeObject> {
+  command_scope: CommandScope<T>,
+  global_scope: GlobalScope<T>,
+}
+
+impl<T: ScopeObject> ResolvedScope<T> {
+  /// The global plugin scope.
+  pub fn global_scope(&self) -> &GlobalScope<T> {
+    &self.global_scope
+  }
+
+  /// The command-specific scope.
+  pub fn command_scope(&self) -> &CommandScope<T> {
+    &self.command_scope
   }
 }
 

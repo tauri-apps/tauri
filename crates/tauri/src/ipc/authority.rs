@@ -740,6 +740,17 @@ impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for CommandScope<T> {
 pub struct GlobalScope<T: ScopeObject>(ScopeValue<T>);
 
 impl<T: ScopeObject> GlobalScope<T> {
+  pub(crate) fn resolve<R: Runtime>(webview: &Webview<R>, plugin: &str) -> crate::Result<Self> {
+    webview
+      .manager()
+      .runtime_authority
+      .lock()
+      .unwrap()
+      .scope_manager
+      .get_global_scope_typed(webview.app_handle(), plugin)
+      .map(Self)
+  }
+
   /// What this access scope allows.
   pub fn allows(&self) -> &Vec<Arc<T>> {
     &self.0.allow
@@ -754,20 +765,11 @@ impl<T: ScopeObject> GlobalScope<T> {
 impl<'a, R: Runtime, T: ScopeObject> CommandArg<'a, R> for GlobalScope<T> {
   /// Grabs the [`ResolvedScope`] from the [`CommandItem`] and returns the associated [`GlobalScope`].
   fn from_command(command: CommandItem<'a, R>) -> Result<Self, InvokeError> {
-    command
-      .message
-      .webview
-      .manager()
-      .runtime_authority
-      .lock()
-      .unwrap()
-      .scope_manager
-      .get_global_scope_typed(
-        command.message.webview.app_handle(),
-        command.plugin.unwrap_or(APP_ACL_KEY),
-      )
-      .map_err(InvokeError::from_error)
-      .map(GlobalScope)
+    GlobalScope::resolve(
+      &command.message.webview,
+      command.plugin.unwrap_or(APP_ACL_KEY),
+    )
+    .map_err(InvokeError::from_error)
   }
 }
 

@@ -12,7 +12,7 @@ use std::{
 
 use crate::{
   event::EventTarget,
-  ipc::{CommandScope, ScopeObject},
+  ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
   Emitter, Listener, ResourceTable, Window,
@@ -49,7 +49,7 @@ use tauri_macros::default_runtime;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
-use super::DownloadEvent;
+use super::{DownloadEvent, ResolvedScope};
 
 /// A builder for [`WebviewWindow`], a window that hosts a single webview.
 pub struct WebviewWindowBuilder<'a, R: Runtime, M: Manager<R>> {
@@ -997,7 +997,7 @@ impl<R: Runtime> WebviewWindow<R> {
   ///
   /// If the scope cannot be deserialized to the given type, an error is returned.
   ///
-  /// In a command context this can be directly resolved from the command arguments via [CommandScope]:
+  /// In a command context this can be directly resolved from the command arguments via [crate::ipc::CommandScope]:
   ///
   /// ```
   /// use tauri::ipc::CommandScope;
@@ -1033,7 +1033,7 @@ impl<R: Runtime> WebviewWindow<R> {
     &self,
     plugin: &str,
     command: &str,
-  ) -> crate::Result<Option<CommandScope<T>>> {
+  ) -> crate::Result<Option<ResolvedScope<T>>> {
     self.webview.resolve_command_scope(plugin, command)
   }
 }

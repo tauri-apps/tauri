@@ -58,6 +58,9 @@ pub struct Options {
   /// The background color of the iOS icon - string as defined in the W3C's CSS Color Module Level 4 <https://www.w3.org/TR/css-color-4/>.
   #[clap(long, default_value = "#fff")]
   ios_color: String,
+
+  #[clap(long)]
+  no_macos_padding: bool,
 }
 
 enum Source {
@@ -155,7 +158,7 @@ pub fn command(options: Options) -> Result<()> {
 
   if png_icon_sizes.is_empty() {
     appx(&source, &out_dir).context("Failed to generate appx icons")?;
-    icns(&source, &out_dir).context("Failed to generate .icns file")?;
+    icns(&source, &out_dir, !options.no_macos_padding).context("Failed to generate .icns file")?;
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, ios_color).context("Failed to generate png icons")?;
@@ -196,20 +199,42 @@ fn appx(source: &Source, out_dir: &Path) -> Result<()> {
 }
 
 // Main target: macOS
-fn icns(source: &Source, out_dir: &Path) -> Result<()> {
+fn icns(source: &Source, out_dir: &Path, padding: bool) -> Result<()> {
   log::info!(action = "ICNS"; "Creating icon.icns");
   let entries: HashMap<String, IcnsEntry> =
     serde_json::from_slice(include_bytes!("helpers/icns.json")).unwrap();
 
   let mut family = IconFamily::new();
+  let padding_percent = 100.0 / 1024.0;
 
   for (name, entry) in entries {
-    let size = entry.size;
+    let inner_size = if padding {
+      entry.size - (entry.size as f64 * padding_percent).round() as u32
+    } else {
+      entry.size
+    };
     let mut buf = Vec::new();
 
-    let image = source.resize_exact(size)?;
+    let icon = source.resize_exact(inner_size)?;
 
-    write_png(image.as_bytes(), &mut buf, size)?;
+    let image = {
+      if padding {
+        let mut image =
+          ImageBuffer::from_fn(entry.size, entry.size, |_, _| image::Rgba([0, 0, 0, 0]));
+
+        image::imageops::overlay(
+          &mut image,
+          &icon,
+          ((entry.size - inner_size) / 2) as i64,
+          ((entry.size - inner_size) / 2) as i64,
+        );
+        DynamicImage::from(image)
+      } else {
+        icon
+      }
+    };
+
+    write_png(image.as_bytes(), &mut buf, entry.size)?;
 
     let image = icns::Image::read_png(&buf[..])?;
 

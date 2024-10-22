@@ -4225,7 +4225,7 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
-    webview_builder = webview_builder.with_devtools(true);
+    webview_builder = webview_builder.with_devtools(webview_attributes.devtools.unwrap_or(true));
   }
 
   #[cfg(target_os = "android")]

@@ -486,6 +486,13 @@
           "description": "Whether browser extensions can be installed for the webview process\n\n ## Platform-specific:\n\n - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)\n - **MacOS / Linux / iOS / Android** - Unsupported.",
           "default": false,
           "type": "boolean"
+        },
+        "devtools": {
+          "description": "Enable web inspector which is usually called browser devtools.\n\n It is enabled in **debug** builds, but requires `devtools` feature flag to actually enable it in **release** builds.\n\n ## Platform-specific\n\n - macOS: This will call private functions on **macOS**.\n - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.\n - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.",
+          "type": [
+            "boolean",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

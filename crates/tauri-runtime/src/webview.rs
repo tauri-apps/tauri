@@ -209,6 +209,7 @@ pub struct WebviewAttributes {
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub devtools: Option<bool>,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -237,6 +238,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     builder = builder.zoom_hotkeys_enabled(config.zoom_hotkeys_enabled);
     builder = builder.browser_extensions_enabled(config.browser_extensions_enabled);
+    builder = builder.devtools(config.devtools);
     builder
   }
 }
@@ -261,6 +263,7 @@ impl WebviewAttributes {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      devtools: None,
     }
   }
 
@@ -376,6 +379,20 @@ impl WebviewAttributes {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Whether web inspector, which is usually called browser devtools, is enabled or not.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - macOS: This will call private functions on **macOS**. It is enabled in **debug** builds,
+  /// but requires `devtools` feature flag to actually enable it in **release** builds.
+  /// - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.
+  /// - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.
+  #[must_use]
+  pub fn devtools(mut self, enabled: Option<bool>) -> Self {
+    self.devtools = enabled;
     self
   }
 }

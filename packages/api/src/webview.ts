@@ -728,6 +728,20 @@ interface WebviewOptions {
    * - **Android / iOS**: Unsupported.
    */
   zoomHotkeysEnabled?: boolean
+  /**
+   * Whether web inspector, which is usually called browser devtools, is enabled or not.
+   *
+   * It is enabled in **debug** builds, but requires `devtools` feature flag to actually enable it in **release** builds.
+   *
+   * #### Platform-specific
+   *
+   * - macOS: This will call private functions on **macOS**.
+   * - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.
+   * - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.
+   *
+   * @since 2.1.0
+   */
+  devtools?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

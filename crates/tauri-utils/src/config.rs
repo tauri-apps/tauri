@@ -2516,7 +2516,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
-      let devtools = self.devtools;
+      let devtools = opt_lit(self.devtools.as_ref());
 
       literal_struct!(
         tokens,

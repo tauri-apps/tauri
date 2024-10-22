@@ -181,6 +181,13 @@ macro_rules! window_getter {
   }};
 }
 
+macro_rules! event_loop_window_getter {
+  ($self: ident, $message: expr) => {{
+    let (tx, rx) = channel();
+    getter!($self, rx, Message::EventLoopWindowTarget($message(tx)))
+  }};
+}
+
 macro_rules! webview_getter {
   ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
@@ -1268,6 +1275,10 @@ pub enum WebviewMessage {
   IsDevToolsOpen(Sender<bool>),
 }
 
+pub enum EventLoopWindowTargetMessage {
+  CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
+}
+
 pub type CreateWindowClosure<T> =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
@@ -1282,6 +1293,7 @@ pub enum Message<T: 'static> {
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
+  EventLoopWindowTarget(EventLoopWindowTargetMessage),
   CreateWebview(WindowId, CreateWebviewClosure),
   CreateWindow(WindowId, CreateWindowClosure<T>),
   CreateRawWindow(
@@ -2325,11 +2337,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .cursor_position()
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
@@ -2616,11 +2624,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .cursor_position()
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
@@ -3452,6 +3456,14 @@ fn handle_user_message<T: UserEvent>(
     }
 
     Message::UserEvent(_) => (),
+    Message::EventLoopWindowTarget(message) => match message {
+      EventLoopWindowTargetMessage::CursorPosition(sender) => {
+        let pos = event_loop
+          .cursor_position()
+          .map_err(|_| Error::FailedToSendMessage);
+        sender.send(pos).unwrap();
+      }
+    },
   }
 }
 

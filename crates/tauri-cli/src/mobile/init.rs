@@ -198,17 +198,9 @@ fn get_str<'a>(helper: &'a Helper) -> &'a str {
 
 fn get_str_array(helper: &Helper, formatter: impl Fn(&str) -> String) -> Option<Vec<String>> {
   helper.param(0).and_then(|v| {
-    v.value().as_array().and_then(|arr| {
-      arr
-        .iter()
-        .map(|val| {
-          val.as_str().map(
-            #[allow(clippy::redundant_closure)]
-            &formatter,
-          )
-        })
-        .collect()
-    })
+    v.value()
+      .as_array()
+      .and_then(|arr| arr.iter().map(|val| val.as_str().map(&formatter)).collect())
   })
 }
 

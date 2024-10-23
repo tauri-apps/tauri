@@ -85,7 +85,7 @@ export async function newMenu(
         }
 
         if ('items' in i && i.items) {
-          // @ts-expect-error the `perpareItem` return doesn't exactly match
+          // @ts-expect-error the `prepareItem` return doesn't exactly match
           // this is fine, because the difference is in `[number, string]` variant
           i.items = i.items.map(prepareItem)
         }

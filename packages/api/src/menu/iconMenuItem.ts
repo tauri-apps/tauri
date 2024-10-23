@@ -133,6 +133,13 @@ export enum NativeIcon {
 export interface IconMenuItemOptions extends MenuItemOptions {
   /**
    * Icon to be used for the new icon menu item.
+   *
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
    */
   icon?: NativeIcon | string | Image | Uint8Array | ArrayBuffer | number[]
 }

@@ -300,12 +300,13 @@ impl PredefinedMenuItemPayload {
 
 #[derive(Deserialize)]
 #[serde(untagged)]
+// Note, order matters for untagged enum deserialization
 enum MenuItemPayloadKind {
   ExistingItem((ResourceId, ItemKind)),
   Predefined(PredefinedMenuItemPayload),
   Check(CheckMenuItemPayload),
-  Submenu(SubmenuPayload),
   Icon(IconMenuItemPayload),
+  Submenu(SubmenuPayload),
   MenuItem(MenuItemPayload),
 }
 

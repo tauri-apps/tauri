@@ -122,6 +122,8 @@ pub enum BaseDirectory {
   /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
   /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
   AppLog,
+  /// The Home directory.
+  Home,
 
   /// The Desktop directory.
   #[cfg(not(target_os = "android"))]
@@ -132,9 +134,6 @@ pub enum BaseDirectory {
   /// The Font directory.
   #[cfg(not(target_os = "android"))]
   Font,
-  /// The Home directory.
-  #[cfg(not(target_os = "android"))]
-  Home,
   /// The Runtime directory.
   #[cfg(not(target_os = "android"))]
   Runtime,
@@ -164,6 +163,7 @@ impl BaseDirectory {
       Self::AppLocalData => "$APPLOCALDATA",
       Self::AppCache => "$APPCACHE",
       Self::AppLog => "$APPLOG",
+      Self::Home => "$HOME",
 
       #[cfg(not(target_os = "android"))]
       Self::Desktop => "$DESKTOP",
@@ -171,8 +171,6 @@ impl BaseDirectory {
       Self::Executable => "$EXE",
       #[cfg(not(target_os = "android"))]
       Self::Font => "$FONT",
-      #[cfg(not(target_os = "android"))]
-      Self::Home => "$HOME",
       #[cfg(not(target_os = "android"))]
       Self::Runtime => "$RUNTIME",
       #[cfg(not(target_os = "android"))]
@@ -201,6 +199,7 @@ impl BaseDirectory {
       "$APPLOCALDATA" => Self::AppLocalData,
       "$APPCACHE" => Self::AppCache,
       "$APPLOG" => Self::AppLog,
+      "$HOME" => Self::Home,
 
       #[cfg(not(target_os = "android"))]
       "$DESKTOP" => Self::Desktop,
@@ -208,8 +207,6 @@ impl BaseDirectory {
       "$EXE" => Self::Executable,
       #[cfg(not(target_os = "android"))]
       "$FONT" => Self::Font,
-      #[cfg(not(target_os = "android"))]
-      "$HOME" => Self::Home,
       #[cfg(not(target_os = "android"))]
       "$RUNTIME" => Self::Runtime,
       #[cfg(not(target_os = "android"))]
@@ -302,14 +299,13 @@ fn resolve_path<R: Runtime>(
     BaseDirectory::AppLocalData => resolver.app_local_data_dir(),
     BaseDirectory::AppCache => resolver.app_cache_dir(),
     BaseDirectory::AppLog => resolver.app_log_dir(),
+    BaseDirectory::Home => resolver.home_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Desktop => resolver.desktop_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Executable => resolver.executable_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Font => resolver.font_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Home => resolver.home_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Runtime => resolver.runtime_dir(),
     #[cfg(not(target_os = "android"))]

@@ -117,4 +117,15 @@ impl<R: Runtime> PathResolver<R> {
   pub fn temp_dir(&self) -> Result<PathBuf> {
     Ok(std::env::temp_dir())
   }
+
+  /// Returns the path to the user's home directory.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Resolves to `$HOME`.
+  /// - **macOS:** Resolves to `$HOME`.
+  /// - **Windows:** Resolves to `{FOLDERID_Profile}`.
+  pub fn home_dir(&self) -> Result<PathBuf> {
+    self.call_resolve("getHomeDir")
+  }
 }

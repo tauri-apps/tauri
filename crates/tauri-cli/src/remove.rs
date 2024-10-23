@@ -22,9 +22,6 @@ use std::process::Command;
 pub struct Options {
   /// The plugin to remove.
   pub plugin: String,
-  /// Don't format code with rustfmt
-  #[clap(long)]
-  pub no_fmt: bool,
 }
 
 pub fn command(options: Options) -> Result<()> {
@@ -73,46 +70,7 @@ pub fn run(options: Options) -> Result<()> {
     });
   }
 
-  // remove plugin init code from main.rs or lib.rs
-  let plugin_init_fn = if plugin == "stronghold" {
-    "Builder::new(|pass| todo!()).build()"
-  } else if plugin == "localhost" {
-    "Builder::new(todo!()).build()"
-  } else if metadata.builder {
-    "Builder::new().build()"
-  } else {
-    "init()"
-  };
-  let plugin_init = format!(".plugin(tauri_plugin_{plugin_snake_case}::{plugin_init_fn})");
-
-  for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
-    let contents = std::fs::read_to_string(&file)?;
-
-    if contents.contains(&plugin_init) {
-      let out = contents.replace(&plugin_init, "");
-
-      log::info!("Removing plugin from {}", file.display());
-      std::fs::write(file, out.as_bytes())?;
-
-      if !options.no_fmt {
-        // reformat code with rustfmt
-        log::info!("Running `cargo fmt`...");
-        let _ = Command::new("cargo")
-          .arg("fmt")
-          .current_dir(tauri_dir)
-          .status();
-      }
-
-      return Ok(());
-    }
-  }
-
-  log::warn!(
-    "Couldn't find `{}` in `{}` or `{}`, you must manually remove the plugin from your Rust code.",
-    plugin_init.red(),
-    "main.rs".cyan(),
-    "lib.rs".cyan()
-  );
+  log::info!("Now, you must manually remove the plugin from your Rust code.",);
 
   Ok(())
 }

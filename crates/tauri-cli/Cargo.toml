@@ -56,7 +56,7 @@ notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = ["serde"] }
-json-patch = "2.0"
+json-patch = "3.0"
 tauri-utils = { version = "2.0.2", path = "../tauri-utils", features = [
   "isolation",
   "schema",
@@ -98,7 +98,7 @@ serde-value = "0.7.0"
 itertools = "0.13"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.43.0"
+resvg = "0.44.0"
 dunce = "1"
 glob = "0.3"
 oxc_parser = "0.25"

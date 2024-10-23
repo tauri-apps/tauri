@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: MIT
 
 use clap::Parser;
-use colored::Colorize;
 
 use crate::{
   acl,
@@ -14,8 +13,6 @@ use crate::{
   },
   Result,
 };
-
-use std::process::Command;
 
 #[derive(Debug, Parser)]
 #[clap(about = "Remove a tauri plugin from the project")]
@@ -32,7 +29,6 @@ pub fn command(options: Options) -> Result<()> {
 pub fn run(options: Options) -> Result<()> {
   let plugin = options.plugin;
 
-  let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
 
   let mut plugins = crate::helpers::plugins::known_plugins();

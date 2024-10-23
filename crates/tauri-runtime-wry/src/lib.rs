@@ -1098,11 +1098,13 @@ impl WindowBuilder for WindowBuilderWrapper {
     })
   }
 
-  fn window_classname<S: Into<String>>(mut self, _window_classname: S) -> Self {
-    #[cfg(windows)]
-    {
-      self.inner = self.inner.with_window_classname(_window_classname);
-    }
+  #[cfg(windows)]
+  fn window_classname<S: Into<String>>(mut self, window_classname: S) -> Self {
+    self.inner = self.inner.with_window_classname(window_classname);
+    self
+  }
+  #[cfg(not(windows))]
+  fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
     self
   }
 }

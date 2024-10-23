@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -17,9 +17,21 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - uses: dorny/paths-filter@v2
+      - name: check change files end with .md
+        run: |
+          for file in .changes/*
+          do
+            if [[ ! "$file" =~ \.(md|json)$ ]]; then
+              echo ".changes directory should only contain files that end with .md"
+              echo "found an invalid file in .changes directory:"
+              echo "$file"
+              exit 1
+            fi
+          done
+
+      - uses: dorny/paths-filter@v3
         id: filter
         with:
           list-files: shell

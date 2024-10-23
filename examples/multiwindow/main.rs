@@ -1,35 +1,35 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::WindowBuilder;
+use tauri::WebviewWindowBuilder;
 
 fn main() {
   tauri::Builder::default()
-    .on_page_load(|window, _payload| {
-      let label = window.label().to_string();
-      window.listen("clicked".to_string(), move |_payload| {
-        println!("got 'clicked' event on window '{label}'");
-      });
-    })
     .setup(|app| {
-      #[allow(unused_mut)]
-      let mut builder = WindowBuilder::new(
-        app,
-        "Rust".to_string(),
-        tauri::WindowUrl::App("index.html".into()),
-      );
-      #[cfg(target_os = "macos")]
-      {
-        builder = builder.tabbing_identifier("Rust");
-      }
-      let _window = builder.title("Tauri - Rust").build()?;
+      WebviewWindowBuilder::new(app, "Third", tauri::WebviewUrl::default())
+        .title("Tauri - Third")
+        .build()?;
+
       Ok(())
     })
-    .run(tauri::generate_context!(
-      "../../examples/multiwindow/tauri.conf.json"
-    ))
+    .run(generate_context())
     .expect("failed to run tauri application");
+}
+
+fn generate_context() -> tauri::Context {
+  let mut context = tauri::generate_context!("../../examples/multiwindow/tauri.conf.json");
+  for cmd in [
+    "plugin:event|listen",
+    "plugin:event|emit",
+    "plugin:event|emit_to",
+    "plugin:webview|create_webview_window",
+  ] {
+    context
+      .runtime_authority_mut()
+      .__allow_command(cmd.to_string(), tauri_utils::acl::ExecutionContext::Local);
+  }
+  context
 }

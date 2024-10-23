@@ -1,0 +1,97 @@
+---
+source: crates/tests/acl/src/lib.rs
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        "plugin:os|spawn": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    1,
+                ),
+            },
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    2,
+                ),
+            },
+        ],
+    },
+    denied_commands: {},
+    command_scope: {
+        1: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "command": String(
+                            "apt",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+        2: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "command": String(
+                            "servo",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+    global_scope: {
+        "os": ResolvedScope {
+            allow: [],
+            deny: [],
+        },
+    },
+}

@@ -1,0 +1,16 @@
+[package]
+name = "acl-tests"
+version = "0.1.0"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dev-dependencies]
+tauri-utils = { path = "../../tauri-utils/", features = ["build"] }
+serde_json = "1"
+insta = "1"

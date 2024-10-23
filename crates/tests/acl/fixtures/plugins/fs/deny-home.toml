@@ -1,0 +1,6 @@
+
+[[permission]]
+identifier = "deny-home"
+description = "Denies accessing the $HOME path."
+[[permission.scope.deny]]
+path = "$HOME"

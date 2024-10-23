@@ -42,7 +42,7 @@
   })
 
   onDestroy(() => {
-    window.stream.getTracks().forEach(function (track) {
+    window.stream?.getTracks().forEach(function (track) {
       track.stop()
     })
   })

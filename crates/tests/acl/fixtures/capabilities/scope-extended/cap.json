@@ -1,0 +1,39 @@
+{
+  "identifier": "run-app",
+  "description": "app capability",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "fs:read",
+      "allow": [
+        {
+          "path": "$HOME/.config/**"
+        }
+      ]
+    },
+    "fs:deny-home",
+    {
+      "identifier": "fs:allow-read-resources",
+      "deny": [
+        {
+          "path": "$RESOURCE/**/*.key"
+        }
+      ]
+    },
+    "fs:allow-move-temp",
+    {
+      "identifier": "fs:allow-app",
+      "allow": [
+        {
+          "path": "$APP/**"
+        }
+      ],
+      "deny": [
+        {
+          "path": "$APP/*.db"
+        }
+      ]
+    },
+    "fs:read-download-dir"
+  ]
+}

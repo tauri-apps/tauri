@@ -1,0 +1,66 @@
+---
+source: crates/tests/acl/src/lib.rs
+expression: resolved
+---
+Resolved {
+    allowed_commands: {
+        "plugin:os|spawn": [
+            ResolvedCommand {
+                context: Local,
+                windows: [
+                    Pattern {
+                        original: "main",
+                        tokens: [
+                            Char(
+                                'm',
+                            ),
+                            Char(
+                                'a',
+                            ),
+                            Char(
+                                'i',
+                            ),
+                            Char(
+                                'n',
+                            ),
+                        ],
+                        is_recursive: false,
+                    },
+                ],
+                webviews: [],
+                scope_id: Some(
+                    1,
+                ),
+            },
+        ],
+    },
+    denied_commands: {},
+    command_scope: {
+        1: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "command": String(
+                            "safari",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+    global_scope: {
+        "os": ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/Library/**",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+    },
+}

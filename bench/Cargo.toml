@@ -1,0 +1,24 @@
+[package]
+name = "tauri_bench"
+version = "0.1.0"
+authors = ["Tauri Programme within The Commons Conservancy"]
+edition = "2021"
+rust-version = "1.77.2"
+license = "Apache-2.0 OR MIT"
+description = "Cross-platform WebView rendering library"
+repository = "https://github.com/tauri-apps/wry"
+
+[dependencies]
+anyhow = "1.0.40"
+time = { version = "0.3", features = ["formatting"] }
+tempfile = "3.2.0"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+
+[[bin]]
+name = "run_benchmark"
+path = "src/run_benchmark.rs"
+
+[[bin]]
+name = "build_benchmark_jsons"
+path = "src/build_benchmark_jsons.rs"

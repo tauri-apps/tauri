@@ -1,0 +1,6 @@
+[[permission]]
+identifier = "deny-webview-folder-windows"
+platforms = ["windows"]
+description = "Denies access to the webview folder on Windows"
+[[permission.scope.deny]]
+path = "$APP/EBWebView/**"

@@ -1,13 +1,15 @@
 <script>
-  import { listen, emit } from '@tauri-apps/api/event'
-  import { invoke } from '@tauri-apps/api/tauri'
+  import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
+  import { invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
 
   export let onMessage
   let unlisten
 
+  const webviewWindow = getCurrentWebviewWindow()
+
   onMount(async () => {
-    unlisten = await listen('rust-event', onMessage)
+    unlisten = await webviewWindow.listen('rust-event', onMessage)
   })
   onDestroy(() => {
     if (unlisten) {
@@ -34,8 +36,18 @@
       .catch(onMessage)
   }
 
+  function echo() {
+    invoke('echo', {
+      message: 'Tauri JSON request!'
+    })
+      .then(onMessage)
+      .catch(onMessage)
+
+    invoke('echo', [1, 2, 3]).then(onMessage).catch(onMessage)
+  }
+
   function emitEvent() {
-    emit('js-event', 'this is the payload string')
+    webviewWindow.emit('js-event', 'this is the payload string')
   }
 </script>
 
@@ -47,4 +59,5 @@
   <button class="btn" id="event" on:click={emitEvent}>
     Send event to Rust
   </button>
+  <button class="btn" id="request" on:click={echo}> Echo </button>
 </div>

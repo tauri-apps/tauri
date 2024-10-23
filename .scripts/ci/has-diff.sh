@@ -1,13 +1,15 @@
 #!/bin/bash
 
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
-if git diff --quiet --ignore-submodules HEAD
+git_output=$(git diff --ignore-submodules --name-only HEAD)
+if [ -z "$git_output" ];
 then
-  echo "working directory is clean"
+  echo "✔ working directory is clean"
 else
-  echo "found diff"
+  echo "✘ found diff:"
+  echo "$git_output"
   exit 1
 fi

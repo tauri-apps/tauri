@@ -1,16 +1,13 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::process::exit;
+const COMMANDS: &[&str] = &["ping"];
 
 fn main() {
-  if let Err(error) = tauri_build::mobile::PluginBuilder::new()
+  tauri_plugin::Builder::new(COMMANDS)
     .android_path("android")
     .ios_path("ios")
-    .run()
-  {
-    println!("{error:#}");
-    exit(1);
-  }
+    .global_api_script_path("./api-iife.js")
+    .build();
 }

@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -17,12 +17,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: install Linux dependencies
         run: |
@@ -33,23 +31,20 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Upload cross
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cross
           path: '~/.cargo/bin/cross'
           if-no-files-found: error
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: Upload CLI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cargo-tauri
-          path: tooling/cli/target/debug/cargo-tauri
+          path: crates/tauri-cli/target/debug/cargo-tauri
           if-no-files-found: error
 
   docker:
@@ -64,29 +59,27 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
-          default: true
-          target: ${{ matrix.target.name }}
+          targets: ${{ matrix.target.name }}
 
+      - run: corepack enable
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 'lts/*'
 
       - name: Download cross
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: cross
           path: '~/.cargo/bin'
 
       - name: Download CLI
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4.1.7
         with:
           name: cargo-tauri
           path: 'examples/api'
@@ -119,10 +112,10 @@ jobs:
 
       - name: Test
         run: |
-          cd tooling/api
-          yarn && yarn build
+          cd packages/api
+          pnpm i --frozen-lockfile && pnpm build
           cd ../../examples/api
-          yarn
+          pnpm i --frozen-lockfile
           . .setup-cross.sh
           chmod +x cargo-tauri
           chmod +x $HOME/.cargo/bin/cross

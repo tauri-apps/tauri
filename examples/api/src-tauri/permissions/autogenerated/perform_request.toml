@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-perform-request"
+description = "Enables the perform_request command without any pre-configured scope."
+commands.allow = ["perform_request"]
+
+[[permission]]
+identifier = "deny-perform-request"
+description = "Denies the perform_request command without any pre-configured scope."
+commands.deny = ["perform_request"]

@@ -1,7 +1,8 @@
 {
   "recommendations": [
-    "ms-vscode-remote.vscode-remote-extensionpack",
+    "rust-lang.rust-analyzer",
     "EditorConfig.EditorConfig",
-    "esbenp.prettier-vscode"
+    "esbenp.prettier-vscode",
+    "tamasfe.even-better-toml"
   ]
 }

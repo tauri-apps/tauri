@@ -1,2 +1,0 @@
-include ':tauri-android'
-project(':tauri-android').projectDir = new File('./.tauri/tauri-api')

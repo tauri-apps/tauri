@@ -1,0 +1,6 @@
+[[permission]]
+identifier = "allow-move-temp"
+description = "Enables the move command with the $TEMP base directory."
+commands.allow = ["move"]
+[[permission.scope.allow]]
+path = "$TEMP/*"

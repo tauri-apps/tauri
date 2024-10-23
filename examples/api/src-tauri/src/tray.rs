@@ -1,124 +1,128 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![cfg(all(desktop, not(test)))]
+
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{
-  CustomMenuItem, Manager, Runtime, SystemTray, SystemTrayEvent, SystemTrayMenu, WindowBuilder,
-  WindowUrl,
+  include_image,
+  menu::{Menu, MenuItem},
+  tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
+  Manager, Runtime, WebviewUrl,
 };
 
-pub fn create_tray<R: Runtime>(app: &tauri::App<R>) -> tauri::Result<()> {
-  let mut tray_menu1 = SystemTrayMenu::new()
-    .add_item(CustomMenuItem::new("toggle", "Toggle"))
-    .add_item(CustomMenuItem::new("new", "New window"))
-    .add_item(CustomMenuItem::new("icon_1", "Tray Icon 1"))
-    .add_item(CustomMenuItem::new("icon_2", "Tray Icon 2"));
-
+pub fn create_tray<R: Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<()> {
+  let toggle_i = MenuItem::with_id(app, "toggle", "Toggle", true, None::<&str>)?;
+  let new_window_i = MenuItem::with_id(app, "new-window", "New window", true, None::<&str>)?;
+  let icon_i_1 = MenuItem::with_id(app, "icon-1", "Icon 1", true, None::<&str>)?;
+  let icon_i_2 = MenuItem::with_id(app, "icon-2", "Icon 2", true, None::<&str>)?;
   #[cfg(target_os = "macos")]
-  {
-    tray_menu1 = tray_menu1.add_item(CustomMenuItem::new("set_title", "Set Title"));
-  }
+  let set_title_i = MenuItem::with_id(app, "set-title", "Set Title", true, None::<&str>)?;
+  let switch_i = MenuItem::with_id(app, "switch-menu", "Switch Menu", true, None::<&str>)?;
+  let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+  let remove_tray_i =
+    MenuItem::with_id(app, "remove-tray", "Remove Tray icon", true, None::<&str>)?;
+  let menu1 = Menu::with_items(
+    app,
+    &[
+      &toggle_i,
+      &new_window_i,
+      &icon_i_1,
+      &icon_i_2,
+      #[cfg(target_os = "macos")]
+      &set_title_i,
+      &switch_i,
+      &quit_i,
+      &remove_tray_i,
+    ],
+  )?;
+  let menu2 = Menu::with_items(
+    app,
+    &[&toggle_i, &new_window_i, &switch_i, &quit_i, &remove_tray_i],
+  )?;
 
-  tray_menu1 = tray_menu1
-    .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-    .add_item(CustomMenuItem::new("exit_app", "Quit"))
-    .add_item(CustomMenuItem::new("destroy", "Destroy"));
-
-  let tray_menu2 = SystemTrayMenu::new()
-    .add_item(CustomMenuItem::new("toggle", "Toggle"))
-    .add_item(CustomMenuItem::new("new", "New window"))
-    .add_item(CustomMenuItem::new("switch_menu", "Switch Menu"))
-    .add_item(CustomMenuItem::new("exit_app", "Quit"))
-    .add_item(CustomMenuItem::new("destroy", "Destroy"));
   let is_menu1 = AtomicBool::new(true);
 
-  let handle = app.handle();
-  let tray_id = "my-tray".to_string();
-  SystemTray::new()
-    .with_id(&tray_id)
-    .with_menu(tray_menu1.clone())
-    .with_tooltip("Tauri")
-    .on_event(move |event| {
-      let tray_handle = handle.tray_handle_by_id(&tray_id).unwrap();
-      match event {
-        SystemTrayEvent::LeftClick {
-          position: _,
-          size: _,
-          ..
-        } => {
-          let window = handle.get_window("main").unwrap();
-          window.show().unwrap();
-          window.set_focus().unwrap();
+  let _ = TrayIconBuilder::with_id("tray-1")
+    .tooltip("Tauri")
+    .icon(app.default_window_icon().unwrap().clone())
+    .menu(&menu1)
+    .menu_on_left_click(false)
+    .on_menu_event(move |app, event| match event.id.as_ref() {
+      "quit" => {
+        app.exit(0);
+      }
+      "remove-tray" => {
+        app.remove_tray_by_id("tray-1");
+      }
+      "toggle" => {
+        if let Some(window) = app.get_webview_window("main") {
+          let new_title = if window.is_visible().unwrap_or_default() {
+            let _ = window.hide();
+            "Show"
+          } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+            "Hide"
+          };
+          toggle_i.set_text(new_title).unwrap();
         }
-        SystemTrayEvent::MenuItemClick { id, .. } => {
-          let item_handle = tray_handle.get_item(&id);
-          match id.as_str() {
-            "exit_app" => {
-              // exit the app
-              handle.exit(0);
-            }
-            "destroy" => {
-              tray_handle.destroy().unwrap();
-            }
-            "toggle" => {
-              let window = handle.get_window("main").unwrap();
-              let new_title = if window.is_visible().unwrap() {
-                window.hide().unwrap();
-                "Show"
-              } else {
-                window.show().unwrap();
-                "Hide"
-              };
-              item_handle.set_title(new_title).unwrap();
-            }
-            "new" => {
-              WindowBuilder::new(&handle, "new", WindowUrl::App("index.html".into()))
-                .title("Tauri")
-                .build()
-                .unwrap();
-            }
-            "set_title" => {
-              #[cfg(target_os = "macos")]
-              tray_handle.set_title("Tauri").unwrap();
-            }
-            "icon_1" => {
-              #[cfg(target_os = "macos")]
-              tray_handle.set_icon_as_template(true).unwrap();
-
-              tray_handle
-                .set_icon(tauri::Icon::Raw(
-                  include_bytes!("../../../.icons/tray_icon_with_transparency.png").to_vec(),
-                ))
-                .unwrap();
-            }
-            "icon_2" => {
-              #[cfg(target_os = "macos")]
-              tray_handle.set_icon_as_template(true).unwrap();
-
-              tray_handle
-                .set_icon(tauri::Icon::Raw(
-                  include_bytes!("../../../.icons/icon.ico").to_vec(),
-                ))
-                .unwrap();
-            }
-            "switch_menu" => {
-              let flag = is_menu1.load(Ordering::Relaxed);
-              let (menu, tooltip) = if flag {
-                (tray_menu2.clone(), "Menu 2")
-              } else {
-                (tray_menu1.clone(), "Tauri")
-              };
-              tray_handle.set_menu(menu).unwrap();
-              tray_handle.set_tooltip(tooltip).unwrap();
-              is_menu1.store(!flag, Ordering::Relaxed);
-            }
-            _ => {}
-          }
+      }
+      "new-window" => {
+        let _webview =
+          tauri::WebviewWindowBuilder::new(app, "new", WebviewUrl::App("index.html".into()))
+            .title("Tauri")
+            .build()
+            .unwrap();
+      }
+      #[cfg(target_os = "macos")]
+      "set-title" => {
+        if let Some(tray) = app.tray_by_id("tray-1") {
+          let _ = tray.set_title(Some("Tauri"));
         }
-        _ => {}
+      }
+      i @ "icon-1" | i @ "icon-2" => {
+        if let Some(tray) = app.tray_by_id("tray-1") {
+          let icon = if i == "icon-1" {
+            include_image!("../../.icons/icon.ico")
+          } else {
+            include_image!("../../.icons/tray_icon_with_transparency.png")
+          };
+          let _ = tray.set_icon(Some(icon));
+        }
+      }
+      "switch-menu" => {
+        let flag = is_menu1.load(Ordering::Relaxed);
+        let (menu, tooltip) = if flag {
+          (menu2.clone(), "Menu 2")
+        } else {
+          (menu1.clone(), "Tauri")
+        };
+        if let Some(tray) = app.tray_by_id("tray-1") {
+          let _ = tray.set_menu(Some(menu));
+          let _ = tray.set_tooltip(Some(tooltip));
+        }
+        is_menu1.store(!flag, Ordering::Relaxed);
+      }
+
+      _ => {}
+    })
+    .on_tray_icon_event(|tray, event| {
+      if let TrayIconEvent::Click {
+        button: MouseButton::Left,
+        button_state: MouseButtonState::Up,
+        ..
+      } = event
+      {
+        let app = tray.app_handle();
+        if let Some(window) = app.get_webview_window("main") {
+          let _ = window.show();
+          let _ = window.set_focus();
+        }
       }
     })
-    .build(app)
-    .map(|_| ())
+    .build(app);
+
+  Ok(())
 }

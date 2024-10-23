@@ -1,4 +1,4 @@
-# Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-License-Identifier: MIT
 
@@ -19,30 +19,29 @@ jobs:
         platform: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: install stable
-        uses: actions-rs/toolchain@v1
+
+      - run: corepack enable
+      - uses: actions/setup-node@v4
         with:
-          toolchain: stable
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: install stable
+        uses: dtolnay/rust-toolchain@stable
+
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev libfuse2 librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: |
-            core -> ../target
-            tooling/cli
 
       - name: build CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo build --manifest-path ./crates/tauri-cli/Cargo.toml
 
       - name: run integration tests
         run: cargo test --test '*' -- --ignored
@@ -50,14 +49,19 @@ jobs:
       - name: run CLI tests
         timeout-minutes: 30
         run: |
-          cd ./tooling/cli/node
-          yarn
-          yarn build
-          yarn test
+          cd ./packages/cli
+          pnpm i --frozen-lockfile
+          pnpm build
+          pnpm test
 
   version-or-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 65
+    permissions:
+      actions: write # required for workflow_dispatch
+      contents: write # required to create new releases
+      pull-requests: write # required to open version update pr
+      id-token: write # pnpm provenance
     outputs:
       change: ${{ steps.covector.outputs.change }}
       commandRan: ${{ steps.covector.outputs.commandRan }}
@@ -66,15 +70,15 @@ jobs:
       - run-integration-tests
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v2
+      - run: corepack enable
+      - uses: actions/setup-node@v4
         with:
-          node-version: 14
+          node-version: 20
           registry-url: 'https://registry.npmjs.org'
-          cache: yarn
-          cache-dependency-path: tooling/*/yarn.lock
+          cache: 'pnpm'
 
       - name: cargo login
         run: cargo login ${{ secrets.ORG_CRATES_IO_TOKEN }}
@@ -83,16 +87,27 @@ jobs:
           git config --global user.name "${{ github.event.pusher.name }}"
           git config --global user.email "${{ github.event.pusher.email }}"
 
+      - name: install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
+
       - name: covector version or publish (publish when no change files present)
         uses: jbolda/covector/packages/action@covector-v0
         id: covector
         env:
           NODE_AUTH_TOKEN: ${{ secrets.ORG_NPM_TOKEN }}
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
+          NPM_CONFIG_PROVENANCE: true
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           command: 'version-or-publish'
+          token: ${{ secrets.GITHUB_TOKEN }}
           createRelease: true
+          recognizeContributors: true
+
+      - name: Sync Cargo.lock
+        if: steps.covector.outputs.commandRan == 'version'
+        run: cargo tree --depth 0
 
       - name: Create Pull Request With Versions Bumped
         if: steps.covector.outputs.commandRan == 'version'
@@ -115,34 +130,18 @@ jobs:
           repository: tauri-apps/tauri-docs
           event-type: update-docs
 
-      - name: Get `@tauri-apps/cli` release id
-        id: cliReleaseId
-        if: |
-          steps.covector.outputs.successfulPublish == 'true' &&
-          contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        run: |
-          echo '${{ toJSON(steps.covector.outputs) }}' > output.json
-          id=$(jq '.["-tauri-apps-cli-releaseId"]' < output.json)
-          rm output.json
-          echo "cliReleaseId=$id" >> "$GITHUB_OUTPUT"
-
       - name: Trigger `@tauri-apps/cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, '@tauri-apps/cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri
-          event-type: publish-js-cli
-          client-payload: '{"releaseId": "${{ steps.cliReleaseId.outputs.cliReleaseId }}" }'
+        run: gh workflow run 31554138 -r dev -f releaseId=${{ steps.covector.outputs['-tauri-apps-cli-releaseId'] }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Trigger `tauri-cli` publishing workflow
         if: |
           steps.covector.outputs.successfulPublish == 'true' &&
           contains(steps.covector.outputs.packagesPublished, 'tauri-cli')
-        uses: peter-evans/repository-dispatch@v1
-        with:
-          token: ${{ secrets.ORG_TAURI_BOT_PAT }}
-          repository: tauri-apps/tauri
-          event-type: publish-clirs
+        run: gh workflow run 31554139 -r dev
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

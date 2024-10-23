@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -8,11 +8,13 @@ const fs = require('fs')
 const path = require('path')
 const readline = require('readline')
 
-const header = `Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+const header = `Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 SPDX-License-Identifier: Apache-2.0
 SPDX-License-Identifier: MIT`
 const bundlerLicense =
   '// Copyright 2016-2019 Cargo-Bundle developers <https://github.com/burtonageo/cargo-bundle>'
+const denoLicense =
+  '// Copyright 2018-2023 the Deno authors. All rights reserved. MIT license.'
 
 const extensions = ['.rs', '.js', '.ts', '.yml', '.swift', '.kt']
 const ignore = [
@@ -21,12 +23,14 @@ const ignore = [
   'node_modules',
   'gen',
   'dist',
-  'bundle.js',
   'bundle.global.js'
 ]
 
 async function checkFile(file) {
-  if (extensions.some((e) => file.endsWith(e)) && !ignore.some((i) => file.includes(`/${i}/`))) {
+  if (
+    extensions.some((e) => file.endsWith(e)) &&
+    !ignore.some((i) => file.includes(`/${i}/`) || path.basename(file) == i)
+  ) {
     const fileStream = fs.createReadStream(file)
     const rl = readline.createInterface({
       input: fileStream,
@@ -41,7 +45,8 @@ async function checkFile(file) {
         line.length === 0 ||
         line.startsWith('#!') ||
         line.startsWith('// swift-tools-version:') ||
-        line === bundlerLicense
+        line === bundlerLicense ||
+        line === denoLicense
       ) {
         continue
       }

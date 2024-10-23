@@ -1,3 +1,12 @@
+:root {
+  line-height: 1.5;
+}
+
+input,
+select {
+  min-width: 0;
+}
+
 *:not(h1, h2, h3, h4, h5, h6) {
   margin: 0;
   padding: 0;

@@ -3,5 +3,4 @@
 /target/
 
 # cargo-mobile
-.cargo/
 /gen

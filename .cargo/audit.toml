@@ -1,0 +1,9 @@
+[advisories]
+ignore = [
+  # rsa Marvin Attack
+  "RUSTSEC-2023-0071",
+  # difference is unmaintained
+  "RUSTSEC-2020-0095",
+  # proc-macro-error is unmaintained
+  "RUSTSEC-2024-0370",
+]

@@ -1,0 +1,26 @@
+[package]
+name = "tauri-macos-sign"
+version = "2.0.1"
+authors = ["Tauri Programme within The Commons Conservancy"]
+license = "Apache-2.0 OR MIT"
+keywords = ["codesign", "signing", "macos", "ios", "tauri"]
+repository = "https://github.com/tauri-apps/tauri"
+description = "Code signing utilities for macOS and iOS apps"
+edition = "2021"
+rust-version = "1.77.2"
+
+[dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+x509-certificate = "0.23"
+once-cell-regex = "0.2"
+os_pipe = "1"
+plist = "1"
+rand = "0.8"
+dirs-next = "2"
+log = { version = "0.4.21", features = ["kv"] }
+apple-codesign = "0.27"
+chrono = "0.4.38"
+p12 = "0.6"

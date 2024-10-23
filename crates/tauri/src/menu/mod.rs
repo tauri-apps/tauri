@@ -147,6 +147,10 @@ macro_rules! gen_wrappers {
 gen_wrappers!(
   /// A type that is either a menu bar on the window
   /// on Windows and Linux or as a global menu in the menubar on macOS.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
   Menu(MenuInner),
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),

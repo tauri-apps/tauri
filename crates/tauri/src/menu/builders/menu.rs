@@ -6,6 +6,10 @@ use crate::{image::Image, menu::*, Manager, Runtime};
 
 /// A builder type for [`Menu`]
 ///
+/// ## Platform-specific:
+///
+/// - **macOS**: if using [`MenuBuilder`] for the global menubar, it can only contain [`Submenu`]s
+///
 /// # Example
 ///
 /// ```no_run

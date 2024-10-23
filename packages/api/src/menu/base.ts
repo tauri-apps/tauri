@@ -26,11 +26,11 @@ function injectChannel(
     | PredefinedMenuItemOptions
     | CheckMenuItemOptions
 ):
-  | MenuItemOptions
   | SubmenuOptions
-  | IconMenuItemOptions
   | PredefinedMenuItemOptions
-  | (CheckMenuItemOptions & { handler?: Channel<string> }) {
+  | ((MenuItemOptions | IconMenuItemOptions | CheckMenuItemOptions) & {
+      handler?: Channel<string>
+    }) {
   if ('items' in i) {
     i.items = i.items?.map((item) =>
       'rid' in item ? item : injectChannel(item)
@@ -49,14 +49,7 @@ export async function newMenu(
   opts?: unknown
 ): Promise<[number, string]> {
   const handler = new Channel<string>()
-  let items: null | Array<
-    | [number, string]
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
-  > = null
+
   if (opts && typeof opts === 'object') {
     if ('action' in opts && opts.action) {
       handler.onmessage = opts.action as () => void
@@ -64,16 +57,21 @@ export async function newMenu(
     }
 
     if ('items' in opts && opts.items) {
-      items = (
-        opts.items as Array<
+      function prepareItem(
+        i:
           | { rid: number; kind: string }
           | MenuItemOptions
           | SubmenuOptions
           | IconMenuItemOptions
           | PredefinedMenuItemOptions
           | CheckMenuItemOptions
-        >
-      ).map((i) => {
+      ):
+        | [number, string]
+        | SubmenuOptions
+        | PredefinedMenuItemOptions
+        | MenuItemOptions
+        | IconMenuItemOptions
+        | CheckMenuItemOptions {
         if ('rid' in i) {
           return [i.rid, i.kind]
         }
@@ -86,14 +84,22 @@ export async function newMenu(
           i.icon = transformImage(i.icon)
         }
 
+        if ('items' in i && i.items) {
+          // @ts-expect-error the `prepareItem` return doesn't exactly match
+          // this is fine, because the difference is in `[number, string]` variant
+          i.items = i.items.map(prepareItem)
+        }
+
         return injectChannel(i)
-      })
+      }
+
+      opts.items = (opts.items as []).map(prepareItem)
     }
   }
 
   return invoke('plugin:menu|new', {
     kind,
-    options: opts ? { ...opts, items } : undefined,
+    options: opts,
     handler
   })
 }

@@ -746,6 +746,11 @@ impl WindowBuilder for WindowBuilderWrapper {
       builder = builder.title_bar_style(TitleBarStyle::Visible);
     }
 
+    #[cfg(windows)]
+    {
+      builder = builder.window_classname("Tauri Window");
+    }
+
     builder
   }
 
@@ -827,6 +832,10 @@ impl WindowBuilder for WindowBuilderWrapper {
 
       if config.center {
         window = window.center();
+      }
+
+      if let Some(window_classname) = &config.window_classname {
+        window = window.window_classname(window_classname);
       }
     }
 
@@ -1087,6 +1096,14 @@ impl WindowBuilder for WindowBuilderWrapper {
       TaoTheme::Dark => Theme::Dark,
       _ => Theme::Light,
     })
+  }
+
+  fn window_classname<S: Into<String>>(mut self, _window_classname: S) -> Self {
+    #[cfg(windows)]
+    {
+      self.inner = self.inner.with_window_classname(_window_classname);
+    }
+    self
   }
 }
 

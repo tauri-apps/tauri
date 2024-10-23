@@ -1396,9 +1396,8 @@ pub struct WindowConfig {
   /// If `true`, hides the window icon from the taskbar on Windows and Linux.
   #[serde(default, alias = "skip-taskbar")]
   pub skip_taskbar: bool,
-  /// The name of the window class created on Windows to create the window.
-  #[serde(default = "default_window_classname")]
-  pub window_classname: String,
+  /// The name of the window class created on Windows to create the window. **Windows only**.
+  pub window_classname: Option<String>,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
   /// The style of the macOS title bar.
@@ -1524,7 +1523,7 @@ impl Default for WindowConfig {
       visible_on_all_workspaces: false,
       content_protected: false,
       skip_taskbar: false,
-      window_classname: default_window_classname(),
+      window_classname: None,
       theme: None,
       title_bar_style: Default::default(),
       hidden_title: false,
@@ -1556,10 +1555,6 @@ fn default_height() -> f64 {
 
 fn default_title() -> String {
   "Tauri App".to_string()
-}
-
-fn default_window_classname() -> String {
-  "Window Class".to_string()
 }
 
 /// A Content-Security-Policy directive source list.
@@ -2501,7 +2496,7 @@ mod build {
       let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
-      let window_classname = str_lit(&self.window_classname);
+      let window_classname = opt_str_lit(self.window_classname.as_ref());
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;

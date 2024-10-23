@@ -729,9 +729,9 @@ interface WebviewOptions {
    */
   zoomHotkeysEnabled?: boolean
   /**
-   * Whether web inspector, which is usually called browser devtools, is enabled or not.
+   * Whether web inspector, which is usually called browser devtools, is enabled or not. Enabled by default.
    *
-   * It is enabled in **debug** builds, but requires `devtools` feature flag to actually enable it in **release** builds.
+   * This API works in **debug** builds, but requires `devtools` feature flag to enable it in **release** builds.
    *
    * #### Platform-specific
    *

@@ -8,7 +8,7 @@ import prettierConfig from 'eslint-config-prettier'
 import securityPlugin from 'eslint-plugin-security'
 import tseslint from 'typescript-eslint'
 
-/** @type {import('eslint').Linter.FlatConfig[]} */
+/** @type {import('eslint').Linter.Config} */
 export default [
   eslint.configs.recommended,
   prettierConfig,

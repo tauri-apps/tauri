@@ -115,7 +115,7 @@ fn get_response<R: Runtime>(
     for (name, value) in request.headers() {
       proxy_builder = proxy_builder.header(name, value);
     }
-    match crate::async_runtime::block_on(proxy_builder.send()) {
+    match crate::async_runtime::block_on(proxy_builder.body(request.body().clone()).send()) {
       Ok(r) => {
         let mut response_cache_ = response_cache.lock().unwrap();
         let mut response = None;
@@ -159,6 +159,7 @@ fn get_response<R: Runtime>(
     }
     builder.body(asset.bytes.into())?
   };
+
   if let Some(handler) = &web_resource_request_handler {
     handler(request, &mut response);
   }

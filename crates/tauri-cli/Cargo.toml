@@ -56,7 +56,7 @@ notify-debouncer-mini = "0.4"
 shared_child = "1.0"
 duct = "0.13"
 toml_edit = { version = "0.22", features = ["serde"] }
-json-patch = "2.0"
+json-patch = "3.0"
 tauri-utils = { version = "2.0.2", path = "../tauri-utils", features = [
   "isolation",
   "schema",

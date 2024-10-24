@@ -648,13 +648,6 @@ impl HeaderConfig {
   }
 }
 
-impl Default for HeaderConfig {
-  /// get the default HeaderConfig, it's empty
-  pub fn default() -> Self {
-    Self::new()
-  }
-}
-
 impl Display for HeaderConfig {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 

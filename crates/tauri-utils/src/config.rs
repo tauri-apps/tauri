@@ -2496,7 +2496,6 @@ mod build {
   impl ToTokens for HeaderConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
 
-      println!("toTokensConfig");
       let access_control_allow_credentials = opt_lit(self.access_control_allow_credentials.as_ref());
       let access_control_allow_headers = opt_lit(self.access_control_allow_headers.as_ref());
       let access_control_allow_methods = opt_lit(self.access_control_allow_methods.as_ref());

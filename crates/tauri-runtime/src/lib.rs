@@ -18,6 +18,7 @@
 use raw_window_handle::DisplayHandle;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
+use tauri_utils::config::Color;
 use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
@@ -523,6 +524,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Set the webview zoom level
   fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 
+  /// Set the webview background.
+  fn set_background_color(&self, color: Option<Color>) -> Result<()>;
+
   /// Clear all browsing data for this webview.
   fn clear_all_browsing_data(&self) -> Result<()>;
 }
@@ -752,6 +756,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window visibleOnAllWorkspaces flag.
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()>;
+
+  /// Set the window background.
+  fn set_background_color(&self, color: Option<Color>) -> Result<()>;
 
   /// Prevents the window contents from being captured by other apps.
   fn set_content_protected(&self, protected: bool) -> Result<()>;

@@ -656,6 +656,17 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Set the window and webview background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: alpha channel is ignored.
+  #[must_use]
+  pub fn background_color(mut self, color: Color) -> Self {
+    self.window_builder = self.window_builder.background_color(color);
+    self
+  }
+
   /// Sets a parent to the window to be created.
   ///
   /// ## Platform-specific
@@ -1803,6 +1814,20 @@ tauri::Builder::default()
       .window
       .dispatcher
       .set_visible_on_all_workspaces(visible_on_all_workspaces)
+      .map_err(Into::into)
+  }
+
+  /// Sets the window background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows:** alpha channel is ignored.
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_background_color(&self, color: Option<Color>) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_background_color(color)
       .map_err(Into::into)
   }
 

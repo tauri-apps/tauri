@@ -13,7 +13,7 @@ import { Window } from './window'
 import { listen, once } from './event'
 import type { EventName, EventCallback, UnlistenFn } from './event'
 import { invoke } from './core'
-import type { DragDropEvent } from './webview'
+import type { Color, DragDropEvent } from './webview'
 
 /**
  * Get an instance of `Webview` for the current webview window.
@@ -202,6 +202,28 @@ class WebviewWindow {
       target: { kind: 'WebviewWindow', label: this.label }
     })
   }
+
+  /**
+   * Set the window and webview background color.
+   *
+   * #### Platform-specific:
+   *
+   * - **Android / iOS:** Unsupported for the window layer.
+   * - **macOS / iOS**: Not implemented for the webview layer.
+   * - **Windows**:
+   *   - alpha channel is ignored for the window layer.
+   *   - On Windows 7, alpha channel is ignored for the webview layer.
+   *   - On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.1.0
+   */
+  async setBackgroundColor(color: Color): Promise<void> {
+    return invoke('plugin:window|set_background_color', { color }).then(() => {
+      return invoke('plugin:webview|set_webview_background_color', { color })
+    })
+  }
 }
 
 // Order matters, we use window APIs by default
@@ -235,4 +257,4 @@ function applyMixins(
 }
 
 export { WebviewWindow, getCurrentWebviewWindow, getAllWebviewWindows }
-export type { DragDropEvent }
+export type { DragDropEvent, Color }

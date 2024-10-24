@@ -18,8 +18,8 @@ mod desktop_commands {
 
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, utils::config::WindowEffectsConfig, AppHandle, Webview,
-    WebviewWindowBuilder,
+    command, sealed::ManagerBase, utils::config::WindowEffectsConfig, webview::Color, AppHandle,
+    Webview, WebviewWindowBuilder,
   };
 
   #[derive(Debug, PartialEq, Clone, Deserialize)]
@@ -179,6 +179,11 @@ mod desktop_commands {
   setter!(webview_hide, hide);
   setter!(webview_show, show);
   setter!(set_webview_zoom, set_zoom, f64);
+  setter!(
+    set_webview_background_color,
+    set_background_color,
+    Option<Color>
+  );
   setter!(clear_all_browsing_data, clear_all_browsing_data);
 
   #[command(root = "crate")]
@@ -262,6 +267,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
+            desktop_commands::set_webview_background_color,
             desktop_commands::set_webview_zoom,
             desktop_commands::webview_hide,
             desktop_commands::webview_show,

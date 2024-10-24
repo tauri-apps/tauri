@@ -22,6 +22,7 @@ use tauri_runtime::{
   webview::{DetachedWebview, PendingWebview, WebviewAttributes},
   WebviewDispatch,
 };
+pub use tauri_utils::config::Color;
 use tauri_utils::config::{WebviewUrl, WindowConfig};
 pub use url::Url;
 
@@ -785,6 +786,19 @@ fn main() {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.webview_attributes.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Set the webview background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS / iOS**: Not implemented.
+  /// - **Windows**: On Windows 7, alpha channel is ignored.
+  /// - **Windows**: On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
+  #[must_use]
+  pub fn background_color(mut self, color: Color) -> Self {
+    self.webview_attributes.background_color = Some(color);
     self
   }
 }
@@ -1558,6 +1572,22 @@ tauri::Builder::default()
       .webview
       .dispatcher
       .set_zoom(scale_factor)
+      .map_err(Into::into)
+  }
+
+  /// Specify the webview background color.
+  ///
+  /// ## Platfrom-specific:
+  ///
+  /// - **macOS / iOS**: Not implemented.
+  /// - **Windows**:
+  ///   - On Windows 7, transparency is not supported and the alpha value will be ignored.
+  ///   - On Windows higher than 7: translucent colors are not supported so any alpha value other than `0` will be replaced by `255`
+  pub fn set_background_color(&self, color: Option<Color>) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_background_color(color)
       .map_err(Into::into)
   }
 

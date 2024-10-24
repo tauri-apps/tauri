@@ -8758,9 +8758,7 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.30.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06e48d7c56b3f7425d061886e8ce3b6acfab1993682ed70bef50fd133d721ee6"
+version = "0.30.3"
 dependencies = [
  "bitflags 2.6.0",
  "cocoa 0.26.0",
@@ -8786,13 +8784,22 @@ dependencies = [
  "parking_lot",
  "raw-window-handle",
  "scopeguard",
- "tao-macros",
+ "tao-macros 0.1.3",
  "unicode-segmentation",
  "url",
  "windows",
  "windows-core 0.58.0",
  "windows-version",
  "x11-dl",
+]
+
+[[package]]
+name = "tao-macros"
+version = "0.1.3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.85",
 ]
 
 [[package]]
@@ -9356,6 +9363,7 @@ dependencies = [
  "kuchikiki",
  "log",
  "memchr",
+ "once_cell",
  "phf 0.11.2",
  "proc-macro2",
  "quote",
@@ -11100,7 +11108,7 @@ dependencies = [
  "raw-window-handle",
  "sha2",
  "soup3",
- "tao-macros",
+ "tao-macros 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror",
  "tracing",
  "webkit2gtk",

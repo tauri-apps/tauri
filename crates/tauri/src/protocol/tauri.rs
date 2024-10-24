@@ -30,7 +30,10 @@ pub fn get<R: Runtime>(
 ) -> UriSchemeProtocolHandler {
   #[cfg(all(dev, mobile))]
   let url = {
-    let mut url = manager.get_url().as_str().to_string();
+    let mut url = manager
+      .get_url(window_origin.starts_with("https"))
+      .as_str()
+      .to_string();
     if url.ends_with('/') {
       url.pop();
     }
@@ -152,7 +155,8 @@ fn get_response<R: Runtime>(
 
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
-    let asset = manager.get_asset(path)?;
+    let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
+    let asset = manager.get_asset(path, use_https_scheme)?;
     builder = builder.header(CONTENT_TYPE, &asset.mime_type);
     if let Some(csp) = &asset.csp_header {
       builder = builder.header("Content-Security-Policy", csp);

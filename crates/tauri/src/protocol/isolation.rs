@@ -21,9 +21,11 @@ pub fn get<R: Runtime>(
   assets: Arc<EmbeddedAssets>,
   aes_gcm_key: [u8; 32],
   window_origin: String,
+  use_https_scheme: bool,
 ) -> UriSchemeProtocolHandler {
   let frame_src = if cfg!(any(windows, target_os = "android")) {
-    format!("http://{schema}.localhost")
+    let https = if use_https_scheme { "https" } else { "http" };
+    format!("{https}://{schema}.localhost")
   } else {
     format!("{schema}:")
   };

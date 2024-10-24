@@ -728,6 +728,21 @@ interface WebviewOptions {
    * - **Android / iOS**: Unsupported.
    */
   zoomHotkeysEnabled?: boolean
+
+  /**
+   * Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
+   *
+   * #### Note
+   *
+   * Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and is therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+   *
+   * #### Warning
+   *
+   * Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access them.
+   *
+   * @since 2.1.0
+   */
+  useHttpsScheme?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

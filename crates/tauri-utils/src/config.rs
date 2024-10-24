@@ -31,9 +31,10 @@ use serde::{
   Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
-use serde_untagged::UntaggedEnumVisitor;
+
 use serde_with::skip_serializing_none;
 use url::Url;
+use http::{HeaderMap,HeaderName,HeaderValue};
 
 use std::{
   collections::HashMap,
@@ -45,10 +46,16 @@ use std::{
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
+/// Items and definition of the [`SecurityConfig`].
+pub mod security;
 
-use crate::{acl::capability::Capability, TitleBarStyle, WindowEffect, WindowEffectState};
+use crate::{TitleBarStyle, WindowEffect, WindowEffectState};
 
 pub use self::parse::parse;
+pub use self::security::{
+  AssetProtocolConfig, CapabilityEntry, Csp, CspDirectiveSources, DisabledCspModificationKind,
+  FsScope, PatternKind, SecurityConfig, HeaderAddition, HeaderConfig, HeaderSource
+};
 
 fn default_true() -> bool {
   true
@@ -1554,319 +1561,6 @@ fn default_title() -> String {
   "Tauri App".to_string()
 }
 
-/// A Content-Security-Policy directive source list.
-/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy/Sources#sources>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum CspDirectiveSources {
-  /// An inline list of CSP sources. Same as [`Self::List`], but concatenated with a space separator.
-  Inline(String),
-  /// A list of CSP sources. The collection will be concatenated with a space separator for the CSP string.
-  List(Vec<String>),
-}
-
-impl Default for CspDirectiveSources {
-  fn default() -> Self {
-    Self::List(Vec::new())
-  }
-}
-
-impl From<CspDirectiveSources> for Vec<String> {
-  fn from(sources: CspDirectiveSources) -> Self {
-    match sources {
-      CspDirectiveSources::Inline(source) => source.split(' ').map(|s| s.to_string()).collect(),
-      CspDirectiveSources::List(l) => l,
-    }
-  }
-}
-
-impl CspDirectiveSources {
-  /// Whether the given source is configured on this directive or not.
-  pub fn contains(&self, source: &str) -> bool {
-    match self {
-      Self::Inline(s) => s.contains(&format!("{source} ")) || s.contains(&format!(" {source}")),
-      Self::List(l) => l.contains(&source.into()),
-    }
-  }
-
-  /// Appends the given source to this directive.
-  pub fn push<S: AsRef<str>>(&mut self, source: S) {
-    match self {
-      Self::Inline(s) => {
-        s.push(' ');
-        s.push_str(source.as_ref());
-      }
-      Self::List(l) => {
-        l.push(source.as_ref().to_string());
-      }
-    }
-  }
-
-  /// Extends this CSP directive source list with the given array of sources.
-  pub fn extend(&mut self, sources: Vec<String>) {
-    for s in sources {
-      self.push(s);
-    }
-  }
-}
-
-/// A Content-Security-Policy definition.
-/// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum Csp {
-  /// The entire CSP policy in a single text string.
-  Policy(String),
-  /// An object mapping a directive with its sources values as a list of strings.
-  DirectiveMap(HashMap<String, CspDirectiveSources>),
-}
-
-impl From<HashMap<String, CspDirectiveSources>> for Csp {
-  fn from(map: HashMap<String, CspDirectiveSources>) -> Self {
-    Self::DirectiveMap(map)
-  }
-}
-
-impl From<Csp> for HashMap<String, CspDirectiveSources> {
-  fn from(csp: Csp) -> Self {
-    match csp {
-      Csp::Policy(policy) => {
-        let mut map = HashMap::new();
-        for directive in policy.split(';') {
-          let mut tokens = directive.trim().split(' ');
-          if let Some(directive) = tokens.next() {
-            let sources = tokens.map(|s| s.to_string()).collect::<Vec<String>>();
-            map.insert(directive.to_string(), CspDirectiveSources::List(sources));
-          }
-        }
-        map
-      }
-      Csp::DirectiveMap(m) => m,
-    }
-  }
-}
-
-impl Display for Csp {
-  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    match self {
-      Self::Policy(s) => write!(f, "{s}"),
-      Self::DirectiveMap(m) => {
-        let len = m.len();
-        let mut i = 0;
-        for (directive, sources) in m {
-          let sources: Vec<String> = sources.clone().into();
-          write!(f, "{} {}", directive, sources.join(" "))?;
-          i += 1;
-          if i != len {
-            write!(f, "; ")?;
-          }
-        }
-        Ok(())
-      }
-    }
-  }
-}
-
-/// The possible values for the `dangerous_disable_asset_csp_modification` config option.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum DisabledCspModificationKind {
-  /// If `true`, disables all CSP modification.
-  /// `false` is the default value and it configures Tauri to control the CSP.
-  Flag(bool),
-  /// Disables the given list of CSP directives modifications.
-  List(Vec<String>),
-}
-
-impl DisabledCspModificationKind {
-  /// Determines whether the given CSP directive can be modified or not.
-  pub fn can_modify(&self, directive: &str) -> bool {
-    match self {
-      Self::Flag(f) => !f,
-      Self::List(l) => !l.contains(&directive.into()),
-    }
-  }
-}
-
-impl Default for DisabledCspModificationKind {
-  fn default() -> Self {
-    Self::Flag(false)
-  }
-}
-
-/// Protocol scope definition.
-/// It is a list of glob patterns that restrict the API access from the webview.
-///
-/// Each pattern can start with a variable that resolves to a system base directory.
-/// The variables are: `$AUDIO`, `$CACHE`, `$CONFIG`, `$DATA`, `$LOCALDATA`, `$DESKTOP`,
-/// `$DOCUMENT`, `$DOWNLOAD`, `$EXE`, `$FONT`, `$HOME`, `$PICTURE`, `$PUBLIC`, `$RUNTIME`,
-/// `$TEMPLATE`, `$VIDEO`, `$RESOURCE`, `$APP`, `$LOG`, `$TEMP`, `$APPCONFIG`, `$APPDATA`,
-/// `$APPLOCALDATA`, `$APPCACHE`, `$APPLOG`.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[serde(untagged)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum FsScope {
-  /// A list of paths that are allowed by this scope.
-  AllowedPaths(Vec<PathBuf>),
-  /// A complete scope configuration.
-  #[serde(rename_all = "camelCase")]
-  Scope {
-    /// A list of paths that are allowed by this scope.
-    #[serde(default)]
-    allow: Vec<PathBuf>,
-    /// A list of paths that are not allowed by this scope.
-    /// This gets precedence over the [`Self::Scope::allow`] list.
-    #[serde(default)]
-    deny: Vec<PathBuf>,
-    /// Whether or not paths that contain components that start with a `.`
-    /// will require that `.` appears literally in the pattern; `*`, `?`, `**`,
-    /// or `[...]` will not match. This is useful because such files are
-    /// conventionally considered hidden on Unix systems and it might be
-    /// desirable to skip them when listing files.
-    ///
-    /// Defaults to `true` on Unix systems and `false` on Windows
-    // dotfiles are not supposed to be exposed by default on unix
-    #[serde(alias = "require-literal-leading-dot")]
-    require_literal_leading_dot: Option<bool>,
-  },
-}
-
-impl Default for FsScope {
-  fn default() -> Self {
-    Self::AllowedPaths(Vec::new())
-  }
-}
-
-impl FsScope {
-  /// The list of allowed paths.
-  pub fn allowed_paths(&self) -> &Vec<PathBuf> {
-    match self {
-      Self::AllowedPaths(p) => p,
-      Self::Scope { allow, .. } => allow,
-    }
-  }
-
-  /// The list of forbidden paths.
-  pub fn forbidden_paths(&self) -> Option<&Vec<PathBuf>> {
-    match self {
-      Self::AllowedPaths(_) => None,
-      Self::Scope { deny, .. } => Some(deny),
-    }
-  }
-}
-
-/// Config for the asset custom protocol.
-///
-/// See more: <https://v2.tauri.app/reference/config/#assetprotocolconfig>
-#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct AssetProtocolConfig {
-  /// The access scope for the asset protocol.
-  #[serde(default)]
-  pub scope: FsScope,
-  /// Enables the asset protocol.
-  #[serde(default)]
-  pub enable: bool,
-}
-
-/// Security configuration.
-///
-/// See more: <https://v2.tauri.app/reference/config/#securityconfig>
-#[skip_serializing_none]
-#[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct SecurityConfig {
-  /// The Content Security Policy that will be injected on all HTML files on the built application.
-  /// If [`dev_csp`](#SecurityConfig.devCsp) is not specified, this value is also injected on dev.
-  ///
-  /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
-  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-  pub csp: Option<Csp>,
-  /// The Content Security Policy that will be injected on all HTML files on development.
-  ///
-  /// This is a really important part of the configuration since it helps you ensure your WebView is secured.
-  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP>.
-  #[serde(alias = "dev-csp")]
-  pub dev_csp: Option<Csp>,
-  /// Freeze the `Object.prototype` when using the custom protocol.
-  #[serde(default, alias = "freeze-prototype")]
-  pub freeze_prototype: bool,
-  /// Disables the Tauri-injected CSP sources.
-  ///
-  /// At compile time, Tauri parses all the frontend assets and changes the Content-Security-Policy
-  /// to only allow loading of your own scripts and styles by injecting nonce and hash sources.
-  /// This stricts your CSP, which may introduce issues when using along with other flexing sources.
-  ///
-  /// This configuration option allows both a boolean and a list of strings as value.
-  /// A boolean instructs Tauri to disable the injection for all CSP injections,
-  /// and a list of strings indicates the CSP directives that Tauri cannot inject.
-  ///
-  /// **WARNING:** Only disable this if you know what you are doing and have properly configured the CSP.
-  /// Your application might be vulnerable to XSS attacks without this Tauri protection.
-  #[serde(default, alias = "dangerous-disable-asset-csp-modification")]
-  pub dangerous_disable_asset_csp_modification: DisabledCspModificationKind,
-  /// Custom protocol config.
-  #[serde(default, alias = "asset-protocol")]
-  pub asset_protocol: AssetProtocolConfig,
-  /// The pattern to use.
-  #[serde(default)]
-  pub pattern: PatternKind,
-  /// List of capabilities that are enabled on the application.
-  ///
-  /// If the list is empty, all capabilities are included.
-  #[serde(default)]
-  pub capabilities: Vec<CapabilityEntry>,
-}
-
-/// A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum CapabilityEntry {
-  /// An inlined capability.
-  Inlined(Capability),
-  /// Reference to a capability identifier.
-  Reference(String),
-}
-
-impl<'de> Deserialize<'de> for CapabilityEntry {
-  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    UntaggedEnumVisitor::new()
-      .string(|string| Ok(Self::Reference(string.to_owned())))
-      .map(|map| map.deserialize::<Capability>().map(Self::Inlined))
-      .deserialize(deserializer)
-  }
-}
-
-/// The application pattern.
-#[skip_serializing_none]
-#[derive(Debug, PartialEq, Eq, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase", tag = "use", content = "options")]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-pub enum PatternKind {
-  /// Brownfield pattern.
-  Brownfield,
-  /// Isolation pattern. Recommended for security purposes.
-  Isolation {
-    /// The dir containing the index.html file that contains the secure isolation application.
-    dir: PathBuf,
-  },
-}
-
-impl Default for PatternKind {
-  fn default() -> Self {
-    Self::Brownfield
-  }
-}
-
 /// The App configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#appconfig>
@@ -2774,6 +2468,70 @@ mod build {
     }
   }
 
+
+  impl ToTokens for HeaderSource {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::HeaderSource };
+
+      tokens.append_all(match self {
+        Self::Inline(s) => {
+          let line = s.as_str();
+          quote!(#prefix::Inline(#line.into()))
+        },
+        Self::List(l )=> {
+          let list = vec_lit(l, str_lit);
+          quote!(#prefix::List(#list))
+        },
+        Self::Map(m) => {
+          let map = map_lit(
+            quote! { ::std::collections::HashMap },
+            m,
+            str_lit,
+            str_lit,
+          );
+          quote!(#prefix::Map(#map))
+        }
+      })
+    }
+  }
+
+  impl ToTokens for HeaderConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+
+      println!("toTokensConfig");
+      let access_control_allow_credentials = opt_lit(self.access_control_allow_credentials.as_ref());
+      let access_control_allow_headers = opt_lit(self.access_control_allow_headers.as_ref());
+      let access_control_allow_methods = opt_lit(self.access_control_allow_methods.as_ref());
+      let access_control_expose_headers = opt_lit(self.access_control_expose_headers.as_ref());
+      let access_control_max_age = opt_lit(self.access_control_max_age.as_ref());
+      let cross_origin_embedder_policy = opt_lit(self.cross_origin_embedder_policy.as_ref());
+      let cross_origin_opener_policy = opt_lit(self.cross_origin_opener_policy.as_ref());
+      let cross_origin_resource_policy= opt_lit(self.cross_origin_resource_policy.as_ref());
+      let permissions_policy = opt_lit(self.permissions_policy.as_ref());
+      let timing_allow_origin = opt_lit(self.timing_allow_origin.as_ref());
+      let x_content_type_options = opt_lit(self.x_content_type_options.as_ref());
+      let tauri_custom_header = opt_lit(self.tauri_custom_header.as_ref());
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::HeaderConfig,
+        access_control_allow_credentials,
+        access_control_allow_headers,
+        access_control_allow_methods,
+        access_control_expose_headers,
+        access_control_max_age,
+        cross_origin_embedder_policy,
+        cross_origin_opener_policy,
+        cross_origin_resource_policy,
+        permissions_policy,
+        timing_allow_origin,
+        x_content_type_options,
+        tauri_custom_header
+      );
+
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
@@ -2783,6 +2541,7 @@ mod build {
       let asset_protocol = &self.asset_protocol;
       let pattern = &self.pattern;
       let capabilities = vec_lit(&self.capabilities, identity);
+      let headers = opt_lit(self.headers.as_ref());
 
       literal_struct!(
         tokens,
@@ -2793,7 +2552,8 @@ mod build {
         dangerous_disable_asset_csp_modification,
         asset_protocol,
         pattern,
-        capabilities
+        capabilities,
+        headers
       );
     }
   }
@@ -2937,6 +2697,7 @@ mod test {
         asset_protocol: AssetProtocolConfig::default(),
         pattern: Default::default(),
         capabilities: Vec::new(),
+        headers: None,
       },
       tray_icon: None,
       macos_private_api: false,

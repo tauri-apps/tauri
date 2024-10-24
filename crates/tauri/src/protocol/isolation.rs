@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::Assets;
-use http::header::CONTENT_TYPE;
+use http::{header::CONTENT_TYPE, Extensions, HeaderMap, Response, StatusCode, Version};
 use serialize_to_javascript::Template;
 use tauri_utils::{assets::EmbeddedAssets, config::Csp};
 
@@ -49,39 +49,54 @@ pub fn get<R: Runtime>(
             origin: window_origin.clone(),
             process_ipc_message_fn: PROCESS_IPC_MESSAGE_FN,
           };
+
           match template.render(asset.as_ref(), &Default::default()) {
-            Ok(asset) => http::Response::builder()
-              .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
-              .header("Content-Security-Policy", csp)
-              .body(asset.into_string().as_bytes().to_vec()),
-            Err(_) => http::Response::builder()
-              .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+            Ok(asset) => {
+              let mut map = match manager.config.app.security.headers.clone() {
+                Some(headers) => {
+                  let mut filled = HeaderMap::from(headers);
+                  filled.insert(CONTENT_TYPE, mime::TEXT_HTML.as_ref().parse().unwrap());
+                  filled.insert("Content-Security-Policy", csp.parse().unwrap());
+                  filled
+                }
+                None => {
+                  let mut filled = HeaderMap::new();
+                  filled.insert(CONTENT_TYPE, mime::TEXT_HTML.as_ref().parse().unwrap());
+                  filled.insert("Content-Security-Policy", csp.parse().unwrap());
+                  filled
+                }
+              };
+
+              let response = Response::new(asset.into_string().as_bytes().to_vec());
+              let (mut parts, body) = response.into_parts();
+              parts.headers = map;
+              parts.status = StatusCode::OK;
+              parts.extensions = Extensions::default();
+              parts.version = Version::HTTP_3;
+
+              Response::from_parts(parts, body)
+            }
+            Err(_) => Response::builder()
+              .status(StatusCode::INTERNAL_SERVER_ERROR)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-              .body(Vec::new()),
+              .body(Vec::new())
+              .unwrap(),
           }
         }
-
         None => http::Response::builder()
           .status(http::StatusCode::NOT_FOUND)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-          .body(Vec::new()),
+          .body(Vec::new())
+          .unwrap(),
       },
       _ => http::Response::builder()
         .status(http::StatusCode::NOT_FOUND)
         .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
-        .body(Vec::new()),
+        .body(Vec::new())
+        .unwrap(),
     };
 
-    if let Ok(r) = response {
-      responder.respond(r);
-    } else {
-      responder.respond(
-        http::Response::builder()
-          .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .body("failed to get response".as_bytes().to_vec())
-          .unwrap(),
-      );
-    }
+    responder.respond(response)
   })
 }
 

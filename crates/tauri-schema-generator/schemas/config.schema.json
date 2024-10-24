@@ -924,6 +924,17 @@
           "items": {
             "$ref": "#/definitions/CapabilityEntry"
           }
+        },
+        "headers": {
+          "description": "HTTP headers to send with every response, which is not an error, to the front-end",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HTTPHeaders"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1330,6 +1341,34 @@
           "enum": [
             "iOS"
           ]
+        }
+      ]
+    },
+    "HTTPHeaders": {
+      "description": "A HTTP header definition definition.\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers>.",
+      "anyOf": [
+        {
+          "description": "Key->Value hash-mapping of HTTP-Header-Name -> HTTP-Header-Value",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/HTTPHeaderDirectiveSources"
+          }
+        }
+      ]
+    },
+    "HTTPHeaderDirectiveSources": {
+      "description": "A HTTP Header directive source list.\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers>.",
+      "anyOf": [
+        {
+          "description": "An inline list of HTTP header directive sources. Same as [`Self::List`], but concatenated with a semicolon separator.",
+          "type": "string"
+        },
+        {
+          "description": "A list of HTTP header directive sources sources. The collection will be concatenated with a semicolon separator for the header value string.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       ]
     },

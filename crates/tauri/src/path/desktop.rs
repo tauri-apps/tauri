@@ -194,7 +194,7 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's config files.
   ///
-  /// Resolves to [`config_dir`](self.config_dir)`/${bundle_identifier}`.
+  /// Resolves to [`config_dir`](Self::config_dir)`/${bundle_identifier}`.
   pub fn app_config_dir(&self) -> Result<PathBuf> {
     dirs::config_dir()
       .ok_or(Error::UnknownPath)
@@ -203,7 +203,7 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's data files.
   ///
-  /// Resolves to [`data_dir`](self.data_dir)`/${bundle_identifier}`.
+  /// Resolves to [`data_dir`](Self::data_dir)`/${bundle_identifier}`.
   pub fn app_data_dir(&self) -> Result<PathBuf> {
     dirs::data_dir()
       .ok_or(Error::UnknownPath)
@@ -212,7 +212,7 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's local data files.
   ///
-  /// Resolves to [`local_data_dir`](self.local_data_dir)`/${bundle_identifier}`.
+  /// Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}`.
   pub fn app_local_data_dir(&self) -> Result<PathBuf> {
     dirs::data_local_dir()
       .ok_or(Error::UnknownPath)
@@ -221,7 +221,7 @@ impl<R: Runtime> PathResolver<R> {
 
   /// Returns the path to the suggested directory for your app's cache files.
   ///
-  /// Resolves to [`cache_dir`](self.cache_dir)`/${bundle_identifier}`.
+  /// Resolves to [`cache_dir`](Self::cache_dir)`/${bundle_identifier}`.
   pub fn app_cache_dir(&self) -> Result<PathBuf> {
     dirs::cache_dir()
       .ok_or(Error::UnknownPath)
@@ -232,9 +232,9 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Linux:** Resolves to [`data_local_dir`](self.data_local_dir)`/${bundle_identifier}/logs`.
-  /// - **macOS:** Resolves to [`home_dir`](self.home_dir)`/Library/Logs/${bundle_identifier}`
-  /// - **Windows:** Resolves to [`data_local_dir`](self.data_local_dir)`/${bundle_identifier}/logs`.
+  /// - **Linux:** Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}/logs`.
+  /// - **macOS:** Resolves to [`home_dir`](Self::home_dir)`/Library/Logs/${bundle_identifier}`
+  /// - **Windows:** Resolves to [`local_data_dir`](Self::local_data_dir)`/${bundle_identifier}/logs`.
   pub fn app_log_dir(&self) -> Result<PathBuf> {
     #[cfg(target_os = "macos")]
     let path = dirs::home_dir()

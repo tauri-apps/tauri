@@ -209,6 +209,7 @@ pub struct WebviewAttributes {
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub use_https_scheme: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -236,6 +237,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       builder = builder.proxy_url(url.to_owned());
     }
     builder = builder.zoom_hotkeys_enabled(config.zoom_hotkeys_enabled);
+    builder = builder.use_https_scheme(config.use_https_scheme);
     builder = builder.browser_extensions_enabled(config.browser_extensions_enabled);
     builder
   }
@@ -261,6 +263,7 @@ impl WebviewAttributes {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      use_https_scheme: false,
     }
   }
 
@@ -378,6 +381,22 @@ impl WebviewAttributes {
     self.browser_extensions_enabled = enabled;
     self
   }
+
+  /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
+  ///
+  /// ## Note
+  ///
+  /// Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and is therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  ///
+  /// ## Warning
+  ///
+  /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access them.
+  #[must_use]
+  pub fn use_https_scheme(mut self, enabled: bool) -> Self {
+    self.use_https_scheme = enabled;
+    self
+  }
+
 }
 
 /// IPC handler.

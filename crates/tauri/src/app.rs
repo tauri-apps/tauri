@@ -266,6 +266,11 @@ pub struct AssetResolver<R: Runtime> {
 }
 
 impl<R: Runtime> AssetResolver<R> {
+  /// Same as [AssetResolver::get_for_scheme] but always resolves with csp header for `http` scheme.
+  pub fn get(&self, path: String) -> Option<Asset> {
+    self.get_for_scheme(path, false)
+  }
+
   /// Gets the app asset associated with the given path.
   ///
   /// Resolves to the embedded asset that is part of the app
@@ -275,7 +280,10 @@ impl<R: Runtime> AssetResolver<R> {
   ///
   /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
   /// Note that the dist directory must exist so you might need to build your frontend assets first.
-  pub fn get(&self, path: String) -> Option<Asset> {
+  ///
+  /// - `use_https_scheme`: If `true` when using [`Pattern::Isolation`](tauri::Pattern::Isolation),
+  ///   the csp header will contain `https://tauri.localhost` instead of `http://tauri.localhost`
+  pub fn get_for_scheme(&self, path: String, use_https_scheme: bool) -> Option<Asset> {
     #[cfg(dev)]
     {
       // on dev if the devPath is a path to a directory we have the embedded assets
@@ -306,7 +314,7 @@ impl<R: Runtime> AssetResolver<R> {
       }
     }
 
-    self.manager.get_asset(path).ok()
+    self.manager.get_asset(path, use_https_scheme).ok()
   }
 
   /// Iterate on all assets.

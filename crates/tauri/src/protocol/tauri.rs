@@ -152,7 +152,8 @@ fn get_response<R: Runtime>(
 
   #[cfg(not(all(dev, mobile)))]
   let mut response = {
-    let asset = manager.get_asset(path)?;
+    let use_https_scheme = request.uri().scheme() == Some(&http::uri::Scheme::HTTPS);
+    let asset = manager.get_asset(path, use_https_scheme)?;
     builder = builder.header(CONTENT_TYPE, &asset.mime_type);
     if let Some(csp) = &asset.csp_header {
       builder = builder.header("Content-Security-Policy", csp);

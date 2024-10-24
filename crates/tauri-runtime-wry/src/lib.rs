@@ -746,6 +746,8 @@ impl WindowBuilder for WindowBuilderWrapper {
       builder = builder.title_bar_style(TitleBarStyle::Visible);
     }
 
+    builder = builder.title("Tauri App");
+
     builder
   }
 
@@ -4025,6 +4027,11 @@ fn create_webview<T: UserEvent>(
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
+  #[cfg(any(target_os = "windows", target_os = "android"))]
+  {
+    webview_builder = webview_builder.with_https_scheme(webview_attributes.use_https_scheme);
+  }
+
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
     let window_id_ = window_id.clone();
@@ -4169,11 +4176,6 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(windows)]
   {
-    webview_builder = webview_builder.with_https_scheme(false);
-  }
-
-  #[cfg(windows)]
-  {
     webview_builder = webview_builder
       .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
   }
@@ -4281,7 +4283,7 @@ fn create_webview<T: UserEvent>(
       builder
     }
   }
-  .map_err(|e| Error::CreateWebview(Box::new(dbg!(e))))?;
+  .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(

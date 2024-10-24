@@ -787,6 +787,21 @@ fn main() {
     self.webview_attributes.browser_extensions_enabled = enabled;
     self
   }
+
+  /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
+  ///
+  /// ## Note
+  ///
+  /// Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and is therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  ///
+  /// ## Warning
+  ///
+  /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access them.
+  #[must_use]
+  pub fn use_https_scheme(mut self, enabled: bool) -> Self {
+    self.webview_attributes.use_https_scheme = enabled;
+    self
+  }
 }
 
 /// Webview.
@@ -1173,9 +1188,11 @@ fn main() {
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {
+    let uses_https = current_url.scheme() == "https";
+
     // if from `tauri://` custom protocol
     ({
-      let protocol_url = self.manager().protocol_url();
+      let protocol_url = self.manager().protocol_url(uses_https);
       current_url.scheme() == protocol_url.scheme()
       && current_url.domain() == protocol_url.domain()
     }) ||
@@ -1183,7 +1200,7 @@ fn main() {
     // or if relative to `devUrl` or `frontendDist`
       self
           .manager()
-          .get_url()
+          .get_url(uses_https)
           .make_relative(current_url)
           .is_some()
 
@@ -1199,7 +1216,7 @@ fn main() {
         // so we check using the first part of the domain
         #[cfg(any(windows, target_os = "android"))]
         let local = {
-          let protocol_url = self.manager().protocol_url();
+          let protocol_url = self.manager().protocol_url(uses_https);
           let maybe_protocol = current_url
             .domain()
             .and_then(|d| d .split_once('.'))

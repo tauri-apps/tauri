@@ -137,10 +137,14 @@ impl<R: Runtime> WebviewManager<R> {
 
     let mut webview_attributes = pending.webview_attributes;
 
+    let use_https_scheme = webview_attributes.use_https_scheme;
+
     let ipc_init = IpcJavascript {
       isolation_origin: &match &*app_manager.pattern {
         #[cfg(feature = "isolation")]
-        crate::Pattern::Isolation { schema, .. } => crate::pattern::format_real_schema(schema),
+        crate::Pattern::Isolation { schema, .. } => {
+          crate::pattern::format_real_schema(schema, use_https_scheme)
+        }
         _ => "".to_string(),
       },
     }
@@ -180,6 +184,7 @@ impl<R: Runtime> WebviewManager<R> {
         &ipc_init.into_string(),
         &pattern_init.into_string(),
         is_init_global,
+        use_https_scheme,
       )?);
 
     for plugin_init_script in plugin_init_scripts {
@@ -190,7 +195,7 @@ impl<R: Runtime> WebviewManager<R> {
     if let crate::Pattern::Isolation { schema, .. } = &*app_manager.pattern {
       webview_attributes = webview_attributes.initialization_script(
         &IsolationJavascript {
-          isolation_src: &crate::pattern::format_real_schema(schema),
+          isolation_src: &crate::pattern::format_real_schema(schema, use_https_scheme),
           style: tauri_utils::pattern::isolation::IFRAME_STYLE,
         }
         .render_default(&Default::default())?
@@ -232,7 +237,8 @@ impl<R: Runtime> WebviewManager<R> {
       && window_url.scheme() != "http"
       && window_url.scheme() != "https"
     {
-      format!("http://{}.localhost", window_url.scheme())
+      let https = if use_https_scheme { "https" } else { "http" };
+      format!("{https}://{}.localhost", window_url.scheme())
     } else if let Some(host) = window_url.host() {
       format!(
         "{}://{}{}",
@@ -320,6 +326,7 @@ impl<R: Runtime> WebviewManager<R> {
         assets.clone(),
         *crypto_keys.aes_gcm().raw(),
         window_origin,
+        use_https_scheme,
       );
       pending.register_uri_scheme_protocol(schema, move |webview_id, request, responder| {
         protocol(webview_id, request, UriSchemeResponder(responder))
@@ -335,6 +342,7 @@ impl<R: Runtime> WebviewManager<R> {
     ipc_script: &str,
     pattern_script: &str,
     with_global_tauri: bool,
+    use_https_scheme: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
     #[default_template("../../scripts/init.js")]
@@ -357,6 +365,7 @@ impl<R: Runtime> WebviewManager<R> {
     #[default_template("../../scripts/core.js")]
     struct CoreJavascript<'a> {
       os_name: &'a str,
+      protocol_scheme: &'a str,
       invoke_key: &'a str,
     }
 
@@ -378,6 +387,7 @@ impl<R: Runtime> WebviewManager<R> {
       bundle_script,
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
+        protocol_scheme: if use_https_scheme { "https" } else { "http" },
         invoke_key: self.invoke_key(),
       }
       .render_default(&Default::default())?
@@ -411,7 +421,7 @@ impl<R: Runtime> WebviewManager<R> {
         let url = if PROXY_DEV_SERVER {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
-          app_manager.get_url()
+          app_manager.get_url(pending.webview_attributes.use_https_scheme)
         };
         // ignore "index.html" just to simplify the url
         if path.to_str() != Some("index.html") {
@@ -425,7 +435,7 @@ impl<R: Runtime> WebviewManager<R> {
         }
       }
       WebviewUrl::External(url) => {
-        let config_url = app_manager.get_url();
+        let config_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
         let is_local = config_url.make_relative(url).is_some();
         let mut url = url.clone();
         if is_local && PROXY_DEV_SERVER {

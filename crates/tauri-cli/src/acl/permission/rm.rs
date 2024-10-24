@@ -117,7 +117,7 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
 #[clap(about = "Remove a permission file, and its reference from any capability")]
 pub struct Options {
   /// Permission to remove.
-  identifier: String,
+  pub identifier: String,
 }
 
 pub fn command(options: Options) -> Result<()> {

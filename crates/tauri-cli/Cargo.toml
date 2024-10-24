@@ -70,7 +70,7 @@ tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [
   "config-toml",
 ] }
 toml = "0.8"
-jsonschema = "0.18"
+jsonschema = "0.24"
 handlebars = "6.0"
 include_dir = "0.7"
 minisign = "=0.7.3"
@@ -90,7 +90,7 @@ env_logger = "0.11.5"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
 axum = { version = "0.7.4", features = ["ws"] }
-html5ever = "0.26"
+html5ever = "0.29"
 kuchiki = { package = "kuchikiki", version = "0.8" }
 tokio = { version = "1", features = ["macros", "sync"] }
 common-path = "1"
@@ -98,13 +98,13 @@ serde-value = "0.7.0"
 itertools = "0.13"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.43.0"
+resvg = "0.44.0"
 dunce = "1"
 glob = "0.3"
-oxc_parser = "0.25"
-oxc_span = "0.25"
-oxc_allocator = "0.25"
-oxc_ast = "0.25"
+oxc_parser = "0.32"
+oxc_span = "0.32"
+oxc_allocator = "0.32"
+oxc_ast = "0.32"
 magic_string = "0.3"
 phf = { version = "0.11", features = ["macros"] }
 walkdir = "2"

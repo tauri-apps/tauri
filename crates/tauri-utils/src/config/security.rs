@@ -315,10 +315,10 @@ impl Display for HeaderSource {
   }
 }
 
-impl Into<Vec<String>> for HeaderSource {
-  fn into(self) -> Vec<String> {
-    match self {
-      Self::Inline(s) => {
+impl From<HeaderSource> for Vec<String> {
+  fn from(val: HeaderSource) -> Self {
+    match val {
+      HeaderSource::Inline(s) => {
         let mut out: Vec<String> = Vec::new();
         let mut separator = ',';
         if s.contains(';') {
@@ -329,14 +329,14 @@ impl Into<Vec<String>> for HeaderSource {
         }
         out
       }
-      Self::List(l) => l,
-      Self::Map(m) => {
+      HeaderSource::List(l) => l,
+      HeaderSource::Map(m) => {
         let mut out: Vec<String> = Vec::new();
         for (key, value) in m.iter() {
           let mut item = String::new();
           item.push_str(key);
           item.push(' ');
-          item.push_str(&value);
+          item.push_str(value);
           out.push(item);
         }
         out
@@ -345,10 +345,10 @@ impl Into<Vec<String>> for HeaderSource {
   }
 }
 
-impl Into<HashMap<String, String>> for HeaderSource {
-  fn into(self) -> HashMap<String, String> {
-    match self {
-      Self::Inline(s) => {
+impl From<HeaderSource> for HashMap<String, String> {
+  fn from(val: HeaderSource) -> Self {
+    match val {
+      HeaderSource::Inline(s) => {
         let mut out: HashMap<String, String> = HashMap::new();
         for item in s.split(';') {
           let index = item.find(' ');
@@ -359,7 +359,7 @@ impl Into<HashMap<String, String>> for HeaderSource {
         }
         out
       }
-      Self::List(l) => {
+      HeaderSource::List(l) => {
         let mut out: HashMap<String, String> = HashMap::new();
         for item in l.iter() {
           let index = item.find(' ');
@@ -370,7 +370,7 @@ impl Into<HashMap<String, String>> for HeaderSource {
         }
         out
       }
-      Self::Map(m) => m,
+      HeaderSource::Map(m) => m,
     }
   }
 }
@@ -646,6 +646,9 @@ impl HeaderConfig {
       tauri_custom_header: None,
     }
   }
+}
+
+impl Default for HeaderConfig {
   /// get the default HeaderConfig, it's empty
   pub fn default() -> Self {
     Self::new()
@@ -657,75 +660,75 @@ impl Display for HeaderConfig {
 
         write!(f,"Access-Control-Allow-Credentials: ")?;
         match &self.access_control_allow_credentials {
-          Some(value) => write!(f, "{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f, "{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Access-Control-Allow-Headers: ")?;
         match  &self.access_control_allow_headers {
-          Some(value) => write!(f, "{}\n", value.to_string())?,
-          None =>  write!(f, "null\n")?,
+          Some(value) => writeln!(f, "{}", value)?,
+          None =>  writeln!(f, "null")?,
         };
 
         write!(f,"Access-Control-Allow-Methods: ")?;
         match  &self.access_control_allow_methods {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Access-Control-Expose-Headers: ")?;
        match  &self.access_control_expose_headers {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Access-Control-Max-Age: ")?;
        match  &self.access_control_max_age {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Cross-Origin-Embedder-Policy: ")?;
         match  &self.cross_origin_embedder_policy {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f,"null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f,"null")?,
         };
 
         write!(f,"Cross-Origin-Opener-Policy: ")?;
         match  &self.cross_origin_opener_policy {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Cross-Origin-Resource-Policy: ")?;
         match  &self.cross_origin_resource_policy {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Permission-Policy: ")?;
         match  &self.permissions_policy {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Timing-Allow-Origin: ")?;
         match  &self.timing_allow_origin {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"X-Content-Type-Options: ")?;
         match  &self.x_content_type_options {
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
 
         write!(f,"Tauri-Custom-Header: ")?;
         match  &self.tauri_custom_header {
           // also allow the X-Custom Header to be exposed
-          Some(value) => write!(f,"{}\n", value.to_string())?,
-          None => write!(f, "null\n")?,
+          Some(value) => writeln!(f,"{}", value)?,
+          None => writeln!(f, "null")?,
         };
         Ok(())
   }

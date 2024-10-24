@@ -477,6 +477,10 @@ impl WindowBuilder for MockWindowBuilder {
   fn get_theme(&self) -> Option<Theme> {
     None
   }
+
+  fn background_color(self, _color: tauri_utils::config::Color) -> Self {
+    self
+  }
 }
 
 impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
@@ -586,6 +590,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
   }
 
   fn show(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {
     Ok(())
   }
 }
@@ -978,6 +986,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
 
   fn is_enabled(&self) -> Result<bool> {
     Ok(true)
+  }
+
+  fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {
+    Ok(())
   }
 }
 

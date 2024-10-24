@@ -11,7 +11,10 @@ use crate::{
 
 use dpi::PixelUnit;
 use serde::{Deserialize, Deserializer, Serialize};
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{
+  config::{Color, WindowConfig},
+  Theme,
+};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 
@@ -353,6 +356,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Sets whether or not the window icon should be added to the taskbar.
   #[must_use]
   fn skip_taskbar(self, skip: bool) -> Self;
+
+  /// Set the window background color.
+  #[must_use]
+  fn background_color(self, color: Color) -> Self;
 
   /// Sets whether or not the window has shadow.
   ///

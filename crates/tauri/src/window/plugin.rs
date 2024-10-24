@@ -19,6 +19,7 @@ mod desktop_commands {
     command,
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
+    window::Color,
     window::{ProgressBarState, WindowBuilder},
     AppHandle, CursorIcon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Webview, Window,
@@ -130,6 +131,7 @@ mod desktop_commands {
   setter!(set_skip_taskbar, bool);
   setter!(set_cursor_grab, bool);
   setter!(set_cursor_visible, bool);
+  setter!(set_background_color, Option<Color>);
   setter!(set_cursor_icon, CursorIcon);
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
@@ -291,6 +293,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_progress_bar,
             desktop_commands::set_icon,
             desktop_commands::set_visible_on_all_workspaces,
+            desktop_commands::set_background_color,
             desktop_commands::set_title_bar_style,
             desktop_commands::set_theme,
             desktop_commands::toggle_maximize,

@@ -29,7 +29,7 @@ use crate::{
 };
 use serde::Serialize;
 use tauri_utils::{
-  config::{WebviewUrl, WindowConfig},
+  config::{Color, WebviewUrl, WindowConfig},
   Theme,
 };
 use url::Url;
@@ -896,6 +896,23 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self.webview_builder = self.webview_builder.browser_extensions_enabled(enabled);
     self
   }
+
+  /// Set the window and webview background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Android / iOS:** Unsupported for the window layer.
+  /// - **macOS / iOS**: Not implemented for the webview layer.
+  /// - **Windows**:
+  ///   - alpha channel is ignored for the window layer.
+  ///   - On Windows 7, alpha channel is ignored for the webview layer.
+  ///   - On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
+  #[must_use]
+  pub fn background_color(mut self, color: Color) -> Self {
+    self.window_builder = self.window_builder.background_color(color);
+    self.webview_builder = self.webview_builder.background_color(color);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
@@ -1576,6 +1593,21 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self.window.set_icon(icon)
+  }
+
+  /// Sets the window background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **iOS / Android:** Unsupported.
+  /// - **macOS**: Not implemented for the webview layer..
+  /// - **Windows**:
+  ///   - alpha channel is ignored for the window layer.
+  ///   - On Windows 7, transparency is not supported and the alpha value will be ignored for the webview layer..
+  ///   - On Windows 8 and newer: translucent colors are not supported so any alpha value other than `0` will be replaced by `255` for the webview layer.
+  pub fn set_background_color(&self, color: Option<Color>) -> crate::Result<()> {
+    self.window.set_background_color(color)?;
+    self.webview.set_background_color(color)
   }
 
   /// Whether to hide the window icon from the taskbar or not.

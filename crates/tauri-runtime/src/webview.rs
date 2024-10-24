@@ -7,7 +7,7 @@
 use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
-use tauri_utils::config::{WebviewUrl, WindowConfig, WindowEffectsConfig};
+use tauri_utils::config::{Color, WebviewUrl, WindowConfig, WindowEffectsConfig};
 use url::Url;
 
 use std::{
@@ -209,6 +209,7 @@ pub struct WebviewAttributes {
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub background_color: Option<Color>,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -234,6 +235,9 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     if let Some(url) = &config.proxy_url {
       builder = builder.proxy_url(url.to_owned());
+    }
+    if let Some(color) = config.background_color {
+      builder = builder.background_color(color);
     }
     builder = builder.zoom_hotkeys_enabled(config.zoom_hotkeys_enabled);
     builder = builder.browser_extensions_enabled(config.browser_extensions_enabled);
@@ -261,6 +265,7 @@ impl WebviewAttributes {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      background_color: None,
     }
   }
 
@@ -376,6 +381,17 @@ impl WebviewAttributes {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Set the window and webview background color.
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: On Windows 7, alpha channel is ignored for the webview layer.
+  /// - **Windows**: On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
+  #[must_use]
+  pub fn background_color(mut self, color: Color) -> Self {
+    self.background_color = Some(color);
     self
   }
 }

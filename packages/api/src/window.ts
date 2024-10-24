@@ -1573,6 +1573,22 @@ class Window {
   }
 
   /**
+   * Sets the window background color.
+   *
+   * #### Platform-specific:
+   *
+   * - **Windows:** alpha channel is ignored.
+   * - **iOS / Android:** Unsupported.
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.1.0
+   */
+  async setBackgroundColor(color: Color): Promise<void> {
+    return invoke('plugin:window|set_background_color', { color })
+  }
+
+  /**
    * Changes the position of the cursor in window coordinates.
    * @example
    * ```typescript
@@ -1990,11 +2006,17 @@ class Window {
 }
 
 /**
- * an array RGBA colors. Each value has minimum of 0 and maximum of 255.
+ * An RGBA color. Each value has minimum of 0 and maximum of 255.
+ *
+ * It can be either a string `#ffffff`, an array of 3 or 4 elements or an object.
  *
  * @since 2.0.0
  */
-type Color = [number, number, number, number]
+type Color =
+  | [number, number, number]
+  | [number, number, number, number]
+  | { red: number; green: number; blue: number; alpha: number }
+  | string
 
 /**
  * Platform-specific window effects
@@ -2291,6 +2313,17 @@ interface WindowOptions {
    * @since 2.0.0
    */
   visibleOnAllWorkspaces?: boolean
+  /**
+   * Set the window background color.
+   *
+   * #### Platform-specific:
+   *
+   * - **Android / iOS:** Unsupported.
+   * - **Windows**: alpha channel is ignored.
+   *
+   * @since 2.1.0
+   */
+  backgroundColor?: Color
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

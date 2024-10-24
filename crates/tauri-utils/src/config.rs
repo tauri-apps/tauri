@@ -1242,15 +1242,137 @@ pub struct BundleConfig {
   pub android: AndroidConfig,
 }
 
-/// a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+/// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
+#[derive(Debug, PartialEq, Eq, Serialize, Default, Clone, Copy)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
 impl From<Color> for (u8, u8, u8, u8) {
   fn from(value: Color) -> Self {
     (value.0, value.1, value.2, value.3)
+  }
+}
+
+impl From<Color> for (u8, u8, u8) {
+  fn from(value: Color) -> Self {
+    (value.0, value.1, value.2)
+  }
+}
+
+impl From<(u8, u8, u8, u8)> for Color {
+  fn from(value: (u8, u8, u8, u8)) -> Self {
+    Color(value.0, value.1, value.2, value.3)
+  }
+}
+
+impl From<(u8, u8, u8)> for Color {
+  fn from(value: (u8, u8, u8)) -> Self {
+    Color(value.0, value.1, value.2, 255)
+  }
+}
+
+impl From<Color> for [u8; 4] {
+  fn from(value: Color) -> Self {
+    [value.0, value.1, value.2, value.3]
+  }
+}
+
+impl From<Color> for [u8; 3] {
+  fn from(value: Color) -> Self {
+    [value.0, value.1, value.2]
+  }
+}
+
+impl From<[u8; 4]> for Color {
+  fn from(value: [u8; 4]) -> Self {
+    Color(value[0], value[1], value[2], value[3])
+  }
+}
+
+impl From<[u8; 3]> for Color {
+  fn from(value: [u8; 3]) -> Self {
+    Color(value[0], value[1], value[2], 255)
+  }
+}
+
+impl FromStr for Color {
+  type Err = String;
+  fn from_str(mut color: &str) -> Result<Self, Self::Err> {
+    color = color.trim().strip_prefix('#').unwrap_or(color);
+    let color = match color.len() {
+      // TODO: use repeat_n once our MSRV is bumped to 1.82
+      3 => color.chars()
+            .flat_map(|c| std::iter::repeat(c).take(2))
+            .chain(std::iter::repeat('f').take(2))
+            .collect(),
+      6 => format!("{color}FF"),
+      8 => color.to_string(),
+      _ => return Err("Invalid hex color length, must be either 3, 6 or 8, for example: #fff, #ffffff, or #ffffffff".into()),
+    };
+
+    let r = u8::from_str_radix(&color[0..2], 16).map_err(|e| e.to_string())?;
+    let g = u8::from_str_radix(&color[2..4], 16).map_err(|e| e.to_string())?;
+    let b = u8::from_str_radix(&color[4..6], 16).map_err(|e| e.to_string())?;
+    let a = u8::from_str_radix(&color[6..8], 16).map_err(|e| e.to_string())?;
+
+    Ok(Color(r, g, b, a))
+  }
+}
+
+fn default_alpha() -> u8 {
+  255
+}
+
+#[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+enum InnerColor {
+  /// A tuple of RGB colors. Each value has minimum of 0 and maximum of 255.
+  Rgb((u8, u8, u8)),
+  /// A tuple of RGBA colors. Each value has minimum of 0 and maximum of 255.
+  Rgba((u8, u8, u8, u8)),
+  /// An object of red, green, blue, alpha color values. Each value has minimum of 0 and maximum of 255.
+  RgbaObject {
+    red: u8,
+    green: u8,
+    blue: u8,
+    #[serde(default = "default_alpha")]
+    alpha: u8,
+  },
+  /// A color hex string, for example: #fff, #ffffff, or #ffffffff.
+  String(String),
+}
+
+impl<'de> Deserialize<'de> for Color {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let color = InnerColor::deserialize(deserializer)?;
+    let color = match color {
+      InnerColor::Rgb(rgb) => Color(rgb.0, rgb.1, rgb.2, 255),
+      InnerColor::Rgba(rgb) => rgb.into(),
+      InnerColor::RgbaObject {
+        red,
+        green,
+        blue,
+        alpha,
+      } => Color(red, green, blue, alpha),
+      InnerColor::String(string) => string.parse().map_err(serde::de::Error::custom)?,
+    };
+
+    Ok(color)
+  }
+}
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for Color {
+  fn schema_name() -> String {
+    "Color".to_string()
+  }
+
+  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    gen.subschema_for::<InnerColor>()
   }
 }
 
@@ -1466,6 +1588,7 @@ pub struct WindowConfig {
   /// ## Platform-specific
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+  #[serde(alias = "proxy-url")]
   pub proxy_url: Option<Url>,
   /// Whether page zooming by hotkeys is enabled
   ///
@@ -1476,7 +1599,7 @@ pub struct WindowConfig {
   /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
-  #[serde(default)]
+  #[serde(default, alias = "zoom-hotkeys-enabled")]
   pub zoom_hotkeys_enabled: bool,
   /// Whether browser extensions can be installed for the webview process
   ///
@@ -1484,8 +1607,18 @@ pub struct WindowConfig {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
-  #[serde(default)]
+  #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
+
+  /// Set the window and webview background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: alpha channel is ignored for the window layer.
+  /// - **Windows**: On Windows 7, alpha channel is ignored for the webview layer.
+  /// - **Windows**: On Windows 8 and newer, if alpha channel is not `0`, it will be ignored for the webview layer.
+  #[serde(alias = "background-color")]
+  pub background_color: Option<Color>,
 }
 
 impl Default for WindowConfig {
@@ -1534,6 +1667,7 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      background_color: None,
     }
   }
 }
@@ -2505,6 +2639,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let background_color = opt_lit(self.background_color.as_ref());
 
       literal_struct!(
         tokens,
@@ -2551,7 +2686,8 @@ mod build {
         incognito,
         parent,
         zoom_hotkeys_enabled,
-        browser_extensions_enabled
+        browser_extensions_enabled,
+        background_color
       );
     }
   }
@@ -2985,5 +3121,16 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, bundle);
     assert_eq!(d_windows, app.windows);
+  }
+
+  #[test]
+  fn parse_hex_color() {
+    use super::Color;
+
+    assert_eq!(Color(255, 255, 255, 255), "fff".parse().unwrap());
+    assert_eq!(Color(255, 255, 255, 255), "#fff".parse().unwrap());
+    assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
+    assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
+    assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
   }
 }

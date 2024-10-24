@@ -926,10 +926,10 @@
           }
         },
         "headers": {
-          "description": "HTTP headers to send with every response, which is not an error, to the front-end",
+          "description": "The headers, which are added to every http response from tauri to the web view\n This doesn't include IPC Messages and error responses",
           "anyOf": [
             {
-              "$ref": "#/definitions/HTTPHeaders"
+              "$ref": "#/definitions/HeaderConfig"
             },
             {
               "type": "null"
@@ -1344,29 +1344,164 @@
         }
       ]
     },
-    "HTTPHeaders": {
-      "description": "A HTTP header definition definition.\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers>.",
-      "anyOf": [
-        {
-          "description": "Key->Value hash-mapping of HTTP-Header-Name -> HTTP-Header-Value",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/HTTPHeaderDirectiveSources"
-          }
+    "HeaderConfig": {
+      "title": "Header Config",
+      "description": " A struct, where the keys are some specific http header names.\n If the values to those keys are defined, then they will be send as part of a response message.\n This does not include error messages and ipc messages\n\n ## Example configuration\n ```javascript\n {\n  //..\n   app:{\n     //..\n     security: {\n       headers: {\n         \"Cross-Origin-Opener-Policy\": \"same-origin\",\n         \"Cross-Origin-Embedder-Policy\": \"require-corp\",\n         \"Timing-Allow-Origin\": [\n           \"https://developer.mozilla.org\",\n           \"https://example.com\",\n         ],\n         \"Access-Control-Expose-Headers\": \"Tauri-Custom-Header\",\n         \"Tauri-Custom-Header\": {\n           \"key1\": \"'value1' 'value2'\",\n           \"key2\": \"'value3'\"\n         }\n       },\n       csp: \"default-src 'self'; connect-src ipc: http://ipc.localhost\",\n     }\n     //..\n   }\n  //..\n }\n ```\n In this example `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are set to allow for the use of [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).\n The result is, that those headers are then set on every response sent via the `get_response` function in crates/tauri/src/protocol/tauri.rs.\n The Content-Security-Policy header is defined separately, because it is also handled separately.\n\n For the helloworld example, this config translates into those response headers:\n ```http\n access-control-allow-origin:  http://tauri.localhost\n access-control-expose-headers: Tauri-Custom-Header\n content-security-policy: default-src 'self'; connect-src ipc: http://ipc.localhost; script-src 'self' 'sha256-Wjjrs6qinmnr+tOry8x8PPwI77eGpUFR3EEGZktjJNs='\n content-type: text/html\n cross-origin-embedder-policy: require-corp\n cross-origin-opener-policy: same-origin\n tauri-custom-header: key1 'value1' 'value2'; key2 'value3'\n timing-allow-origin: https://developer.mozilla.org, https://example.com\n ```\n Since the resulting header values are always 'string-like'. So depending on the what data type the HeaderSource is, they need to be converted.\n  - `String`(JS/Rust): stay the same for the resulting header value\n  - `Array`(JS)/`Vec\\<String\\>`(Rust): Item are joined by \", \" for the resulting header value\n  - `Object`(JS)/ `Hashmap\\<String,String\\>`(Rust): Items are composed from: key + space + value. Item are then joined by \"; \" for the resulting header value",
+      "type": "object",
+      "properties": {
+        "Access-Control-Allow-Credentials": {
+          "description": "The Access-Control-Allow-Credentials response header tells browsers whether the\n server allows cross-origin HTTP requests to include credentials.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Access-Control-Allow-Headers": {
+          "description": "The Access-Control-Allow-Headers response header is used in response\n to a preflight request which includes the Access-Control-Request-Headers\n to indicate which HTTP headers can be used during the actual request.\n\n This header is required if the request has an Access-Control-Request-Headers header.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Access-Control-Allow-Methods": {
+          "description": "The Access-Control-Allow-Methods response header specifies one or more methods\n allowed when accessing a resource in response to a preflight request.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Access-Control-Expose-Headers": {
+          "description": "The Access-Control-Expose-Headers response header allows a server to indicate\n which response headers should be made available to scripts running in the browser,\n in response to a cross-origin request.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Access-Control-Max-Age": {
+          "description": "The Access-Control-Max-Age response header indicates how long the results of a\n preflight request (that is the information contained in the\n Access-Control-Allow-Methods and Access-Control-Allow-Headers headers) can\n be cached.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Cross-Origin-Embedder-Policy": {
+          "description": "The HTTP Cross-Origin-Embedder-Policy (COEP) response header configures embedding\n cross-origin resources into the document.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Cross-Origin-Opener-Policy": {
+          "description": "The HTTP Cross-Origin-Opener-Policy (COOP) response header allows you to ensure a\n top-level document does not share a browsing context group with cross-origin documents.\n COOP will process-isolate your document and potential attackers can't access your global\n object if they were to open it in a popup, preventing a set of cross-origin attacks dubbed XS-Leaks.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Cross-Origin-Resource-Policy": {
+          "description": "The HTTP Cross-Origin-Resource-Policy response header conveys a desire that the\n browser blocks no-cors cross-origin/cross-site requests to the given resource.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Permissions-Policy": {
+          "description": "The HTTP Permissions-Policy header provides a mechanism to allow and deny the\n use of browser features in a document or within any \\<iframe\\> elements in the document.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Timing-Allow-Origin": {
+          "description": "The Timing-Allow-Origin response header specifies origins that are allowed to see values\n of attributes retrieved via features of the Resource Timing API, which would otherwise be\n reported as zero due to cross-origin restrictions.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Timing-Allow-Origin>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "X-Content-Type-Options": {
+          "description": "The X-Content-Type-Options response HTTP header is a marker used by the server to indicate\n that the MIME types advertised in the Content-Type headers should be followed and not be\n changed. The header allows you to avoid MIME type sniffing by saying that the MIME types\n are deliberately configured.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Tauri-Custom-Header": {
+          "description": "A custom header field Tauri-Custom-Header, don't use it.\n Remember to set Access-Control-Expose-Headers accordingly\n\n **NOT INTENDED FOR PRODUCTION USE**",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
-      ]
+      },
+      "additionalProperties": false
     },
-    "HTTPHeaderDirectiveSources": {
-      "description": "A HTTP Header directive source list.\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers>.",
+    "HeaderSource": {
+      "description": "definition of a header source\n\n The header value to a header name",
       "anyOf": [
         {
-          "description": "An inline list of HTTP header directive sources. Same as [`Self::List`], but concatenated with a semicolon separator.",
+          "description": "string version of the header Value",
           "type": "string"
         },
         {
-          "description": "A list of HTTP header directive sources sources. The collection will be concatenated with a semicolon separator for the header value string.",
+          "description": "list version of the header value. Item are joined by \",\" for the real header value",
           "type": "array",
           "items": {
+            "type": "string"
+          }
+        },
+        {
+          "description": "(Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by \";\" for the real header value",
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           }
         }

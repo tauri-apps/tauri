@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.1.3]
+
+### Bug Fixes
+
+- [`8c6d1e8e6`](https://www.github.com/tauri-apps/tauri/commit/8c6d1e8e6c852667bb223b5f4823948868c26d98) ([#11401](https://www.github.com/tauri-apps/tauri/pull/11401) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter method failing on Linux with `GDK may only be used from the main thread`.
+
 ## \[2.1.2]
 
 ### Dependencies

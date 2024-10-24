@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.4]
+
+### Bug Fixes
+
+- [`54cbf59b5`](https://www.github.com/tauri-apps/tauri/commit/54cbf59b5a572570a47237a3b5e6505f2a9e5d5d) ([#11441](https://www.github.com/tauri-apps/tauri/pull/11441) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix submenu created as a menu item instead of a submenu when created by using an object in the `items` field in the options object passed to `Menu.new` or `Submenu.new`.
+
 ## \[2.0.3]
 
 ### Bug Fixes

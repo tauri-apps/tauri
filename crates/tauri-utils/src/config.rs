@@ -31,10 +31,8 @@ use serde::{
   Deserialize, Serialize, Serializer,
 };
 use serde_json::Value as JsonValue;
-
 use serde_with::skip_serializing_none;
 use url::Url;
-use http::{HeaderMap,HeaderName,HeaderValue};
 
 use std::{
   collections::HashMap,

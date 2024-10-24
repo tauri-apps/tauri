@@ -438,6 +438,10 @@ pub trait WindowBuilder: WindowBuilderBase {
   fn has_icon(&self) -> bool;
 
   fn get_theme(&self) -> Option<Theme>;
+
+  /// Sets custom name for Windows' window class. **Windows only**.
+  #[must_use]
+  fn window_classname<S: Into<String>>(self, window_classname: S) -> Self;
 }
 
 /// A window that has yet to be built.

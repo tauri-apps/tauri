@@ -397,6 +397,13 @@
           "default": false,
           "type": "boolean"
         },
+        "windowClassname": {
+          "description": "The name of the window class created on Windows to create the window. **Windows only**.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "theme": {
           "description": "The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.",
           "anyOf": [

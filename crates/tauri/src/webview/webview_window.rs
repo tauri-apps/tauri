@@ -896,6 +896,21 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self.webview_builder = self.webview_builder.browser_extensions_enabled(enabled);
     self
   }
+
+  /// Whether web inspector, which is usually called browser devtools, is enabled or not. Enabled by default.
+  ///
+  /// This API works in **debug** builds, but requires `devtools` feature flag to enable it in **release** builds.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - macOS: This will call private functions on **macOS**.
+  /// - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.
+  /// - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.
+  #[must_use]
+  pub fn devtools(mut self, enabled: bool) -> Self {
+    self.webview_builder = self.webview_builder.devtools(enabled);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].

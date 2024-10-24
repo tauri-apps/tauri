@@ -1486,6 +1486,16 @@ pub struct WindowConfig {
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
   #[serde(default)]
   pub browser_extensions_enabled: bool,
+  /// Enable web inspector which is usually called browser devtools. Enabled by default.
+  ///
+  /// This API works in **debug** builds, but requires `devtools` feature flag to enable it in **release** builds.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - macOS: This will call private functions on **macOS**.
+  /// - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.
+  /// - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.
+  pub devtools: Option<bool>,
 }
 
 impl Default for WindowConfig {
@@ -1534,6 +1544,7 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      devtools: None,
     }
   }
 }
@@ -2505,6 +2516,7 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let devtools = opt_lit(self.devtools.as_ref());
 
       literal_struct!(
         tokens,
@@ -2551,7 +2563,8 @@ mod build {
         incognito,
         parent,
         zoom_hotkeys_enabled,
-        browser_extensions_enabled
+        browser_extensions_enabled,
+        devtools
       );
     }
   }

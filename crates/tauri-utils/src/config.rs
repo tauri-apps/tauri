@@ -1323,15 +1323,20 @@ fn default_alpha() -> u8 {
   255
 }
 
+#[cfg(feature = "schema")]
+static HEX_COLOR_RE: once_cell::sync::Lazy<regex::Regex> = once_cell::sync::Lazy::new(|| {
+  regex::Regex::new(r"^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$").unwrap()
+});
+
 #[derive(Deserialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(untagged)]
 enum InnerColor {
-  /// A tuple of RGB colors. Each value has minimum of 0 and maximum of 255.
+  /// Array of RGB colors. Each value has minimum of 0 and maximum of 255.
   Rgb((u8, u8, u8)),
-  /// A tuple of RGBA colors. Each value has minimum of 0 and maximum of 255.
+  /// Array of RGBA colors. Each value has minimum of 0 and maximum of 255.
   Rgba((u8, u8, u8, u8)),
-  /// An object of red, green, blue, alpha color values. Each value has minimum of 0 and maximum of 255.
+  /// Object of red, green, blue, alpha color values. Each value has minimum of 0 and maximum of 255.
   RgbaObject {
     red: u8,
     green: u8,
@@ -1339,7 +1344,8 @@ enum InnerColor {
     #[serde(default = "default_alpha")]
     alpha: u8,
   },
-  /// A color hex string, for example: #fff, #ffffff, or #ffffffff.
+  /// Color hex string, for example: #fff, #ffffff, or #ffffffff.
+  #[cfg_attr(feature = "schema", validate(regex(path = *HEX_COLOR_RE)))]
   String(String),
 }
 

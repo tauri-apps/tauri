@@ -843,7 +843,7 @@
     "InnerColor": {
       "anyOf": [
         {
-          "description": "A tuple of RGB colors. Each value has minimum of 0 and maximum of 255.",
+          "description": "Array of RGB colors. Each value has minimum of 0 and maximum of 255.",
           "type": "array",
           "items": [
             {
@@ -866,7 +866,7 @@
           "minItems": 3
         },
         {
-          "description": "A tuple of RGBA colors. Each value has minimum of 0 and maximum of 255.",
+          "description": "Array of RGBA colors. Each value has minimum of 0 and maximum of 255.",
           "type": "array",
           "items": [
             {
@@ -894,7 +894,7 @@
           "minItems": 4
         },
         {
-          "description": "An object of red, green, blue, alpha color values. Each value has minimum of 0 and maximum of 255.",
+          "description": "Object of red, green, blue, alpha color values. Each value has minimum of 0 and maximum of 255.",
           "type": "object",
           "required": [
             "blue",
@@ -926,7 +926,7 @@
           }
         },
         {
-          "description": "A color hex string, for example: #fff, #ffffff, or #ffffffff.",
+          "description": "Color hex string, for example: #fff, #ffffff, or #ffffffff.",
           "type": "string"
         }
       ]

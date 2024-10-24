@@ -46,6 +46,7 @@ log = "0.4.21"
 cargo_metadata = { version = "0.18", optional = true }
 serde-untagged = "0.1"
 uuid = { version = "1", features = ["serde"] }
+once_cell = { version = "1", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 swift-rs = { version = "1.0.7", optional = true, features = ["build"] }
@@ -57,7 +58,7 @@ serial_test = "3.1"
 [features]
 build = ["proc-macro2", "quote", "cargo_metadata", "schema", "swift-rs"]
 compression = ["brotli"]
-schema = ["schemars"]
+schema = ["schemars", "once_cell"]
 isolation = ["aes-gcm", "getrandom", "serialize-to-javascript"]
 process-relaunch-dangerous-allow-symlink-macos = []
 config-json5 = ["json5"]

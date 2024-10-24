@@ -59,7 +59,7 @@ impl super::WindowExt for tao::window::Window {
       surface.resize(width, height).unwrap();
       let mut buffer = surface.buffer_mut().unwrap();
       let color = background_color
-        .map(|(r, g, b, _)| ((b as u32) << 0) | ((g as u32) << 8) | ((r as u32) << 16))
+        .map(|(r, g, b, _)| (b as u32) | ((g as u32) << 8) | ((r as u32) << 16))
         .unwrap_or(0);
       buffer.fill(color);
       let _ = buffer.present();

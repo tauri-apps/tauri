@@ -9363,6 +9363,7 @@ dependencies = [
  "kuchikiki",
  "log",
  "memchr",
+ "once_cell",
  "phf 0.11.2",
  "proc-macro2",
  "quote",

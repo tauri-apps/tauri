@@ -76,4 +76,9 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
     fun getCacheDir(invoke: Invoke) {
         resolvePath(invoke, activity.cacheDir.absolutePath)
     }
+
+    @Command
+    fun getHomeDir(invoke: Invoke) {
+        resolvePath(invoke, Environment.getExternalStorageDirectory().absolutePath)
+    }
 }

@@ -9350,6 +9350,7 @@ dependencies = [
  "getrandom 0.2.15",
  "glob",
  "html5ever",
+ "http 1.1.0",
  "infer 0.16.0",
  "json-patch 3.0.1",
  "json5",

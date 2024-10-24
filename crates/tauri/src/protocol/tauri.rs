@@ -5,6 +5,7 @@
 use std::{borrow::Cow, sync::Arc};
 
 use http::{header::CONTENT_TYPE, Request, Response as HttpResponse, StatusCode};
+use tauri_utils::config::HeaderAddition;
 
 use crate::{
   manager::{webview::PROXY_DEV_SERVER, AppManager},
@@ -95,7 +96,9 @@ fn get_response<R: Runtime>(
     // where `$P` is not `localhost/*`
     .unwrap_or_else(|| "".to_string());
 
-  let mut builder = HttpResponse::builder().header("Access-Control-Allow-Origin", window_origin);
+  let mut builder = HttpResponse::builder()
+    .add_configured_headers(manager.config.app.security.headers.as_ref())
+    .header("Access-Control-Allow-Origin", window_origin);
 
   #[cfg(all(dev, mobile))]
   let mut response = {

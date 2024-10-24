@@ -39,7 +39,7 @@ importers:
         version: 1.1.14
       '@sveltejs/vite-plugin-svelte':
         specifier: ^3.1.2
-        version: 3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+        version: 3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
       '@unocss/extractor-svelte':
         specifier: ^0.61.0
         version: 0.61.9
@@ -48,10 +48,10 @@ importers:
         version: 4.2.19
       unocss:
         specifier: ^0.61.0
-        version: 0.61.9(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+        version: 0.61.9(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
       vite:
         specifier: ^5.4.7
-        version: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
+        version: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
 
   examples/file-associations: {}
 
@@ -72,8 +72,8 @@ importers:
         specifier: ^9.0.0
         version: 9.6.1
       '@types/node':
-        specifier: 20.16.15
-        version: 20.16.15
+        specifier: 20.17.0
+        version: 20.17.0
       eslint:
         specifier: ^9.4.0
         version: 9.13.0(jiti@1.21.6)
@@ -1062,8 +1062,8 @@ packages:
   '@types/node@20.16.1':
     resolution: {integrity: sha512-zJDo7wEadFtSyNz5QITDfRcrhqDvQI1xQNQ0VoizPjM/dVAODqqIUWbJPkvsxmTI0MYRGRikcdjMPhOssnPejQ==}
 
-  '@types/node@20.16.15':
-    resolution: {integrity: sha512-DV58qQz9dBMqVVn+qnKwGa51QzCD4YM/tQM16qLKxdf5tqz5W4QwtrMzjSTbabN1cFTSuyxVYBy+QWHjWW8X/g==}
+  '@types/node@20.17.0':
+    resolution: {integrity: sha512-a7zRo0f0eLo9K5X9Wp5cAqTUNGzuFLDG2R7C4HY2BhcMAsxgSPuRvAC1ZB6QkuUQXf0YZAgfOX2ZyrBa2n4nHQ==}
 
   '@typescript-eslint/eslint-plugin@8.11.0':
     resolution: {integrity: sha512-KhGn2LjW1PJT2A/GfDpiyOfS4a8xHQv2myUagTM5+zsormOmBlYsnQ6pobJ8XxJmh6hnHwa2Mbe3fPrDJoDhbA==}
@@ -3086,26 +3086,26 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.24.0':
     optional: true
 
-  '@sveltejs/vite-plugin-svelte-inspector@2.1.0(@sveltejs/vite-plugin-svelte@3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)))(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))':
+  '@sveltejs/vite-plugin-svelte-inspector@2.1.0(@sveltejs/vite-plugin-svelte@3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)))(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte': 3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+      '@sveltejs/vite-plugin-svelte': 3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
       debug: 4.3.6
       svelte: 4.2.19
-      vite: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
+      vite: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
     transitivePeerDependencies:
       - supports-color
 
-  '@sveltejs/vite-plugin-svelte@3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))':
+  '@sveltejs/vite-plugin-svelte@3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))':
     dependencies:
-      '@sveltejs/vite-plugin-svelte-inspector': 2.1.0(@sveltejs/vite-plugin-svelte@3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)))(svelte@4.2.19)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+      '@sveltejs/vite-plugin-svelte-inspector': 2.1.0(@sveltejs/vite-plugin-svelte@3.1.2(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)))(svelte@4.2.19)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
       debug: 4.3.6
       deepmerge: 4.3.1
       kleur: 4.1.5
       magic-string: 0.30.11
       svelte: 4.2.19
       svelte-hmr: 0.16.0(svelte@4.2.19)
-      vite: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
-      vitefu: 0.2.5(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+      vite: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
+      vitefu: 0.2.5(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
     transitivePeerDependencies:
       - supports-color
 
@@ -3122,13 +3122,13 @@ snapshots:
 
   '@types/node-forge@1.3.11':
     dependencies:
-      '@types/node': 20.16.15
+      '@types/node': 20.17.0
 
   '@types/node@20.16.1':
     dependencies:
       undici-types: 6.19.8
 
-  '@types/node@20.16.15':
+  '@types/node@20.17.0':
     dependencies:
       undici-types: 6.19.8
 
@@ -3213,13 +3213,13 @@ snapshots:
       '@typescript-eslint/types': 8.11.0
       eslint-visitor-keys: 3.4.3
 
-  '@unocss/astro@0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))':
+  '@unocss/astro@0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))':
     dependencies:
       '@unocss/core': 0.61.9
       '@unocss/reset': 0.61.9
-      '@unocss/vite': 0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+      '@unocss/vite': 0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
     optionalDependencies:
-      vite: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
+      vite: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -3358,7 +3358,7 @@ snapshots:
     dependencies:
       '@unocss/core': 0.61.9
 
-  '@unocss/vite@0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))':
+  '@unocss/vite@0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))':
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@rollup/pluginutils': 5.1.0(rollup@4.24.0)
@@ -3370,7 +3370,7 @@ snapshots:
       chokidar: 3.6.0
       fast-glob: 3.3.2
       magic-string: 0.30.11
-      vite: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
+      vite: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
     transitivePeerDependencies:
       - rollup
       - supports-color
@@ -4430,9 +4430,9 @@ snapshots:
       pathe: 1.1.2
       ufo: 1.5.4
 
-  unocss@0.61.9(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)):
+  unocss@0.61.9(postcss@8.4.47)(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)):
     dependencies:
-      '@unocss/astro': 0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+      '@unocss/astro': 0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
       '@unocss/cli': 0.61.9(rollup@4.24.0)
       '@unocss/core': 0.61.9
       '@unocss/extractor-arbitrary-variants': 0.61.9
@@ -4451,9 +4451,9 @@ snapshots:
       '@unocss/transformer-compile-class': 0.61.9
       '@unocss/transformer-directives': 0.61.9
       '@unocss/transformer-variant-group': 0.61.9
-      '@unocss/vite': 0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6))
+      '@unocss/vite': 0.61.9(rollup@4.24.0)(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6))
     optionalDependencies:
-      vite: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
+      vite: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
     transitivePeerDependencies:
       - postcss
       - rollup
@@ -4508,20 +4508,20 @@ snapshots:
       sass: 1.77.8
       terser: 5.31.6
 
-  vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6):
+  vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.4.47
       rollup: 4.22.4
     optionalDependencies:
-      '@types/node': 20.16.15
+      '@types/node': 20.17.0
       fsevents: 2.3.3
       sass: 1.77.8
       terser: 5.31.6
 
-  vitefu@0.2.5(vite@5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)):
+  vitefu@0.2.5(vite@5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)):
     optionalDependencies:
-      vite: 5.4.7(@types/node@20.16.15)(sass@1.77.8)(terser@5.31.6)
+      vite: 5.4.7(@types/node@20.17.0)(sass@1.77.8)(terser@5.31.6)
 
   vitest@2.1.1(@types/node@20.16.1)(sass@1.77.8)(terser@5.31.6):
     dependencies:

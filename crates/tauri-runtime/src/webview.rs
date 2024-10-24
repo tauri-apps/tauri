@@ -396,7 +396,6 @@ impl WebviewAttributes {
     self.use_https_scheme = enabled;
     self
   }
-
 }
 
 /// IPC handler.

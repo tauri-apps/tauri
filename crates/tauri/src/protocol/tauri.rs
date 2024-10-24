@@ -30,7 +30,10 @@ pub fn get<R: Runtime>(
 ) -> UriSchemeProtocolHandler {
   #[cfg(all(dev, mobile))]
   let url = {
-    let mut url = manager.get_url().as_str().to_string();
+    let mut url = manager
+      .get_url(window_origin.starts_with("https"))
+      .as_str()
+      .to_string();
     if url.ends_with('/') {
       url.pop();
     }

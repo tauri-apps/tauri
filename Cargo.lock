@@ -9395,6 +9395,7 @@ dependencies = [
  "gtk",
  "http 1.2.0",
  "jni",
+ "keyboard-types",
  "raw-window-handle",
  "serde",
  "serde_json",

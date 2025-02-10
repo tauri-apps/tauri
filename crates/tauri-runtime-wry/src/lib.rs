@@ -125,6 +125,7 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
+mod keyboard;
 #[cfg(any(
   windows,
   target_os = "linux",
@@ -532,6 +533,11 @@ impl<'a> From<&TaoWindowEvent<'a>> for WindowEventWrapper {
       },
       #[cfg(any(target_os = "linux", target_os = "macos"))]
       TaoWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
+      TaoWindowEvent::KeyboardInput { event, .. } => {
+        let event = keyboard::convert_key_event(event);
+
+        WindowEvent::KeyboardInput { event }
+      }
       TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
       _ => return Self(None),
     };

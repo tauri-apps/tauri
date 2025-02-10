@@ -28,6 +28,7 @@ const WINDOW_MOVED_EVENT: EventName<&str> = EventName::from_str("tauri://move");
 const WINDOW_CLOSE_REQUESTED_EVENT: EventName<&str> =
   EventName::from_str("tauri://close-requested");
 const WINDOW_DESTROYED_EVENT: EventName<&str> = EventName::from_str("tauri://destroyed");
+const WINDOW_KEYBOARD_INPUT_EVENT: EventName<&str> = EventName::from_str("tauri://keyboard-input");
 const WINDOW_FOCUS_EVENT: EventName<&str> = EventName::from_str("tauri://focus");
 const WINDOW_BLUR_EVENT: EventName<&str> = EventName::from_str("tauri://blur");
 const WINDOW_SCALE_FACTOR_CHANGED_EVENT: EventName<&str> =
@@ -180,6 +181,9 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
       },
       &(),
     )?,
+    WindowEvent::KeyboardInput(event) => {
+      window.emit_to_window(WINDOW_KEYBOARD_INPUT_EVENT, event)?;
+    }
     WindowEvent::ScaleFactorChanged {
       scale_factor,
       new_inner_size,

@@ -82,6 +82,7 @@ pub mod async_runtime;
 mod error;
 mod event;
 pub mod ipc;
+pub mod keyboard;
 mod manager;
 mod pattern;
 pub mod plugin;

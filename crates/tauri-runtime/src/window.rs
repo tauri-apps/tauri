@@ -5,6 +5,7 @@
 //! A layer between raw [`Runtime`] windows and Tauri.
 
 use crate::{
+  keyboard::KeyboardEvent,
   webview::{DetachedWebview, PendingWebview},
   Icon, Runtime, UserEvent, WindowDispatch,
 };
@@ -43,6 +44,10 @@ pub enum WindowEvent {
   ///
   /// The parameter is true if the window has gained focus, and false if it has lost focus.
   Focused(bool),
+
+  /// An event from the keyboard has been received.
+  KeyboardInput { event: KeyboardEvent },
+
   /// The window's scale factor has changed.
   ///
   /// The following user actions can cause DPI changes:

@@ -2830,7 +2830,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       });
   }
 
-  fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F) -> i32 {
+    use tao::platform::run_return::EventLoopExtRunReturn;
+
     let windows = self.context.main_thread.windows.clone();
     let window_id_map = self.context.window_id_map.clone();
     let web_context = self.context.main_thread.web_context;
@@ -2840,12 +2842,31 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
     let proxy = self.event_loop.create_proxy();
 
-    self.event_loop.run(move |event, event_loop, control_flow| {
-      for p in plugins.lock().unwrap().iter_mut() {
-        let prevent_default = p.on_event(
-          &event,
+    self
+      .event_loop
+      .run_return(move |event, event_loop, control_flow| {
+        for p in plugins.lock().unwrap().iter_mut() {
+          let prevent_default = p.on_event(
+            &event,
+            event_loop,
+            &proxy,
+            control_flow,
+            EventLoopIterationContext {
+              callback: &mut callback,
+              window_id_map: window_id_map.clone(),
+              windows: windows.clone(),
+              #[cfg(feature = "tracing")]
+              active_tracing_spans: active_tracing_spans.clone(),
+            },
+            &web_context,
+          );
+          if prevent_default {
+            return;
+          }
+        }
+        handle_event_loop(
+          event,
           event_loop,
-          &proxy,
           control_flow,
           EventLoopIterationContext {
             callback: &mut callback,
@@ -2854,25 +2875,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
           },
-          &web_context,
         );
-        if prevent_default {
-          return;
-        }
-      }
-      handle_event_loop(
-        event,
-        event_loop,
-        control_flow,
-        EventLoopIterationContext {
-          callback: &mut callback,
-          window_id_map: window_id_map.clone(),
-          windows: windows.clone(),
-          #[cfg(feature = "tracing")]
-          active_tracing_spans: active_tracing_spans.clone(),
-        },
-      );
-    })
+      })
+  }
+
+  fn run<F: FnMut(RunEvent<T>) + 'static>(mut self, mut callback: F) {
+    let exit_code = self.run_return(callback);
+    std::process::exit(exit_code);
   }
 }
 

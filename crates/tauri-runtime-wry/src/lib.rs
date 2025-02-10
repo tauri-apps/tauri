@@ -2835,7 +2835,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     let windows = self.context.main_thread.windows.clone();
     let window_id_map = self.context.window_id_map.clone();
-    let web_context = self.context.main_thread.web_context;
+    let web_context = self.context.main_thread.web_context.clone();
     let plugins = self.context.plugins.clone();
 
     #[cfg(feature = "tracing")]

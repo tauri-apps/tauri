@@ -438,8 +438,12 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
 
   /// Equivalent to [`Runtime::run`] but returns the exit code instead of exiting the process.
+  ///
+  /// Note: This function only has a default impl to avoid a semver-incompatible change.
   #[cfg(desktop)]
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F) -> i32;
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F) -> i32 {
+    unimplemented!("Runtime::run_return is not implemented")
+  }
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);

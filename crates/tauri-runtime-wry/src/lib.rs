@@ -2830,6 +2830,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       });
   }
 
+  #[cfg(desktop)]
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, mut callback: F) -> i32 {
     use tao::platform::run_return::EventLoopExtRunReturn;
 

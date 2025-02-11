@@ -2841,7 +2841,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
-    let proxy = event_loop.create_proxy();
+    let proxy = self.event_loop.create_proxy();
 
     event_loop.run_return(move |event, event_loop, control_flow| {
       for p in plugins.lock().unwrap().iter_mut() {

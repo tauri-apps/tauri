@@ -1100,23 +1100,23 @@ impl<R: Runtime> App<R> {
   ///   // on an actual app, remove the string argument
   ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
   ///   .expect("error while building tauri application");
-  /// let exit_code = app.run_return(|_app_handle, event| match event {
-  ///   tauri::RunEvent::ExitRequested { api, .. } => {
-  ///     api.prevent_exit();
-  ///   }
-  ///   _ => {}
-  /// });
+  /// let exit_code = app
+  ///   .run_return(|_app_handle, event| match event {
+  ///     tauri::RunEvent::ExitRequested { api, .. } => {
+  ///      api.prevent_exit();
+  ///     }
+  ///      _ => {}
+  ///   })
+  ///   .unwrap();
   ///
   /// std::process::exit(exit_code);
   /// ```
-  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) -> i32 {
+  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) -> std::result::Result<i32, Box<dyn std::error::Error> {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
 
     if !self.ran_setup {
-      if let Err(e) = setup(&mut self) {
-        panic!("Failed to setup app: {e}");
-      }
+      setup(&mut self)?;
     }
 
     let exit_code = self.runtime.as_mut().unwrap().run_return(move |event| {
@@ -1126,7 +1126,7 @@ impl<R: Runtime> App<R> {
 
     self.cleanup_before_exit();
 
-    exit_code
+    Ok(exit_code)
   }
 
   /// Runs an iteration of the runtime event loop and immediately return.

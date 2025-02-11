@@ -2837,36 +2837,18 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let window_id_map = self.context.window_id_map.clone();
     let web_context = self.context.main_thread.web_context.clone();
     let plugins = self.context.plugins.clone();
+    let event_loop = &mut self.event_loop;
 
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
-    let proxy = self.event_loop.create_proxy();
+    let proxy = event_loop.create_proxy();
 
-    self
-      .event_loop
-      .run_return(move |event, event_loop, control_flow| {
-        for p in plugins.lock().unwrap().iter_mut() {
-          let prevent_default = p.on_event(
-            &event,
-            event_loop,
-            &proxy,
-            control_flow,
-            EventLoopIterationContext {
-              callback: &mut callback,
-              window_id_map: window_id_map.clone(),
-              windows: windows.clone(),
-              #[cfg(feature = "tracing")]
-              active_tracing_spans: active_tracing_spans.clone(),
-            },
-            &web_context,
-          );
-          if prevent_default {
-            return;
-          }
-        }
-        handle_event_loop(
-          event,
+    event_loop.run_return(move |event, event_loop, control_flow| {
+      for p in plugins.lock().unwrap().iter_mut() {
+        let prevent_default = p.on_event(
+          &event,
           event_loop,
+          &proxy,
           control_flow,
           EventLoopIterationContext {
             callback: &mut callback,
@@ -2875,8 +2857,25 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
           },
+          &web_context,
         );
-      })
+        if prevent_default {
+          return;
+        }
+      }
+      handle_event_loop(
+        event,
+        event_loop,
+        control_flow,
+        EventLoopIterationContext {
+          callback: &mut callback,
+          window_id_map: window_id_map.clone(),
+          windows: windows.clone(),
+          #[cfg(feature = "tracing")]
+          active_tracing_spans: active_tracing_spans.clone(),
+        },
+      );
+    })
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) {

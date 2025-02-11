@@ -1111,6 +1111,7 @@ impl<R: Runtime> App<R> {
   ///
   /// std::process::exit(exit_code);
   /// ```
+  #[cfg(desktop)]
   pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) -> std::result::Result<i32, Box<dyn std::error::Error> {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();

@@ -1188,6 +1188,12 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   ))]
   fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> i32 {
+    self.run(callback);
+
+    0
+  }
+
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) {
     self.is_running.store(true, Ordering::Relaxed);
     callback(RunEvent::Ready);

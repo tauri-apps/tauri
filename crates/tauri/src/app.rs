@@ -1123,7 +1123,7 @@ impl<R: Runtime> App<R> {
       setup(&mut self)?;
     }
 
-    let exit_code = self.runtime.as_mut().unwrap().run_return(move |event| {
+    let exit_code = self.runtime.take().unwrap().run_return(move |event| {
       let event = on_event_loop_event(&app_handle, event, &manager);
       callback(&app_handle, event);
     });

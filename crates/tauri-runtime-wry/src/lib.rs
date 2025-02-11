@@ -2830,12 +2830,12 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       });
   }
 
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(&mut self, mut callback: F) -> i32 {
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, mut callback: F) -> i32 {
     use tao::platform::run_return::EventLoopExtRunReturn;
 
     let windows = self.context.main_thread.windows.clone();
     let window_id_map = self.context.window_id_map.clone();
-    let web_context = self.context.main_thread.web_context.clone();
+    let web_context = self.context.main_thread.web_context;
     let plugins = self.context.plugins.clone();
     let event_loop = &mut self.event_loop;
 

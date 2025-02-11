@@ -2878,7 +2878,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     })
   }
 
-  fn run<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) {
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     let exit_code = self.run_return(callback);
     std::process::exit(exit_code);
   }

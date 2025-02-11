@@ -2843,32 +2843,13 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
     let proxy = self.event_loop.create_proxy();
 
-    self
-      .event_loop
-      .run_return(move |event, event_loop, control_flow| {
-        for p in plugins.lock().unwrap().iter_mut() {
-          let prevent_default = p.on_event(
-            &event,
-            event_loop,
-            &proxy,
-            control_flow,
-            EventLoopIterationContext {
-              callback: &mut callback,
-              window_id_map: window_id_map.clone(),
-              windows: windows.clone(),
-              #[cfg(feature = "tracing")]
-              active_tracing_spans: active_tracing_spans.clone(),
-            },
-            &web_context,
-          );
-          if prevent_default {
-            return;
-          }
-        }
-        handle_event_loop(
-          event,
+    self.event_loop.run_return(move |e, event_loop, cf| {
+      for p in plugins.lock().unwrap().iter_mut() {
+        let prevent_default = p.on_event(
+          &e,
           event_loop,
-          control_flow,
+          &proxy,
+          cf,
           EventLoopIterationContext {
             callback: &mut callback,
             window_id_map: window_id_map.clone(),
@@ -2876,8 +2857,25 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
             #[cfg(feature = "tracing")]
             active_tracing_spans: active_tracing_spans.clone(),
           },
+          &web_context,
         );
-      })
+        if prevent_default {
+          return;
+        }
+      }
+      handle_event_loop(
+        e,
+        event_loop,
+        cf,
+        EventLoopIterationContext {
+          callback: &mut callback,
+          window_id_map: window_id_map.clone(),
+          windows: windows.clone(),
+          #[cfg(feature = "tracing")]
+          active_tracing_spans: active_tracing_spans.clone(),
+        },
+      );
+    })
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {

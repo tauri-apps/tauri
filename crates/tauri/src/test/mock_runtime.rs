@@ -1189,7 +1189,7 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
 
   #[cfg(desktop)]
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, mut callback: F) -> i32 {
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
     self.run(callback);
 
     0

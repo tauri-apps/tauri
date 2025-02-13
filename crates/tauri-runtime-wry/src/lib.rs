@@ -2830,6 +2830,10 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       });
   }
 
+  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
+    self.event_loop.run(make_event_handler(&self, callback))
+  }
+
   #[cfg(desktop)]
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) -> i32 {
     use tao::platform::run_return::EventLoopExtRunReturn;
@@ -2837,10 +2841,6 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self
       .event_loop
       .run_return(make_event_handler(&self, callback))
-  }
-
-  fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
-    self.event_loop.run(make_event_handler(&self, callback))
   }
 }
 

@@ -1156,6 +1156,9 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
+  #[deprecated(
+    note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
+  )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();

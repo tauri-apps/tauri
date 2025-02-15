@@ -75,7 +75,6 @@ macro_rules! gen_wrappers {
         app_handle: $crate::AppHandle<R>,
       }
 
-
       /// # Safety
       ///
       /// We make sure it always runs on the main thread.
@@ -96,13 +95,11 @@ macro_rules! gen_wrappers {
 
       impl<R: Runtime> Drop for $inner<R> {
         fn drop(&mut self) {
-          struct SafeSend<T>(T);
-          unsafe impl<T> Send for SafeSend<T> {}
-
           let inner = self.inner.take();
-          let inner = SafeSend(inner);
+          // SAFETY: inner was created on main thread and is being dropped on main thread
+          let inner = $crate::UnsafeSend(inner);
           let _ = self.app_handle.run_on_main_thread(move || {
-            drop(inner);
+            drop(inner.take());
           });
         }
       }
@@ -147,6 +144,10 @@ macro_rules! gen_wrappers {
 gen_wrappers!(
   /// A type that is either a menu bar on the window
   /// on Windows and Linux or as a global menu in the menubar on macOS.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **macOS**: if using [`Menu`] for the global menubar, it can only contain [`Submenu`]s
   Menu(MenuInner),
   /// A menu item inside a [`Menu`] or [`Submenu`] and contains only text.
   MenuItem(MenuItemInner, MenuItem),

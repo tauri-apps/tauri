@@ -186,9 +186,18 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
             // only implemented by `Result`. That way we don't exclude renamed result types
             // which we wouldn't otherwise be able to detect purely from the token stream.
             // The "error message" displayed to the user is simply the trait name.
+            //
+            // TODO: remove this check once our MSRV is high enough
+            let diagnostic = if is_rustc_at_least(1, 78) {
+              quote!(#[diagnostic::on_unimplemented(message = "async commands that contain references as inputs must return a `Result`")])
+            } else {
+              quote!()
+            };
+
             async_command_check = quote_spanned! {return_type.span() =>
               #[allow(unreachable_code, clippy::diverging_sub_expression)]
               const _: () = if false {
+                #diagnostic
                 trait AsyncCommandMustReturnResult {}
                 impl<A, B> AsyncCommandMustReturnResult for ::std::result::Result<A, B> {}
                 let _check: #return_type = unreachable!();
@@ -451,4 +460,43 @@ fn parse_arg(
       acl: &#acl,
     }
   )))
+}
+
+fn is_rustc_at_least(major: u32, minor: u32) -> bool {
+  let version = rustc_version();
+  version.0 >= major && version.1 >= minor
+}
+
+fn rustc_version() -> (u32, u32) {
+  cross_command("rustc")
+    .arg("-V")
+    .output()
+    .ok()
+    .and_then(|o| {
+      let version = String::from_utf8_lossy(&o.stdout)
+        .trim()
+        .split(' ')
+        .nth(1)
+        .unwrap_or_default()
+        .split('.')
+        .take(2)
+        .flat_map(|p| p.parse::<u32>().ok())
+        .collect::<Vec<_>>();
+      version
+        .first()
+        .and_then(|major| version.get(1).map(|minor| (*major, *minor)))
+    })
+    .unwrap_or((1, 0))
+}
+
+fn cross_command(bin: &str) -> std::process::Command {
+  #[cfg(target_os = "windows")]
+  let cmd = {
+    let mut cmd = std::process::Command::new("cmd");
+    cmd.arg("/c").arg(bin);
+    cmd
+  };
+  #[cfg(not(target_os = "windows"))]
+  let cmd = std::process::Command::new(bin);
+  cmd
 }

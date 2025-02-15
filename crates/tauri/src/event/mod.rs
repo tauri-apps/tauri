@@ -9,19 +9,9 @@ use std::{convert::Infallible, str::FromStr};
 pub(crate) use listener::Listeners;
 use serde::{Deserialize, Serialize};
 
-/// Checks if an event name is valid.
-pub fn is_event_name_valid(event: &str) -> bool {
-  event
-    .chars()
-    .all(|c| c.is_alphanumeric() || c == '-' || c == '/' || c == ':' || c == '_')
-}
+mod event_name;
 
-pub fn assert_event_name_is_valid(event: &str) {
-  assert!(
-    is_event_name_valid(event),
-    "Event name must include only alphanumeric characters, `-`, `/`, `:` and `_`."
-  );
-}
+pub(crate) use event_name::EventName;
 
 /// Unique id of an event.
 pub type EventId = u32;
@@ -123,22 +113,28 @@ impl FromStr for EventTarget {
 /// Serialized emit arguments.
 #[derive(Clone)]
 pub struct EmitArgs {
-  /// Raw event name.
-  pub event_name: String,
-  /// Serialized event name.
-  pub event: String,
+  /// event name.
+  event: EventName,
   /// Serialized payload.
-  pub payload: String,
+  payload: String,
 }
 
 impl EmitArgs {
-  pub fn new<S: Serialize>(event: &str, payload: S) -> crate::Result<Self> {
+  pub fn new<S: Serialize>(event: EventName<&str>, payload: &S) -> crate::Result<Self> {
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("window::emit::serialize").entered();
     Ok(EmitArgs {
-      event_name: event.into(),
-      event: serde_json::to_string(event)?,
-      payload: serde_json::to_string(&payload)?,
+      event: event.into_owned(),
+      payload: serde_json::to_string(payload)?,
+    })
+  }
+
+  pub fn new_str(event: EventName<&str>, payload: String) -> crate::Result<Self> {
+    #[cfg(feature = "tracing")]
+    let _span = tracing::debug_span!("window::emit::json").entered();
+    Ok(EmitArgs {
+      event: event.into_owned(),
+      payload,
     })
   }
 }
@@ -169,7 +165,7 @@ impl Event {
 pub fn listen_js_script(
   listeners_object_name: &str,
   serialized_target: &str,
-  event: &str,
+  event: EventName<&str>,
   event_id: EventId,
   handler: &str,
 ) -> String {
@@ -198,7 +194,7 @@ pub fn emit_js_script(
   serialized_ids: &str,
 ) -> crate::Result<String> {
   Ok(format!(
-    "(function () {{ const fn = window['{}']; fn && fn({{event: {}, payload: {}}}, {ids}) }})()",
+    "(function () {{ const fn = window['{}']; fn && fn({{event: '{}', payload: {}}}, {ids}) }})()",
     event_emit_function_name,
     emit_args.event,
     emit_args.payload,
@@ -208,7 +204,7 @@ pub fn emit_js_script(
 
 pub fn unlisten_js_script(
   listeners_object_name: &str,
-  event_name: &str,
+  event_name: EventName<&str>,
   event_id: EventId,
 ) -> String {
   format!(
@@ -238,4 +234,16 @@ pub fn event_initialization_script(function: &str, listeners: &str) -> String {
     }});
   "
   )
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  #[test]
+  fn test_illegal_event_name() {
+    let s = EventName::new("some\r illegal event name")
+      .unwrap_err()
+      .to_string();
+    assert_eq!("only alphanumeric, '-', '/', ':', '_' permitted for event names: \"some\\r illegal event name\"", s);
+  }
 }

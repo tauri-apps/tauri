@@ -31,7 +31,7 @@ use crate::{
   CommandExt,
 };
 
-use self::app_paths::app_dir;
+use self::app_paths::frontend_dir;
 
 pub fn command_env(debug: bool) -> HashMap<&'static str, String> {
   let mut map = HashMap::new();
@@ -80,7 +80,7 @@ pub fn run_hook(
     HookCommand::Script(s) => (Some(s), None),
     HookCommand::ScriptWithOptions { script, cwd } => (Some(script), cwd.map(Into::into)),
   };
-  let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+  let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
   if let Some(script) = script {
     log::info!(action = "Running"; "{} `{}`", name, script);
 

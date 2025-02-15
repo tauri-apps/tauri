@@ -85,62 +85,60 @@ pub enum BaseDirectory {
   /// The Audio directory.
   Audio = 1,
   /// The Cache directory.
-  Cache,
+  Cache = 2,
   /// The Config directory.
-  Config,
+  Config = 3,
   /// The Data directory.
-  Data,
+  Data = 4,
   /// The LocalData directory.
-  LocalData,
+  LocalData = 5,
   /// The Document directory.
-  Document,
+  Document = 6,
   /// The Download directory.
-  Download,
+  Download = 7,
   /// The Picture directory.
-  Picture,
+  Picture = 8,
   /// The Public directory.
-  Public,
+  Public = 9,
   /// The Video directory.
-  Video,
+  Video = 10,
   /// The Resource directory.
-  Resource,
+  Resource = 11,
   /// A temporary directory. Resolves to [`std::env::temp_dir`].
-  Temp,
+  Temp = 12,
   /// The default app config directory.
   /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
-  AppConfig,
+  AppConfig = 13,
   /// The default app data directory.
   /// Resolves to [`BaseDirectory::Data`]`/{bundle_identifier}`.
-  AppData,
+  AppData = 14,
   /// The default app local data directory.
   /// Resolves to [`BaseDirectory::LocalData`]`/{bundle_identifier}`.
-  AppLocalData,
+  AppLocalData = 15,
   /// The default app cache directory.
   /// Resolves to [`BaseDirectory::Cache`]`/{bundle_identifier}`.
-  AppCache,
+  AppCache = 16,
   /// The default app log directory.
   /// Resolves to [`BaseDirectory::Home`]`/Library/Logs/{bundle_identifier}` on macOS
   /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
-  AppLog,
-
+  AppLog = 17,
   /// The Desktop directory.
   #[cfg(not(target_os = "android"))]
-  Desktop,
+  Desktop = 18,
   /// The Executable directory.
   #[cfg(not(target_os = "android"))]
-  Executable,
+  Executable = 19,
   /// The Font directory.
   #[cfg(not(target_os = "android"))]
-  Font,
+  Font = 20,
   /// The Home directory.
-  #[cfg(not(target_os = "android"))]
-  Home,
+  Home = 21,
   /// The Runtime directory.
   #[cfg(not(target_os = "android"))]
-  Runtime,
+  Runtime = 22,
   /// The Template directory.
   #[cfg(not(target_os = "android"))]
-  Template,
+  Template = 23,
 }
 
 impl BaseDirectory {
@@ -164,6 +162,7 @@ impl BaseDirectory {
       Self::AppLocalData => "$APPLOCALDATA",
       Self::AppCache => "$APPCACHE",
       Self::AppLog => "$APPLOG",
+      Self::Home => "$HOME",
 
       #[cfg(not(target_os = "android"))]
       Self::Desktop => "$DESKTOP",
@@ -171,8 +170,6 @@ impl BaseDirectory {
       Self::Executable => "$EXE",
       #[cfg(not(target_os = "android"))]
       Self::Font => "$FONT",
-      #[cfg(not(target_os = "android"))]
-      Self::Home => "$HOME",
       #[cfg(not(target_os = "android"))]
       Self::Runtime => "$RUNTIME",
       #[cfg(not(target_os = "android"))]
@@ -201,6 +198,7 @@ impl BaseDirectory {
       "$APPLOCALDATA" => Self::AppLocalData,
       "$APPCACHE" => Self::AppCache,
       "$APPLOG" => Self::AppLog,
+      "$HOME" => Self::Home,
 
       #[cfg(not(target_os = "android"))]
       "$DESKTOP" => Self::Desktop,
@@ -208,8 +206,6 @@ impl BaseDirectory {
       "$EXE" => Self::Executable,
       #[cfg(not(target_os = "android"))]
       "$FONT" => Self::Font,
-      #[cfg(not(target_os = "android"))]
-      "$HOME" => Self::Home,
       #[cfg(not(target_os = "android"))]
       "$RUNTIME" => Self::Runtime,
       #[cfg(not(target_os = "android"))]
@@ -302,14 +298,13 @@ fn resolve_path<R: Runtime>(
     BaseDirectory::AppLocalData => resolver.app_local_data_dir(),
     BaseDirectory::AppCache => resolver.app_cache_dir(),
     BaseDirectory::AppLog => resolver.app_log_dir(),
+    BaseDirectory::Home => resolver.home_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Desktop => resolver.desktop_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Executable => resolver.executable_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Font => resolver.font_dir(),
-    #[cfg(not(target_os = "android"))]
-    BaseDirectory::Home => resolver.home_dir(),
     #[cfg(not(target_os = "android"))]
     BaseDirectory::Runtime => resolver.runtime_dir(),
     #[cfg(not(target_os = "android"))]

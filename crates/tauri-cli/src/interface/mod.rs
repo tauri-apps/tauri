@@ -20,7 +20,10 @@ pub use rust::{MobileOptions, Options, Rust as AppInterface};
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
+  // TODO:
+  #[allow(unused)]
   fn wait(&self) -> std::io::Result<ExitStatus>;
+  #[allow(unused)]
   fn manually_killed_process(&self) -> bool;
 }
 

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
@@ -210,11 +208,13 @@ pub use runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
+use self::event::EventName;
 pub use self::event::{Event, EventId, EventTarget};
+use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, UriSchemeContext,
-    UriSchemeResponder, WebviewEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
+    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
@@ -839,6 +839,8 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static;
@@ -846,6 +848,8 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   /// Listen to an event on this manager only once.
   ///
   /// See [`Self::listen`] for more information.
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static;
@@ -897,23 +901,27 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn listen_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
-    self
-      .manager()
-      .listen(event.into(), EventTarget::Any, handler)
+    let event = EventName::new(event.into()).unwrap();
+    self.manager().listen(event, EventTarget::Any, handler)
   }
 
   /// Listens once to an emitted event to any [target](EventTarget) .
   ///
   /// See [`Self::listen_any`] for more information.
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn once_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.manager().once(event.into(), EventTarget::Any, handler)
+    let event = EventName::new(event.into()).unwrap();
+    self.manager().once(event, EventTarget::Any, handler)
   }
 }
 
@@ -931,7 +939,18 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit("synchronized", ());
   /// }
   /// ```
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()>;
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::Serialize(&payload);
+    self.manager().emit(event, payload)
+  }
+
+  /// Similar to [`Emitter::emit`] but the payload is json serialized.
+  fn emit_str(&self, event: &str, payload: String) -> Result<()> {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit(event, payload)
+  }
 
   /// Emits an event to all [targets](EventTarget) matching the given target.
   ///
@@ -958,7 +977,22 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
   where
     I: Into<EventTarget>,
-    S: Serialize + Clone;
+    S: Serialize + Clone,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::Serialize(&payload);
+    self.manager().emit_to(target, event, payload)
+  }
+
+  /// Similar to [`Emitter::emit_to`] but the payload is json serialized.
+  fn emit_str_to<I>(&self, target: I, event: &str, payload: String) -> Result<()>
+  where
+    I: Into<EventTarget>,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit_to(target, event, payload)
+  }
 
   /// Emits an event to all [targets](EventTarget) based on the given filter.
   ///
@@ -981,7 +1015,22 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool;
+    F: Fn(&EventTarget) -> bool,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::Serialize(&payload);
+    self.manager().emit_filter(event, payload, filter)
+  }
+
+  /// Similar to [`Emitter::emit_filter`] but the payload is json serialized.
+  fn emit_str_filter<F>(&self, event: &str, payload: String, filter: F) -> Result<()>
+  where
+    F: Fn(&EventTarget) -> bool,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit_filter(event, payload, filter)
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
@@ -1011,6 +1060,15 @@ pub(crate) mod sealed {
   }
 }
 
+struct UnsafeSend<T>(T);
+unsafe impl<T> Send for UnsafeSend<T> {}
+
+impl<T> UnsafeSend<T> {
+  fn take(self) -> T {
+    self.0
+  }
+}
+
 #[allow(unused)]
 macro_rules! run_main_thread {
   ($handle:ident, $ex:expr) => {{
@@ -1037,7 +1095,7 @@ pub mod test;
 const _: () = {
   use specta::{datatype::DataType, function::FunctionArg, TypeMap};
 
-  impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
+  impl<T: Send + Sync + 'static> FunctionArg for crate::State<'_, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
       None
     }

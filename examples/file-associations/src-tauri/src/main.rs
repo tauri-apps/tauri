@@ -35,7 +35,7 @@ fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
   let files = files
     .into_iter()
     .map(|f| {
-      let file = f.to_string_lossy().replace("\\", "\\\\"); // escape backslash
+      let file = f.to_string_lossy().replace('\\', "\\\\"); // escape backslash
       format!("\"{file}\"",) // wrap in quotes for JS array
     })
     .collect::<Vec<_>>()
@@ -59,7 +59,7 @@ fn main() {
         // files may aslo be passed as `file://path/to/file`
         for maybe_file in std::env::args().skip(1) {
           // skip flags like -f or --flag
-          if maybe_file.starts_with("-") {
+          if maybe_file.starts_with('-') {
             continue;
           }
 

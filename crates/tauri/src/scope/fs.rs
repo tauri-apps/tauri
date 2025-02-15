@@ -92,10 +92,27 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   //   - `C:\\SomeDir`
   #[cfg(windows)]
   {
-    use std::path::Component;
+    use std::path::{Component, Path, Prefix};
 
-    if matches!(path.components().next(), Some(Component::Prefix(_))) {
-      let simplified = dunce::simplified(&path);
+    let mut components = path.components();
+
+    let is_unc = match components.next() {
+      Some(Component::Prefix(p)) => match p.kind() {
+        Prefix::VerbatimDisk(..) => true,
+        _ => false, // Other kinds of UNC paths
+      },
+      _ => false, // relative or empty
+    };
+
+    if is_unc {
+      // we remove UNC manually, instead of `dunce::simplified` because
+      // `path` could have `*` in it and that's not allowed on Windows and
+      // `dunce::simplified` will check that and return `path` as is without simplification
+      let simplified = path
+        .to_str()
+        .and_then(|s| s.get(4..))
+        .map_or(path.as_path(), Path::new);
+
       let simplified_str = simplified.to_string_lossy();
       if simplified_str != path_str {
         list.insert(f(&simplified_str)?);
@@ -322,21 +339,12 @@ impl Scope {
   }
 
   /// Determines if the given path is allowed on this scope.
+  ///
+  /// Returns `false` if the path was explicitly forbidden or neither allowed nor forbidden.
+  ///
+  /// May return `false` if the path points to a broken symlink.
   pub fn is_allowed<P: AsRef<Path>>(&self, path: P) -> bool {
-    let path = path.as_ref();
-    let path = if path.is_symlink() {
-      match std::fs::read_link(path) {
-        Ok(p) => p,
-        Err(_) => return false,
-      }
-    } else {
-      path.to_path_buf()
-    };
-    let path = if !path.exists() {
-      crate::Result::Ok(path)
-    } else {
-      std::fs::canonicalize(path).map_err(Into::into)
-    };
+    let path = try_resolve_symlink_and_canonicalize(path);
 
     if let Ok(path) = path {
       let path: PathBuf = path.components().collect();
@@ -356,11 +364,45 @@ impl Scope {
           .unwrap()
           .iter()
           .any(|p| p.matches_path_with(&path, self.match_options));
+
         allowed
       }
     } else {
       false
     }
+  }
+
+  /// Determines if the given path is explicitly forbidden on this scope.
+  ///
+  /// May return `true` if the path points to a broken symlink.
+  pub fn is_forbidden<P: AsRef<Path>>(&self, path: P) -> bool {
+    let path = try_resolve_symlink_and_canonicalize(path);
+
+    if let Ok(path) = path {
+      let path: PathBuf = path.components().collect();
+      self
+        .forbidden_patterns
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|p| p.matches_path_with(&path, self.match_options))
+    } else {
+      true
+    }
+  }
+}
+
+fn try_resolve_symlink_and_canonicalize<P: AsRef<Path>>(path: P) -> crate::Result<PathBuf> {
+  let path = path.as_ref();
+  let path = if path.is_symlink() {
+    std::fs::read_link(path)?
+  } else {
+    path.to_path_buf()
+  };
+  if !path.exists() {
+    crate::Result::Ok(path)
+  } else {
+    std::fs::canonicalize(path).map_err(Into::into)
   }
 }
 
@@ -382,7 +424,11 @@ fn escaped_pattern_with(p: &str, append: &str) -> Result<Pattern, glob::PatternE
 
 #[cfg(test)]
 mod tests {
-  use super::Scope;
+  use std::collections::HashSet;
+
+  use glob::Pattern;
+
+  use super::{push_pattern, Scope};
 
   fn new_scope() -> Scope {
     Scope {
@@ -598,6 +644,39 @@ mod tests {
       assert!(scope.is_allowed(cwd.join("Cargo.toml")));
       assert!(!scope.is_allowed("C:\\Windows"));
       assert!(!scope.is_allowed("Q:Cargo.toml"));
+    }
+  }
+
+  #[test]
+  fn push_pattern_generated_paths() {
+    macro_rules! assert_pattern {
+      ($patterns:ident, $pattern:literal) => {
+        assert!($patterns.contains(&Pattern::new($pattern).unwrap()))
+      };
+    }
+
+    let mut patterns = HashSet::new();
+
+    #[cfg(not(windows))]
+    {
+      push_pattern(&mut patterns, "/path/to/dir/", Pattern::new).expect("failed to push pattern");
+      push_pattern(&mut patterns, "/path/to/dir/**", Pattern::new).expect("failed to push pattern");
+
+      assert_pattern!(patterns, "/path/to/dir");
+      assert_pattern!(patterns, "/path/to/dir/**");
+    }
+
+    #[cfg(windows)]
+    {
+      push_pattern(&mut patterns, "C:\\path\\to\\dir", Pattern::new)
+        .expect("failed to push pattern");
+      push_pattern(&mut patterns, "C:\\path\\to\\dir\\**", Pattern::new)
+        .expect("failed to push pattern");
+
+      assert_pattern!(patterns, "C:\\path\\to\\dir");
+      assert_pattern!(patterns, "C:\\path\\to\\dir\\**");
+      assert_pattern!(patterns, "\\\\?\\C:\\path\\to\\dir");
+      assert_pattern!(patterns, "\\\\?\\C:\\path\\to\\dir\\**");
     }
   }
 }

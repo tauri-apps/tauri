@@ -10,6 +10,16 @@
  * ```typescript
  * import { event, window, path } from '@tauri-apps/api'
  * ```
+ *
+ * ### Vanilla JS API
+ *
+ * The above import syntax is for JavaScript/TypeScript with a bundler. If you're using vanilla JavaScript, you can use the global `window.__TAURI__` object instead. It requires `app.withGlobalTauri` configuration option enabled.
+ *
+ * @example
+ * ```js
+ * const { event, window: tauriWindow, path } = window.__TAURI__;
+ * ```
+ *
  * @module
  */
 

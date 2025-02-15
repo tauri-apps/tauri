@@ -13,10 +13,10 @@ use colored::Colorize;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
-pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
+pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
 
-  if tauri_dir.is_some() || app_dir.is_some() {
+  if tauri_dir.is_some() || frontend_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
       let manifest: Option<CargoManifest> =
         if let Ok(manifest_contents) = read_to_string(tauri_dir.join("Cargo.toml")) {

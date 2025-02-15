@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { InvokeArgs, InvokeOptions } from './core'
+import type { invoke, InvokeArgs, InvokeOptions } from './core'
 
 function mockInternals() {
   window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
@@ -62,7 +62,7 @@ function mockInternals() {
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: <T>(cmd: string, payload?: InvokeArgs) => Promise<T>
+  cb: (cmd: string, payload?: InvokeArgs) => unknown
 ): void {
   mockInternals()
 
@@ -90,14 +90,15 @@ export function mockIPC(
     return identifier
   }
 
-  window.__TAURI_INTERNALS__.invoke = function <T>(
+  // eslint-disable-next-line @typescript-eslint/require-await
+  window.__TAURI_INTERNALS__.invoke = async function (
     cmd: string,
     args?: InvokeArgs,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     options?: InvokeOptions
-  ): Promise<T> {
+  ): Promise<unknown> {
     return cb(cmd, args)
-  }
+  } as typeof invoke
 }
 
 /**

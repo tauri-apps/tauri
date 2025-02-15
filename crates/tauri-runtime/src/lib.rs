@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! Internal runtime between Tauri and the underlying webview runtime.
 //!
 //! None of the exposed API of this crate is stable, and it may break semver
@@ -18,6 +16,7 @@
 use raw_window_handle::DisplayHandle;
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
+use tauri_utils::config::Color;
 use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
@@ -523,6 +522,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Set the webview zoom level
   fn set_zoom(&self, scale_factor: f64) -> Result<()>;
 
+  /// Set the webview background.
+  fn set_background_color(&self, color: Option<Color>) -> Result<()>;
+
   /// Clear all browsing data for this webview.
   fn clear_all_browsing_data(&self) -> Result<()>;
 }
@@ -753,6 +755,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Updates the window visibleOnAllWorkspaces flag.
   fn set_visible_on_all_workspaces(&self, visible_on_all_workspaces: bool) -> Result<()>;
 
+  /// Set the window background.
+  fn set_background_color(&self, color: Option<Color>) -> Result<()>;
+
   /// Prevents the window contents from being captured by other apps.
   fn set_content_protected(&self, protected: bool) -> Result<()>;
 
@@ -808,6 +813,24 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Starts resize-dragging the window.
   fn start_resize_dragging(&self, direction: ResizeDirection) -> Result<()>;
+
+  /// Sets the badge count on the taskbar
+  /// The badge count appears as a whole for the application
+  /// Using `0` or using `None` will remove the badge
+  ///
+  /// ## Platform-specific
+  /// - **Windows:** Unsupported, use [`WindowDispatch::set_overlay_icon`] instead.
+  /// - **Android:** Unsupported.
+  /// - **iOS:** iOS expects i32, if the value is larger than i32::MAX, it will be clamped to i32::MAX.
+  fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) -> Result<()>;
+
+  /// Sets the badge count on the taskbar **macOS only**. Using `None` will remove the badge
+  fn set_badge_label(&self, label: Option<String>) -> Result<()>;
+
+  /// Sets the overlay icon on the taskbar **Windows only**. Using `None` will remove the icon
+  ///
+  /// The overlay icon can be unique for each window.
+  fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()>;
 
   /// Sets the taskbar progress state.
   ///

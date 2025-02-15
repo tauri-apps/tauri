@@ -173,9 +173,9 @@ impl<R: Runtime> Submenu<R> {
   /// Add a menu item to the end of this submenu.
   pub fn append(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .append(kind.inner().inner_muda()))?
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().append(kind.inner().inner_muda())
+    })?
     .map_err(Into::into)
   }
 
@@ -225,18 +225,20 @@ impl<R: Runtime> Submenu<R> {
   /// Remove a menu item from this submenu.
   pub fn remove(&self, item: &dyn IsMenuItem<R>) -> crate::Result<()> {
     let kind = item.kind();
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .remove(kind.inner().inner_muda()))?
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().remove(kind.inner().inner_muda())
+    })?
     .map_err(Into::into)
   }
 
   /// Remove the menu item at the specified position from this submenu and returns it.
   pub fn remove_at(&self, position: usize) -> crate::Result<Option<MenuItemKind<R>>> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .remove_at(position)
-      .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i)))
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0)
+        .as_ref()
+        .remove_at(position)
+        .map(|i| MenuItemKind::from_muda(self_.0.app_handle.clone(), i))
+    })
   }
 
   /// Retrieves the menu item matching the given identifier.
@@ -293,9 +295,9 @@ impl<R: Runtime> Submenu<R> {
   /// certain other items to the menu.
   #[cfg(target_os = "macos")]
   pub fn set_as_windows_menu_for_nsapp(&self) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .set_as_windows_menu_for_nsapp())?;
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().set_as_windows_menu_for_nsapp()
+    })?;
     Ok(())
   }
 
@@ -307,9 +309,9 @@ impl<R: Runtime> Submenu<R> {
   /// which has a title matching the localized word "Help".
   #[cfg(target_os = "macos")]
   pub fn set_as_help_menu_for_nsapp(&self) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .set_as_help_menu_for_nsapp())?;
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().set_as_help_menu_for_nsapp()
+    })?;
     Ok(())
   }
 }

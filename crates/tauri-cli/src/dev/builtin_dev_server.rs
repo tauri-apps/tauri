@@ -162,17 +162,20 @@ fn watch<F: Fn() + Send + 'static>(dir: PathBuf, handler: F) {
   thread::spawn(move || {
     let (tx, rx) = std::sync::mpsc::channel();
 
-    let mut watcher = notify_debouncer_mini::new_debouncer(Duration::from_secs(1), tx)
+    let mut watcher = notify_debouncer_full::new_debouncer(Duration::from_secs(1), None, tx)
       .expect("failed to start builtin server fs watcher");
 
     watcher
-      .watcher()
       .watch(&dir, notify::RecursiveMode::Recursive)
       .expect("builtin server failed to watch dir");
 
     loop {
-      if rx.recv().is_ok() {
-        handler();
+      if let Ok(Ok(event)) = rx.recv() {
+        if let Some(event) = event.first() {
+          if !event.kind.is_access() {
+            handler();
+          }
+        }
       }
     }
   });

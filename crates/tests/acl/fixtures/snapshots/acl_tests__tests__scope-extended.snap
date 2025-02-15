@@ -1,6 +1,7 @@
 ---
 source: crates/tests/acl/src/lib.rs
 expression: resolved
+snapshot_kind: text
 ---
 Resolved {
     allowed_commands: {
@@ -29,7 +30,7 @@ Resolved {
                 ],
                 webviews: [],
                 scope_id: Some(
-                    3,
+                    4,
                 ),
             },
         ],
@@ -85,7 +86,7 @@ Resolved {
                 ],
                 webviews: [],
                 scope_id: Some(
-                    2,
+                    3,
                 ),
             },
             ResolvedCommand {
@@ -111,9 +112,7 @@ Resolved {
                     },
                 ],
                 webviews: [],
-                scope_id: Some(
-                    4,
-                ),
+                scope_id: None,
             },
         ],
         "plugin:fs|read_file": [
@@ -141,7 +140,7 @@ Resolved {
                 ],
                 webviews: [],
                 scope_id: Some(
-                    1,
+                    2,
                 ),
             },
             ResolvedCommand {
@@ -168,7 +167,7 @@ Resolved {
                 ],
                 webviews: [],
                 scope_id: Some(
-                    2,
+                    3,
                 ),
             },
         ],
@@ -188,6 +187,18 @@ Resolved {
             deny: [],
         },
         2: ResolvedScope {
+            allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$HOME/.config/**",
+                        ),
+                    },
+                ),
+            ],
+            deny: [],
+        },
+        3: ResolvedScope {
             allow: [
                 Map(
                     {
@@ -214,31 +225,12 @@ Resolved {
                 ),
             ],
         },
-        3: ResolvedScope {
-            allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$TEMP/*",
-                        ),
-                    },
-                ),
-            ],
-            deny: [],
-        },
         4: ResolvedScope {
             allow: [
                 Map(
                     {
                         "path": String(
-                            "$DOWNLOAD",
-                        ),
-                    },
-                ),
-                Map(
-                    {
-                        "path": String(
-                            "$DOWNLOAD/**",
+                            "$TEMP/*",
                         ),
                     },
                 ),
@@ -260,6 +252,20 @@ Resolved {
                     {
                         "path": String(
                             "$APP",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD",
+                        ),
+                    },
+                ),
+                Map(
+                    {
+                        "path": String(
+                            "$DOWNLOAD/**",
                         ),
                     },
                 ),

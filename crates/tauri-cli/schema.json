@@ -465,6 +465,15 @@
           "description": "Whether page zooming by hotkeys is enabled\n\n ## Platform-specific:\n\n - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.\n - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,\n 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission\n\n - **Android / iOS**: Unsupported.",
           "default": false,
           "type": "boolean"
+        },
+        "backgroundThrottling": {
+          "description": "Change the default background throttling behaviour.\n\n By default, browsers use a suspend policy that will throttle timers and even unload\n the whole tab (view) to free resources after roughly 5 minutes when a view became\n minimized or hidden. This will pause all tasks until the documents visibility state\n changes back from hidden to visible by bringing the view back to the foreground.\n\n ## Platform-specific\n\n - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n\n see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578",
+          "type": "string",
+          "enum": [
+            "disabled",
+            "throttle",
+            "suspend"
+          ]
         }
       },
       "additionalProperties": false

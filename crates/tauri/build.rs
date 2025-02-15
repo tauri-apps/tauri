@@ -105,10 +105,14 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("start_dragging", false),
       ("start_resize_dragging", false),
       ("set_progress_bar", false),
+      ("set_badge_count", false),
+      ("set_overlay_icon", false),
+      ("set_badge_label", false),
       ("set_icon", false),
       ("set_title_bar_style", false),
       ("set_theme", false),
       ("toggle_maximize", false),
+      ("set_background_color", false),
       // internal
       ("internal_toggle_maximize", true),
     ],
@@ -133,6 +137,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("print", false),
       ("reparent", false),
       ("clear_all_browsing_data", false),
+      ("set_webview_background_color", false),
       // internal
       ("internal_toggle_devtools", true),
     ],
@@ -254,7 +259,7 @@ fn main() {
   // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
   // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
   let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
-  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
+  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").is_ok_and(|v| v == "true");
   if is_tauri_workspace && target_os == "windows" && Ok("msvc") == target_env.as_deref() {
     embed_manifest_for_tests();
   }
@@ -371,10 +376,12 @@ permissions = [{default_permissions}]
       .unwrap_or_else(|_| panic!("unable to autogenerate default permissions"));
 
     let permissions = tauri_utils::acl::build::define_permissions(
-      &permissions_out_dir
-        .join("**")
-        .join("*.toml")
-        .to_string_lossy(),
+      &PathBuf::from(glob::Pattern::escape(
+        &permissions_out_dir.to_string_lossy(),
+      ))
+      .join("**")
+      .join("*.toml")
+      .to_string_lossy(),
       &format!("tauri:{plugin}"),
       out_dir,
       |_| true,
@@ -423,11 +430,15 @@ permissions = [{}]
       .join(",")
   );
 
-  write_if_changed(&default_toml, toml_content)
+  write_if_changed(default_toml, toml_content)
     .unwrap_or_else(|_| panic!("unable to autogenerate core:default set"));
 
   let _ = tauri_utils::acl::build::define_permissions(
-    &permissions_out_dir.join("*.toml").to_string_lossy(),
+    &PathBuf::from(glob::Pattern::escape(
+      &permissions_out_dir.to_string_lossy(),
+    ))
+    .join("*.toml")
+    .to_string_lossy(),
     "tauri:core",
     out_dir,
     |_| true,

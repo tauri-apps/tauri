@@ -34,7 +34,12 @@ pub const PERMISSION_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
 pub const PERMISSION_DOCS_FILE_NAME: &str = "reference.md";
 
 /// Allowed capability file extensions
-const CAPABILITY_FILE_EXTENSIONS: &[&str] = &["json", "toml"];
+const CAPABILITY_FILE_EXTENSIONS: &[&str] = &[
+  "json",
+  #[cfg(feature = "config-json5")]
+  "json5",
+  "toml",
+];
 
 /// Known folder name of the capability schemas
 const CAPABILITIES_SCHEMA_FOLDER_NAME: &str = "schemas";
@@ -44,8 +49,8 @@ const CORE_PLUGIN_PERMISSIONS_TOKEN: &str = "__CORE_PLUGIN__";
 fn parse_permissions(paths: Vec<PathBuf>) -> Result<Vec<PermissionFile>, Error> {
   let mut permissions = Vec::new();
   for path in paths {
-    let permission_file = fs::read_to_string(&path).map_err(Error::ReadFile)?;
     let ext = path.extension().unwrap().to_string_lossy().to_string();
+    let permission_file = fs::read_to_string(&path).map_err(|e| Error::ReadFile(e, path))?;
     let permission: PermissionFile = match ext.as_str() {
       "toml" => toml::from_str(&permission_file)?,
       "json" => serde_json::from_str(&permission_file)?,
@@ -81,7 +86,8 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
   let pkg_name_valid_path = pkg_name.replace(':', "-");
   let permission_files_path = out_dir.join(format!("{}-permission-files", pkg_name_valid_path));
   let permission_files_json = serde_json::to_string(&permission_files)?;
-  fs::write(&permission_files_path, permission_files_json).map_err(Error::WriteFile)?;
+  fs::write(&permission_files_path, permission_files_json)
+    .map_err(|e| Error::WriteFile(e, permission_files_path.clone()))?;
 
   if let Some(plugin_name) = pkg_name.strip_prefix("tauri:") {
     println!(
@@ -115,7 +121,8 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
       })
     {
       let permissions_path = PathBuf::from(value);
-      let permissions_str = fs::read_to_string(&permissions_path).map_err(Error::ReadFile)?;
+      let permissions_str =
+        fs::read_to_string(&permissions_path).map_err(|e| Error::ReadFile(e, permissions_path))?;
       let permissions: Vec<PathBuf> = serde_json::from_str(&permissions_str)?;
       let permissions = parse_permissions(permissions)?;
 
@@ -139,7 +146,7 @@ pub fn define_global_scope_schema(
   out_dir: &Path,
 ) -> Result<(), Error> {
   let path = out_dir.join("global-scope.json");
-  fs::write(&path, serde_json::to_vec(&schema)?).map_err(Error::WriteFile)?;
+  fs::write(&path, serde_json::to_vec(&schema)?).map_err(|e| Error::WriteFile(e, path.clone()))?;
 
   if let Some(plugin_name) = pkg_name.strip_prefix("tauri:") {
     println!(
@@ -170,7 +177,7 @@ pub fn read_global_scope_schemas() -> Result<HashMap<String, serde_json::Value>,
       })
     {
       let path = PathBuf::from(value);
-      let json = fs::read_to_string(&path).map_err(Error::ReadFile)?;
+      let json = fs::read_to_string(&path).map_err(|e| Error::ReadFile(e, path))?;
       let schema: serde_json::Value = serde_json::from_str(&json)?;
 
       let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
@@ -368,7 +375,7 @@ pub fn generate_docs(
     format!("{default_permission}\n{PERMISSION_TABLE_HEADER}\n{permission_table}</table>\n");
 
   let reference_path = out_dir.join(PERMISSION_DOCS_FILE_NAME);
-  write_if_changed(reference_path, docs).map_err(Error::WriteFile)?;
+  write_if_changed(&reference_path, docs).map_err(|e| Error::WriteFile(e, reference_path))?;
 
   Ok(())
 }

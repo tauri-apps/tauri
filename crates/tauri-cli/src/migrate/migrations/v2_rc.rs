@@ -4,7 +4,7 @@
 
 use crate::{
   helpers::{
-    app_paths::{app_dir, tauri_dir},
+    app_paths::{frontend_dir, tauri_dir},
     npm::PackageManager,
   },
   interface::rust::manifest::{read_manifest, serialize_manifest},
@@ -17,7 +17,7 @@ use anyhow::Context;
 use toml_edit::{DocumentMut, Item, Table, TableLike, Value};
 
 pub fn run() -> Result<()> {
-  let app_dir = app_dir();
+  let frontend_dir = frontend_dir();
   let tauri_dir = tauri_dir();
 
   let manifest_path = tauri_dir.join("Cargo.toml");
@@ -26,7 +26,7 @@ pub fn run() -> Result<()> {
 
   migrate_permissions(tauri_dir)?;
 
-  migrate_npm_dependencies(app_dir)?;
+  migrate_npm_dependencies(frontend_dir)?;
 
   std::fs::write(&manifest_path, serialize_manifest(&manifest))
     .context("failed to rewrite Cargo manifest")?;
@@ -34,11 +34,8 @@ pub fn run() -> Result<()> {
   Ok(())
 }
 
-fn migrate_npm_dependencies(app_dir: &Path) -> Result<()> {
-  let pm = PackageManager::from_project(app_dir)
-    .into_iter()
-    .next()
-    .unwrap_or(PackageManager::Npm);
+fn migrate_npm_dependencies(frontend_dir: &Path) -> Result<()> {
+  let pm = PackageManager::from_project(frontend_dir);
 
   let mut install_deps = Vec::new();
   for pkg in [
@@ -71,7 +68,7 @@ fn migrate_npm_dependencies(app_dir: &Path) -> Result<()> {
     "@tauri-apps/plugin-window-state",
   ] {
     let version = pm
-      .current_package_version(pkg, app_dir)
+      .current_package_version(pkg, frontend_dir)
       .unwrap_or_default()
       .unwrap_or_default();
     if version.starts_with('1') {
@@ -80,7 +77,7 @@ fn migrate_npm_dependencies(app_dir: &Path) -> Result<()> {
   }
 
   if !install_deps.is_empty() {
-    pm.install(&install_deps, app_dir)?;
+    pm.install(&install_deps, frontend_dir)?;
   }
 
   Ok(())
@@ -102,7 +99,7 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
   for entry in walkdir::WalkDir::new(tauri_dir.join("capabilities")) {
     let entry = entry?;
     let path = entry.path();
-    if path.extension().map_or(false, |ext| ext == "json") {
+    if path.extension().is_some_and(|ext| ext == "json") {
       let mut capability = read_to_string(path).context("failed to read capability")?;
       for plugin in core_plugins {
         capability = capability.replace(&format!("\"{plugin}:"), &format!("\"core:{plugin}:"));

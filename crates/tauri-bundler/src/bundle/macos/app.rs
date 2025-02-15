@@ -23,11 +23,13 @@
 // files into the `Contents` directory of the bundle.
 
 use super::{
-  super::common::{self, CommandExt},
   icon::create_icns_file,
   sign::{notarize, notarize_auth, sign, NotarizeAuthError, SignTarget},
 };
-use crate::Settings;
+use crate::{
+  utils::{fs_utils, CommandExt},
+  Settings,
+};
 
 use anyhow::Context;
 
@@ -157,7 +159,7 @@ fn copy_binaries_to_bundle(
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     let dest_path = dest_dir.join(bin.name());
-    common::copy_file(&bin_path, &dest_path)
+    fs_utils::copy_file(&bin_path, &dest_path)
       .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
     paths.push(dest_path);
   }
@@ -173,10 +175,10 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
       contents_path
     };
     if path.is_file() {
-      common::copy_file(path, bundle_directory.join(contents_path))
+      fs_utils::copy_file(path, &bundle_directory.join(contents_path))
         .with_context(|| format!("Failed to copy file {:?} to {:?}", path, contents_path))?;
     } else {
-      common::copy_dir(path, &bundle_directory.join(contents_path))
+      fs_utils::copy_dir(path, &bundle_directory.join(contents_path))
         .with_context(|| format!("Failed to copy directory {:?} to {:?}", path, contents_path))?;
     }
   }
@@ -349,7 +351,7 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   let src_name = format!("{}.framework", framework);
   let src_path = src_dir.join(&src_name);
   if src_path.exists() {
-    common::copy_dir(&src_path, &dest_dir.join(&src_name))?;
+    fs_utils::copy_dir(&src_path, &dest_dir.join(&src_name))?;
     Ok(true)
   } else {
     Ok(false)
@@ -382,7 +384,7 @@ fn copy_frameworks_to_bundle(
         .file_name()
         .expect("Couldn't get framework filename");
       let dest_path = dest_dir.join(src_name);
-      common::copy_dir(&src_path, &dest_path)?;
+      fs_utils::copy_dir(&src_path, &dest_path)?;
       add_framework_sign_path(&src_path, &dest_path, &mut paths);
       continue;
     } else if framework.ends_with(".dylib") {
@@ -395,7 +397,7 @@ fn copy_frameworks_to_bundle(
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
-      common::copy_file(&src_path, &dest_path)?;
+      fs_utils::copy_file(&src_path, &dest_path)?;
       paths.push(SignTarget {
         path: dest_path,
         is_an_executable: false,

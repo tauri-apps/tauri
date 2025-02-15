@@ -79,7 +79,7 @@ export interface TrayIconOptions {
   /**
    * The tray icon which could be icon bytes or path to the icon file.
    *
-   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
@@ -113,8 +113,26 @@ export interface TrayIconOptions {
    * Use the icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
    */
   iconAsTemplate?: boolean
-  /** Whether to show the tray menu on left click or not, default is `true`. **macOS only**. */
+  /**
+   * Whether to show the tray menu on left click or not, default is `true`.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @deprecated use {@linkcode TrayIconOptions.showMenuOnLeftClick} instead.
+   */
   menuOnLeftClick?: boolean
+  /**
+   * Whether to show the tray menu on left click or not, default is `true`.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @since 2.2.0
+   */
+  showMenuOnLeftClick?: boolean
   /** A handler for an event on the tray icon. */
   action?: (event: TrayIconEvent) => void
 }
@@ -196,7 +214,7 @@ export class TrayIcon extends Resource {
   /**
    *  Sets a new tray icon. If `null` is provided, it will remove the icon.
    *
-   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
@@ -278,8 +296,32 @@ export class TrayIcon extends Resource {
     })
   }
 
-  /** Disable or enable showing the tray menu on left click. **macOS only**. */
+  /**
+   *  Disable or enable showing the tray menu on left click.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @deprecated use {@linkcode TrayIcon.setShowMenuOnLeftClick} instead.
+   */
   async setMenuOnLeftClick(onLeft: boolean): Promise<void> {
+    return invoke('plugin:tray|set_show_menu_on_left_click', {
+      rid: this.rid,
+      onLeft
+    })
+  }
+
+  /**
+   *  Disable or enable showing the tray menu on left click.
+   *
+   * #### Platform-specific:
+   *
+   * - **Linux**: Unsupported.
+   *
+   * @since 2.2.0
+   */
+  async setShowMenuOnLeftClick(onLeft: boolean): Promise<void> {
     return invoke('plugin:tray|set_show_menu_on_left_click', {
       rid: this.rid,
       onLeft
@@ -290,16 +332,9 @@ export class TrayIcon extends Resource {
 function mapEvent(e: RustTrayIconEvent): TrayIconEvent {
   const out = e as unknown as TrayIconEvent
 
-  out.position = new PhysicalPosition(e.position.x, e.position.y)
-
-  out.rect.position = new PhysicalPosition(
-    e.rect.position.Physical.x,
-    e.rect.position.Physical.y
-  )
-  out.rect.size = new PhysicalSize(
-    e.rect.size.Physical.width,
-    e.rect.size.Physical.height
-  )
+  out.position = new PhysicalPosition(e.position)
+  out.rect.position = new PhysicalPosition(e.rect.position)
+  out.rect.size = new PhysicalSize(e.rect.size)
 
   return out
 }

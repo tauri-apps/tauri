@@ -93,15 +93,15 @@ impl<'de> Deserialize<'de> for PermissionEntry {
 ///   "windows": [
 ///     "main"
 ///   ],
-///  "permissions": [
-///   "core:default",
-///   "dialog:open",
-///   {
-///     "identifier": "fs:allow-write-text-file",
-///     "allow": [{ "path": "$HOME/test.txt" }]
-///   },
-///  ],
-///  "platforms": ["macOS","windows"]
+///   "permissions": [
+///     "core:default",
+///     "dialog:open",
+///     {
+///       "identifier": "fs:allow-write-text-file",
+///       "allow": [{ "path": "$HOME/test.txt" }]
+///     },
+///   ],
+///   "platforms": ["macOS","windows"]
 /// }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -175,13 +175,14 @@ pub struct Capability {
   ///
   /// ```json
   /// [
-  ///  "core:default",
-  ///  "shell:allow-open",
-  ///  "dialog:open",
-  ///  {
-  ///    "identifier": "fs:allow-write-text-file",
-  ///    "allow": [{ "path": "$HOME/test.txt" }]
-  ///  }
+  ///   "core:default",
+  ///   "shell:allow-open",
+  ///   "dialog:open",
+  ///   {
+  ///     "identifier": "fs:allow-write-text-file",
+  ///     "allow": [{ "path": "$HOME/test.txt" }]
+  ///   }
+  /// ]
   /// ```
   #[cfg_attr(feature = "schema", schemars(schema_with = "unique_permission"))]
   pub permissions: Vec<PermissionEntry>,
@@ -260,11 +261,14 @@ impl CapabilityFile {
   /// Load the given capability file.
   pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, super::Error> {
     let path = path.as_ref();
-    let capability_file = std::fs::read_to_string(path).map_err(super::Error::ReadFile)?;
+    let capability_file =
+      std::fs::read_to_string(path).map_err(|e| super::Error::ReadFile(e, path.into()))?;
     let ext = path.extension().unwrap().to_string_lossy().to_string();
     let file: Self = match ext.as_str() {
       "toml" => toml::from_str(&capability_file)?,
       "json" => serde_json::from_str(&capability_file)?,
+      #[cfg(feature = "config-json5")]
+      "json5" => json5::from_str(&capability_file)?,
       _ => return Err(super::Error::UnknownCapabilityFormat(ext)),
     };
     Ok(file)

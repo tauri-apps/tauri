@@ -175,17 +175,45 @@ fn is_xcode_command_line_tools_installed() -> bool {
     .map(|o| o.status.success())
     .unwrap_or(false)
 }
+fn de_and_session() -> String {
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+  ))]
+  return {
+    let de = std::env::var("XDG_SESSION_DESKTOP");
+    let session = std::env::var("XDG_SESSION_TYPE");
+    format!(
+      " ({} on {})",
+      de.as_deref().unwrap_or("Unknown DE"),
+      session.as_deref().unwrap_or("Unknown Session")
+    )
+  };
+
+  #[cfg(not(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "openbsd",
+    target_os = "netbsd"
+  )))]
+  String::new()
+}
 
 pub fn items() -> Vec<SectionItem> {
   vec![
     SectionItem::new().action(|| {
       let os_info = os_info::get();
       format!(
-        "OS: {} {} {} ({:?})",
+        "OS: {} {} {} ({:?}){}",
         os_info.os_type(),
         os_info.version(),
         os_info.architecture().unwrap_or("Unknown Architecture"),
-        os_info.bitness()
+        os_info.bitness(),
+        de_and_session(),
       ).into()
     }),
     #[cfg(windows)]

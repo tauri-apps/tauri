@@ -201,6 +201,32 @@ Denies the reparent command without any pre-configured scope.
 <tr>
 <td>
 
+`core:webview:allow-set-webview-background-color`
+
+</td>
+<td>
+
+Enables the set_webview_background_color command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:webview:deny-set-webview-background-color`
+
+</td>
+<td>
+
+Denies the set_webview_background_color command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:webview:allow-set-webview-focus`
 
 </td>

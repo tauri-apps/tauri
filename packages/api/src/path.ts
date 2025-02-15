@@ -18,29 +18,28 @@ import { invoke } from './core'
  */
 enum BaseDirectory {
   Audio = 1,
-  Cache,
-  Config,
-  Data,
-  LocalData,
-  Document,
-  Download,
-  Picture,
-  Public,
-  Video,
-  Resource,
-  Temp,
-  AppConfig,
-  AppData,
-  AppLocalData,
-  AppCache,
-  AppLog,
-
-  Desktop,
-  Executable,
-  Font,
-  Home,
-  Runtime,
-  Template
+  Cache = 2,
+  Config = 3,
+  Data = 4,
+  LocalData = 5,
+  Document = 6,
+  Download = 7,
+  Picture = 8,
+  Public = 9,
+  Video = 10,
+  Resource = 11,
+  Temp = 12,
+  AppConfig = 13,
+  AppData = 14,
+  AppLocalData = 15,
+  AppCache = 16,
+  AppLog = 17,
+  Desktop = 18,
+  Executable = 19,
+  Font = 20,
+  Home = 21,
+  Runtime = 22,
+  Template = 23
 }
 
 /**
@@ -662,7 +661,7 @@ async function basename(path: string, ext?: string): Promise<string> {
  * @since 1.0.0
  */
 async function isAbsolute(path: string): Promise<boolean> {
-  return invoke('plugin:path|isAbsolute', { path })
+  return invoke('plugin:path|is_absolute', { path })
 }
 
 export {

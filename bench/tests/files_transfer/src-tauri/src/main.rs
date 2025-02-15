@@ -18,7 +18,7 @@ async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Response, String> {
     .path()
     .resolve(".tauri_3mb.json", BaseDirectory::Home)
     .map_err(|e| e.to_string())?;
-  let contents = read(&path).map_err(|e| e.to_string())?;
+  let contents = read(path).map_err(|e| e.to_string())?;
   Ok(Response::new(contents))
 }
 

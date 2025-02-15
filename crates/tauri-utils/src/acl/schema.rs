@@ -336,10 +336,10 @@ pub fn generate_permissions_schema<P: AsRef<Path>>(
   let schema_str = serde_json::to_string_pretty(&schema)?;
 
   let out_dir = out_dir.as_ref().join(PERMISSION_SCHEMAS_FOLDER_NAME);
-  fs::create_dir_all(&out_dir).map_err(Error::CreateDir)?;
+  fs::create_dir_all(&out_dir).map_err(|e| Error::CreateDir(e, out_dir.clone()))?;
 
   let schema_path = out_dir.join(PERMISSION_SCHEMA_FILE_NAME);
-  write_if_changed(&schema_path, schema_str).map_err(Error::WriteFile)?;
+  write_if_changed(&schema_path, schema_str).map_err(|e| Error::WriteFile(e, schema_path))?;
 
   Ok(())
 }

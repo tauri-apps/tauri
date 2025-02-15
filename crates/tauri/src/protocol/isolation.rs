@@ -5,7 +5,10 @@
 use crate::Assets;
 use http::header::CONTENT_TYPE;
 use serialize_to_javascript::Template;
-use tauri_utils::{assets::EmbeddedAssets, config::Csp};
+use tauri_utils::{
+  assets::EmbeddedAssets,
+  config::{Csp, HeaderAddition},
+};
 
 use std::sync::Arc;
 
@@ -21,9 +24,11 @@ pub fn get<R: Runtime>(
   assets: Arc<EmbeddedAssets>,
   aes_gcm_key: [u8; 32],
   window_origin: String,
+  use_https_scheme: bool,
 ) -> UriSchemeProtocolHandler {
   let frame_src = if cfg!(any(windows, target_os = "android")) {
-    format!("http://{schema}.localhost")
+    let https = if use_https_scheme { "https" } else { "http" };
+    format!("{https}://{schema}.localhost")
   } else {
     format!("{schema}:")
   };
@@ -51,6 +56,7 @@ pub fn get<R: Runtime>(
           };
           match template.render(asset.as_ref(), &Default::default()) {
             Ok(asset) => http::Response::builder()
+              .add_configured_headers(manager.config.app.security.headers.as_ref())
               .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
               .header("Content-Security-Policy", csp)
               .body(asset.into_string().as_bytes().to_vec()),

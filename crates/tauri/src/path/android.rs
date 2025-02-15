@@ -9,6 +9,12 @@ use std::path::PathBuf;
 /// A helper class to access the mobile path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) PluginHandle<R>);
 
+impl<R: Runtime> Clone for PathResolver<R> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
+}
+
 #[derive(serde::Deserialize)]
 struct PathResponse {
   path: PathBuf,
@@ -116,5 +122,16 @@ impl<R: Runtime> PathResolver<R> {
   /// A temporary directory. Resolves to [`std::env::temp_dir`].
   pub fn temp_dir(&self) -> Result<PathBuf> {
     Ok(std::env::temp_dir())
+  }
+
+  /// Returns the path to the user's home directory.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux:** Resolves to `$HOME`.
+  /// - **macOS:** Resolves to `$HOME`.
+  /// - **Windows:** Resolves to `{FOLDERID_Profile}`.
+  pub fn home_dir(&self) -> Result<PathBuf> {
+    self.call_resolve("getHomeDir")
   }
 }

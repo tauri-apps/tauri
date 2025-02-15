@@ -1,5 +1,149 @@
 # Changelog
 
+## \[2.2.5]
+
+### Bug Fixes
+
+- [`477e9c049`](https://www.github.com/tauri-apps/tauri/commit/477e9c0496ff75ef8ef7aedc5430c77e213cd740) ([#12514](https://www.github.com/tauri-apps/tauri/pull/12514) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused iOS apps to panic when using an async function for `tauri::mobile_entry_point`.
+
+## \[2.2.4]
+
+### Bug Fixes
+
+- [`27096cdc0`](https://www.github.com/tauri-apps/tauri/commit/27096cdc05d89b61b2372b4e4a3018c87f240ab8) ([#12445](https://www.github.com/tauri-apps/tauri/pull/12445) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused Tauri's CLI to enable tauri's `native-tls` feature even though it wasn't needed. Moved `reqwest` to a mobile-only dependency in `tauri` and enabled its `rustls-tls` feature flag.
+
+## \[2.2.3]
+
+### Bug Fixes
+
+- [`d2c8f0eb5`](https://www.github.com/tauri-apps/tauri/commit/d2c8f0eb5ce2a5ebacd857614b7c89bbd5c9dca4) ([#12424](https://www.github.com/tauri-apps/tauri/pull/12424) by [@mattyg](https://www.github.com/tauri-apps/tauri/../../mattyg)) Ensure that tauri's builtin initialization scripts and plugin initialization scripts are executed before any user-added initialization scripts in a webview.
+
+## \[2.2.2]
+
+### Bug Fixes
+
+- [`61e69db9e`](https://www.github.com/tauri-apps/tauri/commit/61e69db9e48f6a652ed3ecb05567c648c6e788d0) ([#12376](https://www.github.com/tauri-apps/tauri/pull/12376) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Widen `specta` version range to `^2.0.0-rc.16` again.
+
+## \[2.2.1]
+
+### Bug Fixes
+
+- [`cd1d026f9`](https://www.github.com/tauri-apps/tauri/commit/cd1d026f9799c26b04acb64f49e7ee0a8b193049) ([#11961](https://www.github.com/tauri-apps/tauri/pull/11961) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix tauri fails to build if the project path contains glob characters
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.0.5`
+
+## \[2.2.0]
+
+### New Features
+
+- [`f884bae75`](https://www.github.com/tauri-apps/tauri/commit/f884bae75b3ad8f8debfd29bb05ac9cbc9748c89) ([#11742](https://www.github.com/tauri-apps/tauri/pull/11742) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `tauri::Builder::on_tray_icon_event` handler.
+- [`5188c0fae`](https://www.github.com/tauri-apps/tauri/commit/5188c0fae2bb47e40d09f70bf308c300045a2e2b) ([#11767](https://www.github.com/tauri-apps/tauri/pull/11767) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `Scope::is_forbidden` to check if a path was explicitly forbidden.
+- [`18bd639f6`](https://www.github.com/tauri-apps/tauri/commit/18bd639f6e22c0188aa219739f367b5bf5ab0398) ([#11798](https://www.github.com/tauri-apps/tauri/pull/11798) by [@lars-berger](https://www.github.com/tauri-apps/tauri/../../lars-berger)) Add `WebviewWindowBuilder/WebviewBuilder::data_store_identifier` on macOS.
+- [`dc4d79477`](https://www.github.com/tauri-apps/tauri/commit/dc4d79477665bc3bfefb4048772414cf5d78e3df) ([#11628](https://www.github.com/tauri-apps/tauri/pull/11628) by [@SpikeHD](https://www.github.com/tauri-apps/tauri/../../SpikeHD)) Add `WebviewWindowBuilder/WebviewBuilder::extensions_path` on Linux and Windows.
+- [`020ea0556`](https://www.github.com/tauri-apps/tauri/commit/020ea05561348dcd6d2a7df358f8a5190f661ba2) ([#11661](https://www.github.com/tauri-apps/tauri/pull/11661) by [@ahqsoftwares](https://www.github.com/tauri-apps/tauri/../../ahqsoftwares)) Add badging APIs:
+
+  - `Window/WebviewWindow::set_badge_count` for Linux, macOS and IOS.
+  - `Window/WebviewWindow::set_overlay_icon` for Windows Only.
+  - `Window/WebviewWindow::set_badge_label`for macOS Only.
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `TrayIconBuilder::show_menu_on_left_click` method and deprecate `TrayIconBuilder::menu_on_left_click` for consistent naming and clarity.
+
+### Enhancements
+
+- [`d86aaccb0`](https://www.github.com/tauri-apps/tauri/commit/d86aaccb0b42760bb59bc04d74a6ea234bb64229) ([#11729](https://www.github.com/tauri-apps/tauri/pull/11729) by [@sandercox](https://www.github.com/tauri-apps/tauri/../../sandercox)) Add support for `TrayIconBuilder::menu_on_left_click` and `TrayIcon::set_show_menu_on_left_click` on Windows.
+- [`b0ddee899`](https://www.github.com/tauri-apps/tauri/commit/b0ddee8992ac3c7d47e2cfc9714f5725fadca7cf) ([#12101](https://www.github.com/tauri-apps/tauri/pull/12101) by [@renovate](https://www.github.com/tauri-apps/tauri/../../renovate)) **Breaking change:** Updated `webview2-com` to `0.34`. This may be a breaking change if you use the `with_webview` method.
+
+### Bug Fixes
+
+- [`b50a1ac0e`](https://www.github.com/tauri-apps/tauri/commit/b50a1ac0ef4c7686c3537512f1ba607b9ba6589c) ([#11850](https://www.github.com/tauri-apps/tauri/pull/11850) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Add webview and window color setters to autogenerated permissions.
+- [`ba6f37014`](https://www.github.com/tauri-apps/tauri/commit/ba6f3701472daa9295a39709761ea85c128881f1) ([#11785](https://www.github.com/tauri-apps/tauri/pull/11785) by [@lars-berger](https://www.github.com/tauri-apps/tauri/../../lars-berger)) Fix panic when a plugin command is run with a capability added at runtime (via `Manager::add_capability`).
+- [`e349dfe57`](https://www.github.com/tauri-apps/tauri/commit/e349dfe5722c0b47620582bd03f8c184ffeb6979) ([#12000](https://www.github.com/tauri-apps/tauri/pull/12000) by [@stringhandler](https://www.github.com/tauri-apps/tauri/../../stringhandler)) Fixed a panic caused by an assert when the resource random id has been used already.
+- [`46935212b`](https://www.github.com/tauri-apps/tauri/commit/46935212b61da44dc82dfeb803fceebf5659f7b7) ([#11658](https://www.github.com/tauri-apps/tauri/pull/11658) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `.json5` capability files not recognized even with `config-json5` feature enabled
+- [`b37741da6`](https://www.github.com/tauri-apps/tauri/commit/b37741da6a2d3dad71490c910a64eeedda2ba9ca) ([#11871](https://www.github.com/tauri-apps/tauri/pull/11871) by [@johncarmack1984](https://www.github.com/tauri-apps/tauri/../../johncarmack1984)) Fix `specta-util` dependency not found error when using `specta` feature
+- [`ca7f025fd`](https://www.github.com/tauri-apps/tauri/commit/ca7f025fd8666f8fce6894bb5e16cf2d4fc81e0c) ([#11958](https://www.github.com/tauri-apps/tauri/pull/11958) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix panic when invoking a command with an unmanaged state, an error will be returned instead.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.3.0`
+- Upgraded to `tauri-runtime-wry@2.3.0`
+- Upgraded to `tauri-utils@2.1.1`
+- Upgraded to `tauri-macros@2.0.4`
+- Upgraded to `tauri-build@2.0.4`
+
+## \[2.1.1]
+
+### Bug Fixes
+
+- [`e8a50f6d7`](https://www.github.com/tauri-apps/tauri/commit/e8a50f6d760fad4529e7abb400302a1b487f11dd) ([#11645](https://www.github.com/tauri-apps/tauri/pull/11645)) Fix integer values of `BasDirectory.Home` and `BaseDirectory.Font` regression which broke path APIs in JS.
+
+## \[2.1.0]
+
+### New Features
+
+- [`fabc2f283`](https://www.github.com/tauri-apps/tauri/commit/fabc2f283e38b62c721326e44645d47138418cbc) ([#11485](https://www.github.com/tauri-apps/tauri/pull/11485) by [@39zde](https://www.github.com/tauri-apps/tauri/../../39zde)) Adds a new configuration option `app > security > headers` to define headers that will be added to every http response from tauri to the web view. This doesn't include IPC messages and error responses.
+- [`8036c78e0`](https://www.github.com/tauri-apps/tauri/commit/8036c78e08715b1bc6b9fcb0c59a570eec98014f) ([#11455](https://www.github.com/tauri-apps/tauri/pull/11455) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `PathResolver::home_dir()` method on Android.
+- [`5c4b83084`](https://www.github.com/tauri-apps/tauri/commit/5c4b830843ab085f8ff9db9e08d832223b027e4e) ([#11191](https://www.github.com/tauri-apps/tauri/pull/11191) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Improved support for `dpi` module types to allow these types to be used without manual conversions with `invoke`:
+
+  - Added `SERIALIZE_TO_IPC_FN` const in `core` module which can be used to implement custom IPC serialization for types passed to `invoke`.
+  - Added `Size` and `Position` classes in `dpi` module.
+  - Implementd `SERIALIZE_TO_IPC_FN` method on `PhysicalSize`, `PhysicalPosition`, `LogicalSize` and `LogicalPosition` to convert it into a valid IPC-compatible value that can be deserialized correctly on the Rust side into its equivalent struct.
+- [`4d545ab3c`](https://www.github.com/tauri-apps/tauri/commit/4d545ab3ca228c8a21b966b709f84a0da2864479) ([#11486](https://www.github.com/tauri-apps/tauri/pull/11486) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `Window::set_background_color` and `WindowBuilder::background_color`.
+- [`cbc095ec5`](https://www.github.com/tauri-apps/tauri/commit/cbc095ec5fe7de29b5c9265576d4e071ec159c1c) ([#11451](https://www.github.com/tauri-apps/tauri/pull/11451) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `app > windows > devtools` config option and when creating the webview from JS, to enable or disable devtools for a specific webview.
+- [`f0da0bde8`](https://www.github.com/tauri-apps/tauri/commit/f0da0bde87a80fdca20c588cefcad86e03b9627c) ([#11439](https://www.github.com/tauri-apps/tauri/pull/11439) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `WebviewWindow::resolve_command_scope` to check a command scope at runtime.
+- [\`\`](https://www.github.com/tauri-apps/tauri/commit/undefined) Detect if `SERIALIZE_TO_IPC_FN`, const from the JS `core` module, is implemented on objects when serializing over IPC and use it.
+- [`f37e97d41`](https://www.github.com/tauri-apps/tauri/commit/f37e97d410c4a219e99f97692da05ca9d8e0ba3a) ([#11477](https://www.github.com/tauri-apps/tauri/pull/11477) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `app > windows > useHttpsScheme` config option to choose whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android
+- [`f37e97d41`](https://www.github.com/tauri-apps/tauri/commit/f37e97d410c4a219e99f97692da05ca9d8e0ba3a) ([#11477](https://www.github.com/tauri-apps/tauri/pull/11477) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewWindowBuilder/WebviewBuilder::use_https_scheme` to choose whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android
+- [`cbc095ec5`](https://www.github.com/tauri-apps/tauri/commit/cbc095ec5fe7de29b5c9265576d4e071ec159c1c) ([#11451](https://www.github.com/tauri-apps/tauri/pull/11451) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewWindowBuilder::devtools` and `WebviewBuilder::devtools` to enable or disable devtools for a specific webview.
+- [`129414faa`](https://www.github.com/tauri-apps/tauri/commit/129414faa4e027c9035d56614682cacc0335a6a0) ([#11569](https://www.github.com/tauri-apps/tauri/pull/11569) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `WebviewBuilder::focused` method to choose whether to focus webview or not on creation.
+- [`2a75c64b5`](https://www.github.com/tauri-apps/tauri/commit/2a75c64b5431284e7340e8743d4ea56a62c75466) ([#11469](https://www.github.com/tauri-apps/tauri/pull/11469) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `app > windows > windowClassname` config option to specify the name of the window class on Windows.
+- [`2a75c64b5`](https://www.github.com/tauri-apps/tauri/commit/2a75c64b5431284e7340e8743d4ea56a62c75466) ([#11469](https://www.github.com/tauri-apps/tauri/pull/11469) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `WindowBuilder/WebviewWindowBuilder::window_classname` method to specify the name of the window class on Windows.
+
+### Enhancements
+
+- [`17c6952ae`](https://www.github.com/tauri-apps/tauri/commit/17c6952aec965fa41e6695ad68461a218afc20f1) ([#11522](https://www.github.com/tauri-apps/tauri/pull/11522) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Enhance the error message when using `async` commands with a reference.
+- [`c33bbf457`](https://www.github.com/tauri-apps/tauri/commit/c33bbf45740274b6918ea6c647f366fb6008e459) ([#11575](https://www.github.com/tauri-apps/tauri/pull/11575) by [@kornelski](https://www.github.com/tauri-apps/tauri/../../kornelski)) Include the path in ACL I/O errors.
+
+### Bug Fixes
+
+- [`229d7f8e2`](https://www.github.com/tauri-apps/tauri/commit/229d7f8e220cc8d5ca06eff1ed85cb7d047c1d6c) ([#11616](https://www.github.com/tauri-apps/tauri/pull/11616) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix regression in creating child webviews on macOS and Windows, covering the whole window.
+- [`8c6d1e8e6`](https://www.github.com/tauri-apps/tauri/commit/8c6d1e8e6c852667bb223b5f4823948868c26d98) ([#11401](https://www.github.com/tauri-apps/tauri/pull/11401) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `App/AppHandle/Window/Webview/WebviewWindow::cursor_position` getter method failing on Linux with `GDK may only be used from the main thread`.
+- [`f8994b214`](https://www.github.com/tauri-apps/tauri/commit/f8994b214e89acc99ab5ce8dcca8485f43a62dbb) ([#11581](https://www.github.com/tauri-apps/tauri/pull/11581) by [@Mikkel-T](https://www.github.com/tauri-apps/tauri/../../Mikkel-T)) Fix listeners created with `EventTarget::AnyLabel` never receiving events.
+- [`4191a7a53`](https://www.github.com/tauri-apps/tauri/commit/4191a7a53d941b179780a550638f1b4a09d17fd1) ([#11583](https://www.github.com/tauri-apps/tauri/pull/11583) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix tray events not fired for tray icons created inside an async command.
+- [`129414faa`](https://www.github.com/tauri-apps/tauri/commit/129414faa4e027c9035d56614682cacc0335a6a0) ([#11569](https://www.github.com/tauri-apps/tauri/pull/11569) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix webview not focused by default.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.1.0`
+- Upgraded to `tauri-runtime@2.2.0`
+- Upgraded to `tauri-runtime-wry@2.2.0`
+- Upgraded to `tauri-macros@2.0.3`
+- Upgraded to `tauri-build@2.0.3`
+
+## \[2.0.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.0.2`
+
+## \[2.0.5]
+
+### New Features
+
+- [`6cd917c22`](https://www.github.com/tauri-apps/tauri/commit/6cd917c227596e4e557496347ccae8ef579f6ea0) ([#11390](https://www.github.com/tauri-apps/tauri/pull/11390) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add new methods on `tauri::menu::MenuBuilder` and `tauri::menu::SubmenuBuilder` to create predefined menu item with specific text.
+
+### Enhancements
+
+- [`eb61d44f9`](https://www.github.com/tauri-apps/tauri/commit/eb61d44f9fc1be591c3d10a6ac1451aa39e6a77b) ([#11398](https://www.github.com/tauri-apps/tauri/pull/11398) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fallback to the Window and AppHandle resource table when closing a resource by ID.
+
+### Bug Fixes
+
+- [`e1bf6ef8c`](https://www.github.com/tauri-apps/tauri/commit/e1bf6ef8cbe3421eeaec47a222446121bcc28354) ([#11374](https://www.github.com/tauri-apps/tauri/pull/11374) by [@chrox](https://www.github.com/tauri-apps/tauri/../../chrox)) Expose `content-range` header in `range` response of `asset` protocol
+
+### What's Changed
+
+- [`2e88633ba`](https://www.github.com/tauri-apps/tauri/commit/2e88633ba4da8fc289c6d8a29c36f3327f9b576e) ([#11369](https://www.github.com/tauri-apps/tauri/pull/11369) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove references to no longer used `__TAURI_INTERNALS__.metadata.windows` and `__TAURI_INTERNALS__.metadata.webviews`.
+
 ## \[2.0.4]
 
 ### New Features

@@ -21,7 +21,7 @@ enum Pending {
   Unlisten(EventId),
   Listen {
     id: EventId,
-    event: String,
+    event: crate::EventName,
     handler: Handler,
   },
   Emit(EmitArgs),
@@ -55,13 +55,12 @@ impl JsHandler {
 }
 
 type WebviewLabel = String;
-type EventName = String;
 
 /// Holds event handlers and pending event handlers, along with the salts associating them.
 struct InnerListeners {
   pending: Mutex<Vec<Pending>>,
-  handlers: Mutex<HashMap<EventName, HashMap<EventId, Handler>>>,
-  js_event_listeners: Mutex<HashMap<WebviewLabel, HashMap<EventName, HashSet<JsHandler>>>>,
+  handlers: Mutex<HashMap<crate::EventName, HashMap<EventId, Handler>>>,
+  js_event_listeners: Mutex<HashMap<WebviewLabel, HashMap<crate::EventName, HashSet<JsHandler>>>>,
   function_name: &'static str,
   listeners_object_name: &'static str,
   next_event_id: Arc<AtomicU32>,
@@ -128,16 +127,14 @@ impl Listeners {
       match action {
         Pending::Unlisten(id) => self.unlisten(id),
         Pending::Listen { id, event, handler } => self.listen_with_id(id, event, handler),
-        Pending::Emit(args) => {
-          self.emit(args)?;
-        }
+        Pending::Emit(args) => self.emit(args)?,
       }
     }
 
     Ok(())
   }
 
-  fn listen_with_id(&self, id: EventId, event: String, handler: Handler) {
+  fn listen_with_id(&self, id: EventId, event: crate::EventName, handler: Handler) {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Listen { id, event, handler }),
       Ok(mut lock) => {
@@ -149,7 +146,7 @@ impl Listeners {
   /// Adds an event listener.
   pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
-    event: String,
+    event: crate::EventName,
     target: EventTarget,
     handler: F,
   ) -> EventId {
@@ -162,7 +159,7 @@ impl Listeners {
   /// Listen to an event and immediately unlisten.
   pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
-    event: String,
+    event: crate::EventName,
     target: EventTarget,
     handler: F,
   ) -> EventId {
@@ -199,7 +196,7 @@ impl Listeners {
     match self.inner.handlers.try_lock() {
       Err(_) => self.insert_pending(Pending::Emit(emit_args)),
       Ok(lock) => {
-        if let Some(handlers) = lock.get(&emit_args.event_name) {
+        if let Some(handlers) = lock.get(&emit_args.event) {
           let handlers = handlers.iter();
           let handlers = handlers.filter(|(_, h)| match_any_or_filter(&h.target, &filter));
           for (&id, Handler { callback, .. }) in handlers {
@@ -224,29 +221,31 @@ impl Listeners {
 
   pub(crate) fn listen_js(
     &self,
-    event: &str,
+    event: crate::EventName<&str>,
     source_webview_label: &str,
     target: EventTarget,
     id: EventId,
   ) {
+    let event = event.into_owned();
     let mut listeners = self.inner.js_event_listeners.lock().unwrap();
     listeners
       .entry(source_webview_label.to_string())
       .or_default()
-      .entry(event.to_string())
+      .entry(event)
       .or_default()
       .insert(JsHandler::new(target, id));
   }
 
-  pub(crate) fn unlisten_js(&self, event: &str, id: EventId) {
+  pub(crate) fn unlisten_js(&self, event: crate::EventName<&str>, id: EventId) {
+    let event = event.into_owned();
     let mut js_listeners = self.inner.js_event_listeners.lock().unwrap();
     let js_listeners = js_listeners.values_mut();
     for js_listeners in js_listeners {
-      if let Some(handlers) = js_listeners.get_mut(event) {
+      if let Some(handlers) = js_listeners.get_mut(&event) {
         handlers.retain(|h| h.id != id);
 
         if handlers.is_empty() {
-          js_listeners.remove(event);
+          js_listeners.remove(&event);
         }
       }
     }
@@ -254,13 +253,14 @@ impl Listeners {
 
   pub(crate) fn has_js_listener<F: Fn(&EventTarget) -> bool>(
     &self,
-    event: &str,
+    event: crate::EventName<&str>,
     filter: F,
   ) -> bool {
+    let event = event.into_owned();
     let js_listeners = self.inner.js_event_listeners.lock().unwrap();
     js_listeners.values().any(|events| {
       events
-        .get(event)
+        .get(&event)
         .map(|handlers| handlers.iter().any(|handler| filter(&handler.target)))
         .unwrap_or(false)
     })
@@ -269,7 +269,6 @@ impl Listeners {
   pub(crate) fn emit_js_filter<'a, R, I, F>(
     &self,
     mut webviews: I,
-    event: &str,
     emit_args: &EmitArgs,
     filter: Option<F>,
   ) -> crate::Result<()>
@@ -278,6 +277,7 @@ impl Listeners {
     I: Iterator<Item = &'a Webview<R>>,
     F: Fn(&EventTarget) -> bool,
   {
+    let event = &emit_args.event;
     let js_listeners = self.inner.js_event_listeners.lock().unwrap();
     webviews.try_for_each(|webview| {
       if let Some(handlers) = js_listeners.get(webview.label()).and_then(|s| s.get(event)) {
@@ -293,22 +293,12 @@ impl Listeners {
     })
   }
 
-  pub(crate) fn emit_js<'a, R, I>(
-    &self,
-    webviews: I,
-    event: &str,
-    emit_args: &EmitArgs,
-  ) -> crate::Result<()>
+  pub(crate) fn emit_js<'a, R, I>(&self, webviews: I, emit_args: &EmitArgs) -> crate::Result<()>
   where
     R: Runtime,
     I: Iterator<Item = &'a Webview<R>>,
   {
-    self.emit_js_filter(
-      webviews,
-      event,
-      emit_args,
-      None::<&dyn Fn(&EventTarget) -> bool>,
-    )
+    self.emit_js_filter(webviews, emit_args, None::<&dyn Fn(&EventTarget) -> bool>)
   }
 }
 
@@ -339,9 +329,9 @@ mod test {
     fn listeners_check_key(e in "[a-z]+") {
       let listeners: Listeners = Default::default();
       // clone e as the key
-      let key = e.clone();
+      let key = crate::EventName::new(e.clone()).unwrap();
       // pass e and an dummy func into listen
-      listeners.listen(e, EventTarget::Any, event_fn);
+      listeners.listen(key.clone(), EventTarget::Any, event_fn);
 
       // lock mutex
       let l = listeners.inner.handlers.lock().unwrap();
@@ -353,11 +343,10 @@ mod test {
     // check to see if listen inputs a handler function properly into the LISTENERS map.
     #[test]
     fn listeners_check_fn(e in "[a-z]+") {
-       let listeners: Listeners = Default::default();
-       // clone e as the key
-       let key = e.clone();
+      let listeners: Listeners = Default::default();
+      let key = crate::EventName::new(e.clone()).unwrap();
        // pass e and an dummy func into listen
-       listeners.listen(e, EventTarget::Any, event_fn);
+       listeners.listen(key.clone(), EventTarget::Any, event_fn);
 
        // lock mutex
        let mut l = listeners.inner.handlers.lock().unwrap();
@@ -378,16 +367,13 @@ mod test {
 
     // check to see if on_event properly grabs the stored function from listen.
     #[test]
-    fn check_on_event(key in "[a-z]+", d in "[a-z]+") {
+    fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners = Default::default();
+      let key = crate::EventName::new(e.clone()).unwrap();
       // call listen with key and the event_fn dummy func
       listeners.listen(key.clone(), EventTarget::Any, event_fn);
       // call on event with key and d.
-      listeners.emit(EmitArgs {
-        event_name: key.clone(),
-        event: serde_json::to_string(&key).unwrap(),
-        payload: serde_json::to_string(&d).unwrap()
-      })?;
+      listeners.emit(EmitArgs::new(key.as_str_event(), &d)?)?;
 
       // lock the mutex
       let l = listeners.inner.handlers.lock().unwrap();

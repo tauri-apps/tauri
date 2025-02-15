@@ -19,18 +19,18 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
+use crate::resources::ResourceTable;
 use crate::{
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
   },
-  event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
+  event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   utils::{config::Config, PackageInfo},
-  Assets, Context, Pattern, Runtime, StateManager, Window,
+  Assets, Context, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
-use crate::{event::EmitArgs, resources::ResourceTable, Webview};
 
 #[cfg(desktop)]
 mod menu;
@@ -244,6 +244,11 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
   }
 }
 
+pub(crate) enum EmitPayload<'a, S: Serialize> {
+  Serialize(&'a S),
+  Str(String),
+}
+
 impl<R: Runtime> AppManager<R> {
   #[allow(clippy::too_many_arguments, clippy::type_complexity)]
   pub(crate) fn with_handlers(
@@ -254,6 +259,9 @@ impl<R: Runtime> AppManager<R> {
     uri_scheme_protocols: HashMap<String, Arc<webview::UriSchemeProtocol<R>>>,
     state: StateManager,
     #[cfg(desktop)] menu_event_listener: Vec<crate::app::GlobalMenuEventListener<AppHandle<R>>>,
+    #[cfg(all(desktop, feature = "tray-icon"))] tray_icon_event_listeners: Vec<
+      crate::app::GlobalTrayIconEventListener<AppHandle<R>>,
+    >,
     window_event_listeners: Vec<GlobalWindowEventListener<R>>,
     webiew_event_listeners: Vec<GlobalWebviewEventListener<R>>,
     #[cfg(desktop)] window_menu_event_listeners: HashMap<
@@ -290,7 +298,7 @@ impl<R: Runtime> AppManager<R> {
       tray: tray::TrayManager {
         icon: context.tray_icon,
         icons: Default::default(),
-        global_event_listeners: Default::default(),
+        global_event_listeners: Mutex::new(tray_icon_event_listeners),
         event_listeners: Default::default(),
       },
       #[cfg(desktop)]
@@ -340,9 +348,10 @@ impl<R: Runtime> AppManager<R> {
     self.config.build.dev_url.as_ref()
   }
 
-  pub(crate) fn protocol_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn protocol_url(&self, https: bool) -> Cow<'_, Url> {
     if cfg!(windows) || cfg!(target_os = "android") {
-      Cow::Owned(Url::parse("http://tauri.localhost").unwrap())
+      let scheme = if https { "https" } else { "http" };
+      Cow::Owned(Url::parse(&format!("{scheme}://tauri.localhost")).unwrap())
     } else {
       Cow::Owned(Url::parse("tauri://localhost").unwrap())
     }
@@ -351,10 +360,10 @@ impl<R: Runtime> AppManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devUrl` configuration value.
-  pub(crate) fn get_url(&self) -> Cow<'_, Url> {
+  pub(crate) fn get_url(&self, https: bool) -> Cow<'_, Url> {
     match self.base_path() {
       Some(url) => Cow::Borrowed(url),
-      _ => self.protocol_url(),
+      _ => self.protocol_url(https),
     }
   }
 
@@ -372,7 +381,11 @@ impl<R: Runtime> AppManager<R> {
     }
   }
 
-  pub fn get_asset(&self, mut path: String) -> Result<Asset, Box<dyn std::error::Error>> {
+  pub fn get_asset(
+    &self,
+    mut path: String,
+    _use_https_schema: bool,
+  ) -> Result<Asset, Box<dyn std::error::Error>> {
     let assets = &self.assets;
     if path.ends_with('/') {
       path.pop();
@@ -435,7 +448,10 @@ impl<R: Runtime> AppManager<R> {
               let default_src = csp_map
                 .entry("default-src".into())
                 .or_insert_with(Default::default);
-              default_src.push(crate::pattern::format_real_schema(schema));
+              default_src.push(crate::pattern::format_real_schema(
+                schema,
+                _use_https_schema,
+              ));
             }
 
             csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
@@ -496,23 +512,25 @@ impl<R: Runtime> AppManager<R> {
     &self.package_info
   }
 
-  pub fn listen<F: Fn(Event) + Send + 'static>(
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
+  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
-    event: String,
+    event: EventName,
     target: EventTarget,
     handler: F,
   ) -> EventId {
-    assert_event_name_is_valid(&event);
     self.listeners().listen(event, target, handler)
   }
 
-  pub fn once<F: FnOnce(Event) + Send + 'static>(
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
+  pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
-    event: String,
+    event: EventName,
     target: EventTarget,
     handler: F,
   ) -> EventId {
-    assert_event_name_is_valid(&event);
     self.listeners().once(event, target, handler)
   }
 
@@ -524,12 +542,17 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit", skip(self, payload))
   )]
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    assert_event_name_is_valid(event);
-
+  pub(crate) fn emit<S: Serialize>(
+    &self,
+    event: EventName<&str>,
+    payload: EmitPayload<'_, S>,
+  ) -> crate::Result<()> {
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
+    let emit_args = match payload {
+      EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
+      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload)?,
+    };
 
     let listeners = self.listeners();
     let webviews = self
@@ -539,7 +562,7 @@ impl<R: Runtime> AppManager<R> {
       .cloned()
       .collect::<Vec<_>>();
 
-    listeners.emit_js(webviews.iter(), event, &emit_args)?;
+    listeners.emit_js(webviews.iter(), &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -549,22 +572,27 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit::filter", skip(self, payload, filter))
   )]
-  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  pub(crate) fn emit_filter<S, F>(
+    &self,
+    event: EventName<&str>,
+    payload: EmitPayload<'_, S>,
+    filter: F,
+  ) -> crate::Result<()>
   where
-    S: Serialize + Clone,
+    S: Serialize,
     F: Fn(&EventTarget) -> bool,
   {
-    assert_event_name_is_valid(event);
-
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
+    let emit_args = match payload {
+      EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
+      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload)?,
+    };
 
     let listeners = self.listeners();
 
     listeners.emit_js_filter(
       self.webview.webviews_lock().values(),
-      event,
       &emit_args,
       Some(&filter),
     )?;
@@ -578,10 +606,15 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
   )]
-  pub fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
+  pub(crate) fn emit_to<I, S>(
+    &self,
+    target: I,
+    event: EventName<&str>,
+    payload: EmitPayload<'_, S>,
+  ) -> crate::Result<()>
   where
     I: Into<EventTarget>,
-    S: Serialize + Clone,
+    S: Serialize,
   {
     let target = target.into();
     #[cfg(feature = "tracing")]
@@ -597,7 +630,31 @@ impl<R: Runtime> AppManager<R> {
       } => self.emit_filter(event, payload, |t| match t {
         EventTarget::Window { label }
         | EventTarget::Webview { label }
-        | EventTarget::WebviewWindow { label } => label == &target_label,
+        | EventTarget::WebviewWindow { label }
+        | EventTarget::AnyLabel { label } => label == &target_label,
+        _ => false,
+      }),
+
+      EventTarget::Window {
+        label: target_label,
+      } => self.emit_filter(event, payload, |t| match t {
+        EventTarget::AnyLabel { label } | EventTarget::Window { label } => label == &target_label,
+        _ => false,
+      }),
+
+      EventTarget::Webview {
+        label: target_label,
+      } => self.emit_filter(event, payload, |t| match t {
+        EventTarget::AnyLabel { label } | EventTarget::Webview { label } => label == &target_label,
+        _ => false,
+      }),
+
+      EventTarget::WebviewWindow {
+        label: target_label,
+      } => self.emit_filter(event, payload, |t| match t {
+        EventTarget::AnyLabel { label } | EventTarget::WebviewWindow { label } => {
+          label == &target_label
+        }
         _ => false,
       }),
 
@@ -736,6 +793,8 @@ mod test {
       Default::default(),
       StateManager::new(),
       Default::default(),
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      Default::default(),
       Default::default(),
       Default::default(),
       Default::default(),
@@ -747,9 +806,17 @@ mod test {
     #[cfg(custom_protocol)]
     {
       assert_eq!(
-        manager.get_url().to_string(),
+        manager.get_url(false).to_string(),
         if cfg!(windows) || cfg!(target_os = "android") {
           "http://tauri.localhost/"
+        } else {
+          "tauri://localhost"
+        }
+      );
+      assert_eq!(
+        manager.get_url(true).to_string(),
+        if cfg!(windows) || cfg!(target_os = "android") {
+          "https://tauri.localhost/"
         } else {
           "tauri://localhost"
         }
@@ -757,7 +824,7 @@ mod test {
     }
 
     #[cfg(dev)]
-    assert_eq!(manager.get_url().to_string(), "http://localhost:4000/");
+    assert_eq!(manager.get_url(false).to_string(), "http://localhost:4000/");
   }
 
   struct EventSetup {

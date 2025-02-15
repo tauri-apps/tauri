@@ -44,7 +44,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: 'Setup Rust'
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.77.2
         with:
           targets: ${{ matrix.platform.target }}
 
@@ -52,7 +52,7 @@ jobs:
         if: matrix.platform.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev
+          sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1 libayatana-appindicator3-dev librsvg2-dev
 
       - uses: Swatinem/rust-cache@v2
 

@@ -30,11 +30,12 @@ use std::{
   collections::HashMap,
   env::{set_var, temp_dir},
   ffi::OsString,
-  fmt::Write,
+  fmt::{Display, Write},
   fs::{read_to_string, write},
-  net::{IpAddr, Ipv4Addr, SocketAddr},
+  net::{AddrParseError, IpAddr, Ipv4Addr, SocketAddr},
   path::PathBuf,
   process::{exit, ExitStatus},
+  str::FromStr,
   sync::{
     atomic::{AtomicBool, Ordering},
     Arc, OnceLock,
@@ -139,6 +140,44 @@ impl Target {
 pub struct TargetDevice {
   id: String,
   name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct DevHost(Option<Option<IpAddr>>);
+
+impl FromStr for DevHost {
+  type Err = AddrParseError;
+  fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    if s.is_empty() || s == "<public network address>" {
+      Ok(Self(Some(None)))
+    } else if s == "<none>" {
+      Ok(Self(None))
+    } else {
+      IpAddr::from_str(s).map(|addr| Self(Some(Some(addr))))
+    }
+  }
+}
+
+impl Display for DevHost {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self.0 {
+      Some(None) => write!(f, "<public network address>"),
+      Some(Some(addr)) => write!(f, "{addr}"),
+      None => write!(f, "<none>"),
+    }
+  }
+}
+
+impl Default for DevHost {
+  fn default() -> Self {
+    // on Windows we want to force using the public network address for the development server
+    // because the adb port forwarding does not work well
+    if cfg!(windows) {
+      Self(Some(None))
+    } else {
+      Self(None)
+    }
+  }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -7,7 +7,9 @@
 use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
-use tauri_utils::config::{WebviewUrl, WindowConfig, WindowEffectsConfig};
+use tauri_utils::config::{
+  BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig, WindowEffectsConfig,
+};
 use url::Url;
 
 use std::{
@@ -204,17 +206,31 @@ pub struct WebviewAttributes {
   pub window_effects: Option<WindowEffectsConfig>,
   pub incognito: bool,
   pub transparent: bool,
+  pub focus: bool,
   pub bounds: Option<Rect>,
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
   pub zoom_hotkeys_enabled: bool,
   pub browser_extensions_enabled: bool,
+  pub extensions_path: Option<PathBuf>,
+  pub data_store_identifier: Option<[u8; 16]>,
+  pub use_https_scheme: bool,
+  pub devtools: Option<bool>,
+  pub background_color: Option<Color>,
+  pub background_throttling: Option<BackgroundThrottlingPolicy>,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
   fn from(config: &WindowConfig) -> Self {
-    let mut builder = Self::new(config.url.clone());
-    builder = builder.incognito(config.incognito);
+    let mut builder = Self::new(config.url.clone())
+      .incognito(config.incognito)
+      .focused(config.focus)
+      .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
+      .use_https_scheme(config.use_https_scheme)
+      .browser_extensions_enabled(config.browser_extensions_enabled)
+      .background_throttling(config.background_throttling.clone())
+      .devtools(config.devtools);
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       builder = builder.transparent(config.transparent);
@@ -235,8 +251,9 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(url) = &config.proxy_url {
       builder = builder.proxy_url(url.to_owned());
     }
-    builder = builder.zoom_hotkeys_enabled(config.zoom_hotkeys_enabled);
-    builder = builder.browser_extensions_enabled(config.browser_extensions_enabled);
+    if let Some(color) = config.background_color {
+      builder = builder.background_color(color);
+    }
     builder
   }
 }
@@ -256,11 +273,18 @@ impl WebviewAttributes {
       window_effects: None,
       incognito: false,
       transparent: false,
+      focus: true,
       bounds: None,
       auto_resize: false,
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      data_store_identifier: None,
+      extensions_path: None,
+      use_https_scheme: false,
+      devtools: None,
+      background_color: None,
+      background_throttling: None,
     }
   }
 
@@ -338,6 +362,13 @@ impl WebviewAttributes {
     self
   }
 
+  /// Whether the webview should be focused or not.
+  #[must_use]
+  pub fn focused(mut self, focus: bool) -> Self {
+    self.focus = focus;
+    self
+  }
+
   /// Sets the webview to automatically grow and shrink its size and position when the parent window resizes.
   #[must_use]
   pub fn auto_resize(mut self) -> Self {
@@ -376,6 +407,67 @@ impl WebviewAttributes {
   #[must_use]
   pub fn browser_extensions_enabled(mut self, enabled: bool) -> Self {
     self.browser_extensions_enabled = enabled;
+    self
+  }
+
+  /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
+  ///
+  /// ## Note
+  ///
+  /// Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  ///
+  /// ## Warning
+  ///
+  /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  #[must_use]
+  pub fn use_https_scheme(mut self, enabled: bool) -> Self {
+    self.use_https_scheme = enabled;
+    self
+  }
+
+  /// Whether web inspector, which is usually called browser devtools, is enabled or not. Enabled by default.
+  ///
+  /// This API works in **debug** builds, but requires `devtools` feature flag to enable it in **release** builds.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - macOS: This will call private functions on **macOS**.
+  /// - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.
+  /// - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.
+  #[must_use]
+  pub fn devtools(mut self, enabled: Option<bool>) -> Self {
+    self.devtools = enabled;
+    self
+  }
+
+  /// Set the window and webview background color.
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: On Windows 7, alpha channel is ignored for the webview layer.
+  /// - **Windows**: On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
+  #[must_use]
+  pub fn background_color(mut self, color: Color) -> Self {
+    self.background_color = Some(color);
+    self
+  }
+
+  /// Change the default background throttling behaviour.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[must_use]
+  pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
+    self.background_throttling = policy;
     self
   }
 }

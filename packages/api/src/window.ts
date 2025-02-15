@@ -20,7 +20,9 @@ import {
   LogicalPosition,
   LogicalSize,
   PhysicalPosition,
-  PhysicalSize
+  PhysicalSize,
+  Position,
+  Size
 } from './dpi'
 import type { Event, EventName, EventCallback, UnlistenFn } from './event'
 import {
@@ -530,7 +532,7 @@ class Window {
   async innerPosition(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:window|inner_position', {
       label: this.label
-    }).then(({ x, y }) => new PhysicalPosition(x, y))
+    }).then((p) => new PhysicalPosition(p))
   }
 
   /**
@@ -546,7 +548,7 @@ class Window {
   async outerPosition(): Promise<PhysicalPosition> {
     return invoke<{ x: number; y: number }>('plugin:window|outer_position', {
       label: this.label
-    }).then(({ x, y }) => new PhysicalPosition(x, y))
+    }).then((p) => new PhysicalPosition(p))
   }
 
   /**
@@ -566,7 +568,7 @@ class Window {
       {
         label: this.label
       }
-    ).then(({ width, height }) => new PhysicalSize(width, height))
+    ).then((s) => new PhysicalSize(s))
   }
 
   /**
@@ -586,7 +588,7 @@ class Window {
       {
         label: this.label
       }
-    ).then(({ width, height }) => new PhysicalSize(width, height))
+    ).then((s) => new PhysicalSize(s))
   }
 
   /**
@@ -1268,22 +1270,10 @@ class Window {
    * @param size The logical or physical inner size.
    * @returns A promise indicating the success or failure of the operation.
    */
-  async setSize(size: LogicalSize | PhysicalSize): Promise<void> {
-    if (!size || (size.type !== 'Logical' && size.type !== 'Physical')) {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${size.type}`] = {
-      width: size.width,
-      height: size.height
-    }
-
+  async setSize(size: LogicalSize | PhysicalSize | Size): Promise<void> {
     return invoke('plugin:window|set_size', {
       label: this.label,
-      value
+      value: size instanceof Size ? size : new Size(size)
     })
   }
 
@@ -1299,26 +1289,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMinSize(
-    size: LogicalSize | PhysicalSize | null | undefined
+    size: LogicalSize | PhysicalSize | Size | null | undefined
   ): Promise<void> {
-    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    let value = null as Record<string, unknown> | null
-    if (size) {
-      value = {}
-      value[`${size.type}`] = {
-        width: size.width,
-        height: size.height
-      }
-    }
-
     return invoke('plugin:window|set_min_size', {
       label: this.label,
-      value
+      value: size instanceof Size ? size : size ? new Size(size) : null
     })
   }
 
@@ -1334,26 +1309,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setMaxSize(
-    size: LogicalSize | PhysicalSize | null | undefined
+    size: LogicalSize | PhysicalSize | Size | null | undefined
   ): Promise<void> {
-    if (size && size.type !== 'Logical' && size.type !== 'Physical') {
-      throw new Error(
-        'the `size` argument must be either a LogicalSize or a PhysicalSize instance'
-      )
-    }
-
-    let value = null as Record<string, unknown> | null
-    if (size) {
-      value = {}
-      value[`${size.type}`] = {
-        width: size.width,
-        height: size.height
-      }
-    }
-
     return invoke('plugin:window|set_max_size', {
       label: this.label,
-      value
+      value: size instanceof Size ? size : size ? new Size(size) : null
     })
   }
 
@@ -1398,26 +1358,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setPosition(
-    position: LogicalPosition | PhysicalPosition
+    position: LogicalPosition | PhysicalPosition | Position
   ): Promise<void> {
-    if (
-      !position ||
-      (position.type !== 'Logical' && position.type !== 'Physical')
-    ) {
-      throw new Error(
-        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${position.type}`] = {
-      x: position.x,
-      y: position.y
-    }
-
     return invoke('plugin:window|set_position', {
       label: this.label,
-      value
+      value: position instanceof Position ? position : new Position(position)
     })
   }
 
@@ -1463,7 +1408,7 @@ class Window {
    * await getCurrentWindow().setIcon('/tauri/awesome.png');
    * ```
    *
-   * Note that you need the `image-ico` or `image-png` Cargo features to use this API.
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
    * To enable it, change your Cargo.toml file:
    * ```toml
    * [dependencies]
@@ -1573,6 +1518,22 @@ class Window {
   }
 
   /**
+   * Sets the window background color.
+   *
+   * #### Platform-specific:
+   *
+   * - **Windows:** alpha channel is ignored.
+   * - **iOS / Android:** Unsupported.
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   *
+   * @since 2.1.0
+   */
+  async setBackgroundColor(color: Color): Promise<void> {
+    return invoke('plugin:window|set_background_color', { color })
+  }
+
+  /**
    * Changes the position of the cursor in window coordinates.
    * @example
    * ```typescript
@@ -1584,26 +1545,11 @@ class Window {
    * @returns A promise indicating the success or failure of the operation.
    */
   async setCursorPosition(
-    position: LogicalPosition | PhysicalPosition
+    position: LogicalPosition | PhysicalPosition | Position
   ): Promise<void> {
-    if (
-      !position ||
-      (position.type !== 'Logical' && position.type !== 'Physical')
-    ) {
-      throw new Error(
-        'the `position` argument must be either a LogicalPosition or a PhysicalPosition instance'
-      )
-    }
-
-    const value = {} as Record<string, unknown>
-    value[`${position.type}`] = {
-      x: position.x,
-      y: position.y
-    }
-
     return invoke('plugin:window|set_cursor_position', {
       label: this.label,
-      value
+      value: position instanceof Position ? position : new Position(position)
     })
   }
 
@@ -1656,6 +1602,79 @@ class Window {
     return invoke('plugin:window|start_resize_dragging', {
       label: this.label,
       value: direction
+    })
+  }
+
+  /**
+   * Sets the badge count. It is app wide and not specific to this window.
+   *
+   * #### Platform-specific
+   *
+   * - **Windows**: Unsupported. Use @{linkcode Window.setOverlayIcon} instead.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setBadgeCount(5);
+   * ```
+   *
+   * @param count The badge count. Use `undefined` to remove the badge.
+   * @return A promise indicating the success or failure of the operation.
+   */
+  async setBadgeCount(count?: number): Promise<void> {
+    return invoke('plugin:window|set_badge_count', {
+      label: this.label,
+      value: count
+    })
+  }
+
+  /**
+   * Sets the badge cont **macOS only**.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setBadgeLabel("Hello");
+   * ```
+   *
+   * @param label The badge label. Use `undefined` to remove the badge.
+   * @return A promise indicating the success or failure of the operation.
+   */
+  async setBadgeLabel(label?: string): Promise<void> {
+    return invoke('plugin:window|set_badge_label', {
+      label: this.label,
+      value: label
+    })
+  }
+
+  /**
+   * Sets the overlay icon. **Windows only**
+   * The overlay icon can be set for every window.
+   *
+   *
+   * Note that you may need the `image-ico` or `image-png` Cargo features to use this API.
+   * To enable it, change your Cargo.toml file:
+   *
+   * ```toml
+   * [dependencies]
+   * tauri = { version = "...", features = ["...", "image-png"] }
+   * ```
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setOverlayIcon("/tauri/awesome.png");
+   * ```
+   *
+   * @param icon Icon bytes or path to the icon file. Use `undefined` to remove the overlay icon.
+   * @return A promise indicating the success or failure of the operation.
+   */
+  async setOverlayIcon(
+    icon?: string | Image | Uint8Array | ArrayBuffer | number[]
+  ): Promise<void> {
+    return invoke('plugin:window|set_overlay_icon', {
+      label: this.label,
+      value: icon ? transformImage(icon) : undefined
     })
   }
 
@@ -1751,7 +1770,7 @@ class Window {
    */
   async onResized(handler: EventCallback<PhysicalSize>): Promise<UnlistenFn> {
     return this.listen<PhysicalSize>(TauriEvent.WINDOW_RESIZED, (e) => {
-      e.payload = mapPhysicalSize(e.payload)
+      e.payload = new PhysicalSize(e.payload)
       handler(e)
     })
   }
@@ -1775,7 +1794,7 @@ class Window {
    */
   async onMoved(handler: EventCallback<PhysicalPosition>): Promise<UnlistenFn> {
     return this.listen<PhysicalPosition>(TauriEvent.WINDOW_MOVED, (e) => {
-      e.payload = mapPhysicalPosition(e.payload)
+      e.payload = new PhysicalPosition(e.payload)
       handler(e)
     })
   }
@@ -1824,8 +1843,8 @@ class Window {
    * ```typescript
    * import { getCurrentWindow } from "@tauri-apps/api/webview";
    * const unlisten = await getCurrentWindow().onDragDropEvent((event) => {
-   *  if (event.payload.type === 'hover') {
-   *    console.log('User hovering', event.payload.paths);
+   *  if (event.payload.type === 'over') {
+   *    console.log('User hovering', event.payload.position);
    *  } else if (event.payload.type === 'drop') {
    *    console.log('User dropped', event.payload.paths);
    *  } else {
@@ -1853,7 +1872,7 @@ class Window {
           payload: {
             type: 'enter',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -1866,7 +1885,7 @@ class Window {
           ...event,
           payload: {
             type: 'over',
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -1880,7 +1899,7 @@ class Window {
           payload: {
             type: 'drop',
             paths: event.payload.paths,
-            position: mapPhysicalPosition(event.payload.position)
+            position: new PhysicalPosition(event.payload.position)
           }
         })
       }
@@ -1990,11 +2009,28 @@ class Window {
 }
 
 /**
- * an array RGBA colors. Each value has minimum of 0 and maximum of 255.
+ * An RGBA color. Each value has minimum of 0 and maximum of 255.
+ *
+ * It can be either a string `#ffffff`, an array of 3 or 4 elements or an object.
  *
  * @since 2.0.0
  */
-type Color = [number, number, number, number]
+type Color =
+  | [number, number, number]
+  | [number, number, number, number]
+  | { red: number; green: number; blue: number; alpha: number }
+  | string
+
+/**
+ * Background throttling policy
+ *
+ * @since 2.0.0
+ */
+enum BackgroundThrottlingPolicy {
+  Disabled = 'disabled',
+  Throttle = 'throttle',
+  Suspend = 'suspend'
+}
 
 /**
  * Platform-specific window effects
@@ -2291,6 +2327,42 @@ interface WindowOptions {
    * @since 2.0.0
    */
   visibleOnAllWorkspaces?: boolean
+  /**
+   * Window effects.
+   *
+   * Requires the window to be transparent.
+   *
+   * #### Platform-specific:
+   *
+   * - **Windows**: If using decorations or shadows, you may want to try this workaround <https://github.com/tauri-apps/tao/issues/72#issuecomment-975607891>
+   * - **Linux**: Unsupported
+   */
+  windowEffects?: Effects
+  /**
+   * Set the window background color.
+   *
+   * #### Platform-specific:
+   *
+   * - **Android / iOS:** Unsupported.
+   * - **Windows**: alpha channel is ignored.
+   *
+   * @since 2.1.0
+   */
+  backgroundColor?: Color
+
+  /** Change the default background throttling behaviour.
+   *
+   * ## Platform-specific
+   *
+   * - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+   * - **iOS**: Supported since version 17.0+.
+   * - **macOS**: Supported since version 14.0+.
+   *
+   * see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+   *
+   * @since 2.3.0
+   */
+  backgroundThrottling?: BackgroundThrottlingPolicy
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2299,17 +2371,9 @@ function mapMonitor(m: Monitor | null): Monitor | null {
     : {
         name: m.name,
         scaleFactor: m.scaleFactor,
-        position: mapPhysicalPosition(m.position),
-        size: mapPhysicalSize(m.size)
+        position: new PhysicalPosition(m.position),
+        size: new PhysicalSize(m.size)
       }
-}
-
-function mapPhysicalPosition(m: PhysicalPosition): PhysicalPosition {
-  return new PhysicalPosition(m.x, m.y)
-}
-
-function mapPhysicalSize(m: PhysicalSize): PhysicalSize {
-  return new PhysicalSize(m.width, m.height)
 }
 
 /**
@@ -2391,7 +2455,7 @@ async function availableMonitors(): Promise<Monitor[]> {
  */
 async function cursorPosition(): Promise<PhysicalPosition> {
   return invoke<PhysicalPosition>('plugin:window|cursor_position').then(
-    mapPhysicalPosition
+    (v) => new PhysicalPosition(v)
   )
 }
 
@@ -2421,5 +2485,6 @@ export type {
   ScaleFactorChanged,
   WindowOptions,
   Color,
+  BackgroundThrottlingPolicy,
   DragDropEvent
 }

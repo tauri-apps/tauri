@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! The [`wry`] Tauri [`Runtime`].
 //!
 //! None of the exposed API of this crate is stable, and it may break semver
@@ -22,8 +20,8 @@ use tauri_runtime::{
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
-    CursorIcon, DetachedWindow, DragDropEvent, PendingWindow, RawWindow, WebviewEvent,
-    WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
+    CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
+    WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
   DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
   ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType,
@@ -42,6 +40,8 @@ use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use wry::WebViewBuilderExtDarwin;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
 
@@ -65,7 +65,10 @@ use tao::{
 };
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
-use tauri_utils::{config::WindowConfig, Theme};
+use tauri_utils::{
+  config::{Color, WindowConfig},
+  Theme,
+};
 use url::Url;
 use wry::{
   DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
@@ -92,6 +95,8 @@ use wry::{
 )))]
 use wry::{WebViewBuilderExtUnix, WebViewExtUnix};
 
+#[cfg(target_os = "ios")]
+pub use tao::platform::ios::WindowExtIOS;
 #[cfg(target_os = "macos")]
 pub use tao::platform::macos::{
   ActivationPolicy as TaoActivationPolicy, EventLoopExtMacOS, WindowExtMacOS,
@@ -178,6 +183,13 @@ macro_rules! window_getter {
   ($self: ident, $message: expr) => {{
     let (tx, rx) = channel();
     getter!($self, rx, Message::Window($self.window_id, $message(tx)))
+  }};
+}
+
+macro_rules! event_loop_window_getter {
+  ($self: ident, $message: expr) => {{
+    let (tx, rx) = channel();
+    getter!($self, rx, Message::EventLoopWindowTarget($message(tx)))
   }};
 }
 
@@ -269,7 +281,16 @@ impl<T: UserEvent> Context<T> {
     let label = pending.label.clone();
     let context = self.clone();
     let window_id = self.next_window_id();
-    let webview_id = pending.webview.as_ref().map(|_| context.next_webview_id());
+    let (webview_id, use_https_scheme) = pending
+      .webview
+      .as_ref()
+      .map(|w| {
+        (
+          Some(context.next_webview_id()),
+          w.webview_attributes.use_https_scheme,
+        )
+      })
+      .unwrap_or((None, false));
 
     send_user_message(
       self,
@@ -293,13 +314,19 @@ impl<T: UserEvent> Context<T> {
       context: self.clone(),
     };
 
-    let detached_webview = webview_id.map(|id| DetachedWebview {
-      label: label.clone(),
-      dispatcher: WryWebviewDispatcher {
-        window_id: Arc::new(Mutex::new(window_id)),
-        webview_id: id,
-        context: self.clone(),
-      },
+    let detached_webview = webview_id.map(|id| {
+      let webview = DetachedWebview {
+        label: label.clone(),
+        dispatcher: WryWebviewDispatcher {
+          window_id: Arc::new(Mutex::new(window_id)),
+          webview_id: id,
+          context: self.clone(),
+        },
+      };
+      DetachedWindowWebview {
+        webview,
+        use_https_scheme,
+      }
     });
 
     Ok(DetachedWindow {
@@ -739,6 +766,13 @@ impl WindowBuilder for WindowBuilderWrapper {
       builder = builder.title_bar_style(TitleBarStyle::Visible);
     }
 
+    builder = builder.title("Tauri App");
+
+    #[cfg(windows)]
+    {
+      builder = builder.window_classname("Tauri Window");
+    }
+
     builder
   }
 
@@ -782,6 +816,7 @@ impl WindowBuilder for WindowBuilderWrapper {
       window = window
         .title(config.title.to_string())
         .inner_size(config.width, config.height)
+        .focused(config.focus)
         .visible(config.visible)
         .resizable(config.resizable)
         .fullscreen(config.fullscreen)
@@ -812,6 +847,9 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(max_height) = config.max_height {
         constraints.max_height = Some(tao::dpi::LogicalUnit::new(max_height).into());
       }
+      if let Some(color) = config.background_color {
+        window = window.background_color(color);
+      }
       window = window.inner_size_constraints(constraints);
 
       if let (Some(x), Some(y)) = (config.x, config.y) {
@@ -820,6 +858,10 @@ impl WindowBuilder for WindowBuilderWrapper {
 
       if config.center {
         window = window.center();
+      }
+
+      if let Some(window_classname) = &config.window_classname {
+        window = window.window_classname(window_classname);
       }
     }
 
@@ -1046,6 +1088,11 @@ impl WindowBuilder for WindowBuilderWrapper {
     Ok(self)
   }
 
+  fn background_color(mut self, color: Color) -> Self {
+    self.inner = self.inner.with_background_color(color.into());
+    self
+  }
+
   #[cfg(any(windows, target_os = "linux"))]
   fn skip_taskbar(mut self, skip: bool) -> Self {
     self.inner = self.inner.with_skip_taskbar(skip);
@@ -1080,6 +1127,16 @@ impl WindowBuilder for WindowBuilderWrapper {
       TaoTheme::Dark => Theme::Dark,
       _ => Theme::Light,
     })
+  }
+
+  #[cfg(windows)]
+  fn window_classname<S: Into<String>>(mut self, window_classname: S) -> Self {
+    self.inner = self.inner.with_window_classname(window_classname);
+    self
+  }
+  #[cfg(not(windows))]
+  fn window_classname<S: Into<String>>(self, _window_classname: S) -> Self {
+    self
   }
 }
 
@@ -1208,9 +1265,13 @@ pub enum WindowMessage {
   SetCursorIcon(CursorIcon),
   SetCursorPosition(Position),
   SetIgnoreCursorEvents(bool),
+  SetBadgeCount(Option<i64>, Option<String>),
+  SetBadgeLabel(Option<String>),
+  SetOverlayIcon(Option<TaoIcon>),
   SetProgressBar(ProgressBarState),
   SetTitleBarStyle(tauri_utils::TitleBarStyle),
   SetTheme(Option<Theme>),
+  SetBackgroundColor(Option<Color>),
   DragWindow,
   ResizeDragWindow(tauri_runtime::ResizeDirection),
   RequestRedraw,
@@ -1252,6 +1313,7 @@ pub enum WebviewMessage {
   Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
   SetZoom(f64),
+  SetBackgroundColor(Option<Color>),
   ClearAllBrowsingData,
   // Getters
   Url(Sender<Result<String>>),
@@ -1268,6 +1330,10 @@ pub enum WebviewMessage {
   IsDevToolsOpen(Sender<bool>),
 }
 
+pub enum EventLoopWindowTargetMessage {
+  CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
+}
+
 pub type CreateWindowClosure<T> =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
@@ -1282,6 +1348,7 @@ pub enum Message<T: 'static> {
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
+  EventLoopWindowTarget(EventLoopWindowTargetMessage),
   CreateWebview(WindowId, CreateWebviewClosure),
   CreateWindow(WindowId, CreateWindowClosure<T>),
   CreateRawWindow(
@@ -1560,6 +1627,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Show,
+      ),
+    )
+  }
+
+  fn set_background_color(&self, color: Option<Color>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::SetBackgroundColor(color),
       ),
     )
   }
@@ -2052,6 +2130,32 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     )
   }
 
+  fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetBadgeCount(count, desktop_filename),
+      ),
+    )
+  }
+
+  fn set_badge_label(&self, label: Option<String>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetBadgeLabel(label)),
+    )
+  }
+
+  fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()> {
+    let icon: Result<Option<TaoIcon>> = icon.map_or(Ok(None), |x| Ok(Some(TaoIcon::try_from(x)?)));
+
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetOverlayIcon(icon?)),
+    )
+  }
+
   fn set_progress_bar(&self, progress_state: ProgressBarState) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2073,6 +2177,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetTheme(theme)),
+    )
+  }
+
+  fn set_background_color(&self, color: Option<Color>) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetBackgroundColor(color)),
     )
   }
 }
@@ -2122,6 +2233,8 @@ pub struct WindowWrapper {
   has_children: AtomicBool,
   webviews: Vec<WebviewWrapper>,
   window_event_listeners: WindowEventListeners,
+  #[cfg(windows)]
+  background_color: Option<tao::window::RGBA>,
   #[cfg(windows)]
   is_window_transparent: bool,
   #[cfg(windows)]
@@ -2325,11 +2438,7 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .cursor_position()
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
@@ -2488,10 +2597,16 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   ) -> Result<DetachedWindow<T, Self>> {
     let label = pending.label.clone();
     let window_id = self.context.next_window_id();
-    let webview_id = pending
+    let (webview_id, use_https_scheme) = pending
       .webview
       .as_ref()
-      .map(|_| self.context.next_webview_id());
+      .map(|w| {
+        (
+          Some(self.context.next_webview_id()),
+          w.webview_attributes.use_https_scheme,
+        )
+      })
+      .unwrap_or((None, false));
 
     let window = create_window(
       window_id,
@@ -2515,13 +2630,19 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .borrow_mut()
       .insert(window_id, window);
 
-    let detached_webview = webview_id.map(|id| DetachedWebview {
-      label: label.clone(),
-      dispatcher: WryWebviewDispatcher {
-        window_id: Arc::new(Mutex::new(window_id)),
-        webview_id: id,
-        context: self.context.clone(),
-      },
+    let detached_webview = webview_id.map(|id| {
+      let webview = DetachedWebview {
+        label: label.clone(),
+        dispatcher: WryWebviewDispatcher {
+          window_id: Arc::new(Mutex::new(window_id)),
+          webview_id: id,
+          context: self.context.clone(),
+        },
+      };
+      DetachedWindowWebview {
+        webview,
+        use_https_scheme,
+      }
     });
 
     Ok(DetachedWindow {
@@ -2561,7 +2682,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         pending,
       )?;
 
-      #[allow(clippy::manual_inspect)]
+      #[allow(unknown_lints, clippy::manual_inspect)]
       self
         .context
         .main_thread
@@ -2616,11 +2737,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    self
-      .context
-      .main_thread
-      .window_target
-      .cursor_position()
+    event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
@@ -3010,6 +3127,32 @@ fn handle_user_message<T: UserEvent>(
           WindowMessage::RequestRedraw => {
             window.request_redraw();
           }
+          WindowMessage::SetBadgeCount(_count, _desktop_filename) => {
+            #[cfg(target_os = "ios")]
+            window.set_badge_count(
+              _count.map_or(0, |x| x.clamp(i32::MIN as i64, i32::MAX as i64) as i32),
+            );
+
+            #[cfg(target_os = "macos")]
+            window.set_badge_label(_count.map(|x| x.to_string()));
+
+            #[cfg(any(
+              target_os = "linux",
+              target_os = "dragonfly",
+              target_os = "freebsd",
+              target_os = "netbsd",
+              target_os = "openbsd"
+            ))]
+            window.set_badge_count(_count, _desktop_filename);
+          }
+          WindowMessage::SetBadgeLabel(_label) => {
+            #[cfg(target_os = "macos")]
+            window.set_badge_label(_label);
+          }
+          WindowMessage::SetOverlayIcon(_icon) => {
+            #[cfg(windows)]
+            window.set_overlay_icon(_icon.map(|x| x.0).as_ref());
+          }
           WindowMessage::SetProgressBar(progress_state) => {
             window.set_progress_bar(ProgressBarStateWrapper::from(progress_state).0);
           }
@@ -3043,6 +3186,9 @@ fn handle_user_message<T: UserEvent>(
               Some(Theme::Dark) => Some(TaoTheme::Dark),
               _ => None,
             });
+          }
+          WindowMessage::SetBackgroundColor(color) => {
+            window.set_background_color(color.map(Into::into))
           }
         }
       }
@@ -3165,7 +3311,7 @@ fn handle_user_message<T: UserEvent>(
             let _ = webview.print();
           }
           WebviewMessage::Close => {
-            #[allow(clippy::manual_inspect)]
+            #[allow(unknown_lints, clippy::manual_inspect)]
             windows.0.borrow_mut().get_mut(&window_id).map(|window| {
               if let Some(i) = window.webviews.iter().position(|w| w.id == webview.id) {
                 window.webviews.remove(i);
@@ -3237,6 +3383,13 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::SetZoom(scale_factor) => {
             if let Err(e) = webview.zoom(scale_factor) {
               log::error!("failed to set webview zoom: {e}");
+            }
+          }
+          WebviewMessage::SetBackgroundColor(color) => {
+            if let Err(e) =
+              webview.set_background_color(color.map(Into::into).unwrap_or((255, 255, 255, 255)))
+            {
+              log::error!("failed to set webview background color: {e}");
             }
           }
           WebviewMessage::ClearAllBrowsingData => {
@@ -3335,7 +3488,6 @@ fn handle_user_message<T: UserEvent>(
             }
             #[cfg(target_os = "ios")]
             {
-              use tao::platform::ios::WindowExtIOS;
               use wry::WebViewExtIOS;
 
               f(Webview {
@@ -3383,7 +3535,7 @@ fn handle_user_message<T: UserEvent>(
       if let Some(window) = window {
         match handler(&window) {
           Ok(webview) => {
-            #[allow(clippy::manual_inspect)]
+            #[allow(unknown_lints, clippy::manual_inspect)]
             windows.0.borrow_mut().get_mut(&window_id).map(|w| {
               w.webviews.push(webview);
               w.has_children.store(true, Ordering::Relaxed);
@@ -3408,6 +3560,8 @@ fn handle_user_message<T: UserEvent>(
       let (label, builder) = handler();
 
       #[cfg(windows)]
+      let background_color = builder.window.background_color;
+      #[cfg(windows)]
       let is_window_transparent = builder.window.transparent;
 
       if let Ok(window) = builder.build(event_loop) {
@@ -3419,7 +3573,7 @@ fn handle_user_message<T: UserEvent>(
         let surface = if is_window_transparent {
           if let Ok(context) = softbuffer::Context::new(window.clone()) {
             if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-              window.clear_surface(&mut surface);
+              window.draw_surface(&mut surface, background_color);
               Some(surface)
             } else {
               None
@@ -3440,6 +3594,8 @@ fn handle_user_message<T: UserEvent>(
             window_event_listeners: Default::default(),
             webviews: Vec::new(),
             #[cfg(windows)]
+            background_color,
+            #[cfg(windows)]
             is_window_transparent,
             #[cfg(windows)]
             surface,
@@ -3452,6 +3608,14 @@ fn handle_user_message<T: UserEvent>(
     }
 
     Message::UserEvent(_) => (),
+    Message::EventLoopWindowTarget(message) => match message {
+      EventLoopWindowTargetMessage::CursorPosition(sender) => {
+        let pos = event_loop
+          .cursor_position()
+          .map_err(|_| Error::FailedToSendMessage);
+        sender.send(pos).unwrap();
+      }
+    },
   }
 }
 
@@ -3495,9 +3659,10 @@ fn handle_event_loop<T: UserEvent>(
         let mut windows_ref = windows.0.borrow_mut();
         if let Some(window) = windows_ref.get_mut(&window_id) {
           if window.is_window_transparent {
+            let background_color = window.background_color;
             if let Some(surface) = &mut window.surface {
               if let Some(window) = &window.inner {
-                window.clear_surface(surface);
+                window.draw_surface(surface, background_color);
               }
             }
           }
@@ -3782,6 +3947,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let window_event_listeners = WindowEventListeners::default();
 
   #[cfg(windows)]
+  let background_color = window_builder.inner.window.background_color;
+  #[cfg(windows)]
   let is_window_transparent = window_builder.inner.window.transparent;
 
   #[cfg(target_os = "macos")]
@@ -3912,7 +4079,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   let surface = if is_window_transparent {
     if let Ok(context) = softbuffer::Context::new(window.clone()) {
       if let Ok(mut surface) = softbuffer::Surface::new(&context, window.clone()) {
-        window.clear_surface(&mut surface);
+        window.draw_surface(&mut surface, background_color);
         Some(surface)
       } else {
         None
@@ -3930,6 +4097,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     inner: Some(window),
     webviews,
     window_event_listeners,
+    #[cfg(windows)]
+    background_color,
     #[cfg(windows)]
     is_window_transparent,
     #[cfg(windows)]
@@ -4005,13 +4174,36 @@ fn create_webview<T: UserEvent>(
 
   let mut webview_builder = WebViewBuilder::with_web_context(&mut web_context.inner)
     .with_id(&label)
-    .with_focused(window.is_focused())
+    .with_focused(webview_attributes.focus)
     .with_url(&url)
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+
+  #[cfg(any(target_os = "windows", target_os = "android"))]
+  {
+    webview_builder = webview_builder.with_https_scheme(webview_attributes.use_https_scheme);
+  }
+
+  if let Some(background_throttling) = webview_attributes.background_throttling {
+    webview_builder = webview_builder.with_background_throttling(match background_throttling {
+      tauri_utils::config::BackgroundThrottlingPolicy::Disabled => {
+        wry::BackgroundThrottlingPolicy::Disabled
+      }
+      tauri_utils::config::BackgroundThrottlingPolicy::Suspend => {
+        wry::BackgroundThrottlingPolicy::Suspend
+      }
+      tauri_utils::config::BackgroundThrottlingPolicy::Throttle => {
+        wry::BackgroundThrottlingPolicy::Throttle
+      }
+    });
+  }
+
+  if let Some(color) = webview_attributes.background_color {
+    webview_builder = webview_builder.with_background_color(color.into());
+  }
 
   if webview_attributes.drag_drop_handler_enabled {
     let proxy = context.proxy.clone();
@@ -4157,13 +4349,29 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(windows)]
   {
-    webview_builder = webview_builder.with_https_scheme(false);
-  }
-
-  #[cfg(windows)]
-  {
     webview_builder = webview_builder
       .with_browser_extensions_enabled(webview_attributes.browser_extensions_enabled);
+  }
+
+  #[cfg(any(
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  {
+    if let Some(path) = &webview_attributes.extensions_path {
+      webview_builder = webview_builder.with_extensions_path(path);
+    }
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  {
+    if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
+      webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
+    }
   }
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
@@ -4213,7 +4421,7 @@ fn create_webview<T: UserEvent>(
 
   #[cfg(any(debug_assertions, feature = "devtools"))]
   {
-    webview_builder = webview_builder.with_devtools(true);
+    webview_builder = webview_builder.with_devtools(webview_attributes.devtools.unwrap_or(true));
   }
 
   #[cfg(target_os = "android")]
@@ -4247,7 +4455,7 @@ fn create_webview<T: UserEvent>(
       target_os = "ios",
       target_os = "android"
     ))]
-    WebviewKind::WindowChild => webview_builder.build(&window),
+    WebviewKind::WindowChild => webview_builder.build_as_child(&window),
     WebviewKind::WindowContent => {
       #[cfg(any(
         target_os = "windows",
@@ -4269,7 +4477,7 @@ fn create_webview<T: UserEvent>(
       builder
     }
   }
-  .map_err(|e| Error::CreateWebview(Box::new(dbg!(e))))?;
+  .map_err(|e| Error::CreateWebview(Box::new(e)))?;
 
   if kind == WebviewKind::WindowContent {
     #[cfg(any(

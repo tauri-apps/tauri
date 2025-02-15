@@ -119,9 +119,9 @@ impl<R: Runtime> CheckMenuItem<R> {
   /// Set this menu item accelerator.
   pub fn set_accelerator<S: AsRef<str>>(&self, accelerator: Option<S>) -> crate::Result<()> {
     let accel = accelerator.and_then(|s| s.as_ref().parse().ok());
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .set_accelerator(accel))?
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().set_accelerator(accel)
+    })?
     .map_err(Into::into)
   }
 

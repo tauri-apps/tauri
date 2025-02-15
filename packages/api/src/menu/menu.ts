@@ -13,39 +13,11 @@ import { MenuItem } from './menuItem'
 import { CheckMenuItem } from './checkMenuItem'
 import { IconMenuItem } from './iconMenuItem'
 import { PredefinedMenuItem } from './predefinedMenuItem'
-import { Submenu } from './submenu'
-import { type LogicalPosition, PhysicalPosition } from '../dpi'
+import { itemFromKind, Submenu } from './submenu'
+import { type LogicalPosition, PhysicalPosition, Position } from '../dpi'
 import { type Window } from '../window'
 import { invoke } from '../core'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
-
-function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
-  | Submenu
-  | MenuItem
-  | PredefinedMenuItem
-  | CheckMenuItem
-  | IconMenuItem {
-  /* eslint-disable @typescript-eslint/no-unsafe-return */
-  switch (kind) {
-    case 'Submenu':
-      // @ts-expect-error constructor is protected for external usage only
-      return new Submenu(rid, id)
-    case 'Predefined':
-      // @ts-expect-error constructor is protected for external usage only
-      return new PredefinedMenuItem(rid, id)
-    case 'Check':
-      // @ts-expect-error constructor is protected for external usage only
-      return new CheckMenuItem(rid, id)
-    case 'Icon':
-      // @ts-expect-error constructor is protected for external usage only
-      return new IconMenuItem(rid, id)
-    case 'MenuItem':
-    default:
-      // @ts-expect-error constructor is protected for external usage only
-      return new MenuItem(rid, id)
-  }
-  /* eslint-enable @typescript-eslint/no-unsafe-return */
-}
 
 /** Options for creating a new menu. */
 export interface MenuOptions {
@@ -68,6 +40,10 @@ export interface MenuOptions {
 
 /** A type that is either a menu bar on the window
  * on Windows and Linux or as a global menu in the menubar on macOS.
+ *
+ * #### Platform-specific:
+ *
+ * - **macOS**: if using {@linkcode Menu} for the global menubar, it can only contain {@linkcode Submenu}s.
  */
 export class Menu extends MenuItemBase {
   /** @ignore */
@@ -240,22 +216,14 @@ export class Menu extends MenuItemBase {
    * If the position, is provided, it is relative to the window's top-left corner.
    */
   async popup(
-    at?: PhysicalPosition | LogicalPosition,
+    at?: PhysicalPosition | LogicalPosition | Position,
     window?: Window
   ): Promise<void> {
-    let atValue = null
-    if (at) {
-      atValue = {} as Record<string, unknown>
-      atValue[`${at instanceof PhysicalPosition ? 'Physical' : 'Logical'}`] = {
-        x: at.x,
-        y: at.y
-      }
-    }
     return invoke('plugin:menu|popup', {
       rid: this.rid,
       kind: this.kind,
       window: window?.label ?? null,
-      at: atValue
+      at: at instanceof Position ? at : at ? new Position(at) : null
     })
   }
 

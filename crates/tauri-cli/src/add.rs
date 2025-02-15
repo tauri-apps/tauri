@@ -9,7 +9,7 @@ use regex::Regex;
 use crate::{
   acl,
   helpers::{
-    app_paths::{resolve_app_dir, tauri_dir},
+    app_paths::{resolve_frontend_dir, tauri_dir},
     cargo,
     npm::PackageManager,
   },
@@ -49,14 +49,27 @@ pub fn run(options: Options) -> Result<()> {
     .map(|(p, v)| (p, Some(v)))
     .unwrap_or((&options.plugin, None));
 
+  let mut plugins = crate::helpers::plugins::known_plugins();
+  let (metadata, is_known) = plugins
+    .remove(plugin)
+    .map(|metadata| (metadata, true))
+    .unwrap_or_default();
+
   let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
-  let npm_name = format!("@tauri-apps/plugin-{plugin}");
+  let npm_name = if is_known {
+    format!("@tauri-apps/plugin-{plugin}")
+  } else {
+    format!("tauri-plugin-{plugin}-api")
+  };
 
-  let mut plugins = crate::helpers::plugins::known_plugins();
-  let metadata = plugins.remove(plugin).unwrap_or_default();
+  if !is_known && (options.tag.is_some() || options.rev.is_some() || options.branch.is_some()) {
+    anyhow::bail!(
+      "Git options --tag, --rev and --branch can only be used with official Tauri plugins"
+    );
+  }
 
-  let app_dir = resolve_app_dir();
+  let frontend_dir = resolve_frontend_dir();
   let tauri_dir = tauri_dir();
 
   let target_str = metadata
@@ -81,10 +94,7 @@ pub fn run(options: Options) -> Result<()> {
   })?;
 
   if !metadata.rust_only {
-    if let Some(manager) = app_dir
-      .map(PackageManager::from_project)
-      .and_then(|managers| managers.into_iter().next())
-    {
+    if let Some(manager) = frontend_dir.map(PackageManager::from_project) {
       let npm_version_req = version
         .map(ToString::to_string)
         .or(metadata.version_req.as_ref().map(|v| match manager {
@@ -93,10 +103,7 @@ pub fn run(options: Options) -> Result<()> {
         }));
 
       let npm_spec = match (npm_version_req, options.tag, options.rev, options.branch) {
-        (Some(version_req), _, _, _) => match manager {
-          PackageManager::Deno => format!("npm:{npm_name}@{version_req}"),
-          _ => format!("{npm_name}@{version_req}"),
-        },
+        (Some(version_req), _, _, _) => format!("{npm_name}@{version_req}"),
         (None, Some(tag), None, None) => {
           format!("tauri-apps/tauri-plugin-{plugin}#{tag}")
         }

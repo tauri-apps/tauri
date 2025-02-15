@@ -131,10 +131,7 @@ impl Options {
       )
     })?;
 
-    let detected_package_manager = match PackageManager::from_project(&self.directory).first() {
-      Some(&package_manager) => package_manager,
-      None => PackageManager::Npm,
-    };
+    let detected_package_manager = PackageManager::from_project(&self.directory);
 
     self.before_dev_command = self
       .before_dev_command

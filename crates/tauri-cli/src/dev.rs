@@ -4,13 +4,13 @@
 
 use crate::{
   helpers::{
-    app_paths::{app_dir, tauri_dir},
+    app_paths::{frontend_dir, tauri_dir},
     command_env,
     config::{
       get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
     },
   },
-  interface::{AppInterface, DevProcess, ExitReason, Interface},
+  interface::{AppInterface, ExitReason, Interface},
   CommandExt, ConfigValue, Result,
 };
 
@@ -140,7 +140,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         (Some(script), cwd.map(Into::into), wait)
       }
     };
-    let cwd = script_cwd.unwrap_or_else(|| app_dir().clone());
+    let cwd = script_cwd.unwrap_or_else(|| frontend_dir().clone());
     if let Some(before_dev) = script {
       log::info!(action = "Running"; "BeforeDevCommand (`{}`)", before_dev);
       let mut env = command_env(true);
@@ -336,30 +336,6 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   }
 
   Ok(())
-}
-
-pub fn wait_dev_process<
-  C: DevProcess + Send + 'static,
-  F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static,
->(
-  child: C,
-  on_exit: F,
-) {
-  std::thread::spawn(move || {
-    let code = child
-      .wait()
-      .ok()
-      .and_then(|status| status.code())
-      .or(Some(1));
-    on_exit(
-      code,
-      if child.manually_killed_process() {
-        ExitReason::TriggeredKill
-      } else {
-        ExitReason::NormalExit
-      },
-    );
-  });
 }
 
 pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {

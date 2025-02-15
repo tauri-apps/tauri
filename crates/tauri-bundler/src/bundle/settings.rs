@@ -4,11 +4,14 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::bundle::{common, platform::target_triple};
+use crate::{bundle::platform::target_triple, utils::fs_utils};
 use anyhow::Context;
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
-  config::{BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression},
+  config::{
+    BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
+    RpmCompression,
+  },
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -170,6 +173,8 @@ pub struct DebianSettings {
   // OS-specific settings:
   /// the list of debian dependencies.
   pub depends: Option<Vec<String>>,
+  /// the list of debian dependencies recommendations.
+  pub recommends: Option<Vec<String>>,
   /// the list of dependencies the package provides.
   pub provides: Option<Vec<String>>,
   /// the list of package conflicts.
@@ -215,6 +220,10 @@ pub struct DebianSettings {
 pub struct AppImageSettings {
   /// The files to include in the Appimage Binary.
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Whether to include gstreamer plugins for audio/media support.
+  pub bundle_media_framework: bool,
+  /// Whether to include the `xdg-open` binary.
+  pub bundle_xdg_open: bool,
 }
 
 /// The RPM bundle settings.
@@ -222,13 +231,15 @@ pub struct AppImageSettings {
 pub struct RpmSettings {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// the list of of RPM dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
   /// The list of RPM dependencies your application conflicts with. They must not be present
   /// in order for the package to be installed.
   pub conflicts: Option<Vec<String>>,
   /// The list of RPM dependencies your application supersedes - if this package is installed,
-  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  /// packages listed as "obsoletes" will be automatically removed (if they are present).
   pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   pub release: String,
@@ -258,6 +269,8 @@ pub struct RpmSettings {
   /// Path to script that will be executed after the package is removed. See
   /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<RpmCompression>,
 }
 
 /// Position coordinates struct.
@@ -395,7 +408,7 @@ pub struct WixSettings {
   pub banner_path: Option<PathBuf>,
   /// Path to a bitmap file to use on the installation user interface dialogs.
   /// It is used on the welcome and completion dialogs.
-
+  ///
   /// The required dimensions are 493px × 312px.
   pub dialog_image_path: Option<PathBuf>,
   /// Enables FIPS compliant algorithms.
@@ -1055,7 +1068,7 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, &dest)?;
+      fs_utils::copy_file(&src, &dest)?;
       paths.push(dest);
     }
     Ok(paths)
@@ -1066,7 +1079,7 @@ impl Settings {
     for resource in self.resource_files().iter() {
       let resource = resource?;
       let dest = path.join(resource.target());
-      common::copy_file(resource.path(), dest)?;
+      fs_utils::copy_file(resource.path(), &dest)?;
     }
     Ok(())
   }

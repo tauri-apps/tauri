@@ -85,9 +85,10 @@ pub(crate) struct PatternJavascript {
 }
 
 #[allow(dead_code)]
-pub(crate) fn format_real_schema(schema: &str) -> String {
+pub(crate) fn format_real_schema(schema: &str, https: bool) -> String {
   if cfg!(windows) || cfg!(target_os = "android") {
-    format!("http://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
+    let scheme = if https { "https" } else { "http" };
+    format!("{scheme}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
   } else {
     format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
   }

@@ -51,7 +51,7 @@ impl<T: Send + Sync + 'static + PartialEq> PartialEq for State<'_, T> {
   }
 }
 
-impl<'r, T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'r, T> {
+impl<T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'_, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     f.debug_tuple("State").field(&self.0).finish()
   }
@@ -60,12 +60,12 @@ impl<'r, T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'r, T> {
 impl<'r, 'de: 'r, T: Send + Sync + 'static, R: Runtime> CommandArg<'de, R> for State<'r, T> {
   /// Grabs the [`State`] from the [`CommandItem`]. This will never fail.
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
-    Ok(command.message.state_ref().try_get().unwrap_or_else(|| {
-      panic!(
+    command.message.state_ref().try_get().ok_or_else(|| {
+      InvokeError::from_anyhow(anyhow::anyhow!(
         "state not managed for field `{}` on command `{}`. You must call `.manage()` before using this command",
         command.key, command.name
-      )
-    }))
+      ))
+    })
   }
 }
 

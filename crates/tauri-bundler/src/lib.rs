@@ -3,8 +3,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! The Tauri bundler is a tool that generates installers or app bundles for executables.
 //! It supports auto updating through [tauri](https://docs.rs/tauri).
 //!
@@ -25,5 +23,6 @@
 /// The bundle API.
 pub mod bundle;
 mod error;
+mod utils;
 pub use bundle::*;
 pub use error::{Error, Result};

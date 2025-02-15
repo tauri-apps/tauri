@@ -19,13 +19,13 @@ use crate::{
 use super::{packages_nodejs, packages_rust, SectionItem};
 
 pub fn items(
-  app_dir: Option<&PathBuf>,
+  frontend_dir: Option<&PathBuf>,
   tauri_dir: Option<&Path>,
   package_manager: PackageManager,
 ) -> Vec<SectionItem> {
   let mut items = Vec::new();
 
-  if tauri_dir.is_some() || app_dir.is_some() {
+  if tauri_dir.is_some() || frontend_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
       let manifest: Option<CargoManifest> =
         if let Ok(manifest_contents) = fs::read_to_string(tauri_dir.join("Cargo.toml")) {
@@ -48,14 +48,18 @@ pub fn items(
         let item = packages_rust::rust_section_item(&dep, crate_version);
         items.push(item);
 
-        let Some(app_dir) = app_dir else {
+        let Some(frontend_dir) = frontend_dir else {
           continue;
         };
 
         let package = format!("@tauri-apps/plugin-{p}");
 
-        let item =
-          packages_nodejs::nodejs_section_item(package, None, app_dir.clone(), package_manager);
+        let item = packages_nodejs::nodejs_section_item(
+          package,
+          None,
+          frontend_dir.clone(),
+          package_manager,
+        );
         items.push(item);
       }
     }

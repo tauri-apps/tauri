@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! - Embed, hash, and compress assets, including icons for the app as well as the tray icon.
 //! - Parse `tauri.conf.json` at compile time and generate the Config struct.
 

@@ -14,7 +14,9 @@ use crate::{
     flock,
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
-  mobile::{use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevProcess},
+  mobile::{
+    use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
+  },
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
@@ -29,7 +31,7 @@ use cargo_mobile2::{
   opts::{NoiseLevel, Profile},
 };
 
-use std::{env::set_current_dir, net::IpAddr};
+use std::env::set_current_dir;
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
@@ -84,8 +86,8 @@ pub struct Options {
   /// When this is set or when running on an iOS device the CLI sets the `TAURI_DEV_HOST`
   /// environment variable so you can check this on your framework's configuration to expose the development server
   /// on the public network address.
-  #[clap(long)]
-  pub host: Option<Option<IpAddr>>,
+  #[clap(long, default_value_t, default_missing_value(""), num_args(0..=1))]
+  pub host: DevHost,
   /// Disable the built-in dev server for static files.
   #[clap(long)]
   pub no_dev_server: bool,
@@ -108,7 +110,7 @@ impl From<Options> for DevOptions {
       no_dev_server: options.no_dev_server,
       no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
-      host: None,
+      host: options.host.0.unwrap_or_default(),
     }
   }
 }
@@ -230,7 +232,7 @@ fn run_dev(
   noise_level: NoiseLevel,
 ) -> Result<()> {
   // when running on an actual device we must use the network IP
-  if options.host.is_some()
+  if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
@@ -249,7 +251,7 @@ fn run_dev(
   })?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
 
-  let set_host = options.host.is_some();
+  let set_host = options.host.0.is_some();
 
   let open = options.open;
   interface.mobile_dev(

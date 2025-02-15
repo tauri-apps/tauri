@@ -206,9 +206,9 @@ impl<R: Runtime> IconMenuItem<R> {
   /// Set this menu item accelerator.
   pub fn set_accelerator<S: AsRef<str>>(&self, accelerator: Option<S>) -> crate::Result<()> {
     let accel = accelerator.and_then(|s| s.as_ref().parse().ok());
-    run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .set_accelerator(accel))?
+    run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().set_accelerator(accel)
+    })?
     .map_err(Into::into)
   }
 
@@ -228,9 +228,9 @@ impl<R: Runtime> IconMenuItem<R> {
   /// - **Windows / Linux**: Unsupported.
   pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    return run_item_main_thread!(self, |self_: Self| (*self_.0)
-      .as_ref()
-      .set_native_icon(_icon.map(Into::into)));
+    return run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().set_native_icon(_icon.map(Into::into))
+    });
     #[allow(unreachable_code)]
     Ok(())
   }

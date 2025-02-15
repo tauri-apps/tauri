@@ -10,16 +10,15 @@
     "tauri": "node ../../packages/cli/tauri.js"
   },
   "dependencies": {
-    "@tauri-apps/api": "../../packages/api/dist",
-    "@zerodevx/svelte-json-view": "1.0.9"
+    "@tauri-apps/api": "../../packages/api/dist"
   },
   "devDependencies": {
-    "@iconify-json/codicon": "^1.1.49",
-    "@iconify-json/ph": "^1.1.13",
-    "@unocss/extractor-svelte": "^0.61.0",
-    "unocss": "^0.61.0",
-    "@sveltejs/vite-plugin-svelte": "^3.1.2",
-    "svelte": "^4.2.19",
-    "vite": "^5.4.7"
+    "@iconify-json/codicon": "^1.2.8",
+    "@iconify-json/ph": "^1.2.2",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@unocss/extractor-svelte": "^0.65.3",
+    "svelte": "^5.16.1",
+    "unocss": "^0.65.3",
+    "vite": "^6.0.9"
   }
 }

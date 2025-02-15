@@ -23,12 +23,12 @@
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "prettier": "^3.3.3"
+    "prettier": "^3.4.2"
   },
   "packageManager": "pnpm@9.9.0",
   "pnpm": {
     "overrides": {
-      "rollup@>=4.0.0 <4.22.4": ">=4.22.4",
+      "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",
       "cookie@<0.7.0": ">=0.7.0"
     }
   }

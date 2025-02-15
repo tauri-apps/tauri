@@ -23,6 +23,7 @@
 //! [ignore unknown fields when destructuring]: https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#ignoring-remaining-parts-of-a-value-with-
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
+use http::response::Builder;
 #[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use semver::Version;
@@ -331,6 +332,8 @@ pub struct AppImageConfig {
 pub struct DebConfig {
   /// The list of deb dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of deb dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of dependencies the package provides.
   pub provides: Option<Vec<String>>,
   /// The list of package conflicts.
@@ -390,6 +393,36 @@ pub struct LinuxConfig {
   pub rpm: RpmConfig,
 }
 
+/// Compression algorithms used when bundling RPM packages.
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields, tag = "type")]
+#[non_exhaustive]
+pub enum RpmCompression {
+  /// Gzip compression
+  Gzip {
+    /// Gzip compression level
+    level: u32,
+  },
+  /// Zstd compression
+  Zstd {
+    /// Zstd compression level
+    level: i32,
+  },
+  /// Xz compression
+  Xz {
+    /// Xz compression level
+    level: u32,
+  },
+  /// Bzip2 compression
+  Bzip2 {
+    /// Bzip2 compression level
+    level: u32,
+  },
+  /// Disable compression
+  None,
+}
+
 /// Configuration for RPM bundles.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
@@ -398,6 +431,8 @@ pub struct LinuxConfig {
 pub struct RpmConfig {
   /// The list of RPM dependencies your application relies on.
   pub depends: Option<Vec<String>>,
+  /// The list of RPM dependencies your application recommends.
+  pub recommends: Option<Vec<String>>,
   /// The list of RPM dependencies your application provides.
   pub provides: Option<Vec<String>>,
   /// The list of RPM dependencies your application conflicts with. They must not be present
@@ -436,12 +471,15 @@ pub struct RpmConfig {
   /// <http://ftp.rpm.org/max-rpm/s1-rpm-inside-scripts.html>
   #[serde(alias = "post-remove-script")]
   pub post_remove_script: Option<PathBuf>,
+  /// Compression algorithm and level. Defaults to `Gzip` with level 6.
+  pub compression: Option<RpmCompression>,
 }
 
 impl Default for RpmConfig {
   fn default() -> Self {
     Self {
       depends: None,
+      recommends: None,
       provides: None,
       conflicts: None,
       obsoletes: None,
@@ -453,6 +491,7 @@ impl Default for RpmConfig {
       post_install_script: None,
       pre_remove_script: None,
       post_remove_script: None,
+      compression: None,
     }
   }
 }
@@ -711,7 +750,7 @@ pub struct WixConfig {
   pub banner_path: Option<PathBuf>,
   /// Path to a bitmap file to use on the installation user interface dialogs.
   /// It is used on the welcome and completion dialogs.
-
+  ///
   /// The required dimensions are 493px × 312px.
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
@@ -1200,7 +1239,7 @@ pub struct BundleConfig {
   pub long_description: Option<String>,
   /// Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.
   ///
-  /// If true, tools will be cached in `target\.tauri-tools`.
+  /// If true, tools will be cached in `target/.tauri/`.
   /// If false, tools will be cached in the current user's platform-specific cache directory.
   ///
   /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
@@ -1237,9 +1276,8 @@ pub struct BundleConfig {
   pub android: AndroidConfig,
 }
 
-/// a tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
-#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize, Default)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+/// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
+#[derive(Debug, PartialEq, Eq, Serialize, Default, Clone, Copy)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
@@ -1247,6 +1285,152 @@ impl From<Color> for (u8, u8, u8, u8) {
   fn from(value: Color) -> Self {
     (value.0, value.1, value.2, value.3)
   }
+}
+
+impl From<Color> for (u8, u8, u8) {
+  fn from(value: Color) -> Self {
+    (value.0, value.1, value.2)
+  }
+}
+
+impl From<(u8, u8, u8, u8)> for Color {
+  fn from(value: (u8, u8, u8, u8)) -> Self {
+    Color(value.0, value.1, value.2, value.3)
+  }
+}
+
+impl From<(u8, u8, u8)> for Color {
+  fn from(value: (u8, u8, u8)) -> Self {
+    Color(value.0, value.1, value.2, 255)
+  }
+}
+
+impl From<Color> for [u8; 4] {
+  fn from(value: Color) -> Self {
+    [value.0, value.1, value.2, value.3]
+  }
+}
+
+impl From<Color> for [u8; 3] {
+  fn from(value: Color) -> Self {
+    [value.0, value.1, value.2]
+  }
+}
+
+impl From<[u8; 4]> for Color {
+  fn from(value: [u8; 4]) -> Self {
+    Color(value[0], value[1], value[2], value[3])
+  }
+}
+
+impl From<[u8; 3]> for Color {
+  fn from(value: [u8; 3]) -> Self {
+    Color(value[0], value[1], value[2], 255)
+  }
+}
+
+impl FromStr for Color {
+  type Err = String;
+  fn from_str(mut color: &str) -> Result<Self, Self::Err> {
+    color = color.trim().strip_prefix('#').unwrap_or(color);
+    let color = match color.len() {
+      // TODO: use repeat_n once our MSRV is bumped to 1.82
+      3 => color.chars()
+            .flat_map(|c| std::iter::repeat(c).take(2))
+            .chain(std::iter::repeat('f').take(2))
+            .collect(),
+      6 => format!("{color}FF"),
+      8 => color.to_string(),
+      _ => return Err("Invalid hex color length, must be either 3, 6 or 8, for example: #fff, #ffffff, or #ffffffff".into()),
+    };
+
+    let r = u8::from_str_radix(&color[0..2], 16).map_err(|e| e.to_string())?;
+    let g = u8::from_str_radix(&color[2..4], 16).map_err(|e| e.to_string())?;
+    let b = u8::from_str_radix(&color[4..6], 16).map_err(|e| e.to_string())?;
+    let a = u8::from_str_radix(&color[6..8], 16).map_err(|e| e.to_string())?;
+
+    Ok(Color(r, g, b, a))
+  }
+}
+
+fn default_alpha() -> u8 {
+  255
+}
+
+#[derive(Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+enum InnerColor {
+  /// Color hex string, for example: #fff, #ffffff, or #ffffffff.
+  String(String),
+  /// Array of RGB colors. Each value has minimum of 0 and maximum of 255.
+  Rgb((u8, u8, u8)),
+  /// Array of RGBA colors. Each value has minimum of 0 and maximum of 255.
+  Rgba((u8, u8, u8, u8)),
+  /// Object of red, green, blue, alpha color values. Each value has minimum of 0 and maximum of 255.
+  RgbaObject {
+    red: u8,
+    green: u8,
+    blue: u8,
+    #[serde(default = "default_alpha")]
+    alpha: u8,
+  },
+}
+
+impl<'de> Deserialize<'de> for Color {
+  fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+  where
+    D: Deserializer<'de>,
+  {
+    let color = InnerColor::deserialize(deserializer)?;
+    let color = match color {
+      InnerColor::String(string) => string.parse().map_err(serde::de::Error::custom)?,
+      InnerColor::Rgb(rgb) => Color(rgb.0, rgb.1, rgb.2, 255),
+      InnerColor::Rgba(rgb) => rgb.into(),
+      InnerColor::RgbaObject {
+        red,
+        green,
+        blue,
+        alpha,
+      } => Color(red, green, blue, alpha),
+    };
+
+    Ok(color)
+  }
+}
+
+#[cfg(feature = "schema")]
+impl schemars::JsonSchema for Color {
+  fn schema_name() -> String {
+    "Color".to_string()
+  }
+
+  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+    let mut schema = schemars::schema_for!(InnerColor).schema;
+    schema.metadata = None; // Remove `title: InnerColor` from schema
+
+    // add hex color pattern validation
+    let any_of = schema.subschemas().any_of.as_mut().unwrap();
+    let schemars::schema::Schema::Object(str_schema) = any_of.first_mut().unwrap() else {
+      unreachable!()
+    };
+    str_schema.string().pattern = Some("^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$".into());
+
+    schema.into()
+  }
+}
+
+/// Background throttling policy.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum BackgroundThrottlingPolicy {
+  /// A policy where background throttling is disabled
+  Disabled,
+  /// A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
+  Suspend,
+  /// A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.
+  Throttle,
 }
 
 /// The window effects configuration object
@@ -1391,6 +1575,8 @@ pub struct WindowConfig {
   /// If `true`, hides the window icon from the taskbar on Windows and Linux.
   #[serde(default, alias = "skip-taskbar")]
   pub skip_taskbar: bool,
+  /// The name of the window class created on Windows to create the window. **Windows only**.
+  pub window_classname: Option<String>,
   /// The initial window theme. Defaults to the system theme. Only implemented on Windows and macOS 10.14+.
   pub theme: Option<crate::Theme>,
   /// The style of the macOS title bar.
@@ -1461,6 +1647,7 @@ pub struct WindowConfig {
   /// ## Platform-specific
   ///
   /// - **macOS**: Requires the `macos-proxy` feature flag and only compiles for macOS 14+.
+  #[serde(alias = "proxy-url")]
   pub proxy_url: Option<Url>,
   /// Whether page zooming by hotkeys is enabled
   ///
@@ -1471,7 +1658,7 @@ pub struct WindowConfig {
   /// 20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
-  #[serde(default)]
+  #[serde(default, alias = "zoom-hotkeys-enabled")]
   pub zoom_hotkeys_enabled: bool,
   /// Whether browser extensions can be installed for the webview process
   ///
@@ -1479,8 +1666,57 @@ pub struct WindowConfig {
   ///
   /// - **Windows**: Enables the WebView2 environment's [`AreBrowserExtensionsEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2environmentoptions?view=webview2-winrt-1.0.2739.15#arebrowserextensionsenabled)
   /// - **MacOS / Linux / iOS / Android** - Unsupported.
-  #[serde(default)]
+  #[serde(default, alias = "browser-extensions-enabled")]
   pub browser_extensions_enabled: bool,
+
+  /// Sets whether the custom protocols should use `https://<scheme>.localhost` instead of the default `http://<scheme>.localhost` on Windows and Android. Defaults to `false`.
+  ///
+  /// ## Note
+  ///
+  /// Using a `https` scheme will NOT allow mixed content when trying to fetch `http` endpoints and therefore will not match the behavior of the `<scheme>://localhost` protocols used on macOS and Linux.
+  ///
+  /// ## Warning
+  ///
+  /// Changing this value between releases will change the IndexedDB, cookies and localstorage location and your app will not be able to access the old data.
+  #[serde(default, alias = "use-https-scheme")]
+  pub use_https_scheme: bool,
+  /// Enable web inspector which is usually called browser devtools. Enabled by default.
+  ///
+  /// This API works in **debug** builds, but requires `devtools` feature flag to enable it in **release** builds.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - macOS: This will call private functions on **macOS**.
+  /// - Android: Open `chrome://inspect/#devices` in Chrome to get the devtools window. Wry's `WebView` devtools API isn't supported on Android.
+  /// - iOS: Open Safari > Develop > [Your Device Name] > [Your WebView] to get the devtools window.
+  pub devtools: Option<bool>,
+
+  /// Set the window and webview background color.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows**: alpha channel is ignored for the window layer.
+  /// - **Windows**: On Windows 7, alpha channel is ignored for the webview layer.
+  /// - **Windows**: On Windows 8 and newer, if alpha channel is not `0`, it will be ignored for the webview layer.
+  #[serde(alias = "background-color")]
+  pub background_color: Option<Color>,
+
+  /// Change the default background throttling behaviour.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[serde(default, alias = "background-throttling")]
+  pub background_throttling: Option<BackgroundThrottlingPolicy>,
 }
 
 impl Default for WindowConfig {
@@ -1516,6 +1752,7 @@ impl Default for WindowConfig {
       visible_on_all_workspaces: false,
       content_protected: false,
       skip_taskbar: false,
+      window_classname: None,
       theme: None,
       title_bar_style: Default::default(),
       hidden_title: false,
@@ -1529,6 +1766,10 @@ impl Default for WindowConfig {
       proxy_url: None,
       zoom_hotkeys_enabled: false,
       browser_extensions_enabled: false,
+      use_https_scheme: false,
+      devtools: None,
+      background_color: None,
+      background_throttling: None,
     }
   }
 }
@@ -1768,6 +2009,280 @@ pub struct AssetProtocolConfig {
   pub enable: bool,
 }
 
+/// definition of a header source
+///
+/// The header value to a header name
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum HeaderSource {
+  /// string version of the header Value
+  Inline(String),
+  /// list version of the header value. Item are joined by "," for the real header value
+  List(Vec<String>),
+  /// (Rust struct | Json | JavaScript Object) equivalent of the header value. Items are composed from: key + space + value. Item are then joined by ";" for the real header value
+  Map(HashMap<String, String>),
+}
+
+impl Display for HeaderSource {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Inline(s) => write!(f, "{s}"),
+      Self::List(l) => write!(f, "{}", l.join(", ")),
+      Self::Map(m) => {
+        let len = m.len();
+        let mut i = 0;
+        for (key, value) in m {
+          write!(f, "{} {}", key, value)?;
+          i += 1;
+          if i != len {
+            write!(f, "; ")?;
+          }
+        }
+        Ok(())
+      }
+    }
+  }
+}
+
+/// A trait which implements on the [`Builder`] of the http create
+///
+/// Must add headers defined in the tauri configuration file to http responses
+pub trait HeaderAddition {
+  /// adds all headers defined on the config file, given the current HeaderConfig
+  fn add_configured_headers(self, headers: Option<&HeaderConfig>) -> http::response::Builder;
+}
+
+impl HeaderAddition for Builder {
+  /// Add the headers defined in the tauri configuration file to http responses
+  ///
+  /// this is a utility function, which is used in the same way as the `.header(..)` of the rust http library
+  fn add_configured_headers(mut self, headers: Option<&HeaderConfig>) -> http::response::Builder {
+    if let Some(headers) = headers {
+      // Add the header Access-Control-Allow-Credentials, if we find a value for it
+      if let Some(value) = &headers.access_control_allow_credentials {
+        self = self.header("Access-Control-Allow-Credentials", value.to_string());
+      };
+
+      // Add the header Access-Control-Allow-Headers, if we find a value for it
+      if let Some(value) = &headers.access_control_allow_headers {
+        self = self.header("Access-Control-Allow-Headers", value.to_string());
+      };
+
+      // Add the header Access-Control-Allow-Methods, if we find a value for it
+      if let Some(value) = &headers.access_control_allow_methods {
+        self = self.header("Access-Control-Allow-Methods", value.to_string());
+      };
+
+      // Add the header Access-Control-Expose-Headers, if we find a value for it
+      if let Some(value) = &headers.access_control_expose_headers {
+        self = self.header("Access-Control-Expose-Headers", value.to_string());
+      };
+
+      // Add the header Access-Control-Max-Age, if we find a value for it
+      if let Some(value) = &headers.access_control_max_age {
+        self = self.header("Access-Control-Max-Age", value.to_string());
+      };
+
+      // Add the header Cross-Origin-Embedder-Policy, if we find a value for it
+      if let Some(value) = &headers.cross_origin_embedder_policy {
+        self = self.header("Cross-Origin-Embedder-Policy", value.to_string());
+      };
+
+      // Add the header Cross-Origin-Opener-Policy, if we find a value for it
+      if let Some(value) = &headers.cross_origin_opener_policy {
+        self = self.header("Cross-Origin-Opener-Policy", value.to_string());
+      };
+
+      // Add the header Cross-Origin-Resource-Policy, if we find a value for it
+      if let Some(value) = &headers.cross_origin_resource_policy {
+        self = self.header("Cross-Origin-Resource-Policy", value.to_string());
+      };
+
+      // Add the header Permission-Policy, if we find a value for it
+      if let Some(value) = &headers.permissions_policy {
+        self = self.header("Permission-Policy", value.to_string());
+      };
+
+      // Add the header Timing-Allow-Origin, if we find a value for it
+      if let Some(value) = &headers.timing_allow_origin {
+        self = self.header("Timing-Allow-Origin", value.to_string());
+      };
+
+      // Add the header X-Content-Type-Options, if we find a value for it
+      if let Some(value) = &headers.x_content_type_options {
+        self = self.header("X-Content-Type-Options", value.to_string());
+      };
+
+      // Add the header Tauri-Custom-Header, if we find a value for it
+      if let Some(value) = &headers.tauri_custom_header {
+        // Keep in mind to correctly set the Access-Control-Expose-Headers
+        self = self.header("Tauri-Custom-Header", value.to_string());
+      };
+    }
+    self
+  }
+}
+
+/// A struct, where the keys are some specific http header names.
+/// If the values to those keys are defined, then they will be send as part of a response message.
+/// This does not include error messages and ipc messages
+///
+/// ## Example configuration
+/// ```javascript
+/// {
+///  //..
+///   app:{
+///     //..
+///     security: {
+///       headers: {
+///         "Cross-Origin-Opener-Policy": "same-origin",
+///         "Cross-Origin-Embedder-Policy": "require-corp",
+///         "Timing-Allow-Origin": [
+///           "https://developer.mozilla.org",
+///           "https://example.com",
+///         ],
+///         "Access-Control-Expose-Headers": "Tauri-Custom-Header",
+///         "Tauri-Custom-Header": {
+///           "key1": "'value1' 'value2'",
+///           "key2": "'value3'"
+///         }
+///       },
+///       csp: "default-src 'self'; connect-src ipc: http://ipc.localhost",
+///     }
+///     //..
+///   }
+///  //..
+/// }
+/// ```
+/// In this example `Cross-Origin-Opener-Policy` and `Cross-Origin-Embedder-Policy` are set to allow for the use of [`SharedArrayBuffer`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).
+/// The result is, that those headers are then set on every response sent via the `get_response` function in crates/tauri/src/protocol/tauri.rs.
+/// The Content-Security-Policy header is defined separately, because it is also handled separately.
+///
+/// For the helloworld example, this config translates into those response headers:
+/// ```http
+/// access-control-allow-origin:  http://tauri.localhost
+/// access-control-expose-headers: Tauri-Custom-Header
+/// content-security-policy: default-src 'self'; connect-src ipc: http://ipc.localhost; script-src 'self' 'sha256-Wjjrs6qinmnr+tOry8x8PPwI77eGpUFR3EEGZktjJNs='
+/// content-type: text/html
+/// cross-origin-embedder-policy: require-corp
+/// cross-origin-opener-policy: same-origin
+/// tauri-custom-header: key1 'value1' 'value2'; key2 'value3'
+/// timing-allow-origin: https://developer.mozilla.org, https://example.com
+/// ```
+/// Since the resulting header values are always 'string-like'. So depending on the what data type the HeaderSource is, they need to be converted.
+///  - `String`(JS/Rust): stay the same for the resulting header value
+///  - `Array`(JS)/`Vec\<String\>`(Rust): Item are joined by ", " for the resulting header value
+///  - `Object`(JS)/ `Hashmap\<String,String\>`(Rust): Items are composed from: key + space + value. Item are then joined by "; " for the resulting header value
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields)]
+pub struct HeaderConfig {
+  /// The Access-Control-Allow-Credentials response header tells browsers whether the
+  /// server allows cross-origin HTTP requests to include credentials.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Credentials>
+  #[serde(rename = "Access-Control-Allow-Credentials")]
+  pub access_control_allow_credentials: Option<HeaderSource>,
+  /// The Access-Control-Allow-Headers response header is used in response
+  /// to a preflight request which includes the Access-Control-Request-Headers
+  /// to indicate which HTTP headers can be used during the actual request.
+  ///
+  /// This header is required if the request has an Access-Control-Request-Headers header.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Headers>
+  #[serde(rename = "Access-Control-Allow-Headers")]
+  pub access_control_allow_headers: Option<HeaderSource>,
+  /// The Access-Control-Allow-Methods response header specifies one or more methods
+  /// allowed when accessing a resource in response to a preflight request.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Methods>
+  #[serde(rename = "Access-Control-Allow-Methods")]
+  pub access_control_allow_methods: Option<HeaderSource>,
+  /// The Access-Control-Expose-Headers response header allows a server to indicate
+  /// which response headers should be made available to scripts running in the browser,
+  /// in response to a cross-origin request.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Expose-Headers>
+  #[serde(rename = "Access-Control-Expose-Headers")]
+  pub access_control_expose_headers: Option<HeaderSource>,
+  /// The Access-Control-Max-Age response header indicates how long the results of a
+  /// preflight request (that is the information contained in the
+  /// Access-Control-Allow-Methods and Access-Control-Allow-Headers headers) can
+  /// be cached.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Max-Age>
+  #[serde(rename = "Access-Control-Max-Age")]
+  pub access_control_max_age: Option<HeaderSource>,
+  /// The HTTP Cross-Origin-Embedder-Policy (COEP) response header configures embedding
+  /// cross-origin resources into the document.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Embedder-Policy>
+  #[serde(rename = "Cross-Origin-Embedder-Policy")]
+  pub cross_origin_embedder_policy: Option<HeaderSource>,
+  /// The HTTP Cross-Origin-Opener-Policy (COOP) response header allows you to ensure a
+  /// top-level document does not share a browsing context group with cross-origin documents.
+  /// COOP will process-isolate your document and potential attackers can't access your global
+  /// object if they were to open it in a popup, preventing a set of cross-origin attacks dubbed XS-Leaks.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Opener-Policy>
+  #[serde(rename = "Cross-Origin-Opener-Policy")]
+  pub cross_origin_opener_policy: Option<HeaderSource>,
+  /// The HTTP Cross-Origin-Resource-Policy response header conveys a desire that the
+  /// browser blocks no-cors cross-origin/cross-site requests to the given resource.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cross-Origin-Resource-Policy>
+  #[serde(rename = "Cross-Origin-Resource-Policy")]
+  pub cross_origin_resource_policy: Option<HeaderSource>,
+  /// The HTTP Permissions-Policy header provides a mechanism to allow and deny the
+  /// use of browser features in a document or within any \<iframe\> elements in the document.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy>
+  #[serde(rename = "Permissions-Policy")]
+  pub permissions_policy: Option<HeaderSource>,
+  /// The Timing-Allow-Origin response header specifies origins that are allowed to see values
+  /// of attributes retrieved via features of the Resource Timing API, which would otherwise be
+  /// reported as zero due to cross-origin restrictions.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Timing-Allow-Origin>
+  #[serde(rename = "Timing-Allow-Origin")]
+  pub timing_allow_origin: Option<HeaderSource>,
+  /// The X-Content-Type-Options response HTTP header is a marker used by the server to indicate
+  /// that the MIME types advertised in the Content-Type headers should be followed and not be
+  /// changed. The header allows you to avoid MIME type sniffing by saying that the MIME types
+  /// are deliberately configured.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options>
+  #[serde(rename = "X-Content-Type-Options")]
+  pub x_content_type_options: Option<HeaderSource>,
+  /// A custom header field Tauri-Custom-Header, don't use it.
+  /// Remember to set Access-Control-Expose-Headers accordingly
+  ///
+  /// **NOT INTENDED FOR PRODUCTION USE**
+  #[serde(rename = "Tauri-Custom-Header")]
+  pub tauri_custom_header: Option<HeaderSource>,
+}
+
+impl HeaderConfig {
+  /// creates a new header config
+  pub fn new() -> Self {
+    HeaderConfig {
+      access_control_allow_credentials: None,
+      access_control_allow_methods: None,
+      access_control_allow_headers: None,
+      access_control_expose_headers: None,
+      access_control_max_age: None,
+      cross_origin_embedder_policy: None,
+      cross_origin_opener_policy: None,
+      cross_origin_resource_policy: None,
+      permissions_policy: None,
+      timing_allow_origin: None,
+      x_content_type_options: None,
+      tauri_custom_header: None,
+    }
+  }
+}
+
 /// Security configuration.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#securityconfig>
@@ -1816,6 +2331,10 @@ pub struct SecurityConfig {
   /// If the list is empty, all capabilities are included.
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
+  /// The headers, which are added to every http response from tauri to the web view
+  /// This doesn't include IPC Messages and error responses
+  #[serde(default)]
+  pub headers: Option<HeaderConfig>,
 }
 
 /// A capability entry which can be either an inlined capability or a reference to a capability defined on its own file.
@@ -1943,9 +2462,21 @@ pub struct TrayIconConfig {
   /// A Boolean value that determines whether the image represents a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc) image on macOS.
   #[serde(default, alias = "icon-as-template")]
   pub icon_as_template: bool,
-  /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click on macOS.
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
   #[serde(default = "default_true", alias = "menu-on-left-click")]
+  #[deprecated(since = "2.2.0", note = "Use `show_menu_on_left_click` instead.")]
   pub menu_on_left_click: bool,
+  /// A Boolean value that determines whether the menu should appear when the tray icon receives a left click.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
+  #[serde(default = "default_true", alias = "show-menu-on-left-click")]
+  pub show_menu_on_left_click: bool,
   /// Title for MacOS tray
   pub title: Option<String>,
   /// Tray icon tooltip on Windows and macOS
@@ -1991,7 +2522,7 @@ impl Default for IosConfig {
   }
 }
 
-/// General configuration for the iOS target.
+/// General configuration for the Android target.
 #[skip_serializing_none]
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
@@ -2144,7 +2675,7 @@ impl<'d> serde::Deserialize<'d> for PackageVersion {
   fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
     struct PackageVersionVisitor;
 
-    impl<'d> Visitor<'d> for PackageVersionVisitor {
+    impl Visitor<'_> for PackageVersionVisitor {
       type Value = PackageVersion;
 
       fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -2244,7 +2775,7 @@ where
 ///   "build": {
 ///     "beforeBuildCommand": "",
 ///     "beforeDevCommand": "",
-///     "devUrl": "../dist",
+///     "devUrl": "http://localhost:3000",
 ///     "frontendDist": "../dist"
 ///   },
 ///   "app": {
@@ -2354,6 +2885,17 @@ mod build {
           let url = url_lit(url);
           quote! { #prefix::CustomProtocol(#url) }
         }
+      })
+    }
+  }
+
+  impl ToTokens for BackgroundThrottlingPolicy {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::BackgroundThrottlingPolicy };
+      tokens.append_all(match self {
+        Self::Disabled => quote! { #prefix::Disabled },
+        Self::Throttle => quote! { #prefix::Throttle },
+        Self::Suspend => quote! { #prefix::Suspend },
       })
     }
   }
@@ -2488,6 +3030,7 @@ mod build {
       let visible_on_all_workspaces = self.visible_on_all_workspaces;
       let content_protected = self.content_protected;
       let skip_taskbar = self.skip_taskbar;
+      let window_classname = opt_str_lit(self.window_classname.as_ref());
       let theme = opt_lit(self.theme.as_ref());
       let title_bar_style = &self.title_bar_style;
       let hidden_title = self.hidden_title;
@@ -2500,6 +3043,10 @@ mod build {
       let parent = opt_str_lit(self.parent.as_ref());
       let zoom_hotkeys_enabled = self.zoom_hotkeys_enabled;
       let browser_extensions_enabled = self.browser_extensions_enabled;
+      let use_https_scheme = self.use_https_scheme;
+      let devtools = opt_lit(self.devtools.as_ref());
+      let background_color = opt_lit(self.background_color.as_ref());
+      let background_throttling = opt_lit(self.background_throttling.as_ref());
 
       literal_struct!(
         tokens,
@@ -2535,6 +3082,7 @@ mod build {
         visible_on_all_workspaces,
         content_protected,
         skip_taskbar,
+        window_classname,
         theme,
         title_bar_style,
         hidden_title,
@@ -2546,7 +3094,11 @@ mod build {
         incognito,
         parent,
         zoom_hotkeys_enabled,
-        browser_extensions_enabled
+        browser_extensions_enabled,
+        use_https_scheme,
+        devtools,
+        background_color,
+        background_throttling
       );
     }
   }
@@ -2769,6 +3321,62 @@ mod build {
     }
   }
 
+  impl ToTokens for HeaderSource {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::HeaderSource };
+
+      tokens.append_all(match self {
+        Self::Inline(s) => {
+          let line = s.as_str();
+          quote!(#prefix::Inline(#line.into()))
+        }
+        Self::List(l) => {
+          let list = vec_lit(l, str_lit);
+          quote!(#prefix::List(#list))
+        }
+        Self::Map(m) => {
+          let map = map_lit(quote! { ::std::collections::HashMap }, m, str_lit, str_lit);
+          quote!(#prefix::Map(#map))
+        }
+      })
+    }
+  }
+
+  impl ToTokens for HeaderConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let access_control_allow_credentials =
+        opt_lit(self.access_control_allow_credentials.as_ref());
+      let access_control_allow_headers = opt_lit(self.access_control_allow_headers.as_ref());
+      let access_control_allow_methods = opt_lit(self.access_control_allow_methods.as_ref());
+      let access_control_expose_headers = opt_lit(self.access_control_expose_headers.as_ref());
+      let access_control_max_age = opt_lit(self.access_control_max_age.as_ref());
+      let cross_origin_embedder_policy = opt_lit(self.cross_origin_embedder_policy.as_ref());
+      let cross_origin_opener_policy = opt_lit(self.cross_origin_opener_policy.as_ref());
+      let cross_origin_resource_policy = opt_lit(self.cross_origin_resource_policy.as_ref());
+      let permissions_policy = opt_lit(self.permissions_policy.as_ref());
+      let timing_allow_origin = opt_lit(self.timing_allow_origin.as_ref());
+      let x_content_type_options = opt_lit(self.x_content_type_options.as_ref());
+      let tauri_custom_header = opt_lit(self.tauri_custom_header.as_ref());
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::HeaderConfig,
+        access_control_allow_credentials,
+        access_control_allow_headers,
+        access_control_allow_methods,
+        access_control_expose_headers,
+        access_control_max_age,
+        cross_origin_embedder_policy,
+        cross_origin_opener_policy,
+        cross_origin_resource_policy,
+        permissions_policy,
+        timing_allow_origin,
+        x_content_type_options,
+        tauri_custom_header
+      );
+    }
+  }
+
   impl ToTokens for SecurityConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let csp = opt_lit(self.csp.as_ref());
@@ -2778,6 +3386,7 @@ mod build {
       let asset_protocol = &self.asset_protocol;
       let pattern = &self.pattern;
       let capabilities = vec_lit(&self.capabilities, identity);
+      let headers = opt_lit(self.headers.as_ref());
 
       literal_struct!(
         tokens,
@@ -2788,7 +3397,8 @@ mod build {
         dangerous_disable_asset_csp_modification,
         asset_protocol,
         pattern,
-        capabilities
+        capabilities,
+        headers
       );
     }
   }
@@ -2797,7 +3407,9 @@ mod build {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
+      #[allow(deprecated)]
       let menu_on_left_click = self.menu_on_left_click;
+      let show_menu_on_left_click = self.show_menu_on_left_click;
       let icon_path = path_buf_lit(&self.icon_path);
       let title = opt_str_lit(self.title.as_ref());
       let tooltip = opt_str_lit(self.tooltip.as_ref());
@@ -2808,6 +3420,7 @@ mod build {
         icon_path,
         icon_as_template,
         menu_on_left_click,
+        show_menu_on_left_click,
         title,
         tooltip
       );
@@ -2932,6 +3545,7 @@ mod test {
         asset_protocol: AssetProtocolConfig::default(),
         pattern: Default::default(),
         capabilities: Vec::new(),
+        headers: None,
       },
       tray_icon: None,
       macos_private_api: false,
@@ -2980,5 +3594,16 @@ mod test {
     assert_eq!(b_config, build);
     assert_eq!(d_bundle, bundle);
     assert_eq!(d_windows, app.windows);
+  }
+
+  #[test]
+  fn parse_hex_color() {
+    use super::Color;
+
+    assert_eq!(Color(255, 255, 255, 255), "fff".parse().unwrap());
+    assert_eq!(Color(255, 255, 255, 255), "#fff".parse().unwrap());
+    assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
+    assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
+    assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
   }
 }

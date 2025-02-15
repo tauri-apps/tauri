@@ -10,7 +10,7 @@ use std::{
 };
 use tauri_utils::platform::Target;
 
-pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
+pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<SectionItem> {
   let mut items = Vec::new();
   if tauri_dir.is_some() {
     if let Ok(config) = crate::helpers::config::get(Target::current(), None) {
@@ -41,8 +41,8 @@ pub fn items(app_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Section
         items.push(SectionItem::new().description(format!("devUrl: {dev_url}")));
       }
 
-      if let Some(app_dir) = app_dir {
-        if let Ok(package_json) = read_to_string(app_dir.join("package.json")) {
+      if let Some(frontend_dir) = frontend_dir {
+        if let Ok(package_json) = read_to_string(frontend_dir.join("package.json")) {
           let (framework, bundler) = framework::infer_from_package_json(&package_json);
 
           if let Some(framework) = framework {

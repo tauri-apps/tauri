@@ -52,7 +52,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
       State::XCBuildConfigurationObject { id } => {
         if line.contains("buildSettings") {
           state = State::XCBuildConfigurationObjectBuildSettings { id: id.clone() };
-        } else if split_at_identation(line).map_or(false, |(_ident, token)| token == "};") {
+        } else if split_at_identation(line).is_some_and(|(_ident, token)| token == "};") {
           state = State::XCBuildConfiguration;
         }
       }
@@ -122,7 +122,7 @@ pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
       State::XCConfigurationListObject { id } => {
         if line.contains("buildConfigurations") {
           state = State::XCConfigurationListObjectBuildConfigurations { id: id.clone() };
-        } else if split_at_identation(line).map_or(false, |(_ident, token)| token == "};") {
+        } else if split_at_identation(line).is_some_and(|(_ident, token)| token == "};") {
           state = State::XCConfigurationList;
         }
       }

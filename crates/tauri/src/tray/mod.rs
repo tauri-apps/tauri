@@ -10,6 +10,7 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
+use crate::UnsafeSend;
 use crate::{
   image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
 };
@@ -306,8 +307,26 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self
   }
 
-  /// Whether to show the tray menu on left click or not, default is `true`. **macOS only**.
+  /// Whether to show the tray menu on left click or not, default is `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported.
+  #[deprecated(
+    since = "2.2.0",
+    note = "Use `TrayIconBuiler::show_menu_on_left_click` instead."
+  )]
   pub fn menu_on_left_click(mut self, enable: bool) -> Self {
+    self.inner = self.inner.with_menu_on_left_click(enable);
+    self
+  }
+
+  /// Whether to show the tray menu on left click or not, default is `true`.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux:** Unsupported.
+  pub fn show_menu_on_left_click(mut self, enable: bool) -> Self {
     self.inner = self.inner.with_menu_on_left_click(enable);
     self
   }
@@ -342,10 +361,24 @@ impl<R: Runtime> TrayIconBuilder<R> {
   /// Builds and adds a new [`TrayIcon`] to the system tray.
   pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<TrayIcon<R>> {
     let id = self.id().clone();
-    let inner = self.inner.build()?;
+
+    // SAFETY:
+    // the menu within this builder was created on main thread
+    // and will be accessed on the main thread
+    let unsafe_builder = UnsafeSend(self.inner);
+
+    let (tx, rx) = std::sync::mpsc::channel();
+    let unsafe_tray = manager
+      .app_handle()
+      .run_on_main_thread(move || {
+        // SAFETY: will only be accessed on main thread
+        let _ = tx.send(unsafe_builder.take().build().map(UnsafeSend));
+      })
+      .and_then(|_| rx.recv().map_err(|_| crate::Error::FailedToReceiveMessage))??;
+
     let icon = TrayIcon {
       id,
-      inner,
+      inner: unsafe_tray.take(),
       app_handle: manager.app_handle().clone(),
     };
 
@@ -478,9 +511,9 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| self_
-      .inner
-      .set_menu(menu.map(|m| m.inner_context_owned())))
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.set_menu(menu.map(|m| m.inner_context_owned()))
+    })
   }
 
   /// Sets the tooltip for this tray icon.
@@ -528,18 +561,23 @@ impl<R: Runtime> TrayIcon<R> {
   /// Sets the current icon as a [template](https://developer.apple.com/documentation/appkit/nsimage/1520017-template?language=objc). **macOS only**.
   pub fn set_icon_as_template(&self, #[allow(unused)] is_template: bool) -> crate::Result<()> {
     #[cfg(target_os = "macos")]
-    run_item_main_thread!(self, |self_: Self| self_
-      .inner
-      .set_icon_as_template(is_template))?;
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.set_icon_as_template(is_template)
+    })?;
     Ok(())
   }
 
-  /// Disable or enable showing the tray menu on left click. **macOS only**.
+  /// Disable or enable showing the tray menu on left click.
+  ///
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Linux**: Unsupported.
   pub fn set_show_menu_on_left_click(&self, #[allow(unused)] enable: bool) -> crate::Result<()> {
-    #[cfg(target_os = "macos")]
-    run_item_main_thread!(self, |self_: Self| self_
-      .inner
-      .set_show_menu_on_left_click(enable))?;
+    #[cfg(any(target_os = "macos", windows))]
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.set_show_menu_on_left_click(enable)
+    })?;
     Ok(())
   }
 
@@ -549,12 +587,12 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// - **Linux**: Unsupported, always returns `None`.
   pub fn rect(&self) -> crate::Result<Option<crate::Rect>> {
-    run_item_main_thread!(self, |self_: Self| self_.inner.rect().map(|rect| {
-      Rect {
+    run_item_main_thread!(self, |self_: Self| {
+      self_.inner.rect().map(|rect| Rect {
         position: rect.position.into(),
         size: rect.size.into(),
-      }
-    }))
+      })
+    })
   }
 }
 

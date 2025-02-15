@@ -19,6 +19,7 @@ mod desktop_commands {
     command,
     sealed::ManagerBase,
     utils::config::{WindowConfig, WindowEffectsConfig},
+    window::Color,
     window::{ProgressBarState, WindowBuilder},
     AppHandle, CursorIcon, Manager, Monitor, PhysicalPosition, PhysicalSize, Position, Size, Theme,
     UserAttentionType, Webview, Window,
@@ -130,17 +131,40 @@ mod desktop_commands {
   setter!(set_skip_taskbar, bool);
   setter!(set_cursor_grab, bool);
   setter!(set_cursor_visible, bool);
+  setter!(set_background_color, Option<Color>);
   setter!(set_cursor_icon, CursorIcon);
   setter!(set_cursor_position, Position);
   setter!(set_ignore_cursor_events, bool);
   setter!(start_dragging);
   setter!(start_resize_dragging, ResizeDirection);
   setter!(set_progress_bar, ProgressBarState);
+  setter!(set_badge_count, Option<i64>);
+  #[cfg(target_os = "macos")]
+  setter!(set_badge_label, Option<String>);
   setter!(set_visible_on_all_workspaces, bool);
   setter!(set_title_bar_style, TitleBarStyle);
   setter!(set_size_constraints, WindowSizeConstraints);
   setter!(set_theme, Option<Theme>);
   setter!(set_enabled, bool);
+
+  #[command(root = "crate")]
+  #[cfg(target_os = "windows")]
+  pub async fn set_overlay_icon<R: Runtime>(
+    webview: Webview<R>,
+    window: Window<R>,
+    label: Option<String>,
+    value: Option<crate::image::JsImage>,
+  ) -> crate::Result<()> {
+    let window = get_window(window, label)?;
+    let resources_table = webview.resources_table();
+
+    let value = match value {
+      Some(value) => Some(value.into_img(&resources_table)?.as_ref().clone()),
+      None => None,
+    };
+
+    window.set_overlay_icon(value).map_err(Into::into)
+  }
 
   #[command(root = "crate")]
   pub async fn set_icon<R: Runtime>(
@@ -288,9 +312,15 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_ignore_cursor_events,
             desktop_commands::start_dragging,
             desktop_commands::start_resize_dragging,
+            desktop_commands::set_badge_count,
+            #[cfg(target_os = "macos")]
+            desktop_commands::set_badge_label,
             desktop_commands::set_progress_bar,
+            #[cfg(target_os = "windows")]
+            desktop_commands::set_overlay_icon,
             desktop_commands::set_icon,
             desktop_commands::set_visible_on_all_workspaces,
+            desktop_commands::set_background_color,
             desktop_commands::set_title_bar_style,
             desktop_commands::set_theme,
             desktop_commands::toggle_maximize,

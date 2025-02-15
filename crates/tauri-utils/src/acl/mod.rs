@@ -22,7 +22,7 @@
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
 use serde::{Deserialize, Serialize};
-use std::{num::NonZeroU64, str::FromStr, sync::Arc};
+use std::{num::NonZeroU64, path::PathBuf, str::FromStr, sync::Arc};
 use thiserror::Error;
 use url::Url;
 
@@ -71,20 +71,20 @@ pub enum Error {
   LinksName,
 
   /// IO error while reading a file
-  #[error("failed to read file: {0}")]
-  ReadFile(std::io::Error),
+  #[error("failed to read file '{}': {}", _1.display(), _0)]
+  ReadFile(std::io::Error, PathBuf),
 
   /// IO error while writing a file
-  #[error("failed to write file: {0}")]
-  WriteFile(std::io::Error),
+  #[error("failed to write file '{}': {}", _1.display(), _0)]
+  WriteFile(std::io::Error, PathBuf),
 
   /// IO error while creating a file
-  #[error("failed to create file: {0}")]
-  CreateFile(std::io::Error),
+  #[error("failed to create file '{}': {}", _1.display(), _0)]
+  CreateFile(std::io::Error, PathBuf),
 
   /// IO error while creating a dir
-  #[error("failed to create dir: {0}")]
-  CreateDir(std::io::Error),
+  #[error("failed to create dir '{}': {}", _1.display(), _0)]
+  CreateDir(std::io::Error, PathBuf),
 
   /// [`cargo_metadata`] was not able to complete successfully
   #[cfg(feature = "build")]
@@ -102,6 +102,11 @@ pub enum Error {
   /// Invalid JSON encountered
   #[error("failed to parse JSON: {0}")]
   Json(#[from] serde_json::Error),
+
+  /// Invalid JSON5 encountered
+  #[cfg(feature = "config-json5")]
+  #[error("failed to parse JSON5: {0}")]
+  Json5(#[from] json5::Error),
 
   /// Invalid permissions file format
   #[error("unknown permission format {0}")]

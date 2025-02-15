@@ -1,5 +1,23 @@
 # Changelog
 
+## \[2.0.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.1.1`
+- Upgraded to `tauri-codegen@2.0.4`
+
+## \[2.0.3]
+
+### Enhancements
+
+- [`17c6952ae`](https://www.github.com/tauri-apps/tauri/commit/17c6952aec965fa41e6695ad68461a218afc20f1) ([#11522](https://www.github.com/tauri-apps/tauri/pull/11522) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Enhance the error message when using `async` commands with a reference.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.1.0`
+- Upgraded to `tauri-codegen@2.0.3`
+
 ## \[2.0.1]
 
 ### What's Changed

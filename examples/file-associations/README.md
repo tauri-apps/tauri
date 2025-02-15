@@ -9,5 +9,5 @@ This feature is commonly used for functionality such as previewing or editing fi
 1. Run the following inside `examples/file-associations/src-tauri`
 
    ```
-   cargo build
+   cargo build --features tauri/protocol-asset
    ```

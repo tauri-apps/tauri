@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.0.3"
+version = "2.2.3"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -15,32 +15,30 @@ rust-version = "1.77.2"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.0.1", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
   "resources",
 ] }
-image = "0.25.0"
-flate2 = "1.0"
-anyhow = "1.0"
-thiserror = "1.0"
-serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
-strsim = "0.11.0"
-tar = "0.4.40"
+image = "0.25"
+flate2 = "1"
+anyhow = "1"
+thiserror = "2"
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+strsim = "0.11"
+tar = "0.4"
 walkdir = "2"
 handlebars = "6"
-tempfile = "3.10.1"
+tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
-dirs = "5"
+dirs = "6"
 os_pipe = "1"
-ureq = { version = "2.9.6", default-features = false, features = [
-  "socks-proxy",
-] }
+ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = { version = "2.0", default-features = false, features = ["deflate"] }
+zip = { version = "2", default-features = false, features = ["deflate"] }
 dunce = "1"
 url = "2"
 uuid = { version = "1", features = ["v4", "v5"] }
@@ -48,7 +46,7 @@ regex = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
-windows-registry = "0.3.0"
+windows-registry = "0.4"
 glob = "0.3"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
@@ -63,9 +61,9 @@ tauri-macos-sign = { version = "2.0.1", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"
-ar = "0.9.0"
-md5 = "0.7.0"
-rpm = "0.15.0"
+ar = "0.9"
+md5 = "0.7"
+rpm = { version = "0.16", features = ["bzip2-compression"] }
 
 [lib]
 name = "tauri_bundler"
@@ -75,4 +73,4 @@ path = "src/lib.rs"
 default = ["rustls"]
 native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
-rustls = ["ureq/tls"]
+rustls = ["ureq/rustls"]

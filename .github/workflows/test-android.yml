@@ -33,8 +33,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+      - name: install Rust 1.77.2
+        uses: dtolnay/rust-toolchain@1.77.2
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -42,7 +42,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
 
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: setup node
         uses: actions/setup-node@v4
         with:

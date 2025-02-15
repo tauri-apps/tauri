@@ -23,8 +23,7 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   crate::helpers::app_paths::resolve();
 
-  let tauri_dir = tauri_dir();
-  let acl_manifests_path = tauri_dir
+  let acl_manifests_path = tauri_dir()
     .join("gen")
     .join("schemas")
     .join("acl-manifests.json");

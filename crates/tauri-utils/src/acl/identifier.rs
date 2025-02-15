@@ -122,7 +122,7 @@ pub enum ParseIdentifierError {
   Empty,
 
   /// Identifier is too long.
-  #[error("identifiers cannot be longer than {}, found {0}", MAX_LEN_IDENTIFIER)]
+  #[error("identifiers cannot be longer than {len}, found {0}", len = MAX_LEN_IDENTIFIER)]
   Humongous(usize),
 
   /// Identifier is not in a valid format.

@@ -14,13 +14,17 @@ mod desktop_commands {
 
   use serde::{Deserialize, Serialize};
   use tauri_runtime::dpi::{Position, Size};
-  use tauri_utils::config::{WebviewUrl, WindowConfig};
+  use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
 
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, utils::config::WindowEffectsConfig, AppHandle, Webview,
-    WebviewWindowBuilder,
+    command, sealed::ManagerBase, utils::config::WindowEffectsConfig, webview::Color, AppHandle,
+    Webview, WebviewWindowBuilder,
   };
+
+  fn default_true() -> bool {
+    true
+  }
 
   #[derive(Debug, PartialEq, Clone, Deserialize)]
   #[serde(rename_all = "camelCase")]
@@ -35,6 +39,8 @@ mod desktop_commands {
     height: f64,
     #[serde(default)]
     transparent: bool,
+    #[serde(default = "default_true")]
+    focus: bool,
     #[serde(default)]
     accept_first_mouse: bool,
     window_effects: Option<WindowEffectsConfig>,
@@ -42,6 +48,26 @@ mod desktop_commands {
     incognito: bool,
     #[serde(default)]
     zoom_hotkeys_enabled: bool,
+    #[serde(default)]
+    background_throttling: Option<BackgroundThrottlingPolicy>,
+  }
+
+  #[cfg(feature = "unstable")]
+  impl<R: Runtime> crate::webview::WebviewBuilder<R> {
+    fn from_webview_config(label: String, config: WebviewConfig) -> Self {
+      let mut builder = Self::new(label, config.url);
+      builder.webview_attributes.user_agent = config.user_agent;
+      builder.webview_attributes.drag_drop_handler_enabled =
+        config.drag_drop_enabled.unwrap_or(true);
+      builder.webview_attributes.transparent = config.transparent;
+      builder.webview_attributes.focus = config.focus;
+      builder.webview_attributes.accept_first_mouse = config.accept_first_mouse;
+      builder.webview_attributes.window_effects = config.window_effects;
+      builder.webview_attributes.incognito = config.incognito;
+      builder.webview_attributes.zoom_hotkeys_enabled = config.zoom_hotkeys_enabled;
+      builder.webview_attributes.background_throttling = config.background_throttling;
+      builder
+    }
   }
 
   #[derive(Serialize)]
@@ -89,21 +115,18 @@ mod desktop_commands {
       .manager()
       .get_window(&window_label)
       .ok_or(crate::Error::WindowNotFound)?;
-    let mut builder = crate::webview::WebviewBuilder::new(label, options.url);
 
-    builder.webview_attributes.user_agent = options.user_agent;
-    builder.webview_attributes.drag_drop_handler_enabled =
-      options.drag_drop_enabled.unwrap_or(true);
-    builder.webview_attributes.transparent = options.transparent;
-    builder.webview_attributes.accept_first_mouse = options.accept_first_mouse;
-    builder.webview_attributes.window_effects = options.window_effects;
-    builder.webview_attributes.incognito = options.incognito;
-    builder.webview_attributes.zoom_hotkeys_enabled = options.zoom_hotkeys_enabled;
+    let x = options.x;
+    let y = options.y;
+    let width = options.width;
+    let height = options.height;
+
+    let builder = crate::webview::WebviewBuilder::from_webview_config(label, options);
 
     window.add_child(
       builder,
-      tauri_runtime::dpi::LogicalPosition::new(options.x, options.y),
-      tauri_runtime::dpi::LogicalSize::new(options.width, options.height),
+      tauri_runtime::dpi::LogicalPosition::new(x, y),
+      tauri_runtime::dpi::LogicalSize::new(width, height),
     )?;
 
     Ok(())
@@ -179,6 +202,11 @@ mod desktop_commands {
   setter!(webview_hide, hide);
   setter!(webview_show, show);
   setter!(set_webview_zoom, set_zoom, f64);
+  setter!(
+    set_webview_background_color,
+    set_background_color,
+    Option<Color>
+  );
   setter!(clear_all_browsing_data, clear_all_browsing_data);
 
   #[command(root = "crate")]
@@ -262,6 +290,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::set_webview_size,
             desktop_commands::set_webview_position,
             desktop_commands::set_webview_focus,
+            desktop_commands::set_webview_background_color,
             desktop_commands::set_webview_zoom,
             desktop_commands::webview_hide,
             desktop_commands::webview_show,

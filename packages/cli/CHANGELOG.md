@@ -1,5 +1,132 @@
 # Changelog
 
+## \[2.2.7]
+
+### Bug Fixes
+
+- [`8e9134c4a`](https://www.github.com/tauri-apps/tauri/commit/8e9134c4a2047329be0dbb868b7ae061a9d3f190) ([#12511](https://www.github.com/tauri-apps/tauri/pull/12511) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused `tauri dev` to fail because of an incorrect `--bins` flag.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.7`
+
+## \[2.2.6]
+
+### Enhancements
+
+- [`1a86974aa`](https://www.github.com/tauri-apps/tauri/commit/1a86974aa3d09957c6b1142a17bbfed9998798fd) ([#12406](https://www.github.com/tauri-apps/tauri/pull/12406) by [@bradleat](https://www.github.com/tauri-apps/tauri/../../bradleat)) `ios build --open` will now let xcode start the rust build process.
+- [`0b79af711`](https://www.github.com/tauri-apps/tauri/commit/0b79af711430934362602fb950c3e4cb5b59cf9c) ([#12438](https://www.github.com/tauri-apps/tauri/pull/12438) by [@3lpsy](https://www.github.com/tauri-apps/tauri/../../3lpsy)) Log the command used to start the rust app in development.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.6`
+
+## \[2.2.5]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.5`
+
+## \[2.2.4]
+
+### Bug Fixes
+
+- [`cad550445`](https://www.github.com/tauri-apps/tauri/commit/cad5504455ffa53e297cebff473c113b1afa5d29) ([#12354](https://www.github.com/tauri-apps/tauri/pull/12354) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed and issue that caused `tauri add` to try to install incorrect npm packages.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.4`
+
+## \[2.2.3]
+
+### Enhancements
+
+- [`a0f2c84d5`](https://www.github.com/tauri-apps/tauri/commit/a0f2c84d51f5086c5055867d6f61ea90c463a26c) ([#12204](https://www.github.com/tauri-apps/tauri/pull/12204) by [@pjf-dev](https://www.github.com/tauri-apps/tauri/../../pjf-dev)) Enhance `tauri icon` command by including 64x64 png size in default icon sizes.
+
+### Bug Fixes
+
+- [`98f62e65a`](https://www.github.com/tauri-apps/tauri/commit/98f62e65a27a375272c6b4d9f34c23e142b9d3a6) ([#12246](https://www.github.com/tauri-apps/tauri/pull/12246) by [@marcomq](https://www.github.com/tauri-apps/tauri/../../marcomq)) Properly add NPM packages for community plugins when using the `tauri add` command.
+- [`b9a99a5c6`](https://www.github.com/tauri-apps/tauri/commit/b9a99a5c69d8a2a1a3ff30e500b46872258dca15) ([#12297](https://www.github.com/tauri-apps/tauri/pull/12297) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused the built-in dev server to constantly refresh on Linux. This only affected users who do not have `devUrl` point to a URL.
+- [`ef21ed9ac`](https://www.github.com/tauri-apps/tauri/commit/ef21ed9ac1c045c38b0c04e3d71a441694abc257) ([#12290](https://www.github.com/tauri-apps/tauri/pull/12290) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS build failing when the development team contains spaces.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.3`
+
+## \[2.2.2]
+
+### Bug Fixes
+
+- [`26fc9558f`](https://www.github.com/tauri-apps/tauri/commit/26fc9558fe7b2fe649f61926da88f36110dd5707) ([#12178](https://www.github.com/tauri-apps/tauri/pull/12178) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused the `tauri dev` file watcher to exit after detecting file changes.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.2`
+
+## \[2.2.1]
+
+### Bug Fixes
+
+- [`881729448`](https://www.github.com/tauri-apps/tauri/commit/881729448c9abd0d0c7941a8a31c94119ce827af) ([#12164](https://www.github.com/tauri-apps/tauri/pull/12164) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused `tauri dev` to crash before showing the app on Linux.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.1`
+
+## \[2.2.0]
+
+### New Features
+
+- [`cccb308c7`](https://www.github.com/tauri-apps/tauri/commit/cccb308c7b559b0838138d6cea280665f060c925) ([#11562](https://www.github.com/tauri-apps/tauri/pull/11562) by [@jLynx](https://www.github.com/tauri-apps/tauri/../../jLynx)) Generate signature for `.deb` packages when `createUpdaterArtifacts` option is enabled.
+- [`74212d40d`](https://www.github.com/tauri-apps/tauri/commit/74212d40d80dba4501b3d4ae30104fa3d447bdf9) ([#11653](https://www.github.com/tauri-apps/tauri/pull/11653) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Include Linux destkop environment and session type in `tauri info` command.
+
+### Enhancements
+
+- [`93a3a043d`](https://www.github.com/tauri-apps/tauri/commit/93a3a043d39cc96515d51d98beeb14261d3a246b) ([#11727](https://www.github.com/tauri-apps/tauri/pull/11727) by [@Kiyozz](https://www.github.com/tauri-apps/tauri/../../Kiyozz)) Add support for `Portuguese` language for NSIS windows installer.
+
+### Bug Fixes
+
+- [`c8700656b`](https://www.github.com/tauri-apps/tauri/commit/c8700656be3001a0cc6e087f23aebd482430a85b) ([#11985](https://www.github.com/tauri-apps/tauri/pull/11985) by [@ShaunSHamilton](https://www.github.com/tauri-apps/tauri/../../ShaunSHamilton)) Fix `tauri remove` from removing object type (`{}`) permissions.
+- [`0ae06c5ca`](https://www.github.com/tauri-apps/tauri/commit/0ae06c5ca89cecd24154affdc69668f5e1e67d85) ([#11914](https://www.github.com/tauri-apps/tauri/pull/11914) by [@wtto00](https://www.github.com/tauri-apps/tauri/../../wtto00)) Fix the exclude path in file `Cargo.toml` of plugin template generated by cli. Path changed in [#9346](https://github.com/tauri-apps/tauri/pull/9346)
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.0`
+
+## \[2.1.0]
+
+### New Features
+
+- [`6bf917941`](https://www.github.com/tauri-apps/tauri/commit/6bf917941ff0fcc49e86b3ba427340b75f3ce49c) ([#11322](https://www.github.com/tauri-apps/tauri/pull/11322) by [@ShaunSHamilton](https://www.github.com/tauri-apps/tauri/../../ShaunSHamilton)) Add `tauri remove` to remove plugins from projects.
+- [`058c0db72`](https://www.github.com/tauri-apps/tauri/commit/058c0db72f43fbe1574d0db654560e693755cd7e) ([#11584](https://www.github.com/tauri-apps/tauri/pull/11584) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `bundle > linux > rpm > compression` config option to control RPM bundle compression type and level.
+
+### Enhancements
+
+- [`1f311832a`](https://www.github.com/tauri-apps/tauri/commit/1f311832ab5b2d62a533dfcf9b1d78bddf249ae8) ([#11405](https://www.github.com/tauri-apps/tauri/pull/11405) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add more context for errors when decoding secret and public keys for signing updater artifacts.
+- [`e0d1307d3`](https://www.github.com/tauri-apps/tauri/commit/e0d1307d3f78987d0059921a5ab01ea4b26e0ef1) ([#11414](https://www.github.com/tauri-apps/tauri/pull/11414) by [@Czxck001](https://www.github.com/tauri-apps/tauri/../../Czxck001)) Migrate the `$schema` Tauri configuration to the v2 format.
+- [`c43d5df15`](https://www.github.com/tauri-apps/tauri/commit/c43d5df15828ecffa606482ea2b60350c488c981) ([#11512](https://www.github.com/tauri-apps/tauri/pull/11512) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Associate a newly created capability file with the `main` window on the `tauri add` and `tauri permission add` commands.
+
+### Bug Fixes
+
+- [`7af01ff2c`](https://www.github.com/tauri-apps/tauri/commit/7af01ff2ce623d727cd13a4c8a549c1c80031882) ([#11523](https://www.github.com/tauri-apps/tauri/pull/11523) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix `tauri migrate` failing to install NPM depenencies when running from Deno.
+- [`100a4455a`](https://www.github.com/tauri-apps/tauri/commit/100a4455aa48df508510bbc08273215bdf70c012) ([#11529](https://www.github.com/tauri-apps/tauri/pull/11529) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix detecting yarn berry (v2 and higher) in various tauri cli commands.
+- [`60e86d5f6`](https://www.github.com/tauri-apps/tauri/commit/60e86d5f6e0f0c769d34ef368cd8801a918d796d) ([#11624](https://www.github.com/tauri-apps/tauri/pull/11624) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Use the public network IP address on `android dev` by default on Windows.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.1.0`
+
+## \[2.0.4]
+
+### Enhancements
+
+- [`e4c9268b1`](https://www.github.com/tauri-apps/tauri/commit/e4c9268b19c614dc9ebb0895448fd16de7efee80) ([#11258](https://www.github.com/tauri-apps/tauri/pull/11258) by [@regexident](https://www.github.com/tauri-apps/tauri/../../regexident)) Support custom project directory structure where the Tauri app folder is not a subfolder of the frontend project.
+  The frontend and Tauri app project paths can be set with the `TAURI_FRONTEND_PATH` and the `TAURI_APP_PATH` environment variables respectively.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.0.4`
+
 ## \[2.0.3]
 
 ### New Features

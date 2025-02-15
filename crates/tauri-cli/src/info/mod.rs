@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Result;
+use crate::{
+  helpers::app_paths::{resolve_frontend_dir, resolve_tauri_dir},
+  Result,
+};
 use clap::Parser;
 use colored::{ColoredString, Colorize};
 use dialoguer::{theme::ColorfulTheme, Confirm};
@@ -258,15 +261,15 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let Options { interactive } = options;
 
-  let app_dir = crate::helpers::app_paths::resolve_app_dir();
-  let tauri_dir = crate::helpers::app_paths::resolve_tauri_dir();
+  let frontend_dir = resolve_frontend_dir();
+  let tauri_dir = resolve_tauri_dir();
 
   if tauri_dir.is_some() {
     // safe to initialize
     crate::helpers::app_paths::resolve();
   }
 
-  let package_manager = app_dir
+  let package_manager = frontend_dir
     .as_ref()
     .map(packages_nodejs::package_manager)
     .unwrap_or(crate::helpers::npm::PackageManager::Npm);
@@ -288,11 +291,12 @@ pub fn command(options: Options) -> Result<()> {
     interactive,
     items: Vec::new(),
   };
-  packages
-    .items
-    .extend(packages_rust::items(app_dir.as_ref(), tauri_dir.as_deref()));
+  packages.items.extend(packages_rust::items(
+    frontend_dir.as_ref(),
+    tauri_dir.as_deref(),
+  ));
   packages.items.extend(packages_nodejs::items(
-    app_dir.as_ref(),
+    frontend_dir.as_ref(),
     package_manager,
     &metadata,
   ));
@@ -300,7 +304,7 @@ pub fn command(options: Options) -> Result<()> {
   let mut plugins = Section {
     label: "Plugins",
     interactive,
-    items: plugins::items(app_dir.as_ref(), tauri_dir.as_deref(), package_manager),
+    items: plugins::items(frontend_dir.as_ref(), tauri_dir.as_deref(), package_manager),
   };
 
   let mut app = Section {
@@ -310,7 +314,7 @@ pub fn command(options: Options) -> Result<()> {
   };
   app
     .items
-    .extend(app::items(app_dir.as_ref(), tauri_dir.as_deref()));
+    .extend(app::items(frontend_dir.as_ref(), tauri_dir.as_deref()));
 
   environment.display();
   packages.display();

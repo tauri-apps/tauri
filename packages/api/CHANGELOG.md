@@ -1,5 +1,64 @@
 # Changelog
 
+## \[2.2.0]
+
+### New Features
+
+- [`020ea0556`](https://www.github.com/tauri-apps/tauri/commit/020ea05561348dcd6d2a7df358f8a5190f661ba2) ([#11661](https://www.github.com/tauri-apps/tauri/pull/11661) by [@ahqsoftwares](https://www.github.com/tauri-apps/tauri/../../ahqsoftwares)) Add badging APIs:
+
+  - `Window/WebviewWindow::set_badge_count` for Linux, macOS and IOS.
+  - `Window/WebviewWindow::set_overlay_icon` for Windows Only.
+  - `Window/WebviewWindow::set_badge_label`for macOS Only.
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `TrayIcon.setShowMenuOnLeftClick` method and deprecate `TrayIcon.setMenuOnLeftClick` to match the Rust API.
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `TrayIconOptions.showMenuOnLeftClick` field and deprecate `TrayIconOptions.menuOnLeftClick` to match the Rust API.
+
+### Enhancements
+
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add support for `TrayIconOptions.menuOnLeftClick` option and `TrayIcon.setMenuOnLeftClick` on Windows.
+
+### Bug Fixes
+
+- [`a16796a55`](https://www.github.com/tauri-apps/tauri/commit/a16796a55592cf5be80043edfbb630dd2e32efab) ([#12069](https://www.github.com/tauri-apps/tauri/pull/12069) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Channel` never calls `onmessage` in some cases
+- [`12a48d1e2`](https://www.github.com/tauri-apps/tauri/commit/12a48d1e26a83c3915eaa0687b196fbc8f2d457a) ([#11741](https://www.github.com/tauri-apps/tauri/pull/11741) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix error when calling `PredefinedMenuItem.new` to create an `About` menu item that uses an `Image` instance for the about icon.
+- [`12a48d1e2`](https://www.github.com/tauri-apps/tauri/commit/12a48d1e26a83c3915eaa0687b196fbc8f2d457a) ([#11741](https://www.github.com/tauri-apps/tauri/pull/11741) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix error when calling `IconMenuItem.new` using an `Image` instance for the icon.
+- [`b63262cd4`](https://www.github.com/tauri-apps/tauri/commit/b63262cd4d6a3667ca1664607a0a5444ad79fe0e) ([#11724](https://www.github.com/tauri-apps/tauri/pull/11724) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Removed the generic in the type of the callback function argument in `mockIPC` which prevented its proper use in tests using TypeScript.
+- [`a6e84f7d2`](https://www.github.com/tauri-apps/tauri/commit/a6e84f7d2c1d5fdc65901fce683502be3f47833f) ([#11835](https://www.github.com/tauri-apps/tauri/pull/11835) by [@ilittlebig](https://www.github.com/tauri-apps/tauri/../../ilittlebig)) Fix error where using `isAbsolute` would return `Command not found`.
+
+## \[2.1.1]
+
+### Bug Fixes
+
+- [`7f81f0523`](https://www.github.com/tauri-apps/tauri/commit/7f81f052365675721312aafba297a7b67fb872d2) Fix regression in `toLogical` and `toPhysical` for position types in `dpi` module returning incorrect `y` value.
+- [`e8a50f6d7`](https://www.github.com/tauri-apps/tauri/commit/e8a50f6d760fad4529e7abb400302a1b487f11dd) ([#11645](https://www.github.com/tauri-apps/tauri/pull/11645)) Fix integer values of `BasDirectory.Home` and `BaseDirectory.Font` regression which broke path APIs in JS.
+
+## \[2.1.0]
+
+### New Features
+
+- [`5c4b83084`](https://www.github.com/tauri-apps/tauri/commit/5c4b830843ab085f8ff9db9e08d832223b027e4e) ([#11191](https://www.github.com/tauri-apps/tauri/pull/11191) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Improved support for `dpi` module types to allow these types to be used without manual conversions with `invoke`:
+
+  - Added `SERIALIZE_TO_IPC_FN` const in `core` module which can be used to implement custom IPC serialization for types passed to `invoke`.
+  - Added `Size` and `Position` classes in `dpi` module.
+  - Implementd `SERIALIZE_TO_IPC_FN` method on `PhysicalSize`, `PhysicalPosition`, `LogicalSize` and `LogicalPosition` to convert it into a valid IPC-compatible value that can be deserialized correctly on the Rust side into its equivalent struct.
+- [`4d545ab3c`](https://www.github.com/tauri-apps/tauri/commit/4d545ab3ca228c8a21b966b709f84a0da2864479) ([#11486](https://www.github.com/tauri-apps/tauri/pull/11486) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `Webview::setBackgroundColor`, `WebviewWindow::setBackgroundColor` APIs to set the window background color dynamically
+  and a `backgroundColor` window option to set the background color on window creation.
+- [`cbc095ec5`](https://www.github.com/tauri-apps/tauri/commit/cbc095ec5fe7de29b5c9265576d4e071ec159c1c) ([#11451](https://www.github.com/tauri-apps/tauri/pull/11451) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `app > windows > devtools` config option and when creating the webview from JS, to enable or disable devtools for a specific webview.
+- [`2a75c64b5`](https://www.github.com/tauri-apps/tauri/commit/2a75c64b5431284e7340e8743d4ea56a62c75466) ([#11469](https://www.github.com/tauri-apps/tauri/pull/11469) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `windowClassname` option, when constructing a `Webview` or `WebviewWindow`, to specify the name of the window class on Windows.
+
+### Bug Fixes
+
+- [`54cbf59b5`](https://www.github.com/tauri-apps/tauri/commit/54cbf59b5a572570a47237a3b5e6505f2a9e5d5d) ([#11441](https://www.github.com/tauri-apps/tauri/pull/11441) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix submenu created as a menu item instead of a submenu when created by using an object in the `items` field in the options object passed to `Menu.new` or `Submenu.new`.
+
+## \[2.0.3]
+
+### Bug Fixes
+
+- [`fbb45c674`](https://www.github.com/tauri-apps/tauri/commit/fbb45c674ca92fbbe04f1a8360e5f2e477dd4297) ([#11423](https://www.github.com/tauri-apps/tauri/pull/11423) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes `addPluginListener` not working.
+
+### What's Changed
+
+- [`2e88633ba`](https://www.github.com/tauri-apps/tauri/commit/2e88633ba4da8fc289c6d8a29c36f3327f9b576e) ([#11369](https://www.github.com/tauri-apps/tauri/pull/11369) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Remove references to no longer used `__TAURI_INTERNALS__.metadata.windows` and `__TAURI_INTERNALS__.metadata.webviews`.
+
 ## \[2.0.2]
 
 ### What's Changed

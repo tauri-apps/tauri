@@ -21,7 +21,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
     let migrated = migrate_config(&mut config)?;
-    if config_path.extension().map_or(false, |ext| ext == "toml") {
+    if config_path.extension().is_some_and(|ext| ext == "toml") {
       fs::write(&config_path, toml::to_string_pretty(&config)?)?;
     } else {
       fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
@@ -85,6 +85,28 @@ fn migrate_config(config: &mut Value) -> Result<MigratedConfig> {
         let permissions = allowlist_to_permissions(allowlist);
         migrated.plugins = plugins_from_permissions(&permissions);
         migrated.permissions = permissions;
+      }
+
+      // dangerousUseHttpScheme/useHttpsScheme
+      let dangerouse_use_http = tauri_config
+        .get("security")
+        .and_then(|w| w.as_object())
+        .and_then(|w| {
+          w.get("dangerousUseHttpScheme")
+            .or_else(|| w.get("dangerous-use-http-scheme"))
+        })
+        .and_then(|v| v.as_bool())
+        .unwrap_or_default();
+
+      if let Some(windows) = tauri_config
+        .get_mut("windows")
+        .and_then(|w| w.as_array_mut())
+      {
+        for window in windows {
+          if let Some(window) = window.as_object_mut() {
+            window.insert("useHttpsScheme".to_string(), (!dangerouse_use_http).into());
+          }
+        }
       }
 
       // security
@@ -684,6 +706,15 @@ mod test {
     let mut migrated = original.clone();
     super::migrate_config(&mut migrated).expect("failed to migrate config");
 
+    if original.get("$schema").is_some() {
+      if let Some(map) = migrated.as_object_mut() {
+        map.insert(
+          "$schema".to_string(),
+          serde_json::Value::String("https://schema.tauri.app/config/2".to_string()),
+        );
+      }
+    }
+
     if original
       .get("tauri")
       .and_then(|v| v.get("bundle"))
@@ -708,6 +739,7 @@ mod test {
   #[test]
   fn migrate_full() {
     let original = serde_json::json!({
+      "$schema": "../node_modules/@tauri-apps/cli/schema.json",
       "build": {
         "distDir": "../dist",
         "devPath": "http://localhost:1240",
@@ -792,11 +824,15 @@ mod test {
         "pattern": { "use": "brownfield" },
         "security": {
           "csp": "default-src 'self' tauri:"
-        }
+        },
+        "windows": [{}]
       }
     });
 
     let migrated = migrate(&original);
+
+    // $schema
+    assert_eq!(migrated["$schema"], "https://schema.tauri.app/config/2");
 
     // plugins > updater
     assert_eq!(
@@ -894,6 +930,8 @@ mod test {
       migrated["app"]["withGlobalTauri"],
       original["build"]["withGlobalTauri"]
     );
+
+    assert_eq!(migrated["app"]["windows"][0]["useHttpsScheme"], true);
   }
 
   #[test]
@@ -925,6 +963,28 @@ mod test {
     assert_eq!(
       migrated["plugins"]["updater"]["pubkey"],
       original["tauri"]["updater"]["pubkey"]
+    );
+  }
+
+  #[test]
+  fn migrate_dangerous_use_http_scheme() {
+    let original = serde_json::json!({
+      "tauri": {
+        "windows": [{}],
+        "security": {
+          "dangerousUseHttpScheme": true,
+        }
+      }
+    });
+
+    let migrated = migrate(&original);
+    assert_eq!(
+      !migrated["app"]["windows"][0]["useHttpsScheme"]
+        .as_bool()
+        .unwrap(),
+      original["tauri"]["security"]["dangerousUseHttpScheme"]
+        .as_bool()
+        .unwrap()
     );
   }
 

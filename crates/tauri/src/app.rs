@@ -18,7 +18,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::{config::Config, Env},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, Listener, Manager, Monitor, Result,
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
   Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
@@ -38,7 +38,6 @@ use tauri_runtime::{
 };
 use tauri_utils::{assets::AssetsIter, PackageInfo};
 
-use serde::Serialize;
 use std::{
   borrow::Cow,
   collections::HashMap,
@@ -268,6 +267,10 @@ pub struct AssetResolver<R: Runtime> {
 impl<R: Runtime> AssetResolver<R> {
   /// Gets the app asset associated with the given path.
   ///
+  /// By default it tries to infer your application's URL scheme in production by checking if all webviews
+  /// were configured with [`crate::webview::WebviewBuilder::use_https_scheme`] or `tauri.conf.json > app > windows > useHttpsScheme`.
+  /// If you are resolving an asset for a webview with a more dynamic configuration, see [`AssetResolver::get_for_scheme`].
+  ///
   /// Resolves to the embedded asset that is part of the app
   /// in dev when [`devUrl`](https://v2.tauri.app/reference/config/#devurl) points to a folder in your filesystem
   /// or in production when [`frontendDist`](https://v2.tauri.app/reference/config/#frontenddist)
@@ -276,6 +279,19 @@ impl<R: Runtime> AssetResolver<R> {
   /// Fallbacks to reading the asset from the [distDir] folder so the behavior is consistent in development.
   /// Note that the dist directory must exist so you might need to build your frontend assets first.
   pub fn get(&self, path: String) -> Option<Asset> {
+    let use_https_scheme = self
+      .manager
+      .webviews()
+      .values()
+      .all(|webview| webview.use_https_scheme());
+    self.get_for_scheme(path, use_https_scheme)
+  }
+
+  ///  Same as [AssetResolver::get] but resolves the custom protocol scheme based on a parameter.
+  ///
+  /// - `use_https_scheme`: If `true` when using [`Pattern::Isolation`](tauri::Pattern::Isolation),
+  ///   the csp header will contain `https://tauri.localhost` instead of `http://tauri.localhost`
+  pub fn get_for_scheme(&self, path: String, use_https_scheme: bool) -> Option<Asset> {
     #[cfg(dev)]
     {
       // on dev if the devPath is a path to a directory we have the embedded assets
@@ -306,7 +322,7 @@ impl<R: Runtime> AssetResolver<R> {
       }
     }
 
-    self.manager.get_asset(path).ok()
+    self.manager.get_asset(path, use_https_scheme).ok()
   }
 
   /// Iterate on all assets.
@@ -912,7 +928,8 @@ macro_rules! shared_app_impl {
       where
         F: Fn(Event) + Send + 'static,
       {
-        self.manager.listen(event.into(), EventTarget::App, handler)
+        let event = EventName::new(event.into()).unwrap();
+        self.manager.listen(event, EventTarget::App, handler)
       }
 
       /// Listen to an event on this app only once.
@@ -922,7 +939,8 @@ macro_rules! shared_app_impl {
       where
         F: FnOnce(Event) + Send + 'static,
       {
-        self.manager.once(event.into(), EventTarget::App, handler)
+        let event = EventName::new(event.into()).unwrap();
+        self.manager.once(event, EventTarget::App, handler)
       }
 
       /// Unlisten to an event on this app.
@@ -949,79 +967,7 @@ macro_rules! shared_app_impl {
       }
     }
 
-    impl<R: Runtime> Emitter<R> for $app {
-      /// Emits an event to all [targets](EventTarget).
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::Emitter;
-      ///
-      /// #[tauri::command]
-      /// fn synchronize(app: tauri::AppHandle) {
-      ///   // emits the synchronized event to all webviews
-      ///   app.emit("synchronized", ());
-      /// }
-      /// ```
-      fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-        self.manager.emit(event, payload)
-      }
-
-      /// Emits an event to all [targets](EventTarget) matching the given target.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::{Emitter, EventTarget};
-      ///
-      /// #[tauri::command]
-      /// fn download(app: tauri::AppHandle) {
-      ///   for i in 1..100 {
-      ///     std::thread::sleep(std::time::Duration::from_millis(150));
-      ///     // emit a download progress event to all listeners
-      ///     app.emit_to(EventTarget::any(), "download-progress", i);
-      ///     // emit an event to listeners that used App::listen or AppHandle::listen
-      ///     app.emit_to(EventTarget::app(), "download-progress", i);
-      ///     // emit an event to any webview/window/webviewWindow matching the given label
-      ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-      ///     app.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-      ///     // emit an event to listeners that used WebviewWindow::listen
-      ///     app.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-      ///   }
-      /// }
-      /// ```
-      fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
-      where
-        I: Into<EventTarget>,
-        S: Serialize + Clone,
-      {
-        self.manager.emit_to(target, event, payload)
-      }
-
-      /// Emits an event to all [targets](EventTarget) based on the given filter.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::{Emitter, EventTarget};
-      ///
-      /// #[tauri::command]
-      /// fn download(app: tauri::AppHandle) {
-      ///   for i in 1..100 {
-      ///     std::thread::sleep(std::time::Duration::from_millis(150));
-      ///     // emit a download progress event to the updater window
-      ///     app.emit_filter("download-progress", i, |t| match t {
-      ///       EventTarget::WebviewWindow { label } => label == "main",
-      ///       _ => false,
-      ///     });
-      ///   }
-      /// }
-      /// ```
-      fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
-      where
-        S: Serialize + Clone,
-        F: Fn(&EventTarget) -> bool,
-      {
-        self.manager.emit_filter(event, payload, filter)
-      }
-    }
+    impl<R: Runtime> Emitter<R> for $app {}
   };
 }
 
@@ -1232,6 +1178,10 @@ pub struct Builder<R: Runtime> {
   #[cfg(desktop)]
   menu_event_listeners: Vec<GlobalMenuEventListener<AppHandle<R>>>,
 
+  /// Tray event listeners for any tray icon event.
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  tray_icon_event_listeners: Vec<GlobalTrayIconEventListener<AppHandle<R>>>,
+
   /// Enable macOS default menu creation.
   #[allow(unused)]
   enable_macos_default_menu: bool,
@@ -1304,6 +1254,8 @@ impl<R: Runtime> Builder<R> {
       menu: None,
       #[cfg(desktop)]
       menu_event_listeners: Vec::new(),
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      tray_icon_event_listeners: Vec::new(),
       enable_macos_default_menu: true,
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
@@ -1665,6 +1617,29 @@ tauri::Builder::default()
     self
   }
 
+  /// Registers an event handler for any tray icon event.
+  ///
+  /// # Examples
+  /// ```
+  /// use tauri::Manager;
+  ///
+  /// tauri::Builder::default()
+  ///   .on_tray_icon_event(|app, event| {
+  ///      let tray = app.tray_by_id(event.id()).expect("can't find tray icon");
+  ///      let _ = tray.set_visible(false);
+  ///   });
+  /// ```
+  #[must_use]
+  #[cfg(all(desktop, feature = "tray-icon"))]
+  #[cfg_attr(docsrs, doc(cfg(all(desktop, feature = "tray-icon"))))]
+  pub fn on_tray_icon_event<F: Fn(&AppHandle<R>, TrayIconEvent) + Send + Sync + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.tray_icon_event_listeners.push(Box::new(f));
+    self
+  }
+
   /// Enable or disable the default menu on macOS. Enabled by default.
   ///
   /// # Examples
@@ -1872,6 +1847,8 @@ tauri::Builder::default()
       self.state,
       #[cfg(desktop)]
       self.menu_event_listeners,
+      #[cfg(all(desktop, feature = "tray-icon"))]
+      self.tray_icon_event_listeners,
       self.window_event_listeners,
       self.webview_event_listeners,
       #[cfg(desktop)]
@@ -2025,10 +2002,12 @@ tauri::Builder::default()
     {
       let config = app.config();
       if let Some(tray_config) = &config.app.tray_icon {
+        #[allow(deprecated)]
         let mut tray =
           TrayIconBuilder::with_id(tray_config.id.clone().unwrap_or_else(|| "main".into()))
             .icon_as_template(tray_config.icon_as_template)
-            .menu_on_left_click(tray_config.menu_on_left_click);
+            .menu_on_left_click(tray_config.menu_on_left_click)
+            .show_menu_on_left_click(tray_config.show_menu_on_left_click);
         if let Some(icon) = &app.manager.tray.icon {
           tray = tray.icon(icon.clone());
         }

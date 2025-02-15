@@ -72,7 +72,7 @@ pub type ChannelInterceptor<R> =
 pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
 
 impl ExitRequestApi {

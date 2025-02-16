@@ -107,7 +107,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
-  update_dylib_path(&bundle_directory, settings)?;
+  update_dylib_path(&app_bundle_path, &bundle_directory, settings)?;
 
   if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
@@ -360,7 +360,11 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   }
 }
 
-fn update_dylib_path(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
+fn update_dylib_path(
+  app_bundle_path: &Path,
+  bundle_directory: &Path,
+  settings: &Settings,
+) -> crate::Result<()> {
   let frameworks = settings
     .macos()
     .frameworks
@@ -428,7 +432,12 @@ fn update_dylib_path(bundle_directory: &Path, settings: &Settings) -> crate::Res
         let depends_on_dylib = dylib_dependency_output_str
           .lines()
           .any(|line| line.contains(dylib_name.to_string_lossy().as_ref()));
-        log::info!("Fix linking for {} depends on {:?} {}", dest_bin_path.display(), dylib_name, depends_on_dylib);
+        log::info!(
+          "Fix linking for {} depends on {:?} {}",
+          dest_bin_path.display(),
+          dylib_name,
+          depends_on_dylib
+        );
         if depends_on_dylib {
           // Set the install_name for the dylib itself
           let status = Command::new("install_name_tool")
@@ -467,23 +476,6 @@ fn update_dylib_path(bundle_directory: &Path, settings: &Settings) -> crate::Res
     }
 
     if has_dylib_changes {
-      let status = Command::new("install_name_tool")
-        .args([
-          "-add_rpath",
-          "@executable_path/../Frameworks",
-          &dest_bin_path.to_string_lossy(),
-        ])
-        .status()
-        .expect("Failed to execute install_name_tool -add_rpath");
-
-      if !status.success() {
-        log::error!("Failed to update linking for {}", dest_bin_path.display());
-        return Err(crate::Error::GenericError(format!(
-          "Failed to update linking for {}",
-          dest_bin_path.display()
-        )));
-      }
-
       let status = Command::new("otool")
         .args(["-L", &dest_bin_path.to_string_lossy()])
         .status()
@@ -498,6 +490,26 @@ fn update_dylib_path(bundle_directory: &Path, settings: &Settings) -> crate::Res
       }
     }
   }
+
+  let status = Command::new("codesign")
+    .args([
+      "--force",
+      "--deep",
+      "--sign",
+      "-",
+      &app_bundle_path.to_string_lossy(),
+    ])
+    .status()
+    .expect("Failed to fix code signature");
+
+  if !status.success() {
+    log::error!("Failed to code signature for {}", app_bundle_path.display());
+    return Err(crate::Error::GenericError(format!(
+      "Failed to code signature for {}",
+      app_bundle_path.display()
+    )));
+  }
+
   Ok(())
 }
 

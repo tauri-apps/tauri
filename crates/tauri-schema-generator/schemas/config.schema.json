@@ -3240,6 +3240,13 @@
             "type": "string"
           }
         },
+        "fixDylibLinking": {
+          "description": "If we need to fix linking of the dylibs deployed above",
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
         "files": {
           "description": "The files to include in the application relative to the Contents directory.",
           "default": {},

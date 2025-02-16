@@ -1421,6 +1421,7 @@ fn tauri_config_to_bundle_settings(
     },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
+      fix_dylib_linking: config.macos.fix_dylib_linking,
       files: config.macos.files,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,

@@ -4,18 +4,18 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
-
 fn main() {
-  let mut app = tauri::Builder::default()
+  let app = tauri::Builder::default()
     .build(tauri::generate_context!(
       "../../examples/run-return/tauri.conf.json"
     ))
     .expect("error while building tauri application");
 
-  let exit_code = app.run_return(|_app, _event| {
-    //println!("{:?}", _event);
-  });
+  let exit_code = app
+    .run_return(|_app, _event| {
+      //println!("{:?}", _event);
+    })
+    .expect("unreachable, we haven't provided a setup fn");
 
   println!("I run after exit");
 

@@ -711,11 +711,26 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
+  ///
+  /// <div class="warning">
+  ///
+  /// To fix [tauri-apps/tauri#12721] `use-after-free`` unsoundness,
+  /// this method is removed and becomes a no-op (Always returns `None`).
+  ///
+  /// If you really want to unmanage a state, use [std::sync::Mutex] and [Option::take] to wrap the state.
+  ///
+  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
+  ///
+  /// </div>
+  #[deprecated(
+    since = "2.3.0",
+    note = "This method is removed and becomes a no-op (Always returns `None`)."
+  )]
   fn unmanage<T>(&self) -> Option<T>
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().unmanage()
+    None
   }
 
   /// Retrieves the managed state for the type `T`.

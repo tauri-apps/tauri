@@ -2831,7 +2831,9 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
-    self.event_loop.run(make_event_handler(&self, callback))
+    let event_handler = make_event_handler(&self, callback);
+
+    self.event_loop.run(event_handler)
   }
 
   #[cfg(desktop)]

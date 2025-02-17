@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use tauri::{
   plugin::{Builder, TauriPlugin},
   Manager, Runtime,
@@ -28,12 +28,12 @@ pub use error::*;
 
 /// Extensions to [`tauri::App`], [`tauri::AppHandle`] and [`tauri::Window`] to access the sample APIs.
 pub trait SampleExt<R: Runtime> {
-  fn sample(&self) -> &Sample<R>;
+  fn sample(&self) -> Arc<Sample<R>>;
 }
 
 impl<R: Runtime, T: Manager<R>> crate::SampleExt<R> for T {
-  fn sample(&self) -> &Sample<R> {
-    self.state::<Sample<R>>().inner()
+  fn sample(&self) -> Arc<Sample<R>> {
+    self.state::<Sample<R>>().into_inner()
   }
 }
 

@@ -15,7 +15,7 @@ fn main() {
   tauri::Builder::default()
     .setup(move |app| {
       let path = app
-        .path()
+        .path_arc()
         .resolve("assets/index.js", tauri::path::BaseDirectory::Resource)
         .unwrap();
 

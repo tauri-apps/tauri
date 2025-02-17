@@ -4,10 +4,11 @@
 
 use std::{
   any::{Any, TypeId},
-  cell::UnsafeCell,
   collections::HashMap,
   hash::BuildHasherDefault,
-  sync::Mutex,
+  marker::PhantomData,
+  ops::Deref,
+  sync::{Arc, Mutex},
 };
 
 use crate::{
@@ -15,33 +16,62 @@ use crate::{
   Runtime,
 };
 
+type Wrapper<T> = Arc<T>;
+
 /// A guard for a state value.
 ///
 /// See [`Manager::manage`](`crate::Manager::manage`) for usage examples.
-pub struct State<'r, T: Send + Sync + 'static>(&'r T);
+pub struct State<'r, T: Send + Sync + 'static>(
+  Wrapper<T>,
+  // 👇 TODO: just for 2.x semantic compatibility, we can't remove `'r` for now
+  PhantomData<&'r ()>,
+);
 
 impl<'r, T: Send + Sync + 'static> State<'r, T> {
   /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
   /// Using this method is typically unnecessary as `State` implements
   /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
+  ///
+  /// <div class="warning">
+  ///
+  /// To fix [tauri-apps/tauri#12721], the internal structure of [State] changed in version `2.3`.
+  /// So This method is equivalent to [Self::into_inner] and [Arc::into_raw] now, which means it may cause memory leaks.
+  /// Please refer to [[Arc::into_raw]] for related limitations.
+  ///
+  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
+  ///
+  /// </div>
   #[inline(always)]
+  #[deprecated(
+    since = "2.3.0",
+    note = "will cause memory leak, use `into_inner` or `Deref::deref` instead"
+  )]
   pub fn inner(&self) -> &'r T {
+    let ptr = Arc::into_raw(self.0.clone());
+    // SAFETY: this ptr is valid, because we just created it;
+    // and the lifetime is 'static (it's leaked), so it's safe to return it.
+    unsafe { &*ptr }
+  }
+
+  /// Retrieve the inner value of the [State].
+  /// For `2.0` semantic compatibility, we cannot directly return [Arc<T>] in [crate::Manager::state].
+  pub fn into_inner(self) -> Arc<T> {
     self.0
   }
 }
 
-impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
+impl<T: Send + Sync + 'static> Deref for State<'_, T> {
   type Target = T;
 
   #[inline(always)]
   fn deref(&self) -> &T {
-    self.0
+    Deref::deref(&self.0)
   }
 }
 
 impl<T: Send + Sync + 'static> Clone for State<'_, T> {
   fn clone(&self) -> Self {
-    State(self.0)
+    State(Wrapper::clone(&self.0), PhantomData)
   }
 }
 
@@ -97,12 +127,13 @@ impl std::hash::Hasher for IdentHash {
   }
 }
 
-type TypeIdMap = HashMap<TypeId, Box<dyn Any>, BuildHasherDefault<IdentHash>>;
+/// The `key` must equal to `value.type_id()`, see the safety doc in methods of [StateManager] for details.
+type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
 #[derive(Debug)]
 pub struct StateManager {
-  map: Mutex<UnsafeCell<TypeIdMap>>,
+  map: Mutex<TypeIdMap>,
 }
 
 // SAFETY: data is accessed behind a lock
@@ -116,37 +147,32 @@ impl StateManager {
     }
   }
 
-  fn with_map_ref<'a, F: FnOnce(&'a TypeIdMap) -> R, R>(&'a self, f: F) -> R {
-    let map = self.map.lock().unwrap();
-    let map = map.get();
-    // SAFETY: safe to access since we are holding a lock
-    f(unsafe { &*map })
-  }
-
-  fn with_map_mut<F: FnOnce(&mut TypeIdMap) -> R, R>(&self, f: F) -> R {
-    let mut map = self.map.lock().unwrap();
-    let map = map.get_mut();
-    f(map)
-  }
-
   pub(crate) fn set<T: Send + Sync + 'static>(&self, state: T) -> bool {
-    self.with_map_mut(|map| {
-      let type_id = TypeId::of::<T>();
-      let already_set = map.contains_key(&type_id);
-      if !already_set {
-        map.insert(type_id, Box::new(state) as Box<dyn Any>);
-      }
-      !already_set
-    })
+    let mut map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<Wrapper<T>>();
+    let already_set = map.contains_key(&type_id);
+    if !already_set {
+      map.insert(
+        type_id,
+        // SAFETY: keep the type of the key is the same as the type of the value，
+        // see following methods for details.
+        Box::new(Wrapper::new(state)) as Box<dyn Any + Sync + Send>,
+      );
+    }
+    !already_set
   }
 
-  pub(crate) fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
-    self.with_map_mut(|map| {
-      let type_id = TypeId::of::<T>();
-      map
-        .remove(&type_id)
-        .and_then(|ptr| ptr.downcast().ok().map(|b| *b))
-    })
+  pub(crate) fn unmanage_arc<T: Send + Sync + 'static>(&self) -> Option<Arc<T>> {
+    let mut map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<Wrapper<T>>();
+    let ptr = map.remove(&type_id)?;
+    let value = unsafe {
+      ptr
+        .downcast::<Wrapper<T>>()
+        // SAFETY: the type of the key is the same as the type of the value
+        .unwrap_unchecked()
+    };
+    Some(*value)
   }
 
   /// Gets the state associated with the specified type.
@@ -158,12 +184,16 @@ impl StateManager {
 
   /// Gets the state associated with the specified type.
   pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
-    self.with_map_ref(|map| {
-      map
-        .get(&TypeId::of::<T>())
-        .and_then(|ptr| ptr.downcast_ref::<T>())
-        .map(State)
-    })
+    let map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<Wrapper<T>>();
+    let ptr = map.get(&type_id)?;
+    let value = unsafe {
+      ptr
+        .downcast_ref::<Wrapper<T>>()
+        // SAFETY: the type of the key is the same as the type of the value
+        .unwrap_unchecked()
+    };
+    Some(State(Wrapper::clone(value), PhantomData))
   }
 }
 
@@ -197,8 +227,8 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
-    assert!(state.unmanage::<u32>().is_some());
-    assert!(state.unmanage::<u32>().is_none());
+    assert!(state.unmanage_arc::<u32>().is_some());
+    assert!(state.unmanage_arc::<u32>().is_none());
     assert_eq!(state.try_get::<u32>(), None);
     assert!(state.set(2u32));
     assert_eq!(*state.get::<u32>(), 2);

@@ -193,7 +193,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt::{self, Debug},
-  sync::MutexGuard,
+  sync::{Arc, MutexGuard},
 };
 use utils::assets::{AssetKey, CspHash, EmbeddedAssets};
 
@@ -710,12 +710,33 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().state().set(state)
   }
 
-  /// Removes the state managed by the application for T. Returns the state if it was actually removed.
+  /// Removes the state managed by the application for T. Returns the state if it was actually removed and no other [Arc] clones exist.
+  ///
+  /// <div class="warning">
+  ///
+  /// To fix [tauri-apps/tauri#12721], the internal structure of [State] changed in version `2.3`.
+  /// So This method is equivalent to [Manager::unmanage_arc] and [Arc::into_inner] now,
+  /// which means that even if the state is actually removed, this method will return None if there are other Arc clones of the state.
+  /// Please refer to [[Arc::into_inner]] for details.
+  ///
+  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
+  ///
+  /// </div>
+  #[deprecated(since = "2.3.0", note = "use `unmanage_arc` instead")]
   fn unmanage<T>(&self) -> Option<T>
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().unmanage()
+    let state = self.unmanage_arc::<T>()?;
+    Arc::into_inner(state)
+  }
+
+  /// Removes the state managed by the application for T. Returns the state if it was actually removed.
+  fn unmanage_arc<T>(&self) -> Option<Arc<T>>
+  where
+    T: Send + Sync + 'static,
+  {
+    self.manager().state().unmanage_arc()
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -750,18 +771,31 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
-    self.state::<Env>().inner().clone()
+    (*self.state::<Env>()).clone()
   }
 
   /// Gets the scope for the asset protocol.
   #[cfg(feature = "protocol-asset")]
   fn asset_protocol_scope(&self) -> scope::fs::Scope {
-    self.state::<Scopes>().inner().asset_protocol.clone()
+    self.state::<Scopes>().asset_protocol.clone()
+  }
+
+  /// The path resolver.(deprecated)
+  /// 
+  /// <div class="warning">
+  ///
+  /// This method will cause a memory leak, See [State::inner] for details.
+  ///
+  /// </div>
+  #[deprecated(since = "2.3.0", note = "use `Manager::path_arc` instead")]
+  fn path(&self) -> &crate::path::PathResolver<R> {
+    #[expect(deprecated)]
+    self.state::<crate::path::PathResolver<R>>().inner()
   }
 
   /// The path resolver.
-  fn path(&self) -> &crate::path::PathResolver<R> {
-    self.state::<crate::path::PathResolver<R>>().inner()
+  fn path_arc(&self) -> Arc<crate::path::PathResolver<R>> {
+    self.state::<crate::path::PathResolver<R>>().into_inner()
   }
 
   /// Adds a capability to the app.

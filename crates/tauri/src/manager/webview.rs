@@ -518,7 +518,7 @@ impl<R: Runtime> WebviewManager<R> {
     // but we do respect user-specification
     #[cfg(any(target_os = "linux", target_os = "windows"))]
     if pending.webview_attributes.data_directory.is_none() {
-      let local_app_data = manager.path().resolve(
+      let local_app_data = manager.path_arc().resolve(
         &app_manager.config.identifier,
         crate::path::BaseDirectory::LocalData,
       );

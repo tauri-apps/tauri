@@ -15,7 +15,7 @@ fn app_should_close(exit_code: i32) {
 #[command]
 async fn read_file<R: Runtime>(app: AppHandle<R>) -> Result<Response, String> {
   let path = app
-    .path()
+    .path_arc()
     .resolve(".tauri_3mb.json", BaseDirectory::Home)
     .map_err(|e| e.to_string())?;
   let contents = read(path).map_err(|e| e.to_string())?;

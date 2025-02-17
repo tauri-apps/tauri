@@ -1981,7 +1981,7 @@ tauri::Builder::default()
       if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
         &app.manager.config().bundle.windows.webview_install_mode
       {
-        if let Ok(resource_dir) = app.path().resource_dir() {
+        if let Ok(resource_dir) = app.path_arc().resource_dir() {
           std::env::set_var(
             "WEBVIEW2_BROWSER_EXECUTABLE_FOLDER",
             resource_dir.join(path),

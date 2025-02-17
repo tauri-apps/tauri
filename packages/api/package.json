@@ -54,7 +54,7 @@
     "eslint-plugin-security": "3.0.1",
     "fast-glob": "3.3.3",
     "globals": "^15.4.0",
-    "rollup": "4.34.7",
+    "rollup": "4.34.8",
     "tslib": "^2.6.3",
     "typescript-eslint": "^8.1.0"
   }

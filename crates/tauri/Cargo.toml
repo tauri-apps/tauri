@@ -226,8 +226,8 @@ name = "multiwindow"
 path = "../../examples/multiwindow/main.rs"
 
 [[example]]
-name = "run-iteration"
-path = "../../examples/run-iteration/main.rs"
+name = "run-return"
+path = "../../examples/run-return/main.rs"
 
 [[example]]
 name = "splashscreen"

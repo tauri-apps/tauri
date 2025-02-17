@@ -2845,7 +2845,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
 }
 
 fn make_event_handler<T, F>(
-  runtime: Wry<T>,
+  runtime: &Wry<T>,
   mut callback: F,
 ) -> impl FnMut(Event<'_, Message<T>>, &EventLoopWindowTarget<Message<T>>, &mut ControlFlow)
 where

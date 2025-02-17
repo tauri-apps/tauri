@@ -213,8 +213,8 @@ pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, UriSchemeContext,
-    UriSchemeResponder, WebviewEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
+    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{

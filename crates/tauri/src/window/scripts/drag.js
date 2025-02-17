@@ -16,11 +16,11 @@
   document.addEventListener('mousedown', (e) => {
     if (
       // element has the magic data attribute
-      e.target.hasAttribute(TAURI_DRAG_REGION_ATTR) &&
+      e.target.hasAttribute(TAURI_DRAG_REGION_ATTR)
       // and was left mouse button
-      e.button === 0 &&
+      && e.button === 0
       // and was normal click to drag or double click to maximize
-      (e.detail === 1 || e.detail === 2)
+      && (e.detail === 1 || e.detail === 2)
     ) {
       // macOS maximization happens on `mouseup`,
       // so we save needed state and early return
@@ -48,14 +48,14 @@
     document.addEventListener('mouseup', (e) => {
       if (
         // element has the magic data attribute
-        e.target.hasAttribute(TAURI_DRAG_REGION_ATTR) &&
+        e.target.hasAttribute(TAURI_DRAG_REGION_ATTR)
         // and was left mouse button
-        e.button === 0 &&
+        && e.button === 0
         // and was double click
-        e.detail === 2 &&
+        && e.detail === 2
         // and the cursor hasn't moved from initial mousedown
-        e.clientX === x &&
-        e.clientY === y
+        && e.clientX === x
+        && e.clientY === y
       ) {
         window.__TAURI_INTERNALS__.invoke(
           'plugin:window|internal_toggle_maximize'

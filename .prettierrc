@@ -1,5 +1,6 @@
 {
   "singleQuote": true,
   "semi": false,
-  "trailingComma": "none"
+  "trailingComma": "none",
+  "experimentalOperatorPosition": "start"
 }

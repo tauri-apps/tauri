@@ -226,16 +226,13 @@ impl<R: Runtime> WebviewManager<R> {
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();
 
-      pending.register_uri_scheme_protocol(
-        uri_scheme.clone(),
-        move |webview_id, request, responder| {
-          let context = UriSchemeContext {
-            app_handle: &app_handle,
-            webview_label: webview_id,
-          };
-          (protocol.protocol)(context, request, UriSchemeResponder(responder))
-        },
-      );
+      pending.register_uri_scheme_protocol(uri_scheme, move |webview_id, request, responder| {
+        let context = UriSchemeContext {
+          app_handle: &app_handle,
+          webview_label: webview_id,
+        };
+        (protocol.protocol)(context, request, UriSchemeResponder(responder))
+      });
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
@@ -314,7 +311,7 @@ impl<R: Runtime> WebviewManager<R> {
         .get::<crate::Scopes>()
         .asset_protocol
         .clone();
-      let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
+      let protocol = crate::protocol::asset::get(asset_scope, window_origin.clone());
       pending.register_uri_scheme_protocol("asset", move |webview_id, request, responder| {
         protocol(webview_id, request, UriSchemeResponder(responder))
       });

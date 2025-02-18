@@ -19,7 +19,7 @@ pub fn get(scope: scope::fs::Scope, window_origin: String) -> UriSchemeProtocolH
           .status(http::StatusCode::INTERNAL_SERVER_ERROR)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
           .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().as_bytes().to_vec())
+          .body(e.to_string().into_bytes())
           .unwrap(),
       ),
     },

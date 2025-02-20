@@ -132,6 +132,23 @@ impl StateManager {
     !already_set
   }
 
+  /// SAFETY: Calling this method will move the `value`,
+  /// which will cause references obtained through [Self::try_get] to dangle.
+  pub(crate) unsafe fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
+    let mut map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<T>();
+    let pinned_ptr = map.remove(&type_id)?;
+    // SAFETY: The caller decides to break the immovability/safety here, then OK, just let it go.
+    let ptr = unsafe { Pin::into_inner_unchecked(pinned_ptr) };
+    let value = unsafe {
+      ptr
+        .downcast::<T>()
+        // SAFETY: the type of the key is the same as the type of the value
+        .unwrap_unchecked()
+    };
+    Some(*value)
+  }
+
   /// Gets the state associated with the specified type.
   pub fn get<T: Send + Sync + 'static>(&self) -> State<'_, T> {
     self
@@ -179,6 +196,19 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
+  }
+
+  #[test]
+  fn simple_set_get_unmanage() {
+    let state = StateManager::new();
+    assert!(state.set(1u32));
+    assert_eq!(*state.get::<u32>(), 1);
+    // safety: the reference returned by `try_get` is already dropped.
+    assert!(unsafe { state.unmanage::<u32>() }.is_some());
+    assert!(unsafe { state.unmanage::<u32>() }.is_none());
+    assert_eq!(state.try_get::<u32>(), None);
+    assert!(state.set(2u32));
+    assert_eq!(*state.get::<u32>(), 2);
   }
 
   #[test]

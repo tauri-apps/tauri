@@ -44,7 +44,7 @@
     "fs-extra": "11.3.0",
     "jest": "29.7.0",
     "jest-transform-toml": "1.0.0",
-    "prettier": "3.4.2"
+    "prettier": "3.5.1"
   },
   "resolutions": {
     "semver": ">=7.5.2",

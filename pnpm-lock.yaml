@@ -85,8 +85,8 @@ importers:
         specifier: 3.3.3
         version: 3.3.3
       globals:
-        specifier: ^15.4.0
-        version: 15.14.0
+        specifier: ^16.0.0
+        version: 16.0.0
       rollup:
         specifier: 4.34.8
         version: 4.34.8
@@ -1153,6 +1153,10 @@ packages:
 
   globals@15.14.0:
     resolution: {integrity: sha512-OkToC372DtlQeje9/zHIo5CT8lRP/FUgEOKBEhU4e0abL7J7CD24fD9ohiLN5hagG/kWCYj4K5oaxxtj2Z0Dig==}
+    engines: {node: '>=18'}
+
+  globals@16.0.0:
+    resolution: {integrity: sha512-iInW14XItCXET01CQFqudPOWP2jYMl7T+QRQT+UNcR/iQncN/F0UNpgd76iFkBPgNQb4+X3LV9tLJYzwh+Gl3A==}
     engines: {node: '>=18'}
 
   graphemer@1.4.0:
@@ -2863,6 +2867,8 @@ snapshots:
   globals@14.0.0: {}
 
   globals@15.14.0: {}
+
+  globals@16.0.0: {}
 
   graphemer@1.4.0: {}
 

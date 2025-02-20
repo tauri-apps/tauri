@@ -6,6 +6,7 @@ use std::{
   any::{Any, TypeId},
   collections::HashMap,
   hash::BuildHasherDefault,
+  pin::Pin,
   sync::Mutex,
 };
 
@@ -98,8 +99,8 @@ impl std::hash::Hasher for IdentHash {
 
 /// Safety:
 /// - The `key` must equal to `(*value).type_id()`, see the safety doc in methods of [StateManager] for details.
-/// - Once you insert a value, you can't remove/mutated it anymore, see [StateManager::try_get] for details.
-type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
+/// - Once you insert a value, you can't remove/mutated/move it anymore, see [StateManager::try_get] for details.
+type TypeIdMap = HashMap<TypeId, Pin<Box<dyn Any + Sync + Send>>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
 #[derive(Debug)]
@@ -119,11 +120,13 @@ impl StateManager {
     let type_id = TypeId::of::<T>();
     let already_set = map.contains_key(&type_id);
     if !already_set {
+      let ptr = Box::new(state) as Box<dyn Any + Sync + Send>;
+      let pinned_ptr = Box::into_pin(ptr);
       map.insert(
         type_id,
         // SAFETY: keep the type of the key is the same as the type of the value，
         // see [try_get] methods for details.
-        Box::new(state) as Box<dyn Any + Sync + Send>,
+        pinned_ptr,
       );
     }
     !already_set
@@ -147,7 +150,7 @@ impl StateManager {
         // SAFETY: the type of the key is the same as the type of the value
         .unwrap_unchecked()
     };
-    // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated
+    // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
     let v_ref = unsafe { &*(value as *const T) };
     Some(State(v_ref))
   }

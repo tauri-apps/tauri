@@ -98,6 +98,7 @@ jobs:
           cargo update -p string_cache_codegen --precise 0.5.2
           cargo update -p openssl --precise 0.10.66
           cargo update -p openssl-sys --precise 0.9.103
+          cargo update -p cargo_toml --precise 0.15.2
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master

@@ -818,13 +818,18 @@ dependencies = [
 
 [[package]]
 name = "ctor"
-version = "0.2.8"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edb49164822f3ee45b17acd4a208cfc1251410cf0cad9a833234c9890774dd9f"
+checksum = "21d960ecacd0a1bf55e73144b72de745e7bf275c7952c50e36e8af0a0cb7ab1f"
 dependencies = [
- "quote",
- "syn 2.0.60",
+ "ctor-proc-macro",
 ]
+
+[[package]]
+name = "ctor-proc-macro"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c426d2ba3e525b39c1f0a9ba41b9fe61878dee11fa4e4a76b6ab440f46c5db5d"
 
 [[package]]
 name = "ctr"

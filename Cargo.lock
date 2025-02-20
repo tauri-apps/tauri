@@ -4252,6 +4252,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "infer"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a588916bfdfd92e71cacef98a63d9b1f0d74d6599980d11894290e7ddefffcf7"
+dependencies = [
+ "cfb",
+]
+
+[[package]]
 name = "inlinable_string"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9498,7 +9507,7 @@ dependencies = [
  "glob",
  "html5ever",
  "http 1.2.0",
- "infer 0.16.0",
+ "infer 0.19.0",
  "json-patch 3.0.1",
  "json5",
  "kuchikiki",

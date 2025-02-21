@@ -47,12 +47,15 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 
   generate_github_mirror_url_from_template(url)
     .or_else(|| generate_github_mirror_url_from_base(url))
-    .map(|alt_url| (ureq::AgentBuilder::new().build(), alt_url))
+    .map(|alt_url| (ureq::agent(), alt_url))
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
   generate_github_alternative_url(url).unwrap_or((
-    ureq::AgentBuilder::new().try_proxy_from_env(true).build(),
+    ureq::Agent::config_builder()
+      .proxy(ureq::Proxy::try_from_env())
+      .build()
+      .into(),
     url.to_owned(),
   ))
 }
@@ -65,7 +68,7 @@ pub fn download(url: &str) -> crate::Result<Vec<u8>> {
 
   let response = agent.get(&final_url).call().map_err(Box::new)?;
   let mut bytes = Vec::new();
-  response.into_reader().read_to_end(&mut bytes)?;
+  response.into_body().into_reader().read_to_end(&mut bytes)?;
   Ok(bytes)
 }
 

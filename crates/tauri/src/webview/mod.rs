@@ -334,11 +334,10 @@ async fn create_window(app: tauri::AppHandle) {
     doc = r####"
 ```
 #[tauri::command]
-async fn reopen_window(app: tauri::AppHandle) {
-  let window = tauri::window::WindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
-    .unwrap()
-    .build()
-    .unwrap();
+async fn create_window(app: tauri::AppHandle) {
+  let window = tauri::window::WindowBuilder::new(&app, "label").build().unwrap();
+  let webview_builder = tauri::webview::WebviewBuilder::from_config(&app.config().app.windows.get(0).unwrap().clone());
+  window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap());
 }
 ```
   "####

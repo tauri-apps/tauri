@@ -41,7 +41,7 @@ regex = "1"
 walkdir = { version = "2", optional = true }
 memchr = "2"
 semver = "1"
-infer = "0.16"
+infer = "0.19"
 dunce = "1"
 log = "0.4.21"
 cargo_metadata = { version = "0.19", optional = true }

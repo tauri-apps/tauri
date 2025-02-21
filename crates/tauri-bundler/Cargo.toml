@@ -32,7 +32,7 @@ tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
 dirs = "6"
 os_pipe = "1"
-ureq = { version = "2", default-features = false, features = ["socks-proxy"] }
+ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
@@ -73,4 +73,4 @@ path = "src/lib.rs"
 default = ["rustls"]
 native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
-rustls = ["ureq/tls"]
+rustls = ["ureq/rustls"]

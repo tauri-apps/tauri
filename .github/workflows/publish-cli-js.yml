@@ -92,7 +92,9 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
@@ -202,7 +204,9 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -233,7 +237,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -270,7 +276,9 @@ jobs:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -361,7 +369,9 @@ jobs:
       id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:

@@ -66,7 +66,9 @@ jobs:
         with:
           targets: ${{ matrix.target.name }}
 
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:

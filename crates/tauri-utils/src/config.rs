@@ -2775,7 +2775,7 @@ where
 ///   "build": {
 ///     "beforeBuildCommand": "",
 ///     "beforeDevCommand": "",
-///     "devUrl": "../dist",
+///     "devUrl": "http://localhost:3000",
 ///     "frontendDist": "../dist"
 ///   },
 ///   "app": {

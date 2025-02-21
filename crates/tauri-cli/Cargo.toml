@@ -70,12 +70,12 @@ tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [
   "config-toml",
 ] }
 toml = "0.8"
-jsonschema = "0.28"
+jsonschema = "0.29"
 handlebars = "6"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.22"
-ureq = { version = "2", default-features = false, features = ["gzip"] }
+ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1"
 regex = "1"
@@ -148,4 +148,4 @@ native-tls = [
   "ureq/native-tls",
 ]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
-rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls"]
+rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]

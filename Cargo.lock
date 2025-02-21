@@ -4625,7 +4625,7 @@ dependencies = [
  "keyboard-types",
  "libxdo",
  "objc2 0.6.0",
- "objc2-app-kit 0.3.0",
+ "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
  "once_cell",
@@ -5045,22 +5045,6 @@ dependencies = [
 
 [[package]]
 name = "objc2-app-kit"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4e89ad9e3d7d297152b17d39ed92cd50ca8063a89a9fa569046d41568891eff"
-dependencies = [
- "bitflags 2.7.0",
- "block2 0.5.1",
- "libc",
- "objc2 0.5.2",
- "objc2-core-data 0.2.2",
- "objc2-core-image 0.2.2",
- "objc2-foundation 0.2.2",
- "objc2-quartz-core 0.2.2",
-]
-
-[[package]]
-name = "objc2-app-kit"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5906f93257178e2f7ae069efb89fbd6ee94f0592740b5f8a1512ca498814d0fb"
@@ -5070,10 +5054,10 @@ dependencies = [
  "libc",
  "objc2 0.6.0",
  "objc2-cloud-kit",
- "objc2-core-data 0.3.0",
+ "objc2-core-data",
  "objc2-core-foundation",
  "objc2-core-graphics",
- "objc2-core-image 0.3.0",
+ "objc2-core-image",
  "objc2-foundation 0.3.0",
  "objc2-quartz-core 0.3.0",
 ]
@@ -5087,18 +5071,6 @@ dependencies = [
  "bitflags 2.7.0",
  "objc2 0.6.0",
  "objc2-foundation 0.3.0",
-]
-
-[[package]]
-name = "objc2-core-data"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "617fbf49e071c178c0b24c080767db52958f716d9eabdf0890523aeae54773ef"
-dependencies = [
- "bitflags 2.7.0",
- "block2 0.5.1",
- "objc2 0.5.2",
- "objc2-foundation 0.2.2",
 ]
 
 [[package]]
@@ -5132,18 +5104,6 @@ dependencies = [
  "objc2 0.6.0",
  "objc2-core-foundation",
  "objc2-io-surface",
-]
-
-[[package]]
-name = "objc2-core-image"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "55260963a527c99f1819c4f8e3b47fe04f9650694ef348ffd2227e8196d34c80"
-dependencies = [
- "block2 0.5.1",
- "objc2 0.5.2",
- "objc2-foundation 0.2.2",
- "objc2-metal",
 ]
 
 [[package]]
@@ -5275,7 +5235,7 @@ dependencies = [
  "bitflags 2.7.0",
  "block2 0.6.0",
  "objc2 0.6.0",
- "objc2-app-kit 0.3.0",
+ "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
  "objc2-security",
@@ -8464,7 +8424,7 @@ dependencies = [
  "mime",
  "muda",
  "objc2 0.6.0",
- "objc2-app-kit 0.3.0",
+ "objc2-app-kit",
  "objc2-foundation 0.3.0",
  "objc2-web-kit",
  "percent-encoding",
@@ -8844,7 +8804,7 @@ dependencies = [
  "jni",
  "log",
  "objc2 0.6.0",
- "objc2-app-kit 0.3.0",
+ "objc2-app-kit",
  "objc2-foundation 0.3.0",
  "percent-encoding",
  "raw-window-handle",
@@ -9476,7 +9436,7 @@ dependencies = [
  "libappindicator",
  "muda",
  "objc2 0.6.0",
- "objc2-app-kit 0.3.0",
+ "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-core-graphics",
  "objc2-foundation 0.3.0",
@@ -10296,13 +10256,14 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "window-vibrancy"
-version = "0.5.2"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ea403deff7b51fff19e261330f71608ff2cdef5721d72b64180bb95be7c4150"
+checksum = "d9bec5a31f3f9362f2258fd0e9c9dd61a9ca432e7306cc78c444258f0dce9a9c"
 dependencies = [
- "objc2 0.5.2",
- "objc2-app-kit 0.2.2",
- "objc2-foundation 0.2.2",
+ "objc2 0.6.0",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-foundation 0.3.0",
  "raw-window-handle",
  "windows-sys 0.59.0",
  "windows-version",
@@ -10906,7 +10867,7 @@ dependencies = [
  "libc",
  "ndk",
  "objc2 0.6.0",
- "objc2-app-kit 0.3.0",
+ "objc2-app-kit",
  "objc2-core-foundation",
  "objc2-foundation 0.3.0",
  "objc2-ui-kit",

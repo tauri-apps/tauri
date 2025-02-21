@@ -116,12 +116,12 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
-window-vibrancy = "0.5"
+window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
 webview2-com = "0.35"
-window-vibrancy = "0.5"
+window-vibrancy = "0.6"
 windows = { version = "0.59", features = ["Win32_Foundation"] }
 
 # mobile

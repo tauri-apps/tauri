@@ -1,7 +1,8 @@
 ---
-tauri: 'patch:enhance'
-tauri-runtime: 'patch:enhance'
-tauri-runtime-wry: 'patch:enhance'
+tauri: 'minor:enhance'
+tauri-runtime: 'minor:enhance'
+tauri-runtime-wry: 'minor:enhance'
+tauri-macos-sign: 'minor:enhance'
 ---
 
-Updated `windows` crate to 0.59 and `webview2-com` crate to 0.35. This can be a **breaking change** if you use the `with_webview` API!
+Updated `wry` to 0.49, `windows` to 0.59, `webview2-com` to 0.35, and `objc2` to 0.6. This can be a **breaking change** if you use the `with_webview` API!

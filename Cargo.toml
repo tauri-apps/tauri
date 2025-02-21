@@ -70,5 +70,3 @@ opt-level = "s"
 [patch.crates-io]
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
-# TODO: REMOVE THIS!!!
-wry = { git = "https://github.com/tauri-apps/wry" }

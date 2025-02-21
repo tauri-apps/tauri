@@ -92,7 +92,7 @@ fn push_pattern<P: AsRef<Path>, F: Fn(&str) -> Result<Pattern, glob::PatternErro
   //   - `C:\\SomeDir`
   #[cfg(windows)]
   {
-    use std::path::{Component, Path, Prefix};
+    use std::path::{Component, Prefix};
 
     let mut components = path.components();
 

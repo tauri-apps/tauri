@@ -141,8 +141,8 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?;
-    file::read_binary(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))}
+    file::read_binary(&resolved_path).with_context(|| format!("path: {}", resolved_path.display()))
+  }
 
   #[module_command_handler(fs_read_file)]
   fn read_text_file<R: Runtime>(
@@ -157,8 +157,8 @@ impl Cmd {
       path,
       options.and_then(|o| o.dir),
     )?;
-    file::read_string(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display()))}
+    file::read_string(&resolved_path).with_context(|| format!("path: {}", resolved_path.display()))
+  }
 
   #[module_command_handler(fs_write_file)]
   fn write_file<R: Runtime>(
@@ -186,7 +186,8 @@ impl Cmd {
       .create(true)
       .truncate(!append)
       .open(&resolved_path)
-      .with_context(|| format!("path: {}", resolved_path.display())).and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
+      .with_context(|| format!("path: {}", resolved_path.display()))
+      .and_then(|mut f| f.write_all(&contents).map_err(|err| err.into()))
   }
 
   #[module_command_handler(fs_read_dir)]
@@ -351,7 +352,8 @@ impl Cmd {
       None => (old_path, new_path),
     };
     fs::rename(&old, &new)
-      .with_context(|| format!("old: {}, new: {}", old.display(), new.display()))}
+      .with_context(|| format!("old: {}, new: {}", old.display(), new.display()))
+  }
 
   #[module_command_handler(fs_exists)]
   fn exists<R: Runtime>(

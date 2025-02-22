@@ -133,7 +133,7 @@ impl From<MessageDialogType> for crate::api::dialog::MessageDialogKind {
 pub enum Cmd {
   /// The open dialog API.
   #[cmd(dialog_open, "dialog > open")]
-  OpenDialog{ options: OpenDialogOptions },
+  OpenDialog { options: OpenDialogOptions },
   /// The save dialog API.
   #[cmd(dialog_save, "dialog > save")]
   SaveDialog { options: SaveDialogOptions },

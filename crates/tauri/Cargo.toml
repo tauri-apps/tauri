@@ -122,7 +122,7 @@ window-vibrancy = "0.5"
 [target."cfg(windows)".dependencies]
 webview2-com = "0.34"
 window-vibrancy = "0.5"
-windows = { version = "0.58", features = ["Win32_Foundation"] }
+windows = { version = "0.60", features = ["Win32_Foundation"] }
 
 # mobile
 [target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]

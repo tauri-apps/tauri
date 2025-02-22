@@ -2628,7 +2628,7 @@ pub struct BuildConfig {
   /// The URL to load in development.
   ///
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
-  /// Most modern JavaScript bundlers like [vite](https://vitejs.dev/guide/) provides a way to start a dev server by default.
+  /// Most modern JavaScript bundlers like [Vite](https://vite.dev/guide/) provides a way to start a dev server by default.
   ///
   /// If you don't have a dev server or don't want to use one, ignore this option and use [`frontendDist`](BuildConfig::frontend_dist)
   /// and point to a web assets directory, and Tauri CLI will run its built-in dev server and provide a simple hot-reload experience.

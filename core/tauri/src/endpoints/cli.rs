@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 #![allow(unused_imports)]
+#![allow(clippy::useless_conversion)]
 
 use super::{InvokeContext, InvokeResponse};
 use crate::Runtime;
@@ -26,6 +27,7 @@ impl Cmd {
         .map(Into::into)
         .map_err(Into::into)
     } else {
+      #[allow(clippy::useless_conversion)]
       Ok(crate::api::cli::Matches::default().into())
     }
   }

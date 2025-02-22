@@ -660,8 +660,8 @@ impl CargoSettings {
     toml_file
       .read_to_string(&mut toml_str)
       .with_context(|| "failed to read Cargo.toml")?;
-    toml::from_str(&toml_str)
-      .with_context(|| "failed to parse Cargo.toml")}
+    toml::from_str(&toml_str).with_context(|| "failed to parse Cargo.toml")
+  }
 }
 
 pub struct RustAppSettings {

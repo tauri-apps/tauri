@@ -11,6 +11,7 @@ use std::{
 };
 
 use ignore::WalkBuilder;
+use walkdir::WalkDir;
 
 use tauri_utils::{
   config::parse::{folder_has_configuration_file, is_configuration_file, ConfigFormat},
@@ -44,33 +45,24 @@ pub fn walk_builder(path: &Path) -> WalkBuilder {
 }
 
 fn lookup<F: Fn(&PathBuf) -> bool>(dir: &Path, checker: F) -> Option<PathBuf> {
-  let mut builder = walk_builder(dir);
-  builder
-    .require_git(false)
-    .ignore(false)
-    .max_depth(Some(
-      std::env::var("TAURI_CLI_CONFIG_DEPTH")
-        .map(|d| {
-          d.parse()
-            .expect("`TAURI_CLI_CONFIG_DEPTH` environment variable must be a positive integer")
-        })
-        .unwrap_or(3),
-    ))
-    .sort_by_file_path(|a, _| {
-      if a.extension().is_some() {
+  let max_depth = std::env::var("TAURI_CLI_CONFIG_DEPTH").map_or(3, |d| {
+    d.parse()
+      .expect("`TAURI_CLI_CONFIG_DEPTH` environment variable must be a positive integer")
+  });
+
+  WalkDir::new(dir)
+    .max_depth(max_depth)
+    .sort_by(|a, _| {
+      if a.path().extension().is_some() {
         Ordering::Less
       } else {
         Ordering::Greater
       }
-    });
-
-  for entry in builder.build().flatten() {
-    let path = dir.join(entry.path());
-    if checker(&path) {
-      return Some(path);
-    }
-  }
-  None
+    })
+    .into_iter()
+    .flatten()
+    .map(|entry| entry.into_path())
+    .find(checker)
 }
 
 fn env_tauri_app_path() -> Option<PathBuf> {

@@ -8329,9 +8329,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.32.0"
+version = "0.32.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d96d84dbf4ad70179129e6533738e30604f8977c8646723da684521645f5f95"
+checksum = "90f2f52ab73ee14226d77836bba7152e1def4a975756101102da6d56c7a1fd59"
 dependencies = [
  "bitflags 2.7.0",
  "core-foundation 0.10.0",

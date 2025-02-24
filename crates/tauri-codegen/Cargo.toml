@@ -13,28 +13,26 @@ edition.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-sha2 = "0.10"
-base64 = "0.22"
-proc-macro2 = "1"
-quote = "1"
-syn = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
+sha2 = { workspace = true }
+base64 = { workspace = true }
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
   "build",
 ] }
-thiserror = "2"
-walkdir = "2"
-brotli = { version = "7", optional = true, default-features = false, features = [
-  "std",
-] }
-regex = { version = "1", optional = true }
-uuid = { version = "1", features = ["v4"] }
-semver = "1"
-ico = "0.4"
-png = "0.17"
-json-patch = "3"
-url = "2"
+thiserror = { workspace = true }
+walkdir = { workspace = true }
+brotli = { workspace = true, features = ["std"], optional = true }
+regex = { workspace = true, optional = true }
+uuid = { workspace = true, features = ["v4"] }
+semver = { workspace = true }
+ico = { workspace = true }
+png = { workspace = true }
+json-patch = { workspace = true }
+url = { workspace = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"

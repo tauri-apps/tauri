@@ -17,27 +17,16 @@ tauri-build = { path = "../../../crates/tauri-build", features = [
 ] }
 
 [dependencies]
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
-tiny_http = "0.11"
-log = "0.4.21"
-tauri-plugin-sample = { path = "./tauri-plugin-sample/" }
-tauri-plugin-log = "2"
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tiny_http = { workspace = true }
+log = { workspace = true }
+tauri-plugin-sample = { workspace = true }
+tauri-plugin-log = { workspace = true }
+tauri= { workspace = true, features = ["protocol-asset", "image-ico", "image-png", "isolation", "macos-private-api", "tray-icon"] }
 
-[dependencies.tauri]
-path = "../../../crates/tauri"
-features = [
-  "protocol-asset",
-  "image-ico",
-  "image-png",
-  "isolation",
-  "macos-private-api",
-  "tray-icon",
-]
-
-[dev-dependencies.tauri]
-path = "../../../crates/tauri"
-features = ["test"]
+[dev-dependencies]
+tauri= { workspace = true, features = ["test"] }
 
 [features]
 prod = ["tauri/custom-protocol"]

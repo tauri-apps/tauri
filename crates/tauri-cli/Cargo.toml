@@ -39,24 +39,24 @@ path = "src/main.rs"
 cargo-mobile2 = { version = "0.17", default-features = false }
 
 [dependencies]
-jsonrpsee = { version = "0.24", features = ["server"] }
-jsonrpsee-core = "0.24"
-jsonrpsee-client-transport = { version = "0.24", features = ["ws"] }
-jsonrpsee-ws-client = { version = "0.24", default-features = false }
-sublime_fuzzy = "0.7"
-clap_complete = "4"
-clap = { version = "4", features = ["derive", "env"] }
-anyhow = "1"
-tauri-bundler = { version = "2.2.3", default-features = false, path = "../tauri-bundler" }
-colored = "2"
-serde = { version = "1", features = ["derive"] }
-serde_json = { version = "1", features = ["preserve_order"] }
-notify = "8"
-notify-debouncer-full = "0.5"
-shared_child = "1"
-duct = "0.13"
-toml_edit = { version = "0.22", features = ["serde"] }
-json-patch = "3"
+jsonrpsee = { workspace = true, features = ["server"] }
+jsonrpsee-core = { workspace = true }
+jsonrpsee-client-transport = { workspace = true, features = ["ws"] }
+jsonrpsee-ws-client = { workspace = true }
+sublime_fuzzy = { workspace = true }
+clap_complete = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
+anyhow = { workspace = true }
+tauri-bundler = { workspace = true }
+colored = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true, features = ["preserve_order"] }
+notify = { workspace = true }
+notify-debouncer-full = { workspace = true }
+shared_child = { workspace = true }
+duct = { workspace = true }
+toml_edit = { workspace = true, features = ["serde"] }
+json-patch = { workspace = true }
 tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
   "isolation",
   "schema",
@@ -69,55 +69,55 @@ tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [
   "config-json5",
   "config-toml",
 ] }
-toml = "0.8"
-jsonschema = "0.29"
-handlebars = "6"
-include_dir = "0.7"
-minisign = "=0.7.3"
-base64 = "0.22"
-ureq = { version = "3", default-features = false, features = ["gzip"] }
-os_info = "3"
-semver = "1"
-regex = "1"
-heck = "0.5"
-dialoguer = "0.11"
-url = { version = "2", features = ["serde"] }
-os_pipe = "1"
-ignore = "0.4"
-ctrlc = "3"
-log = { version = "0.4.21", features = ["kv", "kv_std"] }
-env_logger = "0.11"
+toml = { workspace = true }
+jsonschema = { workspace = true }
+handlebars = { workspace = true }
+include_dir = { workspace = true }
+minisign = { workspace = true }
+base64 = { workspace = true }
+ureq = { workspace = true, features = ["gzip"] }
+os_info = { workspace = true }
+semver = { workspace = true }
+regex = { workspace = true }
+heck = { workspace = true }
+dialoguer = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+os_pipe = { workspace = true }
+ignore = { workspace = true }
+ctrlc = { workspace = true }
+log = { workspace = true, features = ["kv", "kv_std"] }
+env_logger = { workspace = true }
 icns = { package = "tauri-icns", version = "0.1" }
-image = { version = "0.25", default-features = false, features = ["ico"] }
-axum = { version = "0.7", features = ["ws"] }
-html5ever = "0.26"
+image = { workspace = true, features = ["ico"] }
+axum = { workspace = true, features = ["ws"] }
+html5ever = { workspace = true }
 kuchiki = { package = "kuchikiki", version = "0.8" }
-tokio = { version = "1", features = ["macros", "sync"] }
-common-path = "1"
-serde-value = "0.7"
-itertools = "0.13"
-local-ip-address = "0.6"
-css-color = "0.2"
-resvg = "0.44.0"
-dunce = "1"
-glob = "0.3"
+tokio = { workspace = true, features = ["macros", "sync"] }
+common-path = { workspace = true }
+serde-value = { workspace = true }
+itertools = { workspace = true }
+local-ip-address = { workspace = true }
+css-color = { workspace = true }
+resvg = { workspace = true }
+dunce = { workspace = true }
+glob = { workspace = true }
 # 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.77.2 either.
-oxc_parser = "0.36"
-oxc_span = "0.36"
-oxc_allocator = "0.36"
-oxc_ast = "0.36"
-magic_string = "0.3"
-phf = { version = "0.11", features = ["macros"] }
-walkdir = "2"
-elf = "0.7"
-memchr = "2"
-tempfile = "3"
-uuid = { version = "1", features = ["v5"] }
-rand = "0.8"
+oxc_parser = { workspace = true }
+oxc_span = { workspace = true }
+oxc_allocator = { workspace = true }
+oxc_ast = { workspace = true }
+magic_string = { workspace = true }
+phf = { workspace = true, features = ["macros"] }
+walkdir = { workspace = true }
+elf = { workspace = true }
+memchr = { workspace = true }
+tempfile = { workspace = true }
+uuid = { workspace = true, features = ["v5"] }
+rand = { workspace = true }
 
 [dev-dependencies]
-insta = "1"
-pretty_assertions = "1"
+insta = { workspace = true }
+pretty_assertions = { workspace = true }
 
 [target."cfg(windows)".dependencies.windows-sys]
 version = "0.59"

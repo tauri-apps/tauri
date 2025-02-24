@@ -12,5 +12,5 @@ publish = false
 
 [dev-dependencies]
 tauri-utils = { path = "../../tauri-utils/", features = ["build"] }
-serde_json = "1"
-insta = "1"
+serde_json = { workspace = true }
+insta = { workspace = true }

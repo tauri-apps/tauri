@@ -17,20 +17,15 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.48.1", default-features = false, features = [
-  "drag-drop",
-  "protocol",
-  "os-webview",
-  "linux-body",
-] }
-tao = { version = "0.31.0", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.3.0", path = "../tauri-runtime" }
+wry = { workspace = true, features = ["drag-drop", "protocol", "os-webview", "linux-body"] }
+tao = { workspace = true, features = ["rwh_06"] }
+tauri-runtime = { workspace = true }
 tauri-utils = { version = "2.1.1", path = "../tauri-utils" }
-raw-window-handle = "0.6"
-http = "1"
-url = "2"
-tracing = { version = "0.1", optional = true }
-log = "0.4.21"
+raw-window-handle = { workspace = true }
+http = { workspace = true }
+url = { workspace = true }
+tracing = { workspace = true, optional = true }
+log = { workspace = true }
 
 [target."cfg(windows)".dependencies]
 webview2-com = "0.34"

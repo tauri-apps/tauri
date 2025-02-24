@@ -18,31 +18,31 @@ exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
   "resources",
 ] }
-image = "0.25"
-flate2 = "1"
-anyhow = "1"
-thiserror = "2"
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
-strsim = "0.11"
-tar = "0.4"
-walkdir = "2"
-handlebars = "6"
-tempfile = "3"
-log = { version = "0.4.21", features = ["kv"] }
-dirs = "6"
-os_pipe = "1"
-ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
-native-tls = { version = "0.2", optional = true }
-hex = "0.4"
-semver = "1"
-sha1 = "0.10"
-sha2 = "0.10"
-zip = { version = "2", default-features = false, features = ["deflate"] }
-dunce = "1"
-url = "2"
-uuid = { version = "1", features = ["v4", "v5"] }
-regex = "1"
+image = { workspace = true }
+flate2 = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+strsim = { workspace = true }
+tar = { workspace = true }
+walkdir = { workspace = true }
+handlebars = { workspace = true }
+tempfile = { workspace = true }
+log = { workspace = true, features = ["kv"] }
+dirs = { workspace = true }
+os_pipe = { workspace = true }
+ureq = { workspace = true, features = ["socks-proxy"] }
+native-tls = { workspace = true, optional = true }
+hex = { workspace = true }
+semver = { workspace = true }
+sha1 = { workspace = true }
+sha2 = { workspace = true }
+zip = { workspace = true, features = ["deflate"] }
+dunce = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true, features = ["v4", "v5"] }
+regex = { workspace = true }
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"

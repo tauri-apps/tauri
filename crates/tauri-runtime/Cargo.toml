@@ -26,14 +26,14 @@ targets = [
 ]
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-thiserror = "2"
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 tauri-utils = { version = "2.1.1", path = "../tauri-utils" }
-http = "1"
-raw-window-handle = "0.6"
-url = { version = "2" }
-dpi = { version = "0.1", features = ["serde"] }
+http = { workspace = true }
+raw-window-handle = { workspace = true }
+url = { workspace = true }
+dpi = { workspace = true, features = ["serde"] }
 
 [target."cfg(windows)".dependencies.windows]
 version = "0.58"

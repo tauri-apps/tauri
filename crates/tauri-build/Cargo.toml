@@ -26,26 +26,26 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-anyhow = "1"
-quote = { version = "1", optional = true }
-tauri-codegen = { version = "2.0.4", path = "../tauri-codegen", optional = true }
+anyhow = { workspace = true }
+quote = { workspace = true, optional = true }
+tauri-codegen = { workspace = true, optional = true }
 tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
   "build",
   "resources",
 ] }
-cargo_toml = "0.21"
-serde = "1"
-serde_json = "1"
-heck = "0.5"
-json-patch = "3"
-walkdir = "2"
-tauri-winres = "0.3"
-semver = "1"
-dirs = "6"
-glob = "0.3"
-toml = "0.8"
+cargo_toml = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+heck = { workspace = true }
+json-patch = { workspace = true }
+walkdir = { workspace = true }
+tauri-winres = { workspace = true }
+semver = { workspace = true }
+dirs = { workspace = true }
+glob = { workspace = true }
+toml = { workspace = true }
 # Our code requires at least 0.8.18 so don't simplify this to 0.8
-schemars = { version = "0.8.18", features = ["preserve_order"] }
+schemars = { workspace = true, features = ["preserve_order"] }
 
 [features]
 default = ["config-json"]

@@ -10,17 +10,17 @@ edition = "2021"
 rust-version = "1.77.2"
 
 [dependencies]
-anyhow = "1"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tempfile = "3"
-x509-certificate = "0.23"
-once-cell-regex = "0.2"
-os_pipe = "1"
-plist = "1"
-rand = "0.8"
-dirs = "6"
-log = { version = "0.4.21", features = ["kv"] }
-apple-codesign = "0.27"
-chrono = "0.4"
-p12 = "0.6"
+anyhow = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+x509-certificate = { workspace = true }
+once-cell-regex = { workspace = true }
+os_pipe = { workspace = true }
+plist = { workspace = true }
+rand = { workspace = true }
+dirs = { workspace = true }
+log = { workspace = true, features = ["kv"] }
+apple-codesign = { workspace = true }
+chrono = { workspace = true }
+p12 = { workspace = true }

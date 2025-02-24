@@ -43,47 +43,38 @@ build = ["tauri-build"]
 development = ["quickcheck_macros"]
 
 [dependencies]
-serde_json = { version = "1", features = ["raw_value"] }
-serde = { version = "1", features = ["derive", "rc"] }
-tokio = { version = "1", features = [
-  "rt",
-  "rt-multi-thread",
-  "sync",
-  "fs",
-  "io-util",
-] }
-futures-util = "0.3"
-uuid = { version = "1", features = ["v4"], optional = true }
-url = "2"
-anyhow = "1"
-thiserror = "2"
-tauri-runtime = { version = "2.3.0", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.4", path = "../tauri-macros" }
+serde_json = { workspace = true, features = ["raw_value"] }
+serde = { workspace = true, features = ["derive", "rc"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "sync", "fs", "io-util"] }
+futures-util = { workspace = true }
+uuid = { workspace = true, features = ["v4"], optional = true }
+url = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tauri-runtime = { workspace = true }
+tauri-macros = { workspace = true }
 tauri-utils = { version = "2.1.1", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.3.0", path = "../tauri-runtime-wry", optional = true }
-getrandom = "0.2"
-serde_repr = "0.1"
-http = "1"
-dirs = "6"
-percent-encoding = "2"
-raw-window-handle = { version = "0.6", features = ["std"] }
-glob = "0.3"
-urlpattern = "0.3"
-mime = "0.3"
-data-url = { version = "0.3", optional = true }
-serialize-to-javascript = "=0.1.1"
-image = { version = "0.25", default-features = false, optional = true }
-http-range = { version = "0.1", optional = true }
-tracing = { version = "0.1", optional = true }
-heck = "0.5"
-log = "0.4.21"
-dunce = "1"
-specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
-  "function",
-  "derive",
-] }
+tauri-runtime-wry = { workspace = true, optional = true }
+getrandom = { workspace = true }
+serde_repr = { workspace = true }
+http = { workspace = true }
+dirs = { workspace = true }
+percent-encoding = { workspace = true }
+raw-window-handle = { workspace = true, features = ["std"] }
+glob = { workspace = true }
+urlpattern = { workspace = true }
+mime = { workspace = true }
+data-url = { workspace = true, optional = true }
+serialize-to-javascript = { workspace = true }
+image = { workspace = true, optional = true }
+http-range = { workspace = true, optional = true }
+tracing = { workspace = true, optional = true }
+heck = { workspace = true }
+log = { workspace = true }
+dunce = { workspace = true }
+specta = { workspace = true, features = ["function", "derive"], optional = true }
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
@@ -143,23 +134,23 @@ libc = "0.2"
 swift-rs = "1"
 
 [build-dependencies]
-glob = "0.3"
-heck = "0.5"
+glob = { workspace = true }
+heck = { workspace = true }
 tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.5" }
 tauri-utils = { path = "../tauri-utils/", version = "2.1.1", features = [
   "build",
 ] }
 
 [dev-dependencies]
-proptest = "1.6.0"
-quickcheck = "1.0.3"
-quickcheck_macros = "1.0.0"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tauri = { path = ".", default-features = false, features = ["wry"] }
-tokio = { version = "1", features = ["full"] }
-cargo_toml = "0.21"
-http-range = "0.1.5"
+proptest = { workspace = true }
+quickcheck = { workspace = true }
+quickcheck_macros = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tauri = { workspace = true, features = ["wry"] }
+tokio = { workspace = true, features = ["full"] }
+cargo_toml = { workspace = true }
+http-range = { workspace = true }
 
 # macOS
 [target.'cfg(target_os = "macos")'.dev-dependencies]

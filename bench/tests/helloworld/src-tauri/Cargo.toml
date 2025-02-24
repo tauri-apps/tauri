@@ -11,6 +11,6 @@ tauri-build = { path = "../../../../crates/tauri-build", features = [
 ] }
 
 [dependencies]
-serde_json = "1"
-serde = { version = "1", features = ["derive"] }
-tauri = { path = "../../../../crates/tauri", features = [] }
+serde_json = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tauri = { workspace = true, features = [] }

@@ -11,11 +11,9 @@ fn main() {
     ))
     .expect("error while building tauri application");
 
-  let exit_code = app
-    .run_return(|_app, _event| {
-      //println!("{:?}", _event);
-    })
-    .expect("unreachable, we haven't provided a setup fn");
+  let exit_code = app.run_return(|_app, _event| {
+    //println!("{:?}", _event);
+  });
 
   println!("I run after exit");
 

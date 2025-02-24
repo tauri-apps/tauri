@@ -1106,31 +1106,37 @@ impl<R: Runtime> App<R> {
   ///      api.prevent_exit();
   ///     }
   ///      _ => {}
-  ///   })
-  ///   .unwrap();
+  ///   });
   ///
   /// std::process::exit(exit_code);
   /// ```
   #[cfg(desktop)]
-  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
-    mut self,
-    mut callback: F,
-  ) -> std::result::Result<i32, Box<dyn std::error::Error>> {
+  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) -> i32 {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
 
-    if !self.ran_setup {
-      setup(&mut self)?;
-    }
-
-    let exit_code = self.runtime.take().unwrap().run_return(move |event| {
-      let event = on_event_loop_event(&app_handle, event, &manager);
-      callback(&app_handle, event);
-    });
-
-    self.cleanup_before_exit();
-
-    Ok(exit_code)
+    self
+      .runtime
+      .take()
+      .unwrap()
+      .run_return(move |event| match event {
+        RuntimeRunEvent::Ready => {
+          if let Err(e) = setup(&mut self) {
+            panic!("Failed to setup app: {e}");
+          }
+          let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
+          callback(&app_handle, event);
+        }
+        RuntimeRunEvent::Exit => {
+          let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
+          callback(&app_handle, event);
+          app_handle.cleanup_before_exit();
+        }
+        _ => {
+          let event = on_event_loop_event(&app_handle, event, &manager);
+          callback(&app_handle, event);
+        }
+      })
   }
 
   /// Runs an iteration of the runtime event loop and immediately return.

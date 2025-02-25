@@ -73,6 +73,7 @@ fn new<R: Runtime>(
   if let Some(title) = options.title {
     builder = builder.title(title);
   }
+  #[cfg(not(feature = "linux-ksni"))]
   if let Some(temp_dir_path) = options.temp_dir_path {
     builder = builder.temp_dir_path(temp_dir_path);
   }
@@ -191,6 +192,7 @@ fn set_visible<R: Runtime>(
   tray.set_visible(visible)
 }
 
+#[cfg(not(feature = "linux-ksni"))]
 #[command(root = "crate")]
 fn set_temp_dir_path<R: Runtime>(
   webview: Webview<R>,
@@ -235,6 +237,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_tooltip,
       set_title,
       set_visible,
+      #[cfg(not(feature = "linux-ksni"))]
       set_temp_dir_path,
       set_icon_as_template,
       set_show_menu_on_left_click,

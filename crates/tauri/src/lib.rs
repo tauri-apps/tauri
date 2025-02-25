@@ -35,6 +35,7 @@
 //! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
+//! - **linux-ksni**: Enables the experimental `linux-ksni` feature of the `tray-icon` crate, which uses the xdg standard for system tray icons on Linux.
 //!
 //! ## Cargo allowlist features
 //!

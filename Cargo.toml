@@ -70,3 +70,5 @@ opt-level = "s"
 [patch.crates-io]
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
+tray-icon = { git = "https://github.com/dfaust/tray-icon", branch = "ksni" }
+muda = { git = "https://github.com/dfaust/muda", branch = "ksni" }

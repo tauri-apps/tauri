@@ -25,6 +25,7 @@ features = [
   "protocol-asset",
   "test",
   "specta",
+  "linux-ksni",
 ]
 rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
@@ -182,7 +183,7 @@ test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["tauri-runtime-wry"]
 objc-exception = ["tauri-runtime-wry/objc-exception"]
-linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
+linux-libxdo = ["muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
 # TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384
@@ -206,6 +207,7 @@ image-ico = ["image/ico"]
 image-png = ["image/png"]
 macos-proxy = ["tauri-runtime-wry/macos-proxy"]
 specta = ["dep:specta"]
+linux-ksni = ["tray-icon?/linux-ksni"]
 
 [[example]]
 name = "commands"

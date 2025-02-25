@@ -218,11 +218,6 @@ pub struct TrayIconBuilder<R: Runtime> {
 
 impl<R: Runtime> TrayIconBuilder<R> {
   /// Creates a new tray icon builder.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  ///   Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn new() -> Self {
     Self {
       inner: tray_icon::TrayIconBuilder::new(),
@@ -232,11 +227,6 @@ impl<R: Runtime> TrayIconBuilder<R> {
   }
 
   /// Creates a new tray icon builder with the specified id.
-  ///
-  /// ## Platform-specific:
-  ///
-  /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
-  ///   Setting an empty [`Menu`](crate::menu::Menu) is enough.
   pub fn with_id<I: Into<TrayIconId>>(id: I) -> Self {
     let mut builder = Self::new();
     builder.inner = builder.inner.with_id(id);
@@ -259,6 +249,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// - **Linux:** Sometimes the icon won't be visible unless a menu is set.
   ///   Setting an empty [`Menu`](crate::menu::Menu) is enough.
+  ///   Works with feature `linux-ksni`.
   pub fn icon(mut self, icon: Image<'_>) -> Self {
     let icon = icon.try_into().ok();
     if let Some(icon) = icon {
@@ -271,7 +262,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux:** Unsupported.
+  /// - **Linux:** Unsupported. Works with feature `linux-ksni`.
   pub fn tooltip<S: AsRef<str>>(mut self, s: S) -> Self {
     self.inner = self.inner.with_tooltip(s);
     self
@@ -286,6 +277,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
   ///   updated information.  In general, it shouldn't be shown unless a
   ///   user requests it as it can take up a significant amount of space
   ///   on the user's panel.  This may not be shown in all visualizations.
+  ///   Works with feature `linux-ksni`.
   /// - **Windows:** Unsupported.
   pub fn title<S: AsRef<str>>(mut self, title: S) -> Self {
     self.inner = self.inner.with_title(title);
@@ -294,8 +286,11 @@ impl<R: Runtime> TrayIconBuilder<R> {
 
   /// Set tray icon temp dir path. **Linux only**.
   ///
+  /// Not availabe with feature `linux-ksni`.
+  ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  #[cfg(not(feature = "linux-ksni"))]
   pub fn temp_dir_path<P: AsRef<Path>>(mut self, s: P) -> Self {
     self.inner = self.inner.with_temp_dir_path(s);
     self
@@ -509,7 +504,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux**: once a menu is set it cannot be removed so `None` has no effect
+  /// - **Linux**: Once a menu is set it cannot be removed so `None` has no effect. Works with feature `linux-ksni`.
   pub fn set_menu<M: ContextMenu + 'static>(&self, menu: Option<M>) -> crate::Result<()> {
     run_item_main_thread!(self, |self_: Self| {
       self_.inner.set_menu(menu.map(|m| m.inner_context_owned()))
@@ -520,7 +515,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///
   /// ## Platform-specific:
   ///
-  /// - **Linux:** Unsupported
+  /// - **Linux:** Unsupported. Works with feature `linux-ksni`.
   pub fn set_tooltip<S: AsRef<str>>(&self, tooltip: Option<S>) -> crate::Result<()> {
     let s = tooltip.map(|s| s.as_ref().to_string());
     run_item_main_thread!(self, |self_: Self| self_.inner.set_tooltip(s))?.map_err(Into::into)
@@ -535,6 +530,7 @@ impl<R: Runtime> TrayIcon<R> {
   ///   updated information.  In general, it shouldn't be shown unless a
   ///   user requests it as it can take up a significant amount of space
   ///   on the user's panel.  This may not be shown in all visualizations.
+  ///   Works with feature `linux-ksni`.
   /// - **Windows:** Unsupported
   pub fn set_title<S: AsRef<str>>(&self, title: Option<S>) -> crate::Result<()> {
     let s = title.map(|s| s.as_ref().to_string());
@@ -548,8 +544,11 @@ impl<R: Runtime> TrayIcon<R> {
 
   /// Sets the tray icon temp dir path. **Linux only**.
   ///
+  /// Not availabe with feature `linux-ksni`.
+  ///
   /// On Linux, we need to write the icon to the disk and usually it will
   /// be `$XDG_RUNTIME_DIR/tray-icon` or `$TEMP/tray-icon`.
+  #[cfg(not(feature = "linux-ksni"))]
   pub fn set_temp_dir_path<P: AsRef<Path>>(&self, path: Option<P>) -> crate::Result<()> {
     #[allow(unused)]
     let p = path.map(|p| p.as_ref().to_path_buf());

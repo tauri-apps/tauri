@@ -1056,6 +1056,10 @@ impl<R: Runtime> App<R> {
 
   /// Runs the application.
   ///
+  /// # Panics
+  ///
+  /// This function will panic if the setup-function supplied in [`Builder::setup`] fails.
+  ///
   /// # Examples
   /// ```,no_run
   /// let app = tauri::Builder::default()
@@ -1093,6 +1097,10 @@ impl<R: Runtime> App<R> {
   }
 
   /// Runs the application, returning the exit code to use.
+  ///
+  /// # Panics
+  ///
+  /// This function will panic if the setup-function supplied in [`Builder::setup`] fails.
   ///
   /// # Examples
   /// ```,no_run

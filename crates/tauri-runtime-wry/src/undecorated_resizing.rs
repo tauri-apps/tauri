@@ -109,7 +109,7 @@ mod windows {
     let parent = HWND(hwnd as _);
 
     // return early if we already attached
-    if unsafe { FindWindowExW(parent, HWND::default(), CLASS_NAME, WINDOW_NAME) }.is_ok() {
+    if unsafe { FindWindowExW(Some(parent), None, CLASS_NAME, WINDOW_NAME) }.is_ok() {
       return;
     }
 
@@ -145,9 +145,9 @@ mod windows {
         0,
         width,
         height,
-        parent,
-        HMENU::default(),
-        GetModuleHandleW(PCWSTR::null()).unwrap_or_default(),
+        Some(parent),
+        None,
+        GetModuleHandleW(None).ok().map(|h| HINSTANCE(h.0)),
         None,
       )
     }) else {
@@ -159,7 +159,7 @@ mod windows {
 
       let _ = SetWindowPos(
         drag_window,
-        HWND_TOP,
+        Some(HWND_TOP),
         0,
         0,
         0,
@@ -190,7 +190,7 @@ mod windows {
       if is_maximized(parent).unwrap_or(false) {
         let _ = SetWindowPos(
           child,
-          HWND_TOP,
+          Some(HWND_TOP),
           0,
           0,
           0,
@@ -205,7 +205,7 @@ mod windows {
 
           let _ = SetWindowPos(
             child,
-            HWND_TOP,
+            Some(HWND_TOP),
             0,
             0,
             width,
@@ -306,7 +306,7 @@ mod windows {
           };
 
           let _ = PostMessageW(
-            parent,
+            Some(parent),
             WM_NCLBUTTONDOWN,
             WPARAM(res.to_win32() as _),
             LPARAM(&points as *const _ as _),
@@ -325,8 +325,7 @@ mod windows {
   pub fn detach_resize_handler(hwnd: isize) {
     let hwnd = HWND(hwnd as _);
 
-    let Ok(child) = (unsafe { FindWindowExW(hwnd, HWND::default(), CLASS_NAME, WINDOW_NAME) })
-    else {
+    let Ok(child) = (unsafe { FindWindowExW(Some(hwnd), None, CLASS_NAME, WINDOW_NAME) }) else {
       return;
     };
 
@@ -340,8 +339,8 @@ mod windows {
 
     let hrgn1 = CreateRectRgn(0, 0, width, height);
     let hrgn2 = CreateRectRgn(border_x, border_y, width - border_x, height - border_y);
-    CombineRgn(hrgn1, hrgn1, hrgn2, RGN_DIFF);
-    SetWindowRgn(hwnd, hrgn1, true);
+    CombineRgn(Some(hrgn1), Some(hrgn1), Some(hrgn2), RGN_DIFF);
+    SetWindowRgn(hwnd, Some(hrgn1), true);
   }
 
   fn is_maximized(window: HWND) -> windows::core::Result<bool> {

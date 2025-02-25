@@ -219,6 +219,7 @@ fn sign_updaters(
           | PackageType::WindowsMsi
           | PackageType::AppImage
           | PackageType::Deb
+          | PackageType::Rpm
       )
     })
     .collect();

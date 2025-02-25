@@ -87,8 +87,8 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.15", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.19", default-features = false, features = [
+muda = { version = "0.16", default-features = false, features = ["serde"] }
+tray-icon = { version = "0.20", default-features = false, features = [
   "serde",
 ], optional = true }
 
@@ -101,13 +101,13 @@ webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
 plist = "1"
-objc2 = "0.5"
-objc2-foundation = { version = "0.2", default-features = false, features = [
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = [
   "std",
   "NSData",
   "NSThread",
 ] }
-objc2-app-kit = { version = "0.2", default-features = false, features = [
+objc2-app-kit = { version = "0.3", default-features = false, features = [
   "std",
   "NSApplication",
   "NSColor",
@@ -116,13 +116,13 @@ objc2-app-kit = { version = "0.2", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
-window-vibrancy = "0.5"
+window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = "0.34"
-window-vibrancy = "0.5"
-windows = { version = "0.58", features = ["Win32_Foundation"] }
+webview2-com = "0.36"
+window-vibrancy = "0.6"
+windows = { version = "0.60", features = ["Win32_Foundation"] }
 
 # mobile
 [target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
@@ -163,14 +163,14 @@ http-range = "0.1.5"
 
 # macOS
 [target.'cfg(target_os = "macos")'.dev-dependencies]
-objc2-web-kit = { version = "0.2", features = [
+objc2-web-kit = { version = "0.3", features = [
   "objc2-app-kit",
   "WKWebView",
   "WKUserContentController",
 ] }
 
 [features]
-default = ["wry", "compression", "objc-exception", "common-controls-v6"]
+default = ["wry", "compression", "common-controls-v6"]
 unstable = ["tauri-runtime-wry/unstable"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
@@ -181,7 +181,8 @@ tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["tauri-runtime-wry"]
-objc-exception = ["tauri-runtime-wry/objc-exception"]
+# TODO: Remove in v3 - wry does not have this feature anymore
+objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]

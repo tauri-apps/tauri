@@ -43,7 +43,7 @@ jobs:
           - host: windows-latest
             architecture: x64
             target: aarch64-pc-windows-msvc
-            build: pnpm build --target aarch64-pc-windows-msvc --features native-tls-vendored --cargo-flags="--no-default-features"
+            build: pnpm build --target aarch64-pc-windows-msvc
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian

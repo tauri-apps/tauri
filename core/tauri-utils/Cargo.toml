@@ -30,7 +30,7 @@ serialize-to-javascript = { version = "=0.1.2", optional = true }
 ctor = "0.2"
 json5 = { version = "0.4", optional = true }
 toml = { version = "0.7", optional = true } # the other used toml crates still use 0.7
-json-patch = "2"
+json-patch = "4"
 glob = { version = "0.3", optional = true }
 walkdir = { version = "2", optional = true }
 memchr = "2"

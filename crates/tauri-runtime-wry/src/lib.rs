@@ -39,7 +39,7 @@ use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
-use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+use windows::Win32::Foundation::HWND;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use wry::WebViewBuilderExtDarwin;
 #[cfg(windows)]
@@ -4500,7 +4500,7 @@ fn create_webview<T: UserEvent>(
     let proxy = context.proxy.clone();
     let proxy_ = proxy.clone();
     let window_id_ = window_id.clone();
-    let mut token = EventRegistrationToken::default();
+    let mut token = 0;
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {

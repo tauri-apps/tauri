@@ -218,6 +218,7 @@ pub struct WebviewAttributes {
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
+  pub javascript_disabled: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -285,6 +286,7 @@ impl WebviewAttributes {
       devtools: None,
       background_color: None,
       background_throttling: None,
+      javascript_disabled: false,
     }
   }
 

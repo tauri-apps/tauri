@@ -4201,6 +4201,10 @@ fn create_webview<T: UserEvent>(
     });
   }
 
+  if webview_attributes.javascript_disabled {
+    webview_builder = webview_builder.with_javascript_disabled();
+  }
+
   if let Some(color) = webview_attributes.background_color {
     webview_builder = webview_builder.with_background_color(color.into());
   }

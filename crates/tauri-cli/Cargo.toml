@@ -98,7 +98,7 @@ serde-value = "0.7"
 itertools = "0.13"
 local-ip-address = "0.6"
 css-color = "0.2"
-resvg = "0.44.0"
+resvg = "0.45.0"
 dunce = "1"
 glob = "0.3"
 # 0.39 raised msrv to above 1.78 but 0.37+ can't compile on 1.77.2 either.

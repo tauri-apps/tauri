@@ -143,6 +143,11 @@ mod windows {
     let width = rect.right - rect.left;
     let height = rect.bottom - rect.top;
 
+    let data = UndecoratedResizingData {
+      child: HWND::default(),
+      has_undecorated_shadows,
+    };
+
     let Ok(drag_window) = (unsafe {
       CreateWindowExW(
         WINDOW_EX_STYLE::default(),
@@ -156,7 +161,7 @@ mod windows {
         Some(parent),
         None,
         GetModuleHandleW(None).ok().map(|h| HINSTANCE(h.0)),
-        None,
+        Some(Box::into_raw(Box::new(data)) as _),
       )
     }) else {
       return;
@@ -261,7 +266,17 @@ mod windows {
     lparam: LPARAM,
   ) -> LRESULT {
     match msg {
+      WM_CREATE => {
+        let data = lparam.0 as *mut CREATESTRUCTW;
+        let data = (*data).lpCreateParams as *mut UndecoratedResizingData;
+        (*data).child = child;
+        SetWindowLongPtrW(child, GWLP_USERDATA, data as _);
+      }
+
       WM_NCHITTEST => {
+        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+        let data = &*(data as *mut UndecoratedResizingData);
+
         let Ok(parent) = GetParent(child) else {
           return DefWindowProcW(child, msg, wparam, lparam);
         };
@@ -271,6 +286,13 @@ mod windows {
         let is_resizable = (style & WS_SIZEBOX).0 != 0;
         if !is_resizable {
           return DefWindowProcW(child, msg, wparam, lparam);
+        }
+
+        // if the window has undecorated shadows,
+        // it should always be the top border,
+        // ensured by the cutout drag window
+        if data.has_undecorated_shadows {
+          return LRESULT(HTTOP as _);
         }
 
         let mut rect = RECT::default();
@@ -299,6 +321,9 @@ mod windows {
       }
 
       WM_NCLBUTTONDOWN => {
+        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+        let data = &*(data as *mut UndecoratedResizingData);
+
         let Ok(parent) = GetParent(child) else {
           return DefWindowProcW(child, msg, wparam, lparam);
         };
@@ -310,27 +335,34 @@ mod windows {
           return DefWindowProcW(child, msg, wparam, lparam);
         }
 
-        let mut rect = RECT::default();
-        if GetWindowRect(child, &mut rect).is_err() {
-          return DefWindowProcW(child, msg, wparam, lparam);
-        }
-
         let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
 
-        let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
-        let border_x = GetSystemMetrics(SM_CXFRAME) + padded_border;
-        let border_y = GetSystemMetrics(SM_CYFRAME) + padded_border;
+        // if the window has undecorated shadows,
+        // it should always be the top border,
+        // ensured by the cutout drag window
+        let res = if data.has_undecorated_shadows {
+          HitTestResult::Top
+        } else {
+          let mut rect = RECT::default();
+          if GetWindowRect(child, &mut rect).is_err() {
+            return DefWindowProcW(child, msg, wparam, lparam);
+          }
 
-        let res = hit_test(
-          rect.left,
-          rect.top,
-          rect.right,
-          rect.bottom,
-          cx,
-          cy,
-          border_x,
-          border_y,
-        );
+          let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
+          let border_x = GetSystemMetrics(SM_CXFRAME) + padded_border;
+          let border_y = GetSystemMetrics(SM_CYFRAME) + padded_border;
+
+          hit_test(
+            rect.left,
+            rect.top,
+            rect.right,
+            rect.bottom,
+            cx,
+            cy,
+            border_x,
+            border_y,
+          )
+        };
 
         if res != HitTestResult::NoWhere {
           let points = POINTS {
@@ -347,6 +379,18 @@ mod windows {
         }
 
         return LRESULT(0);
+      }
+
+      WM_UPDATE_UNDECORATED_SHADOWS => {
+        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+        let data = &mut *(data as *mut UndecoratedResizingData);
+        data.has_undecorated_shadows = wparam.0 != 0;
+      }
+
+      WM_DESTROY => {
+        let data = GetWindowLongPtrW(child, GWLP_USERDATA);
+        let data = data as *mut UndecoratedResizingData;
+        drop(Box::from_raw(data));
       }
 
       _ => {}
@@ -408,6 +452,14 @@ mod windows {
     unsafe {
       SendMessageW(
         hwnd,
+        WM_UPDATE_UNDECORATED_SHADOWS,
+        None,
+        Some(LPARAM(has_undecorated_shadows as _)),
+      )
+    };
+    unsafe {
+      SendMessageW(
+        child,
         WM_UPDATE_UNDECORATED_SHADOWS,
         None,
         Some(LPARAM(has_undecorated_shadows as _)),

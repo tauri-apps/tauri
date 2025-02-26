@@ -1098,6 +1098,10 @@ impl<R: Runtime> App<R> {
 
   /// Runs the application, returning the exit code to use.
   ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android**: Unsupported.
+  ///
   /// # Panics
   ///
   /// This function will panic if the setup-function supplied in [`Builder::setup`] fails.

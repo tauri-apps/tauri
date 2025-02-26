@@ -57,8 +57,6 @@ jobs:
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
-              npm i -g --force corepack
-              corepack enable
               cd packages/cli
               pnpm build
               strip *.node
@@ -90,8 +88,6 @@ jobs:
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
-              npm i -g --force corepack
-              corepack enable
               cd packages/cli
               rustup target add aarch64-unknown-linux-musl
               pnpm build --target aarch64-unknown-linux-musl

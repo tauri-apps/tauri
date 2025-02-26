@@ -74,8 +74,8 @@ class WebviewWindow {
    */
   constructor(
     label: WebviewLabel,
-    options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'> &
-      WindowOptions = {}
+    options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'>
+      & WindowOptions = {}
   ) {
     this.label = label
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -240,17 +240,17 @@ function applyMixins(
   ).forEach((extendedClass: { prototype: unknown }) => {
     Object.getOwnPropertyNames(extendedClass.prototype).forEach((name) => {
       if (
-        typeof baseClass.prototype === 'object' &&
-        baseClass.prototype &&
-        name in baseClass.prototype
+        typeof baseClass.prototype === 'object'
+        && baseClass.prototype
+        && name in baseClass.prototype
       )
         return
       Object.defineProperty(
         baseClass.prototype,
         name,
         // eslint-disable-next-line
-        Object.getOwnPropertyDescriptor(extendedClass.prototype, name) ??
-          Object.create(null)
+        Object.getOwnPropertyDescriptor(extendedClass.prototype, name)
+          ?? Object.create(null)
       )
     })
   })

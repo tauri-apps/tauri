@@ -17,22 +17,26 @@ use tauri_runtime::{
 };
 
 use crate::{
-  app::GlobalWindowEventListener, image::Image, sealed::ManagerBase, AppHandle, Emitter,
+  app::GlobalWindowEventListener, event::EventName, image::Image, sealed::ManagerBase, AppHandle,
   EventLoopMessage, EventTarget, Manager, Runtime, Scopes, Window, WindowEvent,
 };
 
-const WINDOW_RESIZED_EVENT: &str = "tauri://resize";
-const WINDOW_MOVED_EVENT: &str = "tauri://move";
-const WINDOW_CLOSE_REQUESTED_EVENT: &str = "tauri://close-requested";
-const WINDOW_DESTROYED_EVENT: &str = "tauri://destroyed";
-const WINDOW_FOCUS_EVENT: &str = "tauri://focus";
-const WINDOW_BLUR_EVENT: &str = "tauri://blur";
-const WINDOW_SCALE_FACTOR_CHANGED_EVENT: &str = "tauri://scale-change";
-const WINDOW_THEME_CHANGED: &str = "tauri://theme-changed";
-pub(crate) const DRAG_ENTER_EVENT: &str = "tauri://drag-enter";
-pub(crate) const DRAG_OVER_EVENT: &str = "tauri://drag-over";
-pub(crate) const DRAG_DROP_EVENT: &str = "tauri://drag-drop";
-pub(crate) const DRAG_LEAVE_EVENT: &str = "tauri://drag-leave";
+use super::EmitPayload;
+
+const WINDOW_RESIZED_EVENT: EventName<&str> = EventName::from_str("tauri://resize");
+const WINDOW_MOVED_EVENT: EventName<&str> = EventName::from_str("tauri://move");
+const WINDOW_CLOSE_REQUESTED_EVENT: EventName<&str> =
+  EventName::from_str("tauri://close-requested");
+const WINDOW_DESTROYED_EVENT: EventName<&str> = EventName::from_str("tauri://destroyed");
+const WINDOW_FOCUS_EVENT: EventName<&str> = EventName::from_str("tauri://focus");
+const WINDOW_BLUR_EVENT: EventName<&str> = EventName::from_str("tauri://blur");
+const WINDOW_SCALE_FACTOR_CHANGED_EVENT: EventName<&str> =
+  EventName::from_str("tauri://scale-change");
+const WINDOW_THEME_CHANGED: EventName<&str> = EventName::from_str("tauri://theme-changed");
+pub(crate) const DRAG_ENTER_EVENT: EventName<&str> = EventName::from_str("tauri://drag-enter");
+pub(crate) const DRAG_OVER_EVENT: EventName<&str> = EventName::from_str("tauri://drag-over");
+pub(crate) const DRAG_DROP_EVENT: EventName<&str> = EventName::from_str("tauri://drag-drop");
+pub(crate) const DRAG_LEAVE_EVENT: EventName<&str> = EventName::from_str("tauri://drag-leave");
 
 pub struct WindowManager<R: Runtime> {
   pub windows: Mutex<HashMap<String, Window<R>>>,
@@ -124,16 +128,21 @@ impl<R: Runtime> WindowManager<R> {
 
 impl<R: Runtime> Window<R> {
   /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
-  fn emit_to_window<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+  fn emit_to_window<S: Serialize>(&self, event: EventName<&str>, payload: &S) -> crate::Result<()> {
     let window_label = self.label();
-    self.emit_filter(event, payload, |target| match target {
-      EventTarget::Window { label } | EventTarget::WebviewWindow { label } => label == window_label,
-      _ => false,
-    })
+    let payload = EmitPayload::Serialize(payload);
+    self
+      .manager()
+      .emit_filter(event, payload, |target| match target {
+        EventTarget::Window { label } | EventTarget::WebviewWindow { label } => {
+          label == window_label
+        }
+        _ => false,
+      })
   }
 
   /// Checks whether has js listener for [`EventTarget::Window`] or [`EventTarget::WebviewWindow`]
-  fn has_js_listener(&self, event: &str) -> bool {
+  fn has_js_listener(&self, event: EventName<&str>) -> bool {
     let window_label = self.label();
     let listeners = self.manager().listeners();
     listeners.has_js_listener(event, |target| match target {
@@ -158,10 +167,10 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
       if window.has_js_listener(WINDOW_CLOSE_REQUESTED_EVENT) {
         api.prevent_close();
       }
-      window.emit_to_window(WINDOW_CLOSE_REQUESTED_EVENT, ())?;
+      window.emit_to_window(WINDOW_CLOSE_REQUESTED_EVENT, &())?;
     }
     WindowEvent::Destroyed => {
-      window.emit_to_window(WINDOW_DESTROYED_EVENT, ())?;
+      window.emit_to_window(WINDOW_DESTROYED_EVENT, &())?;
     }
     WindowEvent::Focused(focused) => window.emit_to_window(
       if *focused {
@@ -169,7 +178,7 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
       } else {
         WINDOW_BLUR_EVENT
       },
-      (),
+      &(),
     )?,
     WindowEvent::ScaleFactorChanged {
       scale_factor,
@@ -177,7 +186,7 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
       ..
     } => window.emit_to_window(
       WINDOW_SCALE_FACTOR_CHANGED_EVENT,
-      ScaleFactorChanged {
+      &ScaleFactorChanged {
         scale_factor: *scale_factor,
         size: *new_inner_size,
       },
@@ -190,13 +199,14 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
         };
 
         if window.is_webview_window() {
-          window.emit_to(
+          // use underlying manager, otherwise have to recheck EventName
+          window.manager().emit_to(
             EventTarget::labeled(window.label()),
             DRAG_ENTER_EVENT,
-            payload,
+            EmitPayload::Serialize(&payload),
           )?
         } else {
-          window.emit_to_window(DRAG_ENTER_EVENT, payload)?
+          window.emit_to_window(DRAG_ENTER_EVENT, &payload)?
         }
       }
       DragDropEvent::Over { position } => {
@@ -205,13 +215,14 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
           paths: None,
         };
         if window.is_webview_window() {
-          window.emit_to(
+          // use underlying manager, otherwise have to recheck EventName
+          window.manager().emit_to(
             EventTarget::labeled(window.label()),
             DRAG_OVER_EVENT,
-            payload,
+            EmitPayload::Serialize(&payload),
           )?
         } else {
-          window.emit_to_window(DRAG_OVER_EVENT, payload)?
+          window.emit_to_window(DRAG_OVER_EVENT, &payload)?
         }
       }
       DragDropEvent::Drop { paths, position } => {
@@ -229,27 +240,31 @@ fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) -> crate
         };
 
         if window.is_webview_window() {
-          window.emit_to(
+          // use underlying manager, otherwise have to recheck EventName
+          window.manager().emit_to(
             EventTarget::labeled(window.label()),
             DRAG_DROP_EVENT,
-            payload,
+            EmitPayload::Serialize(&payload),
           )?
         } else {
-          window.emit_to_window(DRAG_DROP_EVENT, payload)?
+          window.emit_to_window(DRAG_DROP_EVENT, &payload)?
         }
       }
       DragDropEvent::Leave => {
         if window.is_webview_window() {
-          window.emit_to(EventTarget::labeled(window.label()), DRAG_LEAVE_EVENT, ())?
+          // use underlying manager, otherwise have to recheck EventName
+          window.manager().emit_to(
+            EventTarget::labeled(window.label()),
+            DRAG_LEAVE_EVENT,
+            EmitPayload::Serialize(&()),
+          )?
         } else {
-          window.emit_to_window(DRAG_LEAVE_EVENT, ())?
+          window.emit_to_window(DRAG_LEAVE_EVENT, &())?
         }
       }
       _ => unimplemented!(),
     },
-    WindowEvent::ThemeChanged(theme) => {
-      window.emit_to_window(WINDOW_THEME_CHANGED, theme.to_string())?
-    }
+    WindowEvent::ThemeChanged(theme) => window.emit_to_window(WINDOW_THEME_CHANGED, &theme)?,
   }
   Ok(())
 }

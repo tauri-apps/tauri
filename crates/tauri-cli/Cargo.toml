@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.2.4"
+version = "2.3.0"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -47,7 +47,7 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
-tauri-bundler = { version = "2.2.1", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.2.4", default-features = false, path = "../tauri-bundler" }
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
@@ -57,7 +57,7 @@ shared_child = "1"
 duct = "0.13"
 toml_edit = { version = "0.22", features = ["serde"] }
 json-patch = "3"
-tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.2.0", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",
@@ -70,12 +70,12 @@ tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [
   "config-toml",
 ] }
 toml = "0.8"
-jsonschema = "0.28"
+jsonschema = "0.29"
 handlebars = "6"
 include_dir = "0.7"
 minisign = "=0.7.3"
 base64 = "0.22"
-ureq = { version = "2", default-features = false, features = ["gzip"] }
+ureq = { version = "3", default-features = false, features = ["gzip"] }
 os_info = "3"
 semver = "1"
 regex = "1"
@@ -132,7 +132,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { version = "2.0.1", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.1.0", path = "../tauri-macos-sign" }
 object = { version = "0.36", default-features = false, features = [
   "macho",
   "read_core",
@@ -148,4 +148,4 @@ native-tls = [
   "ureq/native-tls",
 ]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
-rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/tls"]
+rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]

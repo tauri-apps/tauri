@@ -48,9 +48,14 @@ pub fn sign(
   log::info!(action = "Signing"; "with identity \"{}\"", keychain.signing_identity());
 
   for target in targets {
+    let entitlements_path = if target.is_an_executable {
+      settings.macos().entitlements.as_ref().map(Path::new)
+    } else {
+      None
+    };
     keychain.sign(
       &target.path,
-      settings.macos().entitlements.as_ref().map(Path::new),
+      entitlements_path,
       target.is_an_executable && settings.macos().hardened_runtime,
     )?;
   }

@@ -77,8 +77,8 @@
     if (typeof data === 'object' && typeof data.payload === 'object') {
       const keys = data.payload ? Object.keys(data.payload) : []
       return (
-        keys.length > 0 &&
-        keys.every(
+        keys.length > 0
+        && keys.every(
           (key) => key === 'nonce' || key === 'payload' || key === 'contentType'
         )
       )
@@ -94,10 +94,10 @@
    */
   function isIsolationPayload(data) {
     return (
-      typeof data === 'object' &&
-      'callback' in data &&
-      'error' in data &&
-      !isIsolationMessage(data)
+      typeof data === 'object'
+      && 'callback' in data
+      && 'error' in data
+      && !isIsolationMessage(data)
     )
   }
 
@@ -139,8 +139,8 @@
   function waitUntilReady() {
     // consider either a function or an explicitly set null value as the ready signal
     if (
-      typeof window.__TAURI_ISOLATION_HOOK__ === 'function' ||
-      window.__TAURI_ISOLATION_HOOK__ === null
+      typeof window.__TAURI_ISOLATION_HOOK__ === 'function'
+      || window.__TAURI_ISOLATION_HOOK__ === null
     ) {
       sendMessage('__TAURI_ISOLATION_READY__')
     } else {

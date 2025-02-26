@@ -64,8 +64,7 @@ impl Keychain {
   }
 
   pub fn with_certificate_file(cert_path: &Path, certificate_password: &OsString) -> Result<Self> {
-    let home_dir =
-      dirs_next::home_dir().ok_or_else(|| anyhow::anyhow!("failed to resolve home dir"))?;
+    let home_dir = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("failed to resolve home dir"))?;
     let keychain_path = home_dir.join("Library").join("Keychains").join(format!(
       "{}.keychain-db",
       Alphanumeric.sample_string(&mut rand::thread_rng(), 16)

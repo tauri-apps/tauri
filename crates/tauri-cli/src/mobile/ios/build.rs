@@ -293,6 +293,10 @@ fn run_build(
     cli_options,
   )?;
 
+  if options.open {
+    return Ok(handle);
+  }
+
   let mut out_files = Vec::new();
 
   call_for_targets_with_fallback(

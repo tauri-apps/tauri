@@ -35,7 +35,7 @@ The list of Tauri's features includes, but is not limited to:
 - Built-in self updater (desktop only)
 - System tray icons
 - Native notifications
-- [Localhost free (🔥)](https://github.com/tauri-apps/tauri/issues/10510)
+- Native WebView Protocol (tauri doesn't create a localhost http(s) server to serve the WebView contents)
 - GitHub action for streamlined CI
 - VS Code extension
 

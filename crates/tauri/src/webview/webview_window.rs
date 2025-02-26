@@ -1887,6 +1887,11 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.navigate(url)
   }
 
+  /// Reloads the current page.
+  pub fn reload(&self) -> crate::Result<()> {
+    self.webview.reload()
+  }
+
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].
   pub fn on_message(
     self,

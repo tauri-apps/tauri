@@ -1292,6 +1292,11 @@ fn main() {
     self.webview.dispatcher.navigate(url).map_err(Into::into)
   }
 
+  /// Reloads the current page.
+  pub fn reload(&self) -> crate::Result<()> {
+    self.webview.dispatcher.reload().map_err(Into::into)
+  }
+
   fn is_local_url(&self, current_url: &Url) -> bool {
     let uses_https = current_url.scheme() == "https";
 

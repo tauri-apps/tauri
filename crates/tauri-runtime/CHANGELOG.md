@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.4.0]
+
+### Enhancements
+
+- [`a2d36b8c3`](https://www.github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) ([#12181](https://www.github.com/tauri-apps/tauri/pull/12181) by [@bastiankistner](https://www.github.com/tauri-apps/tauri/../../bastiankistner)) Add an option to change the default background throttling policy (currently for WebKit only).
+- [`d6520a21c`](https://www.github.com/tauri-apps/tauri/commit/d6520a21ce02c3e2be2955999946c2cb7bdb07aa) ([#12541](https://www.github.com/tauri-apps/tauri/pull/12541) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Updated `wry` to 0.50, `windows` to 0.60, `webview2-com` to 0.36, and `objc2` to 0.6. This can be a **breaking change** if you use the `with_webview` API!
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.2.0`
+
 ## \[2.3.0]
 
 ### New Features

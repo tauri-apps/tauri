@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.2.5"
+version = "2.3.0"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -57,12 +57,12 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.3.0", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.4", path = "../tauri-macros" }
-tauri-utils = { version = "2.1.1", features = [
+tauri-runtime = { version = "2.4.0", path = "../tauri-runtime" }
+tauri-macros = { version = "2.0.5", path = "../tauri-macros" }
+tauri-utils = { version = "2.2.0", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.3.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.4.0", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 http = "1"
@@ -145,8 +145,8 @@ swift-rs = "1"
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.5" }
-tauri-utils = { path = "../tauri-utils/", version = "2.1.1", features = [
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.6" }
+tauri-utils = { path = "../tauri-utils/", version = "2.2.0", features = [
   "build",
 ] }
 

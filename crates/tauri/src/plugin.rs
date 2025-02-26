@@ -554,6 +554,16 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///     .build()
   /// }
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from custom protocol will have different Origin on different platforms. And
+  /// servers which enforce CORS will need to add exact same Origin header in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://<path>` (so it will be `my-scheme://path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.<path>` by default (so it will be `http://my-scheme.path/to/page`).
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
@@ -617,6 +627,16 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///     .build()
   /// }
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from custom protocol will have different Origin on different platforms. And
+  /// servers which enforce CORS will need to add exact same Origin header in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://<path>` (so it will be `my-scheme://path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.<path>` by default (so it will be `http://my-scheme.path/to/page`).
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,

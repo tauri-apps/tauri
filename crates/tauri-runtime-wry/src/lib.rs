@@ -3013,7 +3013,10 @@ fn handle_user_message<T: UserEvent>(
             if !resizable {
               undecorated_resizing::detach_resize_handler(window.hwnd());
             } else if !window.is_decorated() {
-              undecorated_resizing::attach_resize_handler(window.hwnd());
+              undecorated_resizing::attach_resize_handler(
+                window.hwnd(),
+                window.has_undecorated_shadow(),
+              );
             }
           }
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
@@ -3039,12 +3042,18 @@ fn handle_user_message<T: UserEvent>(
             if decorations {
               undecorated_resizing::detach_resize_handler(window.hwnd());
             } else if window.is_resizable() {
-              undecorated_resizing::attach_resize_handler(window.hwnd());
+              undecorated_resizing::attach_resize_handler(
+                window.hwnd(),
+                window.has_undecorated_shadow(),
+              );
             }
           }
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
-            window.set_undecorated_shadow(_enable);
+            {
+              window.set_undecorated_shadow(_enable);
+              undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), _enable);
+            }
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
@@ -4490,7 +4499,7 @@ fn create_webview<T: UserEvent>(
     undecorated_resizing::attach_resize_handler(&webview);
     #[cfg(windows)]
     if window.is_resizable() && !window.is_decorated() {
-      undecorated_resizing::attach_resize_handler(window.hwnd());
+      undecorated_resizing::attach_resize_handler(window.hwnd(), window.has_undecorated_shadow());
     }
   }
 

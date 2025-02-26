@@ -79,7 +79,7 @@ pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Re
 }
 
 async fn handler(uri: Uri, state: State<ServerState>) -> impl IntoResponse {
-  // Frontend files should not contain query parameters. This seems to be how vite handles it.
+  // Frontend files should not contain query parameters. This seems to be how Vite handles it.
   let uri = uri.path();
 
   let uri = if uri == "/" {

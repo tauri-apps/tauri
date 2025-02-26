@@ -39,7 +39,7 @@ use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
-use windows::Win32::{Foundation::HWND, System::WinRT::EventRegistrationToken};
+use windows::Win32::Foundation::HWND;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use wry::WebViewBuilderExtDarwin;
 #[cfg(windows)]
@@ -3013,7 +3013,10 @@ fn handle_user_message<T: UserEvent>(
             if !resizable {
               undecorated_resizing::detach_resize_handler(window.hwnd());
             } else if !window.is_decorated() {
-              undecorated_resizing::attach_resize_handler(window.hwnd());
+              undecorated_resizing::attach_resize_handler(
+                window.hwnd(),
+                window.has_undecorated_shadow(),
+              );
             }
           }
           WindowMessage::SetMaximizable(maximizable) => window.set_maximizable(maximizable),
@@ -3039,12 +3042,18 @@ fn handle_user_message<T: UserEvent>(
             if decorations {
               undecorated_resizing::detach_resize_handler(window.hwnd());
             } else if window.is_resizable() {
-              undecorated_resizing::attach_resize_handler(window.hwnd());
+              undecorated_resizing::attach_resize_handler(
+                window.hwnd(),
+                window.has_undecorated_shadow(),
+              );
             }
           }
           WindowMessage::SetShadow(_enable) => {
             #[cfg(windows)]
-            window.set_undecorated_shadow(_enable);
+            {
+              window.set_undecorated_shadow(_enable);
+              undecorated_resizing::update_drag_hwnd_rgn_for_undecorated(window.hwnd(), _enable);
+            }
             #[cfg(target_os = "macos")]
             window.set_has_shadow(_enable);
           }
@@ -4490,7 +4499,7 @@ fn create_webview<T: UserEvent>(
     undecorated_resizing::attach_resize_handler(&webview);
     #[cfg(windows)]
     if window.is_resizable() && !window.is_decorated() {
-      undecorated_resizing::attach_resize_handler(window.hwnd());
+      undecorated_resizing::attach_resize_handler(window.hwnd(), window.has_undecorated_shadow());
     }
   }
 
@@ -4500,7 +4509,7 @@ fn create_webview<T: UserEvent>(
     let proxy = context.proxy.clone();
     let proxy_ = proxy.clone();
     let window_id_ = window_id.clone();
-    let mut token = EventRegistrationToken::default();
+    let mut token = 0;
     unsafe {
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
@@ -4581,7 +4590,7 @@ fn inner_size(
   if !has_children && !webviews.is_empty() {
     use wry::WebViewExtMacOS;
     let webview = webviews.first().unwrap();
-    let view = unsafe { Retained::cast::<objc2_app_kit::NSView>(webview.webview()) };
+    let view = unsafe { Retained::cast_unchecked::<objc2_app_kit::NSView>(webview.webview()) };
     let view_frame = view.frame();
     let logical: TaoLogicalSize<f64> = (view_frame.size.width, view_frame.size.height).into();
     return logical.to_physical(window.scale_factor());

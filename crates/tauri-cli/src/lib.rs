@@ -319,7 +319,7 @@ impl CommandExt for Command {
     let program = self.get_program().to_string_lossy().into_owned();
     log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
 
-    self.status().map_err(Into::into)
+    self.status()
   }
 
   fn output_ok(&mut self) -> crate::Result<Output> {

@@ -42,7 +42,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev webkit2gtk-4.1
 
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: setup node
         uses: actions/setup-node@v4
         with:

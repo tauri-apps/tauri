@@ -46,8 +46,8 @@ export function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
   /* eslint-enable @typescript-eslint/no-unsafe-return */
 }
 
-export type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'> &
-  MenuOptions
+export type SubmenuOptions = Omit<MenuItemOptions, 'accelerator' | 'action'>
+  & MenuOptions
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
 export class Submenu extends MenuItemBase {

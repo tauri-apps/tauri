@@ -1,5 +1,18 @@
 # Changelog
 
+## \[2.3.0]
+
+### Enhancements
+
+- [`a2d36b8c3`](https://www.github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) ([#12181](https://www.github.com/tauri-apps/tauri/pull/12181) by [@bastiankistner](https://www.github.com/tauri-apps/tauri/../../bastiankistner)) Add an option to change the default background throttling policy (currently for WebKit only).
+- [`6e417c943`](https://www.github.com/tauri-apps/tauri/commit/6e417c9435d8fae0eca9e8d42d6215e887a28d98) ([#12786](https://www.github.com/tauri-apps/tauri/pull/12786) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Added RPM to the list of package types for which signature file will be generated.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-bundler@2.2.4`
+- Upgraded to `tauri-macos-sign@2.1.0`
+
 ## \[2.2.7]
 
 ### Bug Fixes

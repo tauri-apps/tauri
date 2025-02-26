@@ -15,7 +15,7 @@
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
-//! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **objc-exception**: This feature flag is no-op since 2.3.0.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
@@ -213,8 +213,8 @@ pub use self::event::{Event, EventId, EventTarget};
 use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, UriSchemeContext,
-    UriSchemeResponder, WebviewEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
+    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
   },
   self::manager::Asset,
   self::runtime::{
@@ -711,11 +711,31 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
+  ///
+  /// <div class="warning">
+  ///
+  /// This method is *UNSAFE* and calling it will cause previously obtained references through
+  /// [Manager::state] and [State::inner] to become dangling references.
+  ///
+  /// It is currently deprecated and may be removed in the future.
+  ///
+  /// If you really want to unmanage a state, use [std::sync::Mutex] and [Option::take] to wrap the state instead.
+  ///
+  /// See [tauri-apps/tauri#12721] for more information.
+  ///
+  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
+  ///
+  /// </div>
+  #[deprecated(
+    since = "2.3.0",
+    note = "This method is unsafe, since it can cause dangling references."
+  )]
   fn unmanage<T>(&self) -> Option<T>
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().unmanage()
+    // The caller decides to break the safety here, then OK, just let it go.
+    unsafe { self.manager().state().unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.

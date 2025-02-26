@@ -33,13 +33,13 @@
    */
   function isIsolationMessage(event) {
     if (
-      typeof event.data === 'object' &&
-      typeof event.data.payload === 'object'
+      typeof event.data === 'object'
+      && typeof event.data.payload === 'object'
     ) {
       const keys = Object.keys(event.data.payload || {})
       return (
-        keys.length > 0 &&
-        keys.every(
+        keys.length > 0
+        && keys.every(
           (key) => key === 'contentType' || key === 'nonce' || key === 'payload'
         )
       )
@@ -55,10 +55,10 @@
    */
   function isIsolationPayload(data) {
     return (
-      typeof data === 'object' &&
-      'callback' in data &&
-      'error' in data &&
-      !isIsolationMessage(data)
+      typeof data === 'object'
+      && 'callback' in data
+      && 'error' in data
+      && !isIsolationMessage(data)
     )
   }
 
@@ -99,27 +99,27 @@
       const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
       if (
-        typeof data === 'object' &&
-        data !== null &&
-        'constructor' in data &&
-        data.constructor === Array
+        typeof data === 'object'
+        && data !== null
+        && 'constructor' in data
+        && data.constructor === Array
       ) {
         return data.map((v) => serializeIpcPayload(v))
       }
 
       if (
-        typeof data === 'object' &&
-        data !== null &&
-        SERIALIZE_TO_IPC_FN in data
+        typeof data === 'object'
+        && data !== null
+        && SERIALIZE_TO_IPC_FN in data
       ) {
         return data[SERIALIZE_TO_IPC_FN]()
       }
 
       if (
-        typeof data === 'object' &&
-        data !== null &&
-        'constructor' in data &&
-        data.constructor === Object
+        typeof data === 'object'
+        && data !== null
+        && 'constructor' in data
+        && data.constructor === Object
       ) {
         const acc = {}
         Object.entries(data).forEach(([k, v]) => {

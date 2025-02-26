@@ -1,5 +1,32 @@
 # Changelog
 
+## \[2.3.0]
+
+### New Features
+
+- [`abdd55807`](https://www.github.com/tauri-apps/tauri/commit/abdd55807587f1bb41b95d0b129ba24b3c6e1d28) ([#12460](https://www.github.com/tauri-apps/tauri/pull/12460) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Add `emit_str*` methods to `Emitter` trait to allow emitting JSON serialized data directly.
+- [`7d8252679`](https://www.github.com/tauri-apps/tauri/commit/7d8252679d7c28b948d94ccd8130a5c9feaa3d27) ([#12701](https://www.github.com/tauri-apps/tauri/pull/12701) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Export `struct tauri::ExitRequestApi`.
+
+### Enhancements
+
+- [`a2d36b8c3`](https://www.github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) ([#12181](https://www.github.com/tauri-apps/tauri/pull/12181) by [@bastiankistner](https://www.github.com/tauri-apps/tauri/../../bastiankistner)) Add an option to change the default background throttling policy (currently for WebKit only).
+- [`e9c9c4d6f`](https://www.github.com/tauri-apps/tauri/commit/e9c9c4d6f6f9c39f848183bc432790b1f9cb74fc) ([#12529](https://www.github.com/tauri-apps/tauri/pull/12529) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Derive `Clone` for `PathResolver` struct.
+- [`385a41dea`](https://www.github.com/tauri-apps/tauri/commit/385a41dea27330b42ae21419815c458afab47f94) ([#12817](https://www.github.com/tauri-apps/tauri/pull/12817) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, undecorated window with shadows, now have native resize handles outside of the window client area.
+- [`d6520a21c`](https://www.github.com/tauri-apps/tauri/commit/d6520a21ce02c3e2be2955999946c2cb7bdb07aa) ([#12541](https://www.github.com/tauri-apps/tauri/pull/12541) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Updated `wry` to 0.50, `windows` to 0.60, `webview2-com` to 0.36, and `objc2` to 0.6. This can be a **breaking change** if you use the `with_webview` API!
+
+### Bug Fixes
+
+- [`d7b998fe7`](https://www.github.com/tauri-apps/tauri/commit/d7b998fe71eca4d5471d73900f7694c043a17256) ([#12723](https://www.github.com/tauri-apps/tauri/pull/12723) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Deprecate `Manager::unmanage` to fix `use-after-free` unsoundness, see tauri-apps/tauri#12721 for details.
+- [`3dbcbe768`](https://www.github.com/tauri-apps/tauri/commit/3dbcbe7685319724c41e66d912b5daaec7f99868) ([#12461](https://www.github.com/tauri-apps/tauri/pull/12461) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) `Webview::navigate` and `WebviewWindow::navigate` borrows `&self` instead of unnecessarily borrowing `&mut self`.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.4.0`
+- Upgraded to `tauri-runtime-wry@2.4.0`
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-macros@2.0.5`
+- Upgraded to `tauri-build@2.0.6`
+
 ## \[2.2.5]
 
 ### Bug Fixes

@@ -20,7 +20,7 @@ importers:
   crates/tauri-schema-worker:
     devDependencies:
       wrangler:
-        specifier: '=3.107.3'
+        specifier: ^3.107.3
         version: 3.107.3
 
   examples/api:

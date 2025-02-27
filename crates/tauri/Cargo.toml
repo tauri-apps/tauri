@@ -95,7 +95,7 @@ tray-icon = { version = "0.20", default-features = false, features = [
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_40"], optional = true }
 
 # macOS
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -120,9 +120,13 @@ window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = "0.36"
+webview2-com = { version = "0.36", optional = true }
 window-vibrancy = "0.6"
-windows = { version = "0.60", features = ["Win32_Foundation"] }
+windows = { version = "0.60", features = [
+  "Win32_Foundation",
+  "Win32_UI",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 # mobile
 [target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
@@ -180,7 +184,7 @@ tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["tauri-runtime-wry"]
+wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]

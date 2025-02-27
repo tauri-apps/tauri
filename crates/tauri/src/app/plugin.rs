@@ -26,7 +26,7 @@ pub fn tauri_version() -> &'static str {
 }
 
 #[command(root = "crate")]
-pub(crate) fn identifier<R: Runtime>(app: AppHandle<R>) -> String {
+pub fn identifier<R: Runtime>(app: AppHandle<R>) -> String {
   app.config().identifier.clone()
 }
 

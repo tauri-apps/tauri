@@ -65,7 +65,7 @@ async function getTauriVersion(): Promise<string> {
  *
  * @returns The application identifier as configured in `tauri.conf.json`.
  *
- * @since 2.3.0
+ * @since 2.4.0
  */
 async function getIdentifier(): Promise<string> {
   return invoke('plugin:app|identifier')

@@ -99,13 +99,13 @@ impl std::fmt::Display for CrateVersion {
 
 pub fn crate_latest_version(name: &str) -> Option<String> {
   let url = format!("https://docs.rs/crate/{name}/");
-  match ureq::get(&url).call() {
-    Ok(response) => match (response.status(), response.header("location")) {
-      (302, Some(location)) => Some(location.replace(&url, "")),
-      _ => None,
-    },
-    Err(_) => None,
+  let response = ureq::get(&url).call().ok()?;
+  if response.status().is_redirection() {
+    if let Some(location) = response.headers().get("location") {
+      return location.to_str().ok().map(|s| s.replace(&url, ""));
+    }
   }
+  None
 }
 
 pub fn crate_version(

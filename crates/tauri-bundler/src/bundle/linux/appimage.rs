@@ -141,7 +141,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for file in [
     "WebKitNetworkProcess",
     "WebKitWebProcess",
-    "libwebkit2gtkinjectedbundle.so",
+    "injected-bundle/libwebkit2gtkinjectedbundle.so",
   ] {
     for source in search_dirs.map(PathBuf::from) {
       // TODO: Check if it's the same dir name on all systems

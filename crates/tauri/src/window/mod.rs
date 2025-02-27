@@ -19,7 +19,7 @@ use crate::{
   app::AppHandle,
   event::{Event, EventId, EventTarget},
   ipc::{CommandArg, CommandItem, InvokeError},
-  manager::AppManager,
+  manager::{AppManager, EmitPayload},
   runtime::{
     monitor::Monitor as RuntimeMonitor,
     window::{DetachedWindow, PendingWindow, WindowBuilder as _},
@@ -28,7 +28,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::config::{WindowConfig, WindowEffectsConfig},
   webview::WebviewBuilder,
-  Emitter, EventLoopMessage, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
+  Emitter, EventLoopMessage, EventName, Listener, Manager, ResourceTable, Runtime, Theme, Webview,
   WindowEvent,
 };
 #[cfg(desktop)]
@@ -404,12 +404,11 @@ tauri::Builder::default()
     let window_label = window.label().to_string();
     // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
     let _ = window.run_on_main_thread(move || {
-      let _ = app_manager.emit(
-        "tauri://window-created",
-        Some(crate::webview::CreatedEvent {
-          label: window_label,
-        }),
-      );
+      let event = crate::EventName::from_str("tauri://window-created");
+      let payload = Some(crate::webview::CreatedEvent {
+        label: window_label,
+      });
+      let _ = app_manager.emit(event, EmitPayload::Serialize(&payload));
     });
 
     Ok(window)
@@ -1040,7 +1039,7 @@ impl<R: Runtime> Window<R> {
     let window_ = self.clone();
     self.run_on_main_thread(move || {
       let res = webview_builder.build(window_, position, size);
-      tx.send(res.map_err(Into::into)).unwrap();
+      tx.send(res).unwrap();
     })?;
     rx.recv().unwrap()
   }
@@ -2173,8 +2172,9 @@ tauri::Builder::default()
   where
     F: Fn(Event) + Send + 'static,
   {
+    let event = EventName::new(event.into()).unwrap();
     self.manager.listen(
-      event.into(),
+      event,
       EventTarget::Window {
         label: self.label().to_string(),
       },
@@ -2189,8 +2189,9 @@ tauri::Builder::default()
   where
     F: FnOnce(Event) + Send + 'static,
   {
+    let event = EventName::new(event.into()).unwrap();
     self.manager.once(
-      event.into(),
+      event,
       EventTarget::Window {
         label: self.label().to_string(),
       },
@@ -2232,94 +2233,7 @@ tauri::Builder::default()
   }
 }
 
-impl<R: Runtime> Emitter<R> for Window<R> {
-  /// Emits an event to all [targets](EventTarget).
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::Emitter;
-
-#[tauri::command]
-fn synchronize(window: tauri::Window) {
-  // emits the synchronized event to all webviews
-  window.emit("synchronized", ());
-}
-  ```
-  "####
-  )]
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager.emit(event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) matching the given target.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::{Emitter, EventTarget};
-
-#[tauri::command]
-fn download(window: tauri::Window) {
-  for i in 1..100 {
-    std::thread::sleep(std::time::Duration::from_millis(150));
-    // emit a download progress event to all listeners
-    window.emit_to(EventTarget::any(), "download-progress", i);
-    // emit an event to listeners that used App::listen or AppHandle::listen
-    window.emit_to(EventTarget::app(), "download-progress", i);
-    // emit an event to any webview/window/webviewWindow matching the given label
-    window.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-    window.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-    // emit an event to listeners that used WebviewWindow::listen
-    window.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-  }
-}
-```
-"####
-  )]
-  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
-  where
-    I: Into<EventTarget>,
-    S: Serialize + Clone,
-  {
-    self.manager.emit_to(target, event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) based on the given filter.
-  ///
-  /// # Examples
-  #[cfg_attr(
-    feature = "unstable",
-    doc = r####"
-```
-use tauri::{Emitter, EventTarget};
-
-#[tauri::command]
-fn download(window: tauri::Window) {
-  for i in 1..100 {
-    std::thread::sleep(std::time::Duration::from_millis(150));
-    // emit a download progress event to the updater window
-    window.emit_filter("download-progress", i, |t| match t {
-      EventTarget::WebviewWindow { label } => label == "main",
-      _ => false,
-    });
-  }
-}
-  ```
-  "####
-  )]
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    self.manager.emit_filter(event, payload, filter)
-  }
-}
+impl<R: Runtime> Emitter<R> for Window<R> {}
 
 /// The [`WindowEffectsConfig`] object builder
 #[derive(Default)]

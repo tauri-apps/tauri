@@ -1,5 +1,50 @@
 # Changelog
 
+## \[2.3.0]
+
+### New Features
+
+- [`abdd55807`](https://www.github.com/tauri-apps/tauri/commit/abdd55807587f1bb41b95d0b129ba24b3c6e1d28) ([#12460](https://www.github.com/tauri-apps/tauri/pull/12460) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Add `emit_str*` methods to `Emitter` trait to allow emitting JSON serialized data directly.
+- [`7d8252679`](https://www.github.com/tauri-apps/tauri/commit/7d8252679d7c28b948d94ccd8130a5c9feaa3d27) ([#12701](https://www.github.com/tauri-apps/tauri/pull/12701) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Export `struct tauri::ExitRequestApi`.
+
+### Enhancements
+
+- [`a2d36b8c3`](https://www.github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) ([#12181](https://www.github.com/tauri-apps/tauri/pull/12181) by [@bastiankistner](https://www.github.com/tauri-apps/tauri/../../bastiankistner)) Add an option to change the default background throttling policy (currently for WebKit only).
+- [`e9c9c4d6f`](https://www.github.com/tauri-apps/tauri/commit/e9c9c4d6f6f9c39f848183bc432790b1f9cb74fc) ([#12529](https://www.github.com/tauri-apps/tauri/pull/12529) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Derive `Clone` for `PathResolver` struct.
+- [`385a41dea`](https://www.github.com/tauri-apps/tauri/commit/385a41dea27330b42ae21419815c458afab47f94) ([#12817](https://www.github.com/tauri-apps/tauri/pull/12817) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) On Windows, undecorated window with shadows, now have native resize handles outside of the window client area.
+- [`d6520a21c`](https://www.github.com/tauri-apps/tauri/commit/d6520a21ce02c3e2be2955999946c2cb7bdb07aa) ([#12541](https://www.github.com/tauri-apps/tauri/pull/12541) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Updated `wry` to 0.50, `windows` to 0.60, `webview2-com` to 0.36, and `objc2` to 0.6. This can be a **breaking change** if you use the `with_webview` API!
+
+### Bug Fixes
+
+- [`d7b998fe7`](https://www.github.com/tauri-apps/tauri/commit/d7b998fe71eca4d5471d73900f7694c043a17256) ([#12723](https://www.github.com/tauri-apps/tauri/pull/12723) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Deprecate `Manager::unmanage` to fix `use-after-free` unsoundness, see tauri-apps/tauri#12721 for details.
+- [`3dbcbe768`](https://www.github.com/tauri-apps/tauri/commit/3dbcbe7685319724c41e66d912b5daaec7f99868) ([#12461](https://www.github.com/tauri-apps/tauri/pull/12461) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) `Webview::navigate` and `WebviewWindow::navigate` borrows `&self` instead of unnecessarily borrowing `&mut self`.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.4.0`
+- Upgraded to `tauri-runtime-wry@2.4.0`
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-macros@2.0.5`
+- Upgraded to `tauri-build@2.0.6`
+
+## \[2.2.5]
+
+### Bug Fixes
+
+- [`477e9c049`](https://www.github.com/tauri-apps/tauri/commit/477e9c0496ff75ef8ef7aedc5430c77e213cd740) ([#12514](https://www.github.com/tauri-apps/tauri/pull/12514) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused iOS apps to panic when using an async function for `tauri::mobile_entry_point`.
+
+## \[2.2.4]
+
+### Bug Fixes
+
+- [`27096cdc0`](https://www.github.com/tauri-apps/tauri/commit/27096cdc05d89b61b2372b4e4a3018c87f240ab8) ([#12445](https://www.github.com/tauri-apps/tauri/pull/12445) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused Tauri's CLI to enable tauri's `native-tls` feature even though it wasn't needed. Moved `reqwest` to a mobile-only dependency in `tauri` and enabled its `rustls-tls` feature flag.
+
+## \[2.2.3]
+
+### Bug Fixes
+
+- [`d2c8f0eb5`](https://www.github.com/tauri-apps/tauri/commit/d2c8f0eb5ce2a5ebacd857614b7c89bbd5c9dca4) ([#12424](https://www.github.com/tauri-apps/tauri/pull/12424) by [@mattyg](https://www.github.com/tauri-apps/tauri/../../mattyg)) Ensure that tauri's builtin initialization scripts and plugin initialization scripts are executed before any user-added initialization scripts in a webview.
+
 ## \[2.2.2]
 
 ### Bug Fixes

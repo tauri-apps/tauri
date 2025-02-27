@@ -1040,6 +1040,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   let mut dlls = Vec::new();
 
+  // TODO: The bundler should not include all DLLs it finds. Instead it should only include WebView2Loader.dll if present and leave the rest to the resources config.
   let out_dir = settings.project_out_directory();
   for dll in glob::glob(
     &PathBuf::from(glob::Pattern::escape(&out_dir.to_string_lossy()))
@@ -1063,15 +1064,15 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   }
 
   if !dlls.is_empty() {
-    resources.insert(
-      "".to_string(),
-      ResourceDirectory {
+    resources
+      .entry("".to_string())
+      .and_modify(|r| r.files.append(&mut dlls))
+      .or_insert(ResourceDirectory {
         path: "".to_string(),
         name: "".to_string(),
         directories: vec![],
         files: dlls,
-      },
-    );
+      });
   }
 
   Ok(resources)

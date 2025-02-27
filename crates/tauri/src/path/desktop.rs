@@ -9,6 +9,12 @@ use std::path::PathBuf;
 /// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
 
+impl<R: Runtime> Clone for PathResolver<R> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
+}
+
 impl<R: Runtime> PathResolver<R> {
   /// Returns the path to the user's audio directory.
   ///

@@ -50,13 +50,18 @@ impl TauriOptions {
 
   #[cfg(target_os = "windows")]
   fn into_native_object(self) -> Map<String, Value> {
+    let mut ms_edge_options = Map::new();
+    ms_edge_options.insert("binary".into(), json!(self.application));
+    ms_edge_options.insert("args".into(), self.args.into());
+
+    if let Some(webview_options) = self.webview_options {
+      ms_edge_options.insert("webviewOptions".into(), webview_options);
+    }
+
     let mut map = Map::new();
     map.insert("ms:edgeChromium".into(), json!(true));
     map.insert("browserName".into(), json!("webview2"));
-    map.insert(
-      "ms:edgeOptions".into(),
-      json!({"binary": self.application, "args": self.args, "webviewOptions": self.webview_options}),
-    );
+    map.insert("ms:edgeOptions".into(), ms_edge_options.into());
     map
   }
 }

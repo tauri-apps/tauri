@@ -25,13 +25,12 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview,
-  Window,
+  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
 };
 
 use super::{
   window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
-  AppManager,
+  {AppManager, EmitPayload},
 };
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
@@ -227,16 +226,13 @@ impl<R: Runtime> WebviewManager<R> {
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();
 
-      pending.register_uri_scheme_protocol(
-        uri_scheme.clone(),
-        move |webview_id, request, responder| {
-          let context = UriSchemeContext {
-            app_handle: &app_handle,
-            webview_label: webview_id,
-          };
-          (protocol.protocol)(context, request, UriSchemeResponder(responder))
-        },
-      );
+      pending.register_uri_scheme_protocol(uri_scheme, move |webview_id, request, responder| {
+        let context = UriSchemeContext {
+          app_handle: &app_handle,
+          webview_label: webview_id,
+        };
+        (protocol.protocol)(context, request, UriSchemeResponder(responder))
+      });
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
@@ -315,7 +311,7 @@ impl<R: Runtime> WebviewManager<R> {
         .get::<crate::Scopes>()
         .asset_protocol
         .clone();
-      let protocol = crate::protocol::asset::get(asset_scope.clone(), window_origin.clone());
+      let protocol = crate::protocol::asset::get(asset_scope, window_origin.clone());
       pending.register_uri_scheme_protocol("asset", move |webview_id, request, responder| {
         protocol(webview_id, request, UriSchemeResponder(responder))
       });
@@ -632,12 +628,14 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("failed to run on_webview_created hook");
     }
 
-    let _ = webview.manager.emit(
-      "tauri://webview-created",
-      Some(crate::webview::CreatedEvent {
-        label: webview.label().into(),
-      }),
-    );
+    let event = crate::EventName::from_str("tauri://webview-created");
+    let payload = Some(crate::webview::CreatedEvent {
+      label: webview.label().into(),
+    });
+
+    let _ = webview
+      .manager
+      .emit(event, EmitPayload::Serialize(&payload));
 
     webview
   }
@@ -661,14 +659,21 @@ impl<R: Runtime> WebviewManager<R> {
 
 impl<R: Runtime> Webview<R> {
   /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
-  fn emit_to_webview<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+  fn emit_to_webview<S: Serialize>(
+    &self,
+    event: crate::EventName<&str>,
+    payload: &S,
+  ) -> crate::Result<()> {
     let window_label = self.label();
-    self.emit_filter(event, payload, |target| match target {
-      EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
-        label == window_label
-      }
-      _ => false,
-    })
+    let payload = EmitPayload::Serialize(payload);
+    self
+      .manager()
+      .emit_filter(event, payload, |target| match target {
+        EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
+          label == window_label
+        }
+        _ => false,
+      })
   }
 }
 
@@ -680,14 +685,14 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
           paths: Some(paths),
           position,
         };
-        webview.emit_to_webview(DRAG_ENTER_EVENT, payload)?
+        webview.emit_to_webview(DRAG_ENTER_EVENT, &payload)?
       }
       DragDropEvent::Over { position } => {
         let payload = DragDropPayload {
           position,
           paths: None,
         };
-        webview.emit_to_webview(DRAG_OVER_EVENT, payload)?
+        webview.emit_to_webview(DRAG_OVER_EVENT, &payload)?
       }
       DragDropEvent::Drop { paths, position } => {
         let scopes = webview.state::<Scopes>();
@@ -702,9 +707,9 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
           paths: Some(paths),
           position,
         };
-        webview.emit_to_webview(DRAG_DROP_EVENT, payload)?
+        webview.emit_to_webview(DRAG_DROP_EVENT, &payload)?
       }
-      DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, ())?,
+      DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, &())?,
       _ => unimplemented!(),
     },
   }

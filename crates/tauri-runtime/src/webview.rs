@@ -7,7 +7,9 @@
 use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
-use tauri_utils::config::{Color, WebviewUrl, WindowConfig, WindowEffectsConfig};
+use tauri_utils::config::{
+  BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig, WindowEffectsConfig,
+};
 use url::Url;
 
 use std::{
@@ -215,6 +217,7 @@ pub struct WebviewAttributes {
   pub use_https_scheme: bool,
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
+  pub background_throttling: Option<BackgroundThrottlingPolicy>,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -225,7 +228,9 @@ impl From<&WindowConfig> for WebviewAttributes {
       .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
+      .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools);
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       builder = builder.transparent(config.transparent);
@@ -279,6 +284,7 @@ impl WebviewAttributes {
       use_https_scheme: false,
       devtools: None,
       background_color: None,
+      background_throttling: None,
     }
   }
 
@@ -442,6 +448,26 @@ impl WebviewAttributes {
   #[must_use]
   pub fn background_color(mut self, color: Color) -> Self {
     self.background_color = Some(color);
+    self
+  }
+
+  /// Change the default background throttling behaviour.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[must_use]
+  pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
+    self.background_throttling = policy;
     self
   }
 }

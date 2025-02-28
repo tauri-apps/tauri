@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#[cfg_attr(not(windows), allow(unused_imports))]
 pub use imp::*;
 
 #[cfg(not(windows))]

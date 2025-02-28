@@ -349,10 +349,12 @@ pub struct AppHandle<R: Runtime> {
   event_loop: Arc<Mutex<Option<EventLoop<R>>>>,
 }
 
+type EventCallback<R> = Box<dyn FnMut(&AppHandle<R>, RunEvent) + 'static>;
+
 #[derive(Debug)]
 struct EventLoop<R: Runtime> {
   main_thread_id: ThreadId,
-  callback: Arc<UnsafeCell<Box<dyn FnMut(&AppHandle<R>, RunEvent) + 'static>>>,
+  callback: Arc<UnsafeCell<EventCallback<R>>>,
 }
 // we ensure the EventLoop is only referenced on the main thread
 unsafe impl<R: Runtime> Send for EventLoop<R> {}

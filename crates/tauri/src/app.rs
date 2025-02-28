@@ -40,9 +40,11 @@ use tauri_utils::{assets::AssetsIter, PackageInfo};
 
 use std::{
   borrow::Cow,
+  cell::UnsafeCell,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc, MutexGuard},
+  sync::{mpsc::Sender, Arc, Mutex, MutexGuard},
+  thread::ThreadId,
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -339,7 +341,17 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: Arc<AppManager<R>>,
+  event_loop: Arc<Mutex<Option<EventLoop<R>>>>,
 }
+
+#[derive(Debug)]
+struct EventLoop<R: Runtime> {
+  main_thread_id: ThreadId,
+  callback: Arc<UnsafeCell<Box<dyn FnMut(&AppHandle<R>, RunEvent) + 'static>>>,
+}
+// we ensure the EventLoop is only referenced on the main thread
+unsafe impl<R: Runtime> Send for EventLoop<R> {}
+unsafe impl<R: Runtime> Sync for EventLoop<R> {}
 
 /// APIs specific to the wry runtime.
 #[cfg(feature = "wry")]
@@ -375,6 +387,7 @@ impl<R: Runtime> Clone for AppHandle<R> {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      event_loop: self.event_loop.clone(),
     }
   }
 }
@@ -469,12 +482,37 @@ impl<R: Runtime> AppHandle<R> {
     }
   }
 
-  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`]..
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`].
   pub fn restart(&self) -> ! {
-    if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
-      self.cleanup_before_exit();
+    let already_exited = self.manager.event_loop_exited();
+    if already_exited {
+      log::debug!("restart already called, exiting early");
+      crate::process::restart(&self.env());
     }
-    let _impede = self.manager.wait_for_event_loop_exit();
+
+    let event_loop_lock = self.event_loop.lock().unwrap();
+    if let Some(event_loop) = &*event_loop_lock {
+      if event_loop.main_thread_id == std::thread::current().id() {
+        log::debug!("restart triggered on the main thread");
+        self.manager.notify_event_loop_exit();
+        // we're running on the main thread, so we must trigger the Exit event manually
+        (unsafe { &mut *event_loop.callback.get() })(self, RunEvent::Exit);
+      } else {
+        log::debug!("restart triggered from a separate thread");
+        // we're running on a separate thread, so we must trigger the exit request and wait for it to finish
+        match self.runtime_handle.request_exit(RESTART_EXIT_CODE) {
+          Ok(()) => {
+            let _impede = self.manager.wait_for_event_loop_exit();
+          }
+          Err(e) => {
+            log::error!("failed to request exit: {e}");
+            self.cleanup_before_exit();
+          }
+        }
+      }
+    } else {
+      log::debug!("restart triggered while event loop is not running");
+    }
     crate::process::restart(&self.env());
   }
 
@@ -1070,26 +1108,35 @@ impl<R: Runtime> App<R> {
   ///   _ => {}
   /// });
   /// ```
-  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
+  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, callback: F) {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();
+    let callback = Arc::new(UnsafeCell::new(
+      Box::new(callback) as Box<dyn FnMut(&AppHandle<R>, RunEvent) + 'static>
+    ));
+
+    app_handle.event_loop.lock().unwrap().replace(EventLoop {
+      main_thread_id: std::thread::current().id(),
+      callback: callback.clone(),
+    });
+
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
         }
         let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
+        (unsafe { &mut *callback.get() })(&app_handle, event);
       }
       RuntimeRunEvent::Exit => {
         let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
+        (unsafe { &mut *callback.get() })(&app_handle, event);
         app_handle.cleanup_before_exit();
         manager.notify_event_loop_exit();
       }
       _ => {
         let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
+        (unsafe { &mut *callback.get() })(&app_handle, event);
       }
     });
   }
@@ -1117,7 +1164,7 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
-  pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
+  pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, callback: F) {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
 
@@ -1127,9 +1174,18 @@ impl<R: Runtime> App<R> {
       }
     }
 
+    let callback = Arc::new(UnsafeCell::new(
+      Box::new(callback) as Box<dyn FnMut(&AppHandle<R>, RunEvent) + 'static>
+    ));
+
+    app_handle.event_loop.lock().unwrap().replace(EventLoop {
+      main_thread_id: std::thread::current().id(),
+      callback: callback.clone(),
+    });
+
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
       let event = on_event_loop_event(&app_handle, event, &manager);
-      callback(&app_handle, event);
+      (unsafe { &mut *callback.get() })(&app_handle, event);
     })
   }
 }
@@ -1965,6 +2021,7 @@ tauri::Builder::default()
       handle: AppHandle {
         runtime_handle,
         manager,
+        event_loop: Default::default(),
       },
       ran_setup: false,
     };

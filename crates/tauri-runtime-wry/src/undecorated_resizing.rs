@@ -349,9 +349,9 @@ mod windows {
             return DefWindowProcW(child, msg, wparam, lparam);
           }
 
-          let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
-          let border_x = GetSystemMetrics(SM_CXFRAME) + padded_border;
-          let border_y = GetSystemMetrics(SM_CYFRAME) + padded_border;
+          let dpi = unsafe { util::hwnd_dpi(child) };
+          let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+          let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
           hit_test(
             rect.left,

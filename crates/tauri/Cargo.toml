@@ -134,7 +134,7 @@ bytes = { version = "1", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "stream",
-  "rustls-tls",
+
 ] }
 
 # android
@@ -194,7 +194,7 @@ custom-protocol = ["tauri-macros/custom-protocol"]
 # For now those feature flags keep enabling reqwest features in case some users depend on that by accident.
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
-rustls-tls = []
+rustls-tls = ["reqwest/rustls-tls"]
 devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",

@@ -75,14 +75,19 @@ pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
-pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
+pub struct ExitRequestApi {
+  tx: Sender<ExitRequestedEventAction>,
+  code: Option<i32>,
+}
 
 impl ExitRequestApi {
   /// Prevents the app from exiting.
   ///
   /// **Note:** This is ignored when using [`AppHandle#method.restart`].
   pub fn prevent_exit(&self) {
-    self.0.send(ExitRequestedEventAction::Prevent).unwrap();
+    if self.code != Some(RESTART_EXIT_CODE) {
+      self.tx.send(ExitRequestedEventAction::Prevent).unwrap();
+    }
   }
 }
 
@@ -2213,7 +2218,7 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::Exit => RunEvent::Exit,
     RuntimeRunEvent::ExitRequested { code, tx } => RunEvent::ExitRequested {
       code,
-      api: ExitRequestApi(tx),
+      api: ExitRequestApi { tx, code },
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
       label,

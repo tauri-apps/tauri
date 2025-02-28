@@ -134,6 +134,7 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
   target_os = "openbsd"
 ))]
 mod undecorated_resizing;
+mod util;
 mod webview;
 mod window;
 

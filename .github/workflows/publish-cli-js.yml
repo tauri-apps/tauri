@@ -43,11 +43,13 @@ jobs:
           - host: windows-latest
             architecture: x64
             target: aarch64-pc-windows-msvc
-            build: pnpm build --target aarch64-pc-windows-msvc --features native-tls-vendored --cargo-flags="--no-default-features"
+            build: pnpm build --target aarch64-pc-windows-msvc
           - host: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
+              npm i -g --force corepack
+              corepack enable
               cd packages/cli
               pnpm build --target x86_64-unknown-linux-gnu
               strip *.node
@@ -67,6 +69,8 @@ jobs:
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
+              npm i -g --force corepack
+              corepack enable
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
@@ -92,7 +96,9 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
@@ -202,7 +208,9 @@ jobs:
     runs-on: ${{ matrix.settings.host }}
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -233,7 +241,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -270,7 +280,9 @@ jobs:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:
@@ -361,7 +373,9 @@ jobs:
       id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: Setup node
         uses: actions/setup-node@v4
         with:

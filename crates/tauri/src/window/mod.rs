@@ -1016,7 +1016,7 @@ impl<R: Runtime> Window<R> {
     let window_ = self.clone();
     self.run_on_main_thread(move || {
       let res = webview_builder.build(window_, position, size);
-      tx.send(res.map_err(Into::into)).unwrap();
+      tx.send(res).unwrap();
     })?;
     rx.recv().unwrap()
   }

@@ -38,7 +38,9 @@ jobs:
       - name: install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - run: corepack enable
+      - run: |
+          npm i -g --force corepack
+          corepack enable
       - name: setup node
         uses: actions/setup-node@v4
         with:

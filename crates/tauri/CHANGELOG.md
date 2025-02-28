@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.3.1]
+
+### Bug Fixes
+
+- [`4f26dcf30`](https://www.github.com/tauri-apps/tauri/commit/4f26dcf3090f230d2996626423c8b9d58cc2e8aa) ([#12833](https://www.github.com/tauri-apps/tauri/pull/12833) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix OS webviews (`webview2` and `webkit2gtk`) are always compiled with tauri even without `wry` feature
+- [`e103e87f1`](https://www.github.com/tauri-apps/tauri/commit/e103e87f155cf7fa51baa0a48a476463216c0d62) ([#12848](https://www.github.com/tauri-apps/tauri/pull/12848) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix crash on Windows because of missing functions on older Windows systems, regression in 2.3.0
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.4.1`
+
 ## \[2.3.0]
 
 ### New Features

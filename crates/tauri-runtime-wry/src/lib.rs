@@ -213,7 +213,7 @@ pub(crate) fn send_user_message<T: UserEvent>(
   context: &Context<T>,
   message: Message<T>,
 ) -> Result<()> {
-  if current_thread().id() == context.main_thread_id && context.plugins.try_lock().is_ok() {
+  if current_thread().id() == context.main_thread_id {
     handle_user_message(
       &context.main_thread.window_target,
       message,

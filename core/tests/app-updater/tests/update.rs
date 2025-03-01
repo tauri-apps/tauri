@@ -160,9 +160,8 @@ fn build_app_v2(cwd: &Path, envs: Vec<(&str, &str)>, config: &ConfigV2, target: 
     command
       .envs(envs)
       .env("TAURI_SIGNING_KEY_PASSWORD", "")
-      .env("CI", "true")
-      // skip password prompt
-      .args(["--bundles", "updater"]);
+      .env("CI", "true");
+    // skip password prompt
   } else {
     #[cfg(windows)]
     command.args(["--bundles", target.name()]);

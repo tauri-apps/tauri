@@ -170,9 +170,9 @@ dependencies = [
 
 [[package]]
 name = "brotli"
-version = "6.0.0"
+version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "74f7971dbd9326d58187408ab83117d8ac1bb9c17b085fdacd1cf2f598719b6b"
+checksum = "cc97b8f16f944bba54f0433f07e30be199b6dc2bd25937444bbad560bcea29bd"
 dependencies = [
  "alloc-no-stdlib",
  "alloc-stdlib",
@@ -1330,9 +1330,9 @@ dependencies = [
 
 [[package]]
 name = "ico"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3804960be0bb5e4edb1e1ad67afd321a9ecfd875c3e65c099468fd2717d7cae"
+checksum = "cc50b891e4acf8fe0e71ef88ec43ad82ee07b3810ad09de10f1d01f072ed4b98"
 dependencies = [
  "byteorder",
  "png",
@@ -2982,7 +2982,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "1.7.2"
+version = "1.8.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -3038,7 +3038,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "1.5.4"
+version = "1.5.6"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -3055,7 +3055,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "1.4.5"
+version = "1.4.6"
 dependencies = [
  "base64 0.21.7",
  "brotli",
@@ -3078,7 +3078,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "1.4.6"
+version = "1.4.7"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -3090,7 +3090,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "0.14.5"
+version = "0.14.6"
 dependencies = [
  "gtk",
  "http",
@@ -3109,7 +3109,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "0.14.10"
+version = "0.14.11"
 dependencies = [
  "cocoa",
  "gtk",
@@ -3127,7 +3127,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "brotli",
  "ctor",

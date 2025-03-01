@@ -478,7 +478,7 @@ fn rustc_version() -> (u32, u32) {
         .split(' ')
         .nth(1)
         .unwrap_or_default()
-        .split(".")
+        .split('.')
         .take(2)
         .flat_map(|p| p.parse::<u32>().ok())
         .collect::<Vec<_>>();

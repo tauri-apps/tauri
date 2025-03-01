@@ -15,7 +15,7 @@ use crate::{
   ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
-  Emitter, Listener, ResourceTable, Window,
+  Emitter, EventName, Listener, ResourceTable, Window,
 };
 #[cfg(desktop)]
 use crate::{
@@ -27,9 +27,8 @@ use crate::{
     UserAttentionType,
   },
 };
-use serde::Serialize;
 use tauri_utils::{
-  config::{Color, WebviewUrl, WindowConfig},
+  config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig},
   Theme,
 };
 use url::Url;
@@ -977,6 +976,26 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self.webview_builder = self.webview_builder.background_color(color);
     self
   }
+
+  /// Change the default background throttling behaviour.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[must_use]
+  pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
+    self.webview_builder = self.webview_builder.background_throttling(policy);
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
@@ -1864,7 +1883,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+  pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.navigate(url)
   }
 
@@ -2010,8 +2029,9 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   where
     F: Fn(Event) + Send + 'static,
   {
+    let event = EventName::new(event.into()).unwrap();
     self.manager().listen(
-      event.into(),
+      event,
       EventTarget::WebviewWindow {
         label: self.label().to_string(),
       },
@@ -2026,8 +2046,9 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   where
     F: FnOnce(Event) + Send + 'static,
   {
+    let event = EventName::new(event.into()).unwrap();
     self.manager().once(
-      event.into(),
+      event,
       EventTarget::WebviewWindow {
         label: self.label().to_string(),
       },
@@ -2064,79 +2085,7 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   }
 }
 
-impl<R: Runtime> Emitter<R> for WebviewWindow<R> {
-  /// Emits an event to all [targets](EventTarget).
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Emitter;
-  ///
-  /// #[tauri::command]
-  /// fn synchronize(window: tauri::WebviewWindow) {
-  ///   // emits the synchronized event to all webviews
-  ///   window.emit("synchronized", ());
-  /// }
-  ///   ```
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager().emit(event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) matching the given target.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{Emitter, EventTarget};
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::WebviewWindow) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners
-  ///     window.emit_to(EventTarget::any(), "download-progress", i);
-  ///     // emit an event to listeners that used App::listen or AppHandle::listen
-  ///     window.emit_to(EventTarget::app(), "download-progress", i);
-  ///     // emit an event to any webview/window/webviewWindow matching the given label
-  ///     window.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-  ///     window.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-  ///     // emit an event to listeners that used WebviewWindow::listen
-  ///     window.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
-  where
-    I: Into<EventTarget>,
-    S: Serialize + Clone,
-  {
-    self.manager().emit_to(target, event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) based on the given filter.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{Emitter, EventTarget};
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::WebviewWindow) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to the updater window
-  ///     window.emit_filter("download-progress", i, |t| match t {
-  ///       EventTarget::WebviewWindow { label } => label == "main",
-  ///       _ => false,
-  ///     });
-  ///   }
-  /// }
-  ///   ```
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    self.manager().emit_filter(event, payload, filter)
-  }
-}
+impl<R: Runtime> Emitter<R> for WebviewWindow<R> {}
 
 impl<R: Runtime> Manager<R> for WebviewWindow<R> {
   fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {

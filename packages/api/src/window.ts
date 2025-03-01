@@ -2022,6 +2022,17 @@ type Color =
   | string
 
 /**
+ * Background throttling policy
+ *
+ * @since 2.0.0
+ */
+enum BackgroundThrottlingPolicy {
+  Disabled = 'disabled',
+  Throttle = 'throttle',
+  Suspend = 'suspend'
+}
+
+/**
  * Platform-specific window effects
  *
  * @since 2.0.0
@@ -2338,6 +2349,20 @@ interface WindowOptions {
    * @since 2.1.0
    */
   backgroundColor?: Color
+
+  /** Change the default background throttling behaviour.
+   *
+   * ## Platform-specific
+   *
+   * - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+   * - **iOS**: Supported since version 17.0+.
+   * - **macOS**: Supported since version 14.0+.
+   *
+   * see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+   *
+   * @since 2.3.0
+   */
+  backgroundThrottling?: BackgroundThrottlingPolicy
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2460,5 +2485,6 @@ export type {
   ScaleFactorChanged,
   WindowOptions,
   Color,
+  BackgroundThrottlingPolicy,
   DragDropEvent
 }

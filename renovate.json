@@ -14,6 +14,11 @@
       "matchPackageNames": ["node", "pnpm"],
       "matchDepTypes": ["engines", "packageManager"],
       "enabled": false
+    },
+    {
+      "description": "Disable oxc_* crates because of MSRV and PR spam",
+      "matchPackageNames": ["oxc_*"],
+      "enabled": false
     }
   ],
   "postUpdateOptions": ["pnpmDedupe"]

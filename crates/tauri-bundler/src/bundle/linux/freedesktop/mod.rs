@@ -153,7 +153,7 @@ pub fn generate_desktop_file(
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
 
-  let bin_name_exec = if bin_name.contains(" ") {
+  let bin_name_exec = if bin_name.contains(' ') {
     format!("\"{bin_name}\"")
   } else {
     bin_name.to_string()

@@ -49,12 +49,25 @@ pub fn run(options: Options) -> Result<()> {
     .map(|(p, v)| (p, Some(v)))
     .unwrap_or((&options.plugin, None));
 
+  let mut plugins = crate::helpers::plugins::known_plugins();
+  let (metadata, is_known) = plugins
+    .remove(plugin)
+    .map(|metadata| (metadata, true))
+    .unwrap_or_default();
+
   let plugin_snake_case = plugin.replace('-', "_");
   let crate_name = format!("tauri-plugin-{plugin}");
-  let npm_name = format!("@tauri-apps/plugin-{plugin}");
+  let npm_name = if is_known {
+    format!("@tauri-apps/plugin-{plugin}")
+  } else {
+    format!("tauri-plugin-{plugin}-api")
+  };
 
-  let mut plugins = crate::helpers::plugins::known_plugins();
-  let metadata = plugins.remove(plugin).unwrap_or_default();
+  if !is_known && (options.tag.is_some() || options.rev.is_some() || options.branch.is_some()) {
+    anyhow::bail!(
+      "Git options --tag, --rev and --branch can only be used with official Tauri plugins"
+    );
+  }
 
   let frontend_dir = resolve_frontend_dir();
   let tauri_dir = tauri_dir();

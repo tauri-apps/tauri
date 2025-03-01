@@ -99,7 +99,7 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
   for entry in walkdir::WalkDir::new(tauri_dir.join("capabilities")) {
     let entry = entry?;
     let path = entry.path();
-    if path.extension().map_or(false, |ext| ext == "json") {
+    if path.extension().is_some_and(|ext| ext == "json") {
       let mut capability = read_to_string(path).context("failed to read capability")?;
       for plugin in core_plugins {
         capability = capability.replace(&format!("\"{plugin}:"), &format!("\"core:{plugin}:"));

@@ -452,7 +452,8 @@ pub fn synchronize_project_config(
       }
 
       if let Some(team) = config.development_team() {
-        pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", team);
+        let team = format!("\"{team}\"");
+        pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &team);
       }
 
       pbxproj.set_build_settings(
@@ -472,11 +473,12 @@ pub fn synchronize_project_config(
       }
 
       if let Some(id) = &project_config.team_id {
-        pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", id);
+        let id = format!("\"{id}\"");
+        pbxproj.set_build_settings(&build_configuration_ref.id, "DEVELOPMENT_TEAM", &id);
         pbxproj.set_build_settings(
           &build_configuration_ref.id,
           "\"DEVELOPMENT_TEAM[sdk=iphoneos*]\"",
-          id,
+          &id,
         );
       }
 

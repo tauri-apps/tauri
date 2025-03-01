@@ -87,7 +87,7 @@ pub trait AppSettings {
 #[derive(Debug)]
 pub enum ExitReason {
   /// Killed manually.
-  // TriggeredKill,
+  TriggeredKill,
   /// App compilation failed.
   CompilationFailed,
   /// Regular exit.

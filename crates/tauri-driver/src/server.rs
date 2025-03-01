@@ -5,17 +5,24 @@
 use crate::cli::Args;
 use anyhow::Error;
 use futures_util::TryFutureExt;
-use hyper::header::CONTENT_LENGTH;
-use hyper::http::uri::Authority;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Method, Request, Response, Server};
+use http_body_util::{BodyExt, Full};
+use hyper::{
+  body::{Bytes, Incoming},
+  header::CONTENT_LENGTH,
+  http::uri::Authority,
+  service::service_fn,
+  Method, Request, Response,
+};
+use hyper_util::{
+  client::legacy::{connect::HttpConnector, Client},
+  rt::{TokioExecutor, TokioIo},
+  server::conn::auto,
+};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use std::convert::Infallible;
 use std::path::PathBuf;
 use std::process::Child;
-
-type HttpClient = Client<hyper::client::HttpConnector>;
+use tokio::net::TcpListener;
 
 const TAURI_OPTIONS: &str = "tauri:options";
 
@@ -43,48 +50,63 @@ impl TauriOptions {
 
   #[cfg(target_os = "windows")]
   fn into_native_object(self) -> Map<String, Value> {
+    let mut ms_edge_options = Map::new();
+    ms_edge_options.insert("binary".into(), json!(self.application));
+    ms_edge_options.insert("args".into(), self.args.into());
+
+    if let Some(webview_options) = self.webview_options {
+      ms_edge_options.insert("webviewOptions".into(), webview_options);
+    }
+
     let mut map = Map::new();
     map.insert("ms:edgeChromium".into(), json!(true));
     map.insert("browserName".into(), json!("webview2"));
-    map.insert(
-      "ms:edgeOptions".into(),
-      json!({"binary": self.application, "args": self.args, "webviewOptions": self.webview_options}),
-    );
+    map.insert("ms:edgeOptions".into(), ms_edge_options.into());
     map
   }
 }
 
 async fn handle(
-  client: HttpClient,
-  mut req: Request<Body>,
+  client: Client<HttpConnector, Full<Bytes>>,
+  req: Request<Incoming>,
   args: Args,
-) -> Result<Response<Body>, Error> {
+) -> Result<Response<Incoming>, Error> {
   // manipulate a new session to convert options to the native driver format
-  if let (&Method::POST, "/session") = (req.method(), req.uri().path()) {
-    let (mut parts, body) = req.into_parts();
+  let new_req: Request<Full<Bytes>> =
+    if let (&Method::POST, "/session") = (req.method(), req.uri().path()) {
+      let (mut parts, body) = req.into_parts();
 
-    // get the body from the future stream and parse it as json
-    let body = hyper::body::to_bytes(body).await?;
-    let json: Value = serde_json::from_slice(&body)?;
+      // get the body from the future stream and parse it as json
+      let body = body.collect().await?.to_bytes().to_vec();
+      let json: Value = serde_json::from_slice(&body)?;
 
-    // manipulate the json to convert from tauri option to native driver options
-    let json = map_capabilities(json);
+      // manipulate the json to convert from tauri option to native driver options
+      let json = map_capabilities(json);
 
-    // serialize json and update the content-length header to be accurate
-    let bytes = serde_json::to_vec(&json)?;
-    parts.headers.insert(CONTENT_LENGTH, bytes.len().into());
+      // serialize json and update the content-length header to be accurate
+      let bytes = serde_json::to_vec(&json)?;
+      parts.headers.insert(CONTENT_LENGTH, bytes.len().into());
 
-    req = Request::from_parts(parts, bytes.into());
-  }
+      Request::from_parts(parts, Full::new(bytes.into()))
+    } else {
+      let (parts, body) = req.into_parts();
+
+      let body = body.collect().await?.to_bytes().to_vec();
+
+      Request::from_parts(parts, Full::new(body.into()))
+    };
 
   client
-    .request(forward_to_native_driver(req, args)?)
+    .request(forward_to_native_driver(new_req, args)?)
     .err_into()
     .await
 }
 
 /// Transform the request to a request for the native webdriver server.
-fn forward_to_native_driver(mut req: Request<Body>, args: Args) -> Result<Request<Body>, Error> {
+fn forward_to_native_driver(
+  mut req: Request<Full<Bytes>>,
+  args: Args,
+) -> Result<Request<Full<Bytes>>, Error> {
   let host: Authority = {
     let headers = req.headers_mut();
     headers.remove("host").expect("hyper request has host")
@@ -171,30 +193,44 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
   let address = std::net::SocketAddr::from(([127, 0, 0, 1], args.port));
 
   // the client we use to proxy requests to the native webdriver
-  let client = Client::builder()
+  let client = Client::builder(TokioExecutor::new())
     .http1_preserve_header_case(true)
     .http1_title_case_headers(true)
     .retry_canceled_requests(false)
     .build_http();
 
-  // pass a copy of the client to the http request handler
-  let service = make_service_fn(move |_| {
-    let client = client.clone();
-    let args = args.clone();
-    async move {
-      Ok::<_, Infallible>(service_fn(move |request| {
-        handle(client.clone(), request, args.clone())
-      }))
-    }
-  });
-
   // set up a http1 server that uses the service we just created
-  Server::bind(&address)
-    .http1_title_case_headers(true)
-    .http1_preserve_header_case(true)
-    .http1_only(true)
-    .serve(service)
-    .await?;
+  let srv = async move {
+    if let Ok(listener) = TcpListener::bind(address).await {
+      loop {
+        let client = client.clone();
+        let args = args.clone();
+        if let Ok((stream, _)) = listener.accept().await {
+          let io = TokioIo::new(stream);
+
+          tokio::task::spawn(async move {
+            if let Err(err) = auto::Builder::new(TokioExecutor::new())
+              .http1()
+              .title_case_headers(true)
+              .preserve_header_case(true)
+              .serve_connection(
+                io,
+                service_fn(|request| handle(client.clone(), request, args.clone())),
+              )
+              .await
+            {
+              println!("Error serving connection: {:?}", err);
+            }
+          });
+        } else {
+          println!("accept new stream fail, ignore here");
+        }
+      }
+    } else {
+      println!("can not listen to address: {:?}", address);
+    }
+  };
+  srv.await;
 
   #[cfg(unix)]
   {

@@ -68,7 +68,7 @@ fn copy_binaries(
       .to_string_lossy()
       .replace(&format!("-{target_triple}"), "");
 
-    if package_name.map_or(false, |n| n == &file_name) {
+    if package_name == Some(&file_name) {
       return Err(anyhow::anyhow!(
         "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
         file_name
@@ -506,19 +506,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   cfg_alias("dev", is_dev());
 
-  let ws_path = get_workspace_dir()?;
-  let mut manifest =
-    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&fs::read("Cargo.toml")?)?;
-
-  if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
-    Manifest::complete_from_path_and_workspace(
-      &mut manifest,
-      Path::new("Cargo.toml"),
-      Some((&ws_manifest, ws_path.as_path())),
-    )?;
-  } else {
-    Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
-  }
+  let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
+  let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
   let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
@@ -624,7 +613,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
-        let version = v.major << 48 | v.minor << 32 | v.patch << 16;
+        let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
         res.set_version_info(VersionInfo::FILEVERSION, version);
         res.set_version_info(VersionInfo::PRODUCTVERSION, version);
       }
@@ -686,7 +675,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       "msvc" => {
-        if env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
+        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
           static_vcruntime::build();
         }
       }
@@ -700,24 +689,4 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   Ok(())
-}
-
-#[derive(serde::Deserialize)]
-struct CargoMetadata {
-  workspace_root: PathBuf,
-}
-
-fn get_workspace_dir() -> Result<PathBuf> {
-  let output = std::process::Command::new("cargo")
-    .args(["metadata", "--no-deps", "--format-version", "1"])
-    .output()?;
-
-  if !output.status.success() {
-    return Err(anyhow::anyhow!(
-      "cargo metadata command exited with a non zero exit code: {}",
-      String::from_utf8(output.stderr)?
-    ));
-  }
-
-  Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)?.workspace_root)
 }

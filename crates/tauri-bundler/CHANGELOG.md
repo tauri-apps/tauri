@@ -1,5 +1,43 @@
 # Changelog
 
+## \[2.2.4]
+
+### Enhancements
+
+- [`5eba0785c`](https://www.github.com/tauri-apps/tauri/commit/5eba0785c461a0d0bec47653eaf6ccdf5f05d347) ([#12605](https://www.github.com/tauri-apps/tauri/pull/12605) by [@niusia-ua](https://www.github.com/tauri-apps/tauri/../../niusia-ua)) Added Ukrainian translation for the custom tauri messages in the nsis bundle
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-macos-sign@2.1.0`
+
+## \[2.2.3]
+
+### Bug Fixes
+
+- [`de8600b4d`](https://www.github.com/tauri-apps/tauri/commit/de8600b4d9a04e809e078c8aea61825d1328201f) ([#12471](https://www.github.com/tauri-apps/tauri/pull/12471) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) Bumped `nsis-tauri-utils` to `0.4.2` which fixes the following bugs:
+
+  - Fixed launch on start checkbox in nsis installer does not work well with applications that require elevated permissions
+  - Fixed nsis installer may fail to install if launched by updater plugin
+- [`fbe7c9ead`](https://www.github.com/tauri-apps/tauri/commit/fbe7c9ead76e71ca258c6f48bbb62185fcc37b1c) ([#12466](https://www.github.com/tauri-apps/tauri/pull/12466) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused the compiled AppImage to miss webkitgtk's internal `libwebkit2gtkinjectedbundle.so` file.
+- [`f5a59b93b`](https://www.github.com/tauri-apps/tauri/commit/f5a59b93bfefb43ff131a7870b3c5d5e48c1ca1e) ([#12136](https://www.github.com/tauri-apps/tauri/pull/12136) by [@unknovvn](https://www.github.com/tauri-apps/tauri/../../unknovvn)) The NSIS bundler will now replace non-numeric build metadata with `0` instead of returning an error.
+- [`9dac2863a`](https://www.github.com/tauri-apps/tauri/commit/9dac2863afa70fb0bcddf859b284afba917f28ae) ([#12323](https://www.github.com/tauri-apps/tauri/pull/12323) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Skip signing the .dmg if self signing via `"signingIdentity": "-"` is used.
+- [`b8eb28877`](https://www.github.com/tauri-apps/tauri/commit/b8eb28877fe822dbe17999fc8af98ed7d0983679) ([#12427](https://www.github.com/tauri-apps/tauri/pull/12427) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Clean up `Software\${MANUFACTURER}\${PRODUCTNAME}` registry key in the NSIS uninstaller if "Delete application data" option is checked when uninstalling.
+
+## \[2.2.2]
+
+### Bug Fixes
+
+- [`72748cc45`](https://www.github.com/tauri-apps/tauri/commit/72748cc45cf670dd03c86c8deceb5942598f5ad9) ([#12365](https://www.github.com/tauri-apps/tauri/pull/12365) by [@don41382](https://www.github.com/tauri-apps/tauri/../../don41382)) Fixed an issue that caused the `.msi` installer not to lookup the `INSTALLDIR` set in the `nsis` installer.
+- [`cf771bf69`](https://www.github.com/tauri-apps/tauri/commit/cf771bf69aa26b62d11a54a69131c631505d8c55) ([#12402](https://www.github.com/tauri-apps/tauri/pull/12402) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused the .msi installer to not contain root resources when there were .dll files present in the target directory.
+- [`07ccdc499`](https://www.github.com/tauri-apps/tauri/commit/07ccdc499c3240e7240be3abf95ef2d7d00b2dc7) ([#12324](https://www.github.com/tauri-apps/tauri/pull/12324) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue leading to NSIS based installers to not contain the `WebView2Loader.dll` file when targetting `windows-gnu`.
+
+## \[2.2.1]
+
+### Bug Fixes
+
+- [`cd1d026f9`](https://www.github.com/tauri-apps/tauri/commit/cd1d026f9799c26b04acb64f49e7ee0a8b193049) ([#11961](https://www.github.com/tauri-apps/tauri/pull/11961) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix tauri fails to build if the project path contains glob characters
+
 ## \[2.2.0]
 
 ### New Features

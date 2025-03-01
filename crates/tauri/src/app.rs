@@ -18,7 +18,7 @@ use crate::{
   sealed::{ManagerBase, RuntimeOrDispatch},
   utils::{config::Config, Env},
   webview::PageLoadPayload,
-  Context, DeviceEventFilter, Emitter, EventLoopMessage, Listener, Manager, Monitor, Result,
+  Context, DeviceEventFilter, Emitter, EventLoopMessage, EventName, Listener, Manager, Monitor,
   Runtime, Scopes, StateManager, Theme, Webview, WebviewWindowBuilder, Window,
 };
 
@@ -38,7 +38,6 @@ use tauri_runtime::{
 };
 use tauri_utils::{assets::AssetsIter, PackageInfo};
 
-use serde::Serialize;
 use std::{
   borrow::Cow,
   collections::HashMap,
@@ -221,7 +220,7 @@ pub enum RunEvent {
   Resumed,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
-  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
+  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -929,7 +928,8 @@ macro_rules! shared_app_impl {
       where
         F: Fn(Event) + Send + 'static,
       {
-        self.manager.listen(event.into(), EventTarget::App, handler)
+        let event = EventName::new(event.into()).unwrap();
+        self.manager.listen(event, EventTarget::App, handler)
       }
 
       /// Listen to an event on this app only once.
@@ -939,7 +939,8 @@ macro_rules! shared_app_impl {
       where
         F: FnOnce(Event) + Send + 'static,
       {
-        self.manager.once(event.into(), EventTarget::App, handler)
+        let event = EventName::new(event.into()).unwrap();
+        self.manager.once(event, EventTarget::App, handler)
       }
 
       /// Unlisten to an event on this app.
@@ -966,79 +967,7 @@ macro_rules! shared_app_impl {
       }
     }
 
-    impl<R: Runtime> Emitter<R> for $app {
-      /// Emits an event to all [targets](EventTarget).
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::Emitter;
-      ///
-      /// #[tauri::command]
-      /// fn synchronize(app: tauri::AppHandle) {
-      ///   // emits the synchronized event to all webviews
-      ///   app.emit("synchronized", ());
-      /// }
-      /// ```
-      fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
-        self.manager.emit(event, payload)
-      }
-
-      /// Emits an event to all [targets](EventTarget) matching the given target.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::{Emitter, EventTarget};
-      ///
-      /// #[tauri::command]
-      /// fn download(app: tauri::AppHandle) {
-      ///   for i in 1..100 {
-      ///     std::thread::sleep(std::time::Duration::from_millis(150));
-      ///     // emit a download progress event to all listeners
-      ///     app.emit_to(EventTarget::any(), "download-progress", i);
-      ///     // emit an event to listeners that used App::listen or AppHandle::listen
-      ///     app.emit_to(EventTarget::app(), "download-progress", i);
-      ///     // emit an event to any webview/window/webviewWindow matching the given label
-      ///     app.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-      ///     app.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-      ///     // emit an event to listeners that used WebviewWindow::listen
-      ///     app.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-      ///   }
-      /// }
-      /// ```
-      fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
-      where
-        I: Into<EventTarget>,
-        S: Serialize + Clone,
-      {
-        self.manager.emit_to(target, event, payload)
-      }
-
-      /// Emits an event to all [targets](EventTarget) based on the given filter.
-      ///
-      /// # Examples
-      /// ```
-      /// use tauri::{Emitter, EventTarget};
-      ///
-      /// #[tauri::command]
-      /// fn download(app: tauri::AppHandle) {
-      ///   for i in 1..100 {
-      ///     std::thread::sleep(std::time::Duration::from_millis(150));
-      ///     // emit a download progress event to the updater window
-      ///     app.emit_filter("download-progress", i, |t| match t {
-      ///       EventTarget::WebviewWindow { label } => label == "main",
-      ///       _ => false,
-      ///     });
-      ///   }
-      /// }
-      /// ```
-      fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
-      where
-        S: Serialize + Clone,
-        F: Fn(&EventTarget) -> bool,
-      {
-        self.manager.emit_filter(event, payload, filter)
-      }
-    }
+    impl<R: Runtime> Emitter<R> for $app {}
   };
 }
 
@@ -1798,6 +1727,17 @@ tauri::Builder::default()
   ///     }
   ///   });
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from a custom protocol will have a different Origin on different platforms.
+  /// Servers which enforce CORS will need to add the exact same Origin header (or `*`) in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://localhost/<path>` (so it will be `my-scheme://localhost/path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.localhost/<path>` by default (so it will be `http://my-scheme.localhost/path/to/page`).
+  ///   To use `https` instead of `http`, use [`super::webview::WebviewBuilder::use_https_scheme`].
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
@@ -1855,6 +1795,17 @@ tauri::Builder::default()
   ///   });
   ///   });
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from a custom protocol will have a different Origin on different platforms.
+  /// Servers which enforce CORS will need to add the exact same Origin header (or `*`) in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://localhost/<path>` (so it will be `my-scheme://localhost/path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.localhost/<path>` by default (so it will be `http://my-scheme.localhost/path/to/page`).
+  ///   To use `https` instead of `http`, use [`super::webview::WebviewBuilder::use_https_scheme`].
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
@@ -2217,7 +2168,7 @@ fn on_event_loop_event<R: Runtime>(
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
       {
-        use objc2::ClassType;
+        use objc2::AllocAnyThread;
         use objc2_app_kit::{NSApplication, NSImage};
         use objc2_foundation::{MainThreadMarker, NSData};
 

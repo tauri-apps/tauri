@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.2.0"
+version = "2.2.4"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -15,7 +15,7 @@ rust-version = "1.77.2"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.1.1", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.2.0", path = "../tauri-utils", features = [
   "resources",
 ] }
 image = "0.25"
@@ -30,9 +30,9 @@ walkdir = "2"
 handlebars = "6"
 tempfile = "3"
 log = { version = "0.4.21", features = ["kv"] }
-dirs = "5"
+dirs = "6"
 os_pipe = "1"
-ureq = { version = "2", default-features = false, features = ["socks-proxy"] }
+ureq = { version = "3", default-features = false, features = ["socks-proxy"] }
 native-tls = { version = "0.2", optional = true }
 hex = "0.4"
 semver = "1"
@@ -46,7 +46,7 @@ regex = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 bitness = "0.4"
-windows-registry = "0.3"
+windows-registry = "0.5"
 glob = "0.3"
 
 [target."cfg(target_os = \"windows\")".dependencies.windows-sys]
@@ -57,7 +57,7 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
 plist = "1"
-tauri-macos-sign = { version = "2.0.1", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.1.0", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"
@@ -73,4 +73,4 @@ path = "src/lib.rs"
 default = ["rustls"]
 native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
-rustls = ["ureq/tls"]
+rustls = ["ureq/rustls"]

@@ -70,8 +70,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       // Sign the sidecar binaries
       for bin in settings.external_binaries() {
         let path = bin?;
-        let skip =
-          std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
+        let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").is_ok_and(|v| v == "true");
         if skip {
           continue;
         }

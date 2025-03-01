@@ -15,7 +15,7 @@ function mockInternals() {
  *
  * # Examples
  *
- * Testing setup using vitest:
+ * Testing setup using Vitest:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
  * import { invoke } from "@tauri-apps/api/core"

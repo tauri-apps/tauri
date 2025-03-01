@@ -61,7 +61,7 @@ pub fn get<R: Runtime>(
           .status(StatusCode::INTERNAL_SERVER_ERROR)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
           .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().as_bytes().to_vec())
+          .body(e.to_string().into_bytes())
           .unwrap(),
       ),
     }
@@ -121,7 +121,7 @@ fn get_response<R: Runtime>(
     for (name, value) in request.headers() {
       proxy_builder = proxy_builder.header(name, value);
     }
-    match crate::async_runtime::block_on(proxy_builder.send()) {
+    match crate::async_runtime::safe_block_on(proxy_builder.send()) {
       Ok(r) => {
         let mut response_cache_ = response_cache.lock().unwrap();
         let mut response = None;
@@ -133,7 +133,7 @@ fn get_response<R: Runtime>(
         } else {
           let status = r.status();
           let headers = r.headers().clone();
-          let body = crate::async_runtime::block_on(r.bytes())?;
+          let body = crate::async_runtime::safe_block_on(r.bytes())?;
           let response = CachedResponse {
             status,
             headers,

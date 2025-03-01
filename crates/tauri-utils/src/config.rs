@@ -1239,7 +1239,7 @@ pub struct BundleConfig {
   pub long_description: Option<String>,
   /// Whether to use the project's `target` directory, for caching build tools (e.g., Wix and NSIS) when building this application. Defaults to `false`.
   ///
-  /// If true, tools will be cached in `target\.tauri-tools`.
+  /// If true, tools will be cached in `target/.tauri/`.
   /// If false, tools will be cached in the current user's platform-specific cache directory.
   ///
   /// An example where it can be appropriate to set this to `true` is when building this application as a Windows System user (e.g., AWS EC2 workloads),
@@ -1418,6 +1418,19 @@ impl schemars::JsonSchema for Color {
 
     schema.into()
   }
+}
+
+/// Background throttling policy.
+#[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub enum BackgroundThrottlingPolicy {
+  /// A policy where background throttling is disabled
+  Disabled,
+  /// A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
+  Suspend,
+  /// A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.
+  Throttle,
 }
 
 /// The window effects configuration object
@@ -1687,6 +1700,23 @@ pub struct WindowConfig {
   /// - **Windows**: On Windows 8 and newer, if alpha channel is not `0`, it will be ignored for the webview layer.
   #[serde(alias = "background-color")]
   pub background_color: Option<Color>,
+
+  /// Change the default background throttling behaviour.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[serde(default, alias = "background-throttling")]
+  pub background_throttling: Option<BackgroundThrottlingPolicy>,
 }
 
 impl Default for WindowConfig {
@@ -1739,6 +1769,7 @@ impl Default for WindowConfig {
       use_https_scheme: false,
       devtools: None,
       background_color: None,
+      background_throttling: None,
     }
   }
 }
@@ -2597,7 +2628,7 @@ pub struct BuildConfig {
   /// The URL to load in development.
   ///
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
-  /// Most modern JavaScript bundlers like [vite](https://vitejs.dev/guide/) provides a way to start a dev server by default.
+  /// Most modern JavaScript bundlers like [Vite](https://vite.dev/guide/) provides a way to start a dev server by default.
   ///
   /// If you don't have a dev server or don't want to use one, ignore this option and use [`frontendDist`](BuildConfig::frontend_dist)
   /// and point to a web assets directory, and Tauri CLI will run its built-in dev server and provide a simple hot-reload experience.
@@ -2744,7 +2775,7 @@ where
 ///   "build": {
 ///     "beforeBuildCommand": "",
 ///     "beforeDevCommand": "",
-///     "devUrl": "../dist",
+///     "devUrl": "http://localhost:3000",
 ///     "frontendDist": "../dist"
 ///   },
 ///   "app": {
@@ -2854,6 +2885,17 @@ mod build {
           let url = url_lit(url);
           quote! { #prefix::CustomProtocol(#url) }
         }
+      })
+    }
+  }
+
+  impl ToTokens for BackgroundThrottlingPolicy {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::BackgroundThrottlingPolicy };
+      tokens.append_all(match self {
+        Self::Disabled => quote! { #prefix::Disabled },
+        Self::Throttle => quote! { #prefix::Throttle },
+        Self::Suspend => quote! { #prefix::Suspend },
       })
     }
   }
@@ -3004,6 +3046,7 @@ mod build {
       let use_https_scheme = self.use_https_scheme;
       let devtools = opt_lit(self.devtools.as_ref());
       let background_color = opt_lit(self.background_color.as_ref());
+      let background_throttling = opt_lit(self.background_throttling.as_ref());
 
       literal_struct!(
         tokens,
@@ -3054,7 +3097,8 @@ mod build {
         browser_extensions_enabled,
         use_https_scheme,
         devtools,
-        background_color
+        background_color,
+        background_throttling
       );
     }
   }

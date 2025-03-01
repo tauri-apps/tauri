@@ -18,7 +18,7 @@ use anyhow::Context;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
-use notify_debouncer_mini::new_debouncer;
+use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
@@ -124,15 +124,13 @@ impl Interface for Rust {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
+      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
         if let Ok(events) = r {
           let _ = tx.send(events);
         }
       })
       .unwrap();
-      watcher
-        .watcher()
-        .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
+      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
       let (manifest, _modified) = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
@@ -147,9 +145,9 @@ impl Interface for Rust {
       manifest
     };
 
-    let target_ios = target.as_ref().map_or(false, |target| {
-      target.ends_with("ios") || target.ends_with("ios-sim")
-    });
+    let target_ios = target
+      .as_ref()
+      .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
       std::env::set_var(
         "IPHONEOS_DEPLOYMENT_TARGET",
@@ -362,35 +360,6 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
-fn shared_options(
-  desktop_dev: bool,
-  mobile: bool,
-  args: &mut Vec<String>,
-  features: &mut Option<Vec<String>>,
-  app_settings: &RustAppSettings,
-) {
-  if mobile {
-    args.push("--lib".into());
-    features
-      .get_or_insert(Vec::new())
-      .push("tauri/rustls-tls".into());
-  } else {
-    if !desktop_dev {
-      args.push("--bins".into());
-    }
-    let all_features = app_settings
-      .manifest
-      .lock()
-      .unwrap()
-      .all_enabled_features(if let Some(f) = features { f } else { &[] });
-    if !all_features.contains(&"tauri/rustls-tls".into()) {
-      features
-        .get_or_insert(Vec::new())
-        .push("tauri/native-tls".into());
-    }
-  }
-}
-
 fn dev_options(
   mobile: bool,
   args: &mut Vec<String>,
@@ -411,7 +380,9 @@ fn dev_options(
   }
   *args = dev_args;
 
-  shared_options(true, mobile, args, features, app_settings);
+  if mobile {
+    args.push("--lib".into());
+  }
 
   if !args.contains(&"--no-default-features".into()) {
     let manifest_features = app_settings.manifest.lock().unwrap().features();
@@ -491,7 +462,11 @@ impl Rust {
     features
       .get_or_insert(Vec::new())
       .push("tauri/custom-protocol".into());
-    shared_options(false, mobile, args, features, &self.app_settings);
+    if mobile {
+      args.push("--lib".into());
+    } else {
+      args.push("--bins".into());
+    }
   }
 
   fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
@@ -527,7 +502,7 @@ impl Rust {
       .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
-    let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
+    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
       }
@@ -539,7 +514,7 @@ impl Rust {
         lookup(&path, |file_type, p| {
           if p != path {
             log::debug!("Watching {} for changes...", display_path(&p));
-            let _ = watcher.watcher().watch(
+            let _ = watcher.watch(
               &p,
               if file_type.is_dir() {
                 RecursiveMode::Recursive
@@ -555,42 +530,42 @@ impl Rust {
     loop {
       if let Ok(events) = rx.recv() {
         for event in events {
-          let event_path = event.path;
+          if event.kind.is_access() {
+            continue;
+          }
 
-          if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
-            if is_configuration_file(self.app_settings.target, &event_path) {
-              if let Ok(config) = reload_config(config.as_ref()) {
-                let (manifest, modified) =
-                  rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-                if modified {
-                  *self.app_settings.manifest.lock().unwrap() = manifest;
-                  // no need to run the watcher logic, the manifest was modified
-                  // and it will trigger the watcher again
-                  continue;
+          if let Some(event_path) = event.paths.first() {
+            if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
+              if is_configuration_file(self.app_settings.target, event_path) {
+                if let Ok(config) = reload_config(config.as_ref()) {
+                  let (manifest, modified) =
+                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+                  if modified {
+                    *self.app_settings.manifest.lock().unwrap() = manifest;
+                    // no need to run the watcher logic, the manifest was modified
+                    // and it will trigger the watcher again
+                    continue;
+                  }
                 }
               }
-            }
 
-            log::info!(
-              "File {} changed. Rebuilding application...",
-              display_path(
-                event_path
-                  .strip_prefix(frontend_path)
-                  .unwrap_or(&event_path)
-              )
-            );
+              log::info!(
+                "File {} changed. Rebuilding application...",
+                display_path(event_path.strip_prefix(frontend_path).unwrap_or(event_path))
+              );
 
-            let mut p = process.lock().unwrap();
-            p.kill().with_context(|| "failed to kill app process")?;
+              let mut p = process.lock().unwrap();
+              p.kill().with_context(|| "failed to kill app process")?;
 
-            // wait for the process to exit
-            // note that on mobile, kill() already waits for the process to exit (duct implementation)
-            loop {
-              if !matches!(p.try_wait(), Ok(None)) {
-                break;
+              // wait for the process to exit
+              // note that on mobile, kill() already waits for the process to exit (duct implementation)
+              loop {
+                if !matches!(p.try_wait(), Ok(None)) {
+                  break;
+                }
               }
+              *p = run(self)?;
             }
-            *p = run(self)?;
           }
         }
       }
@@ -723,9 +698,7 @@ impl CargoSettings {
     toml_file
       .read_to_string(&mut toml_str)
       .with_context(|| "failed to read Cargo.toml")?;
-    toml::from_str(&toml_str)
-      .with_context(|| "failed to parse Cargo.toml")
-      .map_err(Into::into)
+    toml::from_str(&toml_str).with_context(|| "failed to parse Cargo.toml")
   }
 }
 

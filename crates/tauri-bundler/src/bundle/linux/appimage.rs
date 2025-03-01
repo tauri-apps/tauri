@@ -56,7 +56,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let product_name = settings.product_name();
 
   let mut settings = settings.clone();
-  if main_binary.name().contains(" ") {
+  if main_binary.name().contains(' ') {
     let main_binary_path = settings.binary_path(main_binary);
     let project_out_directory = settings.project_out_directory();
 
@@ -108,7 +108,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   // Using create_dir_all for a single dir so we don't get errors if the path already exists
   fs::create_dir_all(&app_dir_usr_bin)?;
-  fs::create_dir_all(&app_dir_usr_lib)?;
+  fs::create_dir_all(app_dir_usr_lib)?;
 
   // Copy bins and libs that linuxdeploy doesn't know about
 
@@ -141,7 +141,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for file in [
     "WebKitNetworkProcess",
     "WebKitWebProcess",
-    "libwebkit2gtkinjectedbundle.so",
+    "injected-bundle/libwebkit2gtkinjectedbundle.so",
   ] {
     for source in search_dirs.map(PathBuf::from) {
       // TODO: Check if it's the same dir name on all systems
@@ -258,7 +258,7 @@ fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
 fn write_and_make_executable(path: &Path, data: Vec<u8>) -> std::io::Result<()> {
   use std::os::unix::fs::PermissionsExt;
 
-  fs::write(path, &data)?;
+  fs::write(path, data)?;
   fs::set_permissions(path, fs::Permissions::from_mode(0o770))?;
 
   Ok(())

@@ -160,7 +160,7 @@ mod desktop_commands {
       None => None,
     };
 
-    window.set_overlay_icon(value).map_err(Into::into)
+    window.set_overlay_icon(value)
   }
 
   #[command(root = "crate")]
@@ -172,9 +172,7 @@ mod desktop_commands {
   ) -> crate::Result<()> {
     let window = get_window(window, label)?;
     let resources_table = webview.resources_table();
-    window
-      .set_icon(value.into_img(&resources_table)?.as_ref().clone())
-      .map_err(Into::into)
+    window.set_icon(value.into_img(&resources_table)?.as_ref().clone())
   }
 
   #[command(root = "crate")]

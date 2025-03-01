@@ -39,8 +39,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.1/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "F99A50209A345185A84D34D0E5F66D04C75FF52F";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.2/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "6532DA4545864C6EC95F62F27F2199BFD668560B";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -131,7 +131,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   Ok(())
 }
 
-fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
+fn try_add_numeric_build_number(version_str: &str) -> anyhow::Result<String> {
   let version = semver::Version::parse(version_str).context("invalid app version")?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
@@ -141,7 +141,10 @@ fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      anyhow::bail!("optional build metadata in app version must be numeric-only");
+      log::warn!(
+        "Unable to parse version build metadata. Numeric value expected, received: `{}`. This will be replaced with `0` in `VIProductVersion` because Windows requires this field to be numeric.",
+        version.build
+      );
     }
   }
 
@@ -150,6 +153,7 @@ fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
     version.major, version.minor, version.patch,
   ))
 }
+
 fn build_nsis_app_installer(
   settings: &Settings,
   _nsis_toolset_path: &Path,
@@ -214,7 +218,7 @@ fn build_nsis_app_installer(
   data.insert("version", to_json(version));
   data.insert(
     "version_with_build",
-    to_json(add_build_number_if_needed(version)?),
+    to_json(try_add_numeric_build_number(version)?),
   );
 
   data.insert(
@@ -595,9 +599,23 @@ fn association_description(
 type ResourcesMap = BTreeMap<PathBuf, (PathBuf, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
   let mut resources = ResourcesMap::new();
+
   let cwd = std::env::current_dir()?;
 
   let mut added_resources = Vec::new();
+
+  // Adding WebViewer2Loader.dll in case windows-gnu toolchain is used
+  if settings.target().ends_with("-gnu") {
+    let loader_path =
+      dunce::simplified(&settings.project_out_directory().join("WebView2Loader.dll")).to_path_buf();
+    if loader_path.exists() {
+      added_resources.push(loader_path.clone());
+      resources.insert(
+        loader_path,
+        (PathBuf::new(), PathBuf::from("WebView2Loader.dll")),
+      );
+    }
+  }
 
   for resource in settings.resource_files().iter() {
     let resource = resource?;
@@ -702,6 +720,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
+    "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
     _ => return None,
   };
   Some((path, content))

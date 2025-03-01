@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.0.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-codegen@2.0.5`
+
+## \[2.0.5]
+
+### Bug Fixes
+
+- [`848d0e060`](https://www.github.com/tauri-apps/tauri/commit/848d0e060e6eb3c8e9e8175adc7896587b5a947d) ([#12270](https://www.github.com/tauri-apps/tauri/pull/12270) by [@aurelj](https://www.github.com/tauri-apps/tauri/../../aurelj)) Update `cargo_toml` to `0.21.0`. This adds compatibility with Rust's 2024 Edition.
+- [`cd1d026f9`](https://www.github.com/tauri-apps/tauri/commit/cd1d026f9799c26b04acb64f49e7ee0a8b193049) ([#11961](https://www.github.com/tauri-apps/tauri/pull/11961) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix tauri fails to build if the project path contains glob characters
+
 ## \[2.0.4]
 
 ### Dependencies

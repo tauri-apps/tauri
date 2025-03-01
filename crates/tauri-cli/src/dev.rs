@@ -339,7 +339,10 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
 }
 
 pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {
-  if no_watch || exit_on_panic || matches!(reason, ExitReason::NormalExit) {
+  if no_watch
+    || (!matches!(reason, ExitReason::TriggeredKill)
+      && (exit_on_panic || matches!(reason, ExitReason::NormalExit)))
+  {
     kill_before_dev_process();
     exit(code.unwrap_or(0));
   }

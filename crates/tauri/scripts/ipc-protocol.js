@@ -23,8 +23,8 @@
     const { cmd, callback, error, payload, options } = message
 
     if (
-      !customProtocolIpcFailed &&
-      (canUseCustomProtocol || cmd === fetchChannelDataCommand)
+      !customProtocolIpcFailed
+      && (canUseCustomProtocol || cmd === fetchChannelDataCommand)
     ) {
       const { contentType, data } = processIpcMessage(payload)
       fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {

@@ -21,8 +21,8 @@
   }
 
   if (
-    document.readyState === 'complete' ||
-    document.readyState === 'interactive'
+    document.readyState === 'complete'
+    || document.readyState === 'interactive'
   ) {
     toggleDevtoolsHotkey()
   } else {

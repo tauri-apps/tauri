@@ -62,14 +62,14 @@ export async function newMenu(
 
     // about predefined menu item icon
     if (
-      'item' in opts &&
-      opts.item &&
-      typeof opts.item === 'object' &&
-      'About' in opts.item &&
-      opts.item.About &&
-      typeof opts.item.About === 'object' &&
-      'icon' in opts.item.About &&
-      opts.item.About.icon
+      'item' in opts
+      && opts.item
+      && typeof opts.item === 'object'
+      && 'About' in opts.item
+      && opts.item.About
+      && typeof opts.item.About === 'object'
+      && 'icon' in opts.item.About
+      && opts.item.About.icon
     ) {
       opts.item.About.icon = transformImage(opts.item.About.icon)
     }

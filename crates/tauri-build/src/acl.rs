@@ -199,7 +199,9 @@ permissions = [{default_permissions}]
       }
 
       tauri_utils::acl::build::define_permissions(
-        &plugin_out_dir.join("*").to_string_lossy(),
+        &PathBuf::from(glob::Pattern::escape(&plugin_out_dir.to_string_lossy()))
+          .join("*")
+          .to_string_lossy(),
         name,
         &plugin_out_dir,
         |_| true,
@@ -222,10 +224,12 @@ permissions = [{default_permissions}]
         );
       }
       permission_files.extend(tauri_utils::acl::build::define_permissions(
-        &default_permissions_path
-          .join("**")
-          .join("*")
-          .to_string_lossy(),
+        &PathBuf::from(glob::Pattern::escape(
+          &default_permissions_path.to_string_lossy(),
+        ))
+        .join("**")
+        .join("*")
+        .to_string_lossy(),
         name,
         &plugin_out_dir,
         |_| true,

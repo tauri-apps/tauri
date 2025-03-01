@@ -166,16 +166,15 @@ pub fn command(options: Options) -> Result<()> {
 
   let capabilities = if let Some((expected_platforms, target_name)) = expected_capability_config {
     let mut capabilities = capabilities_iter
-        .filter(|(capability, _path)| {
-          capability.platforms().map_or(
-            false, /* allows any target, so we should skip it since we're adding a target-specific plugin */
-            |platforms| {
-              // all platforms must be in the expected platforms list
-              platforms.iter().all(|p| expected_platforms.contains(&p.to_string()))
-            },
-          )
+      .filter(|(capability, _path)| {
+        capability.platforms().is_some_and(|platforms| {
+          // all platforms must be in the expected platforms list
+          platforms
+            .iter()
+            .all(|p| expected_platforms.contains(&p.to_string()))
         })
-        .collect::<Vec<_>>();
+      })
+      .collect::<Vec<_>>();
 
     if capabilities.is_empty() {
       let identifier = format!("{target_name}-capability");

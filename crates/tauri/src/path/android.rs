@@ -9,6 +9,12 @@ use std::path::PathBuf;
 /// A helper class to access the mobile path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) PluginHandle<R>);
 
+impl<R: Runtime> Clone for PathResolver<R> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
+}
+
 #[derive(serde::Deserialize)]
 struct PathResponse {
   path: PathBuf,

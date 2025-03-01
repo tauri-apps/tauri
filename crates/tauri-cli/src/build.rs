@@ -87,7 +87,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let bin_path = interface.build(interface_options)?;
 
-  log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(&bin_path));
+  log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
 
   let app_settings = interface.app_settings();
 

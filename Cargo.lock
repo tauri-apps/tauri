@@ -8445,7 +8445,7 @@ dependencies = [
  "urlpattern",
  "uuid",
  "webkit2gtk",
- "webview2-com 0.36.0",
+ "webview2-com",
  "window-vibrancy",
  "windows 0.60.0",
 ]
@@ -8807,7 +8807,7 @@ dependencies = [
  "tracing",
  "url",
  "webkit2gtk",
- "webview2-com 0.36.0",
+ "webview2-com",
  "windows 0.60.0",
  "wry",
 ]
@@ -10156,26 +10156,12 @@ dependencies = [
 
 [[package]]
 name = "webview2-com"
-version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1730fcfc2f6b32d92096f5e97bc2b5ccafe14ad9d4787ef106daab2a20896def"
-dependencies = [
- "webview2-com-macros",
- "webview2-com-sys 0.35.0",
- "windows 0.59.0",
- "windows-core 0.59.0",
- "windows-implement",
- "windows-interface",
-]
-
-[[package]]
-name = "webview2-com"
 version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0d606f600e5272b514dbb66539dd068211cc20155be8d3958201b4b5bd79ed3"
 dependencies = [
  "webview2-com-macros",
- "webview2-com-sys 0.36.0",
+ "webview2-com-sys",
  "windows 0.60.0",
  "windows-core 0.60.1",
  "windows-implement",
@@ -10191,18 +10177,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.95",
-]
-
-[[package]]
-name = "webview2-com-sys"
-version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39cfcc1cdcddbb723d5385f20d718a83ad2a1dc856de1a925358f2bdf5a58b93"
-dependencies = [
- "thiserror 2.0.10",
- "windows 0.59.0",
- "windows-core 0.59.0",
- "windows-targets 0.53.0",
 ]
 
 [[package]]
@@ -10880,8 +10854,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.49.0"
-source = "git+https://github.com/Simon-Laux/wry?branch=disable-javascript#671549311f86e1f16f709ac66500207530cac42b"
+version = "0.50.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2ec139df5102db821f92a42033c3fa0467c5ab434511e79c65881d6bdf2b369"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",
@@ -10915,9 +10890,9 @@ dependencies = [
  "url",
  "webkit2gtk",
  "webkit2gtk-sys",
- "webview2-com 0.35.0",
- "windows 0.59.0",
- "windows-core 0.59.0",
+ "webview2-com",
+ "windows 0.60.0",
+ "windows-core 0.60.1",
  "windows-version",
  "x11-dl",
 ]

@@ -255,6 +255,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
+    builder.javascript_disabled = config.javascript_disabled;
     builder
   }
 }

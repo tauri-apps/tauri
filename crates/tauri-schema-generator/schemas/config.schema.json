@@ -527,6 +527,11 @@
               "type": "null"
             }
           ]
+        },
+        "javascriptDisabled": {
+          "description": "Whether we should disable JavaScript code execution on the webview or not.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

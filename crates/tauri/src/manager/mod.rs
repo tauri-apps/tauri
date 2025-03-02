@@ -714,10 +714,6 @@ impl<R: Runtime> AppManager<R> {
     &self.invoke_key
   }
 
-  pub(crate) fn event_loop_exited(&self) -> bool {
-    *self.event_loop_exit_mutex.lock().unwrap()
-  }
-
   pub(crate) fn notify_event_loop_exit(&self) {
     let mut exit = self.event_loop_exit_mutex.lock().unwrap();
     *exit = true;

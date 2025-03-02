@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.2.4]
+
+### Enhancements
+
+- [`5eba0785c`](https://www.github.com/tauri-apps/tauri/commit/5eba0785c461a0d0bec47653eaf6ccdf5f05d347) ([#12605](https://www.github.com/tauri-apps/tauri/pull/12605) by [@niusia-ua](https://www.github.com/tauri-apps/tauri/../../niusia-ua)) Added Ukrainian translation for the custom tauri messages in the nsis bundle
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-macos-sign@2.1.0`
+
 ## \[2.2.3]
 
 ### Bug Fixes

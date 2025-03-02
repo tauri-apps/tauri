@@ -791,6 +791,10 @@ interface WebviewOptions {
    * @since 2.3.0
    */
   backgroundThrottling?: BackgroundThrottlingPolicy
+  /**
+   * Whether we should disable JavaScript code execution on the webview or not.
+   */
+  javascriptDisabled?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

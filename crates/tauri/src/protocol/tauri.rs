@@ -115,7 +115,6 @@ fn get_response<R: Runtime>(
     );
 
     let mut proxy_builder = reqwest::ClientBuilder::new()
-      .use_rustls_tls()
       .build()
       .unwrap()
       .request(request.method().clone(), &url);

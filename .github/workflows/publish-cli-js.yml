@@ -48,6 +48,8 @@ jobs:
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
+              npm i -g --force corepack
+              corepack enable
               cd packages/cli
               pnpm build --target x86_64-unknown-linux-gnu
               strip *.node
@@ -67,6 +69,8 @@ jobs:
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
+              npm i -g --force corepack
+              corepack enable
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node

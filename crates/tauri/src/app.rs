@@ -482,7 +482,7 @@ impl<R: Runtime> AppHandle<R> {
     }
   }
 
-  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`].
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
   ///
   /// When this function is called on the main thread, we cannot guarantee the delivery of those events,
   /// so we skip them and directly restart the process.

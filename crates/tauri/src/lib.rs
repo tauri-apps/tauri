@@ -214,7 +214,7 @@ use self::manager::EmitPayload;
 pub use {
   self::app::{
     App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
-    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent,
+    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent, RESTART_EXIT_CODE,
   },
   self::manager::Asset,
   self::runtime::{

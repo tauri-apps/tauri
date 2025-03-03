@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
 };
 
 use serde::Serialize;
@@ -221,6 +221,10 @@ pub struct AppManager<R: Runtime> {
   pub(crate) invoke_key: String,
 
   pub(crate) channel_interceptor: Option<ChannelInterceptor<R>>,
+
+  /// Sets to true in `request_restart`
+  /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
+  pub(crate) restart_on_exit: AtomicBool,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -322,6 +326,7 @@ impl<R: Runtime> AppManager<R> {
       resources_table: Arc::default(),
       invoke_key,
       channel_interceptor,
+      restart_on_exit: AtomicBool::new(false),
     }
   }
 

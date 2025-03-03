@@ -42,7 +42,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc, MutexGuard},
+  sync::{atomic, mpsc::Sender, Arc, MutexGuard},
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -73,14 +73,19 @@ pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
 #[derive(Debug)]
-pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
+pub struct ExitRequestApi {
+  tx: Sender<ExitRequestedEventAction>,
+  code: Option<i32>,
+}
 
 impl ExitRequestApi {
   /// Prevents the app from exiting.
   ///
   /// **Note:** This is ignored when using [`AppHandle#method.restart`].
   pub fn prevent_exit(&self) {
-    self.0.send(ExitRequestedEventAction::Prevent).unwrap();
+    if self.code != Some(RESTART_EXIT_CODE) {
+      self.tx.send(ExitRequestedEventAction::Prevent).unwrap();
+    }
   }
 }
 
@@ -469,12 +474,25 @@ impl<R: Runtime> AppHandle<R> {
     }
   }
 
-  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`]..
+  /// Restarts the app immediately without triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`],
+  /// if you want to trigger them, use [`Self::request_restart`] instead
   pub fn restart(&self) -> ! {
     if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
       self.cleanup_before_exit();
     }
     crate::process::restart(&self.env());
+  }
+
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`].
+  pub fn request_restart(&self) {
+    self
+      .manager
+      .restart_on_exit
+      .store(true, atomic::Ordering::Relaxed);
+    if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
+      self.cleanup_before_exit();
+      crate::process::restart(&self.env());
+    }
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1084,6 +1102,9 @@ impl<R: Runtime> App<R> {
         let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
         callback(&app_handle, event);
         app_handle.cleanup_before_exit();
+        if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
+          crate::process::restart(&self.env());
+        }
       }
       _ => {
         let event = on_event_loop_event(&app_handle, event, &manager);
@@ -2154,7 +2175,7 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::Exit => RunEvent::Exit,
     RuntimeRunEvent::ExitRequested { code, tx } => RunEvent::ExitRequested {
       code,
-      api: ExitRequestApi(tx),
+      api: ExitRequestApi { tx, code },
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
       label,

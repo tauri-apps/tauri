@@ -8392,7 +8392,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8518,7 +8518,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -8788,7 +8788,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.4.0"
+version = "2.4.1"
 dependencies = [
  "gtk",
  "http 1.2.0",
@@ -8797,6 +8797,7 @@ dependencies = [
  "objc2 0.6.0",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
+ "once_cell",
  "percent-encoding",
  "raw-window-handle",
  "softbuffer",
@@ -10853,9 +10854,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.50.0"
+version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaa83204cc976ccffdc50559914edb93945f472863916c61de5cc772d452fb4a"
+checksum = "d2ec139df5102db821f92a42033c3fa0467c5ab434511e79c65881d6bdf2b369"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

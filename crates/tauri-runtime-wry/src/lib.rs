@@ -134,6 +134,7 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
   target_os = "openbsd"
 ))]
 mod undecorated_resizing;
+mod util;
 mod webview;
 mod window;
 
@@ -1302,6 +1303,7 @@ pub enum WebviewMessage {
   WebviewEvent(WebviewEvent),
   SynthesizedWindowEvent(SynthesizedWindowEvent),
   Navigate(Url),
+  Reload,
   Print,
   Close,
   Show,
@@ -1461,6 +1463,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Navigate(url),
+      ),
+    )
+  }
+
+  fn reload(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::Reload,
       ),
     )
   }
@@ -3306,6 +3319,11 @@ fn handle_user_message<T: UserEvent>(
               log::error!("failed to navigate to url {}: {}", url, e);
             }
           }
+          WebviewMessage::Reload => {
+            if let Err(e) = webview.reload() {
+              log::error!("failed to reload: {e}");
+            }
+          }
           WebviewMessage::Show => {
             if let Err(e) = webview.set_visible(true) {
               log::error!("failed to change webview visibility: {e}");
@@ -4208,6 +4226,10 @@ fn create_webview<T: UserEvent>(
         wry::BackgroundThrottlingPolicy::Throttle
       }
     });
+  }
+
+  if webview_attributes.javascript_disabled {
+    webview_builder = webview_builder.with_javascript_disabled();
   }
 
   if let Some(color) = webview_attributes.background_color {

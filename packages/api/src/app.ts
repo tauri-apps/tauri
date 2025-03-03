@@ -56,6 +56,22 @@ async function getTauriVersion(): Promise<string> {
 }
 
 /**
+ * Gets the application identifier.
+ * @example
+ * ```typescript
+ * import { getIdentifier } from '@tauri-apps/api/app';
+ * const identifier = await getIdentifier();
+ * ```
+ *
+ * @returns The application identifier as configured in `tauri.conf.json`.
+ *
+ * @since 2.4.0
+ */
+async function getIdentifier(): Promise<string> {
+  return invoke('plugin:app|identifier')
+}
+
+/**
  * Shows the application on macOS. This function does not automatically focus any specific app window.
  *
  * @example
@@ -125,6 +141,7 @@ export {
   getName,
   getVersion,
   getTauriVersion,
+  getIdentifier,
   show,
   hide,
   defaultWindowIcon,

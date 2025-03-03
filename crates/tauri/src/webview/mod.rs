@@ -891,6 +891,17 @@ fn main() {
     self.webview_attributes.background_throttling = Some(policy);
     self
   }
+
+  /// Whether JavaScript should be disabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** Not implemented yet.
+  #[must_use]
+  pub fn disable_javascript(mut self) -> Self {
+    self.webview_attributes.javascript_disabled = true;
+    self
+  }
 }
 
 /// Webview.
@@ -1290,6 +1301,11 @@ fn main() {
   /// Navigates the webview to the defined url.
   pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.dispatcher.navigate(url).map_err(Into::into)
+  }
+
+  /// Reloads the current page.
+  pub fn reload(&self) -> crate::Result<()> {
+    self.webview.dispatcher.reload().map_err(Into::into)
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {

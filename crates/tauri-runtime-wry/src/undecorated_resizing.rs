@@ -78,11 +78,12 @@ fn hit_test(
 
 #[cfg(windows)]
 mod windows {
+  use crate::util;
+
   use super::{hit_test, HitTestResult};
 
   use windows::core::*;
   use windows::Win32::System::LibraryLoader::*;
-  use windows::Win32::UI::HiDpi::{GetDpiForWindow, GetSystemMetricsForDpi};
   use windows::Win32::UI::WindowsAndMessaging::*;
   use windows::Win32::{Foundation::*, UI::Shell::SetWindowSubclass};
   use windows::Win32::{Graphics::Gdi::*, UI::Shell::DefSubclassProc};
@@ -302,9 +303,9 @@ mod windows {
 
         let (cx, cy) = (GET_X_LPARAM(lparam) as i32, GET_Y_LPARAM(lparam) as i32);
 
-        let dpi = unsafe { GetDpiForWindow(child) };
-        let border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
-        let border_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
+        let dpi = unsafe { util::hwnd_dpi(child) };
+        let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+        let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
         let res = hit_test(
           rect.left,
@@ -348,9 +349,9 @@ mod windows {
             return DefWindowProcW(child, msg, wparam, lparam);
           }
 
-          let padded_border = GetSystemMetrics(SM_CXPADDEDBORDER);
-          let border_x = GetSystemMetrics(SM_CXFRAME) + padded_border;
-          let border_y = GetSystemMetrics(SM_CYFRAME) + padded_border;
+          let dpi = unsafe { util::hwnd_dpi(child) };
+          let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+          let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
           hit_test(
             rect.left,
@@ -415,9 +416,9 @@ mod windows {
     // and so we need create a cut out in the middle for the parent and other child
     // windows like the webview can receive mouse events.
 
-    let dpi = unsafe { GetDpiForWindow(hwnd) };
-    let border_x = GetSystemMetricsForDpi(SM_CXFRAME, dpi);
-    let border_y = GetSystemMetricsForDpi(SM_CYFRAME, dpi);
+    let dpi = unsafe { util::hwnd_dpi(hwnd) };
+    let border_x = util::get_system_metrics_for_dpi(SM_CXFRAME, dpi);
+    let border_y = util::get_system_metrics_for_dpi(SM_CYFRAME, dpi);
 
     let hrgn1 = CreateRectRgn(0, 0, width, height);
 

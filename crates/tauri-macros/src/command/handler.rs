@@ -104,11 +104,7 @@ fn filter_unused_commands(
       let command = &last.ident;
 
       let command = format!("plugin:{plugin_name}|{command}");
-      if allowed_commands.contains(&command) {
-        true
-      } else {
-        false
-      }
+      allowed_commands.contains(&command)
     })
     .collect()
 }

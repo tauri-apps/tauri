@@ -90,7 +90,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   if options.remove_unused_commands {
     let (_acl, resolved) = tauri_utils::acl::get_raw_and_resolved_acl(
-      &Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH),
+      Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH),
       config_,
       None,
       target,
@@ -99,13 +99,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     let allowed_commands_path = out_dir.join("allowed-commands.json");
     std::fs::write(
       &allowed_commands_path,
-      serde_json::to_string(
-        &resolved
-          .allowed_commands
-          .keys()
-          .into_iter()
-          .collect::<Vec<_>>(),
-      )?,
+      serde_json::to_string(&resolved.allowed_commands.keys().collect::<Vec<_>>())?,
     )?;
     std::env::set_var(
       tauri_utils::acl::ALLOWED_COMMANDS_PATH_ENV,

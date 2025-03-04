@@ -213,7 +213,7 @@ impl<TSend> Channel<TSend> {
   }
 }
 
-impl<'de, R: Runtime, TSend: Clone> CommandArg<'de, R> for Channel<TSend> {
+impl<'de, R: Runtime, TSend> CommandArg<'de, R> for Channel<TSend> {
   /// Grabs the [`Webview`] from the [`CommandItem`] and returns the associated [`Channel`].
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let name = command.name;

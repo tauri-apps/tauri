@@ -77,6 +77,9 @@ pub struct Options {
   /// Use this to create a package ready for the App Store (app-store-connect option) or TestFlight (release-testing option).
   #[clap(long, value_enum)]
   pub export_method: Option<ExportMethod>,
+  /// Try to remove unused commands registered from plugins base on the ACL list
+  #[clap(long)]
+  pub remove_unused_commands: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -121,6 +124,7 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: Vec::new(),
       ci: options.ci,
+      remove_unused_commands: options.remove_unused_commands,
     }
   }
 }

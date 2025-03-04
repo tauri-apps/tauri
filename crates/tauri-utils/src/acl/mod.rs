@@ -390,7 +390,7 @@ pub fn get_raw_and_resolved_acl(
 
   if let Some(paths) = additional_capabilities {
     for path in paths {
-      let capability = CapabilityFile::load(&path)
+      let capability = CapabilityFile::load(path)
         .unwrap_or_else(|e| panic!("failed to read capability {}: {e}", path.display()));
       match capability {
         CapabilityFile::Capability(c) => {

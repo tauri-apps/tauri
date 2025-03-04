@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::collections::BTreeMap;
 use std::convert::identity;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
@@ -18,13 +17,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 use syn::Expr;
-use tauri_utils::acl::{ACL_MANIFESTS_FILE_NAME, CAPABILITIES_FILE_NAME};
 use tauri_utils::{
-  acl::capability::{Capability, CapabilityFile},
-  acl::manifest::Manifest,
-  acl::resolved::Resolved,
   assets::AssetKey,
-  config::{CapabilityEntry, Config, FrontendDist, PatternKind},
+  config::{Config, FrontendDist, PatternKind},
   html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
   platform::Target,
   tokens::{map_lit, str_lit},
@@ -376,44 +371,12 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     }
   };
 
-  let acl_file_path = out_dir.join(ACL_MANIFESTS_FILE_NAME);
-  let acl: BTreeMap<String, Manifest> = if acl_file_path.exists() {
-    let acl_file =
-      std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
-    serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
-  } else {
-    Default::default()
-  };
-
-  let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
-  let mut capabilities_from_files: BTreeMap<String, Capability> = if capabilities_file_path.exists()
-  {
-    let capabilities_file =
-      std::fs::read_to_string(capabilities_file_path).expect("failed to read capabilities");
-    serde_json::from_str(&capabilities_file).expect("failed to parse capabilities")
-  } else {
-    Default::default()
-  };
-
-  let mut capabilities = if config.app.security.capabilities.is_empty() {
-    capabilities_from_files
-  } else {
-    let mut capabilities = BTreeMap::new();
-    for capability_entry in &config.app.security.capabilities {
-      match capability_entry {
-        CapabilityEntry::Inlined(capability) => {
-          capabilities.insert(capability.identifier.clone(), capability.clone());
-        }
-        CapabilityEntry::Reference(id) => {
-          let capability = capabilities_from_files
-            .remove(id)
-            .unwrap_or_else(|| panic!("capability with identifier {id} not found"));
-          capabilities.insert(id.clone(), capability);
-        }
-      }
-    }
-    capabilities
-  };
+  let (acl, resolved) = tauri_utils::acl::get_raw_and_resolved_acl(
+    &out_dir,
+    &config,
+    additional_capabilities.as_deref(),
+    target,
+  );
 
   let acl_tokens = map_lit(
     quote! { ::std::collections::BTreeMap },
@@ -422,29 +385,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     identity,
   );
 
-  if let Some(paths) = additional_capabilities {
-    for path in paths {
-      let capability = CapabilityFile::load(&path)
-        .unwrap_or_else(|e| panic!("failed to read capability {}: {e}", path.display()));
-      match capability {
-        CapabilityFile::Capability(c) => {
-          capabilities.insert(c.identifier.clone(), c);
-        }
-        CapabilityFile::List(capabilities_list)
-        | CapabilityFile::NamedList {
-          capabilities: capabilities_list,
-        } => {
-          capabilities.extend(
-            capabilities_list
-              .into_iter()
-              .map(|c| (c.identifier.clone(), c)),
-          );
-        }
-      }
-    }
-  }
-
-  let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+  // let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
   let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
   let plugin_global_api_scripts = if config.app.with_global_tauri {

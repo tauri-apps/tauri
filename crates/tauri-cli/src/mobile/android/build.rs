@@ -67,6 +67,9 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Try to remove unused commands registered from plugins base on the ACL list
+  #[clap(long)]
+  pub remove_unused_commands: bool,
 }
 
 impl From<Options> for BuildOptions {
@@ -81,6 +84,7 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: Vec::new(),
       ci: options.ci,
+      remove_unused_commands: options.remove_unused_commands,
     }
   }
 }

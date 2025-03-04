@@ -21,12 +21,25 @@
 //! [ignore unknown fields when destructuring]: https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#ignoring-remaining-parts-of-a-value-with-
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
+use capability::{Capability, CapabilityFile};
+use manifest::Manifest;
+use resolved::Resolved;
 use serde::{Deserialize, Serialize};
-use std::{num::NonZeroU64, path::PathBuf, str::FromStr, sync::Arc};
+use std::{
+  collections::BTreeMap,
+  fs,
+  num::NonZeroU64,
+  path::{Path, PathBuf},
+  str::FromStr,
+  sync::Arc,
+};
 use thiserror::Error;
 use url::Url;
 
-use crate::platform::Target;
+use crate::{
+  config::{CapabilityEntry, Config},
+  platform::Target,
+};
 
 pub use self::{identifier::*, value::*};
 
@@ -40,6 +53,8 @@ pub const APP_ACL_KEY: &str = "__app-acl__";
 pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 /// Known capabilityies file
 pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
+/// Allowed commands path enviroment variable name
+pub const ALLOWED_COMMANDS_PATH_ENV: &str = "ALLOWED_COMMANDS_PATH";
 
 #[cfg(feature = "build")]
 pub mod build;
@@ -325,6 +340,87 @@ pub enum ExecutionContext {
     /// The URL trying to access the IPC (URL pattern).
     url: RemoteUrlPattern,
   },
+}
+
+/// Get the raw ACL file and the resolved ACLs with the capability files
+pub fn get_raw_and_resolved_acl(
+  containing_directory: &Path,
+  config: &Config,
+  additional_capabilities: Option<&[PathBuf]>,
+  target: Target,
+) -> (BTreeMap<String, Manifest>, Resolved) {
+  let acl_file_path = containing_directory.join(ACL_MANIFESTS_FILE_NAME);
+  let acl: BTreeMap<String, Manifest> = if acl_file_path.exists() {
+    let acl_file =
+      std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
+    serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
+  } else {
+    Default::default()
+  };
+
+  let capabilities_file_path = containing_directory.join(CAPABILITIES_FILE_NAME);
+  let mut capabilities_from_files: BTreeMap<String, Capability> = if capabilities_file_path.exists()
+  {
+    let capabilities_file =
+      std::fs::read_to_string(capabilities_file_path).expect("failed to read capabilities");
+    serde_json::from_str(&capabilities_file).expect("failed to parse capabilities")
+  } else {
+    Default::default()
+  };
+
+  let mut capabilities = if config.app.security.capabilities.is_empty() {
+    capabilities_from_files
+  } else {
+    let mut capabilities = BTreeMap::new();
+    for capability_entry in &config.app.security.capabilities {
+      match capability_entry {
+        CapabilityEntry::Inlined(capability) => {
+          capabilities.insert(capability.identifier.clone(), capability.clone());
+        }
+        CapabilityEntry::Reference(id) => {
+          let capability = capabilities_from_files
+            .remove(id)
+            .unwrap_or_else(|| panic!("capability with identifier {id} not found"));
+          capabilities.insert(id.clone(), capability);
+        }
+      }
+    }
+    capabilities
+  };
+
+  if let Some(paths) = additional_capabilities {
+    for path in paths {
+      let capability = CapabilityFile::load(&path)
+        .unwrap_or_else(|e| panic!("failed to read capability {}: {e}", path.display()));
+      match capability {
+        CapabilityFile::Capability(c) => {
+          capabilities.insert(c.identifier.clone(), c);
+        }
+        CapabilityFile::List(capabilities_list)
+        | CapabilityFile::NamedList {
+          capabilities: capabilities_list,
+        } => {
+          capabilities.extend(
+            capabilities_list
+              .into_iter()
+              .map(|c| (c.identifier.clone(), c)),
+          );
+        }
+      }
+    }
+  }
+  let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
+  (acl, resolved)
+}
+
+/// Reads allowed commands from the enviroment variable set by tauri-cli
+pub fn read_allowed_commands() -> Option<Vec<String>> {
+  let out_file = std::env::var(ALLOWED_COMMANDS_PATH_ENV)
+    .map(PathBuf::from)
+    .ok()?;
+  let file = fs::read_to_string(&out_file).ok()?;
+  let json: Vec<String> = serde_json::from_str(&file).ok()?;
+  Some(json)
 }
 
 #[cfg(test)]

@@ -14,8 +14,8 @@ use crate::{
 };
 use anyhow::Context;
 use clap::{ArgAction, Parser};
-use std::env::set_current_dir;
-use tauri_utils::platform::Target;
+use std::{env::set_current_dir, path::Path};
+use tauri_utils::{acl::schema::CAPABILITIES_SCHEMA_FOLDER_PATH, platform::Target};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -55,6 +55,9 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Try to remove unused commands registered from plugins base on the ACL list
+  #[clap(long)]
+  pub remove_unused_commands: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -84,6 +87,31 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let interface_options = options.clone().into();
 
   let out_dir = app_settings.out_dir(&interface_options)?;
+
+  if options.remove_unused_commands {
+    let (_acl, resolved) = tauri_utils::acl::get_raw_and_resolved_acl(
+      &Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH),
+      config_,
+      None,
+      target,
+    );
+    std::fs::create_dir_all(&out_dir)?;
+    let allowed_commands_path = out_dir.join("allowed-commands.json");
+    std::fs::write(
+      &allowed_commands_path,
+      serde_json::to_string(
+        &resolved
+          .allowed_commands
+          .keys()
+          .into_iter()
+          .collect::<Vec<_>>(),
+      )?,
+    )?;
+    std::env::set_var(
+      tauri_utils::acl::ALLOWED_COMMANDS_PATH_ENV,
+      allowed_commands_path,
+    );
+  }
 
   let bin_path = interface.build(interface_options)?;
 
@@ -175,7 +203,7 @@ pub fn setup(
       return Err(anyhow::anyhow!(
           "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
           out_folders,
-          if out_folders.len() == 1 { "folder" }else { "folders" }
+          if out_folders.len() == 1 { "folder" } else { "folders" }
         )
       );
     }

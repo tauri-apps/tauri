@@ -246,6 +246,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       {
         let handler: Box<dyn Fn(crate::ipc::Invoke<R>) -> bool> =
           Box::new(crate::generate_handler![
+            #![plugin(window)]
             desktop_commands::create,
             // getters
             desktop_commands::get_all_windows,

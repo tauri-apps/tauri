@@ -70,7 +70,9 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
     for attr in attrs {
       if attr.path().is_ident("plugin") {
         // Parse the content inside #![plugin(...)]
-        return Ok(Some(attr.parse_args::<Ident>()?.to_string()));
+        return Ok(Some(
+          attr.parse_args::<Ident>()?.to_string().replace("_", "-"),
+        ));
       }
     }
   }

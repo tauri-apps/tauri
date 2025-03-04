@@ -65,6 +65,7 @@ pub async fn set_app_theme<R: Runtime>(app: AppHandle<R>, theme: Option<Theme>) 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app")
     .invoke_handler(crate::generate_handler![
+      #![plugin(app)]
       version,
       name,
       tauri_version,

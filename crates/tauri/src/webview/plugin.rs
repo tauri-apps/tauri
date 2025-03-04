@@ -282,6 +282,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       {
         let handler: Box<dyn Fn(crate::ipc::Invoke<R>) -> bool> =
           Box::new(crate::generate_handler![
+            #![plugin(webview)]
             desktop_commands::create_webview,
             desktop_commands::create_webview_window,
             // getters

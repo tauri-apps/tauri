@@ -883,6 +883,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       }
     })
     .invoke_handler(crate::generate_handler![
+      #![plugin(menu)]
       new,
       append,
       prepend,

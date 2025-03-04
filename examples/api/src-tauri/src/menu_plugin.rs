@@ -44,6 +44,9 @@ pub fn popup<R: tauri::Runtime>(
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app-menu")
-    .invoke_handler(tauri::generate_handler![popup, toggle])
+    .invoke_handler(tauri::generate_handler![
+      #![plugin(app_menu)]
+      popup, toggle
+    ])
     .build()
 }

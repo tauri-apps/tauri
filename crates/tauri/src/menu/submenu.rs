@@ -9,7 +9,6 @@ use super::run_item_main_thread;
 use super::{IsMenuItem, MenuItemKind, sealed::ContextMenuBase};
 use crate::menu::NativeIcon;
 use crate::menu::SubmenuInner;
-use crate::run_main_thread;
 use crate::{AppHandle, Manager, Position, Runtime, Window};
 #[cfg(menu_backend)]
 use muda::ContextMenu;
@@ -92,7 +91,7 @@ impl<R: Runtime> Submenu<R> {
 
     let text = text.as_ref().to_owned();
 
-    let submenu = run_main_thread!(handle, || {
+    let submenu = handle.run_on_main_thread_return(move || {
       let submenu = muda::Submenu::new(text, enabled);
       SubmenuInner::new(app_handle, submenu)
     })?;
@@ -154,7 +153,7 @@ impl<R: Runtime> Submenu<R> {
     let id = id.into();
     let text = text.as_ref().to_owned();
 
-    let submenu = run_main_thread!(handle, || {
+    let submenu = handle.run_on_main_thread_return(move || {
       let submenu = muda::Submenu::with_id(id.clone(), text, enabled);
       SubmenuInner::new(app_handle, submenu)
     })?;

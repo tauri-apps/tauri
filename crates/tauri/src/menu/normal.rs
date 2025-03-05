@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use super::run_item_main_thread;
 use crate::menu::MenuItemInner;
-use crate::run_main_thread;
 use crate::{AppHandle, Manager, Runtime, menu::MenuId};
 
 use super::MenuItem;
@@ -33,7 +32,7 @@ impl<R: Runtime> MenuItem<R> {
     let text = text.as_ref().to_owned();
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
 
-    let item = run_main_thread!(handle, || {
+    let item = handle.run_on_main_thread_return(move || {
       let item = muda::MenuItem::new(text, enabled, accelerator);
       MenuItemInner::new(app_handle, item)
     })?;
@@ -65,7 +64,7 @@ impl<R: Runtime> MenuItem<R> {
     let accelerator = accelerator.and_then(|s| s.as_ref().parse().ok());
     let text = text.as_ref().to_owned();
 
-    let item = run_main_thread!(handle, || {
+    let item = handle.run_on_main_thread_return(move || {
       let item = muda::MenuItem::with_id(id.clone(), text, enabled, accelerator);
       MenuItemInner::new(app_handle, item)
     })?;

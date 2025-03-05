@@ -40,6 +40,7 @@ use tauri_utils::{assets::AssetsIter, PackageInfo};
 
 use std::{
   borrow::Cow,
+  cell::Cell,
   collections::HashMap,
   fmt,
   sync::{mpsc::Sender, Arc, MutexGuard},
@@ -367,6 +368,38 @@ impl AppHandle<crate::Wry> {
         message,
       ))
       .map_err(Into::into)
+  }
+}
+
+#[cfg(all(feature = "wry", target_vendor = "apple"))]
+impl AppHandle<crate::Wry> {
+  /// Fetches all Data Store Indentifiers by this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn fetch_all_data_store_identifiers() -> Result<Vec<[u8; 16]>, anyhow::Error> {
+    let (tx, rx) = tokio::sync::oneshot::channel::<Vec<[u8; 16]>>();
+    let cell: Cell<Option<_>> = Cell::new(Some(tx));
+    // does this need to be called on seperate thread?
+    tauri_runtime_wry::fetch_all_data_store_identifiers(move |ids| {
+      if let Some(tx) = cell.take() {
+        let _ = tx.send(ids);
+      }
+    })?;
+    Ok(rx.await?)
+  }
+  /// Deletes a Data Store of this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn remove_data_store(uuid: [u8; 16]) -> Result<(), anyhow::Error> {
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime_wry::wry::Error>>();
+    let cell: Cell<Option<_>> = Cell::new(Some(tx));
+    // does this need to be called on seperate thread?
+    tauri_runtime_wry::remove_data_store(&uuid, move |result| {
+      if let Some(tx) = cell.take() {
+        let _ = tx.send(result);
+      }
+    })?;
+    Ok(rx.await??)
   }
 }
 

@@ -4630,3 +4630,5 @@ fn inner_size(
 ) -> TaoPhysicalSize<u32> {
   window.inner_size()
 }
+
+pub use wry::{fetch_all_data_store_identifiers, remove_data_store};

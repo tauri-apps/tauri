@@ -10855,8 +10855,7 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 [[package]]
 name = "wry"
 version = "0.50.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ec139df5102db821f92a42033c3fa0467c5ab434511e79c65881d6bdf2b369"
+source = "git+https://github.com/Simon-Laux/wry?branch=datastore-improvements#020b3a7e9343e41da41b1b537d1bc51e3b2bff71"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

@@ -25,4 +25,20 @@ window.addEventListener('keydown', (event) => {
       value: zoomLevel
     })
   }
-})
+});
+
+
+window.addEventListener('mousewheel', (event) => {
+  if(event.ctrlKey) {
+    event.preventDefault();
+    if (event.deltaY < 0) {
+      zoomLevel += 0.2
+    } else {
+      zoomLevel -= 0.2
+    }
+    zoomLevel = Math.min(Math.max(zoomLevel, MIN_ZOOM_LEVEL), MAX_ZOOM_LEVEL)
+    window.__TAURI_INTERNALS__.invoke('plugin:webview|set_webview_zoom', {
+      value: zoomLevel
+    })
+  }
+});

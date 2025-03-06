@@ -101,7 +101,7 @@ impl Resolved {
            key,
            commands,
            scope,
-           #[cfg_attr(not(debug_assertions), allow(unused))]
+           #[cfg(debug_assertions)]
            permission_name,
          }| {
           if commands.allow.is_empty() && commands.deny.is_empty() {

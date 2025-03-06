@@ -406,8 +406,7 @@ pub fn generate_allowed_commands(
 
     let target_triple = env::var("TARGET")?;
     let target = crate::platform::Target::from_triple(&target_triple);
-    let (mut config, config_paths) =
-      crate::config::parse::read_from(target, env::current_dir().unwrap())?;
+    let (mut config, config_paths) = crate::config::parse::read_from(target, &config_directory)?;
     for config_file_path in config_paths {
       println!("cargo:rerun-if-changed={}", config_file_path.display());
     }

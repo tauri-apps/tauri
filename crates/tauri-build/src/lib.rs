@@ -466,7 +466,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
   let (mut config, config_paths) =
-    tauri_utils::config::parse::read_from(target, env::current_dir().unwrap())?;
+    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
   for config_file_path in config_paths {
     println!("cargo:rerun-if-changed={}", config_file_path.display());
   }

@@ -153,7 +153,7 @@ fn get_internal(
   let mut extensions = HashMap::new();
 
   if let Some((platform_config, config_path)) =
-    tauri_utils::config::parse::read_platform(target, tauri_dir.to_path_buf())?
+    tauri_utils::config::parse::read_platform(target, tauri_dir)?
   {
     merge(&mut config, &platform_config);
     extensions.insert(

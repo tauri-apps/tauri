@@ -77,7 +77,8 @@ pub struct Options {
   /// Use this to create a package ready for the App Store (app-store-connect option) or TestFlight (release-testing option).
   #[clap(long, value_enum)]
   pub export_method: Option<ExportMethod>,
-  /// Try to remove unused commands registered from plugins base on the ACL list
+  /// Try to remove unused commands registered from plugins base on the ACL list,
+  /// this feature requires tauri-plugins 2.1 and tauri 2.4
   #[clap(long)]
   pub remove_unused_commands: bool,
 }

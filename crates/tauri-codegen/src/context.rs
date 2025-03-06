@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use std::collections::BTreeMap;
 use std::convert::identity;
 use std::path::{Path, PathBuf};
 use std::{ffi::OsStr, str::FromStr};
@@ -17,6 +18,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 use syn::Expr;
+use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::{
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
@@ -371,12 +373,23 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     }
   };
 
-  let (acl, resolved) = tauri_utils::acl::get_raw_and_resolved_acl(
-    &out_dir,
+  let acl_file_path = out_dir.join(tauri_utils::acl::ACL_MANIFESTS_FILE_NAME);
+  let acl: BTreeMap<String, tauri_utils::acl::manifest::Manifest> = if acl_file_path.exists() {
+    let acl_file =
+      std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
+    serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
+  } else {
+    Default::default()
+  };
+
+  let capabilities_file_path = out_dir.join(tauri_utils::acl::CAPABILITIES_FILE_NAME);
+  let capabilities = tauri_utils::acl::get_capabilities(
     &config,
+    Some(&capabilities_file_path),
     additional_capabilities.as_deref(),
-    target,
-  );
+  )
+  .unwrap();
+  let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
 
   let acl_tokens = map_lit(
     quote! { ::std::collections::BTreeMap },

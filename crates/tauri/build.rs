@@ -6,6 +6,7 @@ use heck::AsShoutySnakeCase;
 use tauri_utils::write_if_changed;
 
 use std::{
+  collections::BTreeMap,
   env, fs,
   path::{Path, PathBuf},
   sync::{Mutex, OnceLock},
@@ -331,7 +332,8 @@ fn main() {
     }
   }
 
-  define_permissions(&out_dir);
+  let permissions = define_permissions(&out_dir);
+  tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions).unwrap();
 }
 
 const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
@@ -339,7 +341,10 @@ const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The 
 # SPDX-License-Identifier: MIT
 ";
 
-fn define_permissions(out_dir: &Path) {
+fn define_permissions(
+  out_dir: &Path,
+) -> BTreeMap<String, Vec<tauri_utils::acl::manifest::PermissionFile>> {
+  let mut all_permissions = BTreeMap::new();
   for (plugin, commands) in PLUGINS {
     let plugin_directory_name = plugin.strip_prefix("core:").unwrap_or(plugin);
     let permissions_out_dir = out_dir.join("permissions").join(plugin_directory_name);
@@ -399,12 +404,18 @@ permissions = [{default_permissions}]
       plugin.strip_prefix("tauri-plugin-").unwrap_or(plugin),
     )
     .expect("failed to generate plugin documentation page");
+    all_permissions.insert(plugin.to_string(), permissions);
   }
 
-  define_default_permission_set(out_dir);
+  let default_permissions = define_default_permission_set(out_dir);
+  all_permissions.insert("core".to_string(), default_permissions);
+
+  all_permissions
 }
 
-fn define_default_permission_set(out_dir: &Path) {
+fn define_default_permission_set(
+  out_dir: &Path,
+) -> Vec<tauri_utils::acl::manifest::PermissionFile> {
   let permissions_out_dir = out_dir.join("permissions");
   fs::create_dir_all(&permissions_out_dir)
     .expect("failed to create core:default permissions directory");
@@ -434,7 +445,7 @@ permissions = [{}]
   write_if_changed(default_toml, toml_content)
     .unwrap_or_else(|_| panic!("unable to autogenerate core:default set"));
 
-  let _ = tauri_utils::acl::build::define_permissions(
+  tauri_utils::acl::build::define_permissions(
     &PathBuf::from(glob::Pattern::escape(
       &permissions_out_dir.to_string_lossy(),
     ))
@@ -444,7 +455,7 @@ permissions = [{}]
     out_dir,
     |_| true,
   )
-  .unwrap_or_else(|e| panic!("failed to define permissions for `core:default` : {e}"));
+  .unwrap_or_else(|e| panic!("failed to define permissions for `core:default` : {e}"))
 }
 
 fn embed_manifest_for_tests() {

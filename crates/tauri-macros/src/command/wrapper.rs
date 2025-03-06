@@ -16,7 +16,7 @@ use syn::{
   spanned::Spanned,
   Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
 };
-use tauri_utils::acl::ALLOWED_COMMANDS_PATH_ENV;
+use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
 enum WrapperAttributeKind {
   Meta(Meta),
@@ -263,7 +263,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   };
 
   // Allow this to be unused when we're building with `--remove-unused-commands` for dead code elimination
-  let maybe_allow_unused = if var(ALLOWED_COMMANDS_PATH_ENV).is_ok() {
+  let maybe_allow_unused = if var(REMOVE_UNUSED_COMMANDS_ENV_VAR).is_ok() {
     quote!(#[allow(unused)])
   } else {
     TokenStream2::default()

@@ -14,8 +14,8 @@ use crate::{
 };
 use anyhow::Context;
 use clap::{ArgAction, Parser};
-use std::{env::set_current_dir, path::Path};
-use tauri_utils::{acl::schema::CAPABILITIES_SCHEMA_FOLDER_PATH, platform::Target};
+use std::env::set_current_dir;
+use tauri_utils::{acl::REMOVE_UNUSED_COMMANDS_ENV_VAR, platform::Target};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -89,22 +89,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   let out_dir = app_settings.out_dir(&interface_options)?;
 
   if options.remove_unused_commands {
-    let (_acl, resolved) = tauri_utils::acl::get_raw_and_resolved_acl(
-      Path::new(CAPABILITIES_SCHEMA_FOLDER_PATH),
-      config_,
-      None,
-      target,
-    );
-    std::fs::create_dir_all(&out_dir)?;
-    let allowed_commands_path = out_dir.join("allowed-commands.json");
-    std::fs::write(
-      &allowed_commands_path,
-      serde_json::to_string(&resolved.allowed_commands.keys().collect::<Vec<_>>())?,
-    )?;
-    std::env::set_var(
-      tauri_utils::acl::ALLOWED_COMMANDS_PATH_ENV,
-      allowed_commands_path,
-    );
+    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir());
   }
 
   let bin_path = interface.build(interface_options)?;

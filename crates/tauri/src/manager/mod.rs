@@ -605,7 +605,6 @@ impl<R: Runtime> AppManager<R> {
   where
     S: Serialize,
   {
-    let target = target.into();
     #[cfg(feature = "tracing")]
     tracing::Span::current().record("target", format!("{target:?}"));
 

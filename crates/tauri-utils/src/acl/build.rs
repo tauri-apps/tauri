@@ -398,8 +398,12 @@ pub fn generate_allowed_commands(
     let capabilities_path = config_directory.join("capabilities");
     let capabilities_path_str = capabilities_path.to_string_lossy().to_string();
 
-    println!("cargo:rerun-if-changed={capabilities_path_str}");
-    println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
+    // Cargo re-builds if the variable points to an empty path,
+    // so we check for exists here
+    // see https://github.com/rust-lang/cargo/issues/4213
+    if capabilities_path.exists() {
+      println!("cargo:rerun-if-changed={capabilities_path_str}");
+    }
 
     let mut capabilities =
       crate::acl::build::parse_capabilities(&format!("{capabilities_path_str}/**/*"))?;
@@ -407,13 +411,17 @@ pub fn generate_allowed_commands(
     let target_triple = env::var("TARGET")?;
     let target = crate::platform::Target::from_triple(&target_triple);
     let (mut config, config_paths) = crate::config::parse::read_from(target, &config_directory)?;
+
     for config_file_path in config_paths {
       println!("cargo:rerun-if-changed={}", config_file_path.display());
     }
+
     if let Ok(env) = std::env::var("TAURI_CONFIG") {
       let merge_config: serde_json::Value = serde_json::from_str(&env)?;
       json_patch::merge(&mut config, &merge_config);
     }
+
+    println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
     // Set working directory to where `tauri.config.json` is, so that relative paths in it are parsed correctly.
     let old_cwd = std::env::current_dir()?;
@@ -464,7 +472,7 @@ pub fn generate_allowed_commands(
       }
     }
 
-    std::fs::write(
+    write_if_changed(
       allowed_commands_file_path,
       serde_json::to_string(&allowed_commands)?,
     )?;

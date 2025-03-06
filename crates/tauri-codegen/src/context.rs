@@ -18,8 +18,11 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use sha2::{Digest, Sha256};
 use syn::Expr;
-use tauri_utils::acl::resolved::Resolved;
 use tauri_utils::{
+  acl::{
+    get_capabilities, manifest::Manifest, resolved::Resolved, ACL_MANIFESTS_FILE_NAME,
+    CAPABILITIES_FILE_NAME,
+  },
   assets::AssetKey,
   config::{Config, FrontendDist, PatternKind},
   html::{inject_nonce_token, parse as parse_html, serialize_node as serialize_html_node, NodeRef},
@@ -373,8 +376,8 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     }
   };
 
-  let acl_file_path = out_dir.join(tauri_utils::acl::ACL_MANIFESTS_FILE_NAME);
-  let acl: BTreeMap<String, tauri_utils::acl::manifest::Manifest> = if acl_file_path.exists() {
+  let acl_file_path = out_dir.join(ACL_MANIFESTS_FILE_NAME);
+  let acl: BTreeMap<String, Manifest> = if acl_file_path.exists() {
     let acl_file =
       std::fs::read_to_string(acl_file_path).expect("failed to read plugin manifest map");
     serde_json::from_str(&acl_file).expect("failed to parse plugin manifest map")
@@ -382,13 +385,14 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     Default::default()
   };
 
-  let capabilities_file_path = out_dir.join(tauri_utils::acl::CAPABILITIES_FILE_NAME);
-  let capabilities = tauri_utils::acl::get_capabilities(
+  let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  let capabilities = get_capabilities(
     &config,
     Some(&capabilities_file_path),
     additional_capabilities.as_deref(),
   )
   .unwrap();
+
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
 
   let acl_tokens = map_lit(
@@ -398,7 +402,6 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     identity,
   );
 
-  // let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
   let runtime_authority = quote!(#root::ipc::RuntimeAuthority::new(#acl_tokens, #resolved));
 
   let plugin_global_api_scripts = if config.app.with_global_tauri {

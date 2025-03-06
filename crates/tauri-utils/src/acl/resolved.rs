@@ -334,7 +334,7 @@ pub struct TraversedPermission<'a> {
 
 /// Expand a permissions id based on the ACL to get the associated permissions (e.g. expand some-plugin:default)
 pub fn get_permissions<'a>(
-  permission_id: &'a Identifier,
+  permission_id: &Identifier,
   acl: &'a BTreeMap<String, Manifest>,
 ) -> Result<Vec<TraversedPermission<'a>>, Error> {
   let key = permission_id.get_prefix().unwrap_or(APP_ACL_KEY);

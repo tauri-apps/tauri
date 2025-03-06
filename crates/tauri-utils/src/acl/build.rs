@@ -381,28 +381,40 @@ pub fn generate_docs(
   Ok(())
 }
 
+// TODO: We have way too many duplicated code around getting the config files, e.g.
+//  - crates/tauri-codegen/src/lib.rs          (`get_config`)
+//  - crates/tauri-build/src/lib.rs            (`try_build`)
+//  - crates/tauri-cli/src/helpers/config.rs   (`get_internal`)
 /// Generate allowed commands file for the `generate_handler` macro to remove never allowed commands
 pub fn generate_allowed_commands(
   out_dir: &Path,
   permissions_map: BTreeMap<String, Vec<PermissionFile>>,
 ) -> Result<(), anyhow::Error> {
-  let allowed_commands_file_path = out_dir.join(ALLOWED_COMMANDS_FILE_NAME);
   println!("cargo:rerun-if-env-changed={REMOVE_UNUSED_COMMANDS_ENV_VAR}");
+
+  let allowed_commands_file_path = out_dir.join(ALLOWED_COMMANDS_FILE_NAME);
   if let Ok(path) = std::env::var(REMOVE_UNUSED_COMMANDS_ENV_VAR) {
     let config_directory = PathBuf::from(path);
     let capabilities_path = config_directory.join("capabilities");
     let capabilities_path_str = capabilities_path.to_string_lossy().to_string();
+
     println!("cargo:rerun-if-changed={capabilities_path_str}");
+    println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
+
     let mut capabilities =
       crate::acl::build::parse_capabilities(&format!("{capabilities_path_str}/**/*"))?;
+
     let target_triple = env::var("TARGET")?;
     let target = crate::platform::Target::from_triple(&target_triple);
-    let (config, _) = crate::config::parse::read_from(target, config_directory.clone())?;
-    // if let Ok(env) = std::env::var("TAURI_CONFIG") {
-    //   let merge_config: serde_json::Value =
-    //     serde_json::from_str(&env).map_err(CodegenConfigError::FormatInline)?;
-    //   json_patch::merge(&mut config, &merge_config);
-    // }
+    let (mut config, config_paths) =
+      crate::config::parse::read_from(target, env::current_dir().unwrap())?;
+    for config_file_path in config_paths {
+      println!("cargo:rerun-if-changed={}", config_file_path.display());
+    }
+    if let Ok(env) = std::env::var("TAURI_CONFIG") {
+      let merge_config: serde_json::Value = serde_json::from_str(&env)?;
+      json_patch::merge(&mut config, &merge_config);
+    }
 
     // Set working directory to where `tauri.config.json` is, so that relative paths in it are parsed correctly.
     let old_cwd = std::env::current_dir()?;
@@ -457,7 +469,6 @@ pub fn generate_allowed_commands(
       allowed_commands_file_path,
       serde_json::to_string(&allowed_commands)?,
     )?;
-    // panic!("{}", allowed_commands.join(","));
   } else {
     let _ = std::fs::remove_file(allowed_commands_file_path);
   }

@@ -174,20 +174,17 @@ pub fn is_configuration_file(target: Target, path: &Path) -> bool {
 /// - `tauri.ios.conf.json[5]` or `Tauri.ios.toml` on iOS
 ///   Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
-/// Returns the raw configuration and the platform config path, if any.
+/// Returns the raw configuration and used config path.
 ///
 /// [JSON Merge Patch (RFC 7396)]: https://datatracker.ietf.org/doc/html/rfc7396.
-pub fn read_from(
-  target: Target,
-  root_dir: PathBuf,
-) -> Result<(Value, Option<PathBuf>), ConfigError> {
-  let mut config: Value = parse_value(target, root_dir.join("tauri.conf.json"))?.0;
+pub fn read_from(target: Target, root_dir: PathBuf) -> Result<(Value, Vec<PathBuf>), ConfigError> {
+  let (mut config, config_file_path) = parse_value(target, root_dir.join("tauri.conf.json"))?;
+  let mut config_paths = vec![config_file_path];
   if let Some((platform_config, path)) = read_platform(target, root_dir)? {
+    config_paths.push(path);
     merge(&mut config, &platform_config);
-    Ok((config, Some(path)))
-  } else {
-    Ok((config, None))
   }
+  Ok((config, config_paths))
 }
 
 /// Reads the platform-specific configuration file from the given root directory if it exists.

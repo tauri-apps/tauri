@@ -13,7 +13,7 @@ window.addEventListener('keydown', (event) => {
   if (OS_NAME === 'macos' ? event.metaKey : event.ctrlKey) {
     if (event.key === '-') {
       zoomLevel -= 0.2
-    } else if (event.key === '=') {
+    } else if (event.key === '=' || event.key === '+') {
       zoomLevel += 0.2
     } else if (event.key === '0') {
       zoomLevel = 1

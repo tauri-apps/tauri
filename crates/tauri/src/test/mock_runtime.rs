@@ -282,6 +282,23 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     todo!()
   }
 
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }

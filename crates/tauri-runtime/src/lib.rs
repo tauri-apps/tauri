@@ -182,6 +182,9 @@ pub enum Error {
   InvalidProxyUrl,
   #[error("window not found")]
   WindowNotFound,
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[error("failed to remove data store")]
+  FailedToRemoveDataStore,
 }
 
 /// Result type.
@@ -338,6 +341,21 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn run_on_android_context<F>(&self, f: F)
   where
     F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static;
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()>;
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()>;
 }
 
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {

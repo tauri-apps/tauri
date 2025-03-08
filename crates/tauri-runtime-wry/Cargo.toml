@@ -17,12 +17,12 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.50.3", default-features = false, features = [
+wry = { version = "0.50.4", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
   "linux-body",
-], git = "https://github.com/Simon-Laux/wry", branch = "datastore-improvements" }
+] }
 tao = { version = "0.32.2", default-features = false, features = ["rwh_06"] }
 tauri-runtime = { version = "2.4.0", path = "../tauri-runtime" }
 tauri-utils = { version = "2.2.0", path = "../tauri-utils" }

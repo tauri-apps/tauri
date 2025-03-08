@@ -47,6 +47,27 @@ pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
 }
 
 #[command(root = "crate")]
+#[allow(unused_variables)]
+pub async fn fetch_data_store_identifiers<R: Runtime>(
+  app: AppHandle<R>,
+) -> crate::Result<Vec<[u8; 16]>> {
+  #[cfg(target_vendor = "apple")]
+  return app.fetch_data_store_identifiers().await;
+  #[cfg(not(target_vendor = "apple"))]
+  return Ok(Vec::new());
+}
+
+#[command(root = "crate")]
+#[allow(unused_variables)]
+pub async fn remove_data_store<R: Runtime>(app: AppHandle<R>, uuid: [u8; 16]) -> crate::Result<()> {
+  #[cfg(target_vendor = "apple")]
+  app.remove_data_store(uuid).await?;
+  #[cfg(not(target_vendor = "apple"))]
+  let _ = uuid;
+  Ok(())
+}
+
+#[command(root = "crate")]
 pub fn default_window_icon<R: Runtime>(
   webview: Webview<R>,
   app: AppHandle<R>,
@@ -71,6 +92,8 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       identifier,
       app_show,
       app_hide,
+      fetch_data_store_identifiers,
+      remove_data_store,
       default_window_icon,
       set_app_theme,
     ])

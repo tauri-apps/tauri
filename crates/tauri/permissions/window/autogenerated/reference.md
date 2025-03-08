@@ -222,6 +222,32 @@ Denies the destroy command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-fetch-data-store-identifiers`
+
+</td>
+<td>
+
+Enables the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-fetch-data-store-identifiers`
+
+</td>
+<td>
+
+Denies the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-get-all-windows`
 
 </td>
@@ -787,6 +813,32 @@ Enables the primary_monitor command without any pre-configured scope.
 <td>
 
 Denies the primary_monitor command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-remove-data-store`
+
+</td>
+<td>
+
+Enables the remove_data_store command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-remove-data-store`
+
+</td>
+<td>
+
+Denies the remove_data_store command without any pre-configured scope.
 
 </td>
 </tr>

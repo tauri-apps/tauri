@@ -370,8 +370,8 @@ impl AppHandle<crate::Wry> {
   }
 }
 
-#[cfg(all(feature = "wry", target_vendor = "apple"))]
-impl AppHandle<crate::Wry> {
+#[cfg(target_vendor = "apple")]
+impl<R: Runtime> AppHandle<R> {
   /// Fetches all Data Store Indentifiers by this app
   ///
   /// Needs to be called from Main Thread
@@ -390,7 +390,7 @@ impl AppHandle<crate::Wry> {
         }
       }) {
         if let Some(tx) = lock.lock().unwrap().take() {
-          let _ = tx.send(Err(err.into()));
+          let _ = tx.send(Err(err));
         }
       }
     })?;
@@ -415,7 +415,7 @@ impl AppHandle<crate::Wry> {
         }
       }) {
         if let Some(tx) = lock.lock().unwrap().take() {
-          let _ = tx.send(Err(err.into()));
+          let _ = tx.send(Err(err));
         }
       }
     })?;

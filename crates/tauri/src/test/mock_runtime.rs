@@ -558,6 +558,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
+  fn reload(&self) -> Result<()> {
+    Ok(())
+  }
+
   fn print(&self) -> Result<()> {
     Ok(())
   }

@@ -728,7 +728,10 @@ fn main() {
   ///
   ///  ## Platform-specific:
   ///
-  ///  **Android**: Unsupported.
+  ///  - **Windows**: Requires WebView2 Runtime version 101.0.1210.39 or higher, does nothing on older versions,
+  ///    see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/archive?tabs=dotnetcsharp#10121039
+  ///  - **Android**: Unsupported.
+  ///  - **macOS / iOS**: Uses the nonPersistent DataStore
   #[must_use]
   pub fn incognito(mut self, incognito: bool) -> Self {
     self.webview_attributes.incognito = incognito;
@@ -818,6 +821,8 @@ fn main() {
   ///
   /// - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
   /// - **Windows / Linux / Android**: Unsupported.
+  ///
+  /// Note: Enable incognito mode to use the `nonPersistent` DataStore.
   #[must_use]
   pub fn data_store_identifier(mut self, data_store_identifier: [u8; 16]) -> Self {
     self.webview_attributes.data_store_identifier = Some(data_store_identifier);
@@ -884,6 +889,17 @@ fn main() {
   #[must_use]
   pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
     self.webview_attributes.background_throttling = Some(policy);
+    self
+  }
+
+  /// Whether JavaScript should be disabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** Not implemented yet.
+  #[must_use]
+  pub fn disable_javascript(mut self) -> Self {
+    self.webview_attributes.javascript_disabled = true;
     self
   }
 }
@@ -1285,6 +1301,11 @@ fn main() {
   /// Navigates the webview to the defined url.
   pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.dispatcher.navigate(url).map_err(Into::into)
+  }
+
+  /// Reloads the current page.
+  pub fn reload(&self) -> crate::Result<()> {
+    self.webview.dispatcher.reload().map_err(Into::into)
   }
 
   fn is_local_url(&self, current_url: &Url) -> bool {

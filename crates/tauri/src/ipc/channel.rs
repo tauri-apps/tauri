@@ -35,7 +35,6 @@ static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
 
 /// An IPC channel.
-#[derive(Clone)]
 pub struct Channel<TSend = InvokeResponseBody> {
   id: u32,
   on_message: Arc<dyn Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync>,
@@ -48,6 +47,16 @@ const _: () = {
   #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
   struct Channel<TSend>(std::marker::PhantomData<TSend>);
 };
+
+impl<TSend> Clone for Channel<TSend> {
+  fn clone(&self) -> Self {
+    Self {
+      id: self.id,
+      on_message: self.on_message.clone(),
+      phantom: Default::default(),
+    }
+  }
+}
 
 impl<TSend> Serialize for Channel<TSend> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -204,7 +213,7 @@ impl<TSend> Channel<TSend> {
   }
 }
 
-impl<'de, R: Runtime, TSend: Clone> CommandArg<'de, R> for Channel<TSend> {
+impl<'de, R: Runtime, TSend> CommandArg<'de, R> for Channel<TSend> {
   /// Grabs the [`Webview`] from the [`CommandItem`] and returns the associated [`Channel`].
   fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
     let name = command.name;

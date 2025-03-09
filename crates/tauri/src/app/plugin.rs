@@ -26,6 +26,11 @@ pub fn tauri_version() -> &'static str {
 }
 
 #[command(root = "crate")]
+pub fn identifier<R: Runtime>(app: AppHandle<R>) -> String {
+  app.config().identifier.clone()
+}
+
+#[command(root = "crate")]
 #[allow(unused_variables)]
 pub fn app_show<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
@@ -63,6 +68,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       version,
       name,
       tauri_version,
+      identifier,
       app_show,
       app_hide,
       default_window_icon,

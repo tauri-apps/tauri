@@ -486,6 +486,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Navigate to the given URL.
   fn navigate(&self, url: Url) -> Result<()>;
 
+  /// Reloads the current page.
+  fn reload(&self) -> Result<()>;
+
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
 

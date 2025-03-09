@@ -5,6 +5,7 @@
 package app.tauri
 
 import android.app.Activity
+import android.os.Build
 import android.os.Environment
 import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
@@ -34,12 +35,20 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
 
     @Command
     fun getConfigDir(invoke: Invoke) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         resolvePath(invoke, activity.dataDir.absolutePath)
+      } else {
+        resolvePath(invoke, activity.applicationInfo.dataDir)
+      }
     }
 
     @Command
     fun getDataDir(invoke: Invoke) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
         resolvePath(invoke, activity.dataDir.absolutePath)
+      } else {
+        resolvePath(invoke, activity.applicationInfo.dataDir)
+      }
     }
 
     @Command

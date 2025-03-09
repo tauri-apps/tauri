@@ -1717,6 +1717,9 @@ pub struct WindowConfig {
   /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
   #[serde(default, alias = "background-throttling")]
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
+  /// Whether we should disable JavaScript code execution on the webview or not.
+  #[serde(default, alias = "javascript-disabled")]
+  pub javascript_disabled: bool,
 }
 
 impl Default for WindowConfig {
@@ -1770,6 +1773,7 @@ impl Default for WindowConfig {
       devtools: None,
       background_color: None,
       background_throttling: None,
+      javascript_disabled: false,
     }
   }
 }
@@ -2628,7 +2632,7 @@ pub struct BuildConfig {
   /// The URL to load in development.
   ///
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
-  /// Most modern JavaScript bundlers like [vite](https://vitejs.dev/guide/) provides a way to start a dev server by default.
+  /// Most modern JavaScript bundlers like [Vite](https://vite.dev/guide/) provides a way to start a dev server by default.
   ///
   /// If you don't have a dev server or don't want to use one, ignore this option and use [`frontendDist`](BuildConfig::frontend_dist)
   /// and point to a web assets directory, and Tauri CLI will run its built-in dev server and provide a simple hot-reload experience.
@@ -3047,6 +3051,7 @@ mod build {
       let devtools = opt_lit(self.devtools.as_ref());
       let background_color = opt_lit(self.background_color.as_ref());
       let background_throttling = opt_lit(self.background_throttling.as_ref());
+      let javascript_disabled = self.javascript_disabled;
 
       literal_struct!(
         tokens,
@@ -3098,7 +3103,8 @@ mod build {
         use_https_scheme,
         devtools,
         background_color,
-        background_throttling
+        background_throttling,
+        javascript_disabled
       );
     }
   }

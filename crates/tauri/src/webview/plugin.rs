@@ -50,6 +50,8 @@ mod desktop_commands {
     zoom_hotkeys_enabled: bool,
     #[serde(default)]
     background_throttling: Option<BackgroundThrottlingPolicy>,
+    #[serde(default)]
+    javascript_disabled: bool,
   }
 
   #[cfg(feature = "unstable")]
@@ -66,6 +68,7 @@ mod desktop_commands {
       builder.webview_attributes.incognito = config.incognito;
       builder.webview_attributes.zoom_hotkeys_enabled = config.zoom_hotkeys_enabled;
       builder.webview_attributes.background_throttling = config.background_throttling;
+      builder.webview_attributes.javascript_disabled = config.javascript_disabled;
       builder
     }
   }

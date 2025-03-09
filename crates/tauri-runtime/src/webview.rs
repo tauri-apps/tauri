@@ -218,6 +218,7 @@ pub struct WebviewAttributes {
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
+  pub javascript_disabled: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -254,6 +255,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
+    builder.javascript_disabled = config.javascript_disabled;
     builder
   }
 }
@@ -285,6 +287,7 @@ impl WebviewAttributes {
       devtools: None,
       background_color: None,
       background_throttling: None,
+      javascript_disabled: false,
     }
   }
 

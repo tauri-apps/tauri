@@ -146,7 +146,7 @@ serde_json = "1"
 tauri = { path = ".", default-features = false, features = [ "wry" ] }
 tokio-test = "0.4"
 tokio = { version = "1", features = [ "full" ] }
-cargo_toml = "0.15"
+cargo_toml = "0.22"
 
 [features]
 default = [ "wry", "compression", "objc-exception" ]

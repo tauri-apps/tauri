@@ -1,5 +1,5 @@
 ---
-"@tauri-apps/api": minor:fix
+"@tauri-apps/api": minor:bug
 ---
 
 Fix webview closing event error.

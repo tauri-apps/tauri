@@ -1320,6 +1320,15 @@ impl<R: Runtime> WebviewWindow<R> {
     self.webview.window().is_enabled()
   }
 
+  /// Determines if this window should always be on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_always_on_top(&self) -> crate::Result<bool> {
+    self.webview.window().is_always_on_top()
+  }
+
   /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific

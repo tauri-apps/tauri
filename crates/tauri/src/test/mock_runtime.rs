@@ -1016,6 +1016,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(true)
   }
 
+  fn is_always_on_top(&self) -> Result<bool> {
+    Ok(false)
+  }
+
   fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {
     Ok(())
   }

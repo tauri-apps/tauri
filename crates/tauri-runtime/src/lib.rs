@@ -612,6 +612,13 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Whether the window is enabled or disable.
   fn is_enabled(&self) -> Result<bool>;
 
+  /// Gets the window alwaysOnTop flag state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  fn is_always_on_top(&self) -> Result<bool>;
+
   /// Gets the window's current title.
   fn title(&self) -> Result<String>;
 

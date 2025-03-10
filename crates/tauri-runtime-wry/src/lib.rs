@@ -1229,6 +1229,7 @@ pub enum WindowMessage {
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
+  IsAlwaysOnTop(Sender<bool>),
   // Setters
   Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
@@ -1799,6 +1800,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn is_enabled(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsEnabled)
+  }
+
+  fn is_always_on_top(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsAlwaysOnTop)
   }
 
   #[cfg(any(
@@ -3014,7 +3019,7 @@ fn handle_user_message<T: UserEvent>(
             tx.send(map_theme(&window.theme())).unwrap();
           }
           WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
-
+          WindowMessage::IsAlwaysOnTop(tx) => tx.send(window.is_always_on_top()).unwrap(),
           // Setters
           WindowMessage::Center => window.center(),
           WindowMessage::RequestUserAttention(request_type) => {

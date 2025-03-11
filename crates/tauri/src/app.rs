@@ -1295,7 +1295,7 @@ impl<R: Runtime> App<R> {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();
 
-    move |event| match event {
+    move |event| match dbg!(&event) {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
           panic!("Failed to setup app: {e}");
@@ -1449,8 +1449,8 @@ impl Default for Builder<crate::Wry> {
   }
 }
 
-#[cfg(not(feature = "wry"))]
-#[cfg_attr(docsrs, doc(cfg(not(feature = "wry"))))]
+#[cfg(not(any(feature = "wry", feature = "cef")))]
+#[cfg_attr(docsrs, doc(cfg(not(any(feature = "wry", feature = "cef")))))]
 impl<R: Runtime> Default for Builder<R> {
   fn default() -> Self {
     Self::new()

@@ -1,0 +1,25 @@
+[package]
+name = "tauri-runtime-cef"
+version = "0.1.0"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+categories.workspace = true
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+tauri-runtime = { version = "2.4.0", path = "../tauri-runtime" }
+tauri-utils = { version = "2.2.0", path = "../tauri-utils" }
+raw-window-handle = "0.6"
+url = "2"
+cef = "133.4.3"
+cef-dll-sys = "133.4.3"
+
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
+
+[features]
+devtools = []
+macos-private-api = []

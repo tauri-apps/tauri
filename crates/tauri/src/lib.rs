@@ -124,6 +124,15 @@ pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub type WryHandle = tauri_runtime_wry::WryHandle<EventLoopMessage>;
 
+/// A Tauri [`Runtime`] wrapper around cef.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub type Cef = tauri_runtime_cef::CefRuntime<EventLoopMessage>;
+/// A Tauri [`RuntimeHandle`] wrapper around cef.
+#[cfg(feature = "cef")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cef")))]
+pub type CefHandle = tauri_runtime_cef::CefRuntimeHandle<EventLoopMessage>;
+
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]

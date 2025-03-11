@@ -3,6 +3,7 @@ members = [
   "crates/tauri",
   "crates/tauri-runtime",
   "crates/tauri-runtime-wry",
+  "crates/tauri-runtime-cef",
   "crates/tauri-macros",
   "crates/tauri-utils",
   "crates/tauri-build",

@@ -623,6 +623,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       res.set("ProductName", product_name);
     }
 
+    let company_name = config.bundle.publisher.unwrap_or_else(|| {
+      config
+        .identifier
+        .split('.')
+        .nth(1)
+        .unwrap_or(&config.identifier)
+        .to_string()
+    });
+
+    res.set("CompanyName", &company_name);
+
     let file_description = config
       .product_name
       .or_else(|| manifest.package.as_ref().map(|p| p.name.clone()))

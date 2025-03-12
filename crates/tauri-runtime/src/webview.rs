@@ -23,23 +23,23 @@ use std::{
   sync::Arc,
 };
 
-type UriSchemeProtocol = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
+pub type UriSchemeProtocol = dyn Fn(&str, http::Request<Vec<u8>>, Box<dyn FnOnce(http::Response<Cow<'static, [u8]>>) + Send>)
   + Send
   + Sync
   + 'static;
 
-type WebResourceRequestHandler =
+pub type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 
-type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+pub type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
-type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send + Sync;
+pub type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send + Sync;
 
-type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+pub type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
-type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
+pub type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
-type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+pub type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
 #[cfg(target_os = "ios")]
 type InputAccessoryViewBuilderFn = dyn Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>

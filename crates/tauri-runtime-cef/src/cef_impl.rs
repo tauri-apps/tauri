@@ -8,17 +8,31 @@ use std::{
   },
 };
 use tauri_runtime::{
+  webview::UriSchemeProtocol,
   window::{PendingWindow, WindowId},
   RunEvent, UserEvent,
 };
 
 use crate::{AppWindow, CefRuntime, Message};
 
+mod request_handler;
+mod utils;
+
+#[macro_export]
 macro_rules! cef_object {
-  ($struct: ident<T: UserEvent>, $inner: ty, $cef_obj: ident, $wrap_trait: ty) => {
+  ($struct: ident<T: UserEvent>, $context: ty, $cef_type: ty, $cef_obj: ident, $wrap_trait: ty) => {
     pub struct $struct<T: UserEvent> {
       object: *mut RcImpl<cef_dll_sys::$cef_obj, Self>,
-      inner: $inner,
+      context: $context,
+    }
+
+    impl<T: UserEvent> $struct<T> {
+      pub fn new(context: $context) -> $cef_type {
+        <$cef_type>::new(Self {
+          object: std::ptr::null_mut(),
+          context,
+        })
+      }
     }
 
     impl<T: UserEvent> Rc for $struct<T> {
@@ -46,15 +60,24 @@ macro_rules! cef_object {
 
         Self {
           object,
-          inner: self.inner.clone(),
+          context: self.context.clone(),
         }
       }
     }
   };
-  ($struct: ident, $inner: ty, $cef_obj: ident, $wrap_trait: ty) => {
+  ($struct: ident, $context: ty, $cef_type: ty, $cef_obj: ident, $wrap_trait: ty) => {
     pub struct $struct {
       object: *mut RcImpl<cef_dll_sys::$cef_obj, Self>,
-      inner: $inner,
+      context: $context,
+    }
+
+    impl $struct {
+      pub fn new(context: $context) -> $cef_type {
+        <$cef_type>::new(Self {
+          object: std::ptr::null_mut(),
+          context,
+        })
+      }
     }
 
     impl Rc for $struct {
@@ -82,7 +105,7 @@ macro_rules! cef_object {
 
         Self {
           object,
-          inner: self.inner.clone(),
+          context: self.context.clone(),
         }
       }
     }
@@ -117,16 +140,7 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
-cef_object!(TauriApp<T: UserEvent>, Context<T>, _cef_app_t, WrapApp);
-
-impl<T: UserEvent> TauriApp<T> {
-  pub fn new(context: Context<T>) -> App {
-    App::new(Self {
-      object: std::ptr::null_mut(),
-      inner: context,
-    })
-  }
-}
+cef_object!(TauriApp<T: UserEvent>, Context<T>, App, _cef_app_t, WrapApp);
 
 impl<T: UserEvent> ImplApp for TauriApp<T> {
   fn get_raw(&self) -> *mut cef_dll_sys::_cef_app_t {
@@ -134,20 +148,11 @@ impl<T: UserEvent> ImplApp for TauriApp<T> {
   }
 
   fn get_browser_process_handler(&self) -> Option<BrowserProcessHandler> {
-    Some(AppBrowserProcessHandler::new(self.inner.clone()))
+    Some(AppBrowserProcessHandler::new(self.context.clone()))
   }
 }
 
-cef_object!(AppBrowserProcessHandler<T: UserEvent>, Context<T>, cef_browser_process_handler_t, WrapBrowserProcessHandler);
-
-impl<T: UserEvent> AppBrowserProcessHandler<T> {
-  pub fn new(context: Context<T>) -> BrowserProcessHandler {
-    BrowserProcessHandler::new(Self {
-      object: std::ptr::null_mut(),
-      inner: context,
-    })
-  }
-}
+cef_object!(AppBrowserProcessHandler<T: UserEvent>, Context<T>, BrowserProcessHandler, cef_browser_process_handler_t, WrapBrowserProcessHandler);
 
 impl<T: UserEvent> ImplBrowserProcessHandler for AppBrowserProcessHandler<T> {
   fn get_raw(&self) -> *mut cef_dll_sys::_cef_browser_process_handler_t {
@@ -157,117 +162,11 @@ impl<T: UserEvent> ImplBrowserProcessHandler for AppBrowserProcessHandler<T> {
   // The real lifespan of cef starts from `on_context_initialized`, so all the cef objects should be manipulated after that.
   fn on_context_initialized(&self) {
     println!("cef context initialized");
-    (self.inner.callback.borrow_mut())(RunEvent::Ready);
-  }
-
-  fn get_default_request_context_handler(&self) -> Option<RequestContextHandler> {
-    Some(WebRequestContextHandler::new())
-  }
-
-  fn get_default_client(&self) -> Option<Client> {
-    None
-    //Some(BrowserClient::new())
+    (self.context.callback.borrow_mut())(RunEvent::Ready);
   }
 }
 
-cef_object!(
-  WebRequestContextHandler,
-  (),
-  _cef_request_context_handler_t,
-  WrapRequestContextHandler
-);
-
-impl WebRequestContextHandler {
-  fn new() -> RequestContextHandler {
-    RequestContextHandler::new(Self {
-      object: std::ptr::null_mut(),
-      inner: (),
-    })
-  }
-}
-
-impl ImplRequestContextHandler for WebRequestContextHandler {
-  fn get_raw(&self) -> *mut cef_dll_sys::_cef_request_context_handler_t {
-    self.object.cast()
-  }
-
-  fn get_resource_request_handler(
-    &self,
-    browser: Option<&mut impl ImplBrowser>,
-    frame: Option<&mut impl ImplFrame>,
-    request: Option<&mut impl ImplRequest>,
-    is_navigation: ::std::os::raw::c_int,
-    is_download: ::std::os::raw::c_int,
-    request_initiator: Option<&CefStringUtf16>,
-    disable_default_handling: Option<&mut ::std::os::raw::c_int>,
-  ) -> Option<ResourceRequestHandler> {
-    Some(WebResourceRequestHandler::new())
-  }
-}
-
-cef_object!(
-  WebResourceRequestHandler,
-  (),
-  _cef_resource_request_handler_t,
-  WrapResourceRequestHandler
-);
-
-impl WebResourceRequestHandler {
-  fn new() -> ResourceRequestHandler {
-    ResourceRequestHandler::new(Self {
-      object: std::ptr::null_mut(),
-      inner: (),
-    })
-  }
-}
-
-impl ImplResourceRequestHandler for WebResourceRequestHandler {
-  fn get_resource_handler(
-    &self,
-    browser: Option<&mut impl ImplBrowser>,
-    frame: Option<&mut impl ImplFrame>,
-    request: Option<&mut impl ImplRequest>,
-  ) -> Option<ResourceHandler> {
-    println!(
-      "get_resource_handler {:?}",
-      request
-        .as_ref()
-        .map(|r| r.get_url().map(|s| CefStringUtf8::from(&s).to_string()))
-    );
-    None
-  }
-
-  fn on_before_resource_load(
-    &self,
-    browser: Option<&mut impl ImplBrowser>,
-    frame: Option<&mut impl ImplFrame>,
-    request: Option<&mut impl ImplRequest>,
-    callback: Option<&mut impl ImplCallback>,
-  ) -> ReturnValue {
-    println!(
-      "on_before_resource_load {:?}",
-      request
-        .as_ref()
-        .map(|r| r.get_url().map(|s| CefStringUtf8::from(&s).to_string()))
-    );
-    Default::default()
-  }
-
-  fn get_raw(&self) -> *mut cef_dll_sys::_cef_resource_request_handler_t {
-    self.object.cast()
-  }
-}
-
-cef_object!(BrowserClient, (), _cef_client_t, WrapClient);
-
-impl BrowserClient {
-  pub fn new() -> Client {
-    Client::new(Self {
-      object: std::ptr::null_mut(),
-      inner: (),
-    })
-  }
-}
+cef_object!(BrowserClient, (), Client, _cef_client_t, WrapClient);
 
 impl ImplClient for BrowserClient {
   fn get_raw(&self) -> *mut cef_dll_sys::_cef_client_t {
@@ -275,42 +174,7 @@ impl ImplClient for BrowserClient {
   }
 
   fn get_request_handler(&self) -> Option<RequestHandler> {
-    Some(WebRequestHandler::new())
-  }
-}
-
-cef_object!(
-  WebRequestHandler,
-  (),
-  _cef_request_handler_t,
-  WrapRequestHandler
-);
-
-impl WebRequestHandler {
-  fn new() -> RequestHandler {
-    RequestHandler::new(Self {
-      object: std::ptr::null_mut(),
-      inner: (),
-    })
-  }
-}
-
-impl ImplRequestHandler for WebRequestHandler {
-  fn get_raw(&self) -> *mut cef_dll_sys::_cef_request_handler_t {
-    self.object.cast()
-  }
-
-  fn get_resource_request_handler(
-    &self,
-    browser: Option<&mut impl ImplBrowser>,
-    frame: Option<&mut impl ImplFrame>,
-    request: Option<&mut impl ImplRequest>,
-    is_navigation: ::std::os::raw::c_int,
-    is_download: ::std::os::raw::c_int,
-    request_initiator: Option<&CefStringUtf16>,
-    disable_default_handling: Option<&mut ::std::os::raw::c_int>,
-  ) -> Option<ResourceRequestHandler> {
-    Some(WebResourceRequestHandler::new())
+    Some(request_handler::WebRequestHandler::new(()))
   }
 }
 
@@ -487,19 +351,37 @@ fn create_window<T: UserEvent>(
 ) {
   let label = pending.label.clone();
 
-  let mut client = BrowserClient::new();
-  let url = pending
-    .webview
-    .as_ref()
-    .map(|w| w.url.as_str())
-    .map(|url| CefString::from(&CefStringUtf8::from(url)));
+  let webview = pending.webview.unwrap();
+
+  let mut client = BrowserClient::new(());
+  let url = CefString::from(&CefStringUtf8::from(webview.url.as_str()));
+
+  let mut request_context = request_context_create_context(
+    Some(&RequestContextSettings::default()),
+    Option::<&mut RequestContextHandler>::None,
+  );
+  if let Some(request_context) = &request_context {
+    for (scheme, handler) in webview.uri_scheme_protocols {
+      request_context.register_scheme_handler_factory(
+        Some(&scheme.as_str().into()),
+        None,
+        Some(&mut request_handler::UriSchemeHandlerFactory::new(
+          request_handler::UriSchemeContext {
+            handler: Arc::new(handler) as Arc<UriSchemeProtocol>,
+          },
+        )),
+      );
+    }
+  } else {
+    eprintln!("failed to create context");
+  }
 
   let browser_view = browser_view_create(
     Some(&mut client),
-    url.as_ref(),
+    Some(&url),
     Some(&Default::default()),
     Option::<&mut DictionaryValue>::None,
-    Option::<&mut RequestContext>::None,
+    request_context.as_mut(),
     Option::<&mut BrowserViewDelegate>::None,
   )
   .expect("Failed to create browser view");

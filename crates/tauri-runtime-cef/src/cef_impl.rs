@@ -14,6 +14,81 @@ use tauri_runtime::{
 
 use crate::{AppWindow, CefRuntime, Message};
 
+macro_rules! cef_object {
+  ($struct: ident<T: UserEvent>, $inner: ty, $cef_obj: ident, $wrap_trait: ty) => {
+    pub struct $struct<T: UserEvent> {
+      object: *mut RcImpl<cef_dll_sys::$cef_obj, Self>,
+      inner: $inner,
+    }
+
+    impl<T: UserEvent> Rc for $struct<T> {
+      fn as_base(&self) -> &cef_dll_sys::cef_base_ref_counted_t {
+        unsafe {
+          let base = &*self.object;
+          std::mem::transmute(&base.cef_object)
+        }
+      }
+    }
+
+    impl<T: UserEvent> $wrap_trait for $struct<T> {
+      fn wrap_rc(&mut self, object: *mut RcImpl<cef_dll_sys::$cef_obj, Self>) {
+        self.object = object;
+      }
+    }
+
+    impl<T: UserEvent> Clone for $struct<T> {
+      fn clone(&self) -> Self {
+        let object = unsafe {
+          let rc_impl = &mut *self.object;
+          rc_impl.interface.add_ref();
+          self.object
+        };
+
+        Self {
+          object,
+          inner: self.inner.clone(),
+        }
+      }
+    }
+  };
+  ($struct: ident, $inner: ty, $cef_obj: ident, $wrap_trait: ty) => {
+    pub struct $struct {
+      object: *mut RcImpl<cef_dll_sys::$cef_obj, Self>,
+      inner: $inner,
+    }
+
+    impl Rc for $struct {
+      fn as_base(&self) -> &cef_dll_sys::cef_base_ref_counted_t {
+        unsafe {
+          let base = &*self.object;
+          std::mem::transmute(&base.cef_object)
+        }
+      }
+    }
+
+    impl $wrap_trait for $struct {
+      fn wrap_rc(&mut self, object: *mut RcImpl<cef_dll_sys::$cef_obj, Self>) {
+        self.object = object;
+      }
+    }
+
+    impl Clone for $struct {
+      fn clone(&self) -> Self {
+        let object = unsafe {
+          let rc_impl = &mut *self.object;
+          rc_impl.interface.add_ref();
+          self.object
+        };
+
+        Self {
+          object,
+          inner: self.inner.clone(),
+        }
+      }
+    }
+  };
+}
+
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub windows: Arc<RefCell<HashMap<WindowId, AppWindow>>>,
@@ -42,98 +117,35 @@ impl<T: UserEvent> Context<T> {
   }
 }
 
-pub struct TauriApp<T: UserEvent> {
-  object: *mut RcImpl<cef_dll_sys::_cef_app_t, Self>,
-  context: Context<T>,
-}
+cef_object!(TauriApp<T: UserEvent>, Context<T>, _cef_app_t, WrapApp);
 
 impl<T: UserEvent> TauriApp<T> {
   pub fn new(context: Context<T>) -> App {
     App::new(Self {
       object: std::ptr::null_mut(),
-      context,
+      inner: context,
     })
-  }
-}
-
-impl<T: UserEvent> WrapApp for TauriApp<T> {
-  fn wrap_rc(&mut self, object: *mut RcImpl<cef_dll_sys::_cef_app_t, Self>) {
-    self.object = object;
-  }
-}
-
-impl<T: UserEvent> Clone for TauriApp<T> {
-  fn clone(&self) -> Self {
-    let object = unsafe {
-      let rc_impl = &mut *self.object;
-      rc_impl.interface.add_ref();
-      self.object
-    };
-    let context = self.context.clone();
-
-    Self { object, context }
-  }
-}
-
-impl<T: UserEvent> Rc for TauriApp<T> {
-  fn as_base(&self) -> &cef_dll_sys::cef_base_ref_counted_t {
-    unsafe {
-      let base = &*self.object;
-      std::mem::transmute(&base.cef_object)
-    }
   }
 }
 
 impl<T: UserEvent> ImplApp for TauriApp<T> {
   fn get_raw(&self) -> *mut cef_dll_sys::_cef_app_t {
-    self.object as *mut cef_dll_sys::_cef_app_t
+    self.object.cast()
   }
 
   fn get_browser_process_handler(&self) -> Option<BrowserProcessHandler> {
-    Some(AppBrowserProcessHandler::new(self.context.clone()))
+    Some(AppBrowserProcessHandler::new(self.inner.clone()))
   }
 }
 
-struct AppBrowserProcessHandler<T: UserEvent> {
-  object: *mut RcImpl<cef_dll_sys::cef_browser_process_handler_t, Self>,
-  context: Context<T>,
-}
+cef_object!(AppBrowserProcessHandler<T: UserEvent>, Context<T>, cef_browser_process_handler_t, WrapBrowserProcessHandler);
 
 impl<T: UserEvent> AppBrowserProcessHandler<T> {
   pub fn new(context: Context<T>) -> BrowserProcessHandler {
     BrowserProcessHandler::new(Self {
       object: std::ptr::null_mut(),
-      context,
+      inner: context,
     })
-  }
-}
-
-impl<T: UserEvent> Rc for AppBrowserProcessHandler<T> {
-  fn as_base(&self) -> &cef_dll_sys::cef_base_ref_counted_t {
-    unsafe {
-      let base = &*self.object;
-      std::mem::transmute(&base.cef_object)
-    }
-  }
-}
-
-impl<T: UserEvent> WrapBrowserProcessHandler for AppBrowserProcessHandler<T> {
-  fn wrap_rc(&mut self, object: *mut RcImpl<cef_dll_sys::_cef_browser_process_handler_t, Self>) {
-    self.object = object;
-  }
-}
-
-impl<T: UserEvent> Clone for AppBrowserProcessHandler<T> {
-  fn clone(&self) -> Self {
-    let object = unsafe {
-      let rc_impl = &mut *self.object;
-      rc_impl.interface.add_ref();
-      rc_impl
-    };
-
-    let context = self.context.clone();
-
-    Self { object, context }
   }
 }
 
@@ -145,47 +157,160 @@ impl<T: UserEvent> ImplBrowserProcessHandler for AppBrowserProcessHandler<T> {
   // The real lifespan of cef starts from `on_context_initialized`, so all the cef objects should be manipulated after that.
   fn on_context_initialized(&self) {
     println!("cef context initialized");
-    (self.context.callback.borrow_mut())(RunEvent::Ready);
+    (self.inner.callback.borrow_mut())(RunEvent::Ready);
+  }
+
+  fn get_default_request_context_handler(&self) -> Option<RequestContextHandler> {
+    Some(WebRequestContextHandler::new())
+  }
+
+  fn get_default_client(&self) -> Option<Client> {
+    None
+    //Some(BrowserClient::new())
   }
 }
 
-struct BrowserClient(*mut RcImpl<cef_dll_sys::_cef_client_t, Self>);
+cef_object!(
+  WebRequestContextHandler,
+  (),
+  _cef_request_context_handler_t,
+  WrapRequestContextHandler
+);
+
+impl WebRequestContextHandler {
+  fn new() -> RequestContextHandler {
+    RequestContextHandler::new(Self {
+      object: std::ptr::null_mut(),
+      inner: (),
+    })
+  }
+}
+
+impl ImplRequestContextHandler for WebRequestContextHandler {
+  fn get_raw(&self) -> *mut cef_dll_sys::_cef_request_context_handler_t {
+    self.object.cast()
+  }
+
+  fn get_resource_request_handler(
+    &self,
+    browser: Option<&mut impl ImplBrowser>,
+    frame: Option<&mut impl ImplFrame>,
+    request: Option<&mut impl ImplRequest>,
+    is_navigation: ::std::os::raw::c_int,
+    is_download: ::std::os::raw::c_int,
+    request_initiator: Option<&CefStringUtf16>,
+    disable_default_handling: Option<&mut ::std::os::raw::c_int>,
+  ) -> Option<ResourceRequestHandler> {
+    Some(WebResourceRequestHandler::new())
+  }
+}
+
+cef_object!(
+  WebResourceRequestHandler,
+  (),
+  _cef_resource_request_handler_t,
+  WrapResourceRequestHandler
+);
+
+impl WebResourceRequestHandler {
+  fn new() -> ResourceRequestHandler {
+    ResourceRequestHandler::new(Self {
+      object: std::ptr::null_mut(),
+      inner: (),
+    })
+  }
+}
+
+impl ImplResourceRequestHandler for WebResourceRequestHandler {
+  fn get_resource_handler(
+    &self,
+    browser: Option<&mut impl ImplBrowser>,
+    frame: Option<&mut impl ImplFrame>,
+    request: Option<&mut impl ImplRequest>,
+  ) -> Option<ResourceHandler> {
+    println!(
+      "get_resource_handler {:?}",
+      request
+        .as_ref()
+        .map(|r| r.get_url().map(|s| CefStringUtf8::from(&s).to_string()))
+    );
+    None
+  }
+
+  fn on_before_resource_load(
+    &self,
+    browser: Option<&mut impl ImplBrowser>,
+    frame: Option<&mut impl ImplFrame>,
+    request: Option<&mut impl ImplRequest>,
+    callback: Option<&mut impl ImplCallback>,
+  ) -> ReturnValue {
+    println!(
+      "on_before_resource_load {:?}",
+      request
+        .as_ref()
+        .map(|r| r.get_url().map(|s| CefStringUtf8::from(&s).to_string()))
+    );
+    Default::default()
+  }
+
+  fn get_raw(&self) -> *mut cef_dll_sys::_cef_resource_request_handler_t {
+    self.object.cast()
+  }
+}
+
+cef_object!(BrowserClient, (), _cef_client_t, WrapClient);
 
 impl BrowserClient {
   pub fn new() -> Client {
-    Client::new(Self(std::ptr::null_mut()))
-  }
-}
-
-impl WrapClient for BrowserClient {
-  fn wrap_rc(&mut self, object: *mut RcImpl<cef_dll_sys::_cef_client_t, Self>) {
-    self.0 = object;
-  }
-}
-
-impl Clone for BrowserClient {
-  fn clone(&self) -> Self {
-    unsafe {
-      let rc_impl = &mut *self.0;
-      rc_impl.interface.add_ref();
-    }
-
-    Self(self.0)
-  }
-}
-
-impl Rc for BrowserClient {
-  fn as_base(&self) -> &cef_dll_sys::cef_base_ref_counted_t {
-    unsafe {
-      let base = &*self.0;
-      std::mem::transmute(&base.cef_object)
-    }
+    Client::new(Self {
+      object: std::ptr::null_mut(),
+      inner: (),
+    })
   }
 }
 
 impl ImplClient for BrowserClient {
   fn get_raw(&self) -> *mut cef_dll_sys::_cef_client_t {
-    self.0 as *mut cef_dll_sys::_cef_client_t
+    self.object.cast()
+  }
+
+  fn get_request_handler(&self) -> Option<RequestHandler> {
+    Some(WebRequestHandler::new())
+  }
+}
+
+cef_object!(
+  WebRequestHandler,
+  (),
+  _cef_request_handler_t,
+  WrapRequestHandler
+);
+
+impl WebRequestHandler {
+  fn new() -> RequestHandler {
+    RequestHandler::new(Self {
+      object: std::ptr::null_mut(),
+      inner: (),
+    })
+  }
+}
+
+impl ImplRequestHandler for WebRequestHandler {
+  fn get_raw(&self) -> *mut cef_dll_sys::_cef_request_handler_t {
+    self.object.cast()
+  }
+
+  fn get_resource_request_handler(
+    &self,
+    browser: Option<&mut impl ImplBrowser>,
+    frame: Option<&mut impl ImplFrame>,
+    request: Option<&mut impl ImplRequest>,
+    is_navigation: ::std::os::raw::c_int,
+    is_download: ::std::os::raw::c_int,
+    request_initiator: Option<&CefStringUtf16>,
+    disable_default_handling: Option<&mut ::std::os::raw::c_int>,
+  ) -> Option<ResourceRequestHandler> {
+    Some(WebResourceRequestHandler::new())
   }
 }
 
@@ -243,7 +368,7 @@ impl ImplViewDelegate for AppWindowDelegate {
   }
 
   fn get_raw(&self) -> *mut cef_dll_sys::_cef_view_delegate_t {
-    self.base as *mut cef_dll_sys::_cef_view_delegate_t
+    self.base.cast()
   }
 }
 

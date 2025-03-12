@@ -213,6 +213,7 @@ process-relaunch-dangerous-allow-symlink-macos = [
 macos-private-api = [
   "tauri-runtime/macos-private-api",
   "tauri-runtime-wry?/macos-private-api",
+  "tauri-runtime-cef?/macos-private-api",
 ]
 webview-data-url = ["data-url", "tauri-utils/html-manipulation"]
 protocol-asset = ["http-range"]

@@ -22,4 +22,4 @@ gtk = { version = "0.18", features = ["v3_24"] }
 
 [features]
 devtools = []
-macos-private-api = []
+macos-private-api = ["tauri-runtime/macos-private-api"]

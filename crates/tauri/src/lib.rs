@@ -490,6 +490,16 @@ impl<R: Runtime> Context<R> {
     &mut self.runtime_authority
   }
 
+  /// Adds a capability to the context.
+  ///
+  /// See [Manager::add_capability] for more information.
+  //
+  // TODO: Once we stabilize [Context::runtime_authority_mut], we can deprecate this method.
+  #[inline(always)]
+  pub fn add_capability(&mut self, capability: impl RuntimeCapability) -> crate::Result<()> {
+    self.runtime_authority.add_capability(capability)
+  }
+
   /// Create a new [`Context`] from the minimal required items.
   #[inline(always)]
   #[allow(clippy::too_many_arguments)]

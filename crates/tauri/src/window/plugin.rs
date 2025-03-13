@@ -100,6 +100,7 @@ mod desktop_commands {
   getter!(available_monitors, Vec<Monitor>);
   getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
+  getter!(is_always_on_top, bool);
 
   setter!(center);
   setter!(request_user_attention, Option<UserAttentionType>);
@@ -272,6 +273,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
             desktop_commands::available_monitors,
             desktop_commands::cursor_position,
             desktop_commands::theme,
+            desktop_commands::is_always_on_top,
             // setters
             desktop_commands::center,
             desktop_commands::request_user_attention,

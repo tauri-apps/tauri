@@ -35,7 +35,8 @@ ctor = "0.2"
 json5 = { version = "0.4", optional = true }
 toml = { version = "0.8", features = ["parse"] }
 json-patch = "3.0"
-glob = "0.3"
+# Our code requires at least 0.3.1
+glob = "0.3.1"
 urlpattern = "0.3"
 regex = "1"
 walkdir = { version = "2", optional = true }

@@ -403,7 +403,7 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async close(): Promise<void> {
-    return invoke('plugin:webview|close', {
+    return invoke('plugin:webview|webview_close', {
       label: this.label
     })
   }

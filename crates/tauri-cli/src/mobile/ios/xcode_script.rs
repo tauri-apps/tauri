@@ -103,8 +103,14 @@ pub fn command(options: Options) -> Result<()> {
     MobileTarget::Ios,
   )?;
 
-  if let Some(config) = &cli_options.config {
-    crate::helpers::config::merge_with(&config.0)?;
+  if !cli_options.config.is_empty() {
+    crate::helpers::config::merge_with(
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+    )?;
   }
 
   let env = env()?.explicit_env_vars(cli_options.vars);

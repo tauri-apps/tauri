@@ -26,6 +26,7 @@ Default permissions for the plugin.
 - `allow-available-monitors`
 - `allow-cursor-position`
 - `allow-theme`
+- `allow-is-always-on-top`
 - `allow-internal-toggle-maximize`
 
 ## Permission Table
@@ -222,32 +223,6 @@ Denies the destroy command without any pre-configured scope.
 <tr>
 <td>
 
-`core:window:allow-fetch-data-store-identifiers`
-
-</td>
-<td>
-
-Enables the fetch_data_store_identifiers command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:window:deny-fetch-data-store-identifiers`
-
-</td>
-<td>
-
-Denies the fetch_data_store_identifiers command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `core:window:allow-get-all-windows`
 
 </td>
@@ -371,6 +346,32 @@ Enables the internal_toggle_maximize command without any pre-configured scope.
 <td>
 
 Denies the internal_toggle_maximize command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-is-always-on-top`
+
+</td>
+<td>
+
+Enables the is_always_on_top command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-is-always-on-top`
+
+</td>
+<td>
+
+Denies the is_always_on_top command without any pre-configured scope.
 
 </td>
 </tr>
@@ -813,32 +814,6 @@ Enables the primary_monitor command without any pre-configured scope.
 <td>
 
 Denies the primary_monitor command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:window:allow-remove-data-store`
-
-</td>
-<td>
-
-Enables the remove_data_store command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:window:deny-remove-data-store`
-
-</td>
-<td>
-
-Denies the remove_data_store command without any pre-configured scope.
 
 </td>
 </tr>

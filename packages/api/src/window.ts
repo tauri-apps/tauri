@@ -799,6 +799,22 @@ class Window {
     })
   }
 
+  /**
+   * Whether the window is configured to be always on top of other windows or not.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const alwaysOnTop = await getCurrentWindow().isAlwaysOnTop();
+   * ```
+   *
+   * @returns Whether the window is visible or not.
+   */
+  async isAlwaysOnTop(): Promise<boolean> {
+    return invoke('plugin:window|is_always_on_top', {
+      label: this.label
+    })
+  }
+
   // Setters
 
   /**

@@ -65,10 +65,14 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  // `xcode-script` is ran from the `gen/apple` folder when not using NPM.
+  // `xcode-script` is ran from the `gen/apple` folder when not using NPM/yarn/pnpm.
   // so we must change working directory to the src-tauri folder to resolve the tauri dir
+  // additionally, bun@<1.2 does not modify the current working directory, so it is also runs this script from `gen/apple`
+  // bun@>1.2 now actually moves the CWD to the package root so we shouldn't modify CWD in that case
+  // see https://bun.sh/blog/bun-v1.2#bun-run-uses-the-correct-directory
   if (var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none())
-    || var("npm_config_user_agent").is_ok_and(|agent| agent.starts_with("bun"))
+    || var("npm_config_user_agent")
+      .is_ok_and(|agent| agent.starts_with("bun/1.0") || agent.starts_with("bun/1.1"))
   {
     set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
   }

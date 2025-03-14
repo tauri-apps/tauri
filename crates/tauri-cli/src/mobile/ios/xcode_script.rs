@@ -78,7 +78,7 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[])?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -103,8 +103,14 @@ pub fn command(options: Options) -> Result<()> {
     MobileTarget::Ios,
   )?;
 
-  if let Some(config) = &cli_options.config {
-    crate::helpers::config::merge_with(&config.0)?;
+  if !cli_options.config.is_empty() {
+    crate::helpers::config::merge_with(
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+    )?;
   }
 
   let env = env()?.explicit_env_vars(cli_options.vars);

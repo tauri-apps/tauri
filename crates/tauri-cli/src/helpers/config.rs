@@ -138,7 +138,7 @@ fn config_handle() -> &'static ConfigHandle {
 
 /// Gets the static parsed config from `tauri.conf.json`.
 fn get_internal(
-  merge_config: Option<&serde_json::Value>,
+  merge_configs: &[&serde_json::Value],
   reload: bool,
   target: Target,
 ) -> crate::Result<ConfigHandle> {
@@ -162,12 +162,17 @@ fn get_internal(
     );
   }
 
-  if let Some(merge_config) = merge_config {
+  if !merge_configs.is_empty() {
+    let mut merge_config = serde_json::Value::Object(Default::default());
+    for conf in merge_configs {
+      merge(&mut merge_config, conf);
+    }
+
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
-    merge(&mut config, merge_config);
+    merge(&mut config, &merge_config);
     extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config.clone());
-  };
+  }
 
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
@@ -217,35 +222,42 @@ fn get_internal(
   Ok(config_handle().clone())
 }
 
-pub fn get(
-  target: Target,
-  merge_config: Option<&serde_json::Value>,
-) -> crate::Result<ConfigHandle> {
-  get_internal(merge_config, false, target)
+pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
+  get_internal(merge_configs, false, target)
 }
 
-pub fn reload(merge_config: Option<&serde_json::Value>) -> crate::Result<ConfigHandle> {
+pub fn reload(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
   let target = config_handle()
     .lock()
     .unwrap()
     .as_ref()
     .map(|conf| conf.target);
   if let Some(target) = target {
-    get_internal(merge_config, true, target)
+    get_internal(merge_configs, true, target)
   } else {
     Err(anyhow::anyhow!("config not loaded"))
   }
 }
 
 /// merges the loaded config with the given value
-pub fn merge_with(merge_config: &serde_json::Value) -> crate::Result<ConfigHandle> {
+pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
   let handle = config_handle();
+
+  if merge_configs.is_empty() {
+    return Ok(handle.clone());
+  }
+
   if let Some(config_metadata) = &mut *handle.lock().unwrap() {
-    let merge_config_str = serde_json::to_string(merge_config).unwrap();
+    let mut merge_config = serde_json::Value::Object(Default::default());
+    for conf in merge_configs {
+      merge(&mut merge_config, conf);
+    }
+
+    let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
 
     let mut value = serde_json::to_value(config_metadata.inner.clone())?;
-    merge(&mut value, merge_config);
+    merge(&mut value, &merge_config);
     config_metadata.inner = serde_json::from_value(value)?;
 
     Ok(handle.clone())

@@ -43,8 +43,13 @@ impl Parse for Handler {
         // the name of the actual command function
         let command = last.ident.clone();
 
-        // set the path to the command function wrapper
-        last.ident = super::format_command_wrapper(&command);
+      // set the path to the command function wrapper
+      last.ident = super::format_command_wrapper(&command);
+      // the wrapper path is actually `${format_command_wrapper}::${format_command_wrapper}`
+      // because the wrapper export is inside a submodule with the same name as the wrapper macro
+      // so we must push a clone of the last segment here
+      let last_ = last.clone();
+      wrapper.segments.push(last_);
 
         (command, wrapper)
       })

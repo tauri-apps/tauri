@@ -172,7 +172,7 @@ pub enum Error {
 /// Allowed and denied commands inside a permission.
 ///
 /// If two commands clash inside of `allow` and `deny`, it should be denied by default.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Commands {
   /// Allowed command.
@@ -219,7 +219,7 @@ impl Scopes {
 /// It can enable commands to be accessible in the frontend of the application.
 ///
 /// If the scope is defined it can be used to fine grain control the access of individual or multiple commands.
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Permission {
   /// The version of the permission.
@@ -260,7 +260,7 @@ impl Permission {
 }
 
 /// A set of direct permissions grouped together under a new name.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PermissionSet {
   /// A unique identifier for the permission.

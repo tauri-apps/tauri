@@ -407,7 +407,6 @@ pub fn get_capabilities(
 
 /// Try to reads allowed commands from the out dir made by our build script
 pub fn read_allowed_commands() -> Option<Vec<String>> {
-  // let allowed_commands = include!(concat!(env!("OUT_DIR"), "/allowed-commands.rs"));
   let out_file = std::env::var("OUT_DIR")
     .map(PathBuf::from)
     .ok()?

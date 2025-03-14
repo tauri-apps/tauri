@@ -5,7 +5,6 @@
 use quote::format_ident;
 use syn::{
   parse::{Parse, ParseBuffer, ParseStream},
-  punctuated::Punctuated,
   Attribute, Ident, Path, Token,
 };
 
@@ -34,9 +33,12 @@ impl Parse for Handler {
   fn parse(input: &ParseBuffer<'_>) -> syn::Result<Self> {
     let plugin_name = try_get_plugin_name(input)?;
 
-    let command_defs = input.parse_terminated(CommandDef::parse, Token![,])?;
+    let mut command_defs = input
+      .parse_terminated(CommandDef::parse, Token![,])?
+      .into_iter()
+      .collect();
 
-    let command_defs = filter_unused_commands(plugin_name, command_defs);
+    filter_unused_commands(plugin_name, &mut command_defs);
     let mut commands = Vec::new();
     let mut wrappers = Vec::new();
 
@@ -83,30 +85,42 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
   )
 }
 
-fn filter_unused_commands(
-  plugin_name: Option<String>,
-  command_defs: Punctuated<CommandDef, syn::token::Comma>,
-) -> Vec<CommandDef> {
+fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<CommandDef>) {
   let Some(plugin_name) = &plugin_name else {
-    return command_defs.into_iter().collect();
+    return;
   };
   let allowed_commands = tauri_utils::acl::read_allowed_commands();
   let Some(allowed_commands) = allowed_commands else {
-    return command_defs.into_iter().collect();
+    return;
   };
-  command_defs
-    .into_iter()
-    .filter(move |command_def| {
-      let mut wrapper = command_def.path.clone();
-      let last = super::path_to_command(&mut wrapper);
 
-      // the name of the actual command function
-      let command = &last.ident;
+  let mut unused_commands = Vec::new();
+  let previous_commands_len = command_defs.len();
 
-      let command = format!("plugin:{plugin_name}|{command}");
-      allowed_commands.contains(&command)
-    })
-    .collect()
+  command_defs.retain(|command_def| {
+    let mut wrapper = command_def.path.clone();
+    let last = super::path_to_command(&mut wrapper);
+
+    // the name of the actual command function
+    let command_name = &last.ident;
+
+    let command = format!("plugin:{plugin_name}|{command_name}");
+    let is_allowed = allowed_commands.contains(&command);
+
+    if !is_allowed {
+      unused_commands.push(command_name.to_string());
+    }
+
+    is_allowed
+  });
+
+  if command_defs.len() != previous_commands_len {
+    println!(
+      "{} removed commands: {}",
+      plugin_name.as_str(),
+      unused_commands.join(", ")
+    );
+  }
 }
 
 impl From<Handler> for proc_macro::TokenStream {

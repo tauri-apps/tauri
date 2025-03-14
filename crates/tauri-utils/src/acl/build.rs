@@ -396,17 +396,17 @@ pub fn generate_allowed_commands(
   if let Ok(path) = std::env::var(REMOVE_UNUSED_COMMANDS_ENV_VAR) {
     let config_directory = PathBuf::from(path);
     let capabilities_path = config_directory.join("capabilities");
-    let capabilities_path_str = capabilities_path.to_string_lossy().to_string();
-
     // Cargo re-builds if the variable points to an empty path,
     // so we check for exists here
     // see https://github.com/rust-lang/cargo/issues/4213
     if capabilities_path.exists() {
-      println!("cargo:rerun-if-changed={capabilities_path_str}");
+      println!("cargo:rerun-if-changed={}", capabilities_path.display());
     }
 
-    let mut capabilities =
-      crate::acl::build::parse_capabilities(&format!("{capabilities_path_str}/**/*"))?;
+    let mut capabilities = crate::acl::build::parse_capabilities(&format!(
+      "{}/**/*",
+      capabilities_path.to_string_lossy()
+    ))?;
 
     let target_triple = env::var("TARGET")?;
     let target = crate::platform::Target::from_triple(&target_triple);

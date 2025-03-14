@@ -254,6 +254,9 @@ fn fetch(
 
 pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
   PluginBuilder::new(CHANNEL_PLUGIN_NAME)
-    .invoke_handler(crate::generate_handler![fetch])
+    .invoke_handler(crate::generate_handler![
+      #![plugin(__TAURI_CHANNEL__)]
+      fetch
+    ])
     .build()
 }

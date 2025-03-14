@@ -344,6 +344,24 @@ pub enum ExecutionContext {
   },
 }
 
+fn required_capability() -> Capability {
+  Capability {
+    identifier: "__tauri_default__".into(),
+    description: "Required capability for Tauri apps".into(),
+    remote: Some(capability::CapabilityRemote {
+      urls: vec!["https://*".into(), "http://*".into()],
+    }),
+    local: true,
+    windows: vec!["*".into()],
+    webviews: vec!["*".into()],
+    permissions: vec![capability::PermissionEntry::PermissionRef(
+      Identifier::try_from("core:__TAURI_CHANNEL__:allow-fetch".to_string())
+        .expect("invalid default permission"),
+    )],
+    platforms: None,
+  }
+}
+
 /// Get the capabilities from the config file
 pub fn get_capabilities(
   config: &Config,
@@ -379,6 +397,8 @@ pub fn get_capabilities(
     }
     capabilities
   };
+
+  capabilities.insert("__tauri_default__".into(), required_capability());
 
   if let Some(paths) = additional_capability_files {
     for path in paths {

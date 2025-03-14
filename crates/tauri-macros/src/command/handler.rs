@@ -72,9 +72,12 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
     for attr in attrs {
       if attr.path().is_ident("plugin") {
         // Parse the content inside #![plugin(...)]
-        return Ok(Some(
-          attr.parse_args::<Ident>()?.to_string().replace("_", "-"),
-        ));
+        let plugin_name = attr.parse_args::<Ident>()?.to_string();
+        return Ok(Some(if plugin_name == "__TAURI_CHANNEL__" {
+          plugin_name
+        } else {
+          plugin_name.replace("_", "-")
+        }));
       }
     }
   }
@@ -86,9 +89,6 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
 }
 
 fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<CommandDef>) {
-  let Some(plugin_name) = &plugin_name else {
-    return;
-  };
   let allowed_commands = tauri_utils::acl::read_allowed_commands();
   let Some(allowed_commands) = allowed_commands else {
     return;
@@ -97,6 +97,12 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
   let mut unused_commands = Vec::new();
   let previous_commands_len = command_defs.len();
 
+  let command_prefix = if let Some(plugin_name) = &plugin_name {
+    format!("plugin:{plugin_name}|")
+  } else {
+    "".into()
+  };
+
   command_defs.retain(|command_def| {
     let mut wrapper = command_def.path.clone();
     let last = super::path_to_command(&mut wrapper);
@@ -104,7 +110,7 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     // the name of the actual command function
     let command_name = &last.ident;
 
-    let command = format!("plugin:{plugin_name}|{command_name}");
+    let command = format!("{command_prefix}{command_name}");
     let is_allowed = allowed_commands.contains(&command);
 
     if !is_allowed {
@@ -117,7 +123,7 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
   if command_defs.len() != previous_commands_len {
     println!(
       "{} removed commands: {}",
-      plugin_name.as_str(),
+      plugin_name.as_deref().unwrap_or("application"),
       unused_commands.join(", ")
     );
   }

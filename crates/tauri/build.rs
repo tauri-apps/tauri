@@ -15,6 +15,7 @@ use std::{
 static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   // (plugin_name, &[(command, enabled-by_default)])
+  ("core:__TAURI_CHANNEL__", &[("fetch", true)]),
   (
     "core:path",
     &[

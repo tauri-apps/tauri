@@ -520,9 +520,19 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   fn reparent(&self, window_id: WindowId) -> Result<()>;
 
   /// Get cookies for a particular url.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`cookie::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>>;
 
   /// Return all cookies in the cookie store.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`cookie::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
   fn cookies(&self) -> Result<Vec<Cookie<'static>>>;
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.

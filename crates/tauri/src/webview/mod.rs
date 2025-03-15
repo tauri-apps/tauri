@@ -1711,6 +1711,11 @@ tauri::Builder::default()
   /// Cookies set through javascript for local files
   /// (such as those served from the tauri://) protocol are not currently supported.
   ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
   /// # Known issues
   ///
   /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
@@ -1730,6 +1735,11 @@ tauri::Builder::default()
   /// Note that cookies will only be returned for URLs with an http or https scheme.
   /// Cookies set through javascript for local files
   /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
   ///
   /// # Known issues
   ///

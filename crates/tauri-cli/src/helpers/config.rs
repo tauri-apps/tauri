@@ -6,6 +6,7 @@ use itertools::Itertools;
 use json_patch::merge;
 use serde_json::Value as JsonValue;
 
+use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 pub use tauri_utils::{config::*, platform::Target};
 
 use std::{
@@ -211,6 +212,10 @@ fn get_internal(
       ),
       serde_json::to_string(&conf)?,
     );
+  }
+
+  if config.build.remove_unused_commands {
+    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir);
   }
 
   *config_handle().lock().unwrap() = Some(ConfigMetadata {

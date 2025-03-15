@@ -15,7 +15,7 @@ use crate::{
 use anyhow::Context;
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
-use tauri_utils::{acl::REMOVE_UNUSED_COMMANDS_ENV_VAR, platform::Target};
+use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -199,10 +199,6 @@ pub fn setup(
     .get_or_insert(Vec::new())
     .extend(config_.build.features.clone().unwrap_or_default());
   interface.build_options(&mut options.args, &mut options.features, mobile);
-
-  if config_.build.remove_unused_commands {
-    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir());
-  }
 
   Ok(())
 }

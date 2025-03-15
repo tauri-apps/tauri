@@ -2836,13 +2836,19 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self.event_loop.run(event_handler)
   }
 
-  #[cfg(desktop)]
+  #[cfg(not(target_os = "ios"))]
   fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) -> i32 {
     use tao::platform::run_return::EventLoopExtRunReturn;
 
     let event_handler = make_event_handler(&self, callback);
 
     self.event_loop.run_return(event_handler)
+  }
+
+  #[cfg(target_os = "ios")]
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) -> i32 {
+    self.run(callback);
+    0
   }
 }
 

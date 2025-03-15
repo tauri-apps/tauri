@@ -98,10 +98,6 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let out_dir = app_settings.out_dir(&interface_options)?;
 
-  if options.remove_unused_commands {
-    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir());
-  }
-
   let bin_path = interface.build(interface_options)?;
 
   log::info!(action ="Built"; "application at: {}", tauri_utils::display_path(bin_path));
@@ -207,6 +203,10 @@ pub fn setup(
     .get_or_insert(Vec::new())
     .extend(config_.build.features.clone().unwrap_or_default());
   interface.build_options(&mut options.args, &mut options.features, mobile);
+
+  if config_.build.remove_unused_commands {
+    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir());
+  }
 
   Ok(())
 }

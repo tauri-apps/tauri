@@ -2670,6 +2670,15 @@ pub struct BuildConfig {
   pub before_bundle_command: Option<HookCommand>,
   /// Features passed to `cargo` commands.
   pub features: Option<Vec<String>>,
+  /// Try to remove unused commands registered from plugins base on the ACL list during `tauri build`,
+  /// the way it works is that tauri-cli will read this and set the environment variables for the build script and macros,
+  /// and they'll try to get all the allowed commands and remove the rest
+  ///
+  /// Note:
+  ///   - This won't be accounting for dynamically added ACLs so make sure to check it when using this
+  ///   - This feature requires tauri-plugins 2.1 and tauri 2.4
+  #[serde(alias = "remove-unused-commands", default)]
+  pub remove_unused_commands: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -2830,7 +2839,7 @@ pub struct Config {
   #[serde(default)]
   pub app: AppConfig,
   /// The build configuration.
-  #[serde(default = "default_build")]
+  #[serde(default)]
   pub build: BuildConfig,
   /// The bundler configuration.
   #[serde(default)]
@@ -2846,18 +2855,6 @@ pub struct Config {
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub struct PluginConfig(pub HashMap<String, JsonValue>);
-
-fn default_build() -> BuildConfig {
-  BuildConfig {
-    runner: None,
-    dev_url: None,
-    frontend_dist: None,
-    before_dev_command: None,
-    before_build_command: None,
-    before_bundle_command: None,
-    features: None,
-  }
-}
 
 /// Implement `ToTokens` for all config structs, allowing a literal `Config` to be built.
 ///
@@ -3241,6 +3238,7 @@ mod build {
       let before_build_command = quote!(None);
       let before_bundle_command = quote!(None);
       let features = quote!(None);
+      let remove_unused_commands = quote!(false);
 
       literal_struct!(
         tokens,
@@ -3251,7 +3249,8 @@ mod build {
         before_dev_command,
         before_build_command,
         before_bundle_command,
-        features
+        features,
+        remove_unused_commands
       );
     }
   }
@@ -3568,6 +3567,7 @@ mod test {
       before_build_command: None,
       before_bundle_command: None,
       features: None,
+      remove_unused_commands: false,
     };
 
     // create a bundle config

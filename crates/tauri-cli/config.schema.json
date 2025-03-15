@@ -69,7 +69,9 @@
     },
     "build": {
       "description": "The build configuration.",
-      "default": {},
+      "default": {
+        "removeUnusedCommands": false
+      },
       "allOf": [
         {
           "$ref": "#/definitions/BuildConfig"
@@ -1765,6 +1767,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "removeUnusedCommands": {
+          "description": "Try to remove unused commands registered from plugins base on the ACL list during `tauri build`,\n the way it works is that tauri-cli will read this and set the environment variables for the build script and macros,\n and they'll try to get all the allowed commands and remove the rest\n\n Note:\n   - This won't be accounting for dynamically added ACLs so make sure to check it when using this\n   - This feature requires tauri-plugins 2.1 and tauri 2.4",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

@@ -72,7 +72,7 @@ pub type ChannelInterceptor<R> =
 pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
 
 impl ExitRequestApi {
@@ -367,6 +367,59 @@ impl AppHandle<crate::Wry> {
         message,
       ))
       .map_err(Into::into)
+  }
+}
+
+#[cfg(target_vendor = "apple")]
+impl<R: Runtime> AppHandle<R> {
+  /// Fetches all Data Store Indentifiers by this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
+    use std::sync::Mutex;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
+    let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
+    let runtime_handle = self.runtime_handle.clone();
+
+    self.run_on_main_thread(move || {
+      let cloned_lock = lock.clone();
+      if let Err(err) = runtime_handle.fetch_data_store_identifiers(move |ids| {
+        if let Some(tx) = cloned_lock.lock().unwrap().take() {
+          let _ = tx.send(Ok(ids));
+        }
+      }) {
+        if let Some(tx) = lock.lock().unwrap().take() {
+          let _ = tx.send(Err(err));
+        }
+      }
+    })?;
+
+    rx.await?.map_err(Into::into)
+  }
+  /// Deletes a Data Store of this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+    use std::sync::Mutex;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
+    let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
+    let runtime_handle = self.runtime_handle.clone();
+
+    self.run_on_main_thread(move || {
+      let cloned_lock = lock.clone();
+      if let Err(err) = runtime_handle.remove_data_store(uuid, move |result| {
+        if let Some(tx) = cloned_lock.lock().unwrap().take() {
+          let _ = tx.send(result);
+        }
+      }) {
+        if let Some(tx) = lock.lock().unwrap().take() {
+          let _ = tx.send(Err(err));
+        }
+      }
+    })?;
+    rx.await?.map_err(Into::into)
   }
 }
 
@@ -1727,6 +1780,17 @@ tauri::Builder::default()
   ///     }
   ///   });
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from a custom protocol will have a different Origin on different platforms.
+  /// Servers which enforce CORS will need to add the exact same Origin header (or `*`) in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://localhost/<path>` (so it will be `my-scheme://localhost/path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.localhost/<path>` by default (so it will be `http://my-scheme.localhost/path/to/page`).
+  ///   To use `https` instead of `http`, use [`super::webview::WebviewBuilder::use_https_scheme`].
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
@@ -1784,6 +1848,17 @@ tauri::Builder::default()
   ///   });
   ///   });
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from a custom protocol will have a different Origin on different platforms.
+  /// Servers which enforce CORS will need to add the exact same Origin header (or `*`) in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://localhost/<path>` (so it will be `my-scheme://localhost/path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.localhost/<path>` by default (so it will be `http://my-scheme.localhost/path/to/page`).
+  ///   To use `https` instead of `http`, use [`super::webview::WebviewBuilder::use_https_scheme`].
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,

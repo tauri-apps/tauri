@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.4.1]
+
+### Bug Fixes
+
+- [`e103e87f1`](https://www.github.com/tauri-apps/tauri/commit/e103e87f155cf7fa51baa0a48a476463216c0d62) ([#12848](https://www.github.com/tauri-apps/tauri/pull/12848) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix crash on Windows because of missing functions on older Windows systems, regression in 2.3.0
+
 ## \[2.4.0]
 
 ### Enhancements

@@ -397,8 +397,8 @@ impl<R: Runtime> AppManager<R> {
       // if the url is `tauri://localhost`, we should load `index.html`
       "index.html".to_string()
     } else {
-      // skip leading `/`
-      path.chars().skip(1).collect::<String>()
+      // skip the leading `/`, if it starts with one.
+      path.strip_prefix('/').unwrap_or(path.as_str()).to_string()
     };
 
     let mut asset_path = AssetKey::from(path.as_str());

@@ -996,6 +996,17 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self.webview_builder = self.webview_builder.background_throttling(policy);
     self
   }
+
+  /// Whether JavaScript should be disabled.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** Not implemented yet.
+  #[must_use]
+  pub fn disable_javascript(mut self) -> Self {
+    self.webview_builder = self.webview_builder.disable_javascript();
+    self
+  }
 }
 
 /// A type that wraps a [`Window`] together with a [`Webview`].
@@ -1307,6 +1318,15 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Whether the window is enabled or disabled.
   pub fn is_enabled(&self) -> crate::Result<bool> {
     self.webview.window().is_enabled()
+  }
+
+  /// Determines if this window should always be on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_always_on_top(&self) -> crate::Result<bool> {
+    self.webview.window().is_always_on_top()
   }
 
   /// Gets the window's native maximize button state
@@ -1885,6 +1905,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Navigates the webview to the defined url.
   pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.navigate(url)
+  }
+
+  /// Reloads the current page.
+  pub fn reload(&self) -> crate::Result<()> {
+    self.webview.reload()
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].

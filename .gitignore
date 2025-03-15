@@ -13,6 +13,8 @@ node_modules/
 
 # .vscode workspace settings file
 .vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
 
 # npm, yarn and bun lock files
 package-lock.json

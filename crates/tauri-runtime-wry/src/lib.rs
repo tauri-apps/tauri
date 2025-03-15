@@ -40,10 +40,10 @@ use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-use wry::WebViewBuilderExtDarwin;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 use tao::{
   dpi::{
@@ -134,6 +134,7 @@ type IpcHandler = dyn Fn(Request<String>) + 'static;
   target_os = "openbsd"
 ))]
 mod undecorated_resizing;
+mod util;
 mod webview;
 mod window;
 
@@ -1190,11 +1191,15 @@ unsafe impl Send for GtkBox {}
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
-#[cfg(target_os = "macos")]
-#[derive(Debug, Clone)]
 pub enum ApplicationMessage {
+  #[cfg(target_os = "macos")]
   Show,
+  #[cfg(target_os = "macos")]
   Hide,
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  FetchDataStoreIdentifiers(Box<dyn FnOnce(Vec<[u8; 16]>) + Send + 'static>),
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  RemoveDataStore([u8; 16], Box<dyn FnOnce(Result<()>) + Send + 'static>),
 }
 
 pub enum WindowMessage {
@@ -1239,6 +1244,7 @@ pub enum WindowMessage {
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
+  IsAlwaysOnTop(Sender<bool>),
   // Setters
   Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
@@ -1314,6 +1320,7 @@ pub enum WebviewMessage {
   WebviewEvent(WebviewEvent),
   SynthesizedWindowEvent(SynthesizedWindowEvent),
   Navigate(Url),
+  Reload,
   Print,
   Close,
   Show,
@@ -1356,7 +1363,6 @@ pub enum Message<T: 'static> {
   #[cfg(target_os = "macos")]
   SetActivationPolicy(ActivationPolicy),
   RequestExit(i32),
-  #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
@@ -1473,6 +1479,17 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
         *self.window_id.lock().unwrap(),
         self.webview_id,
         WebviewMessage::Navigate(url),
+      ),
+    )
+  }
+
+  fn reload(&self) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *self.window_id.lock().unwrap(),
+        self.webview_id,
+        WebviewMessage::Reload,
       ),
     )
   }
@@ -1798,6 +1815,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn is_enabled(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsEnabled)
+  }
+
+  fn is_always_on_top(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsAlwaysOnTop)
   }
 
   #[cfg(any(
@@ -2511,6 +2532,29 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   {
     dispatch(f)
   }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::FetchDataStoreIdentifiers(Box::new(cb))),
+    )
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::RemoveDataStore(uuid, Box::new(cb))),
+    )
+  }
 }
 
 impl<T: UserEvent> Wry<T> {
@@ -2927,13 +2971,28 @@ fn handle_user_message<T: UserEvent>(
       event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
     }
     Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
-    #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {
+      #[cfg(target_os = "macos")]
       ApplicationMessage::Show => {
         event_loop.show_application();
       }
+      #[cfg(target_os = "macos")]
       ApplicationMessage::Hide => {
         event_loop.hide_application();
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      ApplicationMessage::FetchDataStoreIdentifiers(cb) => {
+        if let Err(e) = WebView::fetch_data_store_identifiers(cb) {
+          // this shouldn't ever happen because we're running on the main thread
+          // but let's be safe and warn here
+          log::error!("failed to fetch data store identifiers: {e}");
+        }
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      ApplicationMessage::RemoveDataStore(uuid, cb) => {
+        WebView::remove_data_store(&uuid, move |res| {
+          cb(res.map_err(|_| Error::FailedToRemoveDataStore))
+        })
       }
     },
     Message::Window(id, window_message) => {
@@ -3023,7 +3082,7 @@ fn handle_user_message<T: UserEvent>(
             tx.send(map_theme(&window.theme())).unwrap();
           }
           WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
-
+          WindowMessage::IsAlwaysOnTop(tx) => tx.send(window.is_always_on_top()).unwrap(),
           // Setters
           WindowMessage::Center => window.center(),
           WindowMessage::RequestUserAttention(request_type) => {
@@ -3330,6 +3389,11 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::Navigate(url) => {
             if let Err(e) = webview.load_url(url.as_str()) {
               log::error!("failed to navigate to url {}: {}", url, e);
+            }
+          }
+          WebviewMessage::Reload => {
+            if let Err(e) = webview.reload() {
+              log::error!("failed to reload: {e}");
             }
           }
           WebviewMessage::Show => {
@@ -4234,6 +4298,10 @@ fn create_webview<T: UserEvent>(
         wry::BackgroundThrottlingPolicy::Throttle
       }
     });
+  }
+
+  if webview_attributes.javascript_disabled {
+    webview_builder = webview_builder.with_javascript_disabled();
   }
 
   if let Some(color) = webview_attributes.background_color {

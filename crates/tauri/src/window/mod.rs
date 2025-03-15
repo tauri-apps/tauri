@@ -1397,6 +1397,19 @@ impl<R: Runtime> Window<R> {
     self.window.dispatcher.is_enabled().map_err(Into::into)
   }
 
+  /// Determines if this window should always be on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_always_on_top(&self) -> crate::Result<bool> {
+    self
+      .window
+      .dispatcher
+      .is_always_on_top()
+      .map_err(Into::into)
+  }
+
   /// Gets the window's native maximize button state
   ///
   /// ## Platform-specific

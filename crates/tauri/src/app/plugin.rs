@@ -26,6 +26,11 @@ pub fn tauri_version() -> &'static str {
 }
 
 #[command(root = "crate")]
+pub fn identifier<R: Runtime>(app: AppHandle<R>) -> String {
+  app.config().identifier.clone()
+}
+
+#[command(root = "crate")]
 #[allow(unused_variables)]
 pub fn app_show<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
@@ -38,6 +43,27 @@ pub fn app_show<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
 pub fn app_hide<R: Runtime>(app: AppHandle<R>) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
   app.hide()?;
+  Ok(())
+}
+
+#[command(root = "crate")]
+#[allow(unused_variables)]
+pub async fn fetch_data_store_identifiers<R: Runtime>(
+  app: AppHandle<R>,
+) -> crate::Result<Vec<[u8; 16]>> {
+  #[cfg(target_vendor = "apple")]
+  return app.fetch_data_store_identifiers().await;
+  #[cfg(not(target_vendor = "apple"))]
+  return Ok(Vec::new());
+}
+
+#[command(root = "crate")]
+#[allow(unused_variables)]
+pub async fn remove_data_store<R: Runtime>(app: AppHandle<R>, uuid: [u8; 16]) -> crate::Result<()> {
+  #[cfg(target_vendor = "apple")]
+  app.remove_data_store(uuid).await?;
+  #[cfg(not(target_vendor = "apple"))]
+  let _ = uuid;
   Ok(())
 }
 
@@ -63,8 +89,11 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       version,
       name,
       tauri_version,
+      identifier,
       app_show,
       app_hide,
+      fetch_data_store_identifiers,
+      remove_data_store,
       default_window_icon,
       set_app_theme,
     ])

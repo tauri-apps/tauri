@@ -219,6 +219,7 @@ pub struct WebviewAttributes {
   pub background_color: Option<Color>,
   pub traffic_light_position: Option<dpi::Position>,
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
+  pub javascript_disabled: bool,
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -262,6 +263,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
     }
+    builder.javascript_disabled = config.javascript_disabled;
     builder
   }
 }
@@ -294,6 +296,7 @@ impl WebviewAttributes {
       background_color: None,
       traffic_light_position: None,
       background_throttling: None,
+      javascript_disabled: false,
     }
   }
 

@@ -54,7 +54,7 @@ pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
 /// Allowed commands file name
 pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
-/// Set by the CLI with `--remove-unused-commands` for dead code elimination,
+/// Set by the CLI with when `build > removeUnusedCommands` is set for dead code elimination,
 /// the value is set to the config's directory
 pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
 

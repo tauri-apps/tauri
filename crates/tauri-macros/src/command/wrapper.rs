@@ -262,7 +262,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     quote!()
   };
 
-  // Allow this to be unused when we're building with `--remove-unused-commands` for dead code elimination
+  // Allow this to be unused when we're building with `build > removeUnusedCommands` for dead code elimination
   let maybe_allow_unused = if var(REMOVE_UNUSED_COMMANDS_ENV_VAR).is_ok() {
     quote!(#[allow(unused)])
   } else {

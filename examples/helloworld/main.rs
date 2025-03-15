@@ -5,7 +5,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 #[tauri::command]
-fn greet(app: tauri::AppHandle, name: String) -> String {
+async fn greet(app: tauri::AppHandle, name: String) -> String {
   use tauri::Manager;
   println!("greet {name}");
   let w = app.get_webview_window("main").unwrap();

@@ -4,7 +4,6 @@
 
 import { defineConfig, Plugin, RollupLog } from 'rollup'
 import typescript from '@rollup/plugin-typescript'
-import terser from '@rollup/plugin-terser'
 import fg from 'fast-glob'
 import { basename, dirname, join } from 'path'
 import { copyFileSync, opendirSync, rmSync, Dir } from 'fs'
@@ -66,7 +65,7 @@ export default defineConfig([
       footer: 'window.__TAURI__ = __TAURI_IIFE__',
       file: '../../crates/tauri/scripts/bundle.global.js'
     },
-    plugins: [typescript(), terser()],
+    plugins: [typescript()],
     onwarn
   }
 ])

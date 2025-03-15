@@ -36,7 +36,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rollup -c --configPlugin typescript",
+    "build": "rollup -c --configPlugin typescript --plugin terser",
+    "build:debug": "rollup -c --configPlugin typescript",
     "npm-pack": "pnpm build && cd ./dist && npm pack",
     "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel silly --no-git-checks",
     "ts:check": "tsc --noEmit",

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use heck::AsShoutySnakeCase;
-use tauri_utils::{acl::HAS_APP_MANIFEST_ENV_VAR, write_if_changed};
+use tauri_utils::write_if_changed;
 
 use std::{
   collections::BTreeMap,
@@ -338,8 +338,6 @@ fn main() {
 
   let permissions = define_permissions(&out_dir);
   tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions).unwrap();
-  // make our examples work by marking the app manifest as not set :)
-  println!("cargo:rustc-env={}=false", HAS_APP_MANIFEST_ENV_VAR);
 }
 
 const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy

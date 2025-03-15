@@ -5,12 +5,16 @@
 //! ACL items that are only useful inside of build script/codegen context.
 
 use std::{
-  collections::{BTreeMap, HashMap, HashSet},
+  collections::{BTreeMap, HashMap},
   env, fs,
   path::{Path, PathBuf},
 };
 
-use crate::{acl::Error, config::Config, write_if_changed};
+use crate::{
+  acl::{has_app_manifest, AllowedCommands, Error},
+  config::Config,
+  write_if_changed,
+};
 
 use super::{
   capability::{Capability, CapabilityFile},
@@ -397,6 +401,12 @@ pub fn generate_allowed_commands(
   println!("cargo:rerun-if-env-changed={REMOVE_UNUSED_COMMANDS_ENV_VAR}");
 
   let allowed_commands_file_path = out_dir.join(ALLOWED_COMMANDS_FILE_NAME);
+
+  if permissions_map.is_empty() {
+    let _ = std::fs::remove_file(allowed_commands_file_path);
+    return Ok(());
+  }
+
   if let Ok(path) = std::env::var(REMOVE_UNUSED_COMMANDS_ENV_VAR) {
     let config_directory = PathBuf::from(path);
     let capabilities_path = config_directory.join("capabilities");
@@ -436,7 +446,7 @@ pub fn generate_allowed_commands(
     // Reset working directory.
     std::env::set_current_dir(old_cwd)?;
 
-    let acl = permissions_map
+    let acl: BTreeMap<String, crate::acl::manifest::Manifest> = permissions_map
       .into_iter()
       .map(|(key, permissions)| {
         let key = key
@@ -453,7 +463,10 @@ pub fn generate_allowed_commands(
     let permission_entries = capabilities
       .into_iter()
       .flat_map(|(_, capabilities)| capabilities.permissions);
-    let mut allowed_commands = HashSet::new();
+    let mut allowed_commands = AllowedCommands {
+      has_app_acl: has_app_manifest(&acl),
+      ..Default::default()
+    };
     for permission_entry in permission_entries {
       let Ok(permissions) =
         crate::acl::resolved::get_permissions(permission_entry.identifier(), &acl)
@@ -471,7 +484,7 @@ pub fn generate_allowed_commands(
           } else {
             format!("plugin:{plugin_name}|{allowed_command}")
           };
-          allowed_commands.insert(command_name);
+          allowed_commands.commands.insert(command_name);
         }
       }
     }

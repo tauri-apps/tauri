@@ -25,7 +25,7 @@ use anyhow::Context;
 use capability::{Capability, CapabilityFile};
 use serde::{Deserialize, Serialize};
 use std::{
-  collections::BTreeMap,
+  collections::{BTreeMap, HashSet},
   fs,
   num::NonZeroU64,
   path::{Path, PathBuf},
@@ -57,8 +57,6 @@ pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
 /// Set by the CLI with when `build > removeUnusedCommands` is set for dead code elimination,
 /// the value is set to the config's directory
 pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
-/// Set by tauri-build to notify tauri-macros that the app has its own ACL manifest.
-pub const HAS_APP_MANIFEST_ENV_VAR: &str = "HAS_APP_ACL_MANIFEST";
 
 #[cfg(feature = "build")]
 pub mod build;
@@ -346,6 +344,11 @@ pub enum ExecutionContext {
   },
 }
 
+/// Test if the app has an application manifest from the ACL
+pub fn has_app_manifest(acl: &BTreeMap<String, crate::acl::manifest::Manifest>) -> bool {
+  acl.contains_key(APP_ACL_KEY)
+}
+
 /// Get the capabilities from the config file
 pub fn get_capabilities(
   config: &Config,
@@ -407,14 +410,23 @@ pub fn get_capabilities(
   Ok(capabilities)
 }
 
+/// Allowed commands used to communicate between `generate_handle` and `generate_allowed_commands` through json files
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct AllowedCommands {
+  /// The commands allowed
+  pub commands: HashSet<String>,
+  /// Has application ACL or not
+  pub has_app_acl: bool,
+}
+
 /// Try to reads allowed commands from the out dir made by our build script
-pub fn read_allowed_commands() -> Option<Vec<String>> {
+pub fn read_allowed_commands() -> Option<AllowedCommands> {
   let out_file = std::env::var("OUT_DIR")
     .map(PathBuf::from)
     .ok()?
     .join(ALLOWED_COMMANDS_FILE_NAME);
   let file = fs::read_to_string(&out_file).ok()?;
-  let json: Vec<String> = serde_json::from_str(&file).ok()?;
+  let json = serde_json::from_str(&file).ok()?;
   Some(json)
 }
 

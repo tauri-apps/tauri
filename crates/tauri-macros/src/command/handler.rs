@@ -7,7 +7,6 @@ use syn::{
   parse::{Parse, ParseBuffer, ParseStream},
   Attribute, Ident, Path, Token,
 };
-use tauri_utils::acl::HAS_APP_MANIFEST_ENV_VAR;
 
 struct CommandDef {
   path: Path,
@@ -95,22 +94,18 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     return;
   };
 
-  // check if we have the app manifest
-  if plugin_name.is_none() {
-    // app does not have its own manifest, we skip filtering to allow all commands
-    // note that inline plugins without the #![plugin()] attribute would also get to this check
-    // which means inline plugins must have an app manifest to get proper unused command removal
-    if std::env::var(HAS_APP_MANIFEST_ENV_VAR).is_ok_and(|v| v == "false") {
-      return;
-    }
-  }
-
   let mut unused_commands = Vec::new();
-  let previous_commands_len = command_defs.len();
 
   let command_prefix = if let Some(plugin_name) = &plugin_name {
     format!("plugin:{plugin_name}|")
   } else {
+    // All application commands are allowed if we don't have an application ACL
+    //
+    // note that inline plugins without the #![plugin()] attribute would also get to this check
+    // which means inline plugins must have an app manifest to get proper unused command removal
+    if !allowed_commands.has_app_acl {
+      return;
+    }
     "".into()
   };
 
@@ -122,7 +117,7 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     let command_name = &last.ident;
 
     let command = format!("{command_prefix}{command_name}");
-    let is_allowed = allowed_commands.contains(&command);
+    let is_allowed = allowed_commands.commands.contains(&command);
 
     if !is_allowed {
       unused_commands.push(command_name.to_string());
@@ -131,12 +126,10 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     is_allowed
   });
 
-  if command_defs.len() != previous_commands_len {
-    println!(
-      "{} removed commands: {}",
-      plugin_name.as_deref().unwrap_or("application"),
-      unused_commands.join(", ")
-    );
+  if unused_commands.len() > 0 {
+    let plugin_display_name = plugin_name.as_deref().unwrap_or("application");
+    let unused_commands_display = unused_commands.join(", ");
+    println!("Removed unused commands from {plugin_display_name}: {unused_commands_display}",);
   }
 }
 

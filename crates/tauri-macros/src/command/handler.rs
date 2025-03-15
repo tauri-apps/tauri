@@ -98,6 +98,8 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
   // check if we have the app manifest
   if plugin_name.is_none() {
     // app does not have its own manifest, we skip filtering to allow all commands
+    // note that inline plugins without the #![plugin()] attribute would also get to this check
+    // which means inline plugins must have an app manifest to get proper unused command removal
     if std::env::var(HAS_APP_MANIFEST_ENV_VAR).is_ok_and(|v| v == "false") {
       return;
     }

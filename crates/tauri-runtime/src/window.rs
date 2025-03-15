@@ -428,7 +428,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   /// Requires titleBarStyle: Overlay and decorations: true.
   #[cfg(target_os = "macos")]
   #[must_use]
-  fn traffic_light_position(self, x: f64, y: f64) -> Self;
+  fn traffic_light_position<P: Into<dpi::Position>>(self, position: P) -> Self;
 
   /// Hide the window title.
   #[cfg(target_os = "macos")]

@@ -483,7 +483,7 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(target_os = "macos")]
-  fn traffic_light_position(self, x: f64, y: f64) -> Self {
+  fn traffic_light_position<P: Into<Position>>(self, position: P) -> Self {
     self
   }
 

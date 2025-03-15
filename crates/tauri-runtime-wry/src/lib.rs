@@ -789,7 +789,9 @@ impl WindowBuilder for WindowBuilderWrapper {
         window = window.tabbing_identifier(identifier);
       }
       if let Some(position) = &config.traffic_light_position {
-        window = window.traffic_light_position(position.x, position.y);
+        window = window.traffic_light_position(tauri_runtime::dpi::LogicalPosition::new(
+          position.x, position.y,
+        ));
       }
     }
 
@@ -1073,10 +1075,8 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(target_os = "macos")]
-  fn traffic_light_position(mut self, x: f64, y: f64) -> Self {
-    self.inner = self
-      .inner
-      .with_traffic_light_inset(TaoLogicalPosition::new(x, y));
+  fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.inner = self.inner.with_traffic_light_inset(position.into());
     self
   }
 

@@ -706,6 +706,19 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Change the position of the window controls on macOS.
+  ///
+  /// Requires titleBarStyle: Overlay and decorations: true.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.webview_builder.webview_attributes = self
+      .webview_builder
+      .webview_attributes
+      .traffic_light_position(position.into());
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]

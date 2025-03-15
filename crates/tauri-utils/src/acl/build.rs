@@ -402,6 +402,11 @@ pub fn generate_allowed_commands(
 
   let allowed_commands_file_path = out_dir.join(ALLOWED_COMMANDS_FILE_NAME);
 
+  if permissions_map.is_empty() {
+    let _ = std::fs::remove_file(allowed_commands_file_path);
+    return Ok(());
+  }
+
   if let Ok(path) = std::env::var(REMOVE_UNUSED_COMMANDS_ENV_VAR) {
     let config_directory = PathBuf::from(path);
     let capabilities_path = config_directory.join("capabilities");
@@ -492,10 +497,4 @@ pub fn generate_allowed_commands(
     let _ = std::fs::remove_file(allowed_commands_file_path);
   }
   Ok(())
-}
-
-/// Remove allowed commands files so that we stop trying to remove unused commands in the `generate_handler` macro
-pub fn remove_allowed_commands_file(out_dir: &Path) {
-  let allowed_commands_file_path = out_dir.join(ALLOWED_COMMANDS_FILE_NAME);
-  let _ = std::fs::remove_file(allowed_commands_file_path);
 }

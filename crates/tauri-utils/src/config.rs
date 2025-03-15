@@ -2676,7 +2676,7 @@ pub struct BuildConfig {
   ///
   /// Note:
   ///   - This won't be accounting for dynamically added ACLs so make sure to check it when using this
-  ///   - This feature requires tauri-plugins 2.1 and tauri 2.4
+  ///   - This feature requires tauri-plugin 2.1 and tauri 2.4
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
 }

@@ -610,7 +610,7 @@ impl<R: Runtime> AppManager<R> {
 
     fn filter_target(target: &EventTarget, candidate: &EventTarget) -> bool {
       match target {
-        // if targeting any label, emit using emit_filter and filter labels
+        // if targeting any label, filter matching labels
         EventTarget::AnyLabel { label } => match candidate {
           EventTarget::Window { label: l }
           | EventTarget::Webview { label: l }

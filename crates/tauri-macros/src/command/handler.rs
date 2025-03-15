@@ -7,6 +7,7 @@ use syn::{
   parse::{Parse, ParseBuffer, ParseStream},
   Attribute, Ident, Path, Token,
 };
+use tauri_utils::acl::HAS_APP_MANIFEST_ENV_VAR;
 
 struct CommandDef {
   path: Path,
@@ -93,6 +94,14 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
   let Some(allowed_commands) = allowed_commands else {
     return;
   };
+
+  // check if we have the app manifest
+  if plugin_name.is_none() {
+    // app does not have its own manifest, we skip filtering to allow all commands
+    if std::env::var(HAS_APP_MANIFEST_ENV_VAR).is_ok_and(|v| v == "false") {
+      return;
+    }
+  }
 
   let mut unused_commands = Vec::new();
   let previous_commands_len = command_defs.len();

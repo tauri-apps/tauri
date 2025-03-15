@@ -57,6 +57,8 @@ pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
 /// Set by the CLI with when `build > removeUnusedCommands` is set for dead code elimination,
 /// the value is set to the config's directory
 pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
+/// Set by tauri-build to notify tauri-macros that the app has its own ACL manifest.
+pub const HAS_APP_MANIFEST_ENV_VAR: &str = "HAS_APP_ACL_MANIFEST";
 
 #[cfg(feature = "build")]
 pub mod build;

@@ -14,7 +14,7 @@ use tauri_utils::{
     capability::Capability,
     manifest::{Manifest, PermissionFile},
     schema::CAPABILITIES_SCHEMA_FOLDER_PATH,
-    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
+    ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME, HAS_APP_MANIFEST_ENV_VAR,
   },
   platform::Target,
   write_if_changed,
@@ -403,10 +403,14 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
     attributes.app_manifest,
     &attributes.inlined_plugins,
   )?;
-  if app_acl.manifest.default_permission.is_some()
+  let has_app_manifest = app_acl.manifest.default_permission.is_some()
     || !app_acl.manifest.permission_sets.is_empty()
-    || !app_acl.manifest.permissions.is_empty()
-  {
+    || !app_acl.manifest.permissions.is_empty();
+  println!(
+    "cargo:rustc-env={}={}",
+    HAS_APP_MANIFEST_ENV_VAR, has_app_manifest
+  );
+  if has_app_manifest {
     acl_manifests.insert(APP_ACL_KEY.into(), app_acl.manifest);
   }
 
@@ -434,7 +438,11 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
 
   let mut permissions_map = inline_plugins_acl.permission_files;
   permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
-  tauri_utils::acl::build::generate_allowed_commands(out_dir, permissions_map)?;
+  // when there's no app manifest / inlined plugins we should skip generating the allowed command list
+  // which then skips the removal of unused commands
+  if !permissions_map.is_empty() {
+    tauri_utils::acl::build::generate_allowed_commands(out_dir, permissions_map)?;
+  }
 
   Ok(())
 }

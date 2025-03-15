@@ -4,8 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {
-    "frontendDist": ["index.html"],
-    "removeUnusedCommands": true
+    "frontendDist": ["index.html"]
   },
   "app": {
     "withGlobalTauri": true,

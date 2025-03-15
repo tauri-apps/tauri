@@ -402,99 +402,102 @@ pub fn generate_allowed_commands(
 
   let allowed_commands_file_path = out_dir.join(ALLOWED_COMMANDS_FILE_NAME);
 
-  if permissions_map.is_empty() {
+  let remove_unused_commands_env_var = std::env::var(REMOVE_UNUSED_COMMANDS_ENV_VAR);
+
+  let should_generate_allowed_commands =
+    remove_unused_commands_env_var.is_ok() && !permissions_map.is_empty();
+
+  if !should_generate_allowed_commands {
     let _ = std::fs::remove_file(allowed_commands_file_path);
     return Ok(());
   }
 
-  if let Ok(path) = std::env::var(REMOVE_UNUSED_COMMANDS_ENV_VAR) {
-    let config_directory = PathBuf::from(path);
-    let capabilities_path = config_directory.join("capabilities");
-    // Cargo re-builds if the variable points to an empty path,
-    // so we check for exists here
-    // see https://github.com/rust-lang/cargo/issues/4213
-    if capabilities_path.exists() {
-      println!("cargo:rerun-if-changed={}", capabilities_path.display());
-    }
+  // It's safe to `unwrap` here since we have checked if the result is ok above
+  let config_directory = PathBuf::from(remove_unused_commands_env_var.unwrap());
+  let capabilities_path = config_directory.join("capabilities");
+  // Cargo re-builds if the variable points to an empty path,
+  // so we check for exists here
+  // see https://github.com/rust-lang/cargo/issues/4213
+  if capabilities_path.exists() {
+    println!("cargo:rerun-if-changed={}", capabilities_path.display());
+  }
 
-    let mut capabilities = crate::acl::build::parse_capabilities(&format!(
-      "{}/**/*",
-      capabilities_path.to_string_lossy()
-    ))?;
+  let mut capabilities = crate::acl::build::parse_capabilities(&format!(
+    "{}/**/*",
+    capabilities_path.to_string_lossy()
+  ))?;
 
-    let target_triple = env::var("TARGET")?;
-    let target = crate::platform::Target::from_triple(&target_triple);
-    let (mut config, config_paths) = crate::config::parse::read_from(target, &config_directory)?;
+  let target_triple = env::var("TARGET")?;
+  let target = crate::platform::Target::from_triple(&target_triple);
+  let (mut config, config_paths) = crate::config::parse::read_from(target, &config_directory)?;
 
-    for config_file_path in config_paths {
-      println!("cargo:rerun-if-changed={}", config_file_path.display());
-    }
+  for config_file_path in config_paths {
+    println!("cargo:rerun-if-changed={}", config_file_path.display());
+  }
 
-    if let Ok(env) = std::env::var("TAURI_CONFIG") {
-      let merge_config: serde_json::Value = serde_json::from_str(&env)?;
-      json_patch::merge(&mut config, &merge_config);
-    }
+  if let Ok(env) = std::env::var("TAURI_CONFIG") {
+    let merge_config: serde_json::Value = serde_json::from_str(&env)?;
+    json_patch::merge(&mut config, &merge_config);
+  }
 
-    println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
+  println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
-    // Set working directory to where `tauri.config.json` is, so that relative paths in it are parsed correctly.
-    let old_cwd = std::env::current_dir()?;
-    std::env::set_current_dir(config_directory)?;
+  // Set working directory to where `tauri.config.json` is, so that relative paths in it are parsed correctly.
+  let old_cwd = std::env::current_dir()?;
+  std::env::set_current_dir(config_directory)?;
 
-    let config: Config = serde_json::from_value(config)?;
+  let config: Config = serde_json::from_value(config)?;
 
-    // Reset working directory.
-    std::env::set_current_dir(old_cwd)?;
+  // Reset working directory.
+  std::env::set_current_dir(old_cwd)?;
 
-    let acl: BTreeMap<String, crate::acl::manifest::Manifest> = permissions_map
-      .into_iter()
-      .map(|(key, permissions)| {
-        let key = key
-          .strip_prefix("tauri-plugin-")
-          .unwrap_or(&key)
-          .to_string();
-        let manifest = crate::acl::manifest::Manifest::new(permissions, None);
-        (key, manifest)
-      })
-      .collect();
+  let acl: BTreeMap<String, crate::acl::manifest::Manifest> = permissions_map
+    .into_iter()
+    .map(|(key, permissions)| {
+      let key = key
+        .strip_prefix("tauri-plugin-")
+        .unwrap_or(&key)
+        .to_string();
+      let manifest = crate::acl::manifest::Manifest::new(permissions, None);
+      (key, manifest)
+    })
+    .collect();
 
-    capabilities.extend(crate::acl::get_capabilities(&config, None, None)?);
+  capabilities.extend(crate::acl::get_capabilities(&config, None, None)?);
 
-    let permission_entries = capabilities
-      .into_iter()
-      .flat_map(|(_, capabilities)| capabilities.permissions);
-    let mut allowed_commands = AllowedCommands {
-      has_app_acl: has_app_manifest(&acl),
-      ..Default::default()
+  let permission_entries = capabilities
+    .into_iter()
+    .flat_map(|(_, capabilities)| capabilities.permissions);
+  let mut allowed_commands = AllowedCommands {
+    has_app_acl: has_app_manifest(&acl),
+    ..Default::default()
+  };
+  for permission_entry in permission_entries {
+    let Ok(permissions) =
+      crate::acl::resolved::get_permissions(permission_entry.identifier(), &acl)
+    else {
+      continue;
     };
-    for permission_entry in permission_entries {
-      let Ok(permissions) =
-        crate::acl::resolved::get_permissions(permission_entry.identifier(), &acl)
-      else {
-        continue;
-      };
-      for permission in permissions {
-        let plugin_name = permission.key;
-        let allowed_command_names = &permission.permission.commands.allow;
-        for allowed_command in allowed_command_names {
-          let command_name = if plugin_name == crate::acl::APP_ACL_KEY {
-            allowed_command.to_string()
-          } else if let Some(core_plugin_name) = plugin_name.strip_prefix("core:") {
-            format!("plugin:{core_plugin_name}|{allowed_command}")
-          } else {
-            format!("plugin:{plugin_name}|{allowed_command}")
-          };
-          allowed_commands.commands.insert(command_name);
-        }
+    for permission in permissions {
+      let plugin_name = permission.key;
+      let allowed_command_names = &permission.permission.commands.allow;
+      for allowed_command in allowed_command_names {
+        let command_name = if plugin_name == crate::acl::APP_ACL_KEY {
+          allowed_command.to_string()
+        } else if let Some(core_plugin_name) = plugin_name.strip_prefix("core:") {
+          format!("plugin:{core_plugin_name}|{allowed_command}")
+        } else {
+          format!("plugin:{plugin_name}|{allowed_command}")
+        };
+        allowed_commands.commands.insert(command_name);
       }
     }
-
-    write_if_changed(
-      allowed_commands_file_path,
-      serde_json::to_string(&allowed_commands)?,
-    )?;
-  } else {
-    let _ = std::fs::remove_file(allowed_commands_file_path);
   }
+
+  write_if_changed(
+    allowed_commands_file_path,
+    serde_json::to_string(&allowed_commands)?,
+  )?;
+
   Ok(())
 }

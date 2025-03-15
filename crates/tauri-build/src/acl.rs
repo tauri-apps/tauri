@@ -256,6 +256,7 @@ permissions = [{default_permissions}]
   })
 }
 
+#[derive(Debug)]
 struct AppManifestAcl {
   manifest: Manifest,
   permission_files: Vec<PermissionFile>,
@@ -308,6 +309,7 @@ fn app_manifest_permissions(
     let inlined_plugins_permissions: Vec<_> = inlined_plugins
       .keys()
       .map(|name| permissions_root.join(name))
+      .flat_map(|p| p.canonicalize())
       .collect();
 
     permission_files.extend(tauri_utils::acl::build::define_permissions(
@@ -433,7 +435,9 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   tauri_utils::plugin::save_global_api_scripts_paths(out_dir);
 
   let mut permissions_map = inline_plugins_acl.permission_files;
-  permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
+  if has_app_manifest {
+    permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
+  }
 
   tauri_utils::acl::build::generate_allowed_commands(out_dir, permissions_map)?;
 

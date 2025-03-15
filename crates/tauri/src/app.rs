@@ -1056,6 +1056,9 @@ impl<R: Runtime> App<R> {
 
   /// Runs the application.
   ///
+  /// This function never returns. When the application finishes, the process is exited directly using [`std::process::exit`].
+  /// See [`run_return`](Self::run_return) if you need to run code after the application event loop exits.
+  ///
   /// # Panics
   ///
   /// This function will panic if the setup-function supplied in [`Builder::setup`] fails.
@@ -1096,7 +1099,7 @@ impl<R: Runtime> App<R> {
     });
   }
 
-  /// Runs the application, returning the exit code to use.
+  /// Runs the application, returning its intended exit code.
   ///
   /// ## Platform-specific
   ///

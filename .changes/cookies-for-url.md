@@ -1,7 +1,5 @@
 ---
 "tauri": minor:feat
-"tauri-runtime": minor:feat
-"tauri-runtime-wry": minor:feat
 ---
 
-Added `Webview::cookies_for_url()` and `tauri::Cookie`
+Added `Webview::cookies()`, `Webview::cookies_for_url()`, `WebviewWindow::cookies()` and `Webview::cookies_for_url()`.

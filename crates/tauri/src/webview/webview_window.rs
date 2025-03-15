@@ -37,8 +37,7 @@ use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  webview::PageLoadPayload,
-  webview::WebviewBuilder,
+  webview::{Cookie, PageLoadPayload, WebviewBuilder},
   window::WindowBuilder,
   AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
@@ -2004,6 +2003,28 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Clear all browsing data for this webview window.
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self.webview.clear_all_browsing_data()
+  }
+
+  /// Returns all cookies in the runtime's cookie store including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.cookies_for_url(url)
+  }
+
+  /// Returns all cookies in the runtime's cookie store for all URLs including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unsupported, always returns an empty [`Vec`].
+  pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.cookies()
   }
 }
 

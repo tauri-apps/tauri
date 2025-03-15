@@ -25,11 +25,11 @@ window.addEventListener('keydown', (event) => {
       value: zoomLevel
     })
   }
-});
+})
 
 window.addEventListener('mousewheel', (event) => {
-  if(event.ctrlKey) {
-    event.preventDefault();
+  if (event.ctrlKey) {
+    event.preventDefault()
     if (event.deltaY < 0) {
       zoomLevel += 0.2
     } else {
@@ -40,4 +40,4 @@ window.addEventListener('mousewheel', (event) => {
       value: zoomLevel
     })
   }
-});
+})

@@ -27,7 +27,6 @@ window.addEventListener('keydown', (event) => {
   }
 });
 
-
 window.addEventListener('mousewheel', (event) => {
   if(event.ctrlKey) {
     event.preventDefault();

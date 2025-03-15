@@ -7,4 +7,4 @@
 "tauri-cli": "minor:feat"
 ---
 
-Add configuration for the traffic light position on macOS.
+Added `trafficLightPosition` window configuration to set the traffic light buttons position on macOS.

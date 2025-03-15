@@ -94,18 +94,19 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     return;
   };
 
+  if plugin_name.is_none() && !allowed_commands.has_app_acl {
+    // All application commands are allowed if we don't have an application ACL
+    //
+    // note that inline plugins without the #![plugin()] attribute would also get to this check
+    // which means inline plugins must have an app manifest to get proper unused command removal
+    return;
+  }
+
   let mut unused_commands = Vec::new();
 
   let command_prefix = if let Some(plugin_name) = &plugin_name {
     format!("plugin:{plugin_name}|")
   } else {
-    // All application commands are allowed if we don't have an application ACL
-    //
-    // note that inline plugins without the #![plugin()] attribute would also get to this check
-    // which means inline plugins must have an app manifest to get proper unused command removal
-    if !allowed_commands.has_app_acl {
-      return;
-    }
     "".into()
   };
 

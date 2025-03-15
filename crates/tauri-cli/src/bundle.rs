@@ -63,8 +63,6 @@ pub struct Options {
   #[clap(short, long)]
   pub debug: bool,
   /// Space or comma separated list of bundles to package.
-  ///
-  /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
   #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub bundles: Option<Vec<BundleFormat>>,
   /// JSON strings or path to JSON files to merge with the default configuration file

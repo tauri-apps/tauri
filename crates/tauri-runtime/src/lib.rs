@@ -21,6 +21,7 @@ use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
+pub mod keyboard;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;

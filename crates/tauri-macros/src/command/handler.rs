@@ -126,7 +126,7 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
     is_allowed
   });
 
-  if unused_commands.len() > 0 {
+  if !unused_commands.is_empty() {
     let plugin_display_name = plugin_name.as_deref().unwrap_or("application");
     let unused_commands_display = unused_commands.join(", ");
     println!("Removed unused commands from {plugin_display_name}: {unused_commands_display}",);

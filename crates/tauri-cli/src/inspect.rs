@@ -31,7 +31,7 @@ fn wix_upgrade_code() -> Result<()> {
   crate::helpers::app_paths::resolve();
 
   let target = tauri_utils::platform::Target::Windows;
-  let config = crate::helpers::config::get(target, None)?;
+  let config = crate::helpers::config::get(target, &[])?;
 
   let interface = AppInterface::new(config.lock().unwrap().as_ref().unwrap(), None)?;
 

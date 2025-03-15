@@ -13,6 +13,7 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
+pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -246,8 +247,8 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating webviews.
   ///
   /// # Examples
   ///
@@ -322,8 +323,8 @@ async fn create_window(app: tauri::AppHandle) {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating webviews.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating webviews.
   ///
   /// # Examples
   ///
@@ -1722,6 +1723,56 @@ tauri::Builder::default()
       .dispatcher
       .clear_all_browsing_data()
       .map_err(Into::into)
+  }
+
+  /// Returns all cookies in the runtime's cookie store including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
+    self
+      .webview
+      .dispatcher
+      .cookies_for_url(url)
+      .map_err(Into::into)
+  }
+
+  /// Returns all cookies in the runtime's cookie store for all URLs including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unsupported, always returns an empty [`Vec`].
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.dispatcher.cookies().map_err(Into::into)
   }
 }
 

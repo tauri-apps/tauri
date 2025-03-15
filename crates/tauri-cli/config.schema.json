@@ -227,7 +227,7 @@
           "type": "string"
         },
         "create": {
-          "description": "Whether Tauri should create this window at app startup or not.\n\n When this is set to `false` you must manually grab the config object via `app.config().app.windows`\n and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2.0.0-rc/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).",
+          "description": "Whether Tauri should create this window at app startup or not.\n\n When this is set to `false` you must manually grab the config object via `app.config().app.windows`\n and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).",
           "default": true,
           "type": "boolean"
         },
@@ -424,6 +424,17 @@
             }
           ]
         },
+        "trafficLightPosition": {
+          "description": "The position of the window controls on macOS.\n\n Requires titleBarStyle: Overlay and decorations: true.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/LogicalPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "hiddenTitle": {
           "description": "If `true`, sets the window title to be hidden on macOS.",
           "default": false,
@@ -599,6 +610,27 @@
           ]
         }
       ]
+    },
+    "LogicalPosition": {
+      "description": "Position coordinates struct.",
+      "type": "object",
+      "required": [
+        "x",
+        "y"
+      ],
+      "properties": {
+        "x": {
+          "description": "X coordinate.",
+          "type": "number",
+          "format": "double"
+        },
+        "y": {
+          "description": "Y coordinate.",
+          "type": "number",
+          "format": "double"
+        }
+      },
+      "additionalProperties": false
     },
     "WindowEffectsConfig": {
       "description": "The window effects configuration object",

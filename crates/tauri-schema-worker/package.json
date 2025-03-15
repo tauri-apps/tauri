@@ -8,6 +8,6 @@
     "dev": "wrangler dev"
   },
   "devDependencies": {
-    "wrangler": "^3.107.3"
+    "wrangler": "^4.0.0"
   }
 }

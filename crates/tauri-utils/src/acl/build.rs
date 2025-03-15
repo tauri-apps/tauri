@@ -424,7 +424,7 @@ pub fn generate_allowed_commands(
 
   let mut capabilities = crate::acl::build::parse_capabilities(&format!(
     "{}/**/*",
-    capabilities_path.to_string_lossy()
+    glob::Pattern::escape(&capabilities_path.to_string_lossy())
   ))?;
 
   let target_triple = env::var("TARGET")?;

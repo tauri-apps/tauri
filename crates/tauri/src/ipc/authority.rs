@@ -9,6 +9,7 @@ use std::sync::Arc;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use tauri_utils::acl::has_app_manifest;
 use tauri_utils::acl::{
   capability::{Capability, CapabilityFile, PermissionEntry},
   manifest::Manifest,
@@ -247,7 +248,7 @@ impl RuntimeAuthority {
   }
 
   pub(crate) fn has_app_manifest(&self) -> bool {
-    self.acl.contains_key(APP_ACL_KEY)
+    has_app_manifest(&self.acl)
   }
 
   #[doc(hidden)]

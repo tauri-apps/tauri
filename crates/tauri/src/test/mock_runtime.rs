@@ -282,6 +282,23 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     todo!()
   }
 
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    todo!()
+  }
+
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
     Ok(PhysicalPosition::new(0.0, 0.0))
   }
@@ -466,6 +483,11 @@ impl WindowBuilder for MockWindowBuilder {
   }
 
   #[cfg(target_os = "macos")]
+  fn traffic_light_position<P: Into<Position>>(self, position: P) -> Self {
+    self
+  }
+
+  #[cfg(target_os = "macos")]
   fn hidden_title(self, transparent: bool) -> Self {
     self
   }
@@ -558,6 +580,10 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
     Ok(())
   }
 
+  fn reload(&self) -> Result<()> {
+    Ok(())
+  }
+
   fn print(&self) -> Result<()> {
     Ok(())
   }
@@ -584,6 +610,14 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
 
   fn reparent(&self, window_id: WindowId) -> Result<()> {
     Ok(())
+  }
+
+  fn cookies(&self) -> Result<Vec<tauri_runtime::Cookie<'static>>> {
+    Ok(Vec::new())
+  }
+
+  fn cookies_for_url(&self, url: Url) -> Result<Vec<tauri_runtime::Cookie<'static>>> {
+    Ok(Vec::new())
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
@@ -993,6 +1027,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(())
   }
 
+  fn set_traffic_light_position(&self, position: Position) -> Result<()> {
+    Ok(())
+  }
+
   fn set_size_constraints(
     &self,
     constraints: tauri_runtime::window::WindowSizeConstraints,
@@ -1010,6 +1048,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
 
   fn is_enabled(&self) -> Result<bool> {
     Ok(true)
+  }
+
+  fn is_always_on_top(&self) -> Result<bool> {
+    Ok(false)
   }
 
   fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {

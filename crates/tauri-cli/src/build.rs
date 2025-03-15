@@ -40,16 +40,20 @@ pub struct Options {
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
   /// Space or comma separated list of bundles to package.
-  ///
-  /// Note that the `updater` bundle is not automatically added so you must specify it if the updater is enabled.
   #[clap(short, long, action = ArgAction::Append, num_args(0..), value_delimiter = ',')]
   pub bundles: Option<Vec<BundleFormat>>,
   /// Skip the bundling step even if `bundle > active` is `true` in tauri config.
   #[clap(long)]
   pub no_bundle: bool,
-  /// JSON string or path to JSON file to merge with tauri.conf.json
+  /// JSON strings or path to JSON files to merge with the default configuration file
+  ///
+  /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
+  ///
+  /// Note that a platform-specific file is looked up and merged with the default file by default
+  /// (tauri.macos.conf.json, tauri.linux.conf.json, tauri.windows.conf.json, tauri.android.conf.json and tauri.ios.conf.json)
+  /// but you can use this for more specific use cases such as different build flavors.
   #[clap(short, long)]
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   /// Command line arguments passed to the runner. Use `--` to explicitly mark the start of the arguments.
   pub args: Vec<String>,
   /// Skip prompting for values
@@ -68,7 +72,10 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
+  let config = get_config(
+    target,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+  )?;
 
   let mut interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),
@@ -175,7 +182,7 @@ pub fn setup(
       return Err(anyhow::anyhow!(
           "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
           out_folders,
-          if out_folders.len() == 1 { "folder" }else { "folders" }
+          if out_folders.len() == 1 { "folder" } else { "folders" }
         )
       );
     }

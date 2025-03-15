@@ -1001,7 +1001,7 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   {
     let event = EventName::new(event)?;
     let payload = EmitPayload::Serialize(&payload);
-    self.manager().emit_to(target, event, payload)
+    self.manager().emit_to(target.into(), event, payload)
   }
 
   /// Similar to [`Emitter::emit_to`] but the payload is json serialized.
@@ -1011,7 +1011,7 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   {
     let event = EventName::new(event)?;
     let payload = EmitPayload::<()>::Str(payload);
-    self.manager().emit_to(target, event, payload)
+    self.manager().emit_to(target.into(), event, payload)
   }
 
   /// Emits an event to all [targets](EventTarget) based on the given filter.

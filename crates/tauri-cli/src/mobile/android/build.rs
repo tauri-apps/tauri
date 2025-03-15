@@ -49,9 +49,15 @@ pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
-  /// JSON string or path to JSON file to merge with tauri.conf.json
+  /// JSON strings or path to JSON files to merge with the default configuration file
+  ///
+  /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
+  ///
+  /// Note that a platform-specific file is looked up and merged with the default file by default
+  /// (tauri.macos.conf.json, tauri.linux.conf.json, tauri.windows.conf.json, tauri.android.conf.json and tauri.ios.conf.json)
+  /// but you can use this for more specific use cases such as different build flavors.
   #[clap(short, long)]
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   /// Whether to split the APKs and AABs per ABIs.
   #[clap(long)]
   pub split_per_abi: bool,
@@ -105,7 +111,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
-    options.config.as_ref().map(|c| &c.0),
+    &options
+      .config
+      .iter()
+      .map(|conf| &conf.0)
+      .collect::<Vec<_>>(),
   )?;
   let (interface, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

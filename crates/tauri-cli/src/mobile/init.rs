@@ -43,7 +43,7 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<App> {
-  let tauri_config = get_tauri_config(target.platform_target(), None)?;
+  let tauri_config = get_tauri_config(target.platform_target(), &[])?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();

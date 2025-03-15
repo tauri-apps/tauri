@@ -36,7 +36,8 @@
     "./package.json": "./package.json"
   },
   "scripts": {
-    "build": "rollup -c --configPlugin typescript",
+    "build": "rollup -c --configPlugin typescript --plugin terser",
+    "build:debug": "rollup -c --configPlugin typescript",
     "npm-pack": "pnpm build && cd ./dist && npm pack",
     "npm-publish": "pnpm build && cd ./dist && pnpm publish --access public --loglevel silly --no-git-checks",
     "ts:check": "tsc --noEmit",
@@ -50,11 +51,11 @@
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.13.5",
     "eslint": "^9.21.0",
-    "eslint-config-prettier": "10.0.2",
+    "eslint-config-prettier": "10.1.1",
     "eslint-plugin-security": "3.0.1",
     "fast-glob": "3.3.3",
     "globals": "^16.0.0",
-    "rollup": "4.34.8",
+    "rollup": "4.35.0",
     "tslib": "^2.8.1",
     "typescript-eslint": "^8.25.0"
   }

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// The default permission set of the plugin.
 ///
 /// Works similarly to a permission with the "default" identifier.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct DefaultPermission {
   /// The version of the permission.
@@ -30,7 +30,7 @@ pub struct DefaultPermission {
 }
 
 /// Permission file that can define a default permission, a set of permissions or a list of inlined permissions.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PermissionFile {
   /// The default permission set for the plugin

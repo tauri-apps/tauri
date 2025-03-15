@@ -60,8 +60,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command and event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -117,8 +117,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -2010,6 +2010,13 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Note that cookies will only be returned for URLs with an http or https scheme.
   /// Cookies set through javascript for local files
   /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
     self.webview.cookies_for_url(url)
   }
@@ -2020,9 +2027,16 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Cookies set through javascript for local files
   /// (such as those served from the tauri://) protocol are not currently supported.
   ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
   /// ## Platform-specific
   ///
   /// - **Android**: Unsupported, always returns an empty [`Vec`].
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
     self.webview.cookies()
   }

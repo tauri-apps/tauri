@@ -140,8 +140,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -217,8 +217,8 @@ async fn create_window(app: tauri::AppHandle) {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///

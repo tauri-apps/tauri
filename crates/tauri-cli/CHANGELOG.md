@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.1]
+
+### Bug Fixes
+
+- [`22e9bf74a`](https://www.github.com/tauri-apps/tauri/commit/22e9bf74a4684c827279a85bb66548e83c1ea5cf) ([#12538](https://www.github.com/tauri-apps/tauri/pull/12538) by [@DeTeam](https://www.github.com/tauri-apps/tauri/../../DeTeam)) Set initialViewController for LaunchScreen (iOS).
+
 ## \[2.3.0]
 
 ### Enhancements

@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.3.0"
+version = "2.3.1"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -62,7 +62,7 @@ tauri-macros = { version = "2.0.5", path = "../tauri-macros" }
 tauri-utils = { version = "2.2.0", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.4.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.4.1", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 http = "1"
@@ -95,7 +95,7 @@ tray-icon = { version = "0.20", default-features = false, features = [
 # linux
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_40"], optional = true }
 
 # macOS
 [target.'cfg(target_os = "macos")'.dependencies]
@@ -120,9 +120,13 @@ window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = "0.36"
+webview2-com = { version = "0.36", optional = true }
 window-vibrancy = "0.6"
-windows = { version = "0.60", features = ["Win32_Foundation"] }
+windows = { version = "0.60", features = [
+  "Win32_Foundation",
+  "Win32_UI",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
 # mobile
 [target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
@@ -130,7 +134,7 @@ bytes = { version = "1", features = ["serde"] }
 reqwest = { version = "0.12", default-features = false, features = [
   "json",
   "stream",
-  "rustls-tls",
+
 ] }
 
 # android
@@ -158,7 +162,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tauri = { path = ".", default-features = false, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
-cargo_toml = "0.21"
+cargo_toml = "0.22"
 http-range = "0.1.5"
 
 # macOS
@@ -180,7 +184,7 @@ tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["tauri-runtime-wry"]
+wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
@@ -190,7 +194,7 @@ custom-protocol = ["tauri-macros/custom-protocol"]
 # For now those feature flags keep enabling reqwest features in case some users depend on that by accident.
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
-rustls-tls = []
+rustls-tls = ["reqwest/rustls-tls"]
 devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
@@ -226,8 +230,8 @@ name = "multiwindow"
 path = "../../examples/multiwindow/main.rs"
 
 [[example]]
-name = "run-iteration"
-path = "../../examples/run-iteration/main.rs"
+name = "run-return"
+path = "../../examples/run-return/main.rs"
 
 [[example]]
 name = "splashscreen"

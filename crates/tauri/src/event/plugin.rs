@@ -77,6 +77,9 @@ async fn emit_to<R: Runtime>(
 /// Initializes the event plugin.
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("event")
-    .invoke_handler(crate::generate_handler![listen, unlisten, emit, emit_to])
+    .invoke_handler(crate::generate_handler![
+      #![plugin(event)]
+      listen, unlisten, emit, emit_to
+    ])
     .build()
 }

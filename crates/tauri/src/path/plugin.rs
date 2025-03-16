@@ -221,6 +221,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
 
   Builder::new("path")
     .invoke_handler(crate::generate_handler![
+      #![plugin(path)]
       resolve_directory,
       resolve,
       normalize,

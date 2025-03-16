@@ -43,7 +43,11 @@ pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenSt
 
 /// Accepts a list of command functions. Creates a handler that allows commands to be called from JS with invoke().
 ///
+/// You can optionally annotate the commands with a inner attribute tag `#![plugin(your_plugin_name)]`
+/// for `build > removeUnusedCommands` to work for plugins not defined in a standalone crate like `tauri-plugin-fs`
+///
 /// # Examples
+///
 /// ```rust,ignore
 /// use tauri_macros::{command, generate_handler};
 /// #[command]
@@ -58,7 +62,9 @@ pub fn mobile_entry_point(attributes: TokenStream, item: TokenStream) -> TokenSt
 ///   let _handler = generate_handler![command_one, command_two];
 /// }
 /// ```
+///
 /// # Stability
+///
 /// The output of this macro is managed internally by Tauri,
 /// and should not be accessed directly on normal applications.
 /// It may have breaking changes in the future.

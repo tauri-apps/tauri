@@ -81,6 +81,7 @@ fn size<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<Size>
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("image")
     .invoke_handler(crate::generate_handler![
+      #![plugin(image)]
       new, from_bytes, from_path, rgba, size
     ])
     .build()

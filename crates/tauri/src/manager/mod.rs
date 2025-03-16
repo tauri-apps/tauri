@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
 };
 
 use serde::Serialize;
@@ -221,6 +221,10 @@ pub struct AppManager<R: Runtime> {
   pub(crate) invoke_key: String,
 
   pub(crate) channel_interceptor: Option<ChannelInterceptor<R>>,
+
+  /// Sets to true in [`AppHandle::request_restart`] and [`AppHandle::restart`]
+  /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
+  pub(crate) restart_on_exit: AtomicBool,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -322,6 +326,7 @@ impl<R: Runtime> AppManager<R> {
       resources_table: Arc::default(),
       invoke_key,
       channel_interceptor,
+      restart_on_exit: AtomicBool::new(false),
     }
   }
 
@@ -397,8 +402,8 @@ impl<R: Runtime> AppManager<R> {
       // if the url is `tauri://localhost`, we should load `index.html`
       "index.html".to_string()
     } else {
-      // skip leading `/`
-      path.chars().skip(1).collect::<String>()
+      // skip the leading `/`, if it starts with one.
+      path.strip_prefix('/').unwrap_or(path.as_str()).to_string()
     };
 
     let mut asset_path = AssetKey::from(path.as_str());
@@ -596,60 +601,51 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
   )]
-  pub(crate) fn emit_to<I, S>(
+  pub(crate) fn emit_to<S>(
     &self,
-    target: I,
+    target: EventTarget,
     event: EventName<&str>,
     payload: EmitPayload<'_, S>,
   ) -> crate::Result<()>
   where
-    I: Into<EventTarget>,
     S: Serialize,
   {
-    let target = target.into();
     #[cfg(feature = "tracing")]
     tracing::Span::current().record("target", format!("{target:?}"));
+
+    fn filter_target(target: &EventTarget, candidate: &EventTarget) -> bool {
+      match target {
+        // if targeting any label, filter matching labels
+        EventTarget::AnyLabel { label } => match candidate {
+          EventTarget::Window { label: l }
+          | EventTarget::Webview { label: l }
+          | EventTarget::WebviewWindow { label: l }
+          | EventTarget::AnyLabel { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::Window { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::Window { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::Webview { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::Webview { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::WebviewWindow { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::WebviewWindow { label: l } => {
+            l == label
+          }
+          _ => false,
+        },
+        // otherwise match same target
+        _ => target == candidate,
+      }
+    }
 
     match target {
       // if targeting all, emit to all using emit without filter
       EventTarget::Any => self.emit(event, payload),
-
-      // if targeting any label, emit using emit_filter and filter labels
-      EventTarget::AnyLabel {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::Window { label }
-        | EventTarget::Webview { label }
-        | EventTarget::WebviewWindow { label }
-        | EventTarget::AnyLabel { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::Window {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::Window { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::Webview {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::Webview { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::WebviewWindow {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::WebviewWindow { label } => {
-          label == &target_label
-        }
-        _ => false,
-      }),
-
-      // otherwise match same target
-      _ => self.emit_filter(event, payload, |t| t == &target),
+      target => self.emit_filter(event, payload, |t| filter_target(&target, t)),
     }
   }
 

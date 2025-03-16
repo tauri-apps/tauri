@@ -81,7 +81,7 @@ impl PackageManager {
             PackageManager::Yarn
           };
           found.push(yarn);
-        } else if name.as_ref() == "bun.lockb" {
+        } else if name.as_ref() == "bun.lock" {
           found.push(PackageManager::Bun);
         } else if name.as_ref() == "deno.lock" {
           found.push(PackageManager::Deno);

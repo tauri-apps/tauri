@@ -546,6 +546,7 @@ impl<R: Runtime> AppHandle<R> {
     if self.event_loop.lock().unwrap().main_thread_id == std::thread::current().id() {
       log::debug!("restart triggered on the main thread");
       self.cleanup_before_exit();
+      crate::process::restart(&self.env());
     } else {
       log::debug!("restart triggered from a separate thread");
       // we're running on a separate thread, so we must trigger the exit request and wait for it to finish
@@ -561,10 +562,10 @@ impl<R: Runtime> AppHandle<R> {
         Err(e) => {
           log::error!("failed to request exit: {e}");
           self.cleanup_before_exit();
+          crate::process::restart(&self.env());
         }
       }
     }
-    crate::process::restart(&self.env());
   }
 
   /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`].

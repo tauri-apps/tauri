@@ -44,6 +44,7 @@ use std::{
   fmt,
   sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
   thread::ThreadId,
+  time::Duration,
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -545,14 +546,13 @@ impl<R: Runtime> AppHandle<R> {
     if self.event_loop.lock().unwrap().main_thread_id == std::thread::current().id() {
       log::debug!("restart triggered on the main thread");
       self.cleanup_before_exit();
-      self.manager.notify_event_loop_exit();
     } else {
       log::debug!("restart triggered from a separate thread");
       // we're running on a separate thread, so we must trigger the exit request and wait for it to finish
       match self.runtime_handle.request_exit(RESTART_EXIT_CODE) {
-        Ok(()) => {
-          let _impede = self.manager.wait_for_event_loop_exit();
-        }
+        Ok(()) => loop {
+          std::thread::sleep(Duration::MAX);
+        },
         Err(e) => {
           log::error!("failed to request exit: {e}");
           self.cleanup_before_exit();
@@ -1187,7 +1187,6 @@ impl<R: Runtime> App<R> {
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
-        manager.notify_event_loop_exit();
       }
       _ => {
         let event = on_event_loop_event(&app_handle, event, &manager);

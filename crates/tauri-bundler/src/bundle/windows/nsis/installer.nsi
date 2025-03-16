@@ -840,7 +840,6 @@ Section Uninstall
   ; if it exists. If it doesn't exist, it does nothing.
   DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
 
-
   ; Delete app data if the checkbox is selected
   ; and if not updating
   ${If} $DeleteAppDataCheckboxState = 1

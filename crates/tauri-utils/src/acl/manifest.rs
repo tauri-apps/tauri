@@ -23,6 +23,7 @@ pub struct DefaultPermission {
   /// Human-readable description of what the permission does.
   /// Tauri convention is to use `<h4>` headings in markdown content
   /// for Tauri documentation generation purposes.
+  // #[cfg(feature = "schema")]
   pub description: Option<String>,
 
   /// All permissions this set contains.
@@ -55,6 +56,7 @@ pub struct Manifest {
   /// Plugin permission sets.
   pub permission_sets: BTreeMap<String, PermissionSet>,
   /// The global scope schema.
+  // #[cfg(feature = "schema")]
   pub global_scope_schema: Option<serde_json::Value>,
 }
 
@@ -141,6 +143,7 @@ mod build {
         let v = v.get();
         quote!(::core::num::NonZeroU64::new(#v).unwrap())
       }));
+      // Only used in schema generation, so don't include them in runtime
       // let description = opt_str_lit(self.description.as_ref());
       let description = quote! { ::core::option::Option::None };
       let permissions = vec_lit(&self.permissions, str_lit);
@@ -172,8 +175,10 @@ mod build {
         identity,
       );
 
-      let global_scope_schema =
-        opt_lit_owned(self.global_scope_schema.as_ref().map(json_value_lit));
+      // Only used in schema generation, so don't include them in runtime
+      // let global_scope_schema =
+      //   opt_lit_owned(self.global_scope_schema.as_ref().map(json_value_lit));
+      let global_scope_schema = quote! { ::core::option::Option::None };
 
       literal_struct!(
         tokens,

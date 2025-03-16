@@ -232,6 +232,7 @@ pub struct Permission {
   /// Human-readable description of what the permission does.
   /// Tauri internal convention is to use `<h4>` headings in markdown content
   /// for Tauri documentation generation purposes.
+  // #[cfg(feature = "schema")]
   #[serde(skip_serializing_if = "Option::is_none")]
   pub description: Option<String>,
 
@@ -267,6 +268,7 @@ pub struct PermissionSet {
   pub identifier: String,
 
   /// Human-readable description of what the permission does.
+  // #[cfg(feature = "schema")]
   pub description: String,
 
   /// All permissions this set contains.
@@ -519,6 +521,7 @@ mod build_ {
         quote!(::core::num::NonZeroU64::new(#v).unwrap())
       }));
       let identifier = str_lit(&self.identifier);
+      // Only used in schema generation, so don't include them in runtime
       // let description = opt_str_lit(self.description.as_ref());
       let description = quote! { ::core::option::Option::None };
       let commands = &self.commands;
@@ -541,6 +544,7 @@ mod build_ {
   impl ToTokens for PermissionSet {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
+      // Only used in schema generation, so don't include them in runtime
       // let description = str_lit(&self.description);
       let description = quote! { "".to_string() };
       let permissions = vec_lit(&self.permissions, str_lit);

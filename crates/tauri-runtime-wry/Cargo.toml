@@ -17,7 +17,7 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.50.3", default-features = false, features = [
+wry = { version = "0.50.4", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",

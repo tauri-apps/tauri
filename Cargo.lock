@@ -1121,9 +1121,9 @@ dependencies = [
 
 [[package]]
 name = "cargo_toml"
-version = "0.21.0"
+version = "0.22.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fbd1fe9db3ebf71b89060adaf7b0504c2d6a425cf061313099547e382c2e472"
+checksum = "02260d489095346e5cafd04dea8e8cb54d1d74fcd759022a9b72986ebe9a1257"
 dependencies = [
  "serde",
  "toml 0.8.19",
@@ -8773,6 +8773,7 @@ dependencies = [
 name = "tauri-runtime"
 version = "2.4.0"
 dependencies = [
+ "cookie",
  "dpi",
  "gtk",
  "http 1.2.0",
@@ -8908,6 +8909,7 @@ name = "tauri-utils"
 version = "2.2.0"
 dependencies = [
  "aes-gcm",
+ "anyhow",
  "brotli",
  "cargo_metadata",
  "ctor",
@@ -10854,9 +10856,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.50.3"
+version = "0.50.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2ec139df5102db821f92a42033c3fa0467c5ab434511e79c65881d6bdf2b369"
+checksum = "804a7d1613bd699beccaa60f3b3c679acee21cebba1945a693f5eab95c08d1fa"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

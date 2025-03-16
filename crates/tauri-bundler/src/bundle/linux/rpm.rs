@@ -186,10 +186,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       FileOptions::new(resource_dir.to_string_lossy()).mode(FileMode::Dir { permissions: 0o755 }),
     )?;
     // Then add the resources files in that directory
-    for src in settings.resource_files() {
-      let src = src?;
-      let dest = resource_dir.join(tauri_utils::resources::resource_relpath(&src));
-      builder = builder.with_file(&src, FileOptions::new(dest.to_string_lossy()))?;
+    for resource in settings.resource_files().iter() {
+      let resource = resource?;
+      let dest = resource_dir.join(resource.target());
+      builder = builder.with_file(resource.path(), FileOptions::new(dest.to_string_lossy()))?;
     }
   }
 

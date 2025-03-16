@@ -225,6 +225,13 @@ pub struct AppManager<R: Runtime> {
   /// Sets to true in `request_restart`
   /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
   pub(crate) restart_on_exit: AtomicBool,
+
+  // the value is set to true when the event loop is already exited
+  event_loop_exit_mutex: Mutex<bool>,
+  event_loop_exit_condvar: std::sync::Condvar,
+  // number of threads that request to NOT exit process
+  impede_exit_count: Mutex<usize>,
+  impede_exit_condvar: std::sync::Condvar,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -324,6 +331,10 @@ impl<R: Runtime> AppManager<R> {
       pattern: Arc::new(context.pattern),
       plugin_global_api_scripts: Arc::new(context.plugin_global_api_scripts),
       resources_table: Arc::default(),
+      event_loop_exit_mutex: Mutex::new(false),
+      event_loop_exit_condvar: std::sync::Condvar::new(),
+      impede_exit_count: Mutex::new(0),
+      impede_exit_condvar: std::sync::Condvar::new(),
       invoke_key,
       channel_interceptor,
       restart_on_exit: AtomicBool::new(false),
@@ -402,8 +413,8 @@ impl<R: Runtime> AppManager<R> {
       // if the url is `tauri://localhost`, we should load `index.html`
       "index.html".to_string()
     } else {
-      // skip leading `/`
-      path.chars().skip(1).collect::<String>()
+      // skip the leading `/`, if it starts with one.
+      path.strip_prefix('/').unwrap_or(path.as_str()).to_string()
     };
 
     let mut asset_path = AssetKey::from(path.as_str());
@@ -601,60 +612,51 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
   )]
-  pub(crate) fn emit_to<I, S>(
+  pub(crate) fn emit_to<S>(
     &self,
-    target: I,
+    target: EventTarget,
     event: EventName<&str>,
     payload: EmitPayload<'_, S>,
   ) -> crate::Result<()>
   where
-    I: Into<EventTarget>,
     S: Serialize,
   {
-    let target = target.into();
     #[cfg(feature = "tracing")]
     tracing::Span::current().record("target", format!("{target:?}"));
+
+    fn filter_target(target: &EventTarget, candidate: &EventTarget) -> bool {
+      match target {
+        // if targeting any label, filter matching labels
+        EventTarget::AnyLabel { label } => match candidate {
+          EventTarget::Window { label: l }
+          | EventTarget::Webview { label: l }
+          | EventTarget::WebviewWindow { label: l }
+          | EventTarget::AnyLabel { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::Window { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::Window { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::Webview { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::Webview { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::WebviewWindow { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::WebviewWindow { label: l } => {
+            l == label
+          }
+          _ => false,
+        },
+        // otherwise match same target
+        _ => target == candidate,
+      }
+    }
 
     match target {
       // if targeting all, emit to all using emit without filter
       EventTarget::Any => self.emit(event, payload),
-
-      // if targeting any label, emit using emit_filter and filter labels
-      EventTarget::AnyLabel {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::Window { label }
-        | EventTarget::Webview { label }
-        | EventTarget::WebviewWindow { label }
-        | EventTarget::AnyLabel { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::Window {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::Window { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::Webview {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::Webview { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::WebviewWindow {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::WebviewWindow { label } => {
-          label == &target_label
-        }
-        _ => false,
-      }),
-
-      // otherwise match same target
-      _ => self.emit_filter(event, payload, |t| t == &target),
+      target => self.emit_filter(event, payload, |t| filter_target(&target, t)),
     }
   }
 
@@ -706,6 +708,55 @@ impl<R: Runtime> AppManager<R> {
 
   pub(crate) fn invoke_key(&self) -> &str {
     &self.invoke_key
+  }
+
+  pub(crate) fn notify_event_loop_exit(&self) {
+    let mut exit = self.event_loop_exit_mutex.lock().unwrap();
+    *exit = true;
+    self.event_loop_exit_condvar.notify_all();
+    drop(exit);
+
+    self.wait_impede();
+  }
+
+  pub(crate) fn wait_for_event_loop_exit(self: &Arc<Self>) -> ImpedeScope<R> {
+    let impede = self.impede_quit();
+    let mut exit = self.event_loop_exit_mutex.lock().unwrap();
+    while !*exit {
+      exit = self.event_loop_exit_condvar.wait(exit).unwrap();
+    }
+    impede
+  }
+
+  /// When the main loop exits, most runtime would exit the process, so we need to impede the exit
+  /// if we're going to restart the application.
+  fn impede_quit(self: &Arc<Self>) -> ImpedeScope<R> {
+    let mut pend_exit_threads = self.impede_exit_count.lock().unwrap();
+    *pend_exit_threads += 1;
+    ImpedeScope {
+      app_manager: self.clone(),
+    }
+  }
+
+  fn wait_impede(&self) {
+    let mut pend_exit_threads = self.impede_exit_count.lock().unwrap();
+    while *pend_exit_threads > 0 {
+      pend_exit_threads = self.impede_exit_condvar.wait(pend_exit_threads).unwrap();
+    }
+  }
+}
+
+pub struct ImpedeScope<R: Runtime> {
+  app_manager: Arc<AppManager<R>>,
+}
+
+impl<R: Runtime> Drop for ImpedeScope<R> {
+  fn drop(&mut self) {
+    let mut pend_exit_threads = self.app_manager.impede_exit_count.lock().unwrap();
+    *pend_exit_threads -= 1;
+    if *pend_exit_threads == 0 {
+      self.app_manager.impede_exit_condvar.notify_all();
+    }
   }
 }
 

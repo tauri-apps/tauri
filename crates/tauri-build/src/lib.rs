@@ -456,12 +456,6 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
-  #[cfg(feature = "config-json")]
-  println!("cargo:rerun-if-changed=tauri.conf.json");
-  #[cfg(feature = "config-json5")]
-  println!("cargo:rerun-if-changed=tauri.conf.json5");
-  #[cfg(feature = "config-toml")]
-  println!("cargo:rerun-if-changed=Tauri.toml");
 
   let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
@@ -471,12 +465,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let (config, merged_config_path) =
-    tauri_utils::config::parse::read_from(target, env::current_dir().unwrap())?;
-  if let Some(merged_config_path) = merged_config_path {
-    println!("cargo:rerun-if-changed={}", merged_config_path.display());
+  let (mut config, config_paths) =
+    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+  for config_file_path in config_paths {
+    println!("cargo:rerun-if-changed={}", config_file_path.display());
   }
-  let mut config = serde_json::from_value(config)?;
   if let Ok(env) = env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value = serde_json::from_str(&env)?;
     json_patch::merge(&mut config, &merge_config);
@@ -622,6 +615,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if let Some(product_name) = &config.product_name {
       res.set("ProductName", product_name);
     }
+
+    let company_name = config.bundle.publisher.unwrap_or_else(|| {
+      config
+        .identifier
+        .split('.')
+        .nth(1)
+        .unwrap_or(&config.identifier)
+        .to_string()
+    });
+
+    res.set("CompanyName", &company_name);
 
     let file_description = config
       .product_name

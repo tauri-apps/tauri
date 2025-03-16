@@ -21,12 +21,24 @@
 //! [ignore unknown fields when destructuring]: https://doc.rust-lang.org/book/ch18-03-pattern-syntax.html#ignoring-remaining-parts-of-a-value-with-
 //! [Struct Update Syntax]: https://doc.rust-lang.org/book/ch05-01-defining-structs.html#creating-instances-from-other-instances-with-struct-update-syntax
 
+use anyhow::Context;
+use capability::{Capability, CapabilityFile};
 use serde::{Deserialize, Serialize};
-use std::{num::NonZeroU64, path::PathBuf, str::FromStr, sync::Arc};
+use std::{
+  collections::{BTreeMap, HashSet},
+  fs,
+  num::NonZeroU64,
+  path::{Path, PathBuf},
+  str::FromStr,
+  sync::Arc,
+};
 use thiserror::Error;
 use url::Url;
 
-use crate::platform::Target;
+use crate::{
+  config::{CapabilityEntry, Config},
+  platform::Target,
+};
 
 pub use self::{identifier::*, value::*};
 
@@ -40,6 +52,11 @@ pub const APP_ACL_KEY: &str = "__app-acl__";
 pub const ACL_MANIFESTS_FILE_NAME: &str = "acl-manifests.json";
 /// Known capabilityies file
 pub const CAPABILITIES_FILE_NAME: &str = "capabilities.json";
+/// Allowed commands file name
+pub const ALLOWED_COMMANDS_FILE_NAME: &str = "allowed-commands.json";
+/// Set by the CLI with when `build > removeUnusedCommands` is set for dead code elimination,
+/// the value is set to the config's directory
+pub const REMOVE_UNUSED_COMMANDS_ENV_VAR: &str = "REMOVE_UNUSED_COMMANDS";
 
 #[cfg(feature = "build")]
 pub mod build;
@@ -155,7 +172,7 @@ pub enum Error {
 /// Allowed and denied commands inside a permission.
 ///
 /// If two commands clash inside of `allow` and `deny`, it should be denied by default.
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Commands {
   /// Allowed command.
@@ -202,7 +219,7 @@ impl Scopes {
 /// It can enable commands to be accessible in the frontend of the application.
 ///
 /// If the scope is defined it can be used to fine grain control the access of individual or multiple commands.
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct Permission {
   /// The version of the permission.
@@ -243,7 +260,7 @@ impl Permission {
 }
 
 /// A set of direct permissions grouped together under a new name.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 pub struct PermissionSet {
   /// A unique identifier for the permission.
@@ -325,6 +342,92 @@ pub enum ExecutionContext {
     /// The URL trying to access the IPC (URL pattern).
     url: RemoteUrlPattern,
   },
+}
+
+/// Test if the app has an application manifest from the ACL
+pub fn has_app_manifest(acl: &BTreeMap<String, crate::acl::manifest::Manifest>) -> bool {
+  acl.contains_key(APP_ACL_KEY)
+}
+
+/// Get the capabilities from the config file
+pub fn get_capabilities(
+  config: &Config,
+  pre_built_capabilities_file_path: Option<&Path>,
+  additional_capability_files: Option<&[PathBuf]>,
+) -> anyhow::Result<BTreeMap<String, Capability>> {
+  let mut capabilities_from_files: BTreeMap<String, Capability> = BTreeMap::new();
+  if let Some(capabilities_file_path) = pre_built_capabilities_file_path {
+    if capabilities_file_path.exists() {
+      let capabilities_file =
+        std::fs::read_to_string(capabilities_file_path).context("failed to read capabilities")?;
+      capabilities_from_files =
+        serde_json::from_str(&capabilities_file).context("failed to parse capabilities")?;
+    }
+  }
+
+  let mut capabilities = if config.app.security.capabilities.is_empty() {
+    capabilities_from_files
+  } else {
+    let mut capabilities = BTreeMap::new();
+    for capability_entry in &config.app.security.capabilities {
+      match capability_entry {
+        CapabilityEntry::Inlined(capability) => {
+          capabilities.insert(capability.identifier.clone(), capability.clone());
+        }
+        CapabilityEntry::Reference(id) => {
+          let capability = capabilities_from_files
+            .remove(id)
+            .with_context(|| format!("capability with identifier {id} not found"))?;
+          capabilities.insert(id.clone(), capability);
+        }
+      }
+    }
+    capabilities
+  };
+
+  if let Some(paths) = additional_capability_files {
+    for path in paths {
+      let capability = CapabilityFile::load(path)
+        .with_context(|| format!("failed to read capability {}", path.display()))?;
+      match capability {
+        CapabilityFile::Capability(c) => {
+          capabilities.insert(c.identifier.clone(), c);
+        }
+        CapabilityFile::List(capabilities_list)
+        | CapabilityFile::NamedList {
+          capabilities: capabilities_list,
+        } => {
+          capabilities.extend(
+            capabilities_list
+              .into_iter()
+              .map(|c| (c.identifier.clone(), c)),
+          );
+        }
+      }
+    }
+  }
+
+  Ok(capabilities)
+}
+
+/// Allowed commands used to communicate between `generate_handle` and `generate_allowed_commands` through json files
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct AllowedCommands {
+  /// The commands allowed
+  pub commands: HashSet<String>,
+  /// Has application ACL or not
+  pub has_app_acl: bool,
+}
+
+/// Try to reads allowed commands from the out dir made by our build script
+pub fn read_allowed_commands() -> Option<AllowedCommands> {
+  let out_file = std::env::var("OUT_DIR")
+    .map(PathBuf::from)
+    .ok()?
+    .join(ALLOWED_COMMANDS_FILE_NAME);
+  let file = fs::read_to_string(&out_file).ok()?;
+  let json = serde_json::from_str(&file).ok()?;
+  Some(json)
 }
 
 #[cfg(test)]

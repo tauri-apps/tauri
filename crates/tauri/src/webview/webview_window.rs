@@ -37,8 +37,7 @@ use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  webview::PageLoadPayload,
-  webview::WebviewBuilder,
+  webview::{Cookie, PageLoadPayload, WebviewBuilder},
   window::WindowBuilder,
   AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
@@ -61,8 +60,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command and event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -118,8 +117,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -706,6 +705,19 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Change the position of the window controls on macOS.
+  ///
+  /// Requires titleBarStyle: Overlay and decorations: true.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.webview_builder.webview_attributes = self
+      .webview_builder
+      .webview_attributes
+      .traffic_light_position(position.into());
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]
@@ -878,13 +890,13 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled
+  /// Whether page zooming by hotkeys and mousewheel should be enabled or not.
   ///
   /// ## Platform-specific:
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
-  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
-  ///   20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `Ctrl/Cmd + [- = +]` hotkeys or mousewheel events,
+  ///   20% in each step, ranging from 20% to 1000%. Requires `core:webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
   #[must_use]
@@ -1318,6 +1330,15 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Whether the window is enabled or disabled.
   pub fn is_enabled(&self) -> crate::Result<bool> {
     self.webview.window().is_enabled()
+  }
+
+  /// Determines if this window should always be on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_always_on_top(&self) -> crate::Result<bool> {
+    self.webview.window().is_always_on_top()
   }
 
   /// Gets the window's native maximize button state
@@ -2020,6 +2041,52 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Clear all browsing data for this webview window.
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self.webview.clear_all_browsing_data()
+  }
+
+  /// Returns all cookies in the runtime's cookie store including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.cookies_for_url(url)
+  }
+
+  /// Returns all cookies in the runtime's cookie store for all URLs including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unsupported, always returns an empty [`Vec`].
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.cookies()
   }
 }
 

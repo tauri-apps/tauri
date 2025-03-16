@@ -6,6 +6,25 @@ import { invoke } from './core'
 import { Image } from './image'
 import { Theme } from './window'
 
+export type DataStoreIdentifier = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+]
+
 /**
  * Application metadata and related APIs.
  *
@@ -102,6 +121,46 @@ async function hide(): Promise<void> {
 }
 
 /**
+ * Fetches the data store identifiers on macOS and iOS.
+ *
+ * See https://developer.apple.com/documentation/webkit/wkwebsitedatastore for more information.
+ *
+ * @example
+ * ```typescript
+ * import { fetchDataStoreIdentifiers } from '@tauri-apps/api/app';
+ * const ids = await fetchDataStoreIdentifiers();
+ * ```
+ *
+ * @since 2.4.0
+ */
+async function fetchDataStoreIdentifiers(): Promise<DataStoreIdentifier[]> {
+  return invoke('plugin:app|fetch_data_store_identifiers')
+}
+
+/**
+ * Removes the data store with the given identifier.
+ *
+ * Note that any webview using this data store should be closed before running this API.
+ *
+ * See https://developer.apple.com/documentation/webkit/wkwebsitedatastore for more information.
+ *
+ * @example
+ * ```typescript
+ * import { fetchDataStoreIdentifiers, removeDataStore } from '@tauri-apps/api/app';
+ * for (const id of (await fetchDataStoreIdentifiers())) {
+ *  await removeDataStore(id);
+ * }
+ * ```
+ *
+ * @since 2.4.0
+ */
+async function removeDataStore(
+  uuid: DataStoreIdentifier
+): Promise<DataStoreIdentifier[]> {
+  return invoke('plugin:app|remove_data_store', { uuid })
+}
+
+/**
  * Get the default window icon.
  *
  * @example
@@ -145,5 +204,7 @@ export {
   show,
   hide,
   defaultWindowIcon,
-  setTheme
+  setTheme,
+  fetchDataStoreIdentifiers,
+  removeDataStore
 }

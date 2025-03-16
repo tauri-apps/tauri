@@ -100,6 +100,7 @@ mod desktop_commands {
   getter!(available_monitors, Vec<Monitor>);
   getter!(cursor_position, PhysicalPosition<f64>);
   getter!(theme, Theme);
+  getter!(is_always_on_top, bool);
 
   setter!(center);
   setter!(request_user_attention, Option<UserAttentionType>);
@@ -241,96 +242,94 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
 
   Builder::new("window")
     .js_init_script(init_script)
-    .invoke_handler(|invoke| {
+    .invoke_handler(
       #[cfg(desktop)]
-      {
-        let handler: Box<dyn Fn(crate::ipc::Invoke<R>) -> bool> =
-          Box::new(crate::generate_handler![
-            desktop_commands::create,
-            // getters
-            desktop_commands::get_all_windows,
-            desktop_commands::scale_factor,
-            desktop_commands::inner_position,
-            desktop_commands::outer_position,
-            desktop_commands::inner_size,
-            desktop_commands::outer_size,
-            desktop_commands::is_fullscreen,
-            desktop_commands::is_minimized,
-            desktop_commands::is_maximized,
-            desktop_commands::is_focused,
-            desktop_commands::is_decorated,
-            desktop_commands::is_resizable,
-            desktop_commands::is_maximizable,
-            desktop_commands::is_minimizable,
-            desktop_commands::is_closable,
-            desktop_commands::is_visible,
-            desktop_commands::is_enabled,
-            desktop_commands::title,
-            desktop_commands::current_monitor,
-            desktop_commands::primary_monitor,
-            desktop_commands::monitor_from_point,
-            desktop_commands::available_monitors,
-            desktop_commands::cursor_position,
-            desktop_commands::theme,
-            // setters
-            desktop_commands::center,
-            desktop_commands::request_user_attention,
-            desktop_commands::set_resizable,
-            desktop_commands::set_maximizable,
-            desktop_commands::set_minimizable,
-            desktop_commands::set_closable,
-            desktop_commands::set_title,
-            desktop_commands::maximize,
-            desktop_commands::unmaximize,
-            desktop_commands::minimize,
-            desktop_commands::unminimize,
-            desktop_commands::show,
-            desktop_commands::hide,
-            desktop_commands::close,
-            desktop_commands::destroy,
-            desktop_commands::set_decorations,
-            desktop_commands::set_shadow,
-            desktop_commands::set_effects,
-            desktop_commands::set_always_on_top,
-            desktop_commands::set_always_on_bottom,
-            desktop_commands::set_content_protected,
-            desktop_commands::set_size,
-            desktop_commands::set_min_size,
-            desktop_commands::set_max_size,
-            desktop_commands::set_size_constraints,
-            desktop_commands::set_position,
-            desktop_commands::set_fullscreen,
-            desktop_commands::set_focus,
-            desktop_commands::set_enabled,
-            desktop_commands::set_skip_taskbar,
-            desktop_commands::set_cursor_grab,
-            desktop_commands::set_cursor_visible,
-            desktop_commands::set_cursor_icon,
-            desktop_commands::set_cursor_position,
-            desktop_commands::set_ignore_cursor_events,
-            desktop_commands::start_dragging,
-            desktop_commands::start_resize_dragging,
-            desktop_commands::set_badge_count,
-            #[cfg(target_os = "macos")]
-            desktop_commands::set_badge_label,
-            desktop_commands::set_progress_bar,
-            #[cfg(target_os = "windows")]
-            desktop_commands::set_overlay_icon,
-            desktop_commands::set_icon,
-            desktop_commands::set_visible_on_all_workspaces,
-            desktop_commands::set_background_color,
-            desktop_commands::set_title_bar_style,
-            desktop_commands::set_theme,
-            desktop_commands::toggle_maximize,
-            desktop_commands::internal_toggle_maximize,
-          ]);
-        handler(invoke)
-      }
+      crate::generate_handler![
+        #![plugin(window)]
+        desktop_commands::create,
+        // getters
+        desktop_commands::get_all_windows,
+        desktop_commands::scale_factor,
+        desktop_commands::inner_position,
+        desktop_commands::outer_position,
+        desktop_commands::inner_size,
+        desktop_commands::outer_size,
+        desktop_commands::is_fullscreen,
+        desktop_commands::is_minimized,
+        desktop_commands::is_maximized,
+        desktop_commands::is_focused,
+        desktop_commands::is_decorated,
+        desktop_commands::is_resizable,
+        desktop_commands::is_maximizable,
+        desktop_commands::is_minimizable,
+        desktop_commands::is_closable,
+        desktop_commands::is_visible,
+        desktop_commands::is_enabled,
+        desktop_commands::title,
+        desktop_commands::current_monitor,
+        desktop_commands::primary_monitor,
+        desktop_commands::monitor_from_point,
+        desktop_commands::available_monitors,
+        desktop_commands::cursor_position,
+        desktop_commands::theme,
+        desktop_commands::is_always_on_top,
+        // setters
+        desktop_commands::center,
+        desktop_commands::request_user_attention,
+        desktop_commands::set_resizable,
+        desktop_commands::set_maximizable,
+        desktop_commands::set_minimizable,
+        desktop_commands::set_closable,
+        desktop_commands::set_title,
+        desktop_commands::maximize,
+        desktop_commands::unmaximize,
+        desktop_commands::minimize,
+        desktop_commands::unminimize,
+        desktop_commands::show,
+        desktop_commands::hide,
+        desktop_commands::close,
+        desktop_commands::destroy,
+        desktop_commands::set_decorations,
+        desktop_commands::set_shadow,
+        desktop_commands::set_effects,
+        desktop_commands::set_always_on_top,
+        desktop_commands::set_always_on_bottom,
+        desktop_commands::set_content_protected,
+        desktop_commands::set_size,
+        desktop_commands::set_min_size,
+        desktop_commands::set_max_size,
+        desktop_commands::set_size_constraints,
+        desktop_commands::set_position,
+        desktop_commands::set_fullscreen,
+        desktop_commands::set_focus,
+        desktop_commands::set_enabled,
+        desktop_commands::set_skip_taskbar,
+        desktop_commands::set_cursor_grab,
+        desktop_commands::set_cursor_visible,
+        desktop_commands::set_cursor_icon,
+        desktop_commands::set_cursor_position,
+        desktop_commands::set_ignore_cursor_events,
+        desktop_commands::start_dragging,
+        desktop_commands::start_resize_dragging,
+        desktop_commands::set_badge_count,
+        #[cfg(target_os = "macos")]
+        desktop_commands::set_badge_label,
+        desktop_commands::set_progress_bar,
+        #[cfg(target_os = "windows")]
+        desktop_commands::set_overlay_icon,
+        desktop_commands::set_icon,
+        desktop_commands::set_visible_on_all_workspaces,
+        desktop_commands::set_background_color,
+        desktop_commands::set_title_bar_style,
+        desktop_commands::set_theme,
+        desktop_commands::toggle_maximize,
+        desktop_commands::internal_toggle_maximize,
+      ],
       #[cfg(mobile)]
-      {
+      |invoke| {
         invoke.resolver.reject("Window API not available on mobile");
         true
-      }
-    })
+      },
+    )
     .build()
 }

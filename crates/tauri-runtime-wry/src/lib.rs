@@ -23,9 +23,9 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
-  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
-  ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType,
-  UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
+  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
+  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
+  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -40,10 +40,10 @@ use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-use wry::WebViewBuilderExtDarwin;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 use tao::{
   dpi::{
@@ -788,6 +788,11 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(identifier) = &config.tabbing_identifier {
         window = window.tabbing_identifier(identifier);
       }
+      if let Some(position) = &config.traffic_light_position {
+        window = window.traffic_light_position(tauri_runtime::dpi::LogicalPosition::new(
+          position.x, position.y,
+        ));
+      }
     }
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
@@ -1070,6 +1075,12 @@ impl WindowBuilder for WindowBuilderWrapper {
   }
 
   #[cfg(target_os = "macos")]
+  fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.inner = self.inner.with_traffic_light_inset(position.into());
+    self
+  }
+
+  #[cfg(target_os = "macos")]
   fn hidden_title(mut self, hidden: bool) -> Self {
     self.inner = self.inner.with_title_hidden(hidden);
     self
@@ -1180,11 +1191,15 @@ unsafe impl Send for GtkBox {}
 pub struct SendRawWindowHandle(pub raw_window_handle::RawWindowHandle);
 unsafe impl Send for SendRawWindowHandle {}
 
-#[cfg(target_os = "macos")]
-#[derive(Debug, Clone)]
 pub enum ApplicationMessage {
+  #[cfg(target_os = "macos")]
   Show,
+  #[cfg(target_os = "macos")]
   Hide,
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  FetchDataStoreIdentifiers(Box<dyn FnOnce(Vec<[u8; 16]>) + Send + 'static>),
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  RemoveDataStore([u8; 16], Box<dyn FnOnce(Result<()>) + Send + 'static>),
 }
 
 pub enum WindowMessage {
@@ -1229,6 +1244,7 @@ pub enum WindowMessage {
   RawWindowHandle(Sender<std::result::Result<SendRawWindowHandle, raw_window_handle::HandleError>>),
   Theme(Sender<Theme>),
   IsEnabled(Sender<bool>),
+  IsAlwaysOnTop(Sender<bool>),
   // Setters
   Center,
   RequestUserAttention(Option<UserAttentionTypeWrapper>),
@@ -1271,6 +1287,7 @@ pub enum WindowMessage {
   SetOverlayIcon(Option<TaoIcon>),
   SetProgressBar(ProgressBarState),
   SetTitleBarStyle(tauri_utils::TitleBarStyle),
+  SetTrafficLightPosition(Position),
   SetTheme(Option<Theme>),
   SetBackgroundColor(Option<Color>),
   DragWindow,
@@ -1300,6 +1317,8 @@ pub enum WebviewMessage {
   EvaluateScript(String),
   #[cfg(all(feature = "tracing", not(target_os = "android")))]
   EvaluateScript(String, Sender<()>, tracing::Span),
+  CookiesForUrl(Url, Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
+  Cookies(Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   WebviewEvent(WebviewEvent),
   SynthesizedWindowEvent(SynthesizedWindowEvent),
   Navigate(Url),
@@ -1346,7 +1365,6 @@ pub enum Message<T: 'static> {
   #[cfg(target_os = "macos")]
   SetActivationPolicy(ActivationPolicy),
   RequestExit(i32),
-  #[cfg(target_os = "macos")]
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
   Webview(WindowId, WebviewId, WebviewMessage),
@@ -1560,6 +1578,25 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
     *current_window_id = window_id;
     Ok(())
+  }
+
+  fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>> {
+    let current_window_id = self.window_id.lock().unwrap();
+    let (tx, rx) = channel();
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *current_window_id,
+        self.webview_id,
+        WebviewMessage::CookiesForUrl(url, tx),
+      ),
+    )?;
+
+    rx.recv().unwrap()
+  }
+
+  fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+    webview_getter!(self, WebviewMessage::Cookies)?
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
@@ -1799,6 +1836,10 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
 
   fn is_enabled(&self) -> Result<bool> {
     window_getter!(self, WindowMessage::IsEnabled)
+  }
+
+  fn is_always_on_top(&self) -> Result<bool> {
+    window_getter!(self, WindowMessage::IsAlwaysOnTop)
   }
 
   #[cfg(any(
@@ -2186,6 +2227,16 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     )
   }
 
+  fn set_traffic_light_position(&self, position: Position) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(
+        self.window_id,
+        WindowMessage::SetTrafficLightPosition(position),
+      ),
+    )
+  }
+
   fn set_theme(&self, theme: Option<Theme>) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2501,6 +2552,29 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static,
   {
     dispatch(f)
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::FetchDataStoreIdentifiers(Box::new(cb))),
+    )
+  }
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Application(ApplicationMessage::RemoveDataStore(uuid, Box::new(cb))),
+    )
   }
 }
 
@@ -2918,13 +2992,28 @@ fn handle_user_message<T: UserEvent>(
       event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
     }
     Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
-    #[cfg(target_os = "macos")]
     Message::Application(application_message) => match application_message {
+      #[cfg(target_os = "macos")]
       ApplicationMessage::Show => {
         event_loop.show_application();
       }
+      #[cfg(target_os = "macos")]
       ApplicationMessage::Hide => {
         event_loop.hide_application();
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      ApplicationMessage::FetchDataStoreIdentifiers(cb) => {
+        if let Err(e) = WebView::fetch_data_store_identifiers(cb) {
+          // this shouldn't ever happen because we're running on the main thread
+          // but let's be safe and warn here
+          log::error!("failed to fetch data store identifiers: {e}");
+        }
+      }
+      #[cfg(any(target_os = "macos", target_os = "ios"))]
+      ApplicationMessage::RemoveDataStore(uuid, cb) => {
+        WebView::remove_data_store(&uuid, move |res| {
+          cb(res.map_err(|_| Error::FailedToRemoveDataStore))
+        })
       }
     },
     Message::Window(id, window_message) => {
@@ -3014,7 +3103,7 @@ fn handle_user_message<T: UserEvent>(
             tx.send(map_theme(&window.theme())).unwrap();
           }
           WindowMessage::IsEnabled(tx) => tx.send(window.is_enabled()).unwrap(),
-
+          WindowMessage::IsAlwaysOnTop(tx) => tx.send(window.is_always_on_top()).unwrap(),
           // Setters
           WindowMessage::Center => window.center(),
           WindowMessage::RequestUserAttention(request_type) => {
@@ -3201,6 +3290,10 @@ fn handle_user_message<T: UserEvent>(
                 eprintln!("unknown title bar style applied: {unknown}");
               }
             };
+          }
+          WindowMessage::SetTrafficLightPosition(_position) => {
+            #[cfg(target_os = "macos")]
+            window.set_traffic_light_inset(_position);
           }
           WindowMessage::SetTheme(theme) => {
             window.set_theme(match theme {
@@ -3434,6 +3527,19 @@ fn handle_user_message<T: UserEvent>(
             )
             .unwrap();
           }
+
+          WebviewMessage::Cookies(tx) => {
+            tx.send(webview.cookies().map_err(|_| Error::FailedToSendMessage))
+              .unwrap();
+          }
+
+          WebviewMessage::CookiesForUrl(url, tx) => {
+            let webview_cookies = webview
+              .cookies_for_url(url.as_str())
+              .map_err(|_| Error::FailedToSendMessage);
+            tx.send(webview_cookies).unwrap();
+          }
+
           WebviewMessage::Bounds(tx) => {
             tx.send(
               webview
@@ -4402,6 +4508,14 @@ fn create_webview<T: UserEvent>(
   {
     if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
       webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
+    }
+  }
+
+  #[cfg(target_os = "macos")]
+  {
+    use wry::WebViewBuilderExtDarwin;
+    if let Some(position) = &webview_attributes.traffic_light_position {
+      webview_builder = webview_builder.with_traffic_light_inset(*position);
     }
   }
 

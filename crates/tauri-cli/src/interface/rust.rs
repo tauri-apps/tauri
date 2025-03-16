@@ -51,7 +51,7 @@ pub struct Options {
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -101,7 +101,7 @@ pub struct MobileOptions {
   pub debug: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -207,14 +207,14 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let config = options.config.clone().map(|c| c.0);
+      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|rust: &mut Rust| {
         let on_exit = on_exit.clone();
         rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(&merge_configs, run)
     }
   }
 
@@ -236,9 +236,9 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let config = options.config.clone().map(|c| c.0);
+      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(&merge_configs, run)
     }
   }
 
@@ -487,7 +487,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: Option<serde_json::Value>,
+    merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {
     let child = run(self)?;
@@ -537,7 +537,7 @@ impl Rust {
           if let Some(event_path) = event.paths.first() {
             if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
               if is_configuration_file(self.app_settings.target, event_path) {
-                if let Ok(config) = reload_config(config.as_ref()) {
+                if let Ok(config) = reload_config(merge_configs) {
                   let (manifest, modified) =
                     rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
                   if modified {

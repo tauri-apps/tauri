@@ -42,7 +42,8 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{atomic, mpsc::Sender, Arc, MutexGuard},
+  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
+  thread::ThreadId,
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -72,7 +73,7 @@ pub type ChannelInterceptor<R> =
 pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ExitRequestApi {
   tx: Sender<ExitRequestedEventAction>,
   code: Option<i32>,
@@ -344,6 +345,12 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: Arc<AppManager<R>>,
+  event_loop: Arc<Mutex<EventLoop>>,
+}
+
+#[derive(Debug)]
+struct EventLoop {
+  main_thread_id: ThreadId,
 }
 
 /// APIs specific to the wry runtime.
@@ -375,11 +382,65 @@ impl AppHandle<crate::Wry> {
   }
 }
 
+#[cfg(target_vendor = "apple")]
+impl<R: Runtime> AppHandle<R> {
+  /// Fetches all Data Store Indentifiers by this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
+    use std::sync::Mutex;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
+    let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
+    let runtime_handle = self.runtime_handle.clone();
+
+    self.run_on_main_thread(move || {
+      let cloned_lock = lock.clone();
+      if let Err(err) = runtime_handle.fetch_data_store_identifiers(move |ids| {
+        if let Some(tx) = cloned_lock.lock().unwrap().take() {
+          let _ = tx.send(Ok(ids));
+        }
+      }) {
+        if let Some(tx) = lock.lock().unwrap().take() {
+          let _ = tx.send(Err(err));
+        }
+      }
+    })?;
+
+    rx.await?.map_err(Into::into)
+  }
+  /// Deletes a Data Store of this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+    use std::sync::Mutex;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
+    let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
+    let runtime_handle = self.runtime_handle.clone();
+
+    self.run_on_main_thread(move || {
+      let cloned_lock = lock.clone();
+      if let Err(err) = runtime_handle.remove_data_store(uuid, move |result| {
+        if let Some(tx) = cloned_lock.lock().unwrap().take() {
+          let _ = tx.send(result);
+        }
+      }) {
+        if let Some(tx) = lock.lock().unwrap().take() {
+          let _ = tx.send(Err(err));
+        }
+      }
+    })?;
+    rx.await?.map_err(Into::into)
+  }
+}
+
 impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      event_loop: self.event_loop.clone(),
     }
   }
 }
@@ -474,11 +535,29 @@ impl<R: Runtime> AppHandle<R> {
     }
   }
 
-  /// Restarts the app immediately without triggering [`RunEvent::ExitRequested`] and [`RunEvent::Exit`],
-  /// if you want to trigger them, use [`Self::request_restart`] instead
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
+  ///
+  /// When this function is called on the main thread, we cannot guarantee the delivery of those events,
+  /// so we skip them and directly restart the process.
+  ///
+  /// If you want to trigger them reliably, use [`Self::request_restart`] instead
   pub fn restart(&self) -> ! {
-    if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
+    if self.event_loop.lock().unwrap().main_thread_id == std::thread::current().id() {
+      log::debug!("restart triggered on the main thread");
       self.cleanup_before_exit();
+      self.manager.notify_event_loop_exit();
+    } else {
+      log::debug!("restart triggered from a separate thread");
+      // we're running on a separate thread, so we must trigger the exit request and wait for it to finish
+      match self.runtime_handle.request_exit(RESTART_EXIT_CODE) {
+        Ok(()) => {
+          let _impede = self.manager.wait_for_event_loop_exit();
+        }
+        Err(e) => {
+          log::error!("failed to request exit: {e}");
+          self.cleanup_before_exit();
+        }
+      }
     }
     crate::process::restart(&self.env());
   }
@@ -1090,6 +1169,9 @@ impl<R: Runtime> App<R> {
   pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();
+
+    app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
+
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
@@ -1105,6 +1187,7 @@ impl<R: Runtime> App<R> {
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
+        manager.notify_event_loop_exit();
       }
       _ => {
         let event = on_event_loop_event(&app_handle, event, &manager);
@@ -1145,6 +1228,8 @@ impl<R: Runtime> App<R> {
         panic!("Failed to setup app: {e}");
       }
     }
+
+    app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
       let event = on_event_loop_event(&app_handle, event, &manager);
@@ -1984,6 +2069,9 @@ tauri::Builder::default()
       handle: AppHandle {
         runtime_handle,
         manager,
+        event_loop: Arc::new(Mutex::new(EventLoop {
+          main_thread_id: std::thread::current().id(),
+        })),
       },
       ran_setup: false,
     };

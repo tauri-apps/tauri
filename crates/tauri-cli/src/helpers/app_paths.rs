@@ -39,6 +39,7 @@ pub fn walk_builder(path: &Path) -> WalkBuilder {
   let mut builder = WalkBuilder::new(path);
   builder.add_custom_ignore_filename(".taurignore");
   builder.git_global(false);
+  builder.parents(false);
   let _ = builder.add_ignore(default_gitignore);
   builder
 }
@@ -94,20 +95,36 @@ fn env_tauri_frontend_path() -> Option<PathBuf> {
 pub fn resolve_tauri_dir() -> Option<PathBuf> {
   let src_dir = env_tauri_app_path().or_else(|| current_dir().ok())?;
 
-  if src_dir.join(ConfigFormat::Json.into_file_name()).exists()
-    || src_dir.join(ConfigFormat::Json5.into_file_name()).exists()
-    || src_dir.join(ConfigFormat::Toml.into_file_name()).exists()
-  {
-    return Some(src_dir);
+  for standard_tauri_path in [src_dir.clone(), src_dir.join("src-tauri")] {
+    if standard_tauri_path
+      .join(ConfigFormat::Json.into_file_name())
+      .exists()
+      || standard_tauri_path
+        .join(ConfigFormat::Json5.into_file_name())
+        .exists()
+      || standard_tauri_path
+        .join(ConfigFormat::Toml.into_file_name())
+        .exists()
+    {
+      log::debug!(
+        "Found Tauri project inside {} on early lookup",
+        standard_tauri_path.display()
+      );
+      return Some(standard_tauri_path);
+    }
   }
+
+  log::debug!("resolving Tauri directory from {}", src_dir.display());
 
   lookup(&src_dir, |path| {
     folder_has_configuration_file(Target::Linux, path) || is_configuration_file(Target::Linux, path)
   })
   .map(|p| {
     if p.is_dir() {
+      log::debug!("Found Tauri project directory {}", p.display());
       p
     } else {
+      log::debug!("Found Tauri project configuration file {}", p.display());
       p.parent().unwrap().to_path_buf()
     }
   })
@@ -141,6 +158,11 @@ pub fn resolve_frontend_dir() -> Option<PathBuf> {
   if frontend_dir.join("package.json").exists() {
     return Some(frontend_dir);
   }
+
+  log::debug!(
+    "resolving frontend directory from {}",
+    frontend_dir.display()
+  );
 
   lookup(&frontend_dir, |path| {
     if let Some(file_name) = path.file_name() {

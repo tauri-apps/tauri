@@ -13,6 +13,7 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::PageLoadEvent;
+pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -246,8 +247,8 @@ impl<R: Runtime> WebviewBuilder<R> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating webviews.
   ///
   /// # Examples
   ///
@@ -322,8 +323,8 @@ async fn create_window(app: tauri::AppHandle) {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating webviews.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating webviews.
   ///
   /// # Examples
   ///
@@ -777,13 +778,13 @@ fn main() {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled
+  /// Whether page zooming by hotkeys and mousewheel should be enabled or not.
   ///
   /// ## Platform-specific:
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
-  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
-  ///   20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `Ctrl/Cmd + [- = +]` hotkeys or mousewheel events,
+  ///   20% in each step, ranging from 20% to 1000%. Requires `core:webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
   #[must_use]
@@ -1431,10 +1432,7 @@ fn main() {
     });
 
     // we only check ACL on plugin commands or if the app defined its ACL manifest
-    if (plugin_command.is_some() || has_app_acl_manifest)
-      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
-      && invoke.acl.is_none()
-    {
+    if (plugin_command.is_some() || has_app_acl_manifest) && invoke.acl.is_none() {
       #[cfg(debug_assertions)]
       {
         let (key, command_name) = plugin_command
@@ -1722,6 +1720,56 @@ tauri::Builder::default()
       .dispatcher
       .clear_all_browsing_data()
       .map_err(Into::into)
+  }
+
+  /// Returns all cookies in the runtime's cookie store including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
+    self
+      .webview
+      .dispatcher
+      .cookies_for_url(url)
+      .map_err(Into::into)
+  }
+
+  /// Returns all cookies in the runtime's cookie store for all URLs including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unsupported, always returns an empty [`Vec`].
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.dispatcher.cookies().map_err(Into::into)
   }
 }
 

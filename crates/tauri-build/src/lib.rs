@@ -419,6 +419,9 @@ pub fn is_dev() -> bool {
 
 /// Run all build time helpers for your Tauri Application.
 ///
+/// To provide extra configuration, such as [`AppManifest::commands`]
+/// for fine-grained control over command permissions, see [`try_build`].
+///
 /// # Platforms
 ///
 /// [`build()`] should be called inside of `build.rs` regardless of the platform.
@@ -446,7 +449,7 @@ pub fn build() {
   }
 }
 
-/// Non-panicking [`build()`].
+/// Like [`build()`], but takes an extra configuration argument, and does not panic.
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;

@@ -549,6 +549,11 @@ impl<R: Runtime> AppHandle<R> {
     } else {
       log::debug!("restart triggered from a separate thread");
       // we're running on a separate thread, so we must trigger the exit request and wait for it to finish
+      self
+        .manager
+        .restart_on_exit
+        .store(true, atomic::Ordering::Relaxed);
+      // We'll be restarting when we receive the next `RuntimeRunEvent::Exit` event in `App::run` if this call succeed
       match self.runtime_handle.request_exit(RESTART_EXIT_CODE) {
         Ok(()) => loop {
           std::thread::sleep(Duration::MAX);
@@ -568,6 +573,7 @@ impl<R: Runtime> AppHandle<R> {
       .manager
       .restart_on_exit
       .store(true, atomic::Ordering::Relaxed);
+    // We'll be restarting when we receive the next `RuntimeRunEvent::Exit` event in `App::run` if this call succeed
     if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
       self.cleanup_before_exit();
       crate::process::restart(&self.env());

@@ -143,7 +143,7 @@ mod build {
         let v = v.get();
         quote!(::core::num::NonZeroU64::new(#v).unwrap())
       }));
-      // Only used in schema generation, so don't include them in runtime
+      // Only used in build script and macros, so don't include them in runtime
       // let description = opt_str_lit(self.description.as_ref());
       let description = quote! { ::core::option::Option::None };
       let permissions = vec_lit(&self.permissions, str_lit);
@@ -175,7 +175,7 @@ mod build {
         identity,
       );
 
-      // Only used in schema generation, so don't include them in runtime
+      // Only used in build script and macros, so don't include them in runtime
       // let global_scope_schema =
       //   opt_lit_owned(self.global_scope_schema.as_ref().map(json_value_lit));
       let global_scope_schema = quote! { ::core::option::Option::None };

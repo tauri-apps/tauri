@@ -521,7 +521,7 @@ mod build_ {
         quote!(::core::num::NonZeroU64::new(#v).unwrap())
       }));
       let identifier = str_lit(&self.identifier);
-      // Only used in schema generation, so don't include them in runtime
+      // Only used in build script and macros, so don't include them in runtime
       // let description = opt_str_lit(self.description.as_ref());
       let description = quote! { ::core::option::Option::None };
       let commands = &self.commands;
@@ -544,7 +544,7 @@ mod build_ {
   impl ToTokens for PermissionSet {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let identifier = str_lit(&self.identifier);
-      // Only used in schema generation, so don't include them in runtime
+      // Only used in build script and macros, so don't include them in runtime
       // let description = str_lit(&self.description);
       let description = quote! { "".to_string() };
       let permissions = vec_lit(&self.permissions, str_lit);

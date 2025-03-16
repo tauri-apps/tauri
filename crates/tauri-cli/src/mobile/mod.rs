@@ -187,7 +187,7 @@ pub struct CliOptions {
   pub args: Vec<String>,
   pub noise_level: NoiseLevel,
   pub vars: HashMap<String, OsString>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub target_device: Option<TargetDevice>,
 }
 
@@ -199,7 +199,7 @@ impl Default for CliOptions {
       args: vec!["--lib".into()],
       noise_level: Default::default(),
       vars: Default::default(),
-      config: None,
+      config: Vec::new(),
       target_device: None,
     }
   }
@@ -292,26 +292,21 @@ fn use_network_address_for_dev_url(
         url.path()
       ))?;
 
-      if let Some(c) = &mut dev_options.config {
-        if let Some(build) = c
-          .0
-          .as_object_mut()
-          .and_then(|root| root.get_mut("build"))
-          .and_then(|build| build.as_object_mut())
-        {
-          build.insert("devUrl".into(), url.to_string().into());
-        }
-      } else {
-        let mut build = serde_json::Map::new();
-        build.insert("devUrl".into(), url.to_string().into());
+      dev_options
+        .config
+        .push(crate::ConfigValue(serde_json::json!({
+          "build": {
+            "devUrl": url
+          }
+        })));
 
-        dev_options
+      reload_config(
+        &dev_options
           .config
-          .replace(crate::ConfigValue(serde_json::json!({
-            "build": build
-          })));
-      }
-      reload_config(dev_options.config.as_ref().map(|c| &c.0))?;
+          .iter()
+          .map(|conf| &conf.0)
+          .collect::<Vec<_>>(),
+      )?;
 
       Some(ip)
     } else {

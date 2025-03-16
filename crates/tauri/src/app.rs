@@ -42,7 +42,9 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{mpsc::Sender, Arc, MutexGuard},
+  sync::{atomic, mpsc::Sender, Arc, Mutex, MutexGuard},
+  thread::ThreadId,
+  time::Duration,
 };
 
 use crate::{event::EventId, runtime::RuntimeHandle, Event, EventTarget};
@@ -72,15 +74,20 @@ pub type ChannelInterceptor<R> =
 pub const RESTART_EXIT_CODE: i32 = i32::MAX;
 
 /// Api exposed on the `ExitRequested` event.
-#[derive(Debug)]
-pub struct ExitRequestApi(Sender<ExitRequestedEventAction>);
+#[derive(Debug, Clone)]
+pub struct ExitRequestApi {
+  tx: Sender<ExitRequestedEventAction>,
+  code: Option<i32>,
+}
 
 impl ExitRequestApi {
   /// Prevents the app from exiting.
   ///
   /// **Note:** This is ignored when using [`AppHandle#method.restart`].
   pub fn prevent_exit(&self) {
-    self.0.send(ExitRequestedEventAction::Prevent).unwrap();
+    if self.code != Some(RESTART_EXIT_CODE) {
+      self.tx.send(ExitRequestedEventAction::Prevent).unwrap();
+    }
   }
 }
 
@@ -220,7 +227,7 @@ pub enum RunEvent {
   Resumed,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
-  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
+  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -339,6 +346,12 @@ impl<R: Runtime> AssetResolver<R> {
 pub struct AppHandle<R: Runtime> {
   pub(crate) runtime_handle: R::Handle,
   pub(crate) manager: Arc<AppManager<R>>,
+  event_loop: Arc<Mutex<EventLoop>>,
+}
+
+#[derive(Debug)]
+struct EventLoop {
+  main_thread_id: ThreadId,
 }
 
 /// APIs specific to the wry runtime.
@@ -370,11 +383,65 @@ impl AppHandle<crate::Wry> {
   }
 }
 
+#[cfg(target_vendor = "apple")]
+impl<R: Runtime> AppHandle<R> {
+  /// Fetches all Data Store Indentifiers by this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
+    use std::sync::Mutex;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
+    let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
+    let runtime_handle = self.runtime_handle.clone();
+
+    self.run_on_main_thread(move || {
+      let cloned_lock = lock.clone();
+      if let Err(err) = runtime_handle.fetch_data_store_identifiers(move |ids| {
+        if let Some(tx) = cloned_lock.lock().unwrap().take() {
+          let _ = tx.send(Ok(ids));
+        }
+      }) {
+        if let Some(tx) = lock.lock().unwrap().take() {
+          let _ = tx.send(Err(err));
+        }
+      }
+    })?;
+
+    rx.await?.map_err(Into::into)
+  }
+  /// Deletes a Data Store of this app
+  ///
+  /// Needs to be called from Main Thread
+  pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
+    use std::sync::Mutex;
+
+    let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
+    let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
+    let runtime_handle = self.runtime_handle.clone();
+
+    self.run_on_main_thread(move || {
+      let cloned_lock = lock.clone();
+      if let Err(err) = runtime_handle.remove_data_store(uuid, move |result| {
+        if let Some(tx) = cloned_lock.lock().unwrap().take() {
+          let _ = tx.send(result);
+        }
+      }) {
+        if let Some(tx) = lock.lock().unwrap().take() {
+          let _ = tx.send(Err(err));
+        }
+      }
+    })?;
+    rx.await?.map_err(Into::into)
+  }
+}
+
 impl<R: Runtime> Clone for AppHandle<R> {
   fn clone(&self) -> Self {
     Self {
       runtime_handle: self.runtime_handle.clone(),
       manager: self.manager.clone(),
+      event_loop: self.event_loop.clone(),
     }
   }
 }
@@ -469,12 +536,49 @@ impl<R: Runtime> AppHandle<R> {
     }
   }
 
-  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`]..
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`](crate::RESTART_EXIT_CODE) and [`RunEvent::Exit`].
+  ///
+  /// When this function is called on the main thread, we cannot guarantee the delivery of those events,
+  /// so we skip them and directly restart the process.
+  ///
+  /// If you want to trigger them reliably, use [`Self::request_restart`] instead
   pub fn restart(&self) -> ! {
+    if self.event_loop.lock().unwrap().main_thread_id == std::thread::current().id() {
+      log::debug!("restart triggered on the main thread");
+      self.cleanup_before_exit();
+      crate::process::restart(&self.env());
+    } else {
+      log::debug!("restart triggered from a separate thread");
+      // we're running on a separate thread, so we must trigger the exit request and wait for it to finish
+      self
+        .manager
+        .restart_on_exit
+        .store(true, atomic::Ordering::Relaxed);
+      // We'll be restarting when we receive the next `RuntimeRunEvent::Exit` event in `App::run` if this call succeed
+      match self.runtime_handle.request_exit(RESTART_EXIT_CODE) {
+        Ok(()) => loop {
+          std::thread::sleep(Duration::MAX);
+        },
+        Err(e) => {
+          log::error!("failed to request exit: {e}");
+          self.cleanup_before_exit();
+          crate::process::restart(&self.env());
+        }
+      }
+    }
+  }
+
+  /// Restarts the app by triggering [`RunEvent::ExitRequested`] with code [`RESTART_EXIT_CODE`] and [`RunEvent::Exit`].
+  pub fn request_restart(&self) {
+    self
+      .manager
+      .restart_on_exit
+      .store(true, atomic::Ordering::Relaxed);
+    // We'll be restarting when we receive the next `RuntimeRunEvent::Exit` event in `App::run` if this call succeed
     if self.runtime_handle.request_exit(RESTART_EXIT_CODE).is_err() {
       self.cleanup_before_exit();
+      crate::process::restart(&self.env());
     }
-    crate::process::restart(&self.env());
   }
 
   /// Sets the activation policy for the application. It is set to `NSApplicationActivationPolicyRegular` by default.
@@ -1056,6 +1160,13 @@ impl<R: Runtime> App<R> {
 
   /// Runs the application.
   ///
+  /// This function never returns. When the application finishes, the process is exited directly using [`std::process::exit`].
+  /// See [`run_return`](Self::run_return) if you need to run code after the application event loop exits.
+  ///
+  /// # Panics
+  ///
+  /// This function will panic if the setup-function supplied in [`Builder::setup`] fails.
+  ///
   /// # Examples
   /// ```,no_run
   /// let app = tauri::Builder::default()
@@ -1072,6 +1183,9 @@ impl<R: Runtime> App<R> {
   pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
     let app_handle = self.handle().clone();
     let manager = self.manager.clone();
+
+    app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
+
     self.runtime.take().unwrap().run(move |event| match event {
       RuntimeRunEvent::Ready => {
         if let Err(e) = setup(&mut self) {
@@ -1084,12 +1198,69 @@ impl<R: Runtime> App<R> {
         let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
         callback(&app_handle, event);
         app_handle.cleanup_before_exit();
+        if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
+          crate::process::restart(&self.env());
+        }
       }
       _ => {
         let event = on_event_loop_event(&app_handle, event, &manager);
         callback(&app_handle, event);
       }
     });
+  }
+
+  /// Runs the application, returning its intended exit code.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS**: Unsupported. The application will fallback to [`run`](Self::run).
+  ///
+  /// # Panics
+  ///
+  /// This function will panic if the setup-function supplied in [`Builder::setup`] fails.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// let app = tauri::Builder::default()
+  ///   // on an actual app, remove the string argument
+  ///   .build(tauri::generate_context!("test/fixture/src-tauri/tauri.conf.json"))
+  ///   .expect("error while building tauri application");
+  /// let exit_code = app
+  ///   .run_return(|_app_handle, event| match event {
+  ///     tauri::RunEvent::ExitRequested { api, .. } => {
+  ///      api.prevent_exit();
+  ///     }
+  ///      _ => {}
+  ///   });
+  ///
+  /// std::process::exit(exit_code);
+  /// ```
+  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) -> i32 {
+    let manager = self.manager.clone();
+    let app_handle = self.handle().clone();
+
+    self
+      .runtime
+      .take()
+      .unwrap()
+      .run_return(move |event| match event {
+        RuntimeRunEvent::Ready => {
+          if let Err(e) = setup(&mut self) {
+            panic!("Failed to setup app: {e}");
+          }
+          let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
+          callback(&app_handle, event);
+        }
+        RuntimeRunEvent::Exit => {
+          let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
+          callback(&app_handle, event);
+          app_handle.cleanup_before_exit();
+        }
+        _ => {
+          let event = on_event_loop_event(&app_handle, event, &manager);
+          callback(&app_handle, event);
+        }
+      })
   }
 
   /// Runs an iteration of the runtime event loop and immediately return.
@@ -1115,6 +1286,9 @@ impl<R: Runtime> App<R> {
   /// }
   /// ```
   #[cfg(desktop)]
+  #[deprecated(
+    note = "When called in a loop (as suggested by the name), this function will busy-loop. To re-gain control of control flow after the app has exited, use `App::run_return` instead."
+  )]
   pub fn run_iteration<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(&mut self, mut callback: F) {
     let manager = self.manager.clone();
     let app_handle = self.handle().clone();
@@ -1124,6 +1298,8 @@ impl<R: Runtime> App<R> {
         panic!("Failed to setup app: {e}");
       }
     }
+
+    app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self.runtime.as_mut().unwrap().run_iteration(move |event| {
       let event = on_event_loop_event(&app_handle, event, &manager);
@@ -1727,6 +1903,17 @@ tauri::Builder::default()
   ///     }
   ///   });
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from a custom protocol will have a different Origin on different platforms.
+  /// Servers which enforce CORS will need to add the exact same Origin header (or `*`) in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://localhost/<path>` (so it will be `my-scheme://localhost/path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.localhost/<path>` by default (so it will be `http://my-scheme.localhost/path/to/page`).
+  ///   To use `https` instead of `http`, use [`super::webview::WebviewBuilder::use_https_scheme`].
   #[must_use]
   pub fn register_uri_scheme_protocol<
     N: Into<String>,
@@ -1784,6 +1971,17 @@ tauri::Builder::default()
   ///   });
   ///   });
   /// ```
+  ///
+  /// # Warning
+  ///
+  /// Pages loaded from a custom protocol will have a different Origin on different platforms.
+  /// Servers which enforce CORS will need to add the exact same Origin header (or `*`) in `Access-Control-Allow-Origin`
+  /// if you wish to send requests with native `fetch` and `XmlHttpRequest` APIs. Here are the
+  /// different Origin headers across platforms:
+  ///
+  /// - macOS, iOS and Linux: `<scheme_name>://localhost/<path>` (so it will be `my-scheme://localhost/path/to/page).
+  /// - Windows and Android: `http://<scheme_name>.localhost/<path>` by default (so it will be `http://my-scheme.localhost/path/to/page`).
+  ///   To use `https` instead of `http`, use [`super::webview::WebviewBuilder::use_https_scheme`].
   #[must_use]
   pub fn register_asynchronous_uri_scheme_protocol<
     N: Into<String>,
@@ -1941,6 +2139,9 @@ tauri::Builder::default()
       handle: AppHandle {
         runtime_handle,
         manager,
+        event_loop: Arc::new(Mutex::new(EventLoop {
+          main_thread_id: std::thread::current().id(),
+        })),
       },
       ran_setup: false,
     };
@@ -2132,7 +2333,7 @@ fn on_event_loop_event<R: Runtime>(
     RuntimeRunEvent::Exit => RunEvent::Exit,
     RuntimeRunEvent::ExitRequested { code, tx } => RunEvent::ExitRequested {
       code,
-      api: ExitRequestApi(tx),
+      api: ExitRequestApi { tx, code },
     },
     RuntimeRunEvent::WindowEvent { label, event } => RunEvent::WindowEvent {
       label,
@@ -2146,7 +2347,7 @@ fn on_event_loop_event<R: Runtime>(
       // set the app icon in development
       #[cfg(all(dev, target_os = "macos"))]
       {
-        use objc2::ClassType;
+        use objc2::AllocAnyThread;
         use objc2_app_kit::{NSApplication, NSImage};
         use objc2_foundation::{MainThreadMarker, NSData};
 

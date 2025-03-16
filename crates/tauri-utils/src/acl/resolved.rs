@@ -321,14 +321,19 @@ fn with_resolved_permissions<F: FnMut(ResolvedPermission<'_>) -> Result<(), Erro
   Ok(())
 }
 
+/// Traversed permission
 #[derive(Debug)]
-struct TraversedPermission<'a> {
-  key: String,
-  permission_name: String,
-  permission: &'a Permission,
+pub struct TraversedPermission<'a> {
+  /// Plugin name without the tauri-plugin- prefix
+  pub key: String,
+  /// Permission's name
+  pub permission_name: String,
+  /// Permission details
+  pub permission: &'a Permission,
 }
 
-fn get_permissions<'a>(
+/// Expand a permissions id based on the ACL to get the associated permissions (e.g. expand some-plugin:default)
+pub fn get_permissions<'a>(
   permission_id: &Identifier,
   acl: &'a BTreeMap<String, Manifest>,
 ) -> Result<Vec<TraversedPermission<'a>>, Error> {

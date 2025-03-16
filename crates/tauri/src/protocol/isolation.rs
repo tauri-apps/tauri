@@ -59,7 +59,7 @@ pub fn get<R: Runtime>(
               .add_configured_headers(manager.config.app.security.headers.as_ref())
               .header(CONTENT_TYPE, mime::TEXT_HTML.as_ref())
               .header("Content-Security-Policy", csp)
-              .body(asset.into_string().as_bytes().to_vec()),
+              .body(asset.into_string().into_bytes()),
             Err(_) => http::Response::builder()
               .status(http::StatusCode::INTERNAL_SERVER_ERROR)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.as_ref())
@@ -84,7 +84,7 @@ pub fn get<R: Runtime>(
       responder.respond(
         http::Response::builder()
           .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-          .body("failed to get response".as_bytes().to_vec())
+          .body("failed to get response".as_bytes())
           .unwrap(),
       );
     }

@@ -11,7 +11,9 @@ use std::{
 use anyhow::{Context, Result};
 use tauri_utils::{
   acl::{
-    capability::Capability, manifest::Manifest, schema::CAPABILITIES_SCHEMA_FOLDER_PATH,
+    capability::Capability,
+    manifest::{Manifest, PermissionFile},
+    schema::CAPABILITIES_SCHEMA_FOLDER_PATH,
     ACL_MANIFESTS_FILE_NAME, APP_ACL_KEY, CAPABILITIES_FILE_NAME,
   },
   platform::Target,
@@ -155,11 +157,17 @@ fn read_plugins_manifests() -> Result<BTreeMap<String, Manifest>> {
   Ok(manifests)
 }
 
+struct InlinedPuginsAcl {
+  manifests: BTreeMap<String, Manifest>,
+  permission_files: BTreeMap<String, Vec<PermissionFile>>,
+}
+
 fn inline_plugins(
   out_dir: &Path,
   inlined_plugins: HashMap<&'static str, InlinedPlugin>,
-) -> Result<BTreeMap<String, Manifest>> {
+) -> Result<InlinedPuginsAcl> {
   let mut acl_manifests = BTreeMap::new();
+  let mut permission_files_map = BTreeMap::new();
 
   for (name, plugin) in inlined_plugins {
     let plugin_out_dir = out_dir.join("plugins").join(name);
@@ -236,18 +244,29 @@ permissions = [{default_permissions}]
       )?);
     }
 
+    permission_files_map.insert(name.into(), permission_files.clone());
+
     let manifest = tauri_utils::acl::manifest::Manifest::new(permission_files, None);
     acl_manifests.insert(name.into(), manifest);
   }
 
-  Ok(acl_manifests)
+  Ok(InlinedPuginsAcl {
+    manifests: acl_manifests,
+    permission_files: permission_files_map,
+  })
+}
+
+#[derive(Debug)]
+struct AppManifestAcl {
+  manifest: Manifest,
+  permission_files: Vec<PermissionFile>,
 }
 
 fn app_manifest_permissions(
   out_dir: &Path,
   manifest: AppManifest,
   inlined_plugins: &HashMap<&'static str, InlinedPlugin>,
-) -> Result<Manifest> {
+) -> Result<AppManifestAcl> {
   let app_out_dir = out_dir.join("app-manifest");
   fs::create_dir_all(&app_out_dir)?;
   let pkg_name = "__app__";
@@ -290,6 +309,7 @@ fn app_manifest_permissions(
     let inlined_plugins_permissions: Vec<_> = inlined_plugins
       .keys()
       .map(|name| permissions_root.join(name))
+      .flat_map(|p| p.canonicalize())
       .collect();
 
     permission_files.extend(tauri_utils::acl::build::define_permissions(
@@ -308,10 +328,10 @@ fn app_manifest_permissions(
     )?);
   }
 
-  Ok(tauri_utils::acl::manifest::Manifest::new(
-    permission_files,
-    None,
-  ))
+  Ok(AppManifestAcl {
+    permission_files: permission_files.clone(),
+    manifest: tauri_utils::acl::manifest::Manifest::new(permission_files, None),
+  })
 }
 
 fn validate_capabilities(
@@ -380,19 +400,21 @@ fn validate_capabilities(
 pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::Result<()> {
   let mut acl_manifests = read_plugins_manifests()?;
 
-  let app_manifest = app_manifest_permissions(
+  let app_acl = app_manifest_permissions(
     out_dir,
     attributes.app_manifest,
     &attributes.inlined_plugins,
   )?;
-  if app_manifest.default_permission.is_some()
-    || !app_manifest.permission_sets.is_empty()
-    || !app_manifest.permissions.is_empty()
-  {
-    acl_manifests.insert(APP_ACL_KEY.into(), app_manifest);
+  let has_app_manifest = app_acl.manifest.default_permission.is_some()
+    || !app_acl.manifest.permission_sets.is_empty()
+    || !app_acl.manifest.permissions.is_empty();
+  if has_app_manifest {
+    acl_manifests.insert(APP_ACL_KEY.into(), app_acl.manifest);
   }
 
-  acl_manifests.extend(inline_plugins(out_dir, attributes.inlined_plugins.clone())?);
+  let inline_plugins_acl = inline_plugins(out_dir, attributes.inlined_plugins.clone())?;
+
+  acl_manifests.extend(inline_plugins_acl.manifests);
 
   let acl_manifests_path = save_acl_manifests(&acl_manifests)?;
   fs::copy(acl_manifests_path, out_dir.join(ACL_MANIFESTS_FILE_NAME))?;
@@ -411,6 +433,13 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
   tauri_utils::plugin::save_global_api_scripts_paths(out_dir);
+
+  let mut permissions_map = inline_plugins_acl.permission_files;
+  if has_app_manifest {
+    permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
+  }
+
+  tauri_utils::acl::build::generate_allowed_commands(out_dir, permissions_map)?;
 
   Ok(())
 }

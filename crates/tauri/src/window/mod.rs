@@ -140,8 +140,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -217,8 +217,8 @@ async fn create_window(app: tauri::AppHandle) {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -1016,7 +1016,7 @@ impl<R: Runtime> Window<R> {
     let window_ = self.clone();
     self.run_on_main_thread(move || {
       let res = webview_builder.build(window_, position, size);
-      tx.send(res.map_err(Into::into)).unwrap();
+      tx.send(res).unwrap();
     })?;
     rx.recv().unwrap()
   }
@@ -1395,6 +1395,19 @@ impl<R: Runtime> Window<R> {
   /// Whether the window is enabled or disabled.
   pub fn is_enabled(&self) -> crate::Result<bool> {
     self.window.dispatcher.is_enabled().map_err(Into::into)
+  }
+
+  /// Determines if this window should always be on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_always_on_top(&self) -> crate::Result<bool> {
+    self
+      .window
+      .dispatcher
+      .is_always_on_top()
+      .map_err(Into::into)
   }
 
   /// Gets the window's native maximize button state

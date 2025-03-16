@@ -227,6 +227,7 @@ fn set_show_menu_on_left_click<R: Runtime>(
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("tray")
     .invoke_handler(crate::generate_handler![
+      #![plugin(tray)]
       new,
       get_by_id,
       remove_by_id,

@@ -61,7 +61,7 @@ pub fn get<R: Runtime>(
           .status(StatusCode::INTERNAL_SERVER_ERROR)
           .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
           .header("Access-Control-Allow-Origin", &window_origin)
-          .body(e.to_string().as_bytes().to_vec())
+          .body(e.to_string().into_bytes())
           .unwrap(),
       ),
     }
@@ -115,7 +115,6 @@ fn get_response<R: Runtime>(
     );
 
     let mut proxy_builder = reqwest::ClientBuilder::new()
-      .use_rustls_tls()
       .build()
       .unwrap()
       .request(request.method().clone(), &url);

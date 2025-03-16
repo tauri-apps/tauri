@@ -403,7 +403,7 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async close(): Promise<void> {
-    return invoke('plugin:webview|close', {
+    return invoke('plugin:webview|webview_close', {
       label: this.label
     })
   }
@@ -791,6 +791,10 @@ interface WebviewOptions {
    * @since 2.3.0
    */
   backgroundThrottling?: BackgroundThrottlingPolicy
+  /**
+   * Whether we should disable JavaScript code execution on the webview or not.
+   */
+  javascriptDisabled?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

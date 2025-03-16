@@ -419,18 +419,14 @@ pub fn is_dev() -> bool {
 
 /// Run all build time helpers for your Tauri Application.
 ///
-/// The current helpers include the following:
-/// * Generates a Windows Resource file when targeting Windows.
-///
 /// # Platforms
 ///
-/// [`build()`] should be called inside of `build.rs` regardless of the platform:
-/// * New helpers may target more platforms in the future.
-/// * Platform specific code is handled by the helpers automatically.
-/// * A build script is required in order to activate some cargo environmental variables that are
-///   used when generating code and embedding assets - so [`build()`] may as well be called.
+/// [`build()`] should be called inside of `build.rs` regardless of the platform.
 ///
-/// In short, this is saying don't put the call to [`build()`] behind a `#[cfg(windows)]`.
+/// Platform specific code is handled by the helpers automatically.
+///
+/// A build script is required in order to activate some cargo environmental variables that are
+/// used when generating code and embedding assets.
 ///
 /// # Panics
 ///

@@ -222,7 +222,7 @@ pub struct AppManager<R: Runtime> {
 
   pub(crate) channel_interceptor: Option<ChannelInterceptor<R>>,
 
-  /// Sets to true in `request_restart`
+  /// Sets to true in [`AppHandle::request_restart`] and [`AppHandle::restart`]
   /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
   pub(crate) restart_on_exit: AtomicBool,
 }

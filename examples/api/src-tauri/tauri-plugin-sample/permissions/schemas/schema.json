@@ -49,7 +49,7 @@
           "minimum": 1.0
         },
         "description": {
-          "description": "Human-readable description of what the permission does.\n Tauri convention is to use <h4> headings in markdown content\n for Tauri documentation generation purposes.",
+          "description": "Human-readable description of what the permission does.\n Tauri convention is to use `<h4>` headings in markdown content\n for Tauri documentation generation purposes.",
           "type": [
             "string",
             "null"
@@ -111,7 +111,7 @@
           "type": "string"
         },
         "description": {
-          "description": "Human-readable description of what the permission does.\n Tauri internal convention is to use <h4> headings in markdown content\n for Tauri documentation generation purposes.",
+          "description": "Human-readable description of what the permission does.\n Tauri internal convention is to use `<h4>` headings in markdown content\n for Tauri documentation generation purposes.",
           "type": [
             "string",
             "null"

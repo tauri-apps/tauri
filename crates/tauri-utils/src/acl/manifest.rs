@@ -21,8 +21,9 @@ pub struct DefaultPermission {
   pub version: Option<NonZeroU64>,
 
   /// Human-readable description of what the permission does.
-  /// Tauri convention is to use <h4> headings in markdown content
+  /// Tauri convention is to use `<h4>` headings in markdown content
   /// for Tauri documentation generation purposes.
+  #[cfg(feature = "schema")]
   pub description: Option<String>,
 
   /// All permissions this set contains.
@@ -75,6 +76,7 @@ impl Manifest {
       if let Some(default) = permission_file.default {
         manifest.default_permission.replace(PermissionSet {
           identifier: "default".into(),
+          #[cfg(feature = "schema")]
           description: default
             .description
             .unwrap_or_else(|| "Default plugin permissions.".to_string()),
@@ -141,13 +143,13 @@ mod build {
         let v = v.get();
         quote!(::core::num::NonZeroU64::new(#v).unwrap())
       }));
-      let description = opt_str_lit(self.description.as_ref());
+      // let description = opt_str_lit(self.description.as_ref());
       let permissions = vec_lit(&self.permissions, str_lit);
       literal_struct!(
         tokens,
         ::tauri::utils::acl::plugin::DefaultPermission,
         version,
-        description,
+        // description,
         permissions
       )
     }

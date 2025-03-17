@@ -421,10 +421,12 @@ pub fn is_dev() -> bool {
 ///
 /// To provide extra configuration, such as [`AppManifest::commands`]
 /// for fine-grained control over command permissions, see [`try_build`].
+/// See [`Attributes`] for the complete list of configuration options.
 ///
 /// # Platforms
 ///
-/// [`build()`] should be called inside of `build.rs` regardless of the platform.
+/// [`build()`] should be called inside of `build.rs` regardless of the platform, so **DO NOT** use a [conditional compilation]
+/// check that prevents it from running on any of your targets.
 ///
 /// Platform specific code is handled by the helpers automatically.
 ///
@@ -435,6 +437,8 @@ pub fn is_dev() -> bool {
 ///
 /// If any of the build time helpers fail, they will [`std::panic!`] with the related error message.
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
+///
+/// [conditional compilation]: https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/first-edition/conditional-compilation.html
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
     let error = format!("{error:#}");

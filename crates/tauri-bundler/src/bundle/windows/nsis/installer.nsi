@@ -839,9 +839,7 @@ Section Uninstall
   ; This ensures the program does not launch automatically after uninstallation if it exists.
   ; If it doesn't exist, it does nothing.
   ; We do this when not updating (to preserve the registry value on updates)
-  ; and when the installation is for the current user only - as it is difficult to delete registry values for other users or for the local machine
   ${If} $UpdateMode <> 1
-  ${AndIf} "${INSTALLMODE}" == "currentUser"
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
   ${EndIf}
 

@@ -1010,10 +1010,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   }
 
   /// Whether JavaScript should be disabled.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Android:** Not implemented yet.
   #[must_use]
   pub fn disable_javascript(mut self) -> Self {
     self.webview_builder = self.webview_builder.disable_javascript();

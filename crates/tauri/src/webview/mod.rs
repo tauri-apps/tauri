@@ -894,10 +894,6 @@ fn main() {
   }
 
   /// Whether JavaScript should be disabled.
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Android:** Not implemented yet.
   #[must_use]
   pub fn disable_javascript(mut self) -> Self {
     self.webview_attributes.javascript_disabled = true;

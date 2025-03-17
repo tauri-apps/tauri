@@ -794,8 +794,9 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    let arch64bits =
-      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+    let arch64bits = self.target_triple.starts_with("x86_64")
+      || self.target_triple.starts_with("aarch64")
+      || self.target_triple.starts_with("riscv64");
 
     let updater_enabled = config.bundle.create_updater_artifacts != Updater::Bool(false);
     let v1_compatible = matches!(config.bundle.create_updater_artifacts, Updater::String(_));

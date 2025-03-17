@@ -67,24 +67,23 @@ impl PackageManager {
       for entry in entries.flatten() {
         let path = entry.path();
         let name = path.file_name().unwrap().to_string_lossy();
-        if name.as_ref() == "package-lock.json" {
-          found.push(PackageManager::Npm);
-        } else if name.as_ref() == "pnpm-lock.yaml" {
-          found.push(PackageManager::Pnpm);
-        } else if name.as_ref() == "yarn.lock" {
-          let yarn = if manager_version("yarn")
-            .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
-            .unwrap_or(false)
-          {
-            PackageManager::YarnBerry
-          } else {
-            PackageManager::Yarn
-          };
-          found.push(yarn);
-        } else if name.as_ref() == "bun.lockb" {
-          found.push(PackageManager::Bun);
-        } else if name.as_ref() == "deno.lock" {
-          found.push(PackageManager::Deno);
+        match name.as_ref() {
+          "package-lock.json" => found.push(PackageManager::Npm),
+          "pnpm-lock.yaml" => found.push(PackageManager::Pnpm),
+          "yarn.lock" => {
+            let yarn = if manager_version("yarn")
+              .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
+              .unwrap_or(false)
+            {
+              PackageManager::YarnBerry
+            } else {
+              PackageManager::Yarn
+            };
+            found.push(yarn);
+          }
+          "bun.lock" | "bun.lockb" => found.push(PackageManager::Bun),
+          "deno.lock" => found.push(PackageManager::Deno),
+          _ => (),
         }
       }
     }

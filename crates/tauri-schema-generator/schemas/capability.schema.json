@@ -34,14 +34,14 @@
       "type": "boolean"
     },
     "windows": {
-      "description": "List of windows that are affected by this capability. Can be a glob pattern.\n\n On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.\n\n ## Example\n\n `[\"main\"]`",
+      "description": "List of windows that are affected by this capability. Can be a glob pattern.\n\n If a window label matches any of the patterns in this list,\n the capability will be enabled on all the webviews of that window,\n regardless of the value of [`Self::webviews`].\n\n On multiwebview windows, prefer specifying [`Self::webviews`] and omitting [`Self::windows`]\n for a fine grained access control.\n\n ## Example\n\n `[\"main\"]`",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
     "webviews": {
-      "description": "List of webviews that are affected by this capability. Can be a glob pattern.\n\n This is only required when using on multiwebview contexts, by default\n all child webviews of a window that matches [`Self::windows`] are linked.\n\n ## Example\n\n `[\"sub-webview-one\", \"sub-webview-two\"]`",
+      "description": "List of webviews that are affected by this capability. Can be a glob pattern.\n\n The capability will be enabled on all the webviews\n whose label matches any of the patterns in this list,\n regardless of whether the webview's window label matches a pattern in [`Self::windows`].\n\n ## Example\n\n `[\"sub-webview-one\", \"sub-webview-two\"]`",
       "type": "array",
       "items": {
         "type": "string"

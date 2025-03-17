@@ -57,6 +57,8 @@ pub fn target_triple() -> Result<String, crate::Error> {
         "armv7".into()
       } else if cfg!(target_arch = "aarch64") {
         "aarch64".into()
+      } else if cfg!(target_arch = "riscv64") {
+        "riscv64".into()
       } else {
         return Err(crate::Error::ArchError(String::from(
           "Unable to determine target-architecture",

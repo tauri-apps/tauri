@@ -148,7 +148,12 @@ pub struct Capability {
   pub local: bool,
   /// List of windows that are affected by this capability. Can be a glob pattern.
   ///
-  /// On multiwebview windows, prefer [`Self::webviews`] for a fine grained access control.
+  /// If a window label matches any of the patterns in this list,
+  /// the capability will be enabled on all the webviews of that window,
+  /// regardless of the value of [`Self::webviews`].
+  ///
+  /// On multiwebview windows, prefer specifying [`Self::webviews`] and omitting [`Self::windows`]
+  /// for a fine grained access control.
   ///
   /// ## Example
   ///
@@ -157,8 +162,9 @@ pub struct Capability {
   pub windows: Vec<String>,
   /// List of webviews that are affected by this capability. Can be a glob pattern.
   ///
-  /// This is only required when using on multiwebview contexts, by default
-  /// all child webviews of a window that matches [`Self::windows`] are linked.
+  /// The capability will be enabled on all the webviews
+  /// whose label matches any of the patterns in this list,
+  /// regardless of whether the webview's window label matches a pattern in [`Self::windows`].
   ///
   /// ## Example
   ///

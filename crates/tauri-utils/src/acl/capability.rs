@@ -148,9 +148,10 @@ pub struct Capability {
   pub local: bool,
   /// List of windows that are affected by this capability. Can be a glob pattern.
   ///
-  /// If a window label mathes any of the patterns in this list,
+  /// If a window label matches any of the patterns in this list,
   /// the capability will be enabled on all the webviews of that window,
   /// regardless of the value of [`Self::webviews`].
+  ///
   /// On multiwebview windows, prefer specifying [`Self::webviews`] and omitting [`Self::windows`]
   /// for a fine grained access control.
   ///
@@ -163,7 +164,7 @@ pub struct Capability {
   ///
   /// The capability will be enabled on all the webviews
   /// whose label matches any of the patterns in this list,
-  /// regardless of whether the webview's window label mathes a pattern in [`Self::windows`].
+  /// regardless of whether the webview's window label matches a pattern in [`Self::windows`].
   ///
   /// ## Example
   ///

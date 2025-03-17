@@ -449,7 +449,7 @@ pub fn build() {
   }
 }
 
-/// Like [`build()`], but takes an extra configuration argument, and does not panic.
+/// Same as [`build()`], but takes an extra configuration argument, and does not panic.
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;

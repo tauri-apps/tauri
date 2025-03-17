@@ -4,7 +4,10 @@
 
 use super::Result;
 use crate::{plugin::PluginHandle, Runtime};
-use std::path::PathBuf;
+use std::{
+  ffi::OsStr,
+  path::{Path, PathBuf},
+};
 
 /// A helper class to access the mobile path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) PluginHandle<R>);
@@ -20,7 +23,47 @@ struct PathResponse {
   path: PathBuf,
 }
 
+#[derive(serde::Serialize)]
+struct GetFileNameFromUriRequest<'a> {
+  uri: &'a str,
+}
+
+#[derive(serde::Deserialize)]
+struct GetFileNameFromUriResponse {
+  name: Option<String>,
+}
+
 impl<R: Runtime> PathResolver<R> {
+  /// Returns the final component of the `Path`, if there is one.
+  ///
+  /// If the path is a normal file, this is the file name. If it's the path of a directory, this
+  /// is the directory name.
+  ///
+  /// Returns [`None`] if the path terminates in `..`.
+  ///
+  /// On Android this also supports checking the file name of content URIs, such as the values returned by the dialog plugin.
+  ///
+  /// If you are dealing with plain file system paths or not worried about Android content URIs, prefer [`Path::file_name`].
+  pub fn file_name(&self, path: &str) -> Option<String> {
+    if path.starts_with("content://") || path.starts_with("file://") {
+      self
+        .0
+        .run_mobile_plugin::<GetFileNameFromUriResponse>(
+          "getFileNameFromUri",
+          GetFileNameFromUriRequest { uri: path },
+        )
+        .map(|r| r.name)
+        .unwrap_or_else(|e| {
+          log::error!("failed to get file name from URI: {e}");
+          None
+        })
+    } else {
+      Path::new(path)
+        .file_name()
+        .map(|name| name.to_string_lossy().into_owned())
+    }
+  }
+
   fn call_resolve(&self, dir: &str) -> Result<PathBuf> {
     self
       .0

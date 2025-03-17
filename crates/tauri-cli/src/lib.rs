@@ -235,13 +235,13 @@ where
         if !is_command_output {
           let style = Style::new().fg_color(Some(AnsiColor::Green.into())).bold();
 
-          write!(f, "    {style}{}{style:#} ", action)?;
+          write!(f, "{style}{action:>12}{style:#} ")?;
         }
       } else {
         let style = f.default_level_style(record.level()).bold();
         write!(
           f,
-          "    {style}{}{style:#} ",
+          "{style}{:>12}{style:#} ",
           prettyprint_level(record.level())
         )?;
       }

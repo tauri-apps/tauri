@@ -29,6 +29,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     Arch::AArch64 => "aarch64",
     Arch::Armhf => "armhfp",
     Arch::Armel => "armel",
+    Arch::Riscv64 => "riscv64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {:?}",

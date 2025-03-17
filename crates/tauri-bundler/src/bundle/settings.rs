@@ -723,6 +723,8 @@ pub enum Arch {
   Armhf,
   /// For the AArch32 / ARM32 instruction sets with soft-float (32 bits).
   Armel,
+  /// For the RISC-V instruction sets (64 bits).
+  Riscv64,
   /// For universal macOS applications.
   Universal,
 }
@@ -900,6 +902,8 @@ impl Settings {
       Arch::Armel
     } else if self.target.starts_with("aarch64") {
       Arch::AArch64
+    } else if self.target.starts_with("riscv64") {
+      Arch::Riscv64
     } else if self.target.starts_with("universal") {
       Arch::Universal
     } else {

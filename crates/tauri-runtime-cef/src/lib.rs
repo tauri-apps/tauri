@@ -6,14 +6,14 @@
 
 use cef::{rc::Rc, ImplTaskRunner};
 use tauri_runtime::{
-  dpi::{PhysicalPosition, PhysicalSize, Position, Size},
+  dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
   window::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowBuilder,
     WindowBuilderBase, WindowEvent, WindowId,
   },
-  DeviceEventFilter, EventLoopProxy, Icon, ProgressBarState, Result, RunEvent, Runtime,
+  Cookie, DeviceEventFilter, EventLoopProxy, Icon, ProgressBarState, Result, RunEvent, Runtime,
   RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch, WindowDispatch,
   WindowEventId,
 };
@@ -89,7 +89,7 @@ impl<T: UserEvent> RuntimeContext<T> {
       .main_thread_task_runner
       .post_task(Some(&mut cef_impl::SendMessageTask::new(
         self.cef_context.clone(),
-        message,
+        Arc::new(RefCell::new(message)),
       )));
     Ok(())
   }
@@ -258,6 +258,8 @@ impl<T: UserEvent> RuntimeHandle<T> for CefRuntimeHandle<T> {
     Ok(())
   }
 
+  fn set_device_event_filter(&self, _filter: DeviceEventFilter) {}
+
   #[cfg(target_os = "android")]
   fn find_class<'a>(
     &self,
@@ -335,6 +337,14 @@ impl WindowBuilder for CefWindowBuilder {
     self
   }
 
+  fn prevent_overflow(self) -> Self {
+    self
+  }
+
+  fn prevent_overflow_with_margin(self, _margin: Size) -> Self {
+    self
+  }
+
   fn resizable(self, resizable: bool) -> Self {
     self
   }
@@ -360,6 +370,10 @@ impl WindowBuilder for CefWindowBuilder {
   }
 
   fn focused(self, focused: bool) -> Self {
+    self
+  }
+
+  fn focusable(self, focusable: bool) -> Self {
     self
   }
 
@@ -520,8 +534,8 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     todo!()
   }
 
-  fn bounds(&self) -> Result<tauri_runtime::Rect> {
-    Ok(tauri_runtime::Rect::default())
+  fn bounds(&self) -> Result<Rect> {
+    Ok(Rect::default())
   }
 
   fn position(&self) -> Result<PhysicalPosition<i32>> {
@@ -551,7 +565,7 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
     Ok(())
   }
 
-  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
+  fn set_bounds(&self, bounds: Rect) -> Result<()> {
     Ok(())
   }
 
@@ -568,6 +582,22 @@ impl<T: UserEvent> WebviewDispatch<T> for CefWebviewDispatcher<T> {
   }
 
   fn reparent(&self, window_id: WindowId) -> Result<()> {
+    Ok(())
+  }
+
+  fn cookies_for_url(&self, _url: Url) -> Result<Vec<Cookie<'static>>> {
+    Ok(vec![])
+  }
+
+  fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
+    Ok(vec![])
+  }
+
+  fn set_cookie(&self, _cookie: Cookie<'_>) -> Result<()> {
+    Ok(())
+  }
+
+  fn delete_cookie(&self, _cookie: Cookie<'_>) -> Result<()> {
     Ok(())
   }
 
@@ -869,6 +899,10 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     Ok(())
   }
 
+  fn set_focusable(&self, _focusable: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn set_icon(&self, icon: Icon<'_>) -> Result<()> {
     Ok(())
   }
@@ -925,6 +959,10 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
     Ok(())
   }
 
+  fn set_traffic_light_position(&self, _position: Position) -> Result<()> {
+    Ok(())
+  }
+
   fn set_size_constraints(
     &self,
     constraints: tauri_runtime::window::WindowSizeConstraints,
@@ -942,6 +980,10 @@ impl<T: UserEvent> WindowDispatch<T> for CefWindowDispatcher<T> {
 
   fn is_enabled(&self) -> Result<bool> {
     Ok(true)
+  }
+
+  fn is_always_on_top(&self) -> Result<bool> {
+    Ok(false)
   }
 
   fn set_background_color(&self, color: Option<tauri_utils::config::Color>) -> Result<()> {
@@ -997,8 +1039,6 @@ impl<T: UserEvent> CefRuntime<T> {
     let args = cef::args::Args::new();
     let cmd = args.as_cmd_line().unwrap();
 
-    let sandbox = cef::sandbox_info::SandboxInfo::new();
-
     let event_queue = Arc::new(RefCell::new(Vec::new()));
     let event_queue_ = event_queue.clone();
 
@@ -1017,18 +1057,21 @@ impl<T: UserEvent> CefRuntime<T> {
     let ret = cef::execute_process(
       Some(args.as_main_args()),
       Some(&mut app),
-      sandbox.as_mut_ptr(),
+      std::ptr::null_mut(),
     );
 
     assert!(ret == -1, "cannot execute browser process");
 
-    let settings = cef::Settings::default();
+    let settings = cef::Settings {
+      no_sandbox: 1,
+      ..Default::default()
+    };
     assert_eq!(
       cef::initialize(
         Some(args.as_main_args()),
         Some(&settings),
         Some(&mut app),
-        sandbox.as_mut_ptr()
+        std::ptr::null_mut()
       ),
       1
     );
@@ -1130,6 +1173,10 @@ impl<T: UserEvent> Runtime<T> for CefRuntime<T> {
     target_os = "openbsd"
   ))]
   fn run_iteration<F: FnMut(RunEvent<T>)>(&mut self, callback: F) {}
+
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
+    0
+  }
 
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) {
     self.is_running.store(true, Ordering::Relaxed);

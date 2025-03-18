@@ -169,8 +169,9 @@ pub fn dirname(path: String) -> Result<PathBuf> {
 }
 
 #[command(root = "crate")]
-pub fn extname(path: String) -> Result<String> {
-  match Path::new(&path)
+pub fn extname<R: Runtime>(app: AppHandle<R>, path: String) -> Result<String> {
+  let file_name = app.path().file_name(&path).ok_or(Error::NoExtension)?;
+  match Path::new(&file_name)
     .extension()
     .and_then(std::ffi::OsStr::to_str)
   {
@@ -180,8 +181,8 @@ pub fn extname(path: String) -> Result<String> {
 }
 
 #[command(root = "crate")]
-pub fn basename(path: &str, ext: Option<&str>) -> Result<String> {
-  let file_name = Path::new(path).file_name().map(|f| f.to_string_lossy());
+pub fn basename<R: Runtime>(app: AppHandle<R>, path: &str, ext: Option<&str>) -> Result<String> {
+  let file_name = app.path().file_name(path);
   match file_name {
     Some(p) => {
       let maybe_stripped = if let Some(ext) = ext {
@@ -251,36 +252,38 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
 
 #[cfg(test)]
 mod tests {
+  use crate::test::mock_app;
 
   #[test]
   fn basename() {
+    let app = mock_app();
     let path = "/path/to/some-json-file.json";
     assert_eq!(
-      super::basename(path, Some(".json")).unwrap(),
+      super::basename(app.handle().clone(), path, Some(".json")).unwrap(),
       "some-json-file"
     );
 
     let path = "/path/to/some-json-file.json";
     assert_eq!(
-      super::basename(path, Some("json")).unwrap(),
+      super::basename(app.handle().clone(), path, Some("json")).unwrap(),
       "some-json-file."
     );
 
     let path = "/path/to/some-json-file.html.json";
     assert_eq!(
-      super::basename(path, Some(".json")).unwrap(),
+      super::basename(app.handle().clone(), path, Some(".json")).unwrap(),
       "some-json-file.html"
     );
 
     let path = "/path/to/some-json-file.json.json";
     assert_eq!(
-      super::basename(path, Some(".json")).unwrap(),
+      super::basename(app.handle().clone(), path, Some(".json")).unwrap(),
       "some-json-file.json"
     );
 
     let path = "/path/to/some-json-file.json.html";
     assert_eq!(
-      super::basename(path, Some(".json")).unwrap(),
+      super::basename(app.handle().clone(), path, Some(".json")).unwrap(),
       "some-json-file.json.html"
     );
   }

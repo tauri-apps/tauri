@@ -4,7 +4,7 @@
 
 use super::{Error, Result};
 use crate::{AppHandle, Manager, Runtime};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// The path resolver is a helper class for general and application-specific path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) AppHandle<R>);
@@ -16,6 +16,22 @@ impl<R: Runtime> Clone for PathResolver<R> {
 }
 
 impl<R: Runtime> PathResolver<R> {
+  /// Returns the final component of the `Path`, if there is one.
+  ///
+  /// If the path is a normal file, this is the file name. If it's the path of a directory, this
+  /// is the directory name.
+  ///
+  /// Returns [`None`] if the path terminates in `..`.
+  ///
+  /// On Android this also supports checking the file name of content URIs, such as the values returned by the dialog plugin.
+  ///
+  /// If you are dealing with plain file system paths or not worried about Android content URIs, prefer [`Path::file_name`].
+  pub fn file_name(&self, path: &str) -> Option<String> {
+    Path::new(path)
+      .file_name()
+      .map(|name| name.to_string_lossy().into_owned())
+  }
+
   /// Returns the path to the user's audio directory.
   ///
   /// ## Platform-specific

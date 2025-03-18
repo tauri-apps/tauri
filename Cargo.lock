@@ -8513,7 +8513,7 @@ dependencies = [
  "walkdir",
  "windows-registry 0.5.0",
  "windows-sys 0.59.0",
- "zip 2.2.2",
+ "zip 2.3.0",
 ]
 
 [[package]]
@@ -11166,9 +11166,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "2.2.2"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae9c1ea7b3a5e1f4b922ff856a129881167511563dc219869afe3787fc0c1a45"
+checksum = "84e9a772a54b54236b9b744aaaf8d7be01b4d6e99725523cb82cb32d1c81b1d7"
 dependencies = [
  "arbitrary",
  "crc32fast",

@@ -1104,6 +1104,18 @@ impl Settings {
     &self.package.version
   }
 
+  /// Returns the bundle version.
+  pub fn bundle_version(&self) -> Option<&str> {
+    #[cfg(target_os = "ios")]
+    {
+      self.bundle_settings.ios.bundle_version.as_deref()
+    }
+    #[cfg(target_os = "macos")]
+    {
+      self.bundle_settings.macos.bundle_version.as_deref()
+    }
+  }
+
   /// Returns the copyright text.
   pub fn copyright_string(&self) -> Option<&str> {
     self.bundle_settings.copyright.as_deref()

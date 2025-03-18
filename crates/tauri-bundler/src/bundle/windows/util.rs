@@ -2,14 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{
-  fs::create_dir_all,
-  path::{Path, PathBuf},
-};
-
+use std::{fs, fs::create_dir_all, path::{Path, PathBuf}};
+use goblin::Object;
 use ureq::ResponseExt;
 
 use crate::utils::http_utils::download;
+use crate::PackageType;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
@@ -25,9 +23,9 @@ pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
   let agent: ureq::Agent = ureq::Agent::config_builder()
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
+      .proxy(ureq::Proxy::try_from_env())
+      .build()
+      .into();
   let response = agent.head(url).call().map_err(Box::new)?;
   let final_url = response.get_uri().to_string();
   let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {
@@ -83,4 +81,59 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
     _ => None,
   }
+}
+
+
+#[cfg(target_os = "windows")]
+pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
+  let mut file_data = fs::read(binary_path)?;
+
+  let pe = match Object::parse(&file_data)? {
+    Object::PE(pe) => pe,
+    _ => return Err(crate::Error::BinaryParseError("Not an PE file".into())),
+  };
+
+  if let Some(data_ta_section) = pe.sections.iter().find(|s| {
+    s.name().unwrap_or_default()  == ".data.ta"
+  }) {
+    let data_offset = data_ta_section.pointer_to_raw_data as usize;
+
+    let ptr_bytes = &file_data[data_offset..data_offset + 8];
+    let ptr_value = u64::from_le_bytes(ptr_bytes.try_into().unwrap());
+
+    if let Some(rdata_section) = pe.sections.iter().find(|s| {
+      s.name().unwrap_or_default() == ".rdata"
+    }) {
+      let rva = (ptr_value) - pe.image_base as u64;
+
+      let file_offset = rdata_section.pointer_to_raw_data as usize +
+          (rva as usize - rdata_section.virtual_address as usize);
+
+      if file_offset + 3 <= file_data.len() {
+        let string_bytes = &mut file_data[file_offset..file_offset + 3];
+
+        match package_type {
+          PackageType::Nsis => string_bytes.copy_from_slice(b"NSS"),
+          PackageType::WindowsMsi => string_bytes.copy_from_slice(b"MSI"),
+          _ => {
+            return Err(crate::Error::InvalidPackageType(
+              package_type.short_name().to_owned(),
+              "windows".to_owned(),
+            ))
+          }
+        }
+        if let Err(error) = fs::write(binary_path, &file_data) {
+          return Err(crate::Error::BinaryWriteError(error.to_string()));
+        }
+      } else {
+        return Err(crate::Error::BinaryOffsetOutOfRange);
+      }
+    } else {
+      return Err(crate::Error::BinaryParseError("`.rdata' section not found".into()));
+    }
+  } else {
+    return Err(crate::Error::MissingBundleTypeVar);
+  }
+
+  Ok(())
 }

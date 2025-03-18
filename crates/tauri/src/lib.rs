@@ -120,6 +120,11 @@ pub type Wry = tauri_runtime_wry::Wry<EventLoopMessage>;
 #[cfg_attr(docsrs, doc(cfg(feature = "wry")))]
 pub type WryHandle = tauri_runtime_wry::WryHandle<EventLoopMessage>;
 
+/// Variable holding the type of bundle the executable is stored in. This is modified by binary
+/// patching during build
+#[unsafe(no_mangle)]
+#[link_section = ".data.tauri"]
+pub static __TAURI_BUNDLE_TYPE : &str = "UNK_BUNDLE";
 #[cfg(all(feature = "wry", target_os = "android"))]
 #[cfg_attr(docsrs, doc(cfg(all(feature = "wry", target_os = "android"))))]
 #[doc(hidden)]

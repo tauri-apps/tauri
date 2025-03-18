@@ -146,6 +146,8 @@ pub struct PackageSettings {
   pub product_name: String,
   /// the package's version.
   pub version: String,
+  /// the package's bundle version.
+  pub bundle_version: String,
   /// the package's description.
   pub description: String,
   /// the package's homepage.
@@ -1105,15 +1107,8 @@ impl Settings {
   }
 
   /// Returns the bundle version.
-  pub fn bundle_version(&self) -> Option<&str> {
-    #[cfg(target_os = "ios")]
-    {
-      self.bundle_settings.ios.bundle_version.as_deref()
-    }
-    #[cfg(target_os = "macos")]
-    {
-      self.bundle_settings.macos.bundle_version.as_deref()
-    }
+  pub fn bundle_version(&self) -> &str {
+    &self.package.bundle_version
   }
 
   /// Returns the copyright text.

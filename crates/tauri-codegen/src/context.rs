@@ -315,7 +315,13 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
       if let Some(version) = &config.version {
         let bundle_version = &config.bundle.macos.bundle_version;
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-        plist.insert("CFBundleVersion".into(), bundle_version.clone().unwrap_or_else(|| version.clone()).into());
+        plist.insert(
+          "CFBundleVersion".into(),
+          bundle_version
+            .clone()
+            .unwrap_or_else(|| version.clone())
+            .into(),
+        );
       }
     }
 

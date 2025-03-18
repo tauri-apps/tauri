@@ -178,7 +178,7 @@ fn generate_info_plist(
   writeln!(
     file,
     "  <key>CFBundleVersion</key>\n  <string>{}</string>",
-    settings.bundle_version().unwrap_or_else(|| settings.version_string())
+    settings.bundle_version()
   )?;
   writeln!(
     file,

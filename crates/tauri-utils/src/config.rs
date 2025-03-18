@@ -612,6 +612,9 @@ pub struct MacConfig {
   /// The files to include in the application relative to the Contents directory.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -651,6 +654,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
+      bundle_version: None,
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
@@ -2522,6 +2526,9 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// The version of the build that identifies an iteration of the bundle.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
@@ -2538,6 +2545,7 @@ impl Default for IosConfig {
       template: None,
       frameworks: None,
       development_team: None,
+      bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
     }
   }

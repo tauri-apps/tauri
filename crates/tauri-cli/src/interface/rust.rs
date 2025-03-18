@@ -22,7 +22,7 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
@@ -1418,9 +1418,13 @@ fn tauri_config_to_bundle_settings(
         y: config.macos.dmg.application_folder_position.y,
       },
     },
+    ios: IosSettings {
+      bundle_version: config.ios.bundle_version,
+    },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       files: config.macos.files,
+      bundle_version: config.macos.bundle_version,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,

@@ -3292,6 +3292,13 @@
             "type": "string"
           }
         },
+        "bundleVersion": {
+          "description": "The version of the build that identifies an iteration of the bundle.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\n Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`\n and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\n An empty string is considered an invalid value so the default value is used.",
           "default": "10.13",
@@ -3488,6 +3495,13 @@
         },
         "developmentTeam": {
           "description": "The development team. This value is required for iOS development because code signing is enforced.\n The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bundleVersion": {
+          "description": "The version of the build that identifies an iteration of the bundle.",
           "type": [
             "string",
             "null"

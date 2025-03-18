@@ -3,7 +3,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+
 pub mod appimage;
 pub mod debian;
 pub mod freedesktop;
 pub mod rpm;
+
+mod util;
+
+pub use util::patch_binary;
+

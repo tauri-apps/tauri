@@ -10,6 +10,7 @@ use std::{
 use ureq::ResponseExt;
 
 use crate::utils::http_utils::download;
+use crate::PackageType;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
@@ -83,4 +84,10 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
     _ => None,
   }
+}
+
+
+#[cfg(target_os = "windows")]
+fn patch_binary(binary: &String, package_type: PackageType) -> crate::Result<()> {
+    todo!()
 }

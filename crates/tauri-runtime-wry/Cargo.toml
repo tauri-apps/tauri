@@ -17,13 +17,13 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.50.4", default-features = false, features = [
+wry = { version = "0.50.5", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.32.2", default-features = false, features = ["rwh_06"] }
+tao = { version = "0.32.8", default-features = false, features = ["rwh_06"] }
 tauri-runtime = { version = "2.4.0", path = "../tauri-runtime" }
 tauri-utils = { version = "2.2.0", path = "../tauri-utils" }
 raw-window-handle = "0.6"

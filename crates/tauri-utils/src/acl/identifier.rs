@@ -163,22 +163,6 @@ impl TryFrom<String> for Identifier {
     }
 
     let is_core_identifier = value.starts_with(CORE_PLUGIN_IDENTIFIER_PREFIX);
-    let is_core_channel_plugin = value.starts_with("core:__TAURI_CHANNEL__:");
-
-    if is_core_channel_plugin {
-      return Ok(Self {
-        separator: NonZeroU8::new(
-          value.len() as u8
-            - value
-              .chars()
-              .rev()
-              .position(|c| c as u8 == IDENTIFIER_SEPARATOR)
-              .unwrap() as u8
-            - 1,
-        ),
-        inner: value,
-      });
-    }
 
     let mut bytes = value.bytes();
 

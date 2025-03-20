@@ -257,8 +257,6 @@ fn fetch(
 pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
   PluginBuilder::new(CHANNEL_PLUGIN_NAME)
     .invoke_handler(crate::generate_handler![
-      // TODO: Enable this for remove unused commands on v3
-      // #![plugin(channel)]
       #![plugin(__TAURI_CHANNEL__)]
       fetch
     ])

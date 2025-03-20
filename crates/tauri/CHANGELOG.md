@@ -1,5 +1,52 @@
 # Changelog
 
+## \[2.4.0]
+
+### New Features
+
+- [`be2e6b85f`](https://www.github.com/tauri-apps/tauri/commit/be2e6b85fed226732b4a98f68cc5d72b4f8f5a13) ([#12944](https://www.github.com/tauri-apps/tauri/pull/12944) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) add `Window.is_always_on_top()` and `WebviewWindow.is_always_on_top()`
+- [`c10802425`](https://www.github.com/tauri-apps/tauri/commit/c10802425781d6ce7aac0a8beeddf2b51120f69c) ([#12710](https://www.github.com/tauri-apps/tauri/pull/12710) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) derive `Clone` for `tauri::ExitRequestApi`.
+- [`cedb24d49`](https://www.github.com/tauri-apps/tauri/commit/cedb24d494b84111daa3206c05196c8b89f1e994) ([#12665](https://www.github.com/tauri-apps/tauri/pull/12665) by [@charrondev](https://www.github.com/tauri-apps/tauri/../../charrondev)) Added `Webview::cookies()`, `Webview::cookies_for_url()`, `WebviewWindow::cookies()` and `Webview::cookies_for_url()`.
+- [`20c190691`](https://www.github.com/tauri-apps/tauri/commit/20c19069125c89b2d45a2127278c9ffc2df35fc2) ([#12821](https://www.github.com/tauri-apps/tauri/pull/12821) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) Add `WebviewBuilder.disable_javascript` and `WebviewWindowBuilder.disable_javascript` api to disable JavaScript.
+- [`060de5bbd`](https://www.github.com/tauri-apps/tauri/commit/060de5bbdddca384e3965a8938d89840f27c581d) ([#12837](https://www.github.com/tauri-apps/tauri/pull/12837) by [@niladrix719](https://www.github.com/tauri-apps/tauri/../../niladrix719)) Added `getIdentifier()` function to get the application identifier configured in tauri.conf.json
+- [`658e5f5d1`](https://www.github.com/tauri-apps/tauri/commit/658e5f5d1dc1bd970ae572a42447448d064a7fee) ([#12668](https://www.github.com/tauri-apps/tauri/pull/12668) by [@thomaseizinger](https://www.github.com/tauri-apps/tauri/../../thomaseizinger)) Add `App::run_return` function. Contrary to `App::run`, this will **not** exit the process but instead return the requested exit-code. This allows the host app to perform further cleanup after Tauri has exited. `App::run_return` is not available on iOS and fallbacks to the regular `App::run` functionality.
+
+  The `App::run_iteration` function is deprecated as part of this because calling it in a loop - as suggested by the name - will cause a busy-loop.
+- [`5591a4f0b`](https://www.github.com/tauri-apps/tauri/commit/5591a4f0b41afb175acf188a30e86b7c09e51328) ([#12912](https://www.github.com/tauri-apps/tauri/pull/12912) by [@Daedaluz](https://www.github.com/tauri-apps/tauri/../../Daedaluz)) Change webview zoom on mousewheel when the `zoom_hotkeys_enabled` configuration is set to `true`.
+- [`bcdd51025`](https://www.github.com/tauri-apps/tauri/commit/bcdd510254ebe37827e22a5ffeb944321361e97c) ([#13012](https://www.github.com/tauri-apps/tauri/pull/13012) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `path` basename and extname APIs now accept Android content URIs, such as the paths returned by the dialog plugin.
+- [`bcdd51025`](https://www.github.com/tauri-apps/tauri/commit/bcdd510254ebe37827e22a5ffeb944321361e97c) ([#13012](https://www.github.com/tauri-apps/tauri/pull/13012) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `PathResolver::file_name` to resolve file names from content URIs on Android (leverating `std::path::Path::file_name` on other platforms).
+- [`c698a6d6f`](https://www.github.com/tauri-apps/tauri/commit/c698a6d6f3e02548444a4aa0e5220bbc6fc05c74) ([#12818](https://www.github.com/tauri-apps/tauri/pull/12818) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) feat: add `Webview.reload` and `WebviewWindow.reload`
+- [`013f8f652`](https://www.github.com/tauri-apps/tauri/commit/013f8f652302f2d49c5ec0a075582033d8b074fb) ([#12890](https://www.github.com/tauri-apps/tauri/pull/12890) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `build > removeUnusedCommands` to trigger the build scripts and macros to remove unused commands based on the capabilities you defined. Note this won't be accounting for dynamically added ACLs so make sure to check it when using this.
+- [`35018eed0`](https://www.github.com/tauri-apps/tauri/commit/35018eed026d101273d758fca049ba91bfc891fa) ([#12996](https://www.github.com/tauri-apps/tauri/pull/12996) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Introduce `AppHandle::request_restart()` as an alternative to `AppHandle::restart()` to trigger exit event reliably
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `WebviewWindowBuilder::traffic_light_position` to set the traffic light buttons position on macOS.
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `trafficLightPosition` window configuration to set the traffic light buttons position on macOS.
+
+### Enhancements
+
+- [`55ffa23c9`](https://www.github.com/tauri-apps/tauri/commit/55ffa23c9e4075ec3b3e64f808398b323db79e6a) ([#12855](https://www.github.com/tauri-apps/tauri/pull/12855) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix docs.rs build for mobile targets.
+- [`f2c94aaca`](https://www.github.com/tauri-apps/tauri/commit/f2c94aaca074bf15164d08e959b67f67f4c934ed) ([#12682](https://www.github.com/tauri-apps/tauri/pull/12682) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Add `Plugin#startIntentSenderForResult` Android API for mobile plugins.
+
+### Bug Fixes
+
+- [`755533c51`](https://www.github.com/tauri-apps/tauri/commit/755533c518391824c7393a16577d10db3aa91d19) ([#12876](https://www.github.com/tauri-apps/tauri/pull/12876) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Removed `TSend: Clone` requirement for `Channel<TSend>` by implementing `Clone` manually instead of driving it.
+- [`f98598817`](https://www.github.com/tauri-apps/tauri/commit/f98598817ca5b481d9de7a661ad00d14fd6b3b72) ([#12870](https://www.github.com/tauri-apps/tauri/pull/12870) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Update path plugin to use older dataDir API on SDK < 24.
+- [`f67a4a6bf`](https://www.github.com/tauri-apps/tauri/commit/f67a4a6bfec8ba21ae75f58c6fc74f12a07d4abf) ([#12971](https://www.github.com/tauri-apps/tauri/pull/12971) by [@WofWca](https://www.github.com/tauri-apps/tauri/../../WofWca)) Fix `tauri::AssetResolver::get` and `tauri::AssetResolver::get_for_scheme`
+  skipping the first character of the `path` even if it's not a slash (/).
+- [`dc90cd391`](https://www.github.com/tauri-apps/tauri/commit/dc90cd3919e6760ab28c8b781e5c864bf836240e) ([#12911](https://www.github.com/tauri-apps/tauri/pull/12911) by [@Daedaluz](https://www.github.com/tauri-apps/tauri/../../Daedaluz)) Listen for `Ctrl +` or `Cmd +` to support zoom functionality in swedish keyboard layouts.
+- [`b05f82d35`](https://www.github.com/tauri-apps/tauri/commit/b05f82d35ba068bfeb44193b204fbfe365415a25) ([#12313](https://www.github.com/tauri-apps/tauri/pull/12313) by [@anatawa12](https://www.github.com/tauri-apps/tauri/../../anatawa12)) `AppHandle::restart()` now waits for `RunEvent::Exit` to be delivered before restarting the application.
+
+### Performance Improvements
+
+- [`1cd8f55ee`](https://www.github.com/tauri-apps/tauri/commit/1cd8f55eed326d61860fee62ba2d2f4464bdcfcc) ([#13033](https://www.github.com/tauri-apps/tauri/pull/13033) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Don't ship global `bundle.global.js` if `app > withGlobalTauri` is set to false
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.5.0`
+- Upgraded to `tauri-runtime-wry@2.5.0`
+- Upgraded to `tauri-utils@2.3.0`
+- Upgraded to `tauri-build@2.1.0`
+- Upgraded to `tauri-macros@2.1.0`
+
 ## \[2.3.1]
 
 ### Bug Fixes

@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.3.0]
+
+### New Features
+
+- [`013f8f652`](https://www.github.com/tauri-apps/tauri/commit/013f8f652302f2d49c5ec0a075582033d8b074fb) ([#12890](https://www.github.com/tauri-apps/tauri/pull/12890) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `build > removeUnusedCommands` to trigger the build scripts and macros to remove unused commands based on the capabilities you defined. Note this won't be accounting for dynamically added ACLs so make sure to check it when using this.
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `trafficLightPosition` window configuration to set the traffic light buttons position on macOS.
+
+### Enhancements
+
+- [`f981a5ee8`](https://www.github.com/tauri-apps/tauri/commit/f981a5ee8b292b9ea09329f60cecc7f688dda734) ([#12602](https://www.github.com/tauri-apps/tauri/pull/12602) by [@kxxt](https://www.github.com/tauri-apps/tauri/../../kxxt)) Add basic support for linux riscv64 platform.
+
+### Bug Fixes
+
+- [`3cc4ad3c3`](https://www.github.com/tauri-apps/tauri/commit/3cc4ad3c381ee081cfcf0df28ea51507ad5c9b95) ([#12884](https://www.github.com/tauri-apps/tauri/pull/12884) by [@oscartbeaumont](https://www.github.com/tauri-apps/tauri/../../oscartbeaumont)) fix: allow double `--` in permissions as command can have double `__`
+
+### Performance Improvements
+
+- [`1cd8f55ee`](https://www.github.com/tauri-apps/tauri/commit/1cd8f55eed326d61860fee62ba2d2f4464bdcfcc) ([#13033](https://www.github.com/tauri-apps/tauri/pull/13033) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Don't ship global `bundle.global.js` if `app > withGlobalTauri` is set to false
+
 ## \[2.2.0]
 
 ### Enhancements

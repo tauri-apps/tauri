@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.4.0]
+
+### New Features
+
+- [`d91bfa5cb`](https://www.github.com/tauri-apps/tauri/commit/d91bfa5cb921a078758edd45ef3eaff71358d1eb) ([#12970](https://www.github.com/tauri-apps/tauri/pull/12970) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow merging multiple configuration values on `tauri dev`, `tauri build`, `tauri bundle`, `tauri android dev`, `tauri android build`, `tauri ios dev` and `tauri ios build`.
+- [`013f8f652`](https://www.github.com/tauri-apps/tauri/commit/013f8f652302f2d49c5ec0a075582033d8b074fb) ([#12890](https://www.github.com/tauri-apps/tauri/pull/12890) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Reads `build > removeUnusedCommands` from the config file and pass in the environment variables on the build command to trigger the build scripts and macros to remove unused commands based on the capabilities you defined. For this to work on inlined plugins you must add a `#![plugin(<insert_plugin_name>)]` inside the `tauri::generate_handler![]` usage and the app manifest must be set.
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `trafficLightPosition` window configuration to set the traffic light buttons position on macOS.
+
+### Enhancements
+
+- [`f981a5ee8`](https://www.github.com/tauri-apps/tauri/commit/f981a5ee8b292b9ea09329f60cecc7f688dda734) ([#12602](https://www.github.com/tauri-apps/tauri/pull/12602) by [@kxxt](https://www.github.com/tauri-apps/tauri/../../kxxt)) Add basic support for linux riscv64 platform.
+
+### Bug Fixes
+
+- [`0c4700e99`](https://www.github.com/tauri-apps/tauri/commit/0c4700e9907f242eabe579eb6149a1d75174185c) ([#12985](https://www.github.com/tauri-apps/tauri/pull/12985) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The cli will now accept `--bundles updater` again. It's still no-op as it has been for all v2 versions. If you want to build updater artifacts, enable `createUpdaterArtifacts` in `tauri.conf.json`.
+- [`eec08a18b`](https://www.github.com/tauri-apps/tauri/commit/eec08a18b66525f5544cd30144d0553260ee3a70) ([#12998](https://www.github.com/tauri-apps/tauri/pull/12998) by [@jason89521](https://www.github.com/tauri-apps/tauri/../../jason89521)) For bun's lockfile, check both `bun.lock` and `bun.lockb`.
+- [`b83921226`](https://www.github.com/tauri-apps/tauri/commit/b83921226cb3084992bb5357e7e39a09ea97843e) ([#12977](https://www.github.com/tauri-apps/tauri/pull/12977) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri ios` commands using the wrong working directory with `bun@>1.2`.
+- [`f268b3dbd`](https://www.github.com/tauri-apps/tauri/commit/f268b3dbdf313484c85b4a1f69cd7cec63049f35) ([#12871](https://www.github.com/tauri-apps/tauri/pull/12871) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ignore parent .gitignore files on the Tauri project path detection.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.0`
+- Upgraded to `tauri-bundler@2.3.0`
+
 ## \[2.3.1]
 
 ### Bug Fixes

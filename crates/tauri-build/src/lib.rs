@@ -511,6 +511,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   acl::build(&out_dir, target, &attributes)?;
 
+  tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
+
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
   env::set_var("TAURI_ENV_TARGET_TRIPLE", &target_triple);

@@ -432,8 +432,6 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
   let capabilities_path = save_capabilities(&capabilities)?;
   fs::copy(capabilities_path, out_dir.join(CAPABILITIES_FILE_NAME))?;
 
-  tauri_utils::plugin::save_global_api_scripts_paths(out_dir);
-
   let mut permissions_map = inline_plugins_acl.permission_files;
   if has_app_manifest {
     permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);

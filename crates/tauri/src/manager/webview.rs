@@ -122,7 +122,6 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let app_manager = manager.manager();
 
-    let is_init_global = app_manager.config.app.with_global_tauri;
     let plugin_init_scripts = app_manager
       .plugins
       .lock()
@@ -185,7 +184,6 @@ impl<R: Runtime> WebviewManager<R> {
           app_manager,
           &ipc_init.into_string(),
           &pattern_init.into_string(),
-          is_init_global,
           use_https_scheme,
         )?
         .to_string(),
@@ -346,7 +344,6 @@ impl<R: Runtime> WebviewManager<R> {
     app_manager: &AppManager<R>,
     ipc_script: &str,
     pattern_script: &str,
-    with_global_tauri: bool,
     use_https_scheme: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -356,8 +353,6 @@ impl<R: Runtime> WebviewManager<R> {
       pattern_script: &'a str,
       #[raw]
       ipc_script: &'a str,
-      #[raw]
-      bundle_script: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -374,12 +369,6 @@ impl<R: Runtime> WebviewManager<R> {
       invoke_key: &'a str,
     }
 
-    let bundle_script = if with_global_tauri {
-      include_str!("../../scripts/bundle.global.js")
-    } else {
-      ""
-    };
-
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
       include_str!("../../scripts/freeze_prototype.js")
     } else {
@@ -389,7 +378,6 @@ impl<R: Runtime> WebviewManager<R> {
     InitJavascript {
       pattern_script,
       ipc_script,
-      bundle_script,
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
         protocol_scheme: if use_https_scheme { "https" } else { "http" },

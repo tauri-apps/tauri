@@ -1,5 +1,24 @@
 # Changelog
 
+## \[2.5.0]
+
+### New Features
+
+- [`be2e6b85f`](https://www.github.com/tauri-apps/tauri/commit/be2e6b85fed226732b4a98f68cc5d72b4f8f5a13) ([#12944](https://www.github.com/tauri-apps/tauri/pull/12944) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) add `Window.is_always_on_top()` and `WebviewWindow.is_always_on_top()`
+- [`20c190691`](https://www.github.com/tauri-apps/tauri/commit/20c19069125c89b2d45a2127278c9ffc2df35fc2) ([#12821](https://www.github.com/tauri-apps/tauri/pull/12821) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) Add `WebviewBuilder.disable_javascript` and `WebviewWindowBuilder.disable_javascript` api to disable JavaScript.
+- [`658e5f5d1`](https://www.github.com/tauri-apps/tauri/commit/658e5f5d1dc1bd970ae572a42447448d064a7fee) ([#12668](https://www.github.com/tauri-apps/tauri/pull/12668) by [@thomaseizinger](https://www.github.com/tauri-apps/tauri/../../thomaseizinger)) Add `App::run_return` function. Contrary to `App::run`, this will **not** exit the process but instead return the requested exit-code. This allows the host app to perform further cleanup after Tauri has exited. `App::run_return` is not available on iOS and fallbacks to the regular `App::run` functionality.
+
+  The `App::run_iteration` function is deprecated as part of this because calling it in a loop - as suggested by the name - will cause a busy-loop.
+- [`c698a6d6f`](https://www.github.com/tauri-apps/tauri/commit/c698a6d6f3e02548444a4aa0e5220bbc6fc05c74) ([#12818](https://www.github.com/tauri-apps/tauri/pull/12818) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) feat: add `Webview.reload` and `WebviewWindow.reload`
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `trafficLightPosition` window configuration to set the traffic light buttons position on macOS.
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `traffic_light_position` window builder method to set the traffic light buttons position on macOS.
+- [`cedb24d49`](https://www.github.com/tauri-apps/tauri/commit/cedb24d494b84111daa3206c05196c8b89f1e994) ([#12665](https://www.github.com/tauri-apps/tauri/pull/12665) by [@charrondev](https://www.github.com/tauri-apps/tauri/../../charrondev)) Added `WebviewDispatch::cookies()` and `WebviewDispatch::cookies_for_url()`.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime@2.5.0`
+- Upgraded to `tauri-utils@2.3.0`
+
 ## \[2.4.1]
 
 ### Bug Fixes

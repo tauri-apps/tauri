@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.1.0]
+
+### New Features
+
+- [`013f8f652`](https://www.github.com/tauri-apps/tauri/commit/013f8f652302f2d49c5ec0a075582033d8b074fb) ([#12890](https://www.github.com/tauri-apps/tauri/pull/12890) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `build > removeUnusedCommands` to trigger the build scripts and macros to remove unused commands based on the capabilities you defined. Note this won't be accounting for dynamically added ACLs so make sure to check it when using this.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.0`
+
 ## \[2.0.5]
 
 ### Dependencies

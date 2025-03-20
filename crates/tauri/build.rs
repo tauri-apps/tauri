@@ -336,6 +336,14 @@ fn main() {
     }
   }
 
+  let tauri_global_scripts = PathBuf::from("./scripts/bundle.global.js")
+    .canonicalize()
+    .expect("failed to canonicalize tauri global API script path");
+  tauri_utils::plugin::define_global_api_script_path(&tauri_global_scripts);
+  if is_tauri_workspace {
+    tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, Some(tauri_global_scripts));
+  }
+
   let permissions = define_permissions(&out_dir);
   tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions).unwrap();
 }

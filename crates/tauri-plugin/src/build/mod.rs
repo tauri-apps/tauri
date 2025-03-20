@@ -144,7 +144,7 @@ impl<'a> Builder<'a> {
     }
 
     if let Some(path) = self.global_api_script_path {
-      tauri_utils::plugin::define_global_api_script_path(path);
+      tauri_utils::plugin::define_global_api_script_path(&path);
     }
 
     mobile::setup(self.android_path, self.ios_path)?;

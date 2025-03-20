@@ -121,7 +121,7 @@ objc = "0.2" # Do not update without consensus
 
 [target."cfg(windows)".dependencies]
 dunce = "1"
-webview2-com = "0.19.1" # Do not update without consensus
+webview2-com = "0.37.0" # Do not update without consensus
 win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]

@@ -39,7 +39,7 @@ rand = "0.8"
 url = { version = "2" }
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.19.1"
+webview2-com = "0.37.0"
 
   [target."cfg(windows)".dependencies.windows]
   version = "0.39.0"

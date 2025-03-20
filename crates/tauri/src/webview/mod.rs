@@ -1428,7 +1428,11 @@ fn main() {
     });
 
     // we only check ACL on plugin commands or if the app defined its ACL manifest
-    if (plugin_command.is_some() || has_app_acl_manifest) && invoke.acl.is_none() {
+    if (plugin_command.is_some() || has_app_acl_manifest)
+      // TODO: Remove this special check in v3
+      && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+      && invoke.acl.is_none()
+    {
       #[cfg(debug_assertions)]
       {
         let (key, command_name) = plugin_command

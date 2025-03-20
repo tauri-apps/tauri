@@ -74,6 +74,7 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
         // Parse the content inside #![plugin(...)]
         let plugin_name = attr.parse_args::<Ident>()?.to_string();
         return Ok(Some(if plugin_name == "__TAURI_CHANNEL__" {
+          // TODO: Remove this in v3
           plugin_name
         } else {
           plugin_name.replace("_", "-")
@@ -93,6 +94,12 @@ fn filter_unused_commands(plugin_name: Option<String>, command_defs: &mut Vec<Co
   let Some(allowed_commands) = allowed_commands else {
     return;
   };
+
+  // TODO: Remove this in v3
+  if plugin_name.as_deref() == Some("__TAURI_CHANNEL__") {
+    // Always allowed
+    return;
+  }
 
   if plugin_name.is_none() && !allowed_commands.has_app_acl {
     // All application commands are allowed if we don't have an application ACL

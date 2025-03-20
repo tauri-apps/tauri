@@ -131,11 +131,7 @@ pub fn read_permissions() -> Result<HashMap<String, Vec<PermissionFile>>, Error>
       let permissions: Vec<PathBuf> = serde_json::from_str(&permissions_str)?;
       let permissions = parse_permissions(permissions)?;
 
-      let plugin_crate_name = if plugin_crate_name_var == "CORE:__TAURI_CHANNEL__" {
-        "core:__TAURI_CHANNEL__".to_string()
-      } else {
-        plugin_crate_name_var.to_lowercase().replace('_', "-")
-      };
+      let plugin_crate_name = plugin_crate_name_var.to_lowercase().replace('_', "-");
       let plugin_crate_name = plugin_crate_name
         .strip_prefix("tauri-plugin-")
         .map(ToString::to_string)

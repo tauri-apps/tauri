@@ -23,8 +23,8 @@ use crate::{
 use super::{CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response};
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
-pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
-pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
+pub const CHANNEL_PLUGIN_NAME: &str = "channel";
+pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:channel|fetch";
 pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
 
 static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
@@ -255,7 +255,8 @@ fn fetch(
 pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
   PluginBuilder::new(CHANNEL_PLUGIN_NAME)
     .invoke_handler(crate::generate_handler![
-      #![plugin(__TAURI_CHANNEL__)]
+      // TODO: Enable this for remove unused commands on v3
+      // #![plugin(channel)]
       fetch
     ])
     .build()

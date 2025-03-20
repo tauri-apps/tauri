@@ -73,11 +73,7 @@ fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::E
       if attr.path().is_ident("plugin") {
         // Parse the content inside #![plugin(...)]
         let plugin_name = attr.parse_args::<Ident>()?.to_string();
-        return Ok(Some(if plugin_name == "__TAURI_CHANNEL__" {
-          plugin_name
-        } else {
-          plugin_name.replace("_", "-")
-        }));
+        return Ok(Some(plugin_name.replace("_", "-")));
       }
     }
   }

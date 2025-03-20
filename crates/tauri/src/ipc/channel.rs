@@ -259,6 +259,7 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
     .invoke_handler(crate::generate_handler![
       // TODO: Enable this for remove unused commands on v3
       // #![plugin(channel)]
+      #![plugin(__TAURI_CHANNEL__)]
       fetch
     ])
     .build()

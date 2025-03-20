@@ -125,7 +125,7 @@ webview2-com = "0.19.1" # Do not update without consensus
 win7-notifications = { version = "0.4", optional = true }
 
   [target."cfg(windows)".dependencies.windows]
-  version = "0.39.0" # Do not update without consensus
+  version = "0.61.0" # Do not update without consensus
   features = [
   "Win32_Foundation",
   "Win32_UI_WindowsAndMessaging",

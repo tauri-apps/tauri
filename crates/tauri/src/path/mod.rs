@@ -83,28 +83,40 @@ impl<'de> Deserialize<'de> for SafePathBuf {
 #[non_exhaustive]
 pub enum BaseDirectory {
   /// The Audio directory.
+  /// Resolves to [`crate::path::PathResolver::audio_dir`].
   Audio = 1,
   /// The Cache directory.
+  /// Resolves to [`crate::path::PathResolver::cache_dir`].
   Cache = 2,
   /// The Config directory.
+  /// Resolves to [`crate::path::PathResolver::config_dir`].
   Config = 3,
   /// The Data directory.
+  /// Resolves to [`crate::path::PathResolver::data_dir`].
   Data = 4,
   /// The LocalData directory.
+  /// Resolves to [`crate::path::PathResolver::local_data_dir`].
   LocalData = 5,
   /// The Document directory.
+  /// Resolves to [`crate::path::PathResolver::document_dir`].
   Document = 6,
   /// The Download directory.
+  /// Resolves to [`crate::path::PathResolver::download_dir`].
   Download = 7,
   /// The Picture directory.
+  /// Resolves to [`crate::path::PathResolver::picture_dir`].
   Picture = 8,
   /// The Public directory.
+  /// Resolves to [`crate::path::PathResolver::public_dir`].
   Public = 9,
   /// The Video directory.
+  /// Resolves to [`crate::path::PathResolver::video_dir`].
   Video = 10,
   /// The Resource directory.
+  /// Resolves to the resource directory of this app.
   Resource = 11,
-  /// A temporary directory. Resolves to [`std::env::temp_dir`].
+  /// A temporary directory.
+  /// Resolves to [`std::env::temp_dir`].
   Temp = 12,
   /// The default app config directory.
   /// Resolves to [`BaseDirectory::Config`]`/{bundle_identifier}`.
@@ -123,20 +135,26 @@ pub enum BaseDirectory {
   /// and [`BaseDirectory::Config`]`/{bundle_identifier}/logs` on linux and Windows.
   AppLog = 17,
   /// The Desktop directory.
+  /// Resolves to [`crate::path::PathResolver::desktop_dir`].
   #[cfg(not(target_os = "android"))]
   Desktop = 18,
   /// The Executable directory.
+  /// Resolves to [`crate::path::PathResolver::executable_dir`].
   #[cfg(not(target_os = "android"))]
   Executable = 19,
   /// The Font directory.
+  /// Resolves to [`crate::path::PathResolver::font_dir`].
   #[cfg(not(target_os = "android"))]
   Font = 20,
   /// The Home directory.
+  /// Resolves to [`crate::path::PathResolver::home_dir`].
   Home = 21,
   /// The Runtime directory.
+  /// Resolves to [`crate::path::PathResolver::runtime_dir`].
   #[cfg(not(target_os = "android"))]
   Runtime = 22,
   /// The Template directory.
+  /// Resolves to [`crate::path::PathResolver::template_dir`].
   #[cfg(not(target_os = "android"))]
   Template = 23,
 }

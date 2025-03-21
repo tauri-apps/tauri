@@ -1,6 +1,28 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which enables all commands:
+- `allow-new`
+- `allow-append`
+- `allow-prepend`
+- `allow-insert`
+- `allow-remove`
+- `allow-remove-at`
+- `allow-items`
+- `allow-get`
+- `allow-popup`
+- `allow-create-default`
+- `allow-set-as-app-menu`
+- `allow-set-as-window-menu`
+- `allow-text`
+- `allow-set-text`
+- `allow-is-enabled`
+- `allow-set-enabled`
+- `allow-set-accelerator`
+- `allow-set-as-windows-menu-for-nsapp`
+- `allow-set-as-help-menu-for-nsapp`
+- `allow-is-checked`
+- `allow-set-checked`
+- `allow-set-icon`
 
 - `allow-new`
 - `allow-append`

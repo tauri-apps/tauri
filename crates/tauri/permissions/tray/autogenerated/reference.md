@@ -1,6 +1,17 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which enables all commands:
+- `allow-new`
+- `allow-get-by-id`
+- `allow-remove-by-id`
+- `allow-set-icon`
+- `allow-set-menu`
+- `allow-set-tooltip`
+- `allow-set-title`
+- `allow-set-visible`
+- `allow-set-temp-dir-path`
+- `allow-set-icon-as-template`
+- `allow-set-show-menu-on-left-click`
 
 - `allow-new`
 - `allow-get-by-id`

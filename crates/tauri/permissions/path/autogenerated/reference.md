@@ -1,6 +1,14 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which enables all commands:
+- `allow-resolve-directory`
+- `allow-resolve`
+- `allow-normalize`
+- `allow-join`
+- `allow-dirname`
+- `allow-extname`
+- `allow-basename`
+- `allow-is-absolute`
 
 - `allow-resolve-directory`
 - `allow-resolve`

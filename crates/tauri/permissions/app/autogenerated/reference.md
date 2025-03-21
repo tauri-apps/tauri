@@ -1,6 +1,10 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which includes:
+- `allow-version`
+- `allow-name`
+- `allow-tauri-version`
+- `allow-identifier`
 
 - `allow-version`
 - `allow-name`

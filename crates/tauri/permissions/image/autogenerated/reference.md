@@ -1,6 +1,11 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which enables all commands:
+- `allow-new`
+- `allow-from-bytes`
+- `allow-from-path`
+- `allow-rgba`
+- `allow-size`
 
 - `allow-new`
 - `allow-from-bytes`

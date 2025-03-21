@@ -1,6 +1,32 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which includes:
+- `allow-get-all-windows`
+- `allow-scale-factor`
+- `allow-inner-position`
+- `allow-outer-position`
+- `allow-inner-size`
+- `allow-outer-size`
+- `allow-is-fullscreen`
+- `allow-is-minimized`
+- `allow-is-maximized`
+- `allow-is-focused`
+- `allow-is-decorated`
+- `allow-is-resizable`
+- `allow-is-maximizable`
+- `allow-is-minimizable`
+- `allow-is-closable`
+- `allow-is-visible`
+- `allow-is-enabled`
+- `allow-title`
+- `allow-current-monitor`
+- `allow-primary-monitor`
+- `allow-monitor-from-point`
+- `allow-available-monitors`
+- `allow-cursor-position`
+- `allow-theme`
+- `allow-is-always-on-top`
+- `allow-internal-toggle-maximize`
 
 - `allow-get-all-windows`
 - `allow-scale-factor`

@@ -1,6 +1,10 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which includes:
+- `allow-get-all-webviews`
+- `allow-webview-position`
+- `allow-webview-size`
+- `allow-internal-toggle-devtools`
 
 - `allow-get-all-webviews`
 - `allow-webview-position`

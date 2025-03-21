@@ -115,7 +115,7 @@ pub enum BaseDirectory {
   /// The Resource directory.
   /// Resolves to the resource directory of this app.
   Resource = 11,
-  /// A temporary directory. 
+  /// A temporary directory.
   /// Resolves to [`std::env::temp_dir`].
   Temp = 12,
   /// The default app config directory.

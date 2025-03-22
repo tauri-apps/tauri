@@ -65,7 +65,7 @@ regex = "1"
 heck = "0.5"
 ar = "0.9"
 md5 = "0.7"
-rpm = "0.14" # 0.15 raised msrv
+rpm = "0.17" # 0.15 raised msrv
 
 [lib]
 name = "tauri_bundler"

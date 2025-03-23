@@ -2227,7 +2227,10 @@ tauri::Builder::default()
     Ok(app)
   }
 
-  /// Runs the configured Tauri application.
+  /// Builds the configured application and runs it.
+  ///
+  /// This is a shorthand for [`Self::build`] followed by [`App::run`].
+  /// For more flexibility, consider using those functions manually.
   pub fn run(self, context: Context<R>) -> crate::Result<()> {
     self.build(context)?.run(|_, _| {});
     Ok(())

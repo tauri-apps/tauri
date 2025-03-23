@@ -42,6 +42,9 @@ pub trait PermissionSchemaGenerator<
   /// Default permission set description if any.
   fn default_set_description(&self) -> Option<&str>;
 
+  /// Default permission set's permissions if any.
+  fn default_set_permissions(&self) -> Option<&Vec<String>>;
+
   /// Permissions sets to generate schema for.
   fn permission_sets(&'a self) -> Ps;
 
@@ -56,6 +59,18 @@ pub trait PermissionSchemaGenerator<
       _ => id.to_string(),
     };
 
+    let extensions = if let Some(description) = description {
+      [(
+        // This is non-standard, and only used by vscode right now,
+        // but it does work really well
+        "markdownDescription".to_string(),
+        serde_json::Value::String(description.to_string()),
+      )]
+      .into()
+    } else {
+      Default::default()
+    };
+
     Schema::Object(SchemaObject {
       metadata: Some(Box::new(Metadata {
         description: description.map(ToString::to_string),
@@ -63,6 +78,7 @@ pub trait PermissionSchemaGenerator<
       })),
       instance_type: Some(InstanceType::String.into()),
       const_value: Some(serde_json::Value::String(command_name)),
+      extensions,
       ..Default::default()
     })
   }
@@ -73,13 +89,22 @@ pub trait PermissionSchemaGenerator<
 
     // schema for default set
     if self.has_default_permission_set() {
-      let default = Self::perm_id_schema(name, "default", self.default_set_description());
-      permission_schemas.push(default);
+      let description = self.default_set_description().unwrap_or_default();
+      let description = if let Some(permissions) = self.default_set_permissions() {
+        add_permissions_to_description(description, permissions, true)
+      } else {
+        description.to_string()
+      };
+      if !description.is_empty() {
+        let default = Self::perm_id_schema(name, "default", Some(&description));
+        permission_schemas.push(default);
+      }
     }
 
     // schema for each permission set
     for set in self.permission_sets() {
-      let schema = Self::perm_id_schema(name, &set.identifier, Some(&set.description));
+      let description = add_permissions_to_description(&set.description, &set.permissions, false);
+      let schema = Self::perm_id_schema(name, &set.identifier, Some(&description));
       permission_schemas.push(schema);
     }
 
@@ -91,6 +116,27 @@ pub trait PermissionSchemaGenerator<
 
     permission_schemas
   }
+}
+
+fn add_permissions_to_description(
+  description: &str,
+  permissions: &[String],
+  is_default: bool,
+) -> String {
+  if permissions.is_empty() {
+    return description.to_string();
+  }
+  let permissions_list = permissions
+    .iter()
+    .map(|permission| format!("- `{permission}`"))
+    .collect::<Vec<_>>()
+    .join("\n");
+  let default_permission_set = if is_default {
+    "default permission set"
+  } else {
+    "permission set"
+  };
+  format!("{description}\n#### This {default_permission_set} includes:\n\n{permissions_list}")
 }
 
 impl<'a>
@@ -111,6 +157,10 @@ impl<'a>
       .map(|d| d.description.as_str())
   }
 
+  fn default_set_permissions(&self) -> Option<&Vec<String>> {
+    self.default_permission.as_ref().map(|d| &d.permissions)
+  }
+
   fn permission_sets(&'a self) -> Values<'a, std::string::String, PermissionSet> {
     self.permission_sets.values()
   }
@@ -129,6 +179,10 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
 
   fn default_set_description(&self) -> Option<&str> {
     self.default.as_ref().and_then(|d| d.description.as_deref())
+  }
+
+  fn default_set_permissions(&self) -> Option<&Vec<String>> {
+    self.default.as_ref().map(|d| &d.permissions)
   }
 
   fn permission_sets(&'a self) -> Iter<'a, PermissionSet> {

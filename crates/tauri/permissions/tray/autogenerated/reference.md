@@ -1,6 +1,8 @@
 ## Default Permission
 
-Default permissions for the plugin.
+Default permissions for the plugin, which enables all commands.
+
+#### This default permission set includes the following:
 
 - `allow-new`
 - `allow-get-by-id`

@@ -384,17 +384,17 @@ fn define_permissions(
       .collect::<Vec<_>>()
       .join(", ");
 
-    let which_includes = if all_commands_enabled_by_default {
-      "which enables all commands"
+    let all_enable_by_default = if all_commands_enabled_by_default {
+      ", which enables all commands"
     } else {
-      "which includes"
+      ""
     };
 
     let default_toml = format!(
       r###"{LICENSE_HEADER}# Automatically generated - DO NOT EDIT!
 
 [default]
-description = "Default permissions for the plugin, {which_includes}:"
+description = "Default permissions for the plugin{all_enable_by_default}."
 permissions = [{default_permissions}]
 "###,
     );
@@ -447,7 +447,7 @@ fn define_default_permission_set(
     r#"{LICENSE_HEADER}
 
 [default]
-description = "Default core plugins set which includes:"
+description = "Default core plugins set."
 permissions = [{}]
 "#,
     PLUGINS

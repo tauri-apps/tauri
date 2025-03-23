@@ -91,7 +91,7 @@ pub trait PermissionSchemaGenerator<
     if self.has_default_permission_set() {
       let description = self.default_set_description().unwrap_or_default();
       let description = if let Some(permissions) = self.default_set_permissions() {
-        add_permissions_to_description(description, permissions)
+        add_permissions_to_description(description, permissions, true)
       } else {
         description.to_string()
       };
@@ -103,7 +103,7 @@ pub trait PermissionSchemaGenerator<
 
     // schema for each permission set
     for set in self.permission_sets() {
-      let description = add_permissions_to_description(&set.description, &set.permissions);
+      let description = add_permissions_to_description(&set.description, &set.permissions, false);
       let schema = Self::perm_id_schema(name, &set.identifier, Some(&description));
       permission_schemas.push(schema);
     }
@@ -118,7 +118,11 @@ pub trait PermissionSchemaGenerator<
   }
 }
 
-fn add_permissions_to_description(description: &str, permissions: &[String]) -> String {
+fn add_permissions_to_description(
+  description: &str,
+  permissions: &[String],
+  is_default: bool,
+) -> String {
   if permissions.is_empty() {
     return description.to_string();
   }
@@ -127,7 +131,12 @@ fn add_permissions_to_description(description: &str, permissions: &[String]) -> 
     .map(|permission| format!("- `{permission}`"))
     .collect::<Vec<_>>()
     .join("\n");
-  format!("{description}\n\n{permissions_list}")
+  let default_permission_set = if is_default {
+    "default permission set"
+  } else {
+    "permission set"
+  };
+  format!("{description}\n#### This {default_permission_set} includes the following:\n\n{permissions_list}")
 }
 
 impl<'a>

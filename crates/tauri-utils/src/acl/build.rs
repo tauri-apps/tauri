@@ -356,9 +356,10 @@ pub fn generate_docs(
       default_permission.push_str(default.description.as_deref().unwrap_or_default());
       default_permission.push('\n');
       default_permission.push('\n');
+      default_permission.push_str("#### This default permission set includes the following:\n");
+      default_permission.push('\n');
       for permission in &default.permissions {
-        default_permission.push_str(&format!("- `{permission}`"));
-        default_permission.push('\n');
+        default_permission.push_str(&format!("- `{permission}`\n"));
       }
     }
 

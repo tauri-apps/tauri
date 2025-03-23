@@ -2,6 +2,8 @@
 
 Default permissions for the plugin.
 
+#### This default permission set includes the following:
+
 - `allow-version`
 - `allow-name`
 - `allow-tauri-version`

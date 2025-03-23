@@ -373,9 +373,10 @@ fn define_permissions(
       LICENSE_HEADER,
       false,
     );
-    let default_permissions = commands
-      .iter()
-      .filter(|(_cmd, default)| *default)
+    let default_permissions: Vec<_> = commands.iter().filter(|(_cmd, default)| *default).collect();
+    let all_commands_enabled_by_default = commands.len() == default_permissions.len();
+    let default_permissions = default_permissions
+      .into_iter()
       .map(|(cmd, _)| {
         let slugified_command = cmd.replace('_', "-");
         format!("\"allow-{slugified_command}\"")
@@ -383,11 +384,17 @@ fn define_permissions(
       .collect::<Vec<_>>()
       .join(", ");
 
+    let which_includes = if all_commands_enabled_by_default {
+      "which enables all commands"
+    } else {
+      "which includes"
+    };
+
     let default_toml = format!(
       r###"{LICENSE_HEADER}# Automatically generated - DO NOT EDIT!
 
 [default]
-description = "Default permissions for the plugin, which includes:"
+description = "Default permissions for the plugin, {which_includes}:"
 permissions = [{default_permissions}]
 "###,
     );

@@ -1,6 +1,6 @@
 ## Default Permission
 
-Default permissions for the plugin, which includes:
+Default permissions for the plugin, which enables all commands:
 
 - `allow-resolve-directory`
 - `allow-resolve`

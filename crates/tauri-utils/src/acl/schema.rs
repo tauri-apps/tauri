@@ -136,7 +136,7 @@ fn add_permissions_to_description(
   } else {
     "permission set"
   };
-  format!("{description}\n#### This {default_permission_set} includes the following:\n\n{permissions_list}")
+  format!("{description}\n#### This {default_permission_set} includes:\n\n{permissions_list}")
 }
 
 impl<'a>

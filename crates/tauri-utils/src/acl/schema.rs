@@ -92,24 +92,15 @@ pub trait PermissionSchemaGenerator<
       self.default_set_description(),
       self.default_set_permissions(),
     ) {
-      let default = Self::perm_id_schema(
-        name,
-        "default",
-        Some(&add_permissions_to_description(description, permissions)),
-      );
+      let description = add_permissions_to_description(description, permissions);
+      let default = Self::perm_id_schema(name, "default", Some(&description));
       permission_schemas.push(default);
     }
 
     // schema for each permission set
     for set in self.permission_sets() {
-      let schema = Self::perm_id_schema(
-        name,
-        &set.identifier,
-        Some(&add_permissions_to_description(
-          &set.description,
-          &set.permissions,
-        )),
-      );
+      let description = add_permissions_to_description(&set.description, &set.permissions);
+      let schema = Self::perm_id_schema(name, &set.identifier, Some(&description));
       permission_schemas.push(schema);
     }
 

@@ -123,7 +123,7 @@ pub trait PermissionSchemaGenerator<
   }
 }
 
-fn add_permissions_to_description(description: &str, permissions: &Vec<String>) -> String {
+fn add_permissions_to_description(description: &str, permissions: &[String]) -> String {
   if permissions.is_empty() {
     return description.to_string();
   }

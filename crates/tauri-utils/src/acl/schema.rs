@@ -88,13 +88,17 @@ pub trait PermissionSchemaGenerator<
     let mut permission_schemas = Vec::new();
 
     // schema for default set
-    if let (Some(description), Some(permissions)) = (
-      self.default_set_description(),
-      self.default_set_permissions(),
-    ) {
-      let description = add_permissions_to_description(description, permissions);
-      let default = Self::perm_id_schema(name, "default", Some(&description));
-      permission_schemas.push(default);
+    if self.has_default_permission_set() {
+      let description = self.default_set_description().unwrap_or_default();
+      let description = if let Some(permissions) = self.default_set_permissions() {
+        add_permissions_to_description(description, permissions)
+      } else {
+        description.to_string()
+      };
+      if !description.is_empty() {
+        let default = Self::perm_id_schema(name, "default", Some(&description));
+        permission_schemas.push(default);
+      }
     }
 
     // schema for each permission set

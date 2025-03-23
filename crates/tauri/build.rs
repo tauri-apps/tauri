@@ -373,36 +373,13 @@ fn define_permissions(
       LICENSE_HEADER,
       false,
     );
-    let default_commands = commands
+    let default_permissions = commands
       .iter()
-      .filter_map(|(cmd, default)| {
-        if *default {
-          Some(cmd.replace('_', "-"))
-        } else {
-          None
-        }
+      .filter(|(_cmd, default)| *default)
+      .map(|(cmd, _)| {
+        let slugified_command = cmd.replace('_', "-");
+        format!("\"allow-{slugified_command}\"")
       })
-      .collect::<Vec<_>>();
-
-    let all_commands_allowed_in_default = default_commands.len() == commands.len();
-    let default_permissions_description = default_commands
-      .iter()
-      .map(|slugified_command| format!("- `allow-{slugified_command}`"))
-      .collect::<Vec<_>>()
-      .join("\n");
-    let which_includes = if all_commands_allowed_in_default {
-      "which enables all commands:"
-    } else {
-      "which includes:"
-    };
-    let description = format!(
-      "Default permissions for the plugin, {which_includes}
-{default_permissions_description}"
-    );
-
-    let default_permissions = default_commands
-      .iter()
-      .map(|slugified_command| format!("\"allow-{slugified_command}\""))
       .collect::<Vec<_>>()
       .join(", ");
 
@@ -410,7 +387,7 @@ fn define_permissions(
       r###"{LICENSE_HEADER}# Automatically generated - DO NOT EDIT!
 
 [default]
-description = """{description}"""
+description = "Default permissions for the plugin."
 permissions = [{default_permissions}]
 "###,
     );
@@ -463,16 +440,9 @@ fn define_default_permission_set(
     r#"{LICENSE_HEADER}
 
 [default]
-description = """Default core plugins set which includes:
-{}
-"""
+description = "Default core plugins set"
 permissions = [{}]
 "#,
-    PLUGINS
-      .iter()
-      .map(|(k, _)| format!("- `{k}:default`"))
-      .collect::<Vec<_>>()
-      .join("\n"),
     PLUGINS
       .iter()
       .map(|(k, _)| format!("\"{k}:default\""))

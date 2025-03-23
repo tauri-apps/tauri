@@ -1,10 +1,6 @@
 ## Default Permission
 
-Default permissions for the plugin, which enables all commands:
-- `allow-listen`
-- `allow-unlisten`
-- `allow-emit`
-- `allow-emit-to`
+Default permissions for the plugin.
 
 - `allow-listen`
 - `allow-unlisten`

@@ -1,7 +1,6 @@
 ## Default Permission
 
-Default permissions for the plugin, which enables all commands:
-- `allow-close`
+Default permissions for the plugin.
 
 - `allow-close`
 

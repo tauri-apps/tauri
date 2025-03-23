@@ -387,7 +387,7 @@ fn define_permissions(
       r###"{LICENSE_HEADER}# Automatically generated - DO NOT EDIT!
 
 [default]
-description = "Default permissions for the plugin."
+description = "Default permissions for the plugin, which includes:"
 permissions = [{default_permissions}]
 "###,
     );
@@ -440,7 +440,7 @@ fn define_default_permission_set(
     r#"{LICENSE_HEADER}
 
 [default]
-description = "Default core plugins set"
+description = "Default core plugins set which includes:"
 permissions = [{}]
 "#,
     PLUGINS

@@ -132,7 +132,7 @@ fn add_permissions_to_description(description: &str, permissions: &Vec<String>) 
     .map(|permission| format!("- `{permission}`"))
     .collect::<Vec<_>>()
     .join("\n");
-  format!("{description}\n#### This permission set includes the following:\n{permissions_list}")
+  format!("{description}\n\n{permissions_list}")
 }
 
 impl<'a>

@@ -3,4 +3,4 @@ tauri: minor:enhance
 tauri-utils: minor:enhance
 ---
 
-Include permission group permissions in the generated schema
+Enhanced the description of generated docs and schema for permission sets to include list of permissions within.

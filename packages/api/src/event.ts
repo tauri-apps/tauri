@@ -174,7 +174,7 @@ async function once<T>(
  *
  * @since 1.0.0
  */
-async function emit(event: string, payload?: unknown): Promise<void> {
+async function emit<T>(event: string, payload?: T): Promise<void> {
   await invoke('plugin:event|emit', {
     event,
     payload
@@ -196,10 +196,10 @@ async function emit(event: string, payload?: unknown): Promise<void> {
  *
  * @since 2.0.0
  */
-async function emitTo(
+async function emitTo<T>(
   target: EventTarget | string,
   event: string,
-  payload?: unknown
+  payload?: T
 ): Promise<void> {
   const eventTarget: EventTarget =
     typeof target === 'string' ? { kind: 'AnyLabel', label: target } : target

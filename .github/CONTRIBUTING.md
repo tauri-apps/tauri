@@ -53,7 +53,12 @@ First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know tha
 
 To set up your machine for development, follow the [Tauri setup guide](https://v2.tauri.app/start/prerequisites/) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [PNPM](https://pnpm.io/), it is only required if you are developing the Node CLI or API packages (`packages/cli` and `packages/api`). Next, fork and clone this repo. It is structured as a monorepo, which means that all the various Tauri packages are under the same repository. The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
 
-Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To build these automatically, run the `.scripts/setup.sh` (Linux and macOS) or `.scripts/setup.ps1` (Windows) script. This will install the Rust and Node.js CLI and build the JS API. After that, you should be able to run all the examples. Note that the setup script should be executed from the root folder of the repository in order to run correctly.
+Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To initialize, execute these commands in the repository root:
+
+```bash
+pnpm install
+pnpm build
+```
 
 ### Overview
 

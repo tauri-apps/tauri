@@ -634,7 +634,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document and child frame page navigations,
+  /// Since it runs on all top-level document navigastions (and also child frame page navigations, if you set `run_only_on_main_frame` to false),
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// # Examples
@@ -658,7 +658,7 @@ fn main() {
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script(INIT_SCRIPT);
+        .initialization_script(INIT_SCRIPT, true);
       let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
       Ok(())
     });
@@ -667,11 +667,11 @@ fn main() {
   "####
   )]
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
+  pub fn initialization_script(mut self, script: &str, run_only_on_main_frame: bool) -> Self {
     self
       .webview_attributes
       .initialization_scripts
-      .push(script.to_string());
+      .push((script.to_string(), run_only_on_main_frame));
     self
   }
 

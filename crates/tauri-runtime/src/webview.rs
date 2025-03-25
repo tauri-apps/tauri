@@ -197,7 +197,18 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
 pub struct WebviewAttributes {
   pub url: WebviewUrl,
   pub user_agent: Option<String>,
-  pub initialization_scripts: Vec<String>,
+  /// A list of initialization javascript scripts to run when loading new pages.
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// Second parameter represents if script should be added to main frame only or sub frames also.
+  /// `true` for main frame only, `false` for all frames including sub frames.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
+  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  pub initialization_scripts: Vec<(String, bool)>,
   pub data_directory: Option<PathBuf>,
   pub drag_drop_handler_enabled: bool,
   pub clipboard: bool,
@@ -307,10 +318,45 @@ impl WebviewAttributes {
     self
   }
 
-  /// Sets the init script.
+  /// Adds an init script for the main frame.
+  ///
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
+  ///
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
+  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
   #[must_use]
   pub fn initialization_script(mut self, script: &str) -> Self {
-    self.initialization_scripts.push(script.to_string());
+    self.initialization_scripts.push((script.to_string(), true));
+    self
+  }
+
+  /// Adds an init script for all frames.
+  ///
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// This is executed on all frames, main frame and also sub frames.
+  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
+  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  ///
+  /// - On **macOS** and **iOS** you can use this to overwrite browser apis to make them inacessible even in iframes.
+  ///   You can disable WebRTC this way, for example.
+  #[must_use]
+  pub fn initialization_script_on_all_frames(mut self, script: &str) -> Self {
+    self
+      .initialization_scripts
+      .push((script.to_string(), false));
     self
   }
 

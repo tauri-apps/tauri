@@ -211,9 +211,12 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
-    webview_attributes
-      .initialization_scripts
-      .splice(0..0, all_initialization_scripts);
+    webview_attributes.initialization_scripts.splice(
+      0..0,
+      all_initialization_scripts
+        .into_iter()
+        .map(|script| (script, true /* only run on main frame */)),
+    );
 
     pending.webview_attributes = webview_attributes;
 
@@ -527,13 +530,14 @@ impl<R: Runtime> WebviewManager<R> {
         os_name: &'a str,
       }
 
-      pending.webview_attributes.initialization_scripts.push(
+      pending.webview_attributes.initialization_scripts.push((
         HotkeyZoom {
           os_name: std::env::consts::OS,
         }
         .render_default(&Default::default())?
         .into_string(),
-      )
+        true,
+      ))
     }
 
     #[cfg(feature = "isolation")]

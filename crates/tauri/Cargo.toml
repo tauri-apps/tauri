@@ -62,7 +62,7 @@ tauri-macros = { version = "2.1.0", path = "../tauri-macros" }
 tauri-utils = { version = "2.3.0", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.5.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.5.0", path = "../tauri-runtime-wry", optional = true, default-features = false}
 getrandom = "0.2"
 serde_repr = "0.1"
 http = "1"
@@ -174,7 +174,7 @@ objc2-web-kit = { version = "0.3", features = [
 ] }
 
 [features]
-default = ["wry", "compression", "common-controls-v6"]
+default = ["wry", "compression", "common-controls-v6", "x11"]
 unstable = ["tauri-runtime-wry/unstable"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
@@ -185,6 +185,7 @@ tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
+x11 = ["tauri-runtime-wry?/x11"]
 # TODO: Remove in v3 - wry does not have this feature anymore
 objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]

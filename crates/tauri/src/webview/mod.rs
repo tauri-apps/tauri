@@ -634,8 +634,11 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document navigastions (and also child frame page navigations, if you set `run_only_on_main_frame` to false),
+  /// Since it runs on all top-level document navigations,
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [Self::initialization_script_for_all_frames] instead.
   ///
   /// # Examples
   ///
@@ -658,7 +661,7 @@ fn main() {
     .setup(|app| {
       let window = tauri::window::WindowBuilder::new(app, "label").build()?;
       let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
-        .initialization_script(INIT_SCRIPT, true);
+        .initialization_script(INIT_SCRIPT);
       let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
       Ok(())
     });
@@ -667,11 +670,58 @@ fn main() {
   "####
   )]
   #[must_use]
-  pub fn initialization_script(mut self, script: &str, run_only_on_main_frame: bool) -> Self {
+  pub fn initialization_script(mut self, script: &str) -> Self {
     self
       .webview_attributes
       .initialization_scripts
-      .push((script.to_string(), run_only_on_main_frame));
+      .push((script.to_string(), true));
+    self
+  }
+
+  /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document navigations and also child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// This is executed on all frames, main frame and also sub frames.
+  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// # Examples
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust
+use tauri::{WindowBuilder, Runtime};
+
+const INIT_SCRIPT: &str = r#"
+  if (window.location.origin === 'https://tauri.app') {
+    console.log("hello world from js init script");
+
+    window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  }
+"#;
+
+fn main() {
+  tauri::Builder::default()
+    .setup(|app| {
+      let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+      let webview_builder = tauri::webview::WebviewBuilder::new("label", tauri::WebviewUrl::App("index.html".into()))
+        .initialization_script_for_all_frames(INIT_SCRIPT);
+      let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+      Ok(())
+    });
+}
+```
+  "####
+  )]
+  #[must_use]
+  pub fn initialization_script_for_all_frames(mut self, script: &str) -> Self {
+    self
+      .webview_attributes
+      .initialization_scripts
+      .push((script.to_string(), false));
     self
   }
 

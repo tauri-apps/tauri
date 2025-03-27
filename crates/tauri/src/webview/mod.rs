@@ -20,7 +20,7 @@ use tauri_runtime::{
   WindowDispatch,
 };
 use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview, WebviewAttributes},
+  webview::{DetachedWebview, InitializationScript, PendingWebview, WebviewAttributes},
   WebviewDispatch,
 };
 pub use tauri_utils::config::Color;
@@ -674,7 +674,10 @@ fn main() {
     self
       .webview_attributes
       .initialization_scripts
-      .push((script.to_string(), true));
+      .push(InitializationScript {
+        script: script.to_string(),
+        for_main_frame_only: true,
+      });
     self
   }
 
@@ -721,7 +724,10 @@ fn main() {
     self
       .webview_attributes
       .initialization_scripts
-      .push((script.to_string(), false));
+      .push(InitializationScript {
+        script: script.to_string(),
+        for_main_frame_only: false,
+      });
     self
   }
 

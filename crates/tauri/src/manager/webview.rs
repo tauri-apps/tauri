@@ -13,7 +13,7 @@ use std::{
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview},
+  webview::{DetachedWebview, InitializationScript, PendingWebview},
   window::DragDropEvent,
 };
 use tauri_utils::config::WebviewUrl;
@@ -215,7 +215,10 @@ impl<R: Runtime> WebviewManager<R> {
       0..0,
       all_initialization_scripts
         .into_iter()
-        .map(|script| (script, true /* only run on main frame */)),
+        .map(|script| InitializationScript {
+          script,
+          for_main_frame_only: true,
+        }),
     );
 
     pending.webview_attributes = webview_attributes;
@@ -530,14 +533,17 @@ impl<R: Runtime> WebviewManager<R> {
         os_name: &'a str,
       }
 
-      pending.webview_attributes.initialization_scripts.push((
-        HotkeyZoom {
-          os_name: std::env::consts::OS,
-        }
-        .render_default(&Default::default())?
-        .into_string(),
-        true,
-      ))
+      pending
+        .webview_attributes
+        .initialization_scripts
+        .push(InitializationScript {
+          script: HotkeyZoom {
+            os_name: std::env::consts::OS,
+          }
+          .render_default(&Default::default())?
+          .into_string(),
+          for_main_frame_only: true,
+        })
     }
 
     #[cfg(feature = "isolation")]

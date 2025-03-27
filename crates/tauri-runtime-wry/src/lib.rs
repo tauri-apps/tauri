@@ -4557,7 +4557,8 @@ fn create_webview<T: UserEvent>(
   ));
 
   for script in webview_attributes.initialization_scripts {
-    webview_builder = webview_builder.with_initialization_script_for_main_only(&script.0, script.1);
+    webview_builder = webview_builder
+      .with_initialization_script_for_main_only(&script.script, script.for_main_frame_only);
   }
 
   for (scheme, protocol) in uri_scheme_protocols {

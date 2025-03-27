@@ -1,6 +1,6 @@
 ---
-tauri: minor
-tauri-runtime: minor
+tauri: minor:feat
+tauri-runtime: minor:feat
 ---
 
 - add API to run initialisation scripts on all frames

@@ -10796,8 +10796,7 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 [[package]]
 name = "wry"
 version = "0.50.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b19b78efae8b853c6c817e8752fc1dbf9cab8a8ffe9c30f399bd750ccf0f0730"
+source = "git+https://github.com/Simon-Laux/wry?branch=apple_allow_link_preview#d401330c4ee9cdb6e04ccfe073778eae7f6ca292"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

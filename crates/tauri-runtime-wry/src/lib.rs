@@ -4545,6 +4545,8 @@ fn create_webview<T: UserEvent>(
     if let Some(position) = &webview_attributes.traffic_light_position {
       webview_builder = webview_builder.with_traffic_light_inset(*position);
     }
+
+    webview_builder = webview_builder.allow_link_preview(webview_attributes.allow_link_preview)
   }
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(

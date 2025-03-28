@@ -352,9 +352,6 @@ impl WebviewAttributes {
   ///
   /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
   ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
-  ///
-  /// - On **macOS** and **iOS** you can use this to overwrite browser apis to make them inacessible even in iframes.
-  ///   You can disable WebRTC this way, for example.
   #[must_use]
   pub fn initialization_script_on_all_frames(mut self, script: &str) -> Self {
     self.initialization_scripts.push(InitializationScript {

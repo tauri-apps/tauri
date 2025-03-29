@@ -45,7 +45,7 @@ pub fn items(frontend_dir: Option<&PathBuf>, tauri_dir: Option<&Path>) -> Vec<Se
       .ok()
       .map(|o| {
         if o.status.success() {
-          let out = dbg!(String::from_utf8_lossy(o.stdout.as_slice()));
+          let out = String::from_utf8_lossy(o.stdout.as_slice());
           let (package, version) = out.split_once(' ').unwrap_or_default();
           let version = version.split_once('\n').unwrap_or_default().0;
           let latest_version = crate_latest_version(package).unwrap_or_default();

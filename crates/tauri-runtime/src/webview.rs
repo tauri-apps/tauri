@@ -201,9 +201,6 @@ pub struct WebviewAttributes {
   /// When webview load a new page, this initialization code will be executed.
   /// It is guaranteed that code is executed before `window.onload`.
   ///
-  /// Second parameter represents if script should be added to main frame only or sub frames also.
-  /// `true` for main frame only, `false` for all frames including sub frames.
-  ///
   /// ## Platform-specific
   ///
   /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,

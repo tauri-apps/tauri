@@ -97,15 +97,30 @@ impl std::fmt::Display for CrateVersion {
   }
 }
 
+// Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/views.rs#L274
+#[derive(serde::Deserialize)]
+struct CrateMetadata {
+  /// The "default" version of this crate.
+  ///
+  /// This version will be displayed by default on the crate's page.
+  pub default_version: Option<String>,
+}
+
+// Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L44
+#[derive(serde::Deserialize)]
+struct CrateIoGetResponse {
+  /// The crate metadata.
+  #[serde(rename = "crate")]
+  krate: CrateMetadata,
+}
+
 pub fn crate_latest_version(name: &str) -> Option<String> {
-  let url = format!("https://docs.rs/crate/{name}/");
-  let response = ureq::get(&url).call().ok()?;
-  if response.status().is_redirection() {
-    if let Some(location) = response.headers().get("location") {
-      return location.to_str().ok().map(|s| s.replace(&url, ""));
-    }
-  }
-  None
+  // Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L88
+  let url = format!("https://crates.io/api/v1/crates/{name}?include");
+  let mut response = ureq::get(&url).call().ok()?;
+  let metadata: CrateIoGetResponse =
+    serde_json::from_reader(response.body_mut().as_reader()).unwrap();
+  metadata.krate.default_version
 }
 
 pub fn crate_version(

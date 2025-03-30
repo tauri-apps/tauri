@@ -8537,6 +8537,7 @@ dependencies = [
  "insta",
  "itertools 0.13.0",
  "json-patch 3.0.1",
+ "json5",
  "jsonrpsee",
  "jsonrpsee-client-transport",
  "jsonrpsee-core",

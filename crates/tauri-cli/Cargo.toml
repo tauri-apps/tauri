@@ -51,6 +51,7 @@ tauri-bundler = { version = "2.3.0", default-features = false, path = "../tauri-
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
+json5 = "0.4"
 notify = "8"
 notify-debouncer-full = "0.5"
 shared_child = "1"

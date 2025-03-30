@@ -60,7 +60,7 @@ pub struct Options {
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
-  /// JSON strings or path to JSON files to merge with the default configuration file
+  /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
   ///

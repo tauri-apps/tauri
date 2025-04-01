@@ -1,5 +1,22 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`f805061d1`](https://www.github.com/tauri-apps/tauri/commit/f805061d1152bc4790dbdb9475a506afcdd1de75) ([#13079](https://www.github.com/tauri-apps/tauri/pull/13079) by [@Pietagorh](https://www.github.com/tauri-apps/tauri/../../Pietagorh)) Add support for passing TOML and JSON5 config files to `--config` arg
+
+### Bug Fixes
+
+- [`30beb6fee`](https://www.github.com/tauri-apps/tauri/commit/30beb6fee7b052e588ee72c238e315a557b5d6f2) ([#13096](https://www.github.com/tauri-apps/tauri/pull/13096) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri info` can't find the latest version for rust crates
+- [`30beb6fee`](https://www.github.com/tauri-apps/tauri/commit/30beb6fee7b052e588ee72c238e315a557b5d6f2) ([#13096](https://www.github.com/tauri-apps/tauri/pull/13096) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri info` logging network operations in `info` level instead of `debug`
+- [`794af778e`](https://www.github.com/tauri-apps/tauri/commit/794af778e4915ffb6a4fe9bae8fba04bc880503d) ([#13117](https://www.github.com/tauri-apps/tauri/pull/13117) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix setting merge config value to null with `--config` arg no longer works
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.3.1`
+- Upgraded to `tauri-utils@2.3.1`
+
 ## \[2.4.0]
 
 ### New Features

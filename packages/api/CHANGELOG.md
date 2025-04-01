@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`dd1372833`](https://www.github.com/tauri-apps/tauri/commit/dd137283341ce0e6aabfd158d07d77c6feeb920e) ([#13066](https://www.github.com/tauri-apps/tauri/pull/13066) by [@ahaoboy](https://www.github.com/tauri-apps/tauri/../../ahaoboy)) Add a generic to `emit` and `emitTo` functions for the `payload` instead of the previously used type (`unknown`).
+
 ## \[2.4.0]
 
 ### New Features

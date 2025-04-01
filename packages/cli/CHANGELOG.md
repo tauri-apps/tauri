@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`f805061d1`](https://www.github.com/tauri-apps/tauri/commit/f805061d1152bc4790dbdb9475a506afcdd1de75) ([#13079](https://www.github.com/tauri-apps/tauri/pull/13079) by [@Pietagorh](https://www.github.com/tauri-apps/tauri/../../Pietagorh)) Add support for passing TOML and JSON5 config files to `--config` arg
+
+### Bug Fixes
+
+- [`794af778e`](https://www.github.com/tauri-apps/tauri/commit/794af778e4915ffb6a4fe9bae8fba04bc880503d) ([#13117](https://www.github.com/tauri-apps/tauri/pull/13117) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix setting merge config value to null with `--config` arg no longer works
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.4.1`
+
 ## \[2.4.0]
 
 ### New Features

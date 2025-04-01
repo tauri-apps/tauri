@@ -164,15 +164,16 @@ fn get_internal(
   }
 
   if !merge_configs.is_empty() {
-    let mut merge_config = serde_json::Value::Object(Default::default());
-    for conf in merge_configs {
+    // We have check merge config is not empty above
+    let mut merge_config = merge_configs[0].clone();
+    for conf in merge_configs.iter().skip(1) {
       merge(&mut merge_config, conf);
     }
 
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
     merge(&mut config, &merge_config);
-    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config.clone());
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
   }
 
   if config_path.extension() == Some(OsStr::new("json"))
@@ -253,8 +254,9 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
   }
 
   if let Some(config_metadata) = &mut *handle.lock().unwrap() {
-    let mut merge_config = serde_json::Value::Object(Default::default());
-    for conf in merge_configs {
+    // We have check merge config is not empty above
+    let mut merge_config = merge_configs[0].clone();
+    for conf in merge_configs.iter().skip(1) {
       merge(&mut merge_config, conf);
     }
 

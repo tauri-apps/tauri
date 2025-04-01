@@ -285,11 +285,7 @@ fn merge_patches(doc: &mut serde_json::Value, patch: &serde_json::Value) {
   }
   let map = doc.as_object_mut().unwrap();
   for (key, value) in patch.as_object().unwrap() {
-    // if value.is_null() {
-    //   map.remove(key.as_str());
-    // } else {
     merge_patches(map.entry(key.as_str()).or_insert(Value::Null), value);
-    // }
   }
 }
 

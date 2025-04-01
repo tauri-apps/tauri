@@ -292,3 +292,69 @@ fn merge_patches(doc: &mut serde_json::Value, patch: &serde_json::Value) {
     // }
   }
 }
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn merge_patches() {
+    let mut json = serde_json::Value::Object(Default::default());
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": {
+          "withGlobalTauri": true,
+          "windows": []
+        },
+        "plugins": {
+          "test": "tauri"
+        },
+        "build": {
+          "devUrl": "http://localhost:8080"
+        }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": { "withGlobalTauri": null }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": { "windows": null }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "plugins": { "updater": {
+          "endpoints": ["https://tauri.app"]
+        } }
+      }),
+    );
+
+    assert_eq!(
+      json,
+      serde_json::json!({
+        "app": {
+          "withGlobalTauri": null,
+          "windows": null
+        },
+        "plugins": {
+          "test": "tauri",
+          "updater": {
+            "endpoints": ["https://tauri.app"]
+          }
+        },
+        "build": {
+          "devUrl": "http://localhost:8080"
+        }
+      })
+    )
+  }
+}

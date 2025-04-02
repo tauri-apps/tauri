@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.3.1]
+
+### Bug Fixes
+
+- [`2138bbc21`](https://www.github.com/tauri-apps/tauri/commit/2138bbc21294785df5f4144670104387289f79c1) ([#13087](https://www.github.com/tauri-apps/tauri/pull/13087) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix NSIS installer displaying in wrong language if `SpanishInternational` is included
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.1`
+
 ## \[2.3.0]
 
 ### Enhancements

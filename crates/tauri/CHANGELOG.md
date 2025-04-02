@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`a851b6597`](https://www.github.com/tauri-apps/tauri/commit/a851b6597f7e37d12f9e4632945e8466800eb5ff) ([#13057](https://www.github.com/tauri-apps/tauri/pull/13057) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Enhanced the description of generated docs and schema for permission sets to include list of permissions within.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.1`
+- Upgraded to `tauri-runtime@2.5.1`
+- Upgraded to `tauri-runtime-wry@2.5.1`
+- Upgraded to `tauri-macros@2.1.1`
+- Upgraded to `tauri-build@2.1.1`
+
 ## \[2.4.0]
 
 ### New Features

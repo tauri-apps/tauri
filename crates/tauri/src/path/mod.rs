@@ -27,6 +27,17 @@ pub use android::PathResolver;
 pub use desktop::PathResolver;
 
 /// A wrapper for [`PathBuf`] that prevents path traversal.
+///
+/// # Examples
+///
+/// ```
+/// # use tauri::path::SafePathBuf;
+/// assert!(SafePathBuf::new("../secret.txt".into()).is_err());
+/// assert!(SafePathBuf::new("/home/user/stuff/../secret.txt".into()).is_err());
+///
+/// assert!(SafePathBuf::new("./file.txt".into()).is_ok());
+/// assert!(SafePathBuf::new("/home/user/secret.txt".into()).is_ok());
+/// ```
 #[derive(Clone, Debug, Serialize)]
 pub struct SafePathBuf(PathBuf);
 

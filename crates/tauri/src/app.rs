@@ -1193,6 +1193,9 @@ impl<R: Runtime> App<R> {
 
   /// Runs the application, returning its intended exit code.
   ///
+  /// Note when using [`AppHandle::restart`] and [`AppHandle::request_restart`],
+  /// this function will handle the restart request, exit and restart the app without returning
+  ///
   /// ## Platform-specific
   ///
   /// - **iOS**: Unsupported. The application will fallback to [`run`](Self::run).

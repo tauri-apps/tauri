@@ -1116,7 +1116,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
     self.inner = self.inner.with_theme(if let Some(t) = theme {
       match t {

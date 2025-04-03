@@ -440,7 +440,7 @@ fn parse_invoke_request<R: Runtime>(
   let (parts, mut body) = request.into_parts();
 
   // skip leading `/`
-  let cmd = percent_encoding::percent_decode(parts.uri.path()[1..].as_bytes())
+  let cmd = percent_encoding::percent_decode(&parts.uri.path().as_bytes()[1..])
     .decode_utf8_lossy()
     .to_string();
 
@@ -629,7 +629,7 @@ mod tests {
       "anotherKey": "asda",
     });
 
-    let mut headers = headers.clone();
+    let mut headers = headers;
     headers.insert(
       CONTENT_TYPE,
       HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),

@@ -228,15 +228,15 @@ pub fn does_supported_file_name_exist(target: Target, path: impl Into<PathBuf>) 
 ///
 /// Hierarchy:
 /// 1. Check if `tauri.conf.json` exists
-///     a. Parse it with `serde_json`
-///     b. Parse it with `json5` if `serde_json` fails
-///     c. Return original `serde_json` error if all above steps failed
+///    a. Parse it with `serde_json`
+///    b. Parse it with `json5` if `serde_json` fails
+///    c. Return original `serde_json` error if all above steps failed
 /// 2. Check if `tauri.conf.json5` exists
-///     a. Parse it with `json5`
-///     b. Return error if all above steps failed
+///    a. Parse it with `json5`
+///    b. Return error if all above steps failed
 /// 3. Check if `Tauri.json` exists
-///     a. Parse it with `toml`
-///     b. Return error if all above steps failed
+///    a. Parse it with `toml`
+///    b. Return error if all above steps failed
 /// 4. Return error if all above steps failed
 pub fn parse(target: Target, path: impl Into<PathBuf>) -> Result<(Config, PathBuf), ConfigError> {
   do_parse(target, path.into())

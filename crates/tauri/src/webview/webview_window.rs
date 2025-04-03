@@ -1114,10 +1114,7 @@ impl<'de, R: Runtime> CommandArg<'de, R> for WebviewWindow<R> {
     let webview = command.message.webview();
     let window = webview.window();
     if window.is_webview_window() {
-      return Ok(Self {
-        window: window.clone(),
-        webview,
-      });
+      return Ok(Self { window, webview });
     }
 
     Err(InvokeError::from("current webview is not a WebviewWindow"))

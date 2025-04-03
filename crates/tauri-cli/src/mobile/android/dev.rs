@@ -157,7 +157,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .as_ref()
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
-  dev_options.target = Some(target_triple.clone());
+  dev_options.target = Some(target_triple);
 
   let (interface, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

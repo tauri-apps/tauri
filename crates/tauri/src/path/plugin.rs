@@ -188,7 +188,7 @@ pub fn basename<R: Runtime>(app: AppHandle<R>, path: &str, ext: Option<&str>) ->
       let maybe_stripped = if let Some(ext) = ext {
         p.strip_suffix(ext).unwrap_or(&p).to_string()
       } else {
-        p.to_string()
+        p
       };
       Ok(maybe_stripped)
     }

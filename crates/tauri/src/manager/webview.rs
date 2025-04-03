@@ -186,7 +186,7 @@ impl<R: Runtime> WebviewManager<R> {
           &pattern_init.into_string(),
           use_https_scheme,
         )?
-        .to_string(),
+        ,
     );
 
     for plugin_init_script in plugin_init_scripts {

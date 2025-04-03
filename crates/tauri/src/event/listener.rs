@@ -329,7 +329,7 @@ mod test {
     fn listeners_check_key(e in "[a-z]+") {
       let listeners: Listeners = Default::default();
       // clone e as the key
-      let key = crate::EventName::new(e.clone()).unwrap();
+      let key = crate::EventName::new(e).unwrap();
       // pass e and an dummy func into listen
       listeners.listen(key.clone(), EventTarget::Any, event_fn);
 
@@ -344,7 +344,7 @@ mod test {
     #[test]
     fn listeners_check_fn(e in "[a-z]+") {
       let listeners: Listeners = Default::default();
-      let key = crate::EventName::new(e.clone()).unwrap();
+      let key = crate::EventName::new(e).unwrap();
        // pass e and an dummy func into listen
        listeners.listen(key.clone(), EventTarget::Any, event_fn);
 
@@ -369,7 +369,7 @@ mod test {
     #[test]
     fn check_on_event(e in "[a-z]+", d in "[a-z]+") {
       let listeners: Listeners = Default::default();
-      let key = crate::EventName::new(e.clone()).unwrap();
+      let key = crate::EventName::new(e).unwrap();
       // call listen with key and the event_fn dummy func
       listeners.listen(key.clone(), EventTarget::Any, event_fn);
       // call on event with key and d.

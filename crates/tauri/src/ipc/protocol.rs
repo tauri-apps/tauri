@@ -629,7 +629,7 @@ mod tests {
       "anotherKey": "asda",
     });
 
-    let mut headers = headers.clone();
+    let mut headers = headers;
     headers.insert(
       CONTENT_TYPE,
       HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),

@@ -450,7 +450,7 @@ mod tests {
       ))
       .unwrap(),
       CapabilityFile::NamedList {
-        capabilities: vec![capability.clone()]
+        capabilities: vec![capability]
       }
     );
   }

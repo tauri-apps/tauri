@@ -835,7 +835,7 @@ impl AppSettings for RustAppSettings {
       .get("deep-link")
       .and_then(|c| c.get("desktop").cloned())
     {
-      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config.clone())?;
+      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config)?;
       settings.deep_link_protocols = Some(match protocols {
         DesktopDeepLinks::One(p) => vec![p],
         DesktopDeepLinks::List(p) => p,

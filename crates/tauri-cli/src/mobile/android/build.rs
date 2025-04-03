@@ -210,7 +210,7 @@ fn run_build(
     args: build_options.args.clone(),
     noise_level,
     vars: Default::default(),
-    config: build_options.config.clone(),
+    config: build_options.config,
     target_device: None,
   };
   let handle = write_options(

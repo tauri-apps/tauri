@@ -344,7 +344,7 @@ tauri::Builder::default()
     #[cfg(desktop)]
     let theme = self.window_builder.get_theme();
 
-    let mut pending = PendingWindow::new(self.window_builder, self.label.clone())?;
+    let mut pending = PendingWindow::new(self.window_builder, self.label)?;
     if let Some(webview) = webview {
       pending.set_webview(webview);
     }

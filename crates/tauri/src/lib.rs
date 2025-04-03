@@ -219,7 +219,6 @@ pub use {
   self::manager::Asset,
   self::runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-    webview::WebviewAttributes,
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
     DeviceEventFilter, Rect, UserAttentionType,
   },

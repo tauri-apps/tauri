@@ -203,7 +203,7 @@ fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Mani
       .collect::<Vec<_>>();
 
     let new_subschemas = Box::new(SubschemaValidation {
-      one_of: Some(permission_schemas.clone()),
+      one_of: Some(permission_schemas),
       ..Default::default()
     });
 

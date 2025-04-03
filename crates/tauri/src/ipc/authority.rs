@@ -1134,7 +1134,7 @@ mod tests {
     let denied_commands = [(
       command.to_string(),
       vec![ResolvedCommand {
-        windows: windows.clone(),
+        windows,
         ..Default::default()
       }],
     )]
@@ -1186,7 +1186,7 @@ mod tests {
     let resolved_webview_window_remote_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
       webviews: vec![Pattern::new(webview).unwrap()],
-      referenced_by: referenced_by.clone(),
+      referenced_by,
       context: ExecutionContext::Remote {
         url: remote_url.parse().unwrap(),
       },

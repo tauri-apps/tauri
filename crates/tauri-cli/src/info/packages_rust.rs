@@ -108,7 +108,6 @@ pub fn rust_section_item(dep: &str, crate_version: CrateVersion) -> SectionItem 
     "🦀",
     crate_version,
     version_suffix
-      .clone()
       .map(|s| format!(",{s}"))
       .unwrap_or_else(|| "".into())
   ))

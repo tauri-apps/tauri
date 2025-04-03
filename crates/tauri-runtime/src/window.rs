@@ -576,8 +576,7 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWindow<T, R> {
 }
 
 /// A raw window type that contains fields to access
-/// the HWND on Windows, gtk::ApplicationWindow on Linux and
-/// NSView on macOS.
+/// the HWND on Windows, gtk::ApplicationWindow on Linux
 pub struct RawWindow<'a> {
   #[cfg(windows)]
   pub hwnd: isize,

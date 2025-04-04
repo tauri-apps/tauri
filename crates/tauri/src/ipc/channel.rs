@@ -127,7 +127,7 @@ impl JavaScriptChannelId {
 
     let counter = Arc::new(AtomicUsize::new(0));
     let counter_clone = counter.clone();
-    let webview_ = webview.clone();
+    let webview_clone = webview.clone();
 
     Channel::new_with_id(
       callback_id,
@@ -150,14 +150,14 @@ impl JavaScriptChannelId {
           .insert(data_id, body);
 
         webview.eval(format!(
-        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}']({{ message: response, id: {current_index} }})).catch(console.error)",
-      ))?;
+          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}']({{ message: response, id: {current_index} }})).catch(console.error)",
+        ))?;
 
         Ok(())
       }),
       Some(Box::new(move || {
         let current_index = counter_clone.load(Ordering::Relaxed);
-        let _ = webview_.eval(format!(
+        let _ = webview_clone.eval(format!(
           "window['_{callback_id}']({{ end: true, id: {current_index} }}",
         ));
       })),

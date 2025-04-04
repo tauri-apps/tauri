@@ -21,8 +21,8 @@
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'transformCallback', {
     value: function transformCallback(callback, once) {
-      var identifier = uid()
-      var prop = `_${identifier}`
+      const identifier = uid()
+      const prop = `_${identifier}`
 
       Object.defineProperty(window, prop, {
         value: (result) => {

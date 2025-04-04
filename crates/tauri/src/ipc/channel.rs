@@ -203,7 +203,7 @@ impl<TSend> Channel<TSend> {
     };
 
     #[cfg(mobile)]
-    crate::plugin::mobile::register_channel(Self {
+    crate::plugin::mobile::register_channel(Channel {
       inner: channel.inner.clone(),
       phantom: Default::default(),
     });

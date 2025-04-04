@@ -39,29 +39,36 @@ pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseB
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody>(Arc<ChannelInner<TSend>>);
 
-impl<TSend> Clone for Channel<TSend> {
-  fn clone(&self) -> Self {
-    Self(self.0.clone())
-  }
-}
-
-type OnDropFn = Option<Box<dyn Fn(usize) + Send + Sync + 'static>>;
-type OnMessageFn = Box<dyn Fn(InvokeResponseBody, usize) -> crate::Result<()> + Send + Sync>;
-
-struct ChannelInner<TSend = InvokeResponseBody> {
-  id: u32,
-  on_message: OnMessageFn,
-  on_drop: OnDropFn,
-  current_index: AtomicUsize,
-  phantom: std::marker::PhantomData<TSend>,
-}
-
 #[cfg(feature = "specta")]
 const _: () = {
   #[derive(specta::Type)]
   #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
   struct Channel<TSend>(std::marker::PhantomData<TSend>);
 };
+
+impl<TSend> Clone for Channel<TSend> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
+}
+
+type OnDropFn = Option<Box<dyn Fn() + Send + Sync + 'static>>;
+type OnMessageFn = Box<dyn Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync>;
+
+struct ChannelInner<TSend = InvokeResponseBody> {
+  id: u32,
+  on_message: OnMessageFn,
+  on_drop: OnDropFn,
+  phantom: std::marker::PhantomData<TSend>,
+}
+
+impl<TSend> Drop for ChannelInner<TSend> {
+  fn drop(&mut self) {
+    if let Some(on_drop) = &self.on_drop {
+      on_drop();
+    }
+  }
+}
 
 impl<TSend> Serialize for Channel<TSend> {
   fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -113,11 +120,15 @@ impl JavaScriptChannelId {
     let callback_fn = self.0;
     let callback_id = callback_fn.0;
 
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_clone = counter.clone();
     let webview_ = webview.clone();
 
     Channel::new_with_id(
       callback_id,
-      Box::new(move |body, current_index| {
+      Box::new(move |body| {
+        let current_index = counter.fetch_add(1, Ordering::Relaxed);
+
         if let Some(interceptor) = &webview.manager.channel_interceptor {
           if interceptor(&webview, callback_fn, current_index, &body) {
             return Ok(());
@@ -139,7 +150,8 @@ impl JavaScriptChannelId {
 
         Ok(())
       }),
-      Some(Box::new(move |current_index| {
+      Some(Box::new(move || {
+        let current_index = counter_clone.load(Ordering::Relaxed);
         let _ = webview_.eval(format!(
           "window['_{callback_id}']({{ end: true, id: {current_index} }}",
         ));
@@ -169,7 +181,7 @@ impl<TSend> Channel<TSend> {
   ) -> Self {
     Self::new_with_id(
       CHANNEL_COUNTER.fetch_add(1, Ordering::Relaxed),
-      Box::new(move |body, _| on_message(body)),
+      Box::new(on_message),
       None,
     )
   }
@@ -178,9 +190,8 @@ impl<TSend> Channel<TSend> {
     #[allow(clippy::let_and_return)]
     let channel = Self(Arc::new(ChannelInner {
       id,
-      on_message: Box::new(on_message),
+      on_message,
       on_drop,
-      current_index: AtomicUsize::new(0),
       phantom: Default::default(),
     }));
 
@@ -194,7 +205,7 @@ impl<TSend> Channel<TSend> {
     let callback_id = callback.0;
     Channel::new_with_id(
       callback_id,
-      Box::new(move |body, _current_index| {
+      Box::new(move |body| {
         let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
         webview
@@ -224,8 +235,7 @@ impl<TSend> Channel<TSend> {
   where
     TSend: IpcResponse,
   {
-    let current_index = self.0.current_index.fetch_add(1, Ordering::Relaxed);
-    (self.0.on_message)(data.body()?, current_index)
+    (self.0.on_message)(data.body()?)
   }
 }
 
@@ -244,14 +254,6 @@ impl<'de, R: Runtime, TSend> CommandArg<'de, R> for Channel<TSend> {
 	        "invalid channel value `{value}`, expected a string in the `{IPC_PAYLOAD_PREFIX}ID` format"
 	      ))
       })
-  }
-}
-
-impl<TSend> Drop for ChannelInner<TSend> {
-  fn drop(&mut self) {
-    if let Some(on_drop) = &self.on_drop {
-      on_drop(self.current_index.load(Ordering::Relaxed));
-    }
   }
 }
 

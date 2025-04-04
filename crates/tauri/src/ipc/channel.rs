@@ -37,10 +37,15 @@ static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
 
 /// An IPC channel.
-#[derive(Clone)]
 pub struct Channel<TSend = InvokeResponseBody>(Arc<ChannelInner<TSend>>);
 
-type OnDropFn = Option<Box<dyn Fn(usize) -> () + Send + Sync + 'static>>;
+impl<TSend> Clone for Channel<TSend> {
+  fn clone(&self) -> Self {
+    Self(self.0.clone())
+  }
+}
+
+type OnDropFn = Option<Box<dyn Fn(usize) + Send + Sync + 'static>>;
 type OnMessageFn = Box<dyn Fn(InvokeResponseBody, usize) -> crate::Result<()> + Send + Sync>;
 
 struct ChannelInner<TSend = InvokeResponseBody> {

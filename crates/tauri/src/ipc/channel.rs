@@ -37,7 +37,10 @@ static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
 
 /// An IPC channel.
-pub struct Channel<TSend = InvokeResponseBody>(Arc<ChannelInner<TSend>>);
+pub struct Channel<TSend = InvokeResponseBody> {
+  inner: Arc<ChannelInner>,
+  phantom: std::marker::PhantomData<TSend>,
+}
 
 #[cfg(feature = "specta")]
 const _: () = {
@@ -48,21 +51,23 @@ const _: () = {
 
 impl<TSend> Clone for Channel<TSend> {
   fn clone(&self) -> Self {
-    Self(self.0.clone())
+    Self {
+      inner: self.inner.clone(),
+      phantom: self.phantom,
+    }
   }
 }
 
 type OnDropFn = Option<Box<dyn Fn() + Send + Sync + 'static>>;
 type OnMessageFn = Box<dyn Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync>;
 
-struct ChannelInner<TSend = InvokeResponseBody> {
+struct ChannelInner {
   id: u32,
   on_message: OnMessageFn,
   on_drop: OnDropFn,
-  phantom: std::marker::PhantomData<TSend>,
 }
 
-impl<TSend> Drop for ChannelInner<TSend> {
+impl Drop for ChannelInner {
   fn drop(&mut self) {
     if let Some(on_drop) = &self.on_drop {
       on_drop();
@@ -75,7 +80,7 @@ impl<TSend> Serialize for Channel<TSend> {
   where
     S: Serializer,
   {
-    serializer.serialize_str(&format!("{IPC_PAYLOAD_PREFIX}{}", self.0.id))
+    serializer.serialize_str(&format!("{IPC_PAYLOAD_PREFIX}{}", self.inner.id))
   }
 }
 
@@ -188,15 +193,20 @@ impl<TSend> Channel<TSend> {
 
   fn new_with_id(id: u32, on_message: OnMessageFn, on_drop: OnDropFn) -> Self {
     #[allow(clippy::let_and_return)]
-    let channel = Self(Arc::new(ChannelInner {
-      id,
-      on_message,
-      on_drop,
+    let channel = Self {
+      inner: Arc::new(ChannelInner {
+        id,
+        on_message,
+        on_drop,
+      }),
       phantom: Default::default(),
-    }));
+    };
 
     #[cfg(mobile)]
-    crate::plugin::mobile::register_channel(channel.clone());
+    crate::plugin::mobile::register_channel(Self {
+      inner: channel.inner.clone(),
+      phantom: Default::default(),
+    });
 
     channel
   }
@@ -227,7 +237,7 @@ impl<TSend> Channel<TSend> {
 
   /// The channel identifier.
   pub fn id(&self) -> u32 {
-    self.0.id
+    self.inner.id
   }
 
   /// Sends the given data through the channel.
@@ -235,7 +245,7 @@ impl<TSend> Channel<TSend> {
   where
     TSend: IpcResponse,
   {
-    (self.0.on_message)(data.body()?)
+    (self.inner.on_message)(data.body()?)
   }
 }
 

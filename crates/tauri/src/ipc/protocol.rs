@@ -331,7 +331,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                   .expect("unable to serialize response error string to json"),
               };
 
-              let _ = webview.eval(&eval_js);
+              let _ = webview.eval(eval_js);
             }
 
             let can_use_channel_for_response = cmd
@@ -423,7 +423,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
         #[cfg(feature = "tracing")]
         tracing::trace!("ipc.request.error {}", e);
 
-        let _ = webview.eval(&format!(
+        let _ = webview.eval(format!(
           r#"console.error({})"#,
           serde_json::Value::String(e.to_string())
         ));

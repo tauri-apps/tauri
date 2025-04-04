@@ -1578,8 +1578,12 @@ fn main() {
   }
 
   /// Evaluates JavaScript on this window.
-  pub fn eval(&self, js: &str) -> crate::Result<()> {
-    self.webview.dispatcher.eval_script(js).map_err(Into::into)
+  pub fn eval(&self, js: impl Into<String>) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .eval_script(js.into())
+      .map_err(Into::into)
   }
 
   /// Register a JS event listener and return its identifier.
@@ -1593,7 +1597,7 @@ fn main() {
 
     let id = listeners.next_event_id();
 
-    self.eval(&crate::event::listen_js_script(
+    self.eval(crate::event::listen_js_script(
       listeners.listeners_object_name(),
       &serde_json::to_string(&target)?,
       event,
@@ -1610,7 +1614,7 @@ fn main() {
   pub(crate) fn unlisten_js(&self, event: EventName<&str>, id: EventId) -> crate::Result<()> {
     let listeners = self.manager().listeners();
 
-    self.eval(&crate::event::unlisten_js_script(
+    self.eval(crate::event::unlisten_js_script(
       listeners.listeners_object_name(),
       event,
       id,
@@ -1622,7 +1626,7 @@ fn main() {
   }
 
   pub(crate) fn emit_js(&self, emit_args: &EmitArgs, ids: &[u32]) -> crate::Result<()> {
-    self.eval(&crate::event::emit_js_script(
+    self.eval(crate::event::emit_js_script(
       self.manager().listeners().function_name(),
       emit_args,
       &serde_json::to_string(ids)?,

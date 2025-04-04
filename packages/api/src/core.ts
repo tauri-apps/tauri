@@ -131,7 +131,7 @@ class Channel<T = unknown> {
   }
 
   private cleanupCallback() {
-    Reflect.deleteProperty(window, this.id)
+    Reflect.deleteProperty(window, `_${this.id}`)
   }
 
   set onmessage(handler: (response: T) => void) {

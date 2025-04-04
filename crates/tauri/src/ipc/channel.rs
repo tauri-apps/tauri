@@ -128,7 +128,7 @@ impl JavaScriptChannelId {
         .unwrap()
         .insert(data_id, body);
 
-      webview.eval(&format!(
+      webview.eval(format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",
         callback_id.0
       ))?;
@@ -192,7 +192,7 @@ impl<TSend> Channel<TSend> {
         .unwrap()
         .insert(data_id, body);
 
-      webview.eval(&format!(
+      webview.eval(format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}](response)).catch(console.error)",
         callback.0
       ))?;

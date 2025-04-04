@@ -690,7 +690,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   }
 
   /// Enables or disables drag and drop support.
-  #[cfg(windows)]
+  #[cfg(target_os = "windows")]
   #[must_use]
   pub fn drag_and_drop(mut self, enabled: bool) -> Self {
     self.window_builder = self.window_builder.drag_and_drop(enabled);

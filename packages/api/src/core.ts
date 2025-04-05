@@ -303,7 +303,7 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  return 'isTauri' in window && !!window.isTauri
+  return 'isTauri' in (globalThis || window) && !!(globalThis || window).isTauri
 }
 
 export type { InvokeArgs, InvokeOptions }

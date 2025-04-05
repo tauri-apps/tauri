@@ -1,9 +1,9 @@
 <script>
   import { show, hide, setTheme } from '@tauri-apps/api/app'
 
-  export let onMessage
+  let { onMessage } = $props()
   /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
-  let theme = 'auto'
+  let theme = $state('auto')
 
   function showApp() {
     hideApp()
@@ -44,8 +44,10 @@
     class="btn"
     id="show"
     title="Hides and shows the app after 2 seconds"
-    on:click={showApp}>Show</button
+    onclick={showApp}>Show</button
   >
-  <button class="btn" id="hide" on:click={hideApp}>Hide</button>
-  <button class="btn" id="hide" on:click={switchTheme}>Switch Theme ({theme})</button>
+  <button class="btn" id="hide" onclick={hideApp}>Hide</button>
+  <button class="btn" id="hide" onclick={switchTheme}
+    >Switch Theme ({theme})</button
+  >
 </div>

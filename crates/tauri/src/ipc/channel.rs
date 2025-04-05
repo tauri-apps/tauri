@@ -211,6 +211,7 @@ impl<TSend> Channel<TSend> {
     channel
   }
 
+  // This is used from the IPC handler
   pub(crate) fn from_callback_fn<R: Runtime>(webview: Webview<R>, callback: CallbackFn) -> Self {
     let callback_id = callback.0;
     Channel::new_with_id(
@@ -226,8 +227,8 @@ impl<TSend> Channel<TSend> {
           .insert(data_id, body);
 
         webview.eval(format!(
-        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}'](response)).catch(console.error)",
-      ))?;
+          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}'](response)).catch(console.error)",
+        ))?;
 
         Ok(())
       }),

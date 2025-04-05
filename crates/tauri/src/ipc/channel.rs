@@ -158,7 +158,7 @@ impl JavaScriptChannelId {
       Some(Box::new(move || {
         let current_index = counter_clone.load(Ordering::Relaxed);
         let _ = webview_clone.eval(format!(
-          "window['_{callback_id}']({{ end: true, id: {current_index} }}",
+          "window['_{callback_id}']({{ end: true, id: {current_index} }})",
         ));
       })),
     )

@@ -78,7 +78,7 @@ class Channel<T = unknown> {
   id: number
   #onmessage: (response: T) => void
 
-  // the id is used as a mechanism to preserve message order
+  // the index is used as a mechanism to preserve message order
   #nextMessageIndex = 0
   #pendingMessages: T[] = []
   #messageEndIndex: number | undefined

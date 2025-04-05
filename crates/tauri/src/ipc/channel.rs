@@ -150,7 +150,7 @@ impl JavaScriptChannelId {
           .insert(data_id, body);
 
         webview.eval(format!(
-          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}']({{ message: response, id: {current_index} }})).catch(console.error)",
+          "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}']({{ message: response, index: {current_index} }})).catch(console.error)",
         ))?;
 
         Ok(())
@@ -158,7 +158,7 @@ impl JavaScriptChannelId {
       Some(Box::new(move || {
         let current_index = counter_clone.load(Ordering::Relaxed);
         let _ = webview_clone.eval(format!(
-          "window['_{callback_id}']({{ end: true, id: {current_index} }})",
+          "window['_{callback_id}']({{ end: true, index: {current_index} }})",
         ));
       })),
     )

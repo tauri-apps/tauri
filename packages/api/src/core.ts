@@ -88,11 +88,11 @@ class Channel<T = unknown> {
 
     this.id = transformCallback<
       // Normal message
-      | { message: T; id: number }
+      | { message: T; index: number }
       // Message when the channel gets dropped in the rust side
-      | { end: true; id: number }
+      | { end: true; index: number }
     >((rawMessage) => {
-      const index = rawMessage.id
+      const index = rawMessage.index
 
       if ('end' in rawMessage) {
         if (index == this.#nextMessageIndex) {

@@ -70,8 +70,8 @@ impl PackageManager {
       .unwrap_or(Self::Npm)
   }
 
-  /// Detects package manager from the `npm_config_user_agent` enviroment variable
-  fn from_env_variable() -> Option<Self> {
+  /// Detects package manager from the `npm_config_user_agent` environment variable
+  fn from_environment_variable() -> Option<Self> {
     let npm_config_user_agent = std::env::var("npm_config_user_agent").ok()?;
     match npm_config_user_agent {
       user_agent if user_agent.starts_with("pnpm/") => Some(Self::Pnpm),
@@ -85,7 +85,7 @@ impl PackageManager {
 
   /// Detects all possible package managers from the given directory.
   pub fn all_from_project<P: AsRef<Path>>(path: P) -> Vec<Self> {
-    if let Some(from_env) = Self::from_env_variable() {
+    if let Some(from_env) = Self::from_environment_variable() {
       return vec![from_env];
     }
 

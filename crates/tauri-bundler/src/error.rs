@@ -71,7 +71,7 @@ pub enum Error {
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),
   /// Bundle type symbol missing in binary
-  #[error("__TAURI_BUNDLE_TYPE variable not found in binary")]
+  #[error("__TAURI_BUNDLE_TYPE variable not found in binary. Make sure tauri crate and tauri-cli are up to date")]
   MissingBundleTypeVar,
   /// Failed to write binary file changed
   #[error("Failed to write binary file changes: `{0}`")]

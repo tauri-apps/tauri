@@ -3728,15 +3728,6 @@ dependencies = [
 
 [[package]]
 name = "infer"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc150e5ce2330295b8616ce0e3f53250e53af31759a9dbedad1621ba29151847"
-dependencies = [
- "cfb",
-]
-
-[[package]]
-name = "infer"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a588916bfdfd92e71cacef98a63d9b1f0d74d6599980d11894290e7ddefffcf7"
@@ -8718,23 +8709,6 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5841b9a0200e954ef7457f8d327091424328891e267a97b641dc246cc54d0dec"
-dependencies = [
- "anyhow",
- "glob",
- "plist",
- "schemars",
- "serde",
- "serde_json",
- "tauri-utils 2.1.1",
- "toml 0.8.19",
- "walkdir",
-]
-
-[[package]]
-name = "tauri-plugin"
 version = "2.0.5"
 dependencies = [
  "anyhow",
@@ -8765,7 +8739,7 @@ dependencies = [
  "serde_repr",
  "swift-rs",
  "tauri",
- "tauri-plugin 2.0.4",
+ "tauri-plugin",
  "thiserror 2.0.10",
  "time",
 ]
@@ -8777,7 +8751,7 @@ dependencies = [
  "log",
  "serde",
  "tauri",
- "tauri-plugin 2.0.5",
+ "tauri-plugin",
  "thiserror 2.0.10",
 ]
 
@@ -8879,41 +8853,6 @@ dependencies = [
  "toml 0.7.8",
  "url",
  "windows-version",
-]
-
-[[package]]
-name = "tauri-utils"
-version = "2.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96fb10e7cc97456b2d5b9c03e335b5de5da982039a303a20d10006885e4523a0"
-dependencies = [
- "cargo_metadata",
- "ctor",
- "dunce",
- "glob",
- "html5ever",
- "http 1.2.0",
- "infer 0.16.0",
- "json-patch 3.0.1",
- "kuchikiki",
- "log",
- "memchr",
- "phf 0.11.3",
- "proc-macro2",
- "quote",
- "regex",
- "schemars",
- "semver",
- "serde",
- "serde-untagged",
- "serde_json",
- "serde_with",
- "swift-rs",
- "thiserror 2.0.10",
- "toml 0.8.19",
- "url",
- "urlpattern",
- "uuid",
 ]
 
 [[package]]

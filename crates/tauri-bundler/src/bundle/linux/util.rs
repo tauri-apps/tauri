@@ -3,11 +3,6 @@ use std::path::PathBuf;
 
 use crate::PackageType;
 
-impl From<goblin::error::Error> for crate::error::Error {
-  fn from(value: goblin::error::Error) -> Self {
-    crate::Error::BinaryParseError(value.to_string())
-  }
-}
 
 /// Change value of __TAURI_BUNDLE_TYPE statis variale to mark which package type if was bundled in
 pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
@@ -18,7 +13,7 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate:
     _ => return Err(crate::Error::BinaryParseError("Not an ELF file".into())),
   };
 
-  if let Some(offset) = find_symbol_by_name(elf, "__TAURI_BUNDLE_TYPE") {
+  if let Some(offset) = find_bundle_type_symbol(elf) {
     let offset = offset as usize;
     if offset + 3 <= file_data.len() {
       let chars = &mut file_data[offset..offset + 3];
@@ -47,10 +42,10 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate:
 }
 
 /// Find address of a symbol in relocations table
-fn find_symbol_by_name(elf: Elf<'_>, symbol_name: &str) -> Option<i64> {
+fn find_bundle_type_symbol(elf: Elf<'_>) -> Option<i64> {
   for sym in elf.syms.iter() {
     if let Some(name) = elf.strtab.get_at(sym.st_name) {
-      if name == symbol_name {
+      if name == "__TAURI_BUNDLE_TYPE" {
         for reloc in elf.dynrelas.iter() {
           if reloc.r_offset == sym.st_value {
             return Some(reloc.r_addend.unwrap());

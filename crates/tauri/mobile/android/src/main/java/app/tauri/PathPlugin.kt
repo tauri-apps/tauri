@@ -5,9 +5,13 @@
 package app.tauri
 
 import android.app.Activity
+import android.database.Cursor
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.provider.OpenableColumns
 import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Plugin
 import app.tauri.plugin.Invoke
@@ -15,12 +19,26 @@ import app.tauri.plugin.JSObject
 
 const val TAURI_ASSETS_DIRECTORY_URI = "asset://localhost/"
 
+@InvokeArg
+class GetFileNameFromUriArgs {
+  lateinit var uri: String
+}
+
 @TauriPlugin
 class PathPlugin(private val activity: Activity): Plugin(activity) {
     private fun resolvePath(invoke: Invoke, path: String?) {
         val obj = JSObject()
         obj.put("path", path)
         invoke.resolve(obj)
+    }
+
+    @Command
+    fun getFileNameFromUri(invoke: Invoke) {
+      val args = invoke.parseArgs(GetFileNameFromUriArgs::class.java)
+      val name = getRealNameFromURI(activity, Uri.parse(args.uri))
+      val res = JSObject()
+      res.put("name", name)
+      invoke.resolve(res)
     }
 
     @Command
@@ -90,4 +108,25 @@ class PathPlugin(private val activity: Activity): Plugin(activity) {
     fun getHomeDir(invoke: Invoke) {
         resolvePath(invoke, Environment.getExternalStorageDirectory().absolutePath)
     }
+}
+
+fun getRealNameFromURI(activity: Activity, contentUri: Uri): String? {
+    var cursor: Cursor? = null
+    try {
+        val projection = arrayOf(OpenableColumns.DISPLAY_NAME)
+        cursor = activity.contentResolver.query(contentUri, projection, null, null, null)
+
+        cursor?.let {
+            val columnIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (it.moveToFirst()) {
+                return it.getString(columnIndex)
+            }
+        }
+    } catch (e: Exception) {
+        Logger.error("failed to get real name from URI $e")
+    } finally {
+        cursor?.close()
+    }
+
+    return null // Return null if no file name could be resolved
 }

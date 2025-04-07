@@ -23,7 +23,9 @@ use crate::{
 use super::{CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response};
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
+// TODO: Change this to `channel` in v3
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
+// TODO: Change this to `plugin:channel|fetch` in v3
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
 pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
 
@@ -126,7 +128,7 @@ impl JavaScriptChannelId {
         .unwrap()
         .insert(data_id, body);
 
-      webview.eval(&format!(
+      webview.eval(format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",
         callback_id.0
       ))?;
@@ -190,7 +192,7 @@ impl<TSend> Channel<TSend> {
         .unwrap()
         .insert(data_id, body);
 
-      webview.eval(&format!(
+      webview.eval(format!(
         "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}](response)).catch(console.error)",
         callback.0
       ))?;

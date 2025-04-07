@@ -191,6 +191,8 @@ pub fn target_triple() -> crate::Result<String> {
     "armv7"
   } else if cfg!(target_arch = "aarch64") {
     "aarch64"
+  } else if cfg!(target_arch = "riscv64") {
+    "riscv64"
   } else {
     return Err(crate::Error::Architecture);
   };
@@ -238,7 +240,7 @@ const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"
 fn is_cargo_output_directory(path: &std::path::Path) -> bool {
   let last_component = path
     .components()
-    .last()
+    .next_back()
     .unwrap()
     .as_os_str()
     .to_str()

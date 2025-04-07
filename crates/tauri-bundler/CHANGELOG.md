@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.3.1]
+
+### Bug Fixes
+
+- [`2138bbc21`](https://www.github.com/tauri-apps/tauri/commit/2138bbc21294785df5f4144670104387289f79c1) ([#13087](https://www.github.com/tauri-apps/tauri/pull/13087) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix NSIS installer displaying in wrong language if `SpanishInternational` is included
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.1`
+
+## \[2.3.0]
+
+### Enhancements
+
+- [`f981a5ee8`](https://www.github.com/tauri-apps/tauri/commit/f981a5ee8b292b9ea09329f60cecc7f688dda734) ([#12602](https://www.github.com/tauri-apps/tauri/pull/12602) by [@kxxt](https://www.github.com/tauri-apps/tauri/../../kxxt)) Add basic support for linux riscv64 platform.
+
+### Bug Fixes
+
+- [`3626b7a92`](https://www.github.com/tauri-apps/tauri/commit/3626b7a92be2890a82e8d5bd00d13887e199ea4a) ([#12759](https://www.github.com/tauri-apps/tauri/pull/12759) by [@ninjadev64](https://www.github.com/tauri-apps/tauri/../../ninjadev64)) Fix resources being bundled to the wrong path during RPM bundling when resources are specified as a map.
+- [`2b960dfd9`](https://www.github.com/tauri-apps/tauri/commit/2b960dfd9fdc995bd6474958c05783ff53b64b7e) ([#12643](https://www.github.com/tauri-apps/tauri/pull/12643) by [@animeshchaudhri](https://www.github.com/tauri-apps/tauri/../../animeshchaudhri)) Remove the autostart plugin registry entry when the app is uninstalled (NSIS only).
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.0`
+
 ## \[2.2.4]
 
 ### Enhancements

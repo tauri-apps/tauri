@@ -166,13 +166,13 @@ fn get_internal(
   if !merge_configs.is_empty() {
     let mut merge_config = serde_json::Value::Object(Default::default());
     for conf in merge_configs {
-      merge(&mut merge_config, conf);
+      merge_patches(&mut merge_config, conf);
     }
 
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
     merge(&mut config, &merge_config);
-    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config.clone());
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
   }
 
   if config_path.extension() == Some(OsStr::new("json"))
@@ -255,7 +255,7 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
   if let Some(config_metadata) = &mut *handle.lock().unwrap() {
     let mut merge_config = serde_json::Value::Object(Default::default());
     for conf in merge_configs {
-      merge(&mut merge_config, conf);
+      merge_patches(&mut merge_config, conf);
     }
 
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
@@ -268,5 +268,89 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
     Ok(handle.clone())
   } else {
     Err(anyhow::anyhow!("config not loaded"))
+  }
+}
+
+/// Same as [`json_patch::merge`] but doesn't delete the key when the patch's value is `null`
+fn merge_patches(doc: &mut serde_json::Value, patch: &serde_json::Value) {
+  use serde_json::{Map, Value};
+
+  if !patch.is_object() {
+    *doc = patch.clone();
+    return;
+  }
+
+  if !doc.is_object() {
+    *doc = Value::Object(Map::new());
+  }
+  let map = doc.as_object_mut().unwrap();
+  for (key, value) in patch.as_object().unwrap() {
+    merge_patches(map.entry(key.as_str()).or_insert(Value::Null), value);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn merge_patches() {
+    let mut json = serde_json::Value::Object(Default::default());
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": {
+          "withGlobalTauri": true,
+          "windows": []
+        },
+        "plugins": {
+          "test": "tauri"
+        },
+        "build": {
+          "devUrl": "http://localhost:8080"
+        }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": { "withGlobalTauri": null }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": { "windows": null }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "plugins": { "updater": {
+          "endpoints": ["https://tauri.app"]
+        } }
+      }),
+    );
+
+    assert_eq!(
+      json,
+      serde_json::json!({
+        "app": {
+          "withGlobalTauri": null,
+          "windows": null
+        },
+        "plugins": {
+          "test": "tauri",
+          "updater": {
+            "endpoints": ["https://tauri.app"]
+          }
+        },
+        "build": {
+          "devUrl": "http://localhost:8080"
+        }
+      })
+    )
   }
 }

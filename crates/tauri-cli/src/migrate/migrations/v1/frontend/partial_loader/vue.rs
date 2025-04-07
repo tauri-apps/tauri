@@ -25,7 +25,7 @@ impl<'a> VuePartialLoader<'a> {
   /// Each *.vue file can contain at most
   ///  * one `<script>` block (excluding `<script setup>`).
   ///  * one `<script setup>` block (excluding normal `<script>`).
-  ///     <https://vuejs.org/api/sfc-spec.html#script>
+  ///    <https://vuejs.org/api/sfc-spec.html#script>
   fn parse_scripts(&self) -> Vec<JavaScriptSource<'a>> {
     let mut pointer = 0;
     let Some(result1) = self.parse_script(&mut pointer) else {
@@ -42,7 +42,7 @@ impl<'a> VuePartialLoader<'a> {
     let script_end_finder = Finder::new(SCRIPT_END);
 
     // find opening "<script"
-    let offset = script_start_finder.find(self.source_text[*pointer..].as_bytes())?;
+    let offset = script_start_finder.find(&self.source_text.as_bytes()[*pointer..])?;
     *pointer += offset + SCRIPT_START.len();
 
     // find closing ">"
@@ -57,7 +57,7 @@ impl<'a> VuePartialLoader<'a> {
     let js_start = *pointer;
 
     // find "</script>"
-    let offset = script_end_finder.find(self.source_text[*pointer..].as_bytes())?;
+    let offset = script_end_finder.find(&self.source_text.as_bytes()[*pointer..])?;
     let js_end = *pointer + offset;
     *pointer += offset + SCRIPT_END.len();
 

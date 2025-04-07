@@ -92,6 +92,15 @@ jobs:
               rustup target add aarch64-unknown-linux-musl
               pnpm build --target aarch64-unknown-linux-musl
               /aarch64-linux-musl-cross/bin/aarch64-linux-musl-strip *.node
+          - host: ubuntu-22.04
+            architecture: x64
+            target: riscv64gc-unknown-linux-gnu
+            setup: |
+              sudo apt-get update
+              sudo apt-get install gcc-riscv64-linux-gnu g++-riscv64-linux-gnu -y
+            build: |
+              pnpm build --target=riscv64gc-unknown-linux-gnu
+              riscv64-linux-gnu-strip *.node
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     steps:

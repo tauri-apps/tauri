@@ -52,7 +52,7 @@ pub trait AppSettings {
       enabled_features.push("default".into());
     }
 
-    let target: String = if let Some(target) = options.target.clone() {
+    let target: String = if let Some(target) = options.target {
       target
     } else {
       tauri_utils::platform::target_triple()?

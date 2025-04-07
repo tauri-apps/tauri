@@ -14,7 +14,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "serde_json",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
 ]
 
 [[package]]
@@ -5301,9 +5301,9 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "openssl"
-version = "0.10.70"
+version = "0.10.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61cfb4e166a8bb8c9b55c500bc2308550148ece889be90f609377e58140f42c6"
+checksum = "fedfea7d58a1f73118430a55da6a286e7b044961736ce96a16a17068ea25e5da"
 dependencies = [
  "bitflags 2.7.0",
  "cfg-if",
@@ -5342,9 +5342,9 @@ dependencies = [
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.105"
+version = "0.9.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b22d5b84be05a8d6947c7cb71f7c849aa0f112acd4bf51c2a7c1c988ac0a9dc"
+checksum = "8288979acd84749c744a9014b4382d42b8f7b2592847b5afb2ed29e5d16ede07"
 dependencies = [
  "cc",
  "libc",
@@ -8321,9 +8321,9 @@ dependencies = [
 
 [[package]]
 name = "tao"
-version = "0.32.2"
+version = "0.32.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9899a4cb2590e669dd9d32ea6360ac67f29843fbf0424e06f9fc0e9e1ec9579a"
+checksum = "63c8b1020610b9138dd7b1e06cf259ae91aa05c30f3bd0d6b42a03997b92dec1"
 dependencies = [
  "bitflags 2.7.0",
  "core-foundation 0.10.0",
@@ -8394,7 +8394,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.3.1"
+version = "2.4.1"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8438,7 +8438,7 @@ dependencies = [
  "tauri-macros",
  "tauri-runtime",
  "tauri-runtime-wry",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "thiserror 2.0.10",
  "tokio",
  "tracing",
@@ -8454,7 +8454,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.0.6"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8468,7 +8468,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-codegen",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "tauri-winres",
  "toml 0.8.19",
  "walkdir",
@@ -8476,7 +8476,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.2.4"
+version = "2.3.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -8506,7 +8506,7 @@ dependencies = [
  "tar",
  "tauri-icns",
  "tauri-macos-sign",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "tempfile",
  "thiserror 2.0.10",
  "time",
@@ -8516,12 +8516,12 @@ dependencies = [
  "walkdir",
  "windows-registry 0.5.0",
  "windows-sys 0.59.0",
- "zip 2.2.2",
+ "zip 2.3.0",
 ]
 
 [[package]]
 name = "tauri-cli"
-version = "2.3.1"
+version = "2.4.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -8549,6 +8549,7 @@ dependencies = [
  "insta",
  "itertools 0.13.0",
  "json-patch 3.0.1",
+ "json5",
  "jsonrpsee",
  "jsonrpsee-client-transport",
  "jsonrpsee-core",
@@ -8586,7 +8587,7 @@ dependencies = [
  "tauri-icns",
  "tauri-macos-sign",
  "tauri-utils 1.6.0",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "tempfile",
  "tokio",
  "toml 0.8.19",
@@ -8611,7 +8612,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.0.5"
+version = "2.1.1"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -8627,7 +8628,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "syn 2.0.95",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "thiserror 2.0.10",
  "time",
  "url",
@@ -8697,19 +8698,19 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.0.5"
+version = "2.1.1"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.95",
  "tauri-codegen",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
 ]
 
 [[package]]
 name = "tauri-plugin"
-version = "2.0.5"
+version = "2.1.1"
 dependencies = [
  "anyhow",
  "glob",
@@ -8717,7 +8718,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "toml 0.8.19",
  "walkdir",
 ]
@@ -8757,7 +8758,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime"
-version = "2.4.0"
+version = "2.5.1"
 dependencies = [
  "cookie",
  "dpi",
@@ -8767,7 +8768,7 @@ dependencies = [
  "raw-window-handle",
  "serde",
  "serde_json",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "thiserror 2.0.10",
  "url",
  "windows 0.60.0",
@@ -8775,7 +8776,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.4.1"
+version = "2.5.1"
 dependencies = [
  "gtk",
  "http 1.2.0",
@@ -8790,7 +8791,7 @@ dependencies = [
  "softbuffer",
  "tao",
  "tauri-runtime",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "tracing",
  "url",
  "webkit2gtk",
@@ -8806,7 +8807,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "tauri-utils 2.2.0",
+ "tauri-utils 2.3.1",
  "url",
 ]
 
@@ -8857,7 +8858,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-utils"
-version = "2.2.0"
+version = "2.3.1"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -9666,9 +9667,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "ureq"
-version = "3.0.2"
+version = "3.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa6a209bb4b8d5903579fc4f8cd12ce5594f1ed6b735bf290ab5e2bdb3e70013"
+checksum = "217751151c53226090391713e533d9a5e904ba2570dabaaace29032687589c3e"
 dependencies = [
  "base64 0.22.1",
  "cc",
@@ -10807,9 +10808,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.50.4"
+version = "0.50.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "804a7d1613bd699beccaa60f3b3c679acee21cebba1945a693f5eab95c08d1fa"
+checksum = "b19b78efae8b853c6c817e8752fc1dbf9cab8a8ffe9c30f399bd750ccf0f0730"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",
@@ -11117,9 +11118,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "2.2.2"
+version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae9c1ea7b3a5e1f4b922ff856a129881167511563dc219869afe3787fc0c1a45"
+checksum = "84e9a772a54b54236b9b744aaaf8d7be01b4d6e99725523cb82cb32d1c81b1d7"
 dependencies = [
  "arbitrary",
  "crc32fast",

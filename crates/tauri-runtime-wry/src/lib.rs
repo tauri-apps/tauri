@@ -1116,7 +1116,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
     self.inner = self.inner.with_theme(if let Some(t) = theme {
       match t {
@@ -4557,7 +4556,8 @@ fn create_webview<T: UserEvent>(
   ));
 
   for script in webview_attributes.initialization_scripts {
-    webview_builder = webview_builder.with_initialization_script(&script);
+    webview_builder = webview_builder
+      .with_initialization_script_for_main_only(&script.script, script.for_main_frame_only);
   }
 
   for (scheme, protocol) in uri_scheme_protocols {

@@ -3436,6 +3436,9 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // For [`Self::menu_on_left_click`]
+      tokens.append_all(quote!(#[allow(deprecated)]));
+
       let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       #[allow(deprecated)]

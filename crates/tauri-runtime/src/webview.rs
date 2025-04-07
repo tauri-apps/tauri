@@ -323,11 +323,14 @@ impl WebviewAttributes {
   /// This is executed only on the main frame.
   /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
   ///
-  ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
-  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
   pub fn initialization_script(mut self, script: &str) -> Self {
     self.initialization_scripts.push(InitializationScript {
@@ -347,8 +350,12 @@ impl WebviewAttributes {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
-  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
   pub fn initialization_script_on_all_frames(mut self, script: &str) -> Self {
     self.initialization_scripts.push(InitializationScript {

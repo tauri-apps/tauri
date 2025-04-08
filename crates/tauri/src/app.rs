@@ -1494,9 +1494,10 @@ impl<R: Runtime> Builder<R> {
   ///
   /// Note that the implementation details is up to your implementation.
   #[must_use]
-  pub fn invoke_system(mut self, initialization_script: String) -> Self {
-    self.invoke_initialization_script =
-      initialization_script.replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
+  pub fn invoke_system(mut self, initialization_script: impl AsRef<str>) -> Self {
+    self.invoke_initialization_script = initialization_script
+      .as_ref()
+      .replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
     self
   }
 

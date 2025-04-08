@@ -27,14 +27,19 @@ pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: Change this to `plugin:channel|fetch` in v3
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
-pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+
+/// Maximum size a JSON we should send directly without going through the fetch process
+// TODO: benchmarked a bit more to get a more optimal value,
+// 8192 runs roughly 2x faster than through fetch on WebView2 v135
+const MAX_DIRECT_EXECUTE_THRESHOLD: usize = 8192;
 
 static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
 static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
+pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
 
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody> {
@@ -136,6 +141,18 @@ impl JavaScriptChannelId {
 
         if let Some(interceptor) = &webview.manager.channel_interceptor {
           if interceptor(&webview, callback_fn, current_index, &body) {
+            return Ok(());
+          }
+        }
+
+        // Don't go through the fetch process if the payload is small
+        // TODO: See if this would work for `InvokeResponseBody::Raw` as well
+        if let InvokeResponseBody::Json(string) = &body {
+          let data_size = string.len();
+          if data_size < MAX_DIRECT_EXECUTE_THRESHOLD {
+            webview.eval(format!(
+              "window['_{callback_id}']({{ message: {string}, index: {current_index} }})"
+            ))?;
             return Ok(());
           }
         }

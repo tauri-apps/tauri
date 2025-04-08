@@ -127,7 +127,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     } // REMOVE THIS?
 
-    patch_binary(&settings.binary_path(main_binary), package_type)?;
+    if package_types.contains(&PackageType::Updater) {
+      patch_binary(&settings.binary_path(main_binary), package_type)?;
+    }
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]

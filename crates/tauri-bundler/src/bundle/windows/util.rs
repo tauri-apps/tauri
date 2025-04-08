@@ -2,16 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use goblin::Object;
 use std::{
-  fs,
   fs::create_dir_all,
   path::{Path, PathBuf},
 };
 use ureq::ResponseExt;
 
 use crate::utils::http_utils::download;
-use crate::PackageType;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
@@ -91,8 +88,8 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
 pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   let mut file_data = fs::read(binary_path)?;
 
-  let pe = match Object::parse(&file_data)? {
-    Object::PE(pe) => pe,
+  let pe = match goblin::Object::parse(&file_data)? {
+    goblig::Object::PE(pe) => pe,
     _ => return Err(crate::Error::BinaryParseError("Not an PE file".into())),
   };
 
@@ -120,8 +117,8 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate:
         let string_bytes = &mut file_data[file_offset..file_offset + 3];
 
         match package_type {
-          PackageType::Nsis => string_bytes.copy_from_slice(b"NSS"),
-          PackageType::WindowsMsi => string_bytes.copy_from_slice(b"MSI"),
+          crate::PackageType::Nsis => string_bytes.copy_from_slice(b"NSS"),
+          crate::PackageType::WindowsMsi => string_bytes.copy_from_slice(b"MSI"),
           _ => {
             return Err(crate::Error::InvalidPackageType(
               package_type.short_name().to_owned(),

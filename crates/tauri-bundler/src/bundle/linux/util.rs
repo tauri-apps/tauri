@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 use crate::PackageType;
 
-
 /// Change value of __TAURI_BUNDLE_TYPE statis variale to mark which package type if was bundled in
+#[cfg(target_os = "linux")]
 pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   let mut file_data = std::fs::read(binary_path).expect("Could not binary read file.");
 
@@ -42,6 +42,7 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate:
 }
 
 /// Find address of a symbol in relocations table
+#[cfg(target_os = "linux")]
 fn find_bundle_type_symbol(elf: Elf<'_>) -> Option<i64> {
   for sym in elf.syms.iter() {
     if let Some(name) = elf.strtab.get_at(sym.st_name) {

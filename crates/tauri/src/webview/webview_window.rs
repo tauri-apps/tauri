@@ -802,7 +802,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// }
   /// ```
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self.webview_builder.initialization_script(script);
     self
   }
@@ -846,7 +846,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// }
   /// ```
   #[must_use]
-  pub fn initialization_script_for_all_frames(mut self, script: &str) -> Self {
+  pub fn initialization_script_for_all_frames(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self
       .webview_builder
       .initialization_script_for_all_frames(script);

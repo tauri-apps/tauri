@@ -85,11 +85,11 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
 }
 
 #[cfg(target_os = "windows")]
-pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
-  let mut file_data = fs::read(binary_path)?;
+pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) -> crate::Result<()> {
+  let mut file_data = std::fs::read(binary_path)?;
 
   let pe = match goblin::Object::parse(&file_data)? {
-    goblig::Object::PE(pe) => pe,
+    goblin::Object::PE(pe) => pe,
     _ => return Err(crate::Error::BinaryParseError("Not an PE file".into())),
   };
 
@@ -126,7 +126,7 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &PackageType) -> crate:
             ))
           }
         }
-        if let Err(error) = fs::write(binary_path, &file_data) {
+        if let Err(error) = std::fs::write(binary_path, &file_data) {
           return Err(crate::Error::BinaryWriteError(error.to_string()));
         }
       } else {

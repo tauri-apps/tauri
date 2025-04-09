@@ -1116,7 +1116,6 @@ impl WindowBuilder for WindowBuilderWrapper {
     self
   }
 
-  #[allow(unused_variables, unused_mut)]
   fn theme(mut self, theme: Option<Theme>) -> Self {
     self.inner = self.inner.with_theme(if let Some(t) = theme {
       match t {
@@ -4546,7 +4545,7 @@ fn create_webview<T: UserEvent>(
       webview_builder = webview_builder.with_traffic_light_inset(*position);
     }
 
-    webview_builder = webview_builder.allow_link_preview(webview_attributes.allow_link_preview)
+    webview_builder = webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview)
   }
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(
@@ -4559,7 +4558,8 @@ fn create_webview<T: UserEvent>(
   ));
 
   for script in webview_attributes.initialization_scripts {
-    webview_builder = webview_builder.with_initialization_script(&script);
+    webview_builder = webview_builder
+      .with_initialization_script_for_main_only(script.script, script.for_main_frame_only);
   }
 
   for (scheme, protocol) in uri_scheme_protocols {

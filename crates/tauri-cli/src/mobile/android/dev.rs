@@ -48,7 +48,7 @@ pub struct Options {
   /// Exit on panic
   #[clap(short, long)]
   exit_on_panic: bool,
-  /// JSON strings or path to JSON files to merge with the default configuration file
+  /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
   ///
   /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
   ///
@@ -157,7 +157,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .as_ref()
     .map(|d| d.target().triple.to_string())
     .unwrap_or_else(|| Target::all().values().next().unwrap().triple.into());
-  dev_options.target = Some(target_triple.clone());
+  dev_options.target = Some(target_triple);
 
   let (interface, config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();

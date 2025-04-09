@@ -63,10 +63,22 @@ impl FromStr for ConfigValue {
     } else {
       let path = PathBuf::from(config);
       if path.exists() {
-        Ok(Self(serde_json::from_str(
-          &read_to_string(&path)
-            .with_context(|| format!("invalid configuration at file {config}"))?,
-        )?))
+        let raw = &read_to_string(&path)
+          .with_context(|| format!("invalid configuration at file {config}"))?;
+        match path.extension() {
+          Some(ext) if ext == "toml" => Ok(Self(::toml::from_str(raw)?)),
+          Some(ext) if ext == "json5" => Ok(Self(::json5::from_str(raw)?)),
+          // treat all other extensions as json
+          _ => Ok(Self(
+            // from tauri-utils/src/config/parse.rs:
+            // we also want to support **valid** json5 in the .json extension
+            // if the json5 is not valid the serde_json error for regular json will be returned.
+            match ::json5::from_str(raw) {
+              Ok(json5) => json5,
+              Err(_) => serde_json::from_str(raw)?,
+            },
+          )),
+        }
       } else {
         anyhow::bail!("provided configuration path does not exist")
       }

@@ -586,10 +586,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().get_webview(label).and_then(|webview| {
       let window = webview.window();
       if window.is_webview_window() {
-        Some(WebviewWindow {
-          window: window.clone(),
-          webview,
-        })
+        Some(WebviewWindow { window, webview })
       } else {
         None
       }
@@ -605,13 +602,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .filter_map(|(label, webview)| {
         let window = webview.window();
         if window.is_webview_window() {
-          Some((
-            label,
-            WebviewWindow {
-              window: window.clone(),
-              webview,
-            },
-          ))
+          Some((label, WebviewWindow { window, webview }))
         } else {
           None
         }

@@ -240,7 +240,7 @@ const CARGO_OUTPUT_DIRECTORIES: &[&str] = &["debug", "release", "custom-profile"
 fn is_cargo_output_directory(path: &std::path::Path) -> bool {
   let last_component = path
     .components()
-    .last()
+    .next_back()
     .unwrap()
     .as_os_str()
     .to_str()

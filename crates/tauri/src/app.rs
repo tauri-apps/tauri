@@ -349,6 +349,7 @@ pub struct AppHandle<R: Runtime> {
   event_loop: Arc<Mutex<EventLoop>>,
 }
 
+/// Not the real event loop, only contains the main thread id of the event loop
 #[derive(Debug)]
 struct EventLoop {
   main_thread_id: ThreadId,
@@ -1180,36 +1181,20 @@ impl<R: Runtime> App<R> {
   ///   _ => {}
   /// });
   /// ```
-  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) {
-    let app_handle = self.handle().clone();
-    let manager = self.manager.clone();
+  pub fn run<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, callback: F) {
+    self.handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
-    app_handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
-
-    self.runtime.take().unwrap().run(move |event| match event {
-      RuntimeRunEvent::Ready => {
-        if let Err(e) = setup(&mut self) {
-          panic!("Failed to setup app: {e}");
-        }
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-        callback(&app_handle, event);
-      }
-      RuntimeRunEvent::Exit => {
-        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-        callback(&app_handle, event);
-        app_handle.cleanup_before_exit();
-        if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
-          crate::process::restart(&self.env());
-        }
-      }
-      _ => {
-        let event = on_event_loop_event(&app_handle, event, &manager);
-        callback(&app_handle, event);
-      }
-    });
+    self
+      .runtime
+      .take()
+      .unwrap()
+      .run(self.make_run_event_loop_callback(callback));
   }
 
   /// Runs the application, returning its intended exit code.
+  ///
+  /// Note when using [`AppHandle::restart`] and [`AppHandle::request_restart`],
+  /// this function will handle the restart request, exit and restart the app without returning
   ///
   /// ## Platform-specific
   ///
@@ -1235,32 +1220,44 @@ impl<R: Runtime> App<R> {
   ///
   /// std::process::exit(exit_code);
   /// ```
-  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, mut callback: F) -> i32 {
-    let manager = self.manager.clone();
-    let app_handle = self.handle().clone();
+  pub fn run_return<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(mut self, callback: F) -> i32 {
+    self.handle.event_loop.lock().unwrap().main_thread_id = std::thread::current().id();
 
     self
       .runtime
       .take()
       .unwrap()
-      .run_return(move |event| match event {
-        RuntimeRunEvent::Ready => {
-          if let Err(e) = setup(&mut self) {
-            panic!("Failed to setup app: {e}");
-          }
-          let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
-          callback(&app_handle, event);
+      .run_return(self.make_run_event_loop_callback(callback))
+  }
+
+  fn make_run_event_loop_callback<F: FnMut(&AppHandle<R>, RunEvent) + 'static>(
+    mut self,
+    mut callback: F,
+  ) -> impl FnMut(RuntimeRunEvent<EventLoopMessage>) {
+    let app_handle = self.handle().clone();
+    let manager = self.manager.clone();
+
+    move |event| match event {
+      RuntimeRunEvent::Ready => {
+        if let Err(e) = setup(&mut self) {
+          panic!("Failed to setup app: {e}");
         }
-        RuntimeRunEvent::Exit => {
-          let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
-          callback(&app_handle, event);
-          app_handle.cleanup_before_exit();
+        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Ready, &manager);
+        callback(&app_handle, event);
+      }
+      RuntimeRunEvent::Exit => {
+        let event = on_event_loop_event(&app_handle, RuntimeRunEvent::Exit, &manager);
+        callback(&app_handle, event);
+        app_handle.cleanup_before_exit();
+        if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
+          crate::process::restart(&self.env());
         }
-        _ => {
-          let event = on_event_loop_event(&app_handle, event, &manager);
-          callback(&app_handle, event);
-        }
-      })
+      }
+      _ => {
+        let event = on_event_loop_event(&app_handle, event, &manager);
+        callback(&app_handle, event);
+      }
+    }
   }
 
   /// Runs an iteration of the runtime event loop and immediately return.

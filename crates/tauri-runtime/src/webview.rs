@@ -197,7 +197,20 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
 pub struct WebviewAttributes {
   pub url: WebviewUrl,
   pub user_agent: Option<String>,
-  pub initialization_scripts: Vec<String>,
+  /// A list of initialization javascript scripts to run when loading new pages.
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
+  pub initialization_scripts: Vec<InitializationScript>,
   pub data_directory: Option<PathBuf>,
   pub drag_drop_handler_enabled: bool,
   pub clipboard: bool,
@@ -311,10 +324,53 @@ impl WebviewAttributes {
     self
   }
 
-  /// Sets the init script.
+  /// Adds an init script for the main frame.
+  ///
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
-    self.initialization_scripts.push(script.to_string());
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
+    self.initialization_scripts.push(InitializationScript {
+      script: script.into(),
+      for_main_frame_only: true,
+    });
+    self
+  }
+
+  /// Adds an init script for all frames.
+  ///
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// This is executed on all frames, main frame and also sub frames.
+  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
+  #[must_use]
+  pub fn initialization_script_on_all_frames(mut self, script: impl Into<String>) -> Self {
+    self.initialization_scripts.push(InitializationScript {
+      script: script.into(),
+      for_main_frame_only: false,
+    });
     self
   }
 
@@ -518,3 +574,12 @@ impl WebviewAttributes {
 
 /// IPC handler.
 pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
+
+/// An initialization script
+#[derive(Debug, Clone)]
+pub struct InitializationScript {
+  /// The script to run
+  pub script: String,
+  /// Whether the script should be injected to main frame only
+  pub for_main_frame_only: bool,
+}

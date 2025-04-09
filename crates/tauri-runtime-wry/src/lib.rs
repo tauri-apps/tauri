@@ -4536,6 +4536,9 @@ fn create_webview<T: UserEvent>(
     if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
       webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
     }
+
+    webview_builder =
+      webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
   }
 
   #[cfg(target_os = "macos")]
@@ -4544,8 +4547,6 @@ fn create_webview<T: UserEvent>(
     if let Some(position) = &webview_attributes.traffic_light_position {
       webview_builder = webview_builder.with_traffic_light_inset(*position);
     }
-
-    webview_builder = webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview)
   }
 
   webview_builder = webview_builder.with_ipc_handler(create_ipc_handler(

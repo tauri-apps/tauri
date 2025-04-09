@@ -1363,6 +1363,7 @@ pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
   #[cfg(target_os = "macos")]
   SetActivationPolicy(ActivationPolicy),
+  SetDockVisibility(bool),
   RequestExit(i32),
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
@@ -2435,6 +2436,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     )
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&self, visible: bool) -> Result<()> {
+    send_user_message(&self.context, Message::SetDockVisibility(visible))
+  }
+
   fn request_exit(&self, code: i32) -> Result<()> {
     // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
     self
@@ -2845,6 +2851,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&mut self, visible: bool) {
+    self.event_loop.set_dock_visibility(visible);
+  }
+
+  #[cfg(target_os = "macos")]
   fn show(&self) {
     self.event_loop.show_application();
   }
@@ -3017,6 +3028,9 @@ fn handle_user_message<T: UserEvent>(
     #[cfg(target_os = "macos")]
     Message::SetActivationPolicy(activation_policy) => {
       event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
+    }
+    Message::SetDockVisibility(visible) => {
+      event_loop.set_dock_visibility(visible)
     }
     Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     Message::Application(application_message) => match application_message {

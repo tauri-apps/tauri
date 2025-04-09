@@ -601,6 +601,26 @@ impl<R: Runtime> AppHandle<R> {
       .set_activation_policy(activation_policy)
       .map_err(Into::into)
   }
+
+  /// Sets the dock visibility for the application.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.handle().set_dock_visibility(false);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_dock_visibility(&self, visible: bool) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .set_dock_visibility(visible)
+      .map_err(Into::into)
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {
@@ -1127,6 +1147,27 @@ impl<R: Runtime> App<R> {
       runtime.set_activation_policy(activation_policy);
     } else {
       let _ = self.app_handle().set_activation_policy(activation_policy);
+    }
+  }
+
+  /// Sets the dock visibility for the application.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.set_dock_visibility(false);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_dock_visibility(&mut self, visible: bool) {
+    if let Some(runtime) = self.runtime.as_mut() {
+      runtime.set_dock_visibility(visible);
+    } else {
+      let _ = self.app_handle().set_dock_visibility(visible);
     }
   }
 

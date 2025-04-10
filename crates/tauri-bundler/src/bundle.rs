@@ -127,7 +127,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     } // REMOVE THIS?
 
-    if package_types.contains(&PackageType::Updater) {
+    if settings.updater().is_some() {
       patch_binary(&settings.binary_path(main_binary), package_type)?;
     }
 

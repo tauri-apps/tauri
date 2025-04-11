@@ -106,7 +106,7 @@ pub async fn set_dock_visibility<R: Runtime>(
     }
   }
   #[cfg(not(target_os = "macos"))]
-  let _visible = visible;
+  let (_app, _visible) = (app, visible);
   Ok(())
 }
 

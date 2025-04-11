@@ -1062,9 +1062,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.17.5"
+version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1821b10b80c2dc11d2001646435931a9913dc30d025036ed6b2f2e5c95e3ad12"
+checksum = "9faa9fae5ccf60d68e6b766293be17bbce2de0aece38886f2eb1ac8da8718942"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -4305,7 +4305,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -10816,9 +10816,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.51.0"
+version = "0.51.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c6bf9f41e2585a730fa981b40592ac22d5ca4c3fea549a21f2f97a648ad34f4"
+checksum = "48846531c50ee2e209a396ddd24af04ca1584be814e750fb81b395c8e7983ff9"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

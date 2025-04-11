@@ -1031,21 +1031,12 @@ impl RustAppSettings {
         .expect("Cargo project does not have a version")
     });
 
-    let bundle_version = if cfg!(target_os = "ios") {
-      config.bundle.ios.bundle_version.clone()
-    } else if cfg!(target_os = "macos") {
-      config.bundle.macos.bundle_version.clone()
-    } else {
-      None
-    };
-
     let package_settings = PackageSettings {
       product_name: config
         .product_name
         .clone()
         .unwrap_or_else(|| cargo_package_settings.name.clone()),
       version: version.clone(),
-      bundle_version: bundle_version.unwrap_or_else(|| version.clone()),
       description: cargo_package_settings
         .description
         .clone()

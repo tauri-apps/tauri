@@ -182,11 +182,21 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let mut plist = plist::Dictionary::new();
-  let version = interface.app_settings().get_package_settings().version;
-  let bundle_version = interface
-    .app_settings()
-    .get_package_settings()
-    .bundle_version;
+  let (version, bundle_version) = {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let app_version = tauri_config_
+      .version
+      .clone()
+      .unwrap_or_else(|| interface.app_settings().get_package_settings().version);
+    let bundle_version = tauri_config_
+      .bundle
+      .ios
+      .bundle_version
+      .clone()
+      .unwrap_or(app_version.clone());
+    (app_version, bundle_version)
+  };
   plist.insert("CFBundleShortVersionString".into(), version.clone().into());
   plist.insert("CFBundleVersion".into(), bundle_version.into());
 

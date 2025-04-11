@@ -280,6 +280,7 @@ impl From<&WindowConfig> for WebviewAttributes {
       builder = builder.background_color(color);
     }
     builder.javascript_disabled = config.javascript_disabled;
+    builder.allow_link_preview = config.allow_link_preview;
     builder
   }
 }

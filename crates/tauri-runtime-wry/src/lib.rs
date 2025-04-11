@@ -3029,9 +3029,7 @@ fn handle_user_message<T: UserEvent>(
     Message::SetActivationPolicy(activation_policy) => {
       event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
     }
-    Message::SetDockVisibility(visible) => {
-      event_loop.set_dock_visibility(visible)
-    }
+    Message::SetDockVisibility(visible) => event_loop.set_dock_visibility(visible),
     Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     Message::Application(application_message) => match application_message {
       #[cfg(target_os = "macos")]

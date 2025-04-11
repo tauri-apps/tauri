@@ -390,8 +390,6 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// Needs to be called from Main Thread
   pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
-    use std::sync::Mutex;
-
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
@@ -415,8 +413,6 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// Needs to be called from Main Thread
   pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
-    use std::sync::Mutex;
-
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();

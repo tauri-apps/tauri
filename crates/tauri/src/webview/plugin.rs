@@ -74,7 +74,6 @@ mod desktop_commands {
       builder.webview_attributes.background_throttling = config.background_throttling;
       builder.webview_attributes.javascript_disabled = config.javascript_disabled;
       builder.webview_attributes.allow_link_preview = config.allow_link_preview;
-      builder.webview_attributes.disable_input_accessory_view = config.disable_input_accessory_view;
       #[cfg(target_os = "ios")]
       if config.disable_input_accessory_view {
         builder

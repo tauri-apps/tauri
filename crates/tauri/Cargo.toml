@@ -120,9 +120,9 @@ window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = { version = "0.36", optional = true }
+webview2-com = { version = "0.37", optional = true }
 window-vibrancy = "0.6"
-windows = { version = "0.60", features = [
+windows = { version = "0.61", features = [
   "Win32_Foundation",
   "Win32_UI",
   "Win32_UI_WindowsAndMessaging",

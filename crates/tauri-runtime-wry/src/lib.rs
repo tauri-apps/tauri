@@ -28,7 +28,7 @@ use tauri_runtime::{
   UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
-#[cfg(any(target_vendor = "apple"))]
+#[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
@@ -44,7 +44,7 @@ use windows::Win32::Foundation::HWND;
 use wry::WebViewBuilderExtIos;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
-#[cfg(any(target_vendor = "apple"))]
+#[cfg(target_vendor = "apple")]
 use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 use tao::{

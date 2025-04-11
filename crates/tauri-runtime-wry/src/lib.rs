@@ -1363,6 +1363,8 @@ pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
   #[cfg(target_os = "macos")]
   SetActivationPolicy(ActivationPolicy),
+  #[cfg(target_os = "macos")]
+  SetDockVisibility(bool),
   RequestExit(i32),
   Application(ApplicationMessage),
   Window(WindowId, WindowMessage),
@@ -2435,6 +2437,11 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     )
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&self, visible: bool) -> Result<()> {
+    send_user_message(&self.context, Message::SetDockVisibility(visible))
+  }
+
   fn request_exit(&self, code: i32) -> Result<()> {
     // NOTE: request_exit cannot use the `send_user_message` function because it accesses the event loop callback
     self
@@ -2845,6 +2852,11 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "macos")]
+  fn set_dock_visibility(&mut self, visible: bool) {
+    self.event_loop.set_dock_visibility(visible);
+  }
+
+  #[cfg(target_os = "macos")]
   fn show(&self) {
     self.event_loop.show_application();
   }
@@ -3018,6 +3030,8 @@ fn handle_user_message<T: UserEvent>(
     Message::SetActivationPolicy(activation_policy) => {
       event_loop.set_activation_policy_at_runtime(tao_activation_policy(activation_policy))
     }
+    #[cfg(target_os = "macos")]
+    Message::SetDockVisibility(visible) => event_loop.set_dock_visibility(visible),
     Message::RequestExit(_code) => panic!("cannot handle RequestExit on the main thread"),
     Message::Application(application_message) => match application_message {
       #[cfg(target_os = "macos")]
@@ -4536,6 +4550,9 @@ fn create_webview<T: UserEvent>(
     if let Some(data_store_identifier) = &webview_attributes.data_store_identifier {
       webview_builder = webview_builder.with_data_store_identifier(*data_store_identifier);
     }
+
+    webview_builder =
+      webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
   }
 
   #[cfg(target_os = "macos")]
@@ -4557,7 +4574,7 @@ fn create_webview<T: UserEvent>(
 
   for script in webview_attributes.initialization_scripts {
     webview_builder = webview_builder
-      .with_initialization_script_for_main_only(&script.script, script.for_main_frame_only);
+      .with_initialization_script_for_main_only(script.script, script.for_main_frame_only);
   }
 
   for (scheme, protocol) in uri_scheme_protocols {

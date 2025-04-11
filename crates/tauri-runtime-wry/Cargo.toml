@@ -17,13 +17,13 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.50.5", default-features = false, features = [
+wry = { version = "0.51", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.32.8", default-features = false, features = ["rwh_06"] }
+tao = { version = "0.33", default-features = false, features = ["rwh_06"] }
 tauri-runtime = { version = "2.5.1", path = "../tauri-runtime" }
 tauri-utils = { version = "2.3.1", path = "../tauri-utils" }
 raw-window-handle = "0.6"
@@ -33,12 +33,12 @@ tracing = { version = "0.1", optional = true }
 log = "0.4.21"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.36"
+webview2-com = "0.37"
 softbuffer = { version = "0.4", default-features = false }
 once_cell = "1.20"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.60"
+version = "0.61"
 features = ["Win32_Foundation", "Win32_Graphics_Dwm"]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]

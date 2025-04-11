@@ -52,6 +52,8 @@ mod desktop_commands {
     background_throttling: Option<BackgroundThrottlingPolicy>,
     #[serde(default)]
     javascript_disabled: bool,
+    #[serde(default = "default_true")]
+    allow_link_preview: bool,
   }
 
   #[cfg(feature = "unstable")]
@@ -69,6 +71,7 @@ mod desktop_commands {
       builder.webview_attributes.zoom_hotkeys_enabled = config.zoom_hotkeys_enabled;
       builder.webview_attributes.background_throttling = config.background_throttling;
       builder.webview_attributes.javascript_disabled = config.javascript_disabled;
+      builder.webview_attributes.allow_link_preview = config.allow_link_preview;
       builder
     }
   }

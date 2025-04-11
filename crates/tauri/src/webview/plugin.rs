@@ -52,6 +52,8 @@ mod desktop_commands {
     background_throttling: Option<BackgroundThrottlingPolicy>,
     #[serde(default)]
     javascript_disabled: bool,
+    #[serde(default = "default_true")]
+    allow_link_preview: bool,
   }
 
   #[cfg(feature = "unstable")]

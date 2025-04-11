@@ -1740,6 +1740,16 @@ pub struct WindowConfig {
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   #[serde(default = "default_true", alias = "allow-link-preview")]
   pub allow_link_preview: bool,
+  /// Allows disabling the input accessory view on iOS.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  #[serde(
+    default,
+    alias = "disable-input-accessory-view",
+    alias = "disable_input_accessory_view"
+  )]
+  pub disable_input_accessory_view: bool,
 }
 
 impl Default for WindowConfig {
@@ -1796,6 +1806,7 @@ impl Default for WindowConfig {
       background_throttling: None,
       javascript_disabled: false,
       allow_link_preview: true,
+      disable_input_accessory_view: false,
     }
   }
 }
@@ -3080,6 +3091,7 @@ mod build {
       let background_throttling = opt_lit(self.background_throttling.as_ref());
       let javascript_disabled = self.javascript_disabled;
       let allow_link_preview = self.allow_link_preview;
+      let disable_input_accessory_view = self.disable_input_accessory_view;
 
       literal_struct!(
         tokens,
@@ -3134,7 +3146,8 @@ mod build {
         background_color,
         background_throttling,
         javascript_disabled,
-        allow_link_preview
+        allow_link_preview,
+        disable_input_accessory_view
       );
     }
   }

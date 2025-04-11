@@ -28,7 +28,7 @@ use tauri_runtime::{
   UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(any(target_vendor = "apple"))]
 use objc2::rc::Retained;
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
@@ -40,9 +40,11 @@ use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 use webview2_com::FocusChangedEventHandler;
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
+#[cfg(target_os = "ios")]
+use wry::WebViewBuilderExtIos;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(any(target_vendor = "apple"))]
 use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 use tao::{
@@ -2944,7 +2946,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   #[cfg(target_os = "ios")]
-  fn run_return<F: FnMut(RunEvent<T>) + 'static>(mut self, callback: F) -> i32 {
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32 {
     self.run(callback);
     0
   }
@@ -4555,9 +4557,16 @@ fn create_webview<T: UserEvent>(
       webview_builder.with_allow_link_preview(webview_attributes.allow_link_preview);
   }
 
+  #[cfg(target_os = "ios")]
+  {
+    if let Some(input_accessory_view_builder) = webview_attributes.input_accessory_view_builder {
+      webview_builder = webview_builder
+        .with_input_accessory_view_builder(move |webview| input_accessory_view_builder.0(webview));
+    }
+  }
+
   #[cfg(target_os = "macos")]
   {
-    use wry::WebViewBuilderExtDarwin;
     if let Some(position) = &webview_attributes.traffic_light_position {
       webview_builder = webview_builder.with_traffic_light_inset(*position);
     }

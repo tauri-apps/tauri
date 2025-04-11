@@ -4305,7 +4305,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -8408,6 +8408,7 @@ dependencies = [
  "objc2 0.6.0",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
+ "objc2-ui-kit",
  "objc2-web-kit",
  "percent-encoding",
  "plist",
@@ -8753,6 +8754,8 @@ dependencies = [
  "gtk",
  "http 1.2.0",
  "jni",
+ "objc2 0.6.0",
+ "objc2-ui-kit",
  "raw-window-handle",
  "serde",
  "serde_json",
@@ -10817,8 +10820,7 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 [[package]]
 name = "wry"
 version = "0.51.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c6bf9f41e2585a730fa981b40592ac22d5ca4c3fea549a21f2f97a648ad34f4"
+source = "git+https://github.com/tauri-apps/wry?branch=feat/input-view-accessory-builder#9704ee8c652ca7a3e31743469ef6f7a4c387c232"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

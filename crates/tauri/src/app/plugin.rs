@@ -83,6 +83,18 @@ pub async fn set_app_theme<R: Runtime>(app: AppHandle<R>, theme: Option<Theme>) 
   app.set_theme(theme);
 }
 
+#[command(root = "crate")]
+pub async fn set_dock_visibility<R: Runtime>(
+  app: AppHandle<R>,
+  visible: bool,
+) -> crate::Result<()> {
+  #[cfg(target_os = "macos")]
+  app.set_dock_visibility(visible)?;
+  #[cfg(not(target_os = "macos"))]
+  let _visible = visible;
+  Ok(())
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app")
     .invoke_handler(crate::generate_handler![
@@ -97,6 +109,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       remove_data_store,
       default_window_icon,
       set_app_theme,
+      set_dock_visibility,
     ])
     .build()
 }

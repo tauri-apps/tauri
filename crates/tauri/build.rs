@@ -159,6 +159,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("remove_data_store", false),
       ("default_window_icon", false),
       ("set_app_theme", false),
+      ("set_dock_visibility", false),
     ],
   ),
   (

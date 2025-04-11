@@ -303,7 +303,8 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  return !!(globalThis as any || window).isTauri
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return !!((globalThis as any) || window).isTauri
 }
 
 export type { InvokeArgs, InvokeOptions }

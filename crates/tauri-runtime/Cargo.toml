@@ -51,6 +51,7 @@ jni = "0.21"
 objc2 = "0.6"
 objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
   "UIView",
+  "UIResponder",
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]

@@ -640,6 +640,13 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// This is executed only on the main frame.
   /// If you only want to run it in all frames, use [Self::initialization_script_for_all_frames] instead.
   ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
   /// # Examples
   ///
   #[cfg_attr(
@@ -669,13 +676,16 @@ fn main() {
 ```
   "####
   )]
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self
       .webview_attributes
       .initialization_scripts
       .push(InitializationScript {
-        script: script.to_string(),
+        script: script.into(),
         for_main_frame_only: true,
       });
     self
@@ -687,8 +697,14 @@ fn main() {
   /// Since it runs on all top-level document navigations and also child frame page navigations,
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
-  /// This is executed on all frames, main frame and also sub frames.
-  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  /// This is executed on all frames (main frame and also sub frames).
+  /// If you only want to run the script in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///
   /// # Examples
   ///
@@ -719,13 +735,16 @@ fn main() {
 ```
   "####
   )]
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn initialization_script_for_all_frames(mut self, script: &str) -> Self {
+  pub fn initialization_script_for_all_frames(mut self, script: impl Into<String>) -> Self {
     self
       .webview_attributes
       .initialization_scripts
       .push(InitializationScript {
-        script: script.to_string(),
+        script: script.into(),
         for_main_frame_only: false,
       });
     self
@@ -953,6 +972,24 @@ fn main() {
   #[must_use]
   pub fn disable_javascript(mut self) -> Self {
     self.webview_attributes.javascript_disabled = true;
+    self
+  }
+
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.webview_attributes = self
+      .webview_attributes
+      .allow_link_preview(allow_link_preview);
     self
   }
 }

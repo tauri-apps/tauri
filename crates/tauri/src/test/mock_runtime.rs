@@ -134,6 +134,12 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     Ok(())
   }
 
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&self, visible: bool) -> Result<()> {
+    Ok(())
+  }
+
   fn request_exit(&self, code: i32) -> Result<()> {
     unimplemented!()
   }
@@ -1208,6 +1214,10 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: tauri_runtime::ActivationPolicy) {}
+
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&mut self, visible: bool) {}
 
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]

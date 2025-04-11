@@ -288,6 +288,12 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()>;
 
+  /// Sets the dock visibility for the application.
+  ///
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&self, visible: bool) -> Result<()>;
+
   /// Requests an exit of the event loop.
   fn request_exit(&self, code: i32) -> Result<()>;
 
@@ -430,6 +436,12 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
+
+  /// Sets the dock visibility for the application.
+  ///
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&mut self, visible: bool);
 
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]

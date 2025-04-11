@@ -89,7 +89,22 @@ pub async fn set_dock_visibility<R: Runtime>(
   visible: bool,
 ) -> crate::Result<()> {
   #[cfg(target_os = "macos")]
-  app.set_dock_visibility(visible)?;
+  {
+    let mut focused_window = None;
+    for window in app.manager.windows().into_values() {
+      if window.is_focused().unwrap_or_default() {
+        focused_window.replace(window);
+        break;
+      }
+    }
+
+    app.set_dock_visibility(visible)?;
+
+    // retain focus
+    if let Some(focused_window) = focused_window {
+      let _ = focused_window.set_focus();
+    }
+  }
   #[cfg(not(target_os = "macos"))]
   let _visible = visible;
   Ok(())

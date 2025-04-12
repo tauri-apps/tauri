@@ -312,7 +312,7 @@ fn body_async(
 
       let span = tracing::debug_span!("ipc::request::run");
       #resolver.respond_async_serialized(async move {
-        let result = $path(#(#args?),*);
+        let result = #orignal_function_name(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
       }

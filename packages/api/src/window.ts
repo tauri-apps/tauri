@@ -2383,6 +2383,11 @@ interface WindowOptions {
    * Whether we should disable JavaScript code execution on the webview or not.
    */
   javascriptDisabled?: boolean
+  /**
+   * on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+   * see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+   */
+  allowLinkPreview?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

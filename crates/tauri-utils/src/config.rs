@@ -2863,8 +2863,14 @@ pub struct Config {
   /// If removed the version number from `Cargo.toml` is used.
   /// It's recommended to manage the app versioning in the Tauri config.
   ///
-  /// Translates to the bundle's CFBundleShortVersionString property on macOS and iOS,
-  /// and is used as the default CFBundleVersion value when `bundle > macOS > bundleVersion` and `bundle > iOS > bundleVersion` are not set.
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).
+  /// - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).
+  ///    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.
+  /// - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).
   ///
   /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]

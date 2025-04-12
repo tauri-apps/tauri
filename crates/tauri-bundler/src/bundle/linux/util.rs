@@ -1,7 +1,9 @@
-
 /// Change value of __TAURI_BUNDLE_TYPE statis variale to mark which package type if was bundled in
 #[cfg(target_os = "linux")]
-pub fn patch_binary(binary_path: &std::path::PathBuf, package_type: &crate::PackageType) -> crate::Result<()> {
+pub fn patch_binary(
+  binary_path: &std::path::PathBuf,
+  package_type: &crate::PackageType,
+) -> crate::Result<()> {
   let mut file_data = std::fs::read(binary_path).expect("Could not binary read file.");
 
   let elf = match goblin::Object::parse(&file_data)? {

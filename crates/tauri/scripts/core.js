@@ -21,8 +21,8 @@
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'transformCallback', {
     value: function transformCallback(callback, once) {
-      var identifier = uid()
-      var prop = `_${identifier}`
+      const identifier = uid()
+      const prop = `_${identifier}`
 
       Object.defineProperty(window, prop, {
         value: (result) => {
@@ -56,15 +56,11 @@
   Object.defineProperty(window.__TAURI_INTERNALS__, 'invoke', {
     value: function (cmd, payload = {}, options) {
       return new Promise(function (resolve, reject) {
-        const callback = window.__TAURI_INTERNALS__.transformCallback(function (
-          r
-        ) {
+        const callback = window.__TAURI_INTERNALS__.transformCallback((r) => {
           resolve(r)
           delete window[`_${error}`]
         }, true)
-        const error = window.__TAURI_INTERNALS__.transformCallback(function (
-          e
-        ) {
+        const error = window.__TAURI_INTERNALS__.transformCallback((e) => {
           reject(e)
           delete window[`_${callback}`]
         }, true)

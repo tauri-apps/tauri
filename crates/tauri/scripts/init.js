@@ -12,6 +12,4 @@
   __RAW_core_script__
 
   __RAW_event_initialization_script__
-
-  __RAW_bundle_script__
 })()

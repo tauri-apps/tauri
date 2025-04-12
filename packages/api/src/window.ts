@@ -441,7 +441,7 @@ class Window {
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: unknown): Promise<void> {
+  async emit<T>(event: string, payload?: T): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
@@ -453,7 +453,7 @@ class Window {
       }
       return
     }
-    return emit(event, payload)
+    return emit<T>(event, payload)
   }
 
   /**
@@ -468,10 +468,10 @@ class Window {
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emitTo(
+  async emitTo<T>(
     target: string | EventTarget,
     event: string,
-    payload?: unknown
+    payload?: T
   ): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line security/detect-object-injection
@@ -484,7 +484,7 @@ class Window {
       }
       return
     }
-    return emitTo(target, event, payload)
+    return emitTo<T>(target, event, payload)
   }
 
   /** @ignore */
@@ -2399,6 +2399,11 @@ interface WindowOptions {
    * Whether we should disable JavaScript code execution on the webview or not.
    */
   javascriptDisabled?: boolean
+  /**
+   * on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+   * see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+   */
+  allowLinkPreview?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {

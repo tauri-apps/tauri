@@ -341,7 +341,10 @@ tauri::Builder::default()
     self,
     webview: Option<PendingWebview<EventLoopMessage, R>>,
   ) -> crate::Result<Window<R>> {
-    let mut pending = PendingWindow::new(self.window_builder.clone(), self.label.clone())?;
+    #[cfg(desktop)]
+    let theme = self.window_builder.get_theme();
+
+    let mut pending = PendingWindow::new(self.window_builder, self.label)?;
     if let Some(webview) = webview {
       pending.set_webview(webview);
     }
@@ -362,7 +365,7 @@ tauri::Builder::default()
     #[cfg(desktop)]
     let handler = app_manager
       .menu
-      .prepare_window_menu_creation_handler(window_menu.as_ref(), self.window_builder.get_theme());
+      .prepare_window_menu_creation_handler(window_menu.as_ref(), theme);
     #[cfg(not(desktop))]
     #[allow(clippy::type_complexity)]
     let handler: Option<Box<dyn Fn(tauri_runtime::window::RawWindow<'_>) + Send>> = None;

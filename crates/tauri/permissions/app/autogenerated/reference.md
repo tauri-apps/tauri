@@ -2,6 +2,8 @@
 
 Default permissions for the plugin.
 
+#### This default permission set includes the following:
+
 - `allow-version`
 - `allow-name`
 - `allow-tauri-version`
@@ -220,6 +222,32 @@ Enables the set_app_theme command without any pre-configured scope.
 <td>
 
 Denies the set_app_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-set-dock-visibility`
+
+</td>
+<td>
+
+Enables the set_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-dock-visibility`
+
+</td>
+<td>
+
+Denies the set_dock_visibility command without any pre-configured scope.
 
 </td>
 </tr>

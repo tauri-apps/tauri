@@ -19,7 +19,7 @@ mod build {
   pub const GLOBAL_API_SCRIPT_FILE_LIST_PATH: &str = "__global-api-script.js";
 
   /// Defines the path to the global API script using Cargo instructions.
-  pub fn define_global_api_script_path(path: PathBuf) {
+  pub fn define_global_api_script_path(path: &Path) {
     println!(
       "cargo:{GLOBAL_API_SCRIPT_PATH_KEY}={}",
       path
@@ -31,16 +31,25 @@ mod build {
 
   /// Collects the path of all the global API scripts defined with [`define_global_api_script_path`]
   /// and saves them to the out dir with filename [`GLOBAL_API_SCRIPT_FILE_LIST_PATH`].
-  pub fn save_global_api_scripts_paths(out_dir: &Path) {
+  ///
+  /// `tauri_global_scripts` is only used in Tauri's monorepo for the examples to work
+  /// since they don't have a build script to run `tauri-build` and pull in the deps env vars
+  pub fn save_global_api_scripts_paths(out_dir: &Path, mut tauri_global_scripts: Option<PathBuf>) {
     let mut scripts = Vec::new();
 
     for (key, value) in vars_os() {
       let key = key.to_string_lossy();
 
-      if key.starts_with("DEP_") && key.ends_with(GLOBAL_API_SCRIPT_PATH_KEY) {
+      if key == format!("DEP_TAURI_{GLOBAL_API_SCRIPT_PATH_KEY}") {
+        tauri_global_scripts = Some(PathBuf::from(value));
+      } else if key.starts_with("DEP_") && key.ends_with(GLOBAL_API_SCRIPT_PATH_KEY) {
         let script_path = PathBuf::from(value);
         scripts.push(script_path);
       }
+    }
+
+    if let Some(tauri_global_scripts) = tauri_global_scripts {
+      scripts.insert(0, tauri_global_scripts);
     }
 
     fs::write(

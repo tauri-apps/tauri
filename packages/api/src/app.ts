@@ -196,6 +196,16 @@ async function setTheme(theme?: Theme | null): Promise<void> {
   return invoke('plugin:app|set_app_theme', { theme })
 }
 
+/**
+ * Sets the dock visibility for the application on macOS.
+ *
+ * @param visible whether the dock should be visible or not
+ * @since 2.5.0
+ */
+async function setDockVisibility(visible: boolean): Promise<void> {
+  return invoke('plugin:app|set_dock_visibility', { visible })
+}
+
 export {
   getName,
   getVersion,
@@ -206,5 +216,6 @@ export {
   defaultWindowIcon,
   setTheme,
   fetchDataStoreIdentifiers,
-  removeDataStore
+  removeDataStore,
+  setDockVisibility
 }

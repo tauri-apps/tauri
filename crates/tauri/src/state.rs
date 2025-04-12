@@ -266,7 +266,7 @@ mod tests {
     let dropping_struct = DroppingStruct(drop_flag.clone());
 
     let _drop_flag_ignore = Arc::new(RwLock::new(false));
-    let _dropping_struct_ignore = DroppingStruct(_drop_flag_ignore.clone());
+    let _dropping_struct_ignore = DroppingStruct(_drop_flag_ignore);
 
     state.set::<DroppingStruct>(dropping_struct);
     assert!(!state.set::<DroppingStruct>(_dropping_struct_ignore));

@@ -306,6 +306,13 @@ pub struct DmgSettings {
   pub application_folder_position: Position,
 }
 
+/// The iOS bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct IosSettings {
+  /// The version of the build that identifies an iteration of the bundle.
+  pub bundle_version: Option<String>,
+}
+
 /// The macOS bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct MacOsSettings {
@@ -323,6 +330,8 @@ pub struct MacOsSettings {
   /// List of custom files to add to the application bundle.
   /// Maps the path in the Contents directory in the app to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
@@ -643,6 +652,8 @@ pub struct BundleSettings {
   pub rpm: RpmSettings,
   /// DMG-specific settings.
   pub dmg: DmgSettings,
+  /// iOS-specific settings.
+  pub ios: IosSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -1188,6 +1199,11 @@ impl Settings {
   /// Returns the DMG settings.
   pub fn dmg(&self) -> &DmgSettings {
     &self.bundle_settings.dmg
+  }
+
+  /// Returns the iOS settings.
+  pub fn ios(&self) -> &IosSettings {
+    &self.bundle_settings.ios
   }
 
   /// Returns the MacOS settings.

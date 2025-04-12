@@ -297,22 +297,26 @@
         {
           "description": "Enables the ping command without any pre-configured scope.",
           "type": "string",
-          "const": "allow-ping"
+          "const": "allow-ping",
+          "markdownDescription": "Enables the ping command without any pre-configured scope."
         },
         {
           "description": "Denies the ping command without any pre-configured scope.",
           "type": "string",
-          "const": "deny-ping"
+          "const": "deny-ping",
+          "markdownDescription": "Denies the ping command without any pre-configured scope."
         },
         {
           "description": "Sets a global scope.",
           "type": "string",
-          "const": "global-scope"
+          "const": "global-scope",
+          "markdownDescription": "Sets a global scope."
         },
         {
           "description": "Enables the ping command with a test scope.",
           "type": "string",
-          "const": "allow-ping-scoped"
+          "const": "allow-ping-scoped",
+          "markdownDescription": "Enables the ping command with a test scope."
         }
       ]
     }

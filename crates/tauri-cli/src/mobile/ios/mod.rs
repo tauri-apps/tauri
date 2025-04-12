@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::{
@@ -39,6 +40,7 @@ use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
   path::PathBuf,
+  str::FromStr,
   thread::sleep,
   time::Duration,
 };
@@ -112,7 +114,7 @@ pub fn get_config(
   tauri_config: &TauriConfig,
   features: Option<&Vec<String>>,
   cli_options: &CliOptions,
-) -> (AppleConfig, AppleMetadata) {
+) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
   if let Some(features) = features {
     ios_options
@@ -120,6 +122,41 @@ pub fn get_config(
       .get_or_insert(Vec::new())
       .extend_from_slice(features);
   }
+
+  let bundle_version = if let Some(bundle_version) = tauri_config
+    .bundle
+    .ios
+    .bundle_version
+    .clone()
+    .or_else(|| tauri_config.version.clone())
+  {
+    let mut version = semver::Version::from_str(&bundle_version)
+      .with_context(|| format!("failed to parse {bundle_version:?} as a semver string"))?;
+    if !version.pre.is_empty() {
+      if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
+        version.pre = semver::Prerelease::EMPTY;
+        if version.build.is_empty() {
+          version.build = semver::BuildMetadata::new(number)
+            .with_context(|| format!("bundle version {number:?} prerelease is invalid"))?;
+        } else {
+          anyhow::bail!("bundle version {bundle_version:?} is invalid, it cannot have both prerelease and build metadata");
+        }
+      }
+    }
+
+    let maybe_build_number = if version.build.is_empty() {
+      "".to_string()
+    } else {
+      format!(".{}", version.build.as_str())
+    };
+
+    Some(format!(
+      "{}.{}.{}{}",
+      version.major, version.minor, version.patch, maybe_build_number
+    ))
+  } else {
+    None
+  };
 
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
@@ -140,12 +177,11 @@ pub fn get_config(
           }
         }),
     ios_features: ios_options.features.clone(),
-    bundle_version: tauri_config.version.clone(),
-    bundle_version_short: tauri_config.version.clone(),
+    bundle_version,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
-  let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
+  let config = AppleConfig::from_raw(app.clone(), Some(raw))?;
 
   let tauri_dir = tauri_dir();
 
@@ -194,7 +230,7 @@ pub fn get_config(
   set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
   set_var("TAURI_IOS_APP_NAME", config.app().name());
 
-  (config, metadata)
+  Ok((config, metadata))
 }
 
 fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {

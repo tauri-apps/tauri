@@ -612,6 +612,11 @@ pub struct MacConfig {
   /// The files to include in the application relative to the Contents directory.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -651,6 +656,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
+      bundle_version: None,
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
@@ -1767,6 +1773,10 @@ pub struct WindowConfig {
   /// Whether we should disable JavaScript code execution on the webview or not.
   #[serde(default, alias = "javascript-disabled")]
   pub javascript_disabled: bool,
+  /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+  /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  #[serde(default = "default_true", alias = "allow-link-preview")]
+  pub allow_link_preview: bool,
 }
 
 impl Default for WindowConfig {
@@ -1823,6 +1833,7 @@ impl Default for WindowConfig {
       background_color: None,
       background_throttling: None,
       javascript_disabled: false,
+      allow_link_preview: true,
     }
   }
 }
@@ -2554,6 +2565,11 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
@@ -2570,6 +2586,7 @@ impl Default for IosConfig {
       template: None,
       frameworks: None,
       development_team: None,
+      bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
     }
   }
@@ -2873,7 +2890,19 @@ pub struct Config {
   /// App main binary filename. Defaults to the name of your cargo crate.
   #[serde(alias = "main-binary-name")]
   pub main_binary_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  ///
+  /// If removed the version number from `Cargo.toml` is used.
+  /// It's recommended to manage the app versioning in the Tauri config.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).
+  /// - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).
+  ///    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.
+  /// - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).
   ///
   /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
@@ -3133,6 +3162,7 @@ mod build {
       let background_color = opt_lit(self.background_color.as_ref());
       let background_throttling = opt_lit(self.background_throttling.as_ref());
       let javascript_disabled = self.javascript_disabled;
+      let allow_link_preview = self.allow_link_preview;
 
       literal_struct!(
         tokens,
@@ -3187,7 +3217,8 @@ mod build {
         devtools,
         background_color,
         background_throttling,
-        javascript_disabled
+        javascript_disabled,
+        allow_link_preview
       );
     }
   }
@@ -3496,6 +3527,9 @@ mod build {
 
   impl ToTokens for TrayIconConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      // For [`Self::menu_on_left_click`]
+      tokens.append_all(quote!(#[allow(deprecated)]));
+
       let id = opt_str_lit(self.id.as_ref());
       let icon_as_template = self.icon_as_template;
       #[allow(deprecated)]

@@ -1,4 +1,8 @@
-/// Change value of __TAURI_BUNDLE_TYPE statis variale to mark which package type if was bundled in
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
+/// Change value of __TAURI_BUNDLE_TYPE static variable to mark which package type it was bundled in
 #[cfg(target_os = "linux")]
 pub fn patch_binary(
   binary_path: &std::path::PathBuf,

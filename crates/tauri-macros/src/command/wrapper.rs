@@ -281,7 +281,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #[doc(hidden)]
     macro_rules! #wrapper {
         // double braces because the item is expected to be a block expression
-        ($path:path, $invoke:ident) => {{
+        ($path:path, $invoke:ident) => {(move || {
           #[allow(unused_imports)]
           use #root::ipc::private::*;
           // prevent warnings when the body is a `compile_error!` or if the command has no arguments
@@ -291,7 +291,7 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
           #maybe_span
 
           #body
-      }};
+      })()};
     }
 
     // allow the macro to be resolved with the same path as the command function

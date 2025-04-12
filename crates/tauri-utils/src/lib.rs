@@ -277,6 +277,12 @@ pub struct Env {
   pub args_os: Vec<OsString>,
 }
 
+/// Variable holding the type of bundle the executable is stored in. This is modified by binary
+/// patching during build
+#[unsafe(no_mangle)]
+#[link_section = ".tauri"]
+pub static __TAURI_BUNDLE_TYPE: &str = "UNK_BUNDLE";
+
 #[allow(clippy::derivable_impls)]
 impl Default for Env {
   fn default() -> Self {

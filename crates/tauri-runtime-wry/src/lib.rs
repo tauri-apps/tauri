@@ -13,6 +13,8 @@
 )]
 
 use http::Request;
+#[cfg(desktop)]
+use monitor::MonitorExt;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
@@ -65,6 +67,8 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
+#[cfg(desktop)]
+use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
 use tauri_utils::TitleBarStyle;
 use tauri_utils::{
@@ -127,6 +131,8 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
+#[cfg(desktop)]
+mod monitor;
 #[cfg(any(
   windows,
   target_os = "linux",
@@ -733,6 +739,7 @@ impl From<ProgressBarState> for ProgressBarStateWrapper {
 pub struct WindowBuilderWrapper {
   inner: TaoWindowBuilder,
   center: bool,
+  prevent_overflow: Option<Size>,
   #[cfg(target_os = "macos")]
   tabbing_identifier: Option<String>,
 }
@@ -740,7 +747,9 @@ pub struct WindowBuilderWrapper {
 impl std::fmt::Debug for WindowBuilderWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut s = f.debug_struct("WindowBuilderWrapper");
-    s.field("inner", &self.inner).field("center", &self.center);
+    s.field("inner", &self.inner)
+      .field("center", &self.center)
+      .field("prevent_overflow", &self.prevent_overflow);
     #[cfg(target_os = "macos")]
     {
       s.field("tabbing_identifier", &self.tabbing_identifier);
@@ -871,6 +880,15 @@ impl WindowBuilder for WindowBuilderWrapper {
       if let Some(window_classname) = &config.window_classname {
         window = window.window_classname(window_classname);
       }
+
+      if let Some(prevent_overflow) = &config.prevent_overflow {
+        window = match prevent_overflow {
+          PreventOverflowConfig::Enable(true) => window.prevent_overflow(),
+          PreventOverflowConfig::Margin(margin) => window
+            .prevent_overflow_with_margin(TaoPhysicalSize::new(margin.width, margin.height).into()),
+          _ => window,
+        };
+      }
     }
 
     window
@@ -914,6 +932,31 @@ impl WindowBuilder for WindowBuilderWrapper {
       max_width: constraints.max_width,
       max_height: constraints.max_height,
     };
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size) on creation
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  fn prevent_overflow(mut self) -> Self {
+    self
+      .prevent_overflow
+      .replace(PhysicalSize::new(0, 0).into());
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation with a margin
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  fn prevent_overflow_with_margin(mut self, margin: Size) -> Self {
+    self.prevent_overflow.replace(margin);
     self
   }
 
@@ -4138,7 +4181,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
   }
 
   #[cfg(desktop)]
-  if window_builder.center {
+  if window_builder.prevent_overflow.is_some() || window_builder.center {
     let monitor = if let Some(window_position) = &window_builder.inner.window.position {
       event_loop.available_monitors().find(|m| {
         let monitor_pos = m.position();
@@ -4155,39 +4198,68 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     } else {
       event_loop.primary_monitor()
     };
-
     if let Some(monitor) = monitor {
+      let scale_factor = monitor.scale_factor();
       let desired_size = window_builder
         .inner
         .window
         .inner_size
         .unwrap_or_else(|| TaoPhysicalSize::new(800, 600).into());
-      let scale_factor = monitor.scale_factor();
-      #[allow(unused_mut)]
-      let mut window_size = window_builder
+      let mut inner_size = window_builder
         .inner
         .window
         .inner_size_constraints
         .clamp(desired_size, scale_factor)
         .to_physical::<u32>(scale_factor);
+      let mut window_size = inner_size;
+      #[allow(unused_mut)]
+      // Left and right window shadow counts as part of the window on Windows
+      // We need to include it when calculating positions, but not size
+      let mut shadow_width = 0;
       #[cfg(windows)]
-      {
-        if window_builder.inner.window.decorations {
-          use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
-          let mut rect = windows::Win32::Foundation::RECT::default();
-          let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
-          if result.is_ok() {
-            window_size.width += (rect.right - rect.left) as u32;
-            // rect.bottom is made out of shadow, and we don't care about it
-            window_size.height += -rect.top as u32;
-          }
+      if window_builder.inner.window.decorations {
+        use windows::Win32::UI::WindowsAndMessaging::{AdjustWindowRect, WS_OVERLAPPEDWINDOW};
+        let mut rect = windows::Win32::Foundation::RECT::default();
+        let result = unsafe { AdjustWindowRect(&mut rect, WS_OVERLAPPEDWINDOW, false) };
+        if result.is_ok() {
+          shadow_width = (rect.right - rect.left) as u32;
+          // rect.bottom is made out of shadow, and we don't care about it
+          window_size.height += -rect.top as u32;
         }
       }
-      let position = window::calculate_window_center_position(window_size, monitor);
-      let logical_position = position.to_logical::<f64>(scale_factor);
-      window_builder = window_builder.position(logical_position.x, logical_position.y);
+
+      if let Some(margin) = window_builder.prevent_overflow {
+        let work_area = monitor.work_area();
+        let margin = margin.to_physical::<u32>(scale_factor);
+        let constraint = PhysicalSize::new(
+          work_area.size.width - margin.width,
+          work_area.size.height - margin.height,
+        );
+        if window_size.width > constraint.width || window_size.height > constraint.height {
+          if window_size.width > constraint.width {
+            inner_size.width = inner_size
+              .width
+              .saturating_sub(window_size.width - constraint.width);
+            window_size.width = constraint.width;
+          }
+          if window_size.height > constraint.height {
+            inner_size.height = inner_size
+              .height
+              .saturating_sub(window_size.height - constraint.height);
+            window_size.height = constraint.height;
+          }
+          window_builder.inner.window.inner_size = Some(inner_size.into());
+        }
+      }
+
+      if window_builder.center {
+        window_size.width += shadow_width;
+        let position = window::calculate_window_center_position(window_size, monitor);
+        let logical_position = position.to_logical::<f64>(scale_factor);
+        window_builder = window_builder.position(logical_position.x, logical_position.y);
+      }
     }
-  }
+  };
 
   let window = window_builder.inner.build(event_loop).unwrap();
 

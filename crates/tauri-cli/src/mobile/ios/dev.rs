@@ -168,7 +168,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       tauri_config_,
       dev_options.features.as_ref(),
       &Default::default(),
-    );
+    )?;
 
     (interface, config)
   };

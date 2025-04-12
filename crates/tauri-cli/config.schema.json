@@ -31,7 +31,7 @@
       ]
     },
     "version": {
-      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.\n\n By default version 1.0 is used on Android.",
+      "description": "App version. It is a semver version number or a path to a `package.json` file containing the `version` field.\n\n If removed the version number from `Cargo.toml` is used.\n It's recommended to manage the app versioning in the Tauri config.\n\n ## Platform-specific\n\n - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.\n    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).\n - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.\n    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).\n    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.\n - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).\n\n By default version 1.0 is used on Android.",
       "type": [
         "string",
         "null"
@@ -319,6 +319,17 @@
           ],
           "format": "double"
         },
+        "preventOverflow": {
+          "description": "Whether or not to prevent the window from overflowing the workarea\n\n ## Platform-specific\n\n - **iOS / Android:** Unsupported.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PreventOverflowConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "resizable": {
           "description": "Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.",
           "default": true,
@@ -577,6 +588,46 @@
           "format": "uri"
         }
       ]
+    },
+    "PreventOverflowConfig": {
+      "description": "Prevent overflow with a margin",
+      "anyOf": [
+        {
+          "description": "Enable prevent overflow or not",
+          "type": "boolean"
+        },
+        {
+          "description": "Enable prevent overflow with a margin\n so that the window's size + this margin won't overflow the workarea",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PreventOverflowMargin"
+            }
+          ]
+        }
+      ]
+    },
+    "PreventOverflowMargin": {
+      "description": "Enable prevent overflow with a margin\n so that the window's size + this margin won't overflow the workarea",
+      "type": "object",
+      "required": [
+        "height",
+        "width"
+      ],
+      "properties": {
+        "width": {
+          "description": "Horizontal margin in physical unit",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "height": {
+          "description": "Vertical margin in physical unit",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "Theme": {
       "description": "System theme.",
@@ -3302,6 +3353,13 @@
             "type": "string"
           }
         },
+        "bundleVersion": {
+          "description": "The version of the build that identifies an iteration of the bundle.\n\n Translates to the bundle's CFBundleVersion property.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\n Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`\n and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\n An empty string is considered an invalid value so the default value is used.",
           "default": "10.13",
@@ -3498,6 +3556,13 @@
         },
         "developmentTeam": {
           "description": "The development team. This value is required for iOS development because code signing is enforced.\n The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "bundleVersion": {
+          "description": "The version of the build that identifies an iteration of the bundle.\n\n Translates to the bundle's CFBundleVersion property.",
           "type": [
             "string",
             "null"

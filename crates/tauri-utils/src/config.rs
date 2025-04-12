@@ -612,6 +612,11 @@ pub struct MacConfig {
   /// The files to include in the application relative to the Contents directory.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -651,6 +656,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
+      bundle_version: None,
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
@@ -1462,6 +1468,30 @@ pub struct WindowEffectsConfig {
   pub color: Option<Color>,
 }
 
+/// Enable prevent overflow with a margin
+/// so that the window's size + this margin won't overflow the workarea
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreventOverflowMargin {
+  /// Horizontal margin in physical unit
+  pub width: u32,
+  /// Vertical margin in physical unit
+  pub height: u32,
+}
+
+/// Prevent overflow with a margin
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum PreventOverflowConfig {
+  /// Enable prevent overflow or not
+  Enable(bool),
+  /// Enable prevent overflow with a margin
+  /// so that the window's size + this margin won't overflow the workarea
+  Margin(PreventOverflowMargin),
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1515,6 +1545,13 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
+  /// Whether or not to prevent the window from overflowing the workarea
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[serde(alias = "prevent-overflow")]
+  pub prevent_overflow: Option<PreventOverflowConfig>,
   /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
@@ -1769,6 +1806,7 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
+      prevent_overflow: None,
       resizable: true,
       maximizable: true,
       minimizable: true,
@@ -2538,6 +2576,11 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
@@ -2554,6 +2597,7 @@ impl Default for IosConfig {
       template: None,
       frameworks: None,
       development_team: None,
+      bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
     }
   }
@@ -2857,7 +2901,19 @@ pub struct Config {
   /// App main binary filename. Defaults to the name of your cargo crate.
   #[serde(alias = "main-binary-name")]
   pub main_binary_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  ///
+  /// If removed the version number from `Cargo.toml` is used.
+  /// It's recommended to manage the app versioning in the Tauri config.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).
+  /// - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).
+  ///    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.
+  /// - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).
   ///
   /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
@@ -3038,6 +3094,32 @@ mod build {
     }
   }
 
+  impl ToTokens for PreventOverflowMargin {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let width = self.width;
+      let height = self.height;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::PreventOverflowMargin,
+        width,
+        height
+      )
+    }
+  }
+
+  impl ToTokens for PreventOverflowConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::PreventOverflowConfig };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        Self::Enable(enable) => quote! { #prefix::Enable(#enable) },
+        Self::Margin(margin) => quote! { #prefix::Margin(#margin) },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3054,6 +3136,7 @@ mod build {
       let min_height = opt_lit(self.min_height.as_ref());
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
+      let prevent_overflow = opt_lit(self.prevent_overflow.as_ref());
       let resizable = self.resizable;
       let maximizable = self.maximizable;
       let minimizable = self.minimizable;
@@ -3110,6 +3193,7 @@ mod build {
         min_height,
         max_width,
         max_height,
+        prevent_overflow,
         resizable,
         maximizable,
         minimizable,

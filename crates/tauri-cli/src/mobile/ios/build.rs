@@ -36,6 +36,7 @@ use std::{
   env::{set_current_dir, var, var_os},
   fs,
   path::PathBuf,
+  str::FromStr,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -166,7 +167,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       tauri_config_,
       build_options.features.as_ref(),
       &Default::default(),
-    );
+    )?;
     (interface, config)
   };
 
@@ -182,9 +183,36 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let mut plist = plist::Dictionary::new();
-  let version = interface.app_settings().get_package_settings().version;
-  plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-  plist.insert("CFBundleVersion".into(), version.into());
+  {
+    let tauri_config_guard = tauri_config.lock().unwrap();
+    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+    let app_version = tauri_config_
+      .version
+      .clone()
+      .unwrap_or_else(|| interface.app_settings().get_package_settings().version);
+
+    let mut version = semver::Version::from_str(&app_version)
+      .with_context(|| format!("failed to parse {app_version:?} as a semver string"))?;
+    if !version.pre.is_empty() {
+      log::info!(
+        "CFBundleShortVersionString cannot have prerelease identifier; stripping {}",
+        version.pre.as_str()
+      );
+      version.pre = semver::Prerelease::EMPTY;
+    }
+    if !version.build.is_empty() {
+      log::info!(
+        "CFBundleShortVersionString cannot have build number; stripping {}",
+        version.build.as_str()
+      );
+      version.build = semver::BuildMetadata::EMPTY;
+    }
+
+    plist.insert(
+      "CFBundleShortVersionString".into(),
+      version.to_string().into(),
+    );
+  };
 
   let info_plist_path = config
     .project_dir()

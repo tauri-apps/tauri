@@ -151,14 +151,14 @@ impl From<Handler> for proc_macro::TokenStream {
   ) -> Self {
     let cmd = format_ident!("__tauri_cmd__");
     let invoke = format_ident!("__tauri_invoke__");
-    let (paths, attrs): (Vec<Path>, Vec<Vec<Attribute>>) = command_defs
+    let (_paths, attrs): (Vec<Path>, Vec<Vec<Attribute>>) = command_defs
       .into_iter()
       .map(|def| (def.path, def.attrs))
       .unzip();
     quote::quote!(move |#invoke| {
       let #cmd = #invoke.message.command();
       match #cmd {
-        #(#(#attrs)* stringify!(#commands) => #wrappers!(#paths, #invoke),)*
+        #(#(#attrs)* stringify!(#commands) => #wrappers(#invoke),)*
         _ => {
           return false;
         },

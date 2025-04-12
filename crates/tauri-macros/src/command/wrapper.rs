@@ -14,7 +14,7 @@ use syn::{
   parse_macro_input,
   punctuated::Punctuated,
   spanned::Spanned,
-  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token, Visibility,
+  Expr, ExprLit, FnArg, ItemFn, Lit, Meta, Pat, Token,
 };
 use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
@@ -81,12 +81,14 @@ impl Parse for WrapperAttributes {
             {
               let lit = s.value();
 
-              wrapper_attributes.root = if lit == "crate" {
-                quote!($crate)
-              } else {
-                let ident = Ident::new(&lit, Span::call_site());
-                quote!(#ident)
-              };
+              // wrapper_attributes.root = if lit == "crate" {
+              //   quote!($crate)
+              // } else {
+              //   let ident = Ident::new(&lit, Span::call_site());
+              //   quote!(#ident)
+              // };
+              let ident = Ident::new(&lit, Span::call_site());
+              wrapper_attributes.root = quote!(#ident);
             }
           }
         }
@@ -131,17 +133,10 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
   let mut attrs = parse_macro_input!(attributes as WrapperAttributes);
   let function = parse_macro_input!(item as ItemFn);
   let wrapper = super::format_command_wrapper(&function.sig.ident);
-  let visibility = &function.vis;
 
   if function.sig.asyncness.is_some() {
     attrs.execution_context = ExecutionContext::Async;
   }
-
-  // macros used with `pub use my_macro;` need to be exported with `#[macro_export]`
-  let maybe_macro_export = match &function.vis {
-    Visibility::Public(_) | Visibility::Restricted(_) => quote!(#[macro_export]),
-    _ => TokenStream2::default(),
-  };
 
   let invoke = Invoke {
     message: format_ident!("__tauri_message__"),
@@ -277,26 +272,18 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #function
 
     #maybe_allow_unused
-    #maybe_macro_export
     #[doc(hidden)]
-    macro_rules! #wrapper {
-        // double braces because the item is expected to be a block expression
-        ($path:path, $invoke:ident) => {{
-          #[allow(unused_imports)]
-          use #root::ipc::private::*;
-          // prevent warnings when the body is a `compile_error!` or if the command has no arguments
-          #[allow(unused_variables)]
-          let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = $invoke;
+    #[allow(non_snake_case)]
+    pub fn #wrapper<R: #root::Runtime>(invoke: #root::ipc::Invoke<R>) -> bool {
+      use #root::ipc::private::*;
+      // prevent warnings when the body is a `compile_error!` or if the command has no arguments
+      #[allow(unused_variables)]
+      let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = invoke;
 
-          #maybe_span
+      #maybe_span
 
-          #body
-      }};
+      #body
     }
-
-    // allow the macro to be resolved with the same path as the command function
-    #[allow(unused_imports)]
-    #visibility use #wrapper;
   )
   .into()
 }
@@ -317,6 +304,7 @@ fn body_async(
     resolver,
     acl,
   } = invoke;
+  let orignal_function_name = &function.sig.ident;
   parse_args(plugin_name, function, message, acl, attributes).map(|args| {
     #[cfg(feature = "tracing")]
     quote! {
@@ -335,7 +323,7 @@ fn body_async(
     #[cfg(not(feature = "tracing"))]
     quote! {
       #resolver.respond_async_serialized(async move {
-        let result = $path(#(#args?),*);
+        let result = #orignal_function_name(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
       });
@@ -361,6 +349,7 @@ fn body_blocking(
     acl,
   } = invoke;
   let args = parse_args(plugin_name, function, message, acl, attributes)?;
+  let orignal_function_name = &function.sig.ident;
 
   // the body of a `match` to early return any argument that wasn't successful in parsing.
   let match_body = quote!({
@@ -376,7 +365,7 @@ fn body_blocking(
 
   Ok(quote! {
     #maybe_span
-    let result = $path(#(match #args #match_body),*);
+    let result = #orignal_function_name(#(match #args #match_body),*);
     let kind = (&result).blocking_kind();
     kind.block(result, #resolver);
     return true;

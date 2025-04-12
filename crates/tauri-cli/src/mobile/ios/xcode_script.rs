@@ -97,7 +97,7 @@ pub fn command(options: Options) -> Result<()> {
       tauri_config_,
       None,
       &cli_options,
-    );
+    )?;
     (config, metadata, cli_options)
   };
   ensure_init(

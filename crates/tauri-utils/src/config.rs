@@ -613,6 +613,8 @@ pub struct MacConfig {
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
   /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
@@ -2532,6 +2534,8 @@ pub struct IosConfig {
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
   /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
   /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
@@ -2854,7 +2858,13 @@ pub struct Config {
   /// App main binary filename. Defaults to the name of your cargo crate.
   #[serde(alias = "main-binary-name")]
   pub main_binary_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  ///
+  /// If removed the version number from `Cargo.toml` is used.
+  /// It's recommended to manage the app versioning in the Tauri config.
+  ///
+  /// Translates to the bundle's CFBundleShortVersionString property on macOS and iOS,
+  /// and is used as the default CFBundleVersion value when `bundle > macOS > bundleVersion` and `bundle > iOS > bundleVersion` are not set.
   ///
   /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]

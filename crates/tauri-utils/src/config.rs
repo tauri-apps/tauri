@@ -3099,7 +3099,7 @@ mod build {
 
   impl ToTokens for PreventOverflowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-      let prefix = quote! { ::tauri::utils::config::PreventOverflowMarginConfig };
+      let prefix = quote! { ::tauri::utils::config::PreventOverflowConfig };
 
       #[allow(deprecated)]
       tokens.append_all(match self {

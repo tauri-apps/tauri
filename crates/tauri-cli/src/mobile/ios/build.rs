@@ -14,7 +14,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   ConfigValue, Result,
 };
@@ -36,7 +36,6 @@ use std::{
   env::{set_current_dir, var, var_os},
   fs,
   path::PathBuf,
-  str::FromStr,
 };
 
 #[derive(Debug, Clone, Parser)]
@@ -183,36 +182,10 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let mut plist = plist::Dictionary::new();
-  {
-    let tauri_config_guard = tauri_config.lock().unwrap();
-    let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let app_version = tauri_config_
-      .version
-      .clone()
-      .unwrap_or_else(|| interface.app_settings().get_package_settings().version);
-
-    let mut version = semver::Version::from_str(&app_version)
-      .with_context(|| format!("failed to parse {app_version:?} as a semver string"))?;
-    if !version.pre.is_empty() {
-      log::info!(
-        "CFBundleShortVersionString cannot have prerelease identifier; stripping {}",
-        version.pre.as_str()
-      );
-      version.pre = semver::Prerelease::EMPTY;
-    }
-    if !version.build.is_empty() {
-      log::info!(
-        "CFBundleShortVersionString cannot have build number; stripping {}",
-        version.build.as_str()
-      );
-      version.build = semver::BuildMetadata::EMPTY;
-    }
-
-    plist.insert(
-      "CFBundleShortVersionString".into(),
-      version.to_string().into(),
-    );
-  };
+  plist.insert(
+    "CFBundleShortVersionString".into(),
+    config.bundle_version_short().into(),
+  );
 
   let info_plist_path = config
     .project_dir()
@@ -338,9 +311,10 @@ fn run_build(
     &detect_target_ok,
     env,
     |target: &Target| -> Result<()> {
-      let mut app_version = config.bundle_version().clone();
+      let mut app_version = config.bundle_version().to_string();
       if let Some(build_number) = options.build_number {
-        app_version.push_extra(build_number);
+        app_version.push('.');
+        app_version.push_str(&build_number.to_string());
       }
 
       let credentials = auth_credentials_from_env()?;

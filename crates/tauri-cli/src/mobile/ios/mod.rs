@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::{
@@ -31,7 +30,7 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
-    pbxproj,
+    pbxproj, strip_semver_prerelease_tag,
   },
   Result,
 };
@@ -130,30 +129,72 @@ pub fn get_config(
     .clone()
     .or_else(|| tauri_config.version.clone())
   {
-    let mut version = semver::Version::from_str(&bundle_version)
-      .with_context(|| format!("failed to parse {bundle_version:?} as a semver string"))?;
-    if !version.pre.is_empty() {
-      if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
-        version.pre = semver::Prerelease::EMPTY;
-        if version.build.is_empty() {
-          version.build = semver::BuildMetadata::new(number)
-            .with_context(|| format!("bundle version {number:?} prerelease is invalid"))?;
-        } else {
-          anyhow::bail!("bundle version {bundle_version:?} is invalid, it cannot have both prerelease and build metadata");
-        }
+    // if it's a semver string, we must strip the prerelease tag
+    if let Ok(mut version) = semver::Version::from_str(&bundle_version) {
+      if !version.pre.is_empty() {
+        log::warn!("CFBundleVersion cannot have prerelease tag; stripping from {bundle_version}");
+        strip_semver_prerelease_tag(&mut version)?;
       }
+      // correctly serialize version - cannot contain `+` as build metadata separator
+      Some(format!(
+        "{}.{}.{}{}",
+        version.major,
+        version.minor,
+        version.patch,
+        if version.build.is_empty() {
+          "".to_string()
+        } else {
+          format!(".{}", version.build.as_str())
+        }
+      ))
+    } else {
+      // let it go as is - cargo-mobile2 will validate it
+      Some(bundle_version)
+    }
+  } else {
+    None
+  };
+  let full_bundle_version_short = if let Some(app_version) = &tauri_config.version {
+    if let Ok(mut version) = semver::Version::from_str(app_version) {
+      if !version.pre.is_empty() {
+        log::warn!(
+          "CFBundleShortVersionString cannot have prerelease tag; stripping from {app_version}"
+        );
+        strip_semver_prerelease_tag(&mut version)?;
+      }
+      // correctly serialize version - cannot contain `+` as build metadata separator
+      Some(format!(
+        "{}.{}.{}{}",
+        version.major,
+        version.minor,
+        version.patch,
+        if version.build.is_empty() {
+          "".to_string()
+        } else {
+          format!(".{}", version.build.as_str())
+        }
+      ))
+    } else {
+      // let it go as is - cargo-mobile2 will validate it
+      Some(app_version.clone())
+    }
+  } else {
+    bundle_version.clone()
+  };
+  let bundle_version_short = if let Some(full_version) = full_bundle_version_short.as_deref() {
+    let mut s = full_version.split('.');
+    let short_version = format!(
+      "{}.{}.{}",
+      s.next().unwrap_or("0"),
+      s.next().unwrap_or("0"),
+      s.next().unwrap_or("0")
+    );
+
+    if short_version != full_version {
+      log::warn!("{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead");
     }
 
-    let maybe_build_number = if version.build.is_empty() {
-      "".to_string()
-    } else {
-      format!(".{}", version.build.as_str())
-    };
-
-    Some(format!(
-      "{}.{}.{}{}",
-      version.major, version.minor, version.patch, maybe_build_number
-    ))
+    Some(short_version)
   } else {
     None
   };
@@ -178,6 +219,7 @@ pub fn get_config(
         }),
     ios_features: ios_options.features.clone(),
     bundle_version,
+    bundle_version_short,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };

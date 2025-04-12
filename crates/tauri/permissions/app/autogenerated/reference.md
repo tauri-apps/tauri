@@ -203,6 +203,32 @@ Denies the remove_data_store command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-set-app-dock-visibility`
+
+</td>
+<td>
+
+Enables the set_app_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-app-dock-visibility`
+
+</td>
+<td>
+
+Denies the set_app_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-set-app-theme`
 
 </td>

@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::PhysicalRect;
-use tao::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};
+use tao::dpi::{LogicalPosition, LogicalSize, PhysicalPosition};
 
 impl super::MonitorExt for tao::monitor::MonitorHandle {
   fn work_area(&self) -> PhysicalRect {

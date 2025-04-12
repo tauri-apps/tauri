@@ -2254,7 +2254,14 @@ interface WindowOptions {
   /** The maximum height. Only applies if `maxWidth` is also set. */
   maxHeight?: number
   /**
-   * Prevent initial window from getting bigger than the work area
+   * Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+   * on creation, which means the window size will be limited to `monitor size - taskbar size`
+   *
+   * Can either be set to `true` or to a {@link PreventOverflowMargin} object to set an additional margin
+   * that should be considered to determine the working area
+   * (in this case the window size will be limited to `monitor size - taskbar size - margin`)
+   *
+   * **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
    *
    * #### Platform-specific
    *

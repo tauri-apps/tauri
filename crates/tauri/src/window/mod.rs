@@ -477,6 +477,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
   /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
   /// on creation, which means the window size will be limited to `monitor size - taskbar size`
   ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
   /// ## Platform-specific
   ///
   /// - **iOS / Android:** Unsupported.
@@ -488,6 +490,8 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
 
   /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
   /// on creation with a margin, which means the window size will be limited to `monitor size - taskbar size - margin size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
   ///
   /// ## Platform-specific
   ///

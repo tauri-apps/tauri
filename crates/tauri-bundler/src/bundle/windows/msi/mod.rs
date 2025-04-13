@@ -798,7 +798,7 @@ pub fn build_wix_app_installer(
     for ext in &extensions {
       fragment_extensions.insert(ext.clone());
     }
-    run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
+    run_candle(settings, &wix_toolset_path, &output_path, path, extensions)?;
   }
 
   let mut output_paths = Vec::new();
@@ -874,7 +874,7 @@ pub fn build_wix_app_installer(
     log::info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
     run_light(
-      wix_toolset_path,
+      &wix_toolset_path,
       &output_path,
       arguments,
       &(fragment_extensions.clone().into_iter().collect()),

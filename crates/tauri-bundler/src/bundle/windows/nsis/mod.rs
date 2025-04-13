@@ -189,9 +189,7 @@ fn build_nsis_app_installer(
 
   // we make a copy of the NSIS directory if we're going to sign its DLLs
   // because we don't want to change the DLL hashes so the cache can reuse it
-  let (nsis_toolset_path, maybe_plugin_copy_path) = if settings.can_sign() {
-    let nsis_path = output_path.join("tool");
-
+  let maybe_plugin_copy_path = if settings.can_sign() {
     // default value: pull from NSIS_PATH env var
     let system_nsis_toolset_path = std::env::var_os("NSIS_PATH").map(PathBuf::from);
 
@@ -238,10 +236,10 @@ fn build_nsis_app_installer(
       &plugins_path.join("x86-unicode"),
     )
     .context("failed to copy additional NSIS Plugins folder to local copy")?;
-    (nsis_path, Some(plugins_path))
+    Some(plugins_path)
   } else {
     // in this case plugin_copy_path can be None, we'll use the system default path
-    (nsis_toolset_path.to_path_buf(), None)
+    None
   };
 
   let mut data = BTreeMap::new();

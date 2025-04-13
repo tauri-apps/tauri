@@ -196,28 +196,31 @@ fn build_nsis_app_installer(
       .map(PathBuf::from)
       .unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
     #[cfg(target_os = "macos")]
-      let system_nsis_toolset_path = std::env::var_os("NSIS_PATH").map(PathBuf::from).ok_or_else(|| anyhow::anyhow!("failed to resolve NSIS path")).or_else(|_| {
-        let mut makensis_path =
-        which::which("makensis").context("failed to resolve `makensis`; did you install nsis? See https://tauri.app/distribute/windows-installer/#install-nsis for more information")?;
-        // homebrew installs it as a symlink
-        if makensis_path.is_symlink() {
-          // read_link might return a path relative to makensis_path so we must use join() and canonicalize
-          makensis_path = makensis_path
-            .parent()
-            .context("missing makensis parent")?
-            .join(std::fs::read_link(&makensis_path).context("failed to resolve makensis symlink")?)
-            .canonicalize()
-            .context("failed to resolve makensis path")?;
-        }
-        // file structure:
-        // ├── bin
-        // │   ├── makensis
-        // ├── share
-        // │   ├── nsis
-        let bin_folder = makensis_path.parent().context("missing makensis parent")?;
-        let root_folder = bin_folder.parent().context("missing makensis root")?;
-        crate::Result::Ok(root_folder.join("share").join("nsis"))
-      })?;
+      let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
+        .map(PathBuf::from)
+        .ok_or_else(|| anyhow::anyhow!("failed to resolve NSIS path"))
+        .or_else(|_| {
+          let mut makensis_path =
+          which::which("makensis").context("failed to resolve `makensis`; did you install nsis? See https://tauri.app/distribute/windows-installer/#install-nsis for more information")?;
+          // homebrew installs it as a symlink
+          if makensis_path.is_symlink() {
+            // read_link might return a path relative to makensis_path so we must use join() and canonicalize
+            makensis_path = makensis_path
+              .parent()
+              .context("missing makensis parent")?
+              .join(std::fs::read_link(&makensis_path).context("failed to resolve makensis symlink")?)
+              .canonicalize()
+              .context("failed to resolve makensis path")?;
+          }
+          // file structure:
+          // ├── bin
+          // │   ├── makensis
+          // ├── share
+          // │   ├── nsis
+          let bin_folder = makensis_path.parent().context("missing makensis parent")?;
+          let root_folder = bin_folder.parent().context("missing makensis root")?;
+          crate::Result::Ok(root_folder.join("share").join("nsis"))
+        })?;
     #[cfg(windows)]
     let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
 

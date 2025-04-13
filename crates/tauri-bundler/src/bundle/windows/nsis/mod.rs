@@ -192,21 +192,17 @@ fn build_nsis_app_installer(
   let (nsis_toolset_path, maybe_plugin_copy_path) = if settings.can_sign() {
     let nsis_path = output_path.join("tool");
 
-    if cfg!(windows) {
-      crate::utils::fs_utils::copy_dir(nsis_toolset_path, &nsis_path)?;
-      let plugins_path = nsis_path.join("Plugins");
-      (nsis_path, Some(plugins_path))
-    } else {
-      // on UNIX we did not download NSIS, so we must find it
+    // default value: pull from NSIS_PATH env var
+    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH").map(PathBuf::from);
 
-      // default value: pull from NSIS_PATH env var
-      let system_nsis_toolset_path = std::env::var_os("NSIS_PATH").map(PathBuf::from);
+    #[cfg(windows)]
+    let system_nsis_toolset_path = Some(nsis_toolset_path.clone());
 
-      // find nsis path
-      #[cfg(target_os = "linux")]
-      let system_nsis_toolset_path =
-        system_nsis_toolset_path.unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
-      #[cfg(target_os = "macos")]
+    // find nsis path
+    #[cfg(target_os = "linux")]
+    let system_nsis_toolset_path =
+      system_nsis_toolset_path.unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
+    #[cfg(target_os = "macos")]
       let system_nsis_toolset_path = system_nsis_toolset_path.ok_or_else(|| anyhow::anyhow!("failed to resolve NSIS path")).or_else(|_| {
         let mut makensis_path =
         which::which("makensis").context("failed to resolve `makensis`; did you install nsis? See https://tauri.app/distribute/windows-installer/#install-nsis for more information")?;
@@ -230,21 +226,20 @@ fn build_nsis_app_installer(
         crate::Result::Ok(root_folder.join("share").join("nsis"))
       })?;
 
-      let plugins_path = output_path.join("Plugins");
-      // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
-      crate::utils::fs_utils::copy_dir(
-        &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
-        &plugins_path,
-      )
-      .context("failed to copy system NSIS Plugins folder to local copy")?;
-      // copy our downloaded DLLs
-      crate::utils::fs_utils::copy_dir(
-        &nsis_toolset_path.join("Plugins").join("x86-unicode"),
-        &plugins_path.join("x86-unicode"),
-      )
-      .context("failed to copy additional NSIS Plugins folder to local copy")?;
-      (nsis_path, Some(plugins_path))
-    }
+    let plugins_path = output_path.join("Plugins");
+    // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)
+    crate::utils::fs_utils::copy_dir(
+      &system_nsis_toolset_path.join("Plugins").join("x86-unicode"),
+      &plugins_path,
+    )
+    .context("failed to copy system NSIS Plugins folder to local copy")?;
+    // copy our downloaded DLLs
+    crate::utils::fs_utils::copy_dir(
+      &nsis_toolset_path.join("Plugins").join("x86-unicode"),
+      &plugins_path.join("x86-unicode"),
+    )
+    .context("failed to copy additional NSIS Plugins folder to local copy")?;
+    (nsis_path, Some(plugins_path))
   } else {
     // in this case plugin_copy_path can be None, we'll use the system default path
     (nsis_toolset_path.to_path_buf(), None)

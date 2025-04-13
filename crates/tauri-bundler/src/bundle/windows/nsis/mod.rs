@@ -60,13 +60,13 @@ const NSIS_PLUGIN_FILES: &[&str] = &[
   "StartMenu.dll",
   "System.dll",
   "nsDialogs.dll",
-  "nsis_tauri_utils.dll",
+  "additional/nsis_tauri_utils.dll",
 ];
 #[cfg(not(target_os = "windows"))]
-const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/nsis_tauri_utils.dll"];
+const NSIS_REQUIRED_FILES: &[&str] = &["Plugins/x86-unicode/additional/nsis_tauri_utils.dll"];
 
 const NSIS_REQUIRED_FILES_HASH: &[(&str, &str, &str, HashAlgorithm)] = &[(
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
+  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
   NSIS_TAURI_UTILS_URL,
   NSIS_TAURI_UTILS_SHA1,
   HashAlgorithm::Sha1,
@@ -123,6 +123,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     fs::rename(_tauri_tools_path.join("nsis-3.08"), nsis_toolset_path)?;
   }
 
+  // download additional plugins
   let nsis_plugins = nsis_toolset_path.join("Plugins");
 
   let data = download_and_verify(
@@ -131,7 +132,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
     HashAlgorithm::Sha1,
   )?;
 
-  let target_folder = nsis_plugins.join("x86-unicode");
+  let target_folder = nsis_plugins.join("x86-unicode").join("additional");
   fs::create_dir_all(&target_folder)?;
   fs::write(target_folder.join("nsis_tauri_utils.dll"), data)?;
 
@@ -233,8 +234,11 @@ fn build_nsis_app_installer(
     .context("failed to copy system NSIS Plugins folder to local copy")?;
     // copy our downloaded DLLs
     crate::utils::fs_utils::copy_dir(
-      &nsis_toolset_path.join("Plugins").join("x86-unicode"),
-      &plugins_path.join("x86-unicode"),
+      &nsis_toolset_path
+        .join("Plugins")
+        .join("x86-unicode")
+        .join("additional"),
+      &plugins_path.join("x86-unicode").join("additional"),
     )
     .context("failed to copy additional NSIS Plugins folder to local copy")?;
     Some(plugins_path)
@@ -253,7 +257,8 @@ fn build_nsis_app_installer(
   let additional_plugins_path = maybe_plugin_copy_path
     .clone()
     .unwrap_or_else(|| nsis_toolset_path.join("Plugins"))
-    .join("x86-unicode");
+    .join("x86-unicode")
+    .join("additional");
 
   data.insert(
     "additional_plugins_path",

@@ -467,6 +467,7 @@ fn build_nsis_app_installer(
   let mut handlebars = Handlebars::new();
   handlebars.register_helper("or", Box::new(handlebars_or));
   handlebars.register_helper("association-description", Box::new(association_description));
+  handlebars.register_helper("no-escape", Box::new(handlebars_no_escape));
   handlebars.register_escape_fn(|s| {
     let mut output = String::new();
     for c in s.chars() {
@@ -592,6 +593,24 @@ fn association_description(
   } else {
     description
   })?;
+  Ok(())
+}
+
+fn handlebars_no_escape(
+  h: &handlebars::Helper<'_>,
+  _: &Handlebars<'_>,
+  _: &handlebars::Context,
+  _: &mut handlebars::RenderContext<'_, '_>,
+  out: &mut dyn handlebars::Output,
+) -> handlebars::HelperResult {
+  // get parameter from helper or throw an error
+  let param = h
+    .param(0)
+    .ok_or(handlebars::RenderErrorReason::ParamNotFoundForIndex(
+      "no-escape",
+      0,
+    ))?;
+  write!(out, "{}", param.render())?;
   Ok(())
 }
 

@@ -411,6 +411,34 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation, which means the window size will be limited to `monitor size - taskbar size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow(mut self) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow();
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation with a margin, which means the window size will be limited to `monitor size - taskbar size - margin size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow_with_margin(mut self, margin: impl Into<Size>) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow_with_margin(margin);
+    self
+  }
+
   /// Whether the window is resizable or not.
   /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]
@@ -718,6 +746,22 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.webview_builder = self.webview_builder.allow_link_preview(allow_link_preview);
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]
@@ -765,11 +809,18 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document navigations (and also child frame page navigations, if you set `run_only_on_main_frame` to false),
+  /// Since it runs on all top-level document navigations,
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// This is executed only on the main frame.
   /// If you only want to run it in all frames, use [Self::initialization_script_for_all_frames] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///
   /// # Examples
   ///
@@ -795,7 +846,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// }
   /// ```
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self.webview_builder.initialization_script(script);
     self
   }
@@ -803,11 +854,18 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document navigastions (and also child frame page navigations, if you set `run_only_on_main_frame` to false),
+  /// Since it runs on all top-level document navigations and also child frame page navigations,
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
-  /// This is executed on all frames, main frame and also sub frames.
-  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  /// This is executed on all frames (main frame and also sub frames).
+  /// If you only want to run the script in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
   /// # Examples
   ///
   /// ```rust
@@ -832,7 +890,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// }
   /// ```
   #[must_use]
-  pub fn initialization_script_for_all_frames(mut self, script: &str) -> Self {
+  pub fn initialization_script_for_all_frames(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self
       .webview_builder
       .initialization_script_for_all_frames(script);

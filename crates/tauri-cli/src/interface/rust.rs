@@ -22,7 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
+  WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
@@ -1016,24 +1017,26 @@ impl RustAppSettings {
       .workspace
       .and_then(|v| v.package);
 
+    let version = config.version.clone().unwrap_or_else(|| {
+      cargo_package_settings
+        .version
+        .clone()
+        .expect("Cargo manifest must have the `package.version` field")
+        .resolve("version", || {
+          ws_package_settings
+            .as_ref()
+            .and_then(|p| p.version.clone())
+            .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+        })
+        .expect("Cargo project does not have a version")
+    });
+
     let package_settings = PackageSettings {
       product_name: config
         .product_name
         .clone()
         .unwrap_or_else(|| cargo_package_settings.name.clone()),
-      version: config.version.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .version
-          .clone()
-          .expect("Cargo manifest must have the `package.version` field")
-          .resolve("version", || {
-            ws_package_settings
-              .as_ref()
-              .and_then(|p| p.version.clone())
-              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
-          })
-          .expect("Cargo project does not have a version")
-      }),
+      version: version.clone(),
       description: cargo_package_settings
         .description
         .clone()
@@ -1418,9 +1421,13 @@ fn tauri_config_to_bundle_settings(
         y: config.macos.dmg.application_folder_position.y,
       },
     },
+    ios: IosSettings {
+      bundle_version: config.ios.bundle_version,
+    },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       files: config.macos.files,
+      bundle_version: config.macos.bundle_version,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,

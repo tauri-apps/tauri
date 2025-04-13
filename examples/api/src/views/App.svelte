@@ -1,9 +1,10 @@
 <script>
-  import { show, hide, setTheme } from '@tauri-apps/api/app'
+  import { show, hide, setTheme, setDockVisibility } from '@tauri-apps/api/app'
 
   let { onMessage } = $props()
   /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
   let theme = $state('auto')
+  let dockVisible = $state(true)
 
   function showApp() {
     hideApp()
@@ -37,6 +38,11 @@
     }
     setTheme(theme === 'auto' ? null : theme)
   }
+
+  async function toggleDockVisibility() {
+    await setDockVisibility(!dockVisible)
+    dockVisible = !dockVisible
+  }
 </script>
 
 <div>
@@ -47,7 +53,8 @@
     onclick={showApp}>Show</button
   >
   <button class="btn" id="hide" onclick={hideApp}>Hide</button>
-  <button class="btn" id="hide" onclick={switchTheme}
+  <button class="btn" id="switch-theme" onclick={switchTheme}
     >Switch Theme ({theme})</button
   >
+  <button class="btn" id="toggle-dock-visibility" onclick={toggleDockVisibility}>Toggle dock visibility</button>
 </div>

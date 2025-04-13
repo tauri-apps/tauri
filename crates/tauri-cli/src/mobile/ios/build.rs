@@ -14,7 +14,7 @@ use crate::{
     config::{get as get_tauri_config, ConfigHandle},
     flock,
   },
-  interface::{AppInterface, AppSettings, Interface, Options as InterfaceOptions},
+  interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
   ConfigValue, Result,
 };
@@ -166,7 +166,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       tauri_config_,
       build_options.features.as_ref(),
       &Default::default(),
-    );
+    )?;
     (interface, config)
   };
 
@@ -182,9 +182,10 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   inject_resources(&config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
   let mut plist = plist::Dictionary::new();
-  let version = interface.app_settings().get_package_settings().version;
-  plist.insert("CFBundleShortVersionString".into(), version.clone().into());
-  plist.insert("CFBundleVersion".into(), version.into());
+  plist.insert(
+    "CFBundleShortVersionString".into(),
+    config.bundle_version_short().into(),
+  );
 
   let info_plist_path = config
     .project_dir()
@@ -310,9 +311,10 @@ fn run_build(
     &detect_target_ok,
     env,
     |target: &Target| -> Result<()> {
-      let mut app_version = config.bundle_version().clone();
+      let mut app_version = config.bundle_version().to_string();
       if let Some(build_number) = options.build_number {
-        app_version.push_extra(build_number);
+        app_version.push('.');
+        app_version.push_str(&build_number.to_string());
       }
 
       let credentials = auth_credentials_from_env()?;

@@ -16,20 +16,27 @@
     "eslint:check": "pnpm run -r eslint:check",
     "ts:check": "pnpm run -r ts:check",
     "build": "pnpm run -r build",
+    "build:debug": "pnpm run -r build:debug",
     "build:api": "pnpm run --filter \"@tauri-apps/api\" build",
+    "build:api:debug": "pnpm run --filter \"@tauri-apps/api\" build:debug",
     "build:cli": "pnpm run --filter \"@tauri-apps/cli\" build",
     "build:cli:debug": "pnpm run --filter \"@tauri-apps/cli\" build:debug",
     "test": "pnpm run -r test",
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "prettier": "^3.3.3"
+    "prettier": "^3.5.2"
   },
-  "packageManager": "pnpm@9.9.0",
+  "packageManager": "pnpm@10.5.2",
   "pnpm": {
     "overrides": {
-      "rollup@>=4.0.0 <4.22.4": ">=4.22.4",
-      "cookie@<0.7.0": ">=0.7.0"
-    }
+      "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",
+      "cookie@<0.7.0": ">=0.7.0",
+      "esbuild@<0.25.0": ">=0.25.0"
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "workerd"
+    ]
   }
 }

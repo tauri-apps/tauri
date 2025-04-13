@@ -9,6 +9,7 @@ use std::sync::Arc;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
+use tauri_utils::acl::has_app_manifest;
 use tauri_utils::acl::{
   capability::{Capability, CapabilityFile, PermissionEntry},
   manifest::Manifest,
@@ -247,7 +248,7 @@ impl RuntimeAuthority {
   }
 
   pub(crate) fn has_app_manifest(&self) -> bool {
-    self.acl.contains_key(APP_ACL_KEY)
+    has_app_manifest(&self.acl)
   }
 
   #[doc(hidden)]
@@ -322,7 +323,10 @@ impl RuntimeAuthority {
             .extend(command_scope.allow.clone());
           command_scope_entry.deny.extend(command_scope.deny.clone());
 
-          self.scope_manager.command_cache.remove(&scope_id);
+          self
+            .scope_manager
+            .command_cache
+            .insert(scope_id, StateManager::new());
         }
       }
 
@@ -471,10 +475,10 @@ impl RuntimeAuthority {
           )
         }
       } else {
-        let permission_error_detail = if let Some(manifest) = self
+        let permission_error_detail = if let Some((key, manifest)) = self
           .acl
-          .get(key)
-          .or_else(|| self.acl.get(&format!("core:{key}")))
+          .get_key_value(key)
+          .or_else(|| self.acl.get_key_value(&format!("core:{key}")))
         {
           let mut permissions_referencing_command = Vec::new();
 
@@ -497,12 +501,12 @@ impl RuntimeAuthority {
           permissions_referencing_command.sort();
 
           let associated_permissions = permissions_referencing_command
-            .iter()
-            .map(|p| {
+            .into_iter()
+            .map(|permission| {
               if key == APP_ACL_KEY {
-                p.to_string()
+                permission
               } else {
-                format!("{key}:{p}")
+                format!("{key}:{permission}")
               }
             })
             .collect::<Vec<_>>()
@@ -519,8 +523,7 @@ impl RuntimeAuthority {
 
         if let Some(resolved_cmds) = command_matches {
           format!(
-            "{command_pretty_name} not allowed on origin [{}]. Please create a capability that has this origin on the context field.\n\nFound matches for: {}\n\n{permission_error_detail}",
-            origin,
+            "{command_pretty_name} not allowed on origin [{origin}]. Please create a capability that has this origin on the context field.\n\nFound matches for: {}\n\n{permission_error_detail}",
             resolved_cmds
               .iter()
               .map(|resolved| {
@@ -1130,7 +1133,7 @@ mod tests {
     let denied_commands = [(
       command.to_string(),
       vec![ResolvedCommand {
-        windows: windows.clone(),
+        windows,
         ..Default::default()
       }],
     )]
@@ -1182,7 +1185,7 @@ mod tests {
     let resolved_webview_window_remote_cmd = ResolvedCommand {
       windows: vec![Pattern::new(window).unwrap()],
       webviews: vec![Pattern::new(webview).unwrap()],
-      referenced_by: referenced_by.clone(),
+      referenced_by,
       context: ExecutionContext::Remote {
         url: remote_url.parse().unwrap(),
       },

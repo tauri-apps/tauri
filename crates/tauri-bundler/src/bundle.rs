@@ -4,12 +4,10 @@
 // SPDX-License-Identifier: MIT
 
 mod category;
-mod common;
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "macos")]
 mod macos;
-mod path_utils;
 mod platform;
 mod settings;
 mod updater_bundle;
@@ -21,8 +19,8 @@ pub use self::{
   category::AppCategory,
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, MacOsSettings, PackageSettings, PackageType, Position, RpmSettings, Settings,
-    SettingsBuilder, Size, UpdaterSettings,
+    DmgSettings, IosSettings, MacOsSettings, PackageSettings, PackageType, Position, RpmSettings,
+    Settings, SettingsBuilder, Size, UpdaterSettings,
   },
 };
 #[cfg(target_os = "macos")]
@@ -72,8 +70,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       // Sign the sidecar binaries
       for bin in settings.external_binaries() {
         let path = bin?;
-        let skip =
-          std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").map_or(false, |v| v == "true");
+        let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").is_ok_and(|v| v == "true");
         if skip {
           continue;
         }

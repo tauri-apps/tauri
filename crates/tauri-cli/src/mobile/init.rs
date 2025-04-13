@@ -43,7 +43,7 @@ pub fn exec(
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
 ) -> Result<App> {
-  let tauri_config = get_tauri_config(target.platform_target(), None)?;
+  let tauri_config = get_tauri_config(target.platform_target(), &[])?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();
@@ -142,7 +142,7 @@ pub fn exec(
     // Generate Xcode project
     Target::Ios => {
       let (config, metadata) =
-        super::ios::get_config(&app, tauri_config_, None, &Default::default());
+        super::ios::get_config(&app, tauri_config_, None, &Default::default())?;
       map.insert("apple", &config);
       super::ios::project::gen(
         tauri_config_,

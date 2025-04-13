@@ -2,9 +2,12 @@
 
 Default permissions for the plugin.
 
+#### This default permission set includes the following:
+
 - `allow-version`
 - `allow-name`
 - `allow-tauri-version`
+- `allow-identifier`
 
 ## Permission Table
 
@@ -96,6 +99,58 @@ Denies the default_window_icon command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-fetch-data-store-identifiers`
+
+</td>
+<td>
+
+Enables the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-fetch-data-store-identifiers`
+
+</td>
+<td>
+
+Denies the fetch_data_store_identifiers command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-identifier`
+
+</td>
+<td>
+
+Enables the identifier command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-identifier`
+
+</td>
+<td>
+
+Denies the identifier command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-name`
 
 </td>
@@ -122,6 +177,32 @@ Denies the name command without any pre-configured scope.
 <tr>
 <td>
 
+`core:app:allow-remove-data-store`
+
+</td>
+<td>
+
+Enables the remove_data_store command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-remove-data-store`
+
+</td>
+<td>
+
+Denies the remove_data_store command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:app:allow-set-app-theme`
 
 </td>
@@ -141,6 +222,32 @@ Enables the set_app_theme command without any pre-configured scope.
 <td>
 
 Denies the set_app_theme command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-set-dock-visibility`
+
+</td>
+<td>
+
+Enables the set_dock_visibility command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-set-dock-visibility`
+
+</td>
+<td>
+
+Denies the set_dock_visibility command without any pre-configured scope.
 
 </td>
 </tr>

@@ -35,14 +35,14 @@ fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
   let files = files
     .into_iter()
     .map(|f| {
-      let file = f.to_string_lossy().replace("\\", "\\\\"); // escape backslash
+      let file = f.to_string_lossy().replace('\\', "\\\\"); // escape backslash
       format!("\"{file}\"",) // wrap in quotes for JS array
     })
     .collect::<Vec<_>>()
     .join(",");
 
   tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-    .initialization_script(&format!("window.openedFiles = [{files}]"))
+    .initialization_script(format!("window.openedFiles = [{files}]"))
     .build()
     .unwrap();
 }
@@ -59,7 +59,7 @@ fn main() {
         // files may aslo be passed as `file://path/to/file`
         for maybe_file in std::env::args().skip(1) {
           // skip flags like -f or --flag
-          if maybe_file.starts_with("-") {
+          if maybe_file.starts_with('-') {
             continue;
           }
 

@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! Internal runtime between Tauri and the underlying webview runtime.
 //!
 //! None of the exposed API of this crate is stable, and it may break semver
@@ -44,6 +42,9 @@ use http::{
 
 /// UI scaling utilities.
 pub use dpi;
+
+/// Cookie extraction
+pub use cookie::Cookie;
 
 pub type WindowEventId = u32;
 pub type WebviewEventId = u32;
@@ -184,6 +185,9 @@ pub enum Error {
   InvalidProxyUrl,
   #[error("window not found")]
   WindowNotFound,
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[error("failed to remove data store")]
+  FailedToRemoveDataStore,
 }
 
 /// Result type.
@@ -237,7 +241,7 @@ pub enum RunEvent<T: UserEvent> {
   Resumed,
   /// Emitted when all of the event loop's input events have been processed and redraw processing is about to begin.
   ///
-  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the “main body” of your event loop.
+  /// This event is useful as a place to put your code that should be run after all state-changing events have been handled and you want to do stuff (updating state, performing calculations, etc) that happens as the "main body" of your event loop.
   MainEventsCleared,
   /// Emitted when the user wants to open the specified resource with the app.
   #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -284,6 +288,12 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()>;
 
+  /// Sets the dock visibility for the application.
+  ///
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&self, visible: bool) -> Result<()>;
+
   /// Requests an exit of the event loop.
   fn request_exit(&self, code: i32) -> Result<()>;
 
@@ -291,7 +301,7 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn create_window<F: Fn(RawWindow) + Send + 'static>(
     &self,
     pending: PendingWindow<T, Self::Runtime>,
-    before_window_creation: Option<F>,
+    after_window_creation: Option<F>,
   ) -> Result<DetachedWindow<T, Self::Runtime>>;
 
   /// Create a new webview.
@@ -340,6 +350,21 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn run_on_android_context<F>(&self, f: F)
   where
     F: FnOnce(&mut jni::JNIEnv, &jni::objects::JObject, &jni::objects::JObject) + Send + 'static;
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  fn fetch_data_store_identifiers<F: FnOnce(Vec<[u8; 16]>) + Send + 'static>(
+    &self,
+    cb: F,
+  ) -> Result<()>;
+
+  #[cfg(any(target_os = "macos", target_os = "ios"))]
+  #[cfg_attr(docsrs, doc(cfg(any(target_os = "macos", target_os = "ios"))))]
+  fn remove_data_store<F: FnOnce(Result<()>) + Send + 'static>(
+    &self,
+    uuid: [u8; 16],
+    cb: F,
+  ) -> Result<()>;
 }
 
 pub trait EventLoopProxy<T: UserEvent>: Debug + Clone + Send + Sync {
@@ -412,6 +437,12 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
+  /// Sets the dock visibility for the application.
+  ///
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  fn set_dock_visibility(&mut self, visible: bool);
+
   /// Shows the application, but does not automatically focus it.
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
@@ -438,6 +469,9 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]
   fn run_iteration<F: FnMut(RunEvent<T>) + 'static>(&mut self, callback: F);
+
+  /// Equivalent to [`Runtime::run`] but returns the exit code instead of exiting the process.
+  fn run_return<F: FnMut(RunEvent<T>) + 'static>(self, callback: F) -> i32;
 
   /// Run the webview runtime.
   fn run<F: FnMut(RunEvent<T>) + 'static>(self, callback: F);
@@ -488,6 +522,9 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// Navigate to the given URL.
   fn navigate(&self, url: Url) -> Result<()>;
 
+  /// Reloads the current page.
+  fn reload(&self) -> Result<()>;
+
   /// Opens the dialog to prints the contents of the webview.
   fn print(&self) -> Result<()>;
 
@@ -517,6 +554,22 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
 
   /// Moves the webview to the given window.
   fn reparent(&self, window_id: WindowId) -> Result<()>;
+
+  /// Get cookies for a particular url.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`cookie::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>>;
+
+  /// Return all cookies in the cookie store.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`cookie::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  fn cookies(&self) -> Result<Vec<Cookie<'static>>>;
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;
@@ -610,6 +663,13 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Whether the window is enabled or disable.
   fn is_enabled(&self) -> Result<bool>;
+
+  /// Gets the window alwaysOnTop flag state.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  fn is_always_on_top(&self) -> Result<bool>;
 
   /// Gets the window's current title.
   fn title(&self) -> Result<String>;
@@ -816,6 +876,24 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Starts resize-dragging the window.
   fn start_resize_dragging(&self, direction: ResizeDirection) -> Result<()>;
 
+  /// Sets the badge count on the taskbar
+  /// The badge count appears as a whole for the application
+  /// Using `0` or using `None` will remove the badge
+  ///
+  /// ## Platform-specific
+  /// - **Windows:** Unsupported, use [`WindowDispatch::set_overlay_icon`] instead.
+  /// - **Android:** Unsupported.
+  /// - **iOS:** iOS expects i32, if the value is larger than i32::MAX, it will be clamped to i32::MAX.
+  fn set_badge_count(&self, count: Option<i64>, desktop_filename: Option<String>) -> Result<()>;
+
+  /// Sets the badge count on the taskbar **macOS only**. Using `None` will remove the badge
+  fn set_badge_label(&self, label: Option<String>) -> Result<()>;
+
+  /// Sets the overlay icon on the taskbar **Windows only**. Using `None` will remove the icon
+  ///
+  /// The overlay icon can be unique for each window.
+  fn set_overlay_icon(&self, icon: Option<Icon>) -> Result<()>;
+
   /// Sets the taskbar progress state.
   ///
   /// ## Platform-specific
@@ -830,6 +908,15 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   ///
   /// - **Linux / Windows / iOS / Android:** Unsupported.
   fn set_title_bar_style(&self, style: tauri_utils::TitleBarStyle) -> Result<()>;
+
+  /// Change the position of the window controls. Available on macOS only.
+  ///
+  /// Requires titleBarStyle: Overlay and decorations: true.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  fn set_traffic_light_position(&self, position: Position) -> Result<()>;
 
   /// Sets the theme for this window.
   ///

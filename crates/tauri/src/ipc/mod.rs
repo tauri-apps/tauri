@@ -145,7 +145,7 @@ pub struct Request<'a> {
   headers: &'a HeaderMap,
 }
 
-impl<'a> Request<'a> {
+impl Request<'_> {
   /// The request body.
   pub fn body(&self) -> &InvokeBody {
     self.body

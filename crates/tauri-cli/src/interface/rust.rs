@@ -18,11 +18,12 @@ use anyhow::Context;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
-use notify_debouncer_mini::new_debouncer;
+use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
+  WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
@@ -51,7 +52,7 @@ pub struct Options {
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -101,7 +102,7 @@ pub struct MobileOptions {
   pub debug: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -124,15 +125,13 @@ impl Interface for Rust {
   fn new(config: &Config, target: Option<String>) -> crate::Result<Self> {
     let manifest = {
       let (tx, rx) = sync_channel(1);
-      let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
+      let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
         if let Ok(events) = r {
           let _ = tx.send(events);
         }
       })
       .unwrap();
-      watcher
-        .watcher()
-        .watch(&tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
+      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
       let (manifest, _modified) = rewrite_manifest(config)?;
       let now = Instant::now();
       let timeout = Duration::from_secs(2);
@@ -147,9 +146,9 @@ impl Interface for Rust {
       manifest
     };
 
-    let target_ios = target.as_ref().map_or(false, |target| {
-      target.ends_with("ios") || target.ends_with("ios-sim")
-    });
+    let target_ios = target
+      .as_ref()
+      .is_some_and(|target| target.ends_with("ios") || target.ends_with("ios-sim"));
     if target_ios {
       std::env::set_var(
         "IPHONEOS_DEPLOYMENT_TARGET",
@@ -209,14 +208,14 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let config = options.config.clone().map(|c| c.0);
+      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|rust: &mut Rust| {
         let on_exit = on_exit.clone();
         rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(&merge_configs, run)
     }
   }
 
@@ -238,9 +237,9 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let config = options.config.clone().map(|c| c.0);
+      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(&merge_configs, run)
     }
   }
 
@@ -362,32 +361,6 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
-fn shared_options(
-  mobile: bool,
-  args: &mut Vec<String>,
-  features: &mut Option<Vec<String>>,
-  app_settings: &RustAppSettings,
-) {
-  if mobile {
-    args.push("--lib".into());
-    features
-      .get_or_insert(Vec::new())
-      .push("tauri/rustls-tls".into());
-  } else {
-    args.push("--bins".into());
-    let all_features = app_settings
-      .manifest
-      .lock()
-      .unwrap()
-      .all_enabled_features(if let Some(f) = features { f } else { &[] });
-    if !all_features.contains(&"tauri/rustls-tls".into()) {
-      features
-        .get_or_insert(Vec::new())
-        .push("tauri/native-tls".into());
-    }
-  }
-}
-
 fn dev_options(
   mobile: bool,
   args: &mut Vec<String>,
@@ -408,7 +381,9 @@ fn dev_options(
   }
   *args = dev_args;
 
-  shared_options(mobile, args, features, app_settings);
+  if mobile {
+    args.push("--lib".into());
+  }
 
   if !args.contains(&"--no-default-features".into()) {
     let manifest_features = app_settings.manifest.lock().unwrap().features();
@@ -488,7 +463,11 @@ impl Rust {
     features
       .get_or_insert(Vec::new())
       .push("tauri/custom-protocol".into());
-    shared_options(mobile, args, features, &self.app_settings);
+    if mobile {
+      args.push("--lib".into());
+    } else {
+      args.push("--bins".into());
+    }
   }
 
   fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
@@ -502,8 +481,6 @@ impl Rust {
       run_args,
       &mut self.available_targets,
       self.config_features.clone(),
-      &self.app_settings,
-      self.main_binary_name.clone(),
       on_exit,
     )
     .map(|c| Box::new(c) as Box<dyn DevProcess + Send>)
@@ -511,7 +488,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: Option<serde_json::Value>,
+    merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {
     let child = run(self)?;
@@ -526,7 +503,7 @@ impl Rust {
       .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
-    let mut watcher = new_debouncer(Duration::from_secs(1), move |r| {
+    let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
       if let Ok(events) = r {
         tx.send(events).unwrap()
       }
@@ -538,7 +515,7 @@ impl Rust {
         lookup(&path, |file_type, p| {
           if p != path {
             log::debug!("Watching {} for changes...", display_path(&p));
-            let _ = watcher.watcher().watch(
+            let _ = watcher.watch(
               &p,
               if file_type.is_dir() {
                 RecursiveMode::Recursive
@@ -554,42 +531,42 @@ impl Rust {
     loop {
       if let Ok(events) = rx.recv() {
         for event in events {
-          let event_path = event.path;
+          if event.kind.is_access() {
+            continue;
+          }
 
-          if !ignore_matcher.is_ignore(&event_path, event_path.is_dir()) {
-            if is_configuration_file(self.app_settings.target, &event_path) {
-              if let Ok(config) = reload_config(config.as_ref()) {
-                let (manifest, modified) =
-                  rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
-                if modified {
-                  *self.app_settings.manifest.lock().unwrap() = manifest;
-                  // no need to run the watcher logic, the manifest was modified
-                  // and it will trigger the watcher again
-                  continue;
+          if let Some(event_path) = event.paths.first() {
+            if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
+              if is_configuration_file(self.app_settings.target, event_path) {
+                if let Ok(config) = reload_config(merge_configs) {
+                  let (manifest, modified) =
+                    rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
+                  if modified {
+                    *self.app_settings.manifest.lock().unwrap() = manifest;
+                    // no need to run the watcher logic, the manifest was modified
+                    // and it will trigger the watcher again
+                    continue;
+                  }
                 }
               }
-            }
 
-            log::info!(
-              "File {} changed. Rebuilding application...",
-              display_path(
-                event_path
-                  .strip_prefix(frontend_path)
-                  .unwrap_or(&event_path)
-              )
-            );
+              log::info!(
+                "File {} changed. Rebuilding application...",
+                display_path(event_path.strip_prefix(frontend_path).unwrap_or(event_path))
+              );
 
-            let mut p = process.lock().unwrap();
-            p.kill().with_context(|| "failed to kill app process")?;
+              let mut p = process.lock().unwrap();
+              p.kill().with_context(|| "failed to kill app process")?;
 
-            // wait for the process to exit
-            // note that on mobile, kill() already waits for the process to exit (duct implementation)
-            loop {
-              if !matches!(p.try_wait(), Ok(None)) {
-                break;
+              // wait for the process to exit
+              // note that on mobile, kill() already waits for the process to exit (duct implementation)
+              loop {
+                if !matches!(p.try_wait(), Ok(None)) {
+                  break;
+                }
               }
+              *p = run(self)?;
             }
-            *p = run(self)?;
           }
         }
       }
@@ -722,9 +699,7 @@ impl CargoSettings {
     toml_file
       .read_to_string(&mut toml_str)
       .with_context(|| "failed to read Cargo.toml")?;
-    toml::from_str(&toml_str)
-      .with_context(|| "failed to parse Cargo.toml")
-      .map_err(Into::into)
+    toml::from_str(&toml_str).with_context(|| "failed to parse Cargo.toml")
   }
 }
 
@@ -820,8 +795,9 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    let arch64bits =
-      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+    let arch64bits = self.target_triple.starts_with("x86_64")
+      || self.target_triple.starts_with("aarch64")
+      || self.target_triple.starts_with("riscv64");
 
     let updater_enabled = config.bundle.create_updater_artifacts != Updater::Bool(false);
     let v1_compatible = matches!(config.bundle.create_updater_artifacts, Updater::String(_));
@@ -860,11 +836,31 @@ impl AppSettings for RustAppSettings {
       .get("deep-link")
       .and_then(|c| c.get("desktop").cloned())
     {
-      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config.clone())?;
+      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config)?;
       settings.deep_link_protocols = Some(match protocols {
         DesktopDeepLinks::One(p) => vec![p],
         DesktopDeepLinks::List(p) => p,
       });
+    }
+
+    if let Some(open) = config.plugins.0.get("shell").and_then(|v| v.get("open")) {
+      if open.as_bool().is_some_and(|x| x) || open.is_string() {
+        settings.appimage.bundle_xdg_open = true;
+      }
+    }
+
+    if let Some(deps) = self
+      .manifest
+      .lock()
+      .unwrap()
+      .inner
+      .as_table()
+      .get("dependencies")
+      .and_then(|f| f.as_table())
+    {
+      if deps.contains_key("tauri-plugin-opener") {
+        settings.appimage.bundle_xdg_open = true;
+      };
     }
 
     Ok(settings)
@@ -1021,24 +1017,26 @@ impl RustAppSettings {
       .workspace
       .and_then(|v| v.package);
 
+    let version = config.version.clone().unwrap_or_else(|| {
+      cargo_package_settings
+        .version
+        .clone()
+        .expect("Cargo manifest must have the `package.version` field")
+        .resolve("version", || {
+          ws_package_settings
+            .as_ref()
+            .and_then(|p| p.version.clone())
+            .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+        })
+        .expect("Cargo project does not have a version")
+    });
+
     let package_settings = PackageSettings {
       product_name: config
         .product_name
         .clone()
         .unwrap_or_else(|| cargo_package_settings.name.clone()),
-      version: config.version.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .version
-          .clone()
-          .expect("Cargo manifest must have the `package.version` field")
-          .resolve("version", || {
-            ws_package_settings
-              .as_ref()
-              .and_then(|p| p.version.clone())
-              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
-          })
-          .expect("Cargo project does not have a version")
-      }),
+      version: version.clone(),
       description: cargo_package_settings
         .description
         .clone()
@@ -1234,6 +1232,9 @@ fn tauri_config_to_bundle_settings(
   #[allow(unused_mut)]
   let mut depends_rpm = config.linux.rpm.depends.unwrap_or_default();
 
+  #[allow(unused_mut)]
+  let mut appimage_files = config.linux.appimage.files;
+
   // set env vars used by the bundler and inject dependencies
   #[cfg(target_os = "linux")]
   {
@@ -1276,7 +1277,12 @@ fn tauri_config_to_bundle_settings(
         }
       }
 
-      std::env::set_var("TAURI_TRAY_LIBRARY_PATH", path);
+      // conditionally setting it in case the user provided its own version for some reason
+      let path = PathBuf::from(path);
+      if !appimage_files.contains_key(&path) {
+        // manually construct target path, just in case the source path is something unexpected
+        appimage_files.insert(Path::new("/usr/lib/").join(path.file_name().unwrap()), path);
+      }
     }
 
     depends_deb.push("libwebkit2gtk-4.1-0".to_string());
@@ -1368,7 +1374,9 @@ fn tauri_config_to_bundle_settings(
       post_remove_script: config.linux.deb.post_remove_script,
     },
     appimage: AppImageSettings {
-      files: config.linux.appimage.files,
+      files: appimage_files,
+      bundle_media_framework: config.linux.appimage.bundle_media_framework,
+      bundle_xdg_open: false,
     },
     rpm: RpmSettings {
       depends: if depends_rpm.is_empty() {
@@ -1413,9 +1421,13 @@ fn tauri_config_to_bundle_settings(
         y: config.macos.dmg.application_folder_position.y,
       },
     },
+    ios: IosSettings {
+      bundle_version: config.ios.bundle_version,
+    },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       files: config.macos.files,
+      bundle_version: config.macos.bundle_version,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
@@ -1503,7 +1515,7 @@ mod pkgconfig_utils {
       if !output.stdout.is_empty() {
         // output would be "-L/path/to/library\n"
         let word = output.stdout[2..].to_vec();
-        return Some(String::from_utf8_lossy(&word).trim().to_string());
+        Some(String::from_utf8_lossy(&word).trim().to_string())
       } else {
         None
       }

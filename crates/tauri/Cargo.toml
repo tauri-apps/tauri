@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.1.1"
+version = "2.4.1"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -43,8 +43,8 @@ build = ["tauri-build"]
 development = ["quickcheck_macros"]
 
 [dependencies]
-serde_json = { version = "1.0", features = ["raw_value"] }
-serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = { version = "1", features = ["raw_value"] }
+serde = { version = "1", features = ["derive", "rc"] }
 tokio = { version = "1", features = [
   "rt",
   "rt-multi-thread",
@@ -55,24 +55,19 @@ tokio = { version = "1", features = [
 futures-util = "0.3"
 uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
-anyhow = "1.0"
+anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.2.0", path = "../tauri-runtime" }
-tauri-macros = { version = "2.0.3", path = "../tauri-macros" }
-tauri-utils = { version = "2.1.0", features = [
+tauri-runtime = { version = "2.5.1", path = "../tauri-runtime" }
+tauri-macros = { version = "2.1.1", path = "../tauri-macros" }
+tauri-utils = { version = "2.3.1", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.2.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.5.1", path = "../tauri-runtime-wry", optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
-http = "1.1"
-dirs = "5"
-percent-encoding = "2.3"
-reqwest = { version = "0.12", default-features = false, features = [
-  "json",
-  "stream",
-] }
-bytes = { version = "1", features = ["serde"] }
+http = "1"
+dirs = "6"
+percent-encoding = "2"
 raw-window-handle = { version = "0.6", features = ["std"] }
 glob = "0.3"
 urlpattern = "0.3"
@@ -80,33 +75,43 @@ mime = "0.3"
 data-url = { version = "0.3", optional = true }
 serialize-to-javascript = "=0.1.1"
 image = { version = "0.25", default-features = false, optional = true }
-http-range = { version = "0.1.5", optional = true }
+http-range = { version = "0.1", optional = true }
 tracing = { version = "0.1", optional = true }
 heck = "0.5"
-log = "0.4"
+log = "0.4.21"
 dunce = "1"
 specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, features = [
   "function",
   "derive",
 ] }
 
-[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-muda = { version = "0.15", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.19", default-features = false, features = [
+# desktop
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
+muda = { version = "0.16", default-features = false, features = ["serde"] }
+tray-icon = { version = "0.20", default-features = false, features = [
   "serde",
 ], optional = true }
 
-[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+# linux
+[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
-webkit2gtk = { version = "=2.0.1", features = ["v2_40"] }
+webkit2gtk = { version = "=2.0.1", features = ["v2_40"], optional = true }
+
+# darwin
+[target.'cfg(target_vendor = "apple")'.dependencies]
+objc2 = "0.6"
 
 # macOS
 [target.'cfg(target_os = "macos")'.dependencies]
 embed_plist = "1.2"
 plist = "1"
-objc2 = "0.5.2"
-objc2-foundation = { version = "0.2.2", features = ["NSData", "NSThread"] }
-objc2-app-kit = { version = "0.2.2", features = [
+objc2-foundation = { version = "0.3", default-features = false, features = [
+  "std",
+  "NSData",
+  "NSThread",
+] }
+objc2-app-kit = { version = "0.3", default-features = false, features = [
+  "std",
   "NSApplication",
   "NSColor",
   "NSResponder",
@@ -114,52 +119,68 @@ objc2-app-kit = { version = "0.2.2", features = [
   "NSWindow",
   "NSImage",
 ] }
-window-vibrancy = "0.5"
+window-vibrancy = "0.6"
 
+# windows
 [target."cfg(windows)".dependencies]
-webview2-com = "0.33"
-window-vibrancy = "0.5"
+webview2-com = { version = "0.37", optional = true }
+window-vibrancy = "0.6"
+windows = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_UI",
+  "Win32_UI_WindowsAndMessaging",
+] }
 
-[target."cfg(windows)".dependencies.windows]
-version = "0.58"
-features = ["Win32_Foundation"]
+# mobile
+[target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
+bytes = { version = "1", features = ["serde"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "json",
+  "stream",
 
-[target."cfg(target_os = \"android\")".dependencies]
+] }
+
+# android
+[target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"
 
 # UIKit, i.e. iOS/tvOS/watchOS/visionOS
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 libc = "0.2"
-swift-rs = "1.0.7"
+swift-rs = "1"
+objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+  "UIView",
+] }
 
 [build-dependencies]
+glob = "0.3"
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.0.3" }
-tauri-utils = { path = "../tauri-utils/", version = "2.1.0", features = [
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.1.1" }
+tauri-utils = { path = "../tauri-utils/", version = "2.3.1", features = [
   "build",
 ] }
 
 [dev-dependencies]
-proptest = "1.4.0"
+proptest = "1.6.0"
 quickcheck = "1.0.3"
 quickcheck_macros = "1.0.0"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 tauri = { path = ".", default-features = false, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
-cargo_toml = "0.17"
+cargo_toml = "0.22"
 http-range = "0.1.5"
 
 # macOS
 [target.'cfg(target_os = "macos")'.dev-dependencies]
-objc2-web-kit = { version = "0.2.2", features = [
+objc2-web-kit = { version = "0.3", features = [
   "objc2-app-kit",
   "WKWebView",
   "WKUserContentController",
 ] }
 
 [features]
-default = ["wry", "compression", "objc-exception", "common-controls-v6"]
+default = ["wry", "compression", "common-controls-v6"]
 unstable = ["tauri-runtime-wry/unstable"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
@@ -169,11 +190,14 @@ tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
-wry = ["tauri-runtime-wry"]
-objc-exception = ["tauri-runtime-wry/objc-exception"]
+wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
+# TODO: Remove in v3 - wry does not have this feature anymore
+objc-exception = []
 linux-libxdo = ["tray-icon/libxdo", "muda/libxdo"]
 isolation = ["tauri-utils/isolation", "tauri-macros/isolation", "uuid"]
 custom-protocol = ["tauri-macros/custom-protocol"]
+# TODO: Remove these flags in v3 and/or enable them by default behind a mobile flag https://github.com/tauri-apps/tauri/issues/12384
+# For now those feature flags keep enabling reqwest features in case some users depend on that by accident.
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
 rustls-tls = ["reqwest/rustls-tls"]
@@ -212,8 +236,8 @@ name = "multiwindow"
 path = "../../examples/multiwindow/main.rs"
 
 [[example]]
-name = "run-iteration"
-path = "../../examples/run-iteration/main.rs"
+name = "run-return"
+path = "../../examples/run-return/main.rs"
 
 [[example]]
 name = "splashscreen"

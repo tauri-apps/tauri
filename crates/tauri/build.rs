@@ -6,6 +6,7 @@ use heck::AsShoutySnakeCase;
 use tauri_utils::write_if_changed;
 
 use std::{
+  collections::BTreeMap,
   env, fs,
   path::{Path, PathBuf},
   sync::{Mutex, OnceLock},
@@ -14,6 +15,8 @@ use std::{
 static CHECKED_FEATURES: OnceLock<Mutex<Vec<String>>> = OnceLock::new();
 const PLUGINS: &[(&str, &[(&str, bool)])] = &[
   // (plugin_name, &[(command, enabled-by_default)])
+  // TODO: Enable this in v3
+  // ("core:channel", &[("fetch", true)]),
   (
     "core:path",
     &[
@@ -65,6 +68,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("available_monitors", true),
       ("cursor_position", true),
       ("theme", true),
+      ("is_always_on_top", true),
       // setters
       ("center", false),
       ("request_user_attention", false),
@@ -105,10 +109,14 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("start_dragging", false),
       ("start_resize_dragging", false),
       ("set_progress_bar", false),
+      ("set_badge_count", false),
+      ("set_overlay_icon", false),
+      ("set_badge_label", false),
       ("set_icon", false),
       ("set_title_bar_style", false),
       ("set_theme", false),
       ("toggle_maximize", false),
+      ("set_background_color", false),
       // internal
       ("internal_toggle_maximize", true),
     ],
@@ -133,6 +141,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("print", false),
       ("reparent", false),
       ("clear_all_browsing_data", false),
+      ("set_webview_background_color", false),
       // internal
       ("internal_toggle_devtools", true),
     ],
@@ -143,10 +152,14 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("version", true),
       ("name", true),
       ("tauri_version", true),
+      ("identifier", true),
       ("app_show", false),
       ("app_hide", false),
+      ("fetch_data_store_identifiers", false),
+      ("remove_data_store", false),
       ("default_window_icon", false),
       ("set_app_theme", false),
+      ("set_dock_visibility", false),
     ],
   ),
   (
@@ -254,7 +267,7 @@ fn main() {
   // workaround needed to prevent `STATUS_ENTRYPOINT_NOT_FOUND` error in tests
   // see https://github.com/tauri-apps/tauri/pull/4383#issuecomment-1212221864
   let target_env = std::env::var("CARGO_CFG_TARGET_ENV");
-  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").map_or(false, |v| v == "true");
+  let is_tauri_workspace = std::env::var("__TAURI_WORKSPACE__").is_ok_and(|v| v == "true");
   if is_tauri_workspace && target_os == "windows" && Ok("msvc") == target_env.as_deref() {
     embed_manifest_for_tests();
   }
@@ -325,7 +338,18 @@ fn main() {
     }
   }
 
-  define_permissions(&out_dir);
+  let tauri_global_scripts = PathBuf::from("./scripts/bundle.global.js")
+    .canonicalize()
+    .expect("failed to canonicalize tauri global API script path");
+  tauri_utils::plugin::define_global_api_script_path(&tauri_global_scripts);
+  // This should usually be done in `tauri-build`,
+  // but we need to do this here for the examples in this workspace to work as they don't have build scripts
+  if is_tauri_workspace {
+    tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, Some(tauri_global_scripts));
+  }
+
+  let permissions = define_permissions(&out_dir);
+  tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions).unwrap();
 }
 
 const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy
@@ -333,7 +357,10 @@ const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The 
 # SPDX-License-Identifier: MIT
 ";
 
-fn define_permissions(out_dir: &Path) {
+fn define_permissions(
+  out_dir: &Path,
+) -> BTreeMap<String, Vec<tauri_utils::acl::manifest::PermissionFile>> {
+  let mut all_permissions = BTreeMap::new();
   for (plugin, commands) in PLUGINS {
     let plugin_directory_name = plugin.strip_prefix("core:").unwrap_or(plugin);
     let permissions_out_dir = out_dir.join("permissions").join(plugin_directory_name);
@@ -347,9 +374,10 @@ fn define_permissions(out_dir: &Path) {
       LICENSE_HEADER,
       false,
     );
-    let default_permissions = commands
-      .iter()
-      .filter(|(_cmd, default)| *default)
+    let default_permissions: Vec<_> = commands.iter().filter(|(_cmd, default)| *default).collect();
+    let all_commands_enabled_by_default = commands.len() == default_permissions.len();
+    let default_permissions = default_permissions
+      .into_iter()
       .map(|(cmd, _)| {
         let slugified_command = cmd.replace('_', "-");
         format!("\"allow-{slugified_command}\"")
@@ -357,11 +385,17 @@ fn define_permissions(out_dir: &Path) {
       .collect::<Vec<_>>()
       .join(", ");
 
+    let all_enable_by_default = if all_commands_enabled_by_default {
+      ", which enables all commands"
+    } else {
+      ""
+    };
+
     let default_toml = format!(
       r###"{LICENSE_HEADER}# Automatically generated - DO NOT EDIT!
 
 [default]
-description = "Default permissions for the plugin."
+description = "Default permissions for the plugin{all_enable_by_default}."
 permissions = [{default_permissions}]
 "###,
     );
@@ -371,10 +405,12 @@ permissions = [{default_permissions}]
       .unwrap_or_else(|_| panic!("unable to autogenerate default permissions"));
 
     let permissions = tauri_utils::acl::build::define_permissions(
-      &permissions_out_dir
-        .join("**")
-        .join("*.toml")
-        .to_string_lossy(),
+      &PathBuf::from(glob::Pattern::escape(
+        &permissions_out_dir.to_string_lossy(),
+      ))
+      .join("**")
+      .join("*.toml")
+      .to_string_lossy(),
       &format!("tauri:{plugin}"),
       out_dir,
       |_| true,
@@ -391,48 +427,51 @@ permissions = [{default_permissions}]
       plugin.strip_prefix("tauri-plugin-").unwrap_or(plugin),
     )
     .expect("failed to generate plugin documentation page");
+    all_permissions.insert(plugin.to_string(), permissions);
   }
 
-  define_default_permission_set(out_dir);
+  let default_permissions = define_default_permission_set(out_dir);
+  all_permissions.insert("core".to_string(), default_permissions);
+
+  all_permissions
 }
 
-fn define_default_permission_set(out_dir: &Path) {
+fn define_default_permission_set(
+  out_dir: &Path,
+) -> Vec<tauri_utils::acl::manifest::PermissionFile> {
   let permissions_out_dir = out_dir.join("permissions");
   fs::create_dir_all(&permissions_out_dir)
     .expect("failed to create core:default permissions directory");
 
   let default_toml = permissions_out_dir.join("default.toml");
   let toml_content = format!(
-    r#"# {LICENSE_HEADER}
+    r#"{LICENSE_HEADER}
 
 [default]
-description = """Default core plugins set which includes:
-{}
-"""
+description = "Default core plugins set."
 permissions = [{}]
 "#,
     PLUGINS
       .iter()
-      .map(|(k, _)| format!("- '{k}:default'"))
-      .collect::<Vec<_>>()
-      .join("\n"),
-    PLUGINS
-      .iter()
-      .map(|(k, _)| format!("'{k}:default'"))
+      .map(|(k, _)| format!("\"{k}:default\""))
       .collect::<Vec<_>>()
       .join(",")
   );
 
-  write_if_changed(&default_toml, toml_content)
+  write_if_changed(default_toml, toml_content)
     .unwrap_or_else(|_| panic!("unable to autogenerate core:default set"));
 
-  let _ = tauri_utils::acl::build::define_permissions(
-    &permissions_out_dir.join("*.toml").to_string_lossy(),
+  tauri_utils::acl::build::define_permissions(
+    &PathBuf::from(glob::Pattern::escape(
+      &permissions_out_dir.to_string_lossy(),
+    ))
+    .join("*.toml")
+    .to_string_lossy(),
     "tauri:core",
     out_dir,
     |_| true,
   )
-  .unwrap_or_else(|e| panic!("failed to define permissions for `core:default` : {e}"));
+  .unwrap_or_else(|e| panic!("failed to define permissions for `core:default` : {e}"))
 }
 
 fn embed_manifest_for_tests() {

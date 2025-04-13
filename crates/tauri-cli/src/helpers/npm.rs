@@ -23,6 +23,17 @@ pub fn manager_version(package_manager: &str) -> Option<String> {
     .unwrap_or_default()
 }
 
+fn detect_yarn_or_berry() -> PackageManager {
+  if manager_version("yarn")
+    .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
+    .unwrap_or(false)
+  {
+    PackageManager::YarnBerry
+  } else {
+    PackageManager::Yarn
+  }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PackageManager {
   Npm,
@@ -59,32 +70,38 @@ impl PackageManager {
       .unwrap_or(Self::Npm)
   }
 
+  /// Detects package manager from the `npm_config_user_agent` environment variable
+  fn from_environment_variable() -> Option<Self> {
+    let npm_config_user_agent = std::env::var("npm_config_user_agent").ok()?;
+    match npm_config_user_agent {
+      user_agent if user_agent.starts_with("pnpm/") => Some(Self::Pnpm),
+      user_agent if user_agent.starts_with("deno/") => Some(Self::Deno),
+      user_agent if user_agent.starts_with("bun/") => Some(Self::Bun),
+      user_agent if user_agent.starts_with("yarn/") => Some(detect_yarn_or_berry()),
+      user_agent if user_agent.starts_with("npm/") => Some(Self::Npm),
+      _ => None,
+    }
+  }
+
   /// Detects all possible package managers from the given directory.
   pub fn all_from_project<P: AsRef<Path>>(path: P) -> Vec<Self> {
+    if let Some(from_env) = Self::from_environment_variable() {
+      return vec![from_env];
+    }
+
     let mut found = Vec::new();
 
     if let Ok(entries) = std::fs::read_dir(path) {
       for entry in entries.flatten() {
         let path = entry.path();
         let name = path.file_name().unwrap().to_string_lossy();
-        if name.as_ref() == "package-lock.json" {
-          found.push(PackageManager::Npm);
-        } else if name.as_ref() == "pnpm-lock.yaml" {
-          found.push(PackageManager::Pnpm);
-        } else if name.as_ref() == "yarn.lock" {
-          let yarn = if manager_version("yarn")
-            .map(|v| v.chars().next().map(|c| c > '1').unwrap_or_default())
-            .unwrap_or(false)
-          {
-            PackageManager::YarnBerry
-          } else {
-            PackageManager::Yarn
-          };
-          found.push(yarn);
-        } else if name.as_ref() == "bun.lockb" {
-          found.push(PackageManager::Bun);
-        } else if name.as_ref() == "deno.lock" {
-          found.push(PackageManager::Deno);
+        match name.as_ref() {
+          "package-lock.json" => found.push(PackageManager::Npm),
+          "pnpm-lock.yaml" => found.push(PackageManager::Pnpm),
+          "yarn.lock" => found.push(detect_yarn_or_berry()),
+          "bun.lock" | "bun.lockb" => found.push(PackageManager::Bun),
+          "deno.lock" => found.push(PackageManager::Deno),
+          _ => (),
         }
       }
     }

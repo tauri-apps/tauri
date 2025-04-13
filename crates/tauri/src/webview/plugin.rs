@@ -14,7 +14,7 @@ mod desktop_commands {
 
   use serde::{Deserialize, Serialize};
   use tauri_runtime::dpi::{Position, Size};
-  use tauri_utils::config::{WebviewUrl, WindowConfig};
+  use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
 
   use super::*;
   use crate::{
@@ -48,6 +48,14 @@ mod desktop_commands {
     incognito: bool,
     #[serde(default)]
     zoom_hotkeys_enabled: bool,
+    #[serde(default)]
+    background_throttling: Option<BackgroundThrottlingPolicy>,
+    #[serde(default)]
+    javascript_disabled: bool,
+    #[serde(default = "default_true")]
+    allow_link_preview: bool,
+    #[serde(default)]
+    pub disable_input_accessory_view: bool,
   }
 
   #[cfg(feature = "unstable")]
@@ -63,6 +71,18 @@ mod desktop_commands {
       builder.webview_attributes.window_effects = config.window_effects;
       builder.webview_attributes.incognito = config.incognito;
       builder.webview_attributes.zoom_hotkeys_enabled = config.zoom_hotkeys_enabled;
+      builder.webview_attributes.background_throttling = config.background_throttling;
+      builder.webview_attributes.javascript_disabled = config.javascript_disabled;
+      builder.webview_attributes.allow_link_preview = config.allow_link_preview;
+      #[cfg(target_os = "ios")]
+      if config.disable_input_accessory_view {
+        builder
+          .webview_attributes
+          .input_accessory_view_builder
+          .replace(tauri_runtime::InputAccessoryViewBuilder::new(Box::new(
+            |_webview| None,
+          )));
+      }
       builder
     }
   }
@@ -271,41 +291,38 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
   }
 
   builder
-    .invoke_handler(|invoke| {
+    .invoke_handler(
       #[cfg(desktop)]
-      {
-        let handler: Box<dyn Fn(crate::ipc::Invoke<R>) -> bool> =
-          Box::new(crate::generate_handler![
-            desktop_commands::create_webview,
-            desktop_commands::create_webview_window,
-            // getters
-            desktop_commands::get_all_webviews,
-            desktop_commands::webview_position,
-            desktop_commands::webview_size,
-            // setters
-            desktop_commands::webview_close,
-            desktop_commands::set_webview_size,
-            desktop_commands::set_webview_position,
-            desktop_commands::set_webview_focus,
-            desktop_commands::set_webview_background_color,
-            desktop_commands::set_webview_zoom,
-            desktop_commands::webview_hide,
-            desktop_commands::webview_show,
-            desktop_commands::print,
-            desktop_commands::reparent,
-            desktop_commands::clear_all_browsing_data,
-            #[cfg(any(debug_assertions, feature = "devtools"))]
-            desktop_commands::internal_toggle_devtools,
-          ]);
-        handler(invoke)
-      }
+      crate::generate_handler![
+        #![plugin(webview)]
+        desktop_commands::create_webview,
+        desktop_commands::create_webview_window,
+        // getters
+        desktop_commands::get_all_webviews,
+        desktop_commands::webview_position,
+        desktop_commands::webview_size,
+        // setters
+        desktop_commands::webview_close,
+        desktop_commands::set_webview_size,
+        desktop_commands::set_webview_position,
+        desktop_commands::set_webview_focus,
+        desktop_commands::set_webview_background_color,
+        desktop_commands::set_webview_zoom,
+        desktop_commands::webview_hide,
+        desktop_commands::webview_show,
+        desktop_commands::print,
+        desktop_commands::reparent,
+        desktop_commands::clear_all_browsing_data,
+        #[cfg(any(debug_assertions, feature = "devtools"))]
+        desktop_commands::internal_toggle_devtools,
+      ],
       #[cfg(mobile)]
-      {
+      |invoke| {
         invoke
           .resolver
           .reject("Webview API not available on mobile");
         true
-      }
-    })
+      },
+    )
     .build()
 }

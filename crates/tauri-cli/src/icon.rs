@@ -267,13 +267,13 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   Ok(())
 }
 
-// Generate .png files in 32x32, 128x128, 256x256, 512x512 (icon.png)
+// Generate .png files in 32x32, 64x64, 128x128, 256x256, 512x512 (icon.png)
 // Main target: Linux
 fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
   fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
     let mut entries = Vec::new();
 
-    for size in [32, 128, 256, 512] {
+    for size in [32, 64, 128, 256, 512] {
       let file_name = match size {
         256 => "128x128@2x.png".to_string(),
         512 => "icon.png".to_string(),

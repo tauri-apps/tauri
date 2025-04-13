@@ -93,9 +93,7 @@ pub struct Keys {
 impl Keys {
   /// Securely generate required keys for Isolation encryption.
   pub fn new() -> Result<Self, Error> {
-    AesGcmPair::new()
-      .map(|aes_gcm| Self { aes_gcm })
-      .map_err(Into::into)
+    AesGcmPair::new().map(|aes_gcm| Self { aes_gcm })
   }
 
   /// The AES-GCM data (and raw data).

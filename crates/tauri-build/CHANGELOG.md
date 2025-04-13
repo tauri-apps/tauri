@@ -1,5 +1,48 @@
 # Changelog
 
+## \[2.1.1]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.1`
+- Upgraded to `tauri-codegen@2.1.1`
+
+## \[2.1.0]
+
+### New Features
+
+- [`013f8f652`](https://www.github.com/tauri-apps/tauri/commit/013f8f652302f2d49c5ec0a075582033d8b074fb) ([#12890](https://www.github.com/tauri-apps/tauri/pull/12890) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Added `build > removeUnusedCommands` to trigger the build scripts and macros to remove unused commands based on the capabilities you defined. Note this won't be accounting for dynamically added ACLs so make sure to check it when using this.
+
+### Performance Improvements
+
+- [`1cd8f55ee`](https://www.github.com/tauri-apps/tauri/commit/1cd8f55eed326d61860fee62ba2d2f4464bdcfcc) ([#13033](https://www.github.com/tauri-apps/tauri/pull/13033) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Don't ship global `bundle.global.js` if `app > withGlobalTauri` is set to false
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.3.0`
+- Upgraded to `tauri-codegen@2.1.0`
+
+## \[2.0.6]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.2.0`
+- Upgraded to `tauri-codegen@2.0.5`
+
+## \[2.0.5]
+
+### Bug Fixes
+
+- [`848d0e060`](https://www.github.com/tauri-apps/tauri/commit/848d0e060e6eb3c8e9e8175adc7896587b5a947d) ([#12270](https://www.github.com/tauri-apps/tauri/pull/12270) by [@aurelj](https://www.github.com/tauri-apps/tauri/../../aurelj)) Update `cargo_toml` to `0.21.0`. This adds compatibility with Rust's 2024 Edition.
+- [`cd1d026f9`](https://www.github.com/tauri-apps/tauri/commit/cd1d026f9799c26b04acb64f49e7ee0a8b193049) ([#11961](https://www.github.com/tauri-apps/tauri/pull/11961) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix tauri fails to build if the project path contains glob characters
+
+## \[2.0.4]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.1.1`
+- Upgraded to `tauri-codegen@2.0.4`
+
 ## \[2.0.3]
 
 ### Dependencies

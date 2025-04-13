@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+use itertools::Itertools;
 use json_patch::merge;
 use serde_json::Value as JsonValue;
 
+use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 pub use tauri_utils::{config::*, platform::Target};
 
 use std::{
@@ -92,7 +94,7 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
-    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").map_or(false, |v| v == "true"),
+    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").is_some_and(|v| v == "true"),
   }
 }
 
@@ -137,7 +139,7 @@ fn config_handle() -> &'static ConfigHandle {
 
 /// Gets the static parsed config from `tauri.conf.json`.
 fn get_internal(
-  merge_config: Option<&serde_json::Value>,
+  merge_configs: &[&serde_json::Value],
   reload: bool,
   target: Target,
 ) -> crate::Result<ConfigHandle> {
@@ -152,7 +154,7 @@ fn get_internal(
   let mut extensions = HashMap::new();
 
   if let Some((platform_config, config_path)) =
-    tauri_utils::config::parse::read_platform(target, tauri_dir.to_path_buf())?
+    tauri_utils::config::parse::read_platform(target, tauri_dir)?
   {
     merge(&mut config, &platform_config);
     extensions.insert(
@@ -161,22 +163,27 @@ fn get_internal(
     );
   }
 
-  if let Some(merge_config) = merge_config {
+  if !merge_configs.is_empty() {
+    let mut merge_config = serde_json::Value::Object(Default::default());
+    for conf in merge_configs {
+      merge_patches(&mut merge_config, conf);
+    }
+
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
-    merge(&mut config, merge_config);
-    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config.clone());
-  };
+    merge(&mut config, &merge_config);
+    extensions.insert(MERGE_CONFIG_EXTENSION_NAME.into(), merge_config);
+  }
 
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
     let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))?;
-    let schema = jsonschema::JSONSchema::compile(&schema).unwrap();
-    let result = schema.validate(&config);
-    if let Err(errors) = result {
+    let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
+    let mut errors = validator.iter_errors(&config).peekable();
+    if errors.peek().is_some() {
       for error in errors {
-        let path = error.instance_path.clone().into_vec().join(" > ");
+        let path = error.instance_path.into_iter().join(" > ");
         if path.is_empty() {
           log::error!("`{}` error: {}", config_file_name, error);
         } else {
@@ -207,6 +214,10 @@ fn get_internal(
     );
   }
 
+  if config.build.remove_unused_commands {
+    std::env::set_var(REMOVE_UNUSED_COMMANDS_ENV_VAR, tauri_dir);
+  }
+
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
     target,
     inner: config,
@@ -216,39 +227,130 @@ fn get_internal(
   Ok(config_handle().clone())
 }
 
-pub fn get(
-  target: Target,
-  merge_config: Option<&serde_json::Value>,
-) -> crate::Result<ConfigHandle> {
-  get_internal(merge_config, false, target)
+pub fn get(target: Target, merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
+  get_internal(merge_configs, false, target)
 }
 
-pub fn reload(merge_config: Option<&serde_json::Value>) -> crate::Result<ConfigHandle> {
+pub fn reload(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
   let target = config_handle()
     .lock()
     .unwrap()
     .as_ref()
     .map(|conf| conf.target);
   if let Some(target) = target {
-    get_internal(merge_config, true, target)
+    get_internal(merge_configs, true, target)
   } else {
     Err(anyhow::anyhow!("config not loaded"))
   }
 }
 
 /// merges the loaded config with the given value
-pub fn merge_with(merge_config: &serde_json::Value) -> crate::Result<ConfigHandle> {
+pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandle> {
   let handle = config_handle();
+
+  if merge_configs.is_empty() {
+    return Ok(handle.clone());
+  }
+
   if let Some(config_metadata) = &mut *handle.lock().unwrap() {
-    let merge_config_str = serde_json::to_string(merge_config).unwrap();
+    let mut merge_config = serde_json::Value::Object(Default::default());
+    for conf in merge_configs {
+      merge_patches(&mut merge_config, conf);
+    }
+
+    let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
 
     let mut value = serde_json::to_value(config_metadata.inner.clone())?;
-    merge(&mut value, merge_config);
+    merge(&mut value, &merge_config);
     config_metadata.inner = serde_json::from_value(value)?;
 
     Ok(handle.clone())
   } else {
     Err(anyhow::anyhow!("config not loaded"))
+  }
+}
+
+/// Same as [`json_patch::merge`] but doesn't delete the key when the patch's value is `null`
+fn merge_patches(doc: &mut serde_json::Value, patch: &serde_json::Value) {
+  use serde_json::{Map, Value};
+
+  if !patch.is_object() {
+    *doc = patch.clone();
+    return;
+  }
+
+  if !doc.is_object() {
+    *doc = Value::Object(Map::new());
+  }
+  let map = doc.as_object_mut().unwrap();
+  for (key, value) in patch.as_object().unwrap() {
+    merge_patches(map.entry(key.as_str()).or_insert(Value::Null), value);
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  #[test]
+  fn merge_patches() {
+    let mut json = serde_json::Value::Object(Default::default());
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": {
+          "withGlobalTauri": true,
+          "windows": []
+        },
+        "plugins": {
+          "test": "tauri"
+        },
+        "build": {
+          "devUrl": "http://localhost:8080"
+        }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": { "withGlobalTauri": null }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "app": { "windows": null }
+      }),
+    );
+
+    super::merge_patches(
+      &mut json,
+      &serde_json::json!({
+        "plugins": { "updater": {
+          "endpoints": ["https://tauri.app"]
+        } }
+      }),
+    );
+
+    assert_eq!(
+      json,
+      serde_json::json!({
+        "app": {
+          "withGlobalTauri": null,
+          "windows": null
+        },
+        "plugins": {
+          "test": "tauri",
+          "updater": {
+            "endpoints": ["https://tauri.app"]
+          }
+        },
+        "build": {
+          "devUrl": "http://localhost:8080"
+        }
+      })
+    )
   }
 }

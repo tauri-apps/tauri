@@ -46,7 +46,7 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, None)?;
+  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[])?;
 
   let (config, metadata, cli_options) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
@@ -72,8 +72,14 @@ pub fn command(options: Options) -> Result<()> {
     MobileTarget::Android,
   )?;
 
-  if let Some(config) = &cli_options.config {
-    crate::helpers::config::merge_with(&config.0)?;
+  if !cli_options.config.is_empty() {
+    crate::helpers::config::merge_with(
+      &cli_options
+        .config
+        .iter()
+        .map(|conf| &conf.0)
+        .collect::<Vec<_>>(),
+    )?;
   }
 
   let env = env()?;

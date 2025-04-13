@@ -24,6 +24,9 @@ fn close<R: Runtime>(webview: Webview<R>, rid: ResourceId) -> crate::Result<()> 
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("resources")
-    .invoke_handler(crate::generate_handler![close])
+    .invoke_handler(crate::generate_handler![
+      #![plugin(resources)]
+      close
+    ])
     .build()
 }

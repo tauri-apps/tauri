@@ -49,7 +49,6 @@
  *   }
  * }
  *
- *
  * type UserId = UserIdString | UserIdNumber
  * ```
  *
@@ -75,51 +74,64 @@ function transformCallback<T = unknown>(
 }
 
 class Channel<T = unknown> {
+  /** The callback id returned from {@linkcode transformCallback} */
   id: number
-  // @ts-expect-error field used by the IPC serializer
-  private readonly __TAURI_CHANNEL_MARKER__ = true
-  #onmessage: (response: T) => void = () => {
-    // no-op
-  }
-  #nextMessageId = 0
-  #pendingMessages: Record<string, T> = {}
+  #onmessage: (response: T) => void
 
-  constructor() {
-    this.id = transformCallback(
-      ({ message, id }: { message: T; id: number }) => {
-        // the id is used as a mechanism to preserve message order
-        if (id === this.#nextMessageId) {
-          this.#nextMessageId = id + 1
-          this.#onmessage(message)
+  // the index is used as a mechanism to preserve message order
+  #nextMessageIndex = 0
+  #pendingMessages: T[] = []
+  #messageEndIndex: number | undefined
 
-          // process pending messages
-          const pendingMessageIds = Object.keys(this.#pendingMessages)
-          if (pendingMessageIds.length > 0) {
-            let nextId = id + 1
-            for (const pendingId of pendingMessageIds.sort()) {
-              // if we have the next message, process it
-              if (parseInt(pendingId) === nextId) {
-                // eslint-disable-next-line security/detect-object-injection
-                const message = this.#pendingMessages[pendingId]
-                // eslint-disable-next-line security/detect-object-injection
-                delete this.#pendingMessages[pendingId]
+  constructor(onmessage?: (response: T) => void) {
+    this.#onmessage = onmessage || (() => {})
 
-                this.#onmessage(message)
+    this.id = transformCallback<
+      // Normal message
+      | { message: T; index: number }
+      // Message when the channel gets dropped in the rust side
+      | { end: true; index: number }
+    >((rawMessage) => {
+      const index = rawMessage.index
 
-                // move the id counter to the next message to check
-                nextId += 1
-              } else {
-                // we do not have the next message, let's wait
-                break
-              }
-            }
-            this.#nextMessageId = nextId
-          }
+      if ('end' in rawMessage) {
+        if (index == this.#nextMessageIndex) {
+          this.cleanupCallback()
         } else {
-          this.#pendingMessages[id.toString()] = message
+          this.#messageEndIndex = index
+        }
+        return
+      }
+
+      const message = rawMessage.message
+      // Process the message if we're at the right order
+      if (index == this.#nextMessageIndex) {
+        this.#onmessage(message)
+        this.#nextMessageIndex += 1
+
+        // process pending messages
+        while (this.#nextMessageIndex in this.#pendingMessages) {
+          const message = this.#pendingMessages[this.#nextMessageIndex]
+          this.#onmessage(message)
+          // eslint-disable-next-line @typescript-eslint/no-array-delete
+          delete this.#pendingMessages[this.#nextMessageIndex]
+          this.#nextMessageIndex += 1
+        }
+
+        if (this.#nextMessageIndex === this.#messageEndIndex) {
+          this.cleanupCallback()
         }
       }
-    )
+      // Queue the message if we're not
+      else {
+        // eslint-disable-next-line security/detect-object-injection
+        this.#pendingMessages[index] = message
+      }
+    })
+  }
+
+  private cleanupCallback() {
+    Reflect.deleteProperty(window, `_${this.id}`)
   }
 
   set onmessage(handler: (response: T) => void) {
@@ -171,8 +183,7 @@ async function addPluginListener<T>(
   event: string,
   cb: (payload: T) => void
 ): Promise<PluginListener> {
-  const handler = new Channel<T>()
-  handler.onmessage = cb
+  const handler = new Channel<T>(cb)
   return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
     () => new PluginListener(plugin, event, handler.id)
   )
@@ -314,7 +325,8 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  return 'isTauri' in window && !!window.isTauri
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+  return !!((globalThis as any) || window).isTauri
 }
 
 export type { InvokeArgs, InvokeOptions }

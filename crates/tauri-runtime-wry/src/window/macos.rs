@@ -20,7 +20,7 @@ impl super::WindowExt for tao::window::Window {
           mtm.alloc(),
           frame,
           NSWindowStyleMask::Titled,
-          NSBackingStoreType::NSBackingStoreBuffered,
+          NSBackingStoreType::Buffered,
           false,
         )
       };

@@ -27,6 +27,29 @@
   const userAgent = navigator.userAgent.toLowerCase()
   const isMobile = userAgent.includes('android') || userAgent.includes('iphone')
 
+  const desktopViews = [
+    {
+      label: 'App',
+      component: App,
+      icon: 'i-codicon-hubot'
+    },
+    {
+      label: 'Window',
+      component: Window,
+      icon: 'i-codicon-window'
+    },
+    {
+      label: 'Menu',
+      component: Menu,
+      icon: 'i-ph-list'
+    },
+    {
+      label: 'Tray',
+      component: Tray,
+      icon: 'i-ph-tray'
+    }
+  ]
+
   const views = [
     {
       label: 'Welcome',
@@ -38,26 +61,7 @@
       component: Communication,
       icon: 'i-codicon-radio-tower'
     },
-    !isMobile && {
-      label: 'App',
-      component: App,
-      icon: 'i-codicon-hubot'
-    },
-    !isMobile && {
-      label: 'Window',
-      component: Window,
-      icon: 'i-codicon-window'
-    },
-    !isMobile && {
-      label: 'Menu',
-      component: Menu,
-      icon: 'i-ph-list'
-    },
-    !isMobile && {
-      label: 'Tray',
-      component: Tray,
-      icon: 'i-ph-tray'
-    },
+    ...(isMobile ? [] : desktopViews),
     {
       label: 'WebRTC',
       component: WebRTC,
@@ -65,13 +69,13 @@
     }
   ]
 
-  let selected = views[0]
+  let selected = $state.raw(views[0])
   function select(view) {
     selected = view
   }
 
   // dark/light
-  let isDark
+  let isDark = $state()
   onMount(() => {
     isDark = localStorage && localStorage.getItem('theme') == 'dark'
     applyTheme(isDark)
@@ -89,7 +93,21 @@
 
   // Console
   let messages = writable([])
-  let consoleTextEl
+  let consoleTextEl = $state()
+
+  // this function is renders HTML without sanitizing it so it's insecure
+  // we only use it with our own input data
+  async function insecureRenderHtml(html) {
+    messages.update((r) => [
+      ...r,
+      {
+        html: `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ${html}</pre>`
+      }
+    ])
+    await tick()
+    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
+  }
+
   async function onMessage(value) {
     const valueStr =
       typeof value === 'string'
@@ -101,40 +119,16 @@
             null,
             1
           )
-    messages.update((r) => [
-      ...r,
-      {
-        html:
-          `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
-          valueStr +
-          '</pre>'
-      }
-    ])
-    await tick()
-    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
-  }
-
-  // this function is renders HTML without sanitizing it so it's insecure
-  // we only use it with our own input data
-  async function insecureRenderHtml(html) {
-    messages.update((r) => [
-      ...r,
-      {
-        html:
-          `<pre><strong class="text-accent dark:text-darkAccent">[${new Date().toLocaleTimeString()}]:</strong> ` +
-          html +
-          '</pre>'
-      }
-    ])
-    await tick()
-    if (consoleTextEl) consoleTextEl.scrollTop = consoleTextEl.scrollHeight
+    insecureRenderHtml(valueStr)
   }
 
   function clear() {
     messages.update(() => [])
   }
 
-  let consoleEl, consoleH, cStartY
+  let consoleEl = $state(),
+    consoleH,
+    cStartY
   let minConsoleHeight = 50
   function startResizingConsole(e) {
     cStartY = e.clientY
@@ -158,7 +152,7 @@
   }
 
   // mobile
-  let isSideBarOpen = false
+  let isSideBarOpen = $state(false)
   let sidebar
   let sidebarToggle
   let isDraggingSideBar = false
@@ -217,12 +211,12 @@
     })
   })
 
-  $: {
+  $effect(() => {
     const sidebar = document.querySelector('#sidebar')
     if (sidebar) {
       toggleSidebar(sidebar, isSideBarOpen)
     }
-  }
+  })
 </script>
 
 <!-- Sidebar toggle, only visible on small screens -->
@@ -232,9 +226,9 @@
             bg-accent dark:bg-darkAccent active:bg-accentDark dark:active:bg-darkAccentDark"
 >
   {#if isSideBarOpen}
-    <span class="i-codicon-close animate-duration-300ms animate-fade-in" />
+    <span class="i-codicon-close animate-duration-300ms animate-fade-in"></span>
   {:else}
-    <span class="i-codicon-menu animate-duration-300ms animate-fade-in" />
+    <span class="i-codicon-menu animate-duration-300ms animate-fade-in"></span>
   {/if}
 </div>
 
@@ -251,17 +245,17 @@
       src="tauri_logo.png"
       alt="Tauri logo"
     />
-    <a href="##" class="nv justify-between" on:click={toggleDark}>
+    <a href="##" class="nv justify-between" onclick={toggleDark}>
       {#if isDark}
         Switch to Light mode
-        <div class="i-ph-sun" />
+        <div class="i-ph-sun"></div>
       {:else}
         Switch to Dark mode
-        <div class="i-ph-moon" />
+        <div class="i-ph-moon"></div>
       {/if}
     </a>
     <br />
-    <div class="bg-white/5 h-2px" />
+    <div class="bg-white/5 h-2px"></div>
     <br />
 
     <a
@@ -270,7 +264,7 @@
       href="https://v2.tauri.app/start/"
     >
       Documentation
-      <span class="i-codicon-link-external" />
+      <span class="i-codicon-link-external"></span>
     </a>
     <a
       class="nv justify-between"
@@ -278,7 +272,7 @@
       href="https://github.com/tauri-apps/tauri"
     >
       GitHub
-      <span class="i-codicon-link-external" />
+      <span class="i-codicon-link-external"></span>
     </a>
     <a
       class="nv justify-between"
@@ -286,26 +280,24 @@
       href="https://github.com/tauri-apps/tauri/tree/dev/examples/api"
     >
       Source
-      <span class="i-codicon-link-external" />
+      <span class="i-codicon-link-external"></span>
     </a>
     <br />
-    <div class="bg-white/5 h-2px" />
+    <div class="bg-white/5 h-2px"></div>
     <br />
     <div class="flex flex-col overflow-y-auto children-flex-none gap-1">
       {#each views as view}
-        {#if view}
-          <a
-            href="##"
-            class="nv {selected === view ? 'nv_selected' : ''}"
-            on:click={() => {
-              select(view)
-              isSideBarOpen = false
-            }}
-          >
-            <div class="{view.icon} mr-2" />
-            <p>{view.label}</p></a
-          >
-        {/if}
+        <a
+          href="##"
+          class="nv {selected === view ? 'nv_selected' : ''}"
+          onclick={() => {
+            select(view)
+            isSideBarOpen = false
+          }}
+        >
+          <div class="{view.icon} mr-2"></div>
+          <p>{view.label}</p>
+        </a>
       {/each}
     </div>
   </aside>
@@ -316,11 +308,7 @@
       <h1>{selected.label}</h1>
       <div class="overflow-y-auto">
         <div class="mr-2">
-          <svelte:component
-            this={selected.component}
-            {onMessage}
-            {insecureRenderHtml}
-          />
+          <selected.component {onMessage} />
         </div>
       </div>
     </div>
@@ -333,9 +321,9 @@
       <div
         role="button"
         tabindex="0"
-        on:mousedown={startResizingConsole}
+        onmousedown={startResizingConsole}
         class="bg-black/20 h-4px cursor-ns-resize"
-      />
+      ></div>
       <div class="flex justify-between items-center px-2">
         <p class="font-semibold">Console</p>
         <div
@@ -345,10 +333,10 @@
                 hover:bg-hoverOverlay dark:hover:bg-darkHoverOverlay
                 active:bg-hoverOverlay/25 dark:active:bg-darkHoverOverlay/25
           "
-          on:keypress={(e) => (e.key === 'Enter' ? clear() : {})}
-          on:click={clear}
+          onkeypress={(e) => (e.key === 'Enter' ? clear() : {})}
+          onclick={clear}
         >
-          <div class="i-codicon-clear-all" />
+          <div class="i-codicon-clear-all"></div>
         </div>
       </div>
       <div

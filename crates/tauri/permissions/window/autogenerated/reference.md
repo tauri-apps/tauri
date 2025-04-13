@@ -2,6 +2,8 @@
 
 Default permissions for the plugin.
 
+#### This default permission set includes the following:
+
 - `allow-get-all-windows`
 - `allow-scale-factor`
 - `allow-inner-position`
@@ -26,6 +28,7 @@ Default permissions for the plugin.
 - `allow-available-monitors`
 - `allow-cursor-position`
 - `allow-theme`
+- `allow-is-always-on-top`
 - `allow-internal-toggle-maximize`
 
 ## Permission Table
@@ -345,6 +348,32 @@ Enables the internal_toggle_maximize command without any pre-configured scope.
 <td>
 
 Denies the internal_toggle_maximize command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-is-always-on-top`
+
+</td>
+<td>
+
+Enables the is_always_on_top command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-is-always-on-top`
+
+</td>
+<td>
+
+Denies the is_always_on_top command without any pre-configured scope.
 
 </td>
 </tr>
@@ -898,6 +927,84 @@ Denies the set_always_on_top command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-set-background-color`
+
+</td>
+<td>
+
+Enables the set_background_color command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-background-color`
+
+</td>
+<td>
+
+Denies the set_background_color command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-set-badge-count`
+
+</td>
+<td>
+
+Enables the set_badge_count command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-badge-count`
+
+</td>
+<td>
+
+Denies the set_badge_count command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-set-badge-label`
+
+</td>
+<td>
+
+Enables the set_badge_label command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-badge-label`
+
+</td>
+<td>
+
+Denies the set_badge_label command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-closable`
 
 </td>
@@ -1333,6 +1440,32 @@ Enables the set_minimizable command without any pre-configured scope.
 <td>
 
 Denies the set_minimizable command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:allow-set-overlay-icon`
+
+</td>
+<td>
+
+Enables the set_overlay_icon command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-overlay-icon`
+
+</td>
+<td>
+
+Denies the set_overlay_icon command without any pre-configured scope.
 
 </td>
 </tr>

@@ -6,6 +6,7 @@ import { Channel, invoke, Resource } from '../core'
 import { transformImage } from '../image'
 import { CheckMenuItemOptions } from './checkMenuItem'
 import { IconMenuItemOptions } from './iconMenuItem'
+import { MenuOptions } from './menu'
 import { MenuItemOptions } from './menuItem'
 import { PredefinedMenuItemOptions } from './predefinedMenuItem'
 import { SubmenuOptions } from './submenu'
@@ -18,19 +19,16 @@ export type ItemKind =
   | 'Submenu'
   | 'Menu'
 
-function injectChannel(
-  i:
-    | MenuItemOptions
-    | SubmenuOptions
-    | IconMenuItemOptions
-    | PredefinedMenuItemOptions
-    | CheckMenuItemOptions
-):
+type MenuItemOptionsAlias =
+  | MenuItemOptions
   | SubmenuOptions
+  | IconMenuItemOptions
   | PredefinedMenuItemOptions
-  | ((MenuItemOptions | IconMenuItemOptions | CheckMenuItemOptions) & {
-      handler?: Channel<string>
-    }) {
+  | CheckMenuItemOptions
+
+function injectChannel(i: MenuItemOptionsAlias): MenuItemOptionsAlias & {
+  handler?: Channel<string>
+} {
   if ('items' in i) {
     i.items = i.items?.map((item) =>
       'rid' in item ? item : injectChannel(item)
@@ -46,7 +44,13 @@ function injectChannel(
 
 export async function newMenu(
   kind: ItemKind,
-  opts?: unknown
+  opts?:
+    | MenuOptions
+    | MenuItemOptions
+    | SubmenuOptions
+    | PredefinedMenuItemOptions
+    | CheckMenuItemOptions
+    | IconMenuItemOptions
 ): Promise<[number, string]> {
   const handler = new Channel<string>()
 
@@ -56,22 +60,30 @@ export async function newMenu(
       delete opts.action
     }
 
+    // about predefined menu item icon
+    if (
+      'item' in opts
+      && opts.item
+      && typeof opts.item === 'object'
+      && 'About' in opts.item
+      && opts.item.About
+      && typeof opts.item.About === 'object'
+      && 'icon' in opts.item.About
+      && opts.item.About.icon
+    ) {
+      opts.item.About.icon = transformImage(opts.item.About.icon)
+    }
+
+    // icon menu item icon
+    if ('icon' in opts && opts.icon) {
+      opts.icon = transformImage(opts.icon)
+    }
+
+    // submenu items
     if ('items' in opts && opts.items) {
       function prepareItem(
-        i:
-          | { rid: number; kind: string }
-          | MenuItemOptions
-          | SubmenuOptions
-          | IconMenuItemOptions
-          | PredefinedMenuItemOptions
-          | CheckMenuItemOptions
-      ):
-        | [number, string]
-        | SubmenuOptions
-        | PredefinedMenuItemOptions
-        | MenuItemOptions
-        | IconMenuItemOptions
-        | CheckMenuItemOptions {
+        i: { rid: number; kind: string } | MenuItemOptionsAlias
+      ): [number, string] | MenuItemOptionsAlias {
         if ('rid' in i) {
           return [i.rid, i.kind]
         }
@@ -93,6 +105,8 @@ export async function newMenu(
         return injectChannel(i)
       }
 
+      // @ts-expect-error the `prepareItem` return doesn't exactly match
+      // this is fine, because the difference is in `[number, string]` variant
       opts.items = (opts.items as []).map(prepareItem)
     }
   }

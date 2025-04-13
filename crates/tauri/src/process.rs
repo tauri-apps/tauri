@@ -96,14 +96,14 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
   use std::process::{exit, Command};
 
   if let Some(macos_directory) = current_binary.parent() {
-    if macos_directory.components().last()
+    if macos_directory.components().next_back()
       != Some(std::path::Component::Normal(std::ffi::OsStr::new("MacOS")))
     {
       return;
     }
 
     if let Some(contents_directory) = macos_directory.parent() {
-      if contents_directory.components().last()
+      if contents_directory.components().next_back()
         != Some(std::path::Component::Normal(std::ffi::OsStr::new(
           "Contents",
         )))

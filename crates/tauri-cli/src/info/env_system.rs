@@ -184,7 +184,7 @@ fn de_and_session() -> String {
     target_os = "netbsd"
   ))]
   return {
-    let de = std::env::var("DESKTOP_SESSION");
+    let de = std::env::var("XDG_SESSION_DESKTOP");
     let session = std::env::var("XDG_SESSION_TYPE");
     format!(
       " ({} on {})",

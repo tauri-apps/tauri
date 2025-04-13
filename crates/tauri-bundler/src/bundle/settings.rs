@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::bundle::{common, platform::target_triple};
+use crate::{bundle::platform::target_triple, utils::fs_utils};
 use anyhow::Context;
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
@@ -220,6 +220,10 @@ pub struct DebianSettings {
 pub struct AppImageSettings {
   /// The files to include in the Appimage Binary.
   pub files: HashMap<PathBuf, PathBuf>,
+  /// Whether to include gstreamer plugins for audio/media support.
+  pub bundle_media_framework: bool,
+  /// Whether to include the `xdg-open` binary.
+  pub bundle_xdg_open: bool,
 }
 
 /// The RPM bundle settings.
@@ -235,7 +239,7 @@ pub struct RpmSettings {
   /// in order for the package to be installed.
   pub conflicts: Option<Vec<String>>,
   /// The list of RPM dependencies your application supersedes - if this package is installed,
-  /// packages listed as “obsoletes” will be automatically removed (if they are present).
+  /// packages listed as "obsoletes" will be automatically removed (if they are present).
   pub obsoletes: Option<Vec<String>>,
   /// The RPM release tag.
   pub release: String,
@@ -302,6 +306,13 @@ pub struct DmgSettings {
   pub application_folder_position: Position,
 }
 
+/// The iOS bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct IosSettings {
+  /// The version of the build that identifies an iteration of the bundle.
+  pub bundle_version: Option<String>,
+}
+
 /// The macOS bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct MacOsSettings {
@@ -319,6 +330,8 @@ pub struct MacOsSettings {
   /// List of custom files to add to the application bundle.
   /// Maps the path in the Contents directory in the app to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
@@ -404,7 +417,7 @@ pub struct WixSettings {
   pub banner_path: Option<PathBuf>,
   /// Path to a bitmap file to use on the installation user interface dialogs.
   /// It is used on the welcome and completion dialogs.
-
+  ///
   /// The required dimensions are 493px × 312px.
   pub dialog_image_path: Option<PathBuf>,
   /// Enables FIPS compliant algorithms.
@@ -639,6 +652,8 @@ pub struct BundleSettings {
   pub rpm: RpmSettings,
   /// DMG-specific settings.
   pub dmg: DmgSettings,
+  /// iOS-specific settings.
+  pub ios: IosSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -719,6 +734,8 @@ pub enum Arch {
   Armhf,
   /// For the AArch32 / ARM32 instruction sets with soft-float (32 bits).
   Armel,
+  /// For the RISC-V instruction sets (64 bits).
+  Riscv64,
   /// For universal macOS applications.
   Universal,
 }
@@ -896,6 +913,8 @@ impl Settings {
       Arch::Armel
     } else if self.target.starts_with("aarch64") {
       Arch::AArch64
+    } else if self.target.starts_with("riscv64") {
+      Arch::Riscv64
     } else if self.target.starts_with("universal") {
       Arch::Universal
     } else {
@@ -1064,7 +1083,7 @@ impl Settings {
           .to_string_lossy()
           .replace(&format!("-{}", self.target), ""),
       );
-      common::copy_file(&src, &dest)?;
+      fs_utils::copy_file(&src, &dest)?;
       paths.push(dest);
     }
     Ok(paths)
@@ -1075,7 +1094,7 @@ impl Settings {
     for resource in self.resource_files().iter() {
       let resource = resource?;
       let dest = path.join(resource.target());
-      common::copy_file(resource.path(), dest)?;
+      fs_utils::copy_file(resource.path(), &dest)?;
     }
     Ok(())
   }
@@ -1180,6 +1199,11 @@ impl Settings {
   /// Returns the DMG settings.
   pub fn dmg(&self) -> &DmgSettings {
     &self.bundle_settings.dmg
+  }
+
+  /// Returns the iOS settings.
+  pub fn ios(&self) -> &IosSettings {
+    &self.bundle_settings.ios
   }
 
   /// Returns the MacOS settings.

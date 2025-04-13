@@ -20,7 +20,10 @@ pub use rust::{MobileOptions, Options, Rust as AppInterface};
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
+  // TODO:
+  #[allow(unused)]
   fn wait(&self) -> std::io::Result<ExitStatus>;
+  #[allow(unused)]
   fn manually_killed_process(&self) -> bool;
 }
 
@@ -49,7 +52,7 @@ pub trait AppSettings {
       enabled_features.push("default".into());
     }
 
-    let target: String = if let Some(target) = options.target.clone() {
+    let target: String = if let Some(target) = options.target {
       target
     } else {
       tauri_utils::platform::target_triple()?

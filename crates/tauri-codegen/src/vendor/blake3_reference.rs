@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 //! This is a lightly modified version of the BLAKE3 reference implementation.
+//!
 //! The changes applied are to remove unused item warnings due to using it
 //! vendored along with some minor clippy suggestions. No logic changes. I
 //! suggest diffing against the original to find all the changes.

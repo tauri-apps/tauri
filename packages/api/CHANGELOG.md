@@ -1,5 +1,55 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`dd1372833`](https://www.github.com/tauri-apps/tauri/commit/dd137283341ce0e6aabfd158d07d77c6feeb920e) ([#13066](https://www.github.com/tauri-apps/tauri/pull/13066) by [@ahaoboy](https://www.github.com/tauri-apps/tauri/../../ahaoboy)) Add a generic to `emit` and `emitTo` functions for the `payload` instead of the previously used type (`unknown`).
+
+## \[2.4.0]
+
+### New Features
+
+- [`d8059bad3`](https://www.github.com/tauri-apps/tauri/commit/d8059bad3cc922dc369c39ca1cfa49aaec31322e) ([#12900](https://www.github.com/tauri-apps/tauri/pull/12900) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) add `AppHandle.fetch_data_store_identifiers` and `AppHandle.remove_data_store` (macOS and iOS only)
+- [`20c190691`](https://www.github.com/tauri-apps/tauri/commit/20c19069125c89b2d45a2127278c9ffc2df35fc2) ([#12821](https://www.github.com/tauri-apps/tauri/pull/12821) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) Added `WindowOptions::javascriptDisabled` and `WebviewOptions::javascriptDisabled`.
+- [`060de5bbd`](https://www.github.com/tauri-apps/tauri/commit/060de5bbdddca384e3965a8938d89840f27c581d) ([#12837](https://www.github.com/tauri-apps/tauri/pull/12837) by [@niladrix719](https://www.github.com/tauri-apps/tauri/../../niladrix719)) Added `getIdentifier()` function to get the application identifier configured in tauri.conf.json
+- [`be2e6b85f`](https://www.github.com/tauri-apps/tauri/commit/be2e6b85fed226732b4a98f68cc5d72b4f8f5a13) ([#12944](https://www.github.com/tauri-apps/tauri/pull/12944) by [@Simon-Laux](https://www.github.com/tauri-apps/tauri/../../Simon-Laux)) Added `Window#isAlwaysOnTop` and `WebviewWindow#isAlwaysOnTop` methods.
+- [`bcdd51025`](https://www.github.com/tauri-apps/tauri/commit/bcdd510254ebe37827e22a5ffeb944321361e97c) ([#13012](https://www.github.com/tauri-apps/tauri/pull/13012) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) The `path` basename and extname APIs now accept Android content URIs, such as the paths returned by the dialog plugin.
+
+### Bug Fixes
+
+- [`3a74dc8f3`](https://www.github.com/tauri-apps/tauri/commit/3a74dc8f3421112b1d0a32b6a432606b1f33cc25) ([#12935](https://www.github.com/tauri-apps/tauri/pull/12935) by [@tk103331](https://www.github.com/tauri-apps/tauri/../../tk103331)) Fix `Webview.close` always fail with command not found
+
+## \[2.3.0]
+
+### Enhancements
+
+- [`a2d36b8c3`](https://www.github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) ([#12181](https://www.github.com/tauri-apps/tauri/pull/12181) by [@bastiankistner](https://www.github.com/tauri-apps/tauri/../../bastiankistner)) Add an option to change the default background throttling policy (currently for WebKit only).
+
+## \[2.2.0]
+
+### New Features
+
+- [`020ea0556`](https://www.github.com/tauri-apps/tauri/commit/020ea05561348dcd6d2a7df358f8a5190f661ba2) ([#11661](https://www.github.com/tauri-apps/tauri/pull/11661) by [@ahqsoftwares](https://www.github.com/tauri-apps/tauri/../../ahqsoftwares)) Add badging APIs:
+
+  - `Window/WebviewWindow::set_badge_count` for Linux, macOS and IOS.
+  - `Window/WebviewWindow::set_overlay_icon` for Windows Only.
+  - `Window/WebviewWindow::set_badge_label`for macOS Only.
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `TrayIcon.setShowMenuOnLeftClick` method and deprecate `TrayIcon.setMenuOnLeftClick` to match the Rust API.
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `TrayIconOptions.showMenuOnLeftClick` field and deprecate `TrayIconOptions.menuOnLeftClick` to match the Rust API.
+
+### Enhancements
+
+- [`fc30b20be`](https://www.github.com/tauri-apps/tauri/commit/fc30b20bea125f647db00ca824663f8e1da4d61f) ([#11726](https://www.github.com/tauri-apps/tauri/pull/11726) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add support for `TrayIconOptions.menuOnLeftClick` option and `TrayIcon.setMenuOnLeftClick` on Windows.
+
+### Bug Fixes
+
+- [`a16796a55`](https://www.github.com/tauri-apps/tauri/commit/a16796a55592cf5be80043edfbb630dd2e32efab) ([#12069](https://www.github.com/tauri-apps/tauri/pull/12069) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `Channel` never calls `onmessage` in some cases
+- [`12a48d1e2`](https://www.github.com/tauri-apps/tauri/commit/12a48d1e26a83c3915eaa0687b196fbc8f2d457a) ([#11741](https://www.github.com/tauri-apps/tauri/pull/11741) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix error when calling `PredefinedMenuItem.new` to create an `About` menu item that uses an `Image` instance for the about icon.
+- [`12a48d1e2`](https://www.github.com/tauri-apps/tauri/commit/12a48d1e26a83c3915eaa0687b196fbc8f2d457a) ([#11741](https://www.github.com/tauri-apps/tauri/pull/11741) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Fix error when calling `IconMenuItem.new` using an `Image` instance for the icon.
+- [`b63262cd4`](https://www.github.com/tauri-apps/tauri/commit/b63262cd4d6a3667ca1664607a0a5444ad79fe0e) ([#11724](https://www.github.com/tauri-apps/tauri/pull/11724) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Removed the generic in the type of the callback function argument in `mockIPC` which prevented its proper use in tests using TypeScript.
+- [`a6e84f7d2`](https://www.github.com/tauri-apps/tauri/commit/a6e84f7d2c1d5fdc65901fce683502be3f47833f) ([#11835](https://www.github.com/tauri-apps/tauri/pull/11835) by [@ilittlebig](https://www.github.com/tauri-apps/tauri/../../ilittlebig)) Fix error where using `isAbsolute` would return `Command not found`.
+
 ## \[2.1.1]
 
 ### Bug Fixes

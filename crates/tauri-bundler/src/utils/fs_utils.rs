@@ -4,27 +4,10 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
-  ffi::OsStr,
   fs::{self, File},
-  io::{self, BufRead, BufReader, BufWriter},
+  io::{self, BufWriter},
   path::Path,
-  process::{Command, ExitStatus, Output, Stdio},
-  sync::{Arc, Mutex},
 };
-
-/// Returns true if the path has a filename indicating that it is a high-density
-/// "retina" icon.  Specifically, returns true the file stem ends with
-/// "@2x" (a convention specified by the [Apple developer docs](
-/// <https://developer.apple.com/library/mac/documentation/GraphicsAnimation/Conceptual/HighResolutionOSX/Optimizing/Optimizing.html>)).
-#[allow(dead_code)]
-pub fn is_retina<P: AsRef<Path>>(path: P) -> bool {
-  path
-    .as_ref()
-    .file_stem()
-    .and_then(OsStr::to_str)
-    .map(|stem| stem.ends_with("@2x"))
-    .unwrap_or(false)
-}
 
 /// Creates a new file at the given path, creating any parent directories as
 /// needed.
@@ -34,6 +17,36 @@ pub fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   }
   let file = File::create(path)?;
   Ok(BufWriter::new(file))
+}
+
+/// Creates the given directory path,
+/// erasing it first if specified.
+#[allow(dead_code)]
+pub fn create_dir(path: &Path, erase: bool) -> crate::Result<()> {
+  if erase && path.exists() {
+    remove_dir_all(path)?;
+  }
+  Ok(fs::create_dir(path)?)
+}
+
+/// Creates all of the directories of the specified path,
+/// erasing it first if specified.
+#[allow(dead_code)]
+pub fn create_dir_all(path: &Path, erase: bool) -> crate::Result<()> {
+  if erase && path.exists() {
+    remove_dir_all(path)?;
+  }
+  Ok(fs::create_dir_all(path)?)
+}
+
+/// Removes the directory and its contents if it exists.
+#[allow(dead_code)]
+pub fn remove_dir_all(path: &Path) -> crate::Result<()> {
+  if path.exists() {
+    Ok(fs::remove_dir_all(path)?)
+  } else {
+    Ok(())
+  }
 }
 
 /// Makes a symbolic link to a directory.
@@ -63,11 +76,9 @@ fn symlink_file(src: &Path, dst: &Path) -> io::Result<()> {
 }
 
 /// Copies a regular file from one path to another, creating any parent
-/// directories of the destination path as necessary.  Fails if the source path
+/// directories of the destination path as necessary. Fails if the source path
 /// is a directory or doesn't exist.
-pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<()> {
-  let from = from.as_ref();
-  let to = to.as_ref();
+pub fn copy_file(from: &Path, to: &Path) -> crate::Result<()> {
   if !from.exists() {
     return Err(crate::Error::GenericError(format!(
       "{from:?} does not exist"
@@ -151,7 +162,7 @@ pub fn copy_custom_files(
       pkg_path
     };
     if path.is_file() {
-      copy_file(path, data_dir.join(pkg_path))?;
+      copy_file(path, &data_dir.join(pkg_path))?;
     } else {
       copy_dir(path, &data_dir.join(pkg_path))?;
     }
@@ -159,93 +170,10 @@ pub fn copy_custom_files(
   Ok(())
 }
 
-pub trait CommandExt {
-  // The `pipe` function sets the stdout and stderr to properly
-  // show the command output in the Node.js wrapper.
-  fn piped(&mut self) -> std::io::Result<ExitStatus>;
-  fn output_ok(&mut self) -> crate::Result<Output>;
-}
-
-impl CommandExt for Command {
-  fn piped(&mut self) -> std::io::Result<ExitStatus> {
-    self.stdin(os_pipe::dup_stdin()?);
-    self.stdout(os_pipe::dup_stdout()?);
-    self.stderr(os_pipe::dup_stderr()?);
-    let program = self.get_program().to_string_lossy().into_owned();
-    log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
-
-    self.status().map_err(Into::into)
-  }
-
-  fn output_ok(&mut self) -> crate::Result<Output> {
-    let program = self.get_program().to_string_lossy().into_owned();
-    log::debug!(action = "Running"; "Command `{} {}`", program, self.get_args().map(|arg| arg.to_string_lossy()).fold(String::new(), |acc, arg| format!("{acc} {arg}")));
-
-    self.stdout(Stdio::piped());
-    self.stderr(Stdio::piped());
-
-    let mut child = self.spawn()?;
-
-    let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
-    let stdout_lines = Arc::new(Mutex::new(Vec::new()));
-    let stdout_lines_ = stdout_lines.clone();
-    std::thread::spawn(move || {
-      let mut line = String::new();
-      let mut lines = stdout_lines_.lock().unwrap();
-      loop {
-        line.clear();
-        match stdout.read_line(&mut line) {
-          Ok(0) => break,
-          Ok(_) => {
-            log::debug!(action = "stdout"; "{}", line.trim_end());
-            lines.extend(line.as_bytes().to_vec());
-          }
-          Err(_) => (),
-        }
-      }
-    });
-
-    let mut stderr = child.stderr.take().map(BufReader::new).unwrap();
-    let stderr_lines = Arc::new(Mutex::new(Vec::new()));
-    let stderr_lines_ = stderr_lines.clone();
-    std::thread::spawn(move || {
-      let mut line = String::new();
-      let mut lines = stderr_lines_.lock().unwrap();
-      loop {
-        line.clear();
-        match stderr.read_line(&mut line) {
-          Ok(0) => break,
-          Ok(_) => {
-            log::debug!(action = "stderr"; "{}", line.trim_end());
-            lines.extend(line.as_bytes().to_vec());
-          }
-          Err(_) => (),
-        }
-      }
-    });
-
-    let status = child.wait()?;
-    let output = Output {
-      status,
-      stdout: std::mem::take(&mut *stdout_lines.lock().unwrap()),
-      stderr: std::mem::take(&mut *stderr_lines.lock().unwrap()),
-    };
-
-    if output.status.success() {
-      Ok(output)
-    } else {
-      Err(crate::Error::GenericError(format!(
-        "failed to run {program}"
-      )))
-    }
-  }
-}
-
 #[cfg(test)]
 mod tests {
-  use super::{create_file, is_retina};
-  use std::{io::Write, path::PathBuf};
-  use tauri_utils::resources::resource_relpath;
+  use super::create_file;
+  use std::io::Write;
 
   #[test]
   fn create_file_with_parent_dirs() {
@@ -263,6 +191,8 @@ mod tests {
   #[cfg(not(windows))]
   #[test]
   fn copy_dir_with_symlinks() {
+    use std::path::PathBuf;
+
     // Create a directory structure that looks like this:
     //   ${TMP}/orig/
     //       sub/
@@ -308,28 +238,6 @@ mod tests {
         .expect("Failed to read from file")
         .as_slice(),
       b"Hello, world!\n"
-    );
-  }
-
-  #[test]
-  fn retina_icon_paths() {
-    assert!(!is_retina("data/icons/512x512.png"));
-    assert!(is_retina("data/icons/512x512@2x.png"));
-  }
-
-  #[test]
-  fn resource_relative_paths() {
-    assert_eq!(
-      resource_relpath(&PathBuf::from("./data/images/button.png")),
-      PathBuf::from("data/images/button.png")
-    );
-    assert_eq!(
-      resource_relpath(&PathBuf::from("../../images/wheel.png")),
-      PathBuf::from("_up_/_up_/images/wheel.png")
-    );
-    assert_eq!(
-      resource_relpath(&PathBuf::from("/home/ferris/crab.png")),
-      PathBuf::from("_root_/home/ferris/crab.png")
     );
   }
 }

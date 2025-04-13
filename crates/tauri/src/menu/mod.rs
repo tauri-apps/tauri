@@ -99,7 +99,7 @@ macro_rules! gen_wrappers {
           // SAFETY: inner was created on main thread and is being dropped on main thread
           let inner = $crate::UnsafeSend(inner);
           let _ = self.app_handle.run_on_main_thread(move || {
-            drop(inner);
+            drop(inner.take());
           });
         }
       }

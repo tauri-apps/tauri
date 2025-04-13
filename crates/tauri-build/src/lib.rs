@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! This applies the macros at build-time in order to rig some special features needed by `cargo`.
 
 #![doc(
@@ -70,7 +68,7 @@ fn copy_binaries(
       .to_string_lossy()
       .replace(&format!("-{target_triple}"), "");
 
-    if package_name.map_or(false, |n| n == &file_name) {
+    if package_name == Some(&file_name) {
       return Err(anyhow::anyhow!(
         "Cannot define a sidecar with the same name as the Cargo package name `{}`. Please change the sidecar name in the filesystem and the Tauri configuration.",
         file_name
@@ -421,23 +419,26 @@ pub fn is_dev() -> bool {
 
 /// Run all build time helpers for your Tauri Application.
 ///
-/// The current helpers include the following:
-/// * Generates a Windows Resource file when targeting Windows.
+/// To provide extra configuration, such as [`AppManifest::commands`]
+/// for fine-grained control over command permissions, see [`try_build`].
+/// See [`Attributes`] for the complete list of configuration options.
 ///
 /// # Platforms
 ///
-/// [`build()`] should be called inside of `build.rs` regardless of the platform:
-/// * New helpers may target more platforms in the future.
-/// * Platform specific code is handled by the helpers automatically.
-/// * A build script is required in order to activate some cargo environmental variables that are
-///   used when generating code and embedding assets - so [`build()`] may as well be called.
+/// [`build()`] should be called inside of `build.rs` regardless of the platform, so **DO NOT** use a [conditional compilation]
+/// check that prevents it from running on any of your targets.
 ///
-/// In short, this is saying don't put the call to [`build()`] behind a `#[cfg(windows)]`.
+/// Platform specific code is handled by the helpers automatically.
+///
+/// A build script is required in order to activate some cargo environmental variables that are
+/// used when generating code and embedding assets.
 ///
 /// # Panics
 ///
 /// If any of the build time helpers fail, they will [`std::panic!`] with the related error message.
 /// This is typically desirable when running inside a build script; see [`try_build`] for no panics.
+///
+/// [conditional compilation]: https://web.mit.edu/rust-lang_v1.25/arch/amd64_ubuntu1404/share/doc/rust/html/book/first-edition/conditional-compilation.html
 pub fn build() {
   if let Err(error) = try_build(Attributes::default()) {
     let error = format!("{error:#}");
@@ -452,18 +453,12 @@ pub fn build() {
   }
 }
 
-/// Non-panicking [`build()`].
+/// Same as [`build()`], but takes an extra configuration argument, and does not panic.
 #[allow(unused_variables)]
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
 
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
-  #[cfg(feature = "config-json")]
-  println!("cargo:rerun-if-changed=tauri.conf.json");
-  #[cfg(feature = "config-json5")]
-  println!("cargo:rerun-if-changed=tauri.conf.json5");
-  #[cfg(feature = "config-toml")]
-  println!("cargo:rerun-if-changed=Tauri.toml");
 
   let target_os = env::var("CARGO_CFG_TARGET_OS").unwrap();
   let mobile = target_os == "ios" || target_os == "android";
@@ -473,12 +468,11 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   let target_triple = env::var("TARGET").unwrap();
   let target = tauri_utils::platform::Target::from_triple(&target_triple);
 
-  let (config, merged_config_path) =
-    tauri_utils::config::parse::read_from(target, env::current_dir().unwrap())?;
-  if let Some(merged_config_path) = merged_config_path {
-    println!("cargo:rerun-if-changed={}", merged_config_path.display());
+  let (mut config, config_paths) =
+    tauri_utils::config::parse::read_from(target, &env::current_dir().unwrap())?;
+  for config_file_path in config_paths {
+    println!("cargo:rerun-if-changed={}", config_file_path.display());
   }
-  let mut config = serde_json::from_value(config)?;
   if let Ok(env) = env::var("TAURI_CONFIG") {
     let merge_config: serde_json::Value = serde_json::from_str(&env)?;
     json_patch::merge(&mut config, &merge_config);
@@ -508,25 +502,16 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   cfg_alias("dev", is_dev());
 
-  let ws_path = get_workspace_dir()?;
-  let mut manifest =
-    Manifest::<cargo_toml::Value>::from_slice_with_metadata(&fs::read("Cargo.toml")?)?;
-
-  if let Ok(ws_manifest) = Manifest::from_path(ws_path.join("Cargo.toml")) {
-    Manifest::complete_from_path_and_workspace(
-      &mut manifest,
-      Path::new("Cargo.toml"),
-      Some((&ws_manifest, ws_path.as_path())),
-    )?;
-  } else {
-    Manifest::complete_from_path(&mut manifest, Path::new("Cargo.toml"))?;
-  }
+  let cargo_toml_path = Path::new("Cargo.toml").canonicalize()?;
+  let mut manifest = Manifest::<cargo_toml::Value>::from_path_with_metadata(cargo_toml_path)?;
 
   let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
   manifest::check(&config, &mut manifest)?;
 
   acl::build(&out_dir, target, &attributes)?;
+
+  tauri_utils::plugin::save_global_api_scripts_paths(&out_dir, None);
 
   println!("cargo:rustc-env=TAURI_ENV_TARGET_TRIPLE={target_triple}");
   // when running codegen in this build script, we need to access the env var directly
@@ -626,7 +611,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
     if let Some(version_str) = &config.version {
       if let Ok(v) = Version::parse(version_str) {
-        let version = v.major << 48 | v.minor << 32 | v.patch << 16;
+        let version = (v.major << 48) | (v.minor << 32) | (v.patch << 16);
         res.set_version_info(VersionInfo::FILEVERSION, version);
         res.set_version_info(VersionInfo::PRODUCTVERSION, version);
       }
@@ -635,6 +620,17 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
     if let Some(product_name) = &config.product_name {
       res.set("ProductName", product_name);
     }
+
+    let company_name = config.bundle.publisher.unwrap_or_else(|| {
+      config
+        .identifier
+        .split('.')
+        .nth(1)
+        .unwrap_or(&config.identifier)
+        .to_string()
+    });
+
+    res.set("CompanyName", &company_name);
 
     let file_description = config
       .product_name
@@ -688,7 +684,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
         }
       }
       "msvc" => {
-        if env::var("STATIC_VCRUNTIME").map_or(false, |v| v == "true") {
+        if env::var("STATIC_VCRUNTIME").is_ok_and(|v| v == "true") {
           static_vcruntime::build();
         }
       }
@@ -702,24 +698,4 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   }
 
   Ok(())
-}
-
-#[derive(serde::Deserialize)]
-struct CargoMetadata {
-  workspace_root: PathBuf,
-}
-
-fn get_workspace_dir() -> Result<PathBuf> {
-  let output = std::process::Command::new("cargo")
-    .args(["metadata", "--no-deps", "--format-version", "1"])
-    .output()?;
-
-  if !output.status.success() {
-    return Err(anyhow::anyhow!(
-      "cargo metadata command exited with a non zero exit code: {}",
-      String::from_utf8(output.stderr)?
-    ));
-  }
-
-  Ok(serde_json::from_slice::<CargoMetadata>(&output.stdout)?.workspace_root)
 }

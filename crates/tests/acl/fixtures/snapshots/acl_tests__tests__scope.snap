@@ -1,6 +1,7 @@
 ---
 source: crates/tests/acl/src/lib.rs
 expression: resolved
+snapshot_kind: text
 ---
 Resolved {
     allowed_commands: {
@@ -109,9 +110,7 @@ Resolved {
                     },
                 ],
                 webviews: [],
-                scope_id: Some(
-                    3,
-                ),
+                scope_id: None,
             },
         ],
         "plugin:fs|read_file": [
@@ -202,8 +201,17 @@ Resolved {
             ],
             deny: [],
         },
-        3: ResolvedScope {
+    },
+    global_scope: {
+        "fs": ResolvedScope {
             allow: [
+                Map(
+                    {
+                        "path": String(
+                            "$APP",
+                        ),
+                    },
+                ),
                 Map(
                     {
                         "path": String(
@@ -215,20 +223,6 @@ Resolved {
                     {
                         "path": String(
                             "$DOWNLOAD/**",
-                        ),
-                    },
-                ),
-            ],
-            deny: [],
-        },
-    },
-    global_scope: {
-        "fs": ResolvedScope {
-            allow: [
-                Map(
-                    {
-                        "path": String(
-                            "$APP",
                         ),
                     },
                 ),

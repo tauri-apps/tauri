@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-//! [![](https://github.com/tauri-apps/tauri/raw/dev/.github/splash.png)](https://tauri.app)
-//!
 //! Tauri is a framework for building tiny, blazing fast binaries for all major desktop platforms.
 //! Developers can integrate any front-end framework that compiles to HTML, JS and CSS for building their user interface.
 //! The backend of the application is a rust-sourced binary with an API that the front-end can interact with.
@@ -17,7 +15,7 @@
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
-//! - **objc-exception**: Wrap each msg_send! in a @try/@catch and panics if an exception is caught, preventing Objective-C from unwinding into Rust.
+//! - **objc-exception**: This feature flag is no-op since 2.3.0.
 //! - **linux-libxdo**: Enables linking to libxdo which enables Cut, Copy, Paste and SelectAll menu items to work on Linux.
 //! - **isolation**: Enables the isolation pattern. Enabled by default if the `app > security > pattern > use` config option is set to `isolation` on the `tauri.conf.json` file.
 //! - **custom-protocol**: Feature managed by the Tauri CLI. When enabled, Tauri assumes a production environment instead of a development one.
@@ -210,16 +208,17 @@ pub use runtime::ActivationPolicy;
 #[cfg(target_os = "macos")]
 pub use self::utils::TitleBarStyle;
 
+use self::event::EventName;
 pub use self::event::{Event, EventId, EventTarget};
+use self::manager::EmitPayload;
 pub use {
   self::app::{
-    App, AppHandle, AssetResolver, Builder, CloseRequestApi, RunEvent, UriSchemeContext,
-    UriSchemeResponder, WebviewEvent, WindowEvent,
+    App, AppHandle, AssetResolver, Builder, CloseRequestApi, ExitRequestApi, RunEvent,
+    UriSchemeContext, UriSchemeResponder, WebviewEvent, WindowEvent, RESTART_EXIT_CODE,
   },
   self::manager::Asset,
   self::runtime::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
-    webview::WebviewAttributes,
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
     DeviceEventFilter, Rect, UserAttentionType,
   },
@@ -586,10 +585,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
     self.manager().get_webview(label).and_then(|webview| {
       let window = webview.window();
       if window.is_webview_window() {
-        Some(WebviewWindow {
-          window: window.clone(),
-          webview,
-        })
+        Some(WebviewWindow { window, webview })
       } else {
         None
       }
@@ -605,13 +601,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
       .filter_map(|(label, webview)| {
         let window = webview.window();
         if window.is_webview_window() {
-          Some((
-            label,
-            WebviewWindow {
-              window: window.clone(),
-              webview,
-            },
-          ))
+          Some((label, WebviewWindow { window, webview }))
         } else {
           None
         }
@@ -711,11 +701,31 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   }
 
   /// Removes the state managed by the application for T. Returns the state if it was actually removed.
+  ///
+  /// <div class="warning">
+  ///
+  /// This method is *UNSAFE* and calling it will cause previously obtained references through
+  /// [Manager::state] and [State::inner] to become dangling references.
+  ///
+  /// It is currently deprecated and may be removed in the future.
+  ///
+  /// If you really want to unmanage a state, use [std::sync::Mutex] and [Option::take] to wrap the state instead.
+  ///
+  /// See [tauri-apps/tauri#12721] for more information.
+  ///
+  /// [tauri-apps/tauri#12721]: https://github.com/tauri-apps/tauri/issues/12721
+  ///
+  /// </div>
+  #[deprecated(
+    since = "2.3.0",
+    note = "This method is unsafe, since it can cause dangling references."
+  )]
   fn unmanage<T>(&self) -> Option<T>
   where
     T: Send + Sync + 'static,
   {
-    self.manager().state().unmanage()
+    // The caller decides to break the safety here, then OK, just let it go.
+    unsafe { self.manager().state().unmanage() }
   }
 
   /// Retrieves the managed state for the type `T`.
@@ -839,6 +849,8 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn listen<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static;
@@ -846,6 +858,8 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   /// Listen to an event on this manager only once.
   ///
   /// See [`Self::listen`] for more information.
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn once<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static;
@@ -897,23 +911,27 @@ pub trait Listener<R: Runtime>: sealed::ManagerBase<R> {
   ///   })
   ///   .invoke_handler(tauri::generate_handler![synchronize]);
   /// ```
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn listen_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: Fn(Event) + Send + 'static,
   {
-    self
-      .manager()
-      .listen(event.into(), EventTarget::Any, handler)
+    let event = EventName::new(event.into()).unwrap();
+    self.manager().listen(event, EventTarget::Any, handler)
   }
 
   /// Listens once to an emitted event to any [target](EventTarget) .
   ///
   /// See [`Self::listen_any`] for more information.
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
   fn once_any<F>(&self, event: impl Into<String>, handler: F) -> EventId
   where
     F: FnOnce(Event) + Send + 'static,
   {
-    self.manager().once(event.into(), EventTarget::Any, handler)
+    let event = EventName::new(event.into()).unwrap();
+    self.manager().once(event, EventTarget::Any, handler)
   }
 }
 
@@ -931,7 +949,18 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   ///   app.emit("synchronized", ());
   /// }
   /// ```
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()>;
+  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> Result<()> {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::Serialize(&payload);
+    self.manager().emit(event, payload)
+  }
+
+  /// Similar to [`Emitter::emit`] but the payload is json serialized.
+  fn emit_str(&self, event: &str, payload: String) -> Result<()> {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit(event, payload)
+  }
 
   /// Emits an event to all [targets](EventTarget) matching the given target.
   ///
@@ -958,7 +987,22 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> Result<()>
   where
     I: Into<EventTarget>,
-    S: Serialize + Clone;
+    S: Serialize + Clone,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::Serialize(&payload);
+    self.manager().emit_to(target.into(), event, payload)
+  }
+
+  /// Similar to [`Emitter::emit_to`] but the payload is json serialized.
+  fn emit_str_to<I>(&self, target: I, event: &str, payload: String) -> Result<()>
+  where
+    I: Into<EventTarget>,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit_to(target.into(), event, payload)
+  }
 
   /// Emits an event to all [targets](EventTarget) based on the given filter.
   ///
@@ -981,7 +1025,22 @@ pub trait Emitter<R: Runtime>: sealed::ManagerBase<R> {
   fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> Result<()>
   where
     S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool;
+    F: Fn(&EventTarget) -> bool,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::Serialize(&payload);
+    self.manager().emit_filter(event, payload, filter)
+  }
+
+  /// Similar to [`Emitter::emit_filter`] but the payload is json serialized.
+  fn emit_str_filter<F>(&self, event: &str, payload: String, filter: F) -> Result<()>
+  where
+    F: Fn(&EventTarget) -> bool,
+  {
+    let event = EventName::new(event)?;
+    let payload = EmitPayload::<()>::Str(payload);
+    self.manager().emit_filter(event, payload, filter)
+  }
 }
 
 /// Prevent implementation details from leaking out of the [`Manager`] trait.
@@ -1046,7 +1105,7 @@ pub mod test;
 const _: () = {
   use specta::{datatype::DataType, function::FunctionArg, TypeMap};
 
-  impl<'r, T: Send + Sync + 'static> FunctionArg for crate::State<'r, T> {
+  impl<T: Send + Sync + 'static> FunctionArg for crate::State<'_, T> {
     fn to_datatype(_: &mut TypeMap) -> Option<DataType> {
       None
     }

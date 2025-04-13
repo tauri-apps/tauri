@@ -132,6 +132,7 @@ impl TryFrom<Image<'_>> for tray_icon::Icon {
 }
 
 /// An image type that accepts file paths, raw bytes, previously loaded images and image objects.
+///
 /// This type is meant to be used along the [transformImage](https://v2.tauri.app/reference/javascript/api/namespaceimage/#transformimage) API.
 ///
 /// # Stability
@@ -174,10 +175,10 @@ impl JsImage {
     match self {
       Self::Resource(rid) => resources_table.get::<Image<'static>>(rid),
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      Self::Path(path) => Image::from_path(path).map(Arc::new).map_err(Into::into),
+      Self::Path(path) => Image::from_path(path).map(Arc::new),
 
       #[cfg(any(feature = "image-ico", feature = "image-png"))]
-      Self::Bytes(bytes) => Image::from_bytes(&bytes).map(Arc::new).map_err(Into::into),
+      Self::Bytes(bytes) => Image::from_bytes(&bytes).map(Arc::new),
 
       Self::Rgba {
         rgba,

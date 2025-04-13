@@ -26,8 +26,10 @@ use handlebars::Handlebars;
 use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use serde::Serialize;
 
-use crate::bundle::common;
-use crate::Settings;
+use crate::{
+  utils::{self, fs_utils},
+  Settings,
+};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub struct Icon {
@@ -65,7 +67,7 @@ pub fn list_icon_files(
       let decoder = PngDecoder::new(BufReader::new(File::open(&icon_path)?))?;
       let width = decoder.dimensions().0;
       let height = decoder.dimensions().1;
-      let is_high_density = common::is_retina(&icon_path);
+      let is_high_density = utils::is_retina(&icon_path);
       let dest_path = get_dest_path(width, height, is_high_density);
       Icon {
         width,
@@ -84,7 +86,7 @@ pub fn list_icon_files(
 pub fn copy_icon_files(settings: &Settings, data_dir: &Path) -> crate::Result<Vec<Icon>> {
   let icons = list_icon_files(settings, data_dir)?;
   for (icon, src) in &icons {
-    common::copy_file(src, &icon.path)?;
+    fs_utils::copy_file(src, &icon.path)?;
   }
 
   Ok(icons.into_keys().collect())
@@ -105,7 +107,7 @@ pub fn generate_desktop_file(
   let path = PathBuf::from("usr/share/applications").join(desktop_file_name);
   let dest_path = PathBuf::from("/").join(&path);
   let file_path = data_dir.join(&path);
-  let file = &mut common::create_file(&file_path)?;
+  let file = &mut fs_utils::create_file(&file_path)?;
 
   let mut handlebars = Handlebars::new();
   handlebars.register_escape_fn(handlebars::no_escape);
@@ -151,7 +153,7 @@ pub fn generate_desktop_file(
 
   let mime_type = (!mime_type.is_empty()).then_some(mime_type.join(";"));
 
-  let bin_name_exec = if bin_name.contains(" ") {
+  let bin_name_exec = if bin_name.contains(' ') {
     format!("\"{bin_name}\"")
   } else {
     bin_name.to_string()

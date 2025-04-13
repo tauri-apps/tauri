@@ -39,7 +39,7 @@ const MIN_JSON_PARSE_LEN: usize = 10_240;
 ///
 /// 1. `serde_json`'s ability to correctly escape and format json into a string.
 /// 2. JavaScript engines not accepting anything except another unescaped, literal single quote
-///     character to end a string that was opened with it.
+///    character to end a string that was opened with it.
 fn serialize_js_with<F: FnOnce(&str) -> String>(
   json_string: String,
   options: serialize_to_javascript::Options,

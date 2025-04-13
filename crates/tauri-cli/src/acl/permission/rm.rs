@@ -86,10 +86,16 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
           if let Ok(mut value) = content.parse::<toml_edit::DocumentMut>() {
             if let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut()) {
               let prev_len = permissions.len();
-              permissions.retain(|p| {
-                p.as_str()
-                  .map(|p| !identifier_match(identifier, p))
-                  .unwrap_or(false)
+              permissions.retain(|p| match p {
+                toml_edit::Value::String(s) => !identifier_match(identifier, s.value()),
+                toml_edit::Value::InlineTable(o) => {
+                  if let Some(toml_edit::Value::String(permission_name)) = o.get("identifier") {
+                    return !identifier_match(identifier, permission_name.value());
+                  }
+
+                  true
+                }
+                _ => false,
               });
               if prev_len != permissions.len() {
                 std::fs::write(&path, value.to_string())?;
@@ -103,10 +109,16 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
           if let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&content) {
             if let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut()) {
               let prev_len = permissions.len();
-              permissions.retain(|p| {
-                p.as_str()
-                  .map(|p| !identifier_match(identifier, p))
-                  .unwrap_or(false)
+              permissions.retain(|p| match p {
+                serde_json::Value::String(s) => !identifier_match(identifier, s),
+                serde_json::Value::Object(o) => {
+                  if let Some(serde_json::Value::String(permission_name)) = o.get("identifier") {
+                    return !identifier_match(identifier, permission_name);
+                  }
+
+                  true
+                }
+                _ => false,
               });
               if prev_len != permissions.len() {
                 std::fs::write(&path, serde_json::to_vec_pretty(&value)?)?;

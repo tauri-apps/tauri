@@ -39,6 +39,7 @@
 //!             cmd: "ping".into(),
 //!             callback: tauri::ipc::CallbackFn(0),
 //!             error: tauri::ipc::CallbackFn(1),
+//!             // alternatively use "tauri://localhost"
 //!             url: "http://tauri.localhost".parse().unwrap(),
 //!             body: tauri::ipc::InvokeBody::default(),
 //!             headers: Default::default(),

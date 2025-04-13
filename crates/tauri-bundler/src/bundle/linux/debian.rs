@@ -23,8 +23,8 @@
 // metadata, as well as generating the md5sums file.  Currently we do not
 // generate postinst or prerm files.
 
-use super::{super::common, freedesktop};
-use crate::{bundle::settings::Arch, Settings};
+use super::freedesktop;
+use crate::{bundle::settings::Arch, utils::fs_utils, Settings};
 use anyhow::Context;
 use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
@@ -46,6 +46,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     Arch::AArch64 => "arm64",
     Arch::Armhf => "armhf",
     Arch::Armel => "armel",
+    Arch::Riscv64 => "riscv64",
     target => {
       return Err(crate::Error::ArchError(format!(
         "Unsupported architecture: {:?}",
@@ -73,7 +74,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let (data_dir, _) = generate_data(settings, &package_dir)
     .with_context(|| "Failed to build data folders and files")?;
-  common::copy_custom_files(&settings.deb().files, &data_dir)
+  fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
     .with_context(|| "Failed to copy custom files")?;
 
   // Generate control files.
@@ -113,7 +114,7 @@ pub fn generate_data(
 
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
-    common::copy_file(&bin_path, bin_dir.join(bin.name()))
+    fs_utils::copy_file(&bin_path, &bin_dir.join(bin.name()))
       .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
   }
 
@@ -141,7 +142,7 @@ fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Resul
     let product_name = settings.product_name();
     let dest_path = data_dir.join(format!("usr/share/doc/{product_name}/changelog.gz"));
 
-    let changelog_file = common::create_file(&dest_path)?;
+    let changelog_file = fs_utils::create_file(&dest_path)?;
     let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
     io::copy(&mut src_file, &mut gzip_encoder)?;
 
@@ -161,7 +162,7 @@ fn generate_control_file(
   // For more information about the format of this file, see
   // https://www.debian.org/doc/debian-policy/ch-controlfields.html
   let dest_path = control_dir.join("control");
-  let mut file = common::create_file(&dest_path)?;
+  let mut file = fs_utils::create_file(&dest_path)?;
   let package = heck::AsKebabCase(settings.product_name());
   writeln!(file, "Package: {}", package)?;
   writeln!(file, "Version: {}", settings.version_string())?;
@@ -294,7 +295,7 @@ fn create_script_file_from_path(from: &PathBuf, to: &PathBuf) -> crate::Result<(
 /// for each file within the `data_dir`.
 fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
   let md5sums_path = control_dir.join("md5sums");
-  let mut md5sums_file = common::create_file(&md5sums_path)?;
+  let mut md5sums_file = fs_utils::create_file(&md5sums_path)?;
   for entry in WalkDir::new(data_dir) {
     let entry = entry?;
     let path = entry.path();
@@ -327,7 +328,7 @@ fn copy_resource_files(settings: &Settings, data_dir: &Path) -> crate::Result<()
 /// Create an empty file at the given path, creating any parent directories as
 /// needed, then write `data` into the file.
 fn create_file_with_data<P: AsRef<Path>>(path: P, data: &str) -> crate::Result<()> {
-  let mut file = common::create_file(path.as_ref())?;
+  let mut file = fs_utils::create_file(path.as_ref())?;
   file.write_all(data.as_bytes())?;
   file.flush()?;
   Ok(())
@@ -376,7 +377,7 @@ fn create_tar_from_dir<P: AsRef<Path>, W: Write>(src_dir: P, dest_file: W) -> cr
 fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
   let src_dir = src_dir.as_ref();
   let dest_path = src_dir.with_extension("tar.gz");
-  let dest_file = common::create_file(&dest_path)?;
+  let dest_file = fs_utils::create_file(&dest_path)?;
   let gzip_encoder = GzEncoder::new(dest_file, Compression::default());
   let gzip_encoder = create_tar_from_dir(src_dir, gzip_encoder)?;
   let mut dest_file = gzip_encoder.finish()?;
@@ -387,7 +388,7 @@ fn tar_and_gzip_dir<P: AsRef<Path>>(src_dir: P) -> crate::Result<PathBuf> {
 /// Creates an `ar` archive from the given source files and writes it to the
 /// given destination path.
 fn create_archive(srcs: Vec<PathBuf>, dest: &Path) -> crate::Result<()> {
-  let mut builder = ar::Builder::new(common::create_file(dest)?);
+  let mut builder = ar::Builder::new(fs_utils::create_file(dest)?);
   for path in &srcs {
     builder.append_path(path)?;
   }

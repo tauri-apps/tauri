@@ -1,6 +1,6 @@
 <script>
   import { onMount, onDestroy } from 'svelte'
-  export let onMessage
+  let { onMessage } = $props()
 
   const constraints = (window.constraints = {
     audio: true,
@@ -24,9 +24,9 @@
       )
     } else if (error.name === 'PermissionDeniedError') {
       onMessage(
-        'Permissions have not been granted to use your camera and ' +
-          'microphone, you need to allow the page access to your devices in ' +
-          'order for the demo to work.'
+        'Permissions have not been granted to use your camera and '
+          + 'microphone, you need to allow the page access to your devices in '
+          + 'order for the demo to work.'
       )
     }
     onMessage(`getUserMedia error: ${error.name}`, error)

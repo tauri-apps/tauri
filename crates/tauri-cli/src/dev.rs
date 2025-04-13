@@ -10,7 +10,7 @@ use crate::{
       get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
     },
   },
-  interface::{AppInterface, DevProcess, ExitReason, Interface},
+  interface::{AppInterface, ExitReason, Interface},
   CommandExt, ConfigValue, Result,
 };
 
@@ -59,9 +59,15 @@ pub struct Options {
   /// Exit on panic
   #[clap(short, long)]
   pub exit_on_panic: bool,
-  /// JSON string or path to JSON file to merge with tauri.conf.json
+  /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
+  ///
+  /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
+  ///
+  /// Note that a platform-specific file is looked up and merged with the default file by default
+  /// (tauri.macos.conf.json, tauri.linux.conf.json, tauri.windows.conf.json, tauri.android.conf.json and tauri.ios.conf.json)
+  /// but you can use this for more specific use cases such as different build flavors.
   #[clap(short, long)]
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   /// Run the code in release mode
   #[clap(long = "release")]
   pub release_mode: bool,
@@ -104,7 +110,10 @@ fn command_internal(mut options: Options) -> Result<()> {
     .map(Target::from_triple)
     .unwrap_or_else(Target::current);
 
-  let config = get_config(target, options.config.as_ref().map(|c| &c.0))?;
+  let config = get_config(
+    target,
+    &options.config.iter().map(|c| &c.0).collect::<Vec<_>>(),
+  )?;
 
   let mut interface = AppInterface::new(
     config.lock().unwrap().as_ref().unwrap(),
@@ -262,26 +271,13 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         let server_url = format!("http://{server_url}");
         dev_url = Some(server_url.parse().unwrap());
 
-        if let Some(c) = &mut options.config {
-          if let Some(build) = c
-            .0
-            .as_object_mut()
-            .and_then(|root| root.get_mut("build"))
-            .and_then(|build| build.as_object_mut())
-          {
-            build.insert("devUrl".into(), server_url.into());
+        options.config.push(crate::ConfigValue(serde_json::json!({
+          "build": {
+            "devUrl": server_url
           }
-        } else {
-          options
-            .config
-            .replace(crate::ConfigValue(serde_json::json!({
-              "build": {
-                "devUrl": server_url
-              }
-            })));
-        }
+        })));
 
-        reload_config(options.config.as_ref().map(|c| &c.0))?;
+        reload_config(&options.config.iter().map(|c| &c.0).collect::<Vec<_>>())?;
       }
     }
   }
@@ -336,30 +332,6 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   }
 
   Ok(())
-}
-
-pub fn wait_dev_process<
-  C: DevProcess + Send + 'static,
-  F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static,
->(
-  child: C,
-  on_exit: F,
-) {
-  std::thread::spawn(move || {
-    let code = child
-      .wait()
-      .ok()
-      .and_then(|status| status.code())
-      .or(Some(1));
-    on_exit(
-      code,
-      if child.manually_killed_process() {
-        ExitReason::TriggeredKill
-      } else {
-        ExitReason::NormalExit
-      },
-    );
-  });
 }
 
 pub fn on_app_exit(code: Option<i32>, reason: ExitReason, exit_on_panic: bool, no_watch: bool) {

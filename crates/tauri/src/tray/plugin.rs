@@ -30,6 +30,7 @@ struct TrayIconOptions {
   temp_dir_path: Option<PathBuf>,
   icon_as_template: Option<bool>,
   menu_on_left_click: Option<bool>,
+  show_menu_on_left_click: Option<bool>,
 }
 
 #[command(root = "crate")]
@@ -78,8 +79,12 @@ fn new<R: Runtime>(
   if let Some(icon_as_template) = options.icon_as_template {
     builder = builder.icon_as_template(icon_as_template);
   }
+  #[allow(deprecated)]
   if let Some(menu_on_left_click) = options.menu_on_left_click {
     builder = builder.menu_on_left_click(menu_on_left_click);
+  }
+  if let Some(show_menu_on_left_click) = options.show_menu_on_left_click {
+    builder = builder.show_menu_on_left_click(show_menu_on_left_click);
   }
 
   let tray = builder.build(&webview)?;
@@ -222,6 +227,7 @@ fn set_show_menu_on_left_click<R: Runtime>(
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("tray")
     .invoke_handler(crate::generate_handler![
+      #![plugin(tray)]
       new,
       get_by_id,
       remove_by_id,

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::{Path, PathBuf};
+use std::{
+  collections::BTreeMap,
+  path::{Path, PathBuf},
+};
 
 use anyhow::Result;
 use tauri_utils::acl::{self, Error};
@@ -132,12 +135,16 @@ impl<'a> Builder<'a> {
       )?;
     }
 
+    let mut permissions_map = BTreeMap::new();
+    permissions_map.insert(name.clone(), permissions);
+    tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions_map)?;
+
     if let Some(global_scope_schema) = self.global_scope_schema {
       acl::build::define_global_scope_schema(global_scope_schema, &name, &out_dir)?;
     }
 
     if let Some(path) = self.global_api_script_path {
-      tauri_utils::plugin::define_global_api_script_path(path);
+      tauri_utils::plugin::define_global_api_script_path(&path);
     }
 
     mobile::setup(self.android_path, self.ios_path)?;

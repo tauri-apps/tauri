@@ -160,6 +160,12 @@ pub enum Error {
   /// Bad `__TAURI_INVOKE_KEY__` value received in ipc message.
   #[error("bad __TAURI_INVOKE_KEY__ value received in ipc message")]
   InvokeKey,
+  /// Illegal event name.
+  #[error("only alphanumeric, '-', '/', ':', '_' permitted for event names: {0:?}")]
+  IllegalEventName(String),
+  /// tokio oneshot channel failed to receive message
+  #[error(transparent)]
+  TokioOneshotRecv(#[from] tokio::sync::oneshot::error::RecvError),
 }
 
 impl From<getrandom::Error> for Error {

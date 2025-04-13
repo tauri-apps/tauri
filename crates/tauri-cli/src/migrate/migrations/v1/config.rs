@@ -21,7 +21,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
     let migrated = migrate_config(&mut config)?;
-    if config_path.extension().map_or(false, |ext| ext == "toml") {
+    if config_path.extension().is_some_and(|ext| ext == "toml") {
       fs::write(&config_path, toml::to_string_pretty(&config)?)?;
     } else {
       fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;

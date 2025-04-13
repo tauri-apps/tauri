@@ -15,6 +15,7 @@ use std::{
 };
 
 /// Resources are Rust objects that are stored in [ResourceTable] and managed by tauri.
+///
 /// They are identified in JS by a numeric ID (the resource ID, or rid).
 /// Resources can be created in commands. Resources can also be retrieved in commands by
 /// their rid. Resources are thread-safe.
@@ -111,7 +112,11 @@ impl ResourceTable {
   ///
   /// Returns a unique resource ID, which acts as a key for this resource.
   pub fn add_arc_dyn(&mut self, resource: Arc<dyn Resource>) -> ResourceId {
-    let rid = Self::new_random_rid();
+    let mut rid = Self::new_random_rid();
+    while self.index.contains_key(&rid) {
+      rid = Self::new_random_rid();
+    }
+
     let removed_resource = self.index.insert(rid, resource);
     assert!(removed_resource.is_none());
     rid

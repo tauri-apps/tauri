@@ -1,6 +1,6 @@
 [package]
 name = "tauri-runtime-wry"
-version = "2.2.0"
+version = "2.5.1"
 description = "Wry bindings to the Tauri runtime"
 exclude = ["CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -17,45 +17,47 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.47", default-features = false, features = [
+wry = { version = "0.51.2", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
   "linux-body",
 ] }
-tao = { version = "0.30.6", default-features = false, features = ["rwh_06"] }
-tauri-runtime = { version = "2.2.0", path = "../tauri-runtime" }
-tauri-utils = { version = "2.1.0", path = "../tauri-utils" }
+tao = { version = "0.33", default-features = false, features = ["rwh_06"] }
+tauri-runtime = { version = "2.5.1", path = "../tauri-runtime" }
+tauri-utils = { version = "2.3.1", path = "../tauri-utils" }
 raw-window-handle = "0.6"
-http = "1.1"
+http = "1"
 url = "2"
 tracing = { version = "0.1", optional = true }
-log = "0.4"
+log = "0.4.21"
 
 [target."cfg(windows)".dependencies]
-webview2-com = "0.33"
+webview2-com = "0.37"
 softbuffer = { version = "0.4", default-features = false }
+once_cell = "1.20"
 
 [target."cfg(windows)".dependencies.windows]
-version = "0.58"
+version = "0.61"
 features = ["Win32_Foundation", "Win32_Graphics_Dwm"]
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 webkit2gtk = { version = "=2.0", features = ["v2_40"] }
-percent-encoding = "2.1"
+percent-encoding = "2"
 
 [target.'cfg(target_vendor = "apple")'.dependencies]
-objc2 = "0.5.2"
+objc2 = "0.6"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-foundation = { version = "0.2.2", features = [] }
-objc2-app-kit = { version = "0.2.2", features = [
+objc2-foundation = { version = "0.3", features = [] }
+objc2-app-kit = { version = "0.3", features = [
   "block2",
   "NSApplication",
   "NSResponder",
   "NSView",
   "NSWindow",
+  "NSScreen",
   "NSGraphics",
 ] }
 
@@ -69,7 +71,8 @@ macos-private-api = [
   "wry/transparent",
   "tauri-runtime/macos-private-api",
 ]
-objc-exception = ["wry/objc-exception"]
+# TODO: Remove in v3 - wry does not have this feature anymore
+objc-exception = []
 tracing = ["dep:tracing", "wry/tracing"]
 macos-proxy = ["wry/mac-proxy"]
 unstable = []

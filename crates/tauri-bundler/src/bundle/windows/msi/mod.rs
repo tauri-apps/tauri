@@ -3,16 +3,21 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::bundle::{
-  common::CommandExt,
-  path_utils::{copy_file, FileOpts},
-  settings::{Arch, Settings},
-  windows::{
-    sign::try_sign,
-    util::{
-      download_and_verify, download_webview2_bootstrapper, download_webview2_offline_installer,
-      extract_zip, HashAlgorithm, WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+use crate::{
+  bundle::{
+    settings::{Arch, Settings},
+    windows::{
+      sign::try_sign,
+      util::{
+        download_webview2_bootstrapper, download_webview2_offline_installer,
+        WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
+      },
     },
+  },
+  utils::{
+    fs_utils::copy_file,
+    http_utils::{download_and_verify, extract_zip, HashAlgorithm},
+    CommandExt,
   },
 };
 use anyhow::{bail, Context};
@@ -198,14 +203,7 @@ fn copy_icon(settings: &Settings, filename: &str, path: &Path) -> crate::Result<
 
   let icon_path = std::env::current_dir()?.join(path);
 
-  copy_file(
-    icon_path,
-    &icon_target_path,
-    &FileOpts {
-      overwrite: true,
-      ..Default::default()
-    },
-  )?;
+  copy_file(&icon_path, &icon_target_path)?;
 
   Ok(icon_target_path)
 }
@@ -931,12 +929,11 @@ fn get_merge_modules(settings: &Settings) -> crate::Result<Vec<MergeModule>> {
   let mut merge_modules = Vec::new();
   let regex = Regex::new(r"[^\w\d\.]")?;
   for msm in glob::glob(
-    settings
-      .project_out_directory()
-      .join("*.msm")
-      .to_string_lossy()
-      .to_string()
-      .as_str(),
+    &PathBuf::from(glob::Pattern::escape(
+      &settings.project_out_directory().to_string_lossy(),
+    ))
+    .join("*.msm")
+    .to_string_lossy(),
   )? {
     let path = msm?;
     let filename = path
@@ -1043,8 +1040,13 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
 
   let mut dlls = Vec::new();
 
+  // TODO: The bundler should not include all DLLs it finds. Instead it should only include WebView2Loader.dll if present and leave the rest to the resources config.
   let out_dir = settings.project_out_directory();
-  for dll in glob::glob(out_dir.join("*.dll").to_string_lossy().to_string().as_str())? {
+  for dll in glob::glob(
+    &PathBuf::from(glob::Pattern::escape(&out_dir.to_string_lossy()))
+      .join("*.dll")
+      .to_string_lossy(),
+  )? {
     let path = dll?;
     let resource_path = dunce::simplified(&path);
     let relative_path = path
@@ -1062,15 +1064,15 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
   }
 
   if !dlls.is_empty() {
-    resources.insert(
-      "".to_string(),
-      ResourceDirectory {
+    resources
+      .entry("".to_string())
+      .and_modify(|r| r.files.append(&mut dlls))
+      .or_insert(ResourceDirectory {
         path: "".to_string(),
         name: "".to_string(),
         directories: vec![],
         files: dlls,
-      },
-    );
+      });
   }
 
   Ok(resources)

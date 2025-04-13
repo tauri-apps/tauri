@@ -6,7 +6,7 @@
 use crate::bundle::settings::CustomSignCommandSettings;
 #[cfg(windows)]
 use crate::bundle::windows::util;
-use crate::{bundle::common::CommandExt, Settings};
+use crate::{utils::CommandExt, Settings};
 #[cfg(windows)]
 use std::path::PathBuf;
 #[cfg(windows)]

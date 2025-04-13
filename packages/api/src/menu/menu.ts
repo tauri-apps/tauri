@@ -13,39 +13,11 @@ import { MenuItem } from './menuItem'
 import { CheckMenuItem } from './checkMenuItem'
 import { IconMenuItem } from './iconMenuItem'
 import { PredefinedMenuItem } from './predefinedMenuItem'
-import { Submenu } from './submenu'
+import { itemFromKind, Submenu } from './submenu'
 import { type LogicalPosition, PhysicalPosition, Position } from '../dpi'
 import { type Window } from '../window'
 import { invoke } from '../core'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
-
-function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
-  | Submenu
-  | MenuItem
-  | PredefinedMenuItem
-  | CheckMenuItem
-  | IconMenuItem {
-  /* eslint-disable @typescript-eslint/no-unsafe-return */
-  switch (kind) {
-    case 'Submenu':
-      // @ts-expect-error constructor is protected for external usage only
-      return new Submenu(rid, id)
-    case 'Predefined':
-      // @ts-expect-error constructor is protected for external usage only
-      return new PredefinedMenuItem(rid, id)
-    case 'Check':
-      // @ts-expect-error constructor is protected for external usage only
-      return new CheckMenuItem(rid, id)
-    case 'Icon':
-      // @ts-expect-error constructor is protected for external usage only
-      return new IconMenuItem(rid, id)
-    case 'MenuItem':
-    default:
-      // @ts-expect-error constructor is protected for external usage only
-      return new MenuItem(rid, id)
-  }
-  /* eslint-enable @typescript-eslint/no-unsafe-return */
-}
 
 /** Options for creating a new menu. */
 export interface MenuOptions {

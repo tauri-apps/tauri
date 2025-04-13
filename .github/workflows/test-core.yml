@@ -88,15 +88,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.1 libxdo-dev libayatana-appindicator3-dev
 
-      - name: downgrade crates with MSRV conflict
-        run: |
-          cargo update -p aws-config --precise 1.5.5
-          cargo update -p aws-sdk-ssooidc --precise 1.40.0
-          cargo update -p aws-sdk-s3 --precise 1.46.0
-          cargo update -p aws-sdk-sts --precise 1.39.0
-          cargo update -p aws-sdk-sso --precise 1.39.0
-          cargo update -p bitstream-io --precise 2.3.0
-
       - uses: Swatinem/rust-cache@v2
         with:
           prefix-key: v2

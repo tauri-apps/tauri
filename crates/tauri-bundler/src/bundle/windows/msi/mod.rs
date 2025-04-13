@@ -472,6 +472,15 @@ pub fn build_wix_app_installer(
   }
   fs::create_dir_all(&output_path)?;
 
+  let wix_toolset_path = if settings.can_sign() {
+    let wix_path = output_path.join("wix");
+    crate::utils::fs_utils::copy_dir(&wix_toolset_path, &wix_path)
+      .context("failed to copy wix directory")?;
+    wix_path
+  } else {
+    wix_toolset_path
+  };
+
   let mut data = BTreeMap::new();
 
   let silent_webview_install = if let WebviewInstallMode::DownloadBootstrapper { silent }

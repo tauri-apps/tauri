@@ -474,6 +474,36 @@ impl<'a, R: Runtime, M: Manager<R>> WindowBuilder<'a, R, M> {
     self
   }
 
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation, which means the window size will be limited to `monitor size - taskbar size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow(mut self) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow();
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation with a margin, which means the window size will be limited to `monitor size - taskbar size - margin size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow_with_margin(mut self, margin: impl Into<Size>) -> Self {
+    self.window_builder = self
+      .window_builder
+      .prevent_overflow_with_margin(margin.into());
+    self
+  }
+
   /// Whether the window is resizable or not.
   /// When resizable is set to false, native window's maximize button is automatically disabled.
   #[must_use]

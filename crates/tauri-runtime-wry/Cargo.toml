@@ -17,7 +17,7 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-wry = { version = "0.51", default-features = false, features = [
+wry = { version = "0.51.2", default-features = false, features = [
   "drag-drop",
   "protocol",
   "os-webview",
@@ -57,6 +57,7 @@ objc2-app-kit = { version = "0.3", features = [
   "NSResponder",
   "NSView",
   "NSWindow",
+  "NSScreen",
   "NSGraphics",
 ] }
 

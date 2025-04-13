@@ -974,6 +974,54 @@ fn main() {
     self.webview_attributes.javascript_disabled = true;
     self
   }
+
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.webview_attributes = self
+      .webview_attributes
+      .allow_link_preview(allow_link_preview);
+    self
+  }
+
+  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Returning `None` effectively removes the view.
+  ///
+  /// The closure parameter is the webview instance.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  ///
+  /// # Stability
+  ///
+  /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
+  #[cfg(target_os = "ios")]
+  pub fn with_input_accessory_view_builder<
+    F: Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
+      + Send
+      + Sync
+      + 'static,
+  >(
+    mut self,
+    builder: F,
+  ) -> Self {
+    self
+      .webview_attributes
+      .input_accessory_view_builder
+      .replace(tauri_runtime::webview::InputAccessoryViewBuilder::new(
+        Box::new(builder),
+      ));
+    self
+  }
 }
 
 /// Webview.
@@ -1449,7 +1497,6 @@ fn main() {
     let resolver = InvokeResolver::new(
       self.clone(),
       Arc::new(Mutex::new(Some(Box::new(
-        #[allow(unused_variables)]
         move |webview: Webview<R>, cmd, response, callback, error| {
           responder(webview, cmd, response, callback, error);
         },

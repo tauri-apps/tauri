@@ -73,7 +73,7 @@ pub fn gen(
   let macos_pods = metadata.macos().pods().unwrap_or_default();
 
   #[cfg(target_arch = "aarch64")]
-  let default_archs = ["arm64", "arm64-sim"];
+  let default_archs = ["arm64"];
   #[cfg(not(target_arch = "aarch64"))]
   let default_archs = ["arm64", "x86_64"];
 

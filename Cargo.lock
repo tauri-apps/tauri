@@ -1062,9 +1062,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.17.5"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1821b10b80c2dc11d2001646435931a9913dc30d025036ed6b2f2e5c95e3ad12"
+checksum = "24b5acda005352ad50a3e58c8777781732d6ac1e8a82ab90d5ffd70b69c665f1"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -4305,7 +4305,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -8408,6 +8408,7 @@ dependencies = [
  "objc2 0.6.0",
  "objc2-app-kit",
  "objc2-foundation 0.3.0",
+ "objc2-ui-kit",
  "objc2-web-kit",
  "percent-encoding",
  "plist",
@@ -8753,6 +8754,8 @@ dependencies = [
  "gtk",
  "http 1.2.0",
  "jni",
+ "objc2 0.6.0",
+ "objc2-ui-kit",
  "raw-window-handle",
  "serde",
  "serde_json",
@@ -10816,9 +10819,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.51.0"
+version = "0.51.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c6bf9f41e2585a730fa981b40592ac22d5ca4c3fea549a21f2f97a648ad34f4"
+checksum = "c886a0a9d2a94fd90cfa1d929629b79cfefb1546e2c7430c63a47f0664c0e4e2"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

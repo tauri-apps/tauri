@@ -34,6 +34,12 @@ type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
+#[cfg(target_os = "ios")]
+type InputAccessoryViewBuilderFn = dyn Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
+  + Send
+  + Sync
+  + 'static;
+
 /// Download event.
 pub enum DownloadEvent<'a> {
   /// Download requested.
@@ -193,7 +199,7 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
 }
 
 /// The attributes used to create an webview.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WebviewAttributes {
   pub url: WebviewUrl,
   pub user_agent: Option<String>,
@@ -233,6 +239,40 @@ pub struct WebviewAttributes {
   pub traffic_light_position: Option<dpi::Position>,
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
   pub javascript_disabled: bool,
+  /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+  /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  pub allow_link_preview: bool,
+  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Returning `None` effectively removes the view.
+  ///
+  /// The closure parameter is the webview instance.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  ///
+  /// # Stability
+  ///
+  /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
+  #[cfg(target_os = "ios")]
+  pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+}
+
+#[cfg(target_os = "ios")]
+#[non_exhaustive]
+pub struct InputAccessoryViewBuilder(pub Box<InputAccessoryViewBuilderFn>);
+
+#[cfg(target_os = "ios")]
+impl std::fmt::Debug for InputAccessoryViewBuilder {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    f.debug_struct("InputAccessoryViewBuilder").finish()
+  }
+}
+
+#[cfg(target_os = "ios")]
+impl InputAccessoryViewBuilder {
+  pub fn new(builder: Box<InputAccessoryViewBuilderFn>) -> Self {
+    Self(builder)
+  }
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -277,6 +317,13 @@ impl From<&WindowConfig> for WebviewAttributes {
       builder = builder.background_color(color);
     }
     builder.javascript_disabled = config.javascript_disabled;
+    builder.allow_link_preview = config.allow_link_preview;
+    #[cfg(target_os = "ios")]
+    if config.disable_input_accessory_view {
+      builder
+        .input_accessory_view_builder
+        .replace(InputAccessoryViewBuilder::new(Box::new(|_webview| None)));
+    }
     builder
   }
 }
@@ -310,6 +357,9 @@ impl WebviewAttributes {
       traffic_light_position: None,
       background_throttling: None,
       javascript_disabled: false,
+      allow_link_preview: true,
+      #[cfg(target_os = "ios")]
+      input_accessory_view_builder: None,
     }
   }
 
@@ -529,6 +579,21 @@ impl WebviewAttributes {
   #[must_use]
   pub fn traffic_light_position(mut self, position: dpi::Position) -> Self {
     self.traffic_light_position = Some(position);
+    self
+  }
+
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.allow_link_preview = allow_link_preview;
     self
   }
 

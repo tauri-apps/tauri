@@ -795,6 +795,18 @@ interface WebviewOptions {
    * Whether we should disable JavaScript code execution on the webview or not.
    */
   javascriptDisabled?: boolean
+  /**
+   * on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+   * see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+   */
+  allowLinkPreview?: boolean
+  /**
+   * Allows disabling the input accessory view on iOS.
+   *
+   * The accessory view is the view that appears above the keyboard when a text input element is focused.
+   * It usually displays a view with "Done", "Next" buttons.
+   */
+  disableInputAccessoryView?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

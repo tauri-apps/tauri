@@ -61,29 +61,23 @@ pub fn calculate_window_center_position(
   window_size: tao::dpi::PhysicalSize<u32>,
   target_monitor: tao::monitor::MonitorHandle,
 ) -> tao::dpi::PhysicalPosition<i32> {
-  #[cfg(windows)]
+  let monitor_size: tao::dpi::PhysicalSize<u32>;
+  let monitor_position: tao::dpi::PhysicalPosition<i32>;
+  #[cfg(desktop)]
   {
-    use ::windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
-    use tao::platform::windows::MonitorHandleExtWindows;
-
-    let mut monitor_info = MONITORINFO {
-      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-      ..Default::default()
-    };
-    let hmonitor = target_monitor.hmonitor();
-    let status = unsafe { GetMonitorInfoW(HMONITOR(hmonitor as _), &mut monitor_info) };
-    if status.into() {
-      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
-      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
-      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
-      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
-      return tao::dpi::PhysicalPosition::new(x, y);
-    }
+    use crate::monitor::MonitorExt;
+    let work_area = target_monitor.work_area();
+    monitor_size = work_area.size;
+    monitor_position = work_area.position;
+  }
+  #[cfg(mobile)]
+  {
+    monitor_size = target_monitor.size();
+    monitor_position = target_monitor.position();
   }
 
-  let screen_size = target_monitor.size();
-  let monitor_pos = target_monitor.position();
-  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-  tao::dpi::PhysicalPosition::new(x, y)
+  tao::dpi::PhysicalPosition::new(
+    (monitor_size.width - window_size.width) as i32 / 2 + monitor_position.x,
+    (monitor_size.height - window_size.height) as i32 / 2 + monitor_position.y,
+  )
 }

@@ -763,7 +763,11 @@ pub fn build_wix_app_installer(
     let fragment = fragment_handlebars.render_template(&fragment_content, &data)?;
     let mut extensions = Vec::new();
     for cap in extension_regex.captures_iter(&fragment) {
-      extensions.push(wix_toolset_path.join(format!("Wix{}.dll", &cap[1])));
+      let path = wix_toolset_path.join(format!("Wix{}.dll", &cap[1]));
+      if settings.can_sign() {
+        try_sign(&path, settings)?;
+      }
+      extensions.push(path);
     }
     candle_inputs.push((fragment_path, extensions));
   }
@@ -772,6 +776,13 @@ pub fn build_wix_app_installer(
   //Default extensions
   fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
+
+  // sign default extensions
+  if settings.can_sign() {
+    for path in &fragment_extensions {
+      try_sign(&path, settings)?;
+    }
+  }
 
   for (path, extensions) in candle_inputs {
     for ext in &extensions {
@@ -968,8 +979,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     if added_resources.contains(&resource_path) {
       continue;
     }
-
     added_resources.push(resource_path.clone());
+
+    if settings.can_sign() {
+      try_sign(&resource_path, settings)?;
+    }
 
     let resource_entry = ResourceFile {
       id: format!("I{}", Uuid::new_v4().as_simple()),
@@ -1055,6 +1069,10 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .to_string_lossy()
       .into_owned();
     if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {
+      if settings.can_sign() {
+        try_sign(&resource_path, settings)?;
+      }
+
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),

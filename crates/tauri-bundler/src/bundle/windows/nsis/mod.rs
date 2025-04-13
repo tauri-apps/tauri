@@ -533,15 +533,50 @@ fn build_nsis_app_installer(
   ));
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
+  #[cfg(target_os = "linux")]
+  let system_nsis_toolset_path = PathBuf::from("/usr/share/nsis");
+  #[cfg(target_os = "macos")]
+  let system_nsis_toolset_path = {
+    let mut makensis_path =
+      which::which("makensis").context("failed to resolve `makensis`; did you install nsis? See https://tauri.app/distribute/windows-installer/#install-nsis for more information")?;
+    // homebrew installs it as a symlink
+    if makensis_path.is_symlink() {
+      // read_link might return a path relative to makensis_path so we must use join() and canonicalize
+      makensis_path = makensis_path
+        .parent()
+        .context("missing makensis parent")?
+        .join(std::fs::read_link(&makensis_path).context("failed to resolve makensis symlink")?)
+        .canonicalize()
+        .context("failed to resolve makensis path")?;
+    }
+    // file structure:
+    // ├── bin
+    // │   ├── makensis
+    // ├── share
+    // │   ├── nsis
+    let bin_folder = makensis_path.parent().context("missing makensis parent")?;
+    let root_folder = bin_folder.parent().context("missing makensis root")?;
+    root_folder.join("share").join("nsis")
+  };
+
   if settings.can_sign() {
     log::info!("Signing NSIS plugins");
     for dll in NSIS_PLUGIN_FILES {
+      #[cfg(windows)]
       let path = _nsis_toolset_path.join("Plugins/x86-unicode").join(dll);
-      try_sign(&path, settings)?;
+      #[cfg(not(windows))]
+      let path = system_nsis_toolset_path
+        .join("Plugins/x86-unicode")
+        .join(dll);
+      if path.exists() {
+        try_sign(&path, settings)?;
+      } else {
+        log::warn!("Could not find {}, skipping signing", path.display());
+      }
     }
   }
 
-  log::info!(action = "Running"; "makensis.exe to produce {}", display_path(&nsis_installer_path));
+  log::info!(action = "Running"; "makensis to produce {}", display_path(&nsis_installer_path));
 
   #[cfg(target_os = "windows")]
   let mut nsis_cmd = Command::new(_nsis_toolset_path.join("makensis.exe"));
@@ -643,6 +678,9 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     let loader_path =
       dunce::simplified(&settings.project_out_directory().join("WebView2Loader.dll")).to_path_buf();
     if loader_path.exists() {
+      if settings.can_sign() {
+        try_sign(&loader_path, settings)?;
+      }
       added_resources.push(loader_path.clone());
       resources.insert(
         loader_path,
@@ -664,6 +702,10 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
       continue;
     }
     added_resources.push(resource_path.clone());
+
+    if settings.can_sign() {
+      try_sign(&resource_path, settings)?;
+    }
 
     let target_path = resource.target();
     resources.insert(

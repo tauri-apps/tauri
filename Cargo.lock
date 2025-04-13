@@ -8503,6 +8503,7 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+ "which",
  "windows-registry 0.5.0",
  "windows-sys 0.59.0",
  "zip 2.3.0",

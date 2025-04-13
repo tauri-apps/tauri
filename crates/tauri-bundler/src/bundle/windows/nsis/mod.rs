@@ -223,7 +223,7 @@ fn build_nsis_app_installer(
         crate::Result::Ok(root_folder.join("share").join("nsis"))
       })?;
     #[cfg(windows)]
-    let system_nsis_toolset_path = nsis_toolset_path.clone();
+    let system_nsis_toolset_path = nsis_toolset_path.to_path_buf();
 
     let plugins_path = output_path.join("Plugins");
     // copy system plugins (we don't want to modify system installed DLLs, and on some systems there will even be permission errors if we try)

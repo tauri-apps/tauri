@@ -504,7 +504,7 @@ impl WindowEventWrapper {
         new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
       },
       TaoWindowEvent::Focused(focused) => {
-        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        #[cfg(not(windows))]
         return Self(Some(WindowEvent::Focused(*focused)));
         // on multiwebview mode, if there's no focused webview, it means we're receiving a direct window focus change
         // (without receiving a webview focus, such as when clicking the taskbar app icon or using Alt + Tab)

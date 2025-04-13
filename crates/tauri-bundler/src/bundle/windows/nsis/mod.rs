@@ -190,15 +190,13 @@ fn build_nsis_app_installer(
   // we make a copy of the NSIS directory if we're going to sign its DLLs
   // because we don't want to change the DLL hashes so the cache can reuse it
   let maybe_plugin_copy_path = if settings.can_sign() {
-    // default value: pull from NSIS_PATH env var
-    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH").map(PathBuf::from);
-
     // find nsis path
     #[cfg(target_os = "linux")]
-    let system_nsis_toolset_path =
-      system_nsis_toolset_path.unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
+    let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
+      .map(PathBuf::from)
+      .unwrap_or_else(|| PathBuf::from("/usr/share/nsis"));
     #[cfg(target_os = "macos")]
-      let system_nsis_toolset_path = system_nsis_toolset_path.ok_or_else(|| anyhow::anyhow!("failed to resolve NSIS path")).or_else(|_| {
+      let system_nsis_toolset_path = std::env::var_os("NSIS_PATH").map(PathBuf::from).ok_or_else(|| anyhow::anyhow!("failed to resolve NSIS path")).or_else(|_| {
         let mut makensis_path =
         which::which("makensis").context("failed to resolve `makensis`; did you install nsis? See https://tauri.app/distribute/windows-installer/#install-nsis for more information")?;
         // homebrew installs it as a symlink

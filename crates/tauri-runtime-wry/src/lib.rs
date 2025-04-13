@@ -363,7 +363,7 @@ impl<T: UserEvent> Context<T> {
       self,
       Message::CreateWebview(
         window_id,
-        Box::new(move |window| {
+        Box::new(move |window, options| {
           create_webview(
             WebviewKind::WindowChild,
             window,
@@ -371,6 +371,7 @@ impl<T: UserEvent> Context<T> {
             webview_id,
             &context,
             pending,
+            options.focused_webview,
           )
         }),
       ),
@@ -485,6 +486,59 @@ impl TryFrom<Icon<'_>> for TaoIcon {
 pub struct WindowEventWrapper(pub Option<WindowEvent>);
 
 impl WindowEventWrapper {
+  fn map_from_tao(
+    event: &TaoWindowEvent<'_>,
+    #[allow(unused_variables)] window: &WindowWrapper,
+  ) -> Self {
+    let event = match event {
+      TaoWindowEvent::Resized(size) => WindowEvent::Resized(PhysicalSizeWrapper(*size).into()),
+      TaoWindowEvent::Moved(position) => {
+        WindowEvent::Moved(PhysicalPositionWrapper(*position).into())
+      }
+      TaoWindowEvent::Destroyed => WindowEvent::Destroyed,
+      TaoWindowEvent::ScaleFactorChanged {
+        scale_factor,
+        new_inner_size,
+      } => WindowEvent::ScaleFactorChanged {
+        scale_factor: *scale_factor,
+        new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
+      },
+      TaoWindowEvent::Focused(focused) => {
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        return Self(Some(WindowEvent::Focused(*focused)));
+        // on multiwebview mode, if there's no focused webview, it means we're receiving a direct window focus change
+        // (without receiving a webview focus, such as when clicking the taskbar app icon or using Alt + Tab)
+        // in this case we must send the focus change event here
+        #[cfg(windows)]
+        if window.has_children.load(Ordering::Relaxed) {
+          const FOCUSED_WEBVIEW_MARKER: &str = "__tauriWindow?";
+          let mut focused_webview = window.focused_webview.lock().unwrap();
+          // when we focus a webview and the window was previously focused, we get a blur event here
+          // so on blur we should only send events if the current focus is owned by the window
+          if !*focused
+            && focused_webview
+              .as_deref()
+              .map_or(false, |w| w != FOCUSED_WEBVIEW_MARKER)
+          {
+            return Self(None);
+          }
+
+          // reset focused_webview on blur, or set to a dummy value on focus
+          // (to prevent double focus event when we click a webview after focusing a window)
+          *focused_webview = (*focused).then(|| FOCUSED_WEBVIEW_MARKER.to_string());
+
+          return Self(Some(WindowEvent::Focused(*focused)));
+        } else {
+          // when not on multiwebview mode, we handle focus change events on the webview (add_GotFocus and add_LostFocus)
+          return Self(None);
+        }
+      }
+      TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
+      _ => return Self(None),
+    };
+    Self(Some(event))
+  }
+
   fn parse(window: &WindowWrapper, event: &TaoWindowEvent<'_>) -> Self {
     match event {
       // resized event from tao doesn't include a reliable size on macOS
@@ -501,7 +555,7 @@ impl WindowEventWrapper {
           Self(None)
         }
       }
-      e => e.into(),
+      e => Self::map_from_tao(e, window),
     }
   }
 }
@@ -521,30 +575,6 @@ fn tao_activation_policy(activation_policy: ActivationPolicy) -> TaoActivationPo
     ActivationPolicy::Accessory => TaoActivationPolicy::Accessory,
     ActivationPolicy::Prohibited => TaoActivationPolicy::Prohibited,
     _ => unimplemented!(),
-  }
-}
-
-impl<'a> From<&TaoWindowEvent<'a>> for WindowEventWrapper {
-  fn from(event: &TaoWindowEvent<'a>) -> Self {
-    let event = match event {
-      TaoWindowEvent::Resized(size) => WindowEvent::Resized(PhysicalSizeWrapper(*size).into()),
-      TaoWindowEvent::Moved(position) => {
-        WindowEvent::Moved(PhysicalPositionWrapper(*position).into())
-      }
-      TaoWindowEvent::Destroyed => WindowEvent::Destroyed,
-      TaoWindowEvent::ScaleFactorChanged {
-        scale_factor,
-        new_inner_size,
-      } => WindowEvent::ScaleFactorChanged {
-        scale_factor: *scale_factor,
-        new_inner_size: PhysicalSizeWrapper(**new_inner_size).into(),
-      },
-      #[cfg(any(target_os = "linux", target_os = "macos"))]
-      TaoWindowEvent::Focused(focused) => WindowEvent::Focused(*focused),
-      TaoWindowEvent::ThemeChanged(theme) => WindowEvent::ThemeChanged(map_theme(theme)),
-      _ => return Self(None),
-    };
-    Self(Some(event))
   }
 }
 
@@ -1402,7 +1432,12 @@ pub enum EventLoopWindowTargetMessage {
 pub type CreateWindowClosure<T> =
   Box<dyn FnOnce(&EventLoopWindowTarget<Message<T>>) -> Result<WindowWrapper> + Send>;
 
-pub type CreateWebviewClosure = Box<dyn FnOnce(&Window) -> Result<WebviewWrapper> + Send>;
+pub type CreateWebviewClosure =
+  Box<dyn FnOnce(&Window, CreateWebviewOptions) -> Result<WebviewWrapper> + Send>;
+
+pub struct CreateWebviewOptions {
+  pub focused_webview: Arc<Mutex<Option<String>>>,
+}
 
 pub enum Message<T: 'static> {
   Task(Box<dyn FnOnce() + Send>),
@@ -2349,6 +2384,7 @@ pub struct WindowWrapper {
   is_window_transparent: bool,
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
+  focused_webview: Arc<Mutex<Option<String>>>,
 }
 
 impl fmt::Debug for WindowWrapper {
@@ -2805,8 +2841,8 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
       .0
       .borrow()
       .get(&window_id)
-      .and_then(|w| w.inner.clone());
-    if let Some(window) = window {
+      .map(|w| (w.inner.clone(), w.focused_webview.clone()));
+    if let Some((Some(window), focused_webview)) = window {
       let window_id_wrapper = Arc::new(Mutex::new(window_id));
 
       let webview_id = self.context.next_webview_id();
@@ -2818,6 +2854,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
         webview_id,
         &self.context,
         pending,
+        focused_webview,
       )?;
 
       #[allow(unknown_lints, clippy::manual_inspect)]
@@ -3750,9 +3787,9 @@ fn handle_user_message<T: UserEvent>(
         .0
         .borrow()
         .get(&window_id)
-        .and_then(|w| w.inner.clone());
-      if let Some(window) = window {
-        match handler(&window) {
+        .map(|w| (w.inner.clone(), w.focused_webview.clone()));
+      if let Some((Some(window), focused_webview)) = window {
+        match handler(&window, CreateWebviewOptions { focused_webview }) {
           Ok(webview) => {
             #[allow(unknown_lints, clippy::manual_inspect)]
             windows.0.borrow_mut().get_mut(&window_id).map(|w| {
@@ -3818,6 +3855,7 @@ fn handle_user_message<T: UserEvent>(
             is_window_transparent,
             #[cfg(windows)]
             surface,
+            focused_webview: Default::default(),
           },
         );
         sender.send(Ok(Arc::downgrade(&window))).unwrap();
@@ -4307,6 +4345,8 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
 
   let mut webviews = Vec::new();
 
+  let focused_webview = Arc::new(Mutex::new(None));
+
   if let Some(webview) = webview {
     webviews.push(create_webview(
       #[cfg(feature = "unstable")]
@@ -4318,6 +4358,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       webview_id,
       context,
       webview,
+      focused_webview.clone(),
     )?);
   }
 
@@ -4351,6 +4392,7 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     is_window_transparent,
     #[cfg(windows)]
     surface,
+    focused_webview,
   })
 }
 
@@ -4378,6 +4420,7 @@ fn create_webview<T: UserEvent>(
   id: WebviewId,
   context: &Context<T>,
   pending: PendingWebview<T, Wry<T>>,
+  #[allow(unused_variables)] focused_webview: Arc<Mutex<Option<String>>>,
 ) -> Result<WebviewWrapper> {
   #[allow(unused_mut)]
   let PendingWebview {
@@ -4766,20 +4809,30 @@ fn create_webview<T: UserEvent>(
   }
 
   #[cfg(windows)]
-  if kind == WebviewKind::WindowContent {
+  {
     let controller = webview.controller();
     let proxy = context.proxy.clone();
     let proxy_ = proxy.clone();
     let window_id_ = window_id.clone();
     let mut token = 0;
     unsafe {
+      let label_ = label.clone();
+      let focused_webview_ = focused_webview.clone();
       controller.add_GotFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy.send_event(Message::Webview(
-            *window_id_.lock().unwrap(),
-            id,
-            WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
-          ));
+          let mut focused_webview = focused_webview_.lock().unwrap();
+          // when using multiwebview mode, we should check if the focus change is actually a "webview focus change"
+          // instead of a window focus change (here we're patching window events, so we only care about the actual window changing focus)
+          let already_focused = focused_webview.is_some();
+          focused_webview.replace(label_.clone());
+
+          if !already_focused {
+            let _ = proxy.send_event(Message::Webview(
+              *window_id_.lock().unwrap(),
+              id,
+              WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
+            ));
+          }
           Ok(())
         })),
         &mut token,
@@ -4787,13 +4840,29 @@ fn create_webview<T: UserEvent>(
     }
     .unwrap();
     unsafe {
+      let label_ = label.clone();
+      let focused_webview_ = focused_webview.clone();
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let _ = proxy_.send_event(Message::Webview(
-            *window_id.lock().unwrap(),
-            id,
-            WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
-          ));
+          let mut focused_webview = focused_webview_.lock().unwrap();
+          // when using multiwebview mode, we should handle webview focus changes
+          // so we check is the currently focused webview matches this webview's
+          // (in this case, it means we lost the window focus)
+          //
+          // on multiwebview mode if we change focus to a different webview
+          // we get the gotFocus event of the other webview before the lostFocus
+          // so this check makes sense
+          let lost_window_focus = focused_webview.as_ref().map_or(true, |w| w == &label_);
+
+          if lost_window_focus {
+            // only reset when we lost window focus - otherwise some other webview is focused
+            *focused_webview = None;
+            let _ = proxy_.send_event(Message::Webview(
+              *window_id.lock().unwrap(),
+              id,
+              WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
+            ));
+          }
           Ok(())
         })),
         &mut token,

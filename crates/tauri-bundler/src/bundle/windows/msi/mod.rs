@@ -1070,7 +1070,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .into_owned();
     if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {
       if settings.can_sign() {
-        try_sign(&resource_path, settings)?;
+        try_sign(resource_path, settings)?;
       }
 
       dlls.push(ResourceFile {

@@ -163,7 +163,7 @@ fn try_add_numeric_build_number(version_str: &str) -> anyhow::Result<String> {
 
 fn build_nsis_app_installer(
   settings: &Settings,
-  _nsis_toolset_path: &Path,
+  #[allow(unused_variables)] nsis_toolset_path: &Path,
   tauri_tools_path: &Path,
   updater: bool,
 ) -> crate::Result<Vec<PathBuf>> {
@@ -186,6 +186,17 @@ fn build_nsis_app_installer(
     fs::remove_dir_all(&output_path)?;
   }
   fs::create_dir_all(&output_path)?;
+
+  // on Windows we make a copy of nsis_toolset_path if we're going to sign its DLLs
+  // because we don't want to change the DLL hashes so the cache can reuse it
+  #[cfg_attr(not(windows), allow(unused_variables))]
+  let nsis_toolset_path = if cfg!(windows) && settings.can_sign() {
+    let nsis_path = output_path.join("tool");
+    crate::utils::fs_utils::copy_dir(nsis_toolset_path, &nsis_path)?;
+    nsis_path
+  } else {
+    nsis_toolset_path.to_path_buf()
+  };
 
   let mut data = BTreeMap::new();
 
@@ -563,7 +574,7 @@ fn build_nsis_app_installer(
     log::info!("Signing NSIS plugins");
     for dll in NSIS_PLUGIN_FILES {
       #[cfg(windows)]
-      let path = _nsis_toolset_path.join("Plugins/x86-unicode").join(dll);
+      let path = nsis_toolset_path.join("Plugins/x86-unicode").join(dll);
       #[cfg(not(windows))]
       let path = system_nsis_toolset_path
         .join("Plugins/x86-unicode")
@@ -579,7 +590,7 @@ fn build_nsis_app_installer(
   log::info!(action = "Running"; "makensis to produce {}", display_path(&nsis_installer_path));
 
   #[cfg(target_os = "windows")]
-  let mut nsis_cmd = Command::new(_nsis_toolset_path.join("makensis.exe"));
+  let mut nsis_cmd = Command::new(nsis_toolset_path.join("makensis.exe"));
   #[cfg(not(target_os = "windows"))]
   let mut nsis_cmd = Command::new("makensis");
 

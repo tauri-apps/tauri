@@ -103,7 +103,10 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
       log::warn!("NSIS directory contains mis-hashed files. Redownloading them.");
       for (path, url, hash, hash_algorithm) in mismatched {
         let data = download_and_verify(url, hash, *hash_algorithm)?;
-        fs::write(nsis_toolset_path.join(path), data)?;
+        let out_path = nsis_toolset_path.join(path);
+        std::fs::create_dir_all(out_path.parent().context("output path has no parent")?)
+          .context("failed to create file output directory")?;
+        fs::write(out_path, data).with_context(|| format!("failed to save {path}"))?;
       }
     }
   }

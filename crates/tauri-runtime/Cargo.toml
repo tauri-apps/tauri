@@ -47,6 +47,13 @@ gtk = { version = "0.18", features = ["v3_24"] }
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
 
+[target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
+objc2 = "0.6"
+objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
+  "UIView",
+  "UIResponder",
+] }
+
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
 

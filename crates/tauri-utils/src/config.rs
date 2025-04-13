@@ -1468,6 +1468,30 @@ pub struct WindowEffectsConfig {
   pub color: Option<Color>,
 }
 
+/// Enable prevent overflow with a margin
+/// so that the window's size + this margin won't overflow the workarea
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreventOverflowMargin {
+  /// Horizontal margin in physical unit
+  pub width: u32,
+  /// Vertical margin in physical unit
+  pub height: u32,
+}
+
+/// Prevent overflow with a margin
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum PreventOverflowConfig {
+  /// Enable prevent overflow or not
+  Enable(bool),
+  /// Enable prevent overflow with a margin
+  /// so that the window's size + this margin won't overflow the workarea
+  Margin(PreventOverflowMargin),
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1521,6 +1545,13 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
+  /// Whether or not to prevent the window from overflowing the workarea
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[serde(alias = "prevent-overflow")]
+  pub prevent_overflow: Option<PreventOverflowConfig>,
   /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
@@ -1746,6 +1777,16 @@ pub struct WindowConfig {
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   #[serde(default = "default_true", alias = "allow-link-preview")]
   pub allow_link_preview: bool,
+  /// Allows disabling the input accessory view on iOS.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  #[serde(
+    default,
+    alias = "disable-input-accessory-view",
+    alias = "disable_input_accessory_view"
+  )]
+  pub disable_input_accessory_view: bool,
 }
 
 impl Default for WindowConfig {
@@ -1765,6 +1806,7 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
+      prevent_overflow: None,
       resizable: true,
       maximizable: true,
       minimizable: true,
@@ -1802,6 +1844,7 @@ impl Default for WindowConfig {
       background_throttling: None,
       javascript_disabled: false,
       allow_link_preview: true,
+      disable_input_accessory_view: false,
     }
   }
 }
@@ -3051,6 +3094,32 @@ mod build {
     }
   }
 
+  impl ToTokens for PreventOverflowMargin {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let width = self.width;
+      let height = self.height;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::PreventOverflowMargin,
+        width,
+        height
+      )
+    }
+  }
+
+  impl ToTokens for PreventOverflowConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::PreventOverflowConfig };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        Self::Enable(enable) => quote! { #prefix::Enable(#enable) },
+        Self::Margin(margin) => quote! { #prefix::Margin(#margin) },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3067,6 +3136,7 @@ mod build {
       let min_height = opt_lit(self.min_height.as_ref());
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
+      let prevent_overflow = opt_lit(self.prevent_overflow.as_ref());
       let resizable = self.resizable;
       let maximizable = self.maximizable;
       let minimizable = self.minimizable;
@@ -3104,6 +3174,7 @@ mod build {
       let background_throttling = opt_lit(self.background_throttling.as_ref());
       let javascript_disabled = self.javascript_disabled;
       let allow_link_preview = self.allow_link_preview;
+      let disable_input_accessory_view = self.disable_input_accessory_view;
 
       literal_struct!(
         tokens,
@@ -3122,6 +3193,7 @@ mod build {
         min_height,
         max_width,
         max_height,
+        prevent_overflow,
         resizable,
         maximizable,
         minimizable,
@@ -3158,7 +3230,8 @@ mod build {
         background_color,
         background_throttling,
         javascript_disabled,
-        allow_link_preview
+        allow_link_preview,
+        disable_input_accessory_view
       );
     }
   }

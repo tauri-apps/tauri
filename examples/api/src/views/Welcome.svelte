@@ -2,9 +2,11 @@
   import { invoke } from '@tauri-apps/api/core'
   import { getName, getVersion, getTauriVersion } from '@tauri-apps/api/app'
 
-  let version = '1.0.0'
-  let tauriVersion = '1.0.0'
-  let appName = 'Unknown'
+  let { onMessage } = $props()
+
+  let version = $state('1.0.0')
+  let tauriVersion = $state('1.0.0')
+  let appName = $state('Unknown')
 
   getName().then((n) => {
     appName = n
@@ -34,5 +36,5 @@
     App version: <code>{version}</code>
     Tauri version: <code>{tauriVersion}</code></pre>
 
-  <button class="btn" on:click={contextMenu}>Context menu</button>
+  <button class="btn" onclick={contextMenu}>Context menu</button>
 </div>

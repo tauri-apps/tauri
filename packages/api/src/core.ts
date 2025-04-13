@@ -325,7 +325,8 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  return 'isTauri' in window && !!window.isTauri
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+  return !!((globalThis as any) || window).isTauri
 }
 
 export type { InvokeArgs, InvokeOptions }

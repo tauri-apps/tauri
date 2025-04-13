@@ -319,6 +319,17 @@
           ],
           "format": "double"
         },
+        "preventOverflow": {
+          "description": "Whether or not to prevent the window from overflowing the workarea\n\n ## Platform-specific\n\n - **iOS / Android:** Unsupported.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PreventOverflowConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "resizable": {
           "description": "Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.",
           "default": true,
@@ -550,6 +561,11 @@
           "description": "on macOS and iOS there is a link preview on long pressing links, this is enabled by default.\n see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview",
           "default": true,
           "type": "boolean"
+        },
+        "disableInputAccessoryView": {
+          "description": "Allows disabling the input accessory view on iOS.\n\n The accessory view is the view that appears above the keyboard when a text input element is focused.\n It usually displays a view with \"Done\", \"Next\" buttons.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -572,6 +588,46 @@
           "format": "uri"
         }
       ]
+    },
+    "PreventOverflowConfig": {
+      "description": "Prevent overflow with a margin",
+      "anyOf": [
+        {
+          "description": "Enable prevent overflow or not",
+          "type": "boolean"
+        },
+        {
+          "description": "Enable prevent overflow with a margin\n so that the window's size + this margin won't overflow the workarea",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PreventOverflowMargin"
+            }
+          ]
+        }
+      ]
+    },
+    "PreventOverflowMargin": {
+      "description": "Enable prevent overflow with a margin\n so that the window's size + this margin won't overflow the workarea",
+      "type": "object",
+      "required": [
+        "height",
+        "width"
+      ],
+      "properties": {
+        "width": {
+          "description": "Horizontal margin in physical unit",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "height": {
+          "description": "Vertical margin in physical unit",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     },
     "Theme": {
       "description": "System theme.",

@@ -175,17 +175,24 @@ pub fn command(options: Options) -> Result<()> {
 
   let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
-  for arch in options.arches {
+  let simulator = options.arches.contains(&"Simulator".to_string());
+  let arches = if simulator {
+    // when compiling for the simulator, we don't need to build other targets
+    vec![if cfg!(target_arch = "aarch64") {
+      "arm64"
+    } else {
+      "x86_64"
+    }
+    .to_string()]
+  } else {
+    options.arches
+  };
+  for arch in arches {
     // Set target-specific flags
     let (env_triple, rust_triple) = match arch.as_str() {
-      "arm64" => ("aarch64_apple_ios", "aarch64-apple-ios"),
-      "arm64-sim" => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
+      "arm64" if !simulator => ("aarch64_apple_ios", "aarch64-apple-ios"),
+      "arm64" if simulator => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
       "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
-      "Simulator" => {
-        // when using Xcode, the arches for a simulator build will be ['Simulator', 'arm64-sim'] instead of ['arm64-sim']
-        // so we ignore that on our end
-        continue;
-      }
       _ => {
         return Err(anyhow::anyhow!(
           "Arch specified by Xcode was invalid. {} isn't a known arch",
@@ -210,7 +217,12 @@ pub fn command(options: Options) -> Result<()> {
     let target = if macos {
       &macos_target
     } else {
-      Target::for_arch(&arch).ok_or_else(|| {
+      Target::for_arch(if arch == "arm64" && simulator {
+        "arm64-sim"
+      } else {
+        &arch
+      })
+      .ok_or_else(|| {
         anyhow::anyhow!(
           "Arch specified by Xcode was invalid. {} isn't a known arch",
           arch

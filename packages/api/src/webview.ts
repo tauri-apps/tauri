@@ -800,6 +800,13 @@ interface WebviewOptions {
    * see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
    */
   allowLinkPreview?: boolean
+  /**
+   * Allows disabling the input accessory view on iOS.
+   *
+   * The accessory view is the view that appears above the keyboard when a text input element is focused.
+   * It usually displays a view with "Done", "Next" buttons.
+   */
+  disableInputAccessoryView?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

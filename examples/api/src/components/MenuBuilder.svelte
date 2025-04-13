@@ -1,21 +1,15 @@
 <script>
   import { CheckMenuItem } from '@tauri-apps/api/menu'
   import MenuItemBuilder from './MenuItemBuilder.svelte'
-  import { createEventDispatcher } from 'svelte'
 
-  export let items = []
+  let { items = $bindable([]), itemClick } = $props()
 
-  const dispatch = createEventDispatcher()
-
-  function addItem(event) {
-    items = [
-      ...items,
-      { item: event.detail.item, options: event.detail.options }
-    ]
+  function addItem({ item, options }) {
+    items = [...items, { item, options }]
   }
 
-  function onItemClick(event) {
-    dispatch('itemClick', event.detail)
+  function onItemClick(detail) {
+    itemClick(detail)
   }
 
   function itemIcon(item) {
@@ -38,12 +32,12 @@
 </script>
 
 <div class="flex flex-col children:grow gap-2">
-  <MenuItemBuilder on:new={addItem} on:itemClick={onItemClick} />
+  <MenuItemBuilder newItem={addItem} itemClick={onItemClick} />
 
   <div>
     {#each items as item}
       <div class="flex flex-row gap-1 items-center">
-        <div class={itemIcon(item)} />
+        <div class={itemIcon(item)}></div>
         <p>{itemToString(item)}</p>
       </div>
     {/each}

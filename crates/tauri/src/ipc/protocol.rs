@@ -45,8 +45,6 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
     )
     .entered();
 
-    let manager = manager.clone();
-
     let respond = move |mut response: http::Response<Cow<'static, [u8]>>| {
       response
         .headers_mut()
@@ -113,7 +111,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
 
                   let (mut response, mime_type) = match response {
                     InvokeResponse::Ok(InvokeResponseBody::Json(v)) => (
-                      http::Response::new(v.as_bytes().to_vec().into()),
+                      http::Response::new(v.into_bytes().into()),
                       mime::APPLICATION_JSON,
                     ),
                     InvokeResponse::Ok(InvokeResponseBody::Raw(v)) => (
@@ -147,7 +145,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
                 http::Response::builder()
                   .status(StatusCode::INTERNAL_SERVER_ERROR)
                   .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-                  .body(e.as_bytes().to_vec().into())
+                  .body(e.into_bytes().into())
                   .unwrap(),
               );
             }
@@ -157,12 +155,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
             http::Response::builder()
               .status(StatusCode::INTERNAL_SERVER_ERROR)
               .header(CONTENT_TYPE, mime::TEXT_PLAIN.essence_str())
-              .body(
-                "failed to acquire webview reference"
-                  .as_bytes()
-                  .to_vec()
-                  .into(),
-              )
+              .body("failed to acquire webview reference".as_bytes().into())
               .unwrap(),
           );
         }
@@ -177,12 +170,7 @@ pub fn get<R: Runtime>(manager: Arc<AppManager<R>>) -> UriSchemeProtocolHandler 
       }
 
       _ => {
-        let mut r = http::Response::new(
-          "only POST and OPTIONS are allowed"
-            .as_bytes()
-            .to_vec()
-            .into(),
-        );
+        let mut r = http::Response::new("only POST and OPTIONS are allowed".as_bytes().into());
         *r.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
         r.headers_mut().insert(
           CONTENT_TYPE,
@@ -343,7 +331,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
                   .expect("unable to serialize response error string to json"),
               };
 
-              let _ = webview.eval(&eval_js);
+              let _ = webview.eval(eval_js);
             }
 
             let can_use_channel_for_response = cmd
@@ -435,7 +423,7 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
         #[cfg(feature = "tracing")]
         tracing::trace!("ipc.request.error {}", e);
 
-        let _ = webview.eval(&format!(
+        let _ = webview.eval(format!(
           r#"console.error({})"#,
           serde_json::Value::String(e.to_string())
         ));
@@ -452,7 +440,7 @@ fn parse_invoke_request<R: Runtime>(
   let (parts, mut body) = request.into_parts();
 
   // skip leading `/`
-  let cmd = percent_encoding::percent_decode(parts.uri.path()[1..].as_bytes())
+  let cmd = percent_encoding::percent_decode(&parts.uri.path().as_bytes()[1..])
     .decode_utf8_lossy()
     .to_string();
 

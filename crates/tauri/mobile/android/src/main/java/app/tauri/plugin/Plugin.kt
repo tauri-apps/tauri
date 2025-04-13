@@ -10,6 +10,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.webkit.WebView
+import androidx.activity.result.IntentSenderRequest
 import androidx.core.app.ActivityCompat
 import app.tauri.FsUtils
 import app.tauri.Logger
@@ -84,6 +85,21 @@ abstract class Plugin(private val activity: Activity) {
    */
   fun startActivityForResult(invoke: Invoke, intent: Intent, callbackName: String) {
     handle!!.startActivityForResult(invoke, intent, callbackName)
+  }
+
+  /**
+   * Like startActivityForResult() but taking an IntentSender to describe the activity to be started.
+   *
+   * If there is no registered activity callback for the method name passed in, the call will
+   * be rejected. Make sure a valid activity result callback method is registered using the
+   * [ActivityCallback] annotation.
+   *
+   * @param invoke the invoke object
+   * @param intentSender the intent used to start an activity
+   * @param callbackName the name of the callback to run when the launched activity is finished
+   */
+  fun startIntentSenderForResult(invoke: Invoke, intentSender: IntentSenderRequest, callbackName: String) {
+    handle!!.startIntentSenderForResult(invoke, intentSender, callbackName)
   }
 
   /**

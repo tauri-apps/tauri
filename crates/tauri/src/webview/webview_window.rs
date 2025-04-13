@@ -15,7 +15,7 @@ use crate::{
   ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
   window::Monitor,
-  Emitter, Listener, ResourceTable, Window,
+  Emitter, EventName, Listener, ResourceTable, Window,
 };
 #[cfg(desktop)]
 use crate::{
@@ -27,19 +27,14 @@ use crate::{
     UserAttentionType,
   },
 };
-use serde::Serialize;
-use tauri_utils::{
-  config::{Color, WebviewUrl, WindowConfig},
-  Theme,
-};
+use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  webview::PageLoadPayload,
-  webview::WebviewBuilder,
+  webview::{Cookie, PageLoadPayload, WebviewBuilder},
   window::WindowBuilder,
   AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
@@ -62,8 +57,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command and event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -119,8 +114,8 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command, see [the Webview2 issue].
-  /// You should use `async` commands when creating windows.
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when creating windows.
   ///
   /// # Examples
   ///
@@ -410,6 +405,34 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     constraints: tauri_runtime::window::WindowSizeConstraints,
   ) -> Self {
     self.window_builder = self.window_builder.inner_size_constraints(constraints);
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation, which means the window size will be limited to `monitor size - taskbar size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow(mut self) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow();
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation with a margin, which means the window size will be limited to `monitor size - taskbar size - margin size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow_with_margin(mut self, margin: impl Into<Size>) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow_with_margin(margin);
     self
   }
 
@@ -707,6 +730,35 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Change the position of the window controls on macOS.
+  ///
+  /// Requires titleBarStyle: Overlay and decorations: true.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn traffic_light_position<P: Into<Position>>(mut self, position: P) -> Self {
+    self.webview_builder.webview_attributes = self
+      .webview_builder
+      .webview_attributes
+      .traffic_light_position(position.into());
+    self
+  }
+
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[cfg(target_os = "macos")]
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.webview_builder = self.webview_builder.allow_link_preview(allow_link_preview);
+    self
+  }
+
   /// Hide the window title.
   #[cfg(target_os = "macos")]
   #[must_use]
@@ -754,14 +806,22 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document and child frame page navigations,
+  /// Since it runs on all top-level document navigations,
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [Self::initialization_script_for_all_frames] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{WebviewWindowBuilder, Runtime};
-  ///
   /// const INIT_SCRIPT: &str = r#"
   ///   if (window.location.origin === 'https://tauri.app') {
   ///     console.log("hello world from js init script");
@@ -781,8 +841,52 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// }
   /// ```
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self.webview_builder = self.webview_builder.initialization_script(script);
+    self
+  }
+
+  /// Adds the provided JavaScript to a list of scripts that should be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document navigations and also child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// This is executed on all frames (main frame and also sub frames).
+  /// If you only want to run the script in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// # Examples
+  ///
+  /// ```rust
+  /// const INIT_SCRIPT: &str = r#"
+  ///   if (window.location.origin === 'https://tauri.app') {
+  ///     console.log("hello world from js init script");
+  ///
+  ///     window.__MY_CUSTOM_PROPERTY__ = { foo: 'bar' };
+  ///   }
+  /// "#;
+  ///
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let webview = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()))
+  ///         .initialization_script_for_all_frames(INIT_SCRIPT)
+  ///         .build()?;
+  ///       Ok(())
+  ///     });
+  /// }
+  /// ```
+  #[must_use]
+  pub fn initialization_script_for_all_frames(mut self, script: impl Into<String>) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .initialization_script_for_all_frames(script);
     self
   }
 
@@ -879,13 +983,13 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self
   }
 
-  /// Whether page zooming by hotkeys is enabled
+  /// Whether page zooming by hotkeys and mousewheel should be enabled or not.
   ///
   /// ## Platform-specific:
   ///
   /// - **Windows**: Controls WebView2's [`IsZoomControlEnabled`](https://learn.microsoft.com/en-us/microsoft-edge/webview2/reference/winrt/microsoft_web_webview2_core/corewebview2settings?view=webview2-winrt-1.0.2420.47#iszoomcontrolenabled) setting.
-  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `ctrl/command` + `-/=`,
-  ///   20% in each step, ranging from 20% to 1000%. Requires `webview:allow-set-webview-zoom` permission
+  /// - **MacOS / Linux**: Injects a polyfill that zooms in and out with `Ctrl/Cmd + [- = +]` hotkeys or mousewheel events,
+  ///   20% in each step, ranging from 20% to 1000%. Requires `core:webview:allow-set-webview-zoom` permission
   ///
   /// - **Android / iOS**: Unsupported.
   #[must_use]
@@ -975,6 +1079,85 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   pub fn background_color(mut self, color: Color) -> Self {
     self.window_builder = self.window_builder.background_color(color);
     self.webview_builder = self.webview_builder.background_color(color);
+    self
+  }
+
+  /// Change the default background throttling behaviour.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[must_use]
+  pub fn background_throttling(mut self, policy: BackgroundThrottlingPolicy) -> Self {
+    self.webview_builder = self.webview_builder.background_throttling(policy);
+    self
+  }
+
+  /// Whether JavaScript should be disabled.
+  #[must_use]
+  pub fn disable_javascript(mut self) -> Self {
+    self.webview_builder = self.webview_builder.disable_javascript();
+    self
+  }
+
+  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Returning `None` effectively removes the view.
+  ///
+  /// The closure parameter is the webview instance.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let mut builder = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()));
+  ///       #[cfg(target_os = "ios")]
+  ///       {
+  ///         window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
+  ///           let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+  ///           let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
+  ///           button.setTitle_forState(
+  ///             Some(&objc2_foundation::NSString::from_str("Tauri")),
+  ///             objc2_ui_kit::UIControlState(0),
+  ///           );
+  ///           Some(button.downcast().unwrap())
+  ///         });
+  ///       }
+  ///       let webview = builder.build()?;
+  ///       Ok(())
+  ///     });
+  /// }
+  /// ```
+  ///
+  /// # Stability
+  ///
+  /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
+  #[cfg(target_os = "ios")]
+  pub fn with_input_accessory_view_builder<
+    F: Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
+      + Send
+      + Sync
+      + 'static,
+  >(
+    mut self,
+    builder: F,
+  ) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .with_input_accessory_view_builder(builder);
     self
   }
 }
@@ -1285,6 +1468,15 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Whether the window is enabled or disabled.
   pub fn is_enabled(&self) -> crate::Result<bool> {
     self.webview.window().is_enabled()
+  }
+
+  /// Determines if this window should always be on top of other windows.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  pub fn is_always_on_top(&self) -> crate::Result<bool> {
+    self.webview.window().is_always_on_top()
   }
 
   /// Gets the window's native maximize button state
@@ -1772,7 +1964,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Set the window theme.
-  pub fn set_theme(&self, theme: Option<Theme>) -> crate::Result<()> {
+  pub fn set_theme(&self, theme: Option<tauri_utils::Theme>) -> crate::Result<()> {
     self.window.set_theme(theme)
   }
 }
@@ -1861,8 +2053,13 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Navigates the webview to the defined url.
-  pub fn navigate(&mut self, url: Url) -> crate::Result<()> {
+  pub fn navigate(&self, url: Url) -> crate::Result<()> {
     self.webview.navigate(url)
+  }
+
+  /// Reloads the current page.
+  pub fn reload(&self) -> crate::Result<()> {
+    self.webview.reload()
   }
 
   /// Handles this window receiving an [`crate::webview::InvokeRequest`].
@@ -1875,7 +2072,7 @@ impl<R: Runtime> WebviewWindow<R> {
   }
 
   /// Evaluates JavaScript on this window.
-  pub fn eval(&self, js: &str) -> crate::Result<()> {
+  pub fn eval(&self, js: impl Into<String>) -> crate::Result<()> {
     self.webview.eval(js)
   }
 
@@ -1983,6 +2180,52 @@ impl<R: Runtime> WebviewWindow<R> {
   pub fn clear_all_browsing_data(&self) -> crate::Result<()> {
     self.webview.clear_all_browsing_data()
   }
+
+  /// Returns all cookies in the runtime's cookie store including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.cookies_for_url(url)
+  }
+
+  /// Returns all cookies in the runtime's cookie store for all URLs including HTTP-only and secure cookies.
+  ///
+  /// Note that cookies will only be returned for URLs with an http or https scheme.
+  /// Cookies set through javascript for local files
+  /// (such as those served from the tauri://) protocol are not currently supported.
+  ///
+  /// # Stability
+  ///
+  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
+  /// This dependency might receive updates in minor Tauri releases.
+  ///
+  /// # Known issues
+  ///
+  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
+  /// You should use `async` commands and separate threads when reading cookies.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android**: Unsupported, always returns an empty [`Vec`].
+  ///
+  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
+    self.webview.cookies()
+  }
 }
 
 impl<R: Runtime> Listener<R> for WebviewWindow<R> {
@@ -2007,8 +2250,9 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   where
     F: Fn(Event) + Send + 'static,
   {
+    let event = EventName::new(event.into()).unwrap();
     self.manager().listen(
-      event.into(),
+      event,
       EventTarget::WebviewWindow {
         label: self.label().to_string(),
       },
@@ -2023,8 +2267,9 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   where
     F: FnOnce(Event) + Send + 'static,
   {
+    let event = EventName::new(event.into()).unwrap();
     self.manager().once(
-      event.into(),
+      event,
       EventTarget::WebviewWindow {
         label: self.label().to_string(),
       },
@@ -2061,79 +2306,7 @@ impl<R: Runtime> Listener<R> for WebviewWindow<R> {
   }
 }
 
-impl<R: Runtime> Emitter<R> for WebviewWindow<R> {
-  /// Emits an event to all [targets](EventTarget).
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::Emitter;
-  ///
-  /// #[tauri::command]
-  /// fn synchronize(window: tauri::WebviewWindow) {
-  ///   // emits the synchronized event to all webviews
-  ///   window.emit("synchronized", ());
-  /// }
-  ///   ```
-  fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    self.manager().emit(event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) matching the given target.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{Emitter, EventTarget};
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::WebviewWindow) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to all listeners
-  ///     window.emit_to(EventTarget::any(), "download-progress", i);
-  ///     // emit an event to listeners that used App::listen or AppHandle::listen
-  ///     window.emit_to(EventTarget::app(), "download-progress", i);
-  ///     // emit an event to any webview/window/webviewWindow matching the given label
-  ///     window.emit_to("updater", "download-progress", i); // similar to using EventTarget::labeled
-  ///     window.emit_to(EventTarget::labeled("updater"), "download-progress", i);
-  ///     // emit an event to listeners that used WebviewWindow::listen
-  ///     window.emit_to(EventTarget::webview_window("updater"), "download-progress", i);
-  ///   }
-  /// }
-  /// ```
-  fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
-  where
-    I: Into<EventTarget>,
-    S: Serialize + Clone,
-  {
-    self.manager().emit_to(target, event, payload)
-  }
-
-  /// Emits an event to all [targets](EventTarget) based on the given filter.
-  ///
-  /// # Examples
-  /// ```
-  /// use tauri::{Emitter, EventTarget};
-  ///
-  /// #[tauri::command]
-  /// fn download(window: tauri::WebviewWindow) {
-  ///   for i in 1..100 {
-  ///     std::thread::sleep(std::time::Duration::from_millis(150));
-  ///     // emit a download progress event to the updater window
-  ///     window.emit_filter("download-progress", i, |t| match t {
-  ///       EventTarget::WebviewWindow { label } => label == "main",
-  ///       _ => false,
-  ///     });
-  ///   }
-  /// }
-  ///   ```
-  fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
-  where
-    S: Serialize + Clone,
-    F: Fn(&EventTarget) -> bool,
-  {
-    self.manager().emit_filter(event, payload, filter)
-  }
-}
+impl<R: Runtime> Emitter<R> for WebviewWindow<R> {}
 
 impl<R: Runtime> Manager<R> for WebviewWindow<R> {
   fn resources_table(&self) -> MutexGuard<'_, ResourceTable> {

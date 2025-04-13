@@ -6,6 +6,25 @@ import { invoke } from './core'
 import { Image } from './image'
 import { Theme } from './window'
 
+export type DataStoreIdentifier = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+]
+
 /**
  * Application metadata and related APIs.
  *
@@ -56,6 +75,22 @@ async function getTauriVersion(): Promise<string> {
 }
 
 /**
+ * Gets the application identifier.
+ * @example
+ * ```typescript
+ * import { getIdentifier } from '@tauri-apps/api/app';
+ * const identifier = await getIdentifier();
+ * ```
+ *
+ * @returns The application identifier as configured in `tauri.conf.json`.
+ *
+ * @since 2.4.0
+ */
+async function getIdentifier(): Promise<string> {
+  return invoke('plugin:app|identifier')
+}
+
+/**
  * Shows the application on macOS. This function does not automatically focus any specific app window.
  *
  * @example
@@ -83,6 +118,46 @@ async function show(): Promise<void> {
  */
 async function hide(): Promise<void> {
   return invoke('plugin:app|app_hide')
+}
+
+/**
+ * Fetches the data store identifiers on macOS and iOS.
+ *
+ * See https://developer.apple.com/documentation/webkit/wkwebsitedatastore for more information.
+ *
+ * @example
+ * ```typescript
+ * import { fetchDataStoreIdentifiers } from '@tauri-apps/api/app';
+ * const ids = await fetchDataStoreIdentifiers();
+ * ```
+ *
+ * @since 2.4.0
+ */
+async function fetchDataStoreIdentifiers(): Promise<DataStoreIdentifier[]> {
+  return invoke('plugin:app|fetch_data_store_identifiers')
+}
+
+/**
+ * Removes the data store with the given identifier.
+ *
+ * Note that any webview using this data store should be closed before running this API.
+ *
+ * See https://developer.apple.com/documentation/webkit/wkwebsitedatastore for more information.
+ *
+ * @example
+ * ```typescript
+ * import { fetchDataStoreIdentifiers, removeDataStore } from '@tauri-apps/api/app';
+ * for (const id of (await fetchDataStoreIdentifiers())) {
+ *  await removeDataStore(id);
+ * }
+ * ```
+ *
+ * @since 2.4.0
+ */
+async function removeDataStore(
+  uuid: DataStoreIdentifier
+): Promise<DataStoreIdentifier[]> {
+  return invoke('plugin:app|remove_data_store', { uuid })
 }
 
 /**
@@ -121,12 +196,26 @@ async function setTheme(theme?: Theme | null): Promise<void> {
   return invoke('plugin:app|set_app_theme', { theme })
 }
 
+/**
+ * Sets the dock visibility for the application on macOS.
+ *
+ * @param visible whether the dock should be visible or not
+ * @since 2.5.0
+ */
+async function setDockVisibility(visible: boolean): Promise<void> {
+  return invoke('plugin:app|set_dock_visibility', { visible })
+}
+
 export {
   getName,
   getVersion,
   getTauriVersion,
+  getIdentifier,
   show,
   hide,
   defaultWindowIcon,
-  setTheme
+  setTheme,
+  fetchDataStoreIdentifiers,
+  removeDataStore,
+  setDockVisibility
 }

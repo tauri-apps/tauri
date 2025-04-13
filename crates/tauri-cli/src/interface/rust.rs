@@ -22,7 +22,8 @@ use notify_debouncer_full::new_debouncer;
 use serde::{Deserialize, Deserializer};
 use tauri_bundler::{
   AppCategory, AppImageSettings, BundleBinary, BundleSettings, DebianSettings, DmgSettings,
-  MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings, WindowsSettings,
+  IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
+  WindowsSettings,
 };
 use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
 
@@ -51,7 +52,7 @@ pub struct Options {
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -101,7 +102,7 @@ pub struct MobileOptions {
   pub debug: bool,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
-  pub config: Option<ConfigValue>,
+  pub config: Vec<ConfigValue>,
   pub no_watch: bool,
 }
 
@@ -207,14 +208,14 @@ impl Interface for Rust {
       rx.recv().unwrap();
       Ok(())
     } else {
-      let config = options.config.clone().map(|c| c.0);
+      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|rust: &mut Rust| {
         let on_exit = on_exit.clone();
         rust.run_dev(options.clone(), run_args.clone(), move |status, reason| {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(&merge_configs, run)
     }
   }
 
@@ -236,9 +237,9 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let config = options.config.clone().map(|c| c.0);
+      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(config, run)
+      self.run_dev_watcher(&merge_configs, run)
     }
   }
 
@@ -360,35 +361,6 @@ fn lookup<F: FnMut(FileType, PathBuf)>(dir: &Path, mut f: F) {
   }
 }
 
-fn shared_options(
-  desktop_dev: bool,
-  mobile: bool,
-  args: &mut Vec<String>,
-  features: &mut Option<Vec<String>>,
-  app_settings: &RustAppSettings,
-) {
-  if mobile {
-    args.push("--lib".into());
-    features
-      .get_or_insert(Vec::new())
-      .push("tauri/rustls-tls".into());
-  } else {
-    if !desktop_dev {
-      args.push("--bins".into());
-    }
-    let all_features = app_settings
-      .manifest
-      .lock()
-      .unwrap()
-      .all_enabled_features(if let Some(f) = features { f } else { &[] });
-    if !all_features.contains(&"tauri/rustls-tls".into()) {
-      features
-        .get_or_insert(Vec::new())
-        .push("tauri/native-tls".into());
-    }
-  }
-}
-
 fn dev_options(
   mobile: bool,
   args: &mut Vec<String>,
@@ -409,7 +381,9 @@ fn dev_options(
   }
   *args = dev_args;
 
-  shared_options(true, mobile, args, features, app_settings);
+  if mobile {
+    args.push("--lib".into());
+  }
 
   if !args.contains(&"--no-default-features".into()) {
     let manifest_features = app_settings.manifest.lock().unwrap().features();
@@ -489,7 +463,11 @@ impl Rust {
     features
       .get_or_insert(Vec::new())
       .push("tauri/custom-protocol".into());
-    shared_options(false, mobile, args, features, &self.app_settings);
+    if mobile {
+      args.push("--lib".into());
+    } else {
+      args.push("--bins".into());
+    }
   }
 
   fn run_dev<F: Fn(Option<i32>, ExitReason) + Send + Sync + 'static>(
@@ -510,7 +488,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    config: Option<serde_json::Value>,
+    merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {
     let child = run(self)?;
@@ -560,7 +538,7 @@ impl Rust {
           if let Some(event_path) = event.paths.first() {
             if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
               if is_configuration_file(self.app_settings.target, event_path) {
-                if let Ok(config) = reload_config(config.as_ref()) {
+                if let Ok(config) = reload_config(merge_configs) {
                   let (manifest, modified) =
                     rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
                   if modified {
@@ -721,9 +699,7 @@ impl CargoSettings {
     toml_file
       .read_to_string(&mut toml_str)
       .with_context(|| "failed to read Cargo.toml")?;
-    toml::from_str(&toml_str)
-      .with_context(|| "failed to parse Cargo.toml")
-      .map_err(Into::into)
+    toml::from_str(&toml_str).with_context(|| "failed to parse Cargo.toml")
   }
 }
 
@@ -819,8 +795,9 @@ impl AppSettings for RustAppSettings {
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
-    let arch64bits =
-      self.target_triple.starts_with("x86_64") || self.target_triple.starts_with("aarch64");
+    let arch64bits = self.target_triple.starts_with("x86_64")
+      || self.target_triple.starts_with("aarch64")
+      || self.target_triple.starts_with("riscv64");
 
     let updater_enabled = config.bundle.create_updater_artifacts != Updater::Bool(false);
     let v1_compatible = matches!(config.bundle.create_updater_artifacts, Updater::String(_));
@@ -1040,24 +1017,26 @@ impl RustAppSettings {
       .workspace
       .and_then(|v| v.package);
 
+    let version = config.version.clone().unwrap_or_else(|| {
+      cargo_package_settings
+        .version
+        .clone()
+        .expect("Cargo manifest must have the `package.version` field")
+        .resolve("version", || {
+          ws_package_settings
+            .as_ref()
+            .and_then(|p| p.version.clone())
+            .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+        })
+        .expect("Cargo project does not have a version")
+    });
+
     let package_settings = PackageSettings {
       product_name: config
         .product_name
         .clone()
         .unwrap_or_else(|| cargo_package_settings.name.clone()),
-      version: config.version.clone().unwrap_or_else(|| {
-        cargo_package_settings
-          .version
-          .clone()
-          .expect("Cargo manifest must have the `package.version` field")
-          .resolve("version", || {
-            ws_package_settings
-              .as_ref()
-              .and_then(|p| p.version.clone())
-              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
-          })
-          .expect("Cargo project does not have a version")
-      }),
+      version: version.clone(),
       description: cargo_package_settings
         .description
         .clone()
@@ -1442,9 +1421,13 @@ fn tauri_config_to_bundle_settings(
         y: config.macos.dmg.application_folder_position.y,
       },
     },
+    ios: IosSettings {
+      bundle_version: config.ios.bundle_version,
+    },
     macos: MacOsSettings {
       frameworks: config.macos.frameworks,
       files: config.macos.files,
+      bundle_version: config.macos.bundle_version,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,

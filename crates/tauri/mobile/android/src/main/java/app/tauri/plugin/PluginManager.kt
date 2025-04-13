@@ -4,12 +4,13 @@
 
 package app.tauri.plugin
 
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import app.tauri.annotation.InvokeArg
@@ -33,9 +34,11 @@ class PluginManager(val activity: AppCompatActivity) {
 
   private val plugins: HashMap<String, PluginHandle> = HashMap()
   private val startActivityForResultLauncher: ActivityResultLauncher<Intent>
+  private val startIntentSenderForResultLauncher: ActivityResultLauncher<IntentSenderRequest>
   private val requestPermissionsLauncher: ActivityResultLauncher<Array<String>>
   private var requestPermissionsCallback: RequestPermissionsCallback? = null
   private var startActivityForResultCallback: ActivityResultCallback? = null
+  private var startIntentSenderForResultCallback: ActivityResultCallback? = null
   private var jsonMapper: ObjectMapper
 
   init {
@@ -44,6 +47,14 @@ class PluginManager(val activity: AppCompatActivity) {
       ) { result ->
         if (startActivityForResultCallback != null) {
           startActivityForResultCallback!!.onResult(result)
+        }
+      }
+
+    startIntentSenderForResultLauncher =
+      activity.registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()
+      ) { result ->
+        if (startIntentSenderForResultCallback != null) {
+          startIntentSenderForResultCallback!!.onResult(result)
         }
       }
 
@@ -87,6 +98,11 @@ class PluginManager(val activity: AppCompatActivity) {
   fun startActivityForResult(intent: Intent, callback: ActivityResultCallback) {
     startActivityForResultCallback = callback
     startActivityForResultLauncher.launch(intent)
+  }
+
+  fun startIntentSenderForResult(intent: IntentSenderRequest, callback: ActivityResultCallback) {
+    startIntentSenderForResultCallback = callback
+    startIntentSenderForResultLauncher.launch(intent)
   }
 
   fun requestPermissions(

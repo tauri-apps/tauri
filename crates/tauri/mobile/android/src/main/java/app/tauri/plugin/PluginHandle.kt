@@ -8,6 +8,7 @@ import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
 import android.webkit.WebView
+import androidx.activity.result.IntentSenderRequest
 import androidx.core.app.ActivityCompat
 import app.tauri.PermissionHelper
 import app.tauri.PermissionState
@@ -38,6 +39,16 @@ class PluginHandle(private val manager: PluginManager, val name: String, val ins
 
   fun startActivityForResult(invoke: Invoke, intent: Intent, callbackName: String) {
     manager.startActivityForResult(intent) { result ->
+      val method = startActivityCallbackMethods[callbackName]
+      if (method != null) {
+        method.isAccessible = true
+        method(instance, invoke, result)
+      }
+    }
+  }
+
+  fun startIntentSenderForResult(invoke: Invoke, intentSender: IntentSenderRequest, callbackName: String) {
+    manager.startIntentSenderForResult(intentSender) { result ->
       val method = startActivityCallbackMethods[callbackName]
       if (method != null) {
         method.isAccessible = true

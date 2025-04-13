@@ -7,6 +7,8 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use ureq::ResponseExt;
+
 use crate::utils::http_utils::download;
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
@@ -22,9 +24,12 @@ pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
-  let agent = ureq::AgentBuilder::new().try_proxy_from_env(true).build();
+  let agent: ureq::Agent = ureq::Agent::config_builder()
+    .proxy(ureq::Proxy::try_from_env())
+    .build()
+    .into();
   let response = agent.head(url).call().map_err(Box::new)?;
-  let final_url = response.get_url();
+  let final_url = response.get_uri().to_string();
   let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {
     anyhow::anyhow!(
       "WebView2 URL prefix mismatch. Expected `{}`, found `{}`.",

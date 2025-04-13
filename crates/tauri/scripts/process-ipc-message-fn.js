@@ -6,9 +6,9 @@
 
 (function (message) {
   if (
-    message instanceof ArrayBuffer ||
-    ArrayBuffer.isView(message) ||
-    Array.isArray(message)
+    message instanceof ArrayBuffer
+    || ArrayBuffer.isView(message)
+    || Array.isArray(message)
   ) {
     return {
       contentType: 'application/octet-stream',
@@ -27,15 +27,13 @@
         return Array.from(val)
       } else if (val instanceof ArrayBuffer) {
         return Array.from(new Uint8Array(val))
-      } else if (typeof val === "object" && val !== null && SERIALIZE_TO_IPC_FN in val) {
-        return val[SERIALIZE_TO_IPC_FN]()
       } else if (
-        val instanceof Object &&
-        '__TAURI_CHANNEL_MARKER__' in val &&
-        typeof val.id === 'number'
+        typeof val === 'object'
+        && val !== null
+        && SERIALIZE_TO_IPC_FN in val
       ) {
-        return `__CHANNEL__:${val.id}`
-       } else {
+        return val[SERIALIZE_TO_IPC_FN]()
+      } else {
         return val
       }
     })

@@ -1,6 +1,6 @@
 {
   "$schema": "../../crates/tauri-schema-generator/schemas/config.schema.json",
-  "productName": "RunIteration",
+  "productName": "RunReturn",
   "version": "0.1.0",
   "identifier": "com.tauri.dev",
   "build": {

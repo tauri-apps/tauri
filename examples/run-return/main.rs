@@ -4,23 +4,18 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use tauri::Manager;
-
 fn main() {
-  let mut app = tauri::Builder::default()
+  let app = tauri::Builder::default()
     .build(tauri::generate_context!(
-      "../../examples/run-iteration/tauri.conf.json"
+      "../../examples/run-return/tauri.conf.json"
     ))
     .expect("error while building tauri application");
 
-  loop {
-    app.run_iteration(|_app, _event| {
-      //println!("{:?}", _event);
-    });
+  let exit_code = app.run_return(|_app, _event| {
+    //println!("{:?}", _event);
+  });
 
-    if app.webview_windows().is_empty() {
-      app.cleanup_before_exit();
-      break;
-    }
-  }
+  println!("I run after exit");
+
+  std::process::exit(exit_code);
 }

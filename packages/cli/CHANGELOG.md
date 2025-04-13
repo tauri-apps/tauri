@@ -1,5 +1,77 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`f805061d1`](https://www.github.com/tauri-apps/tauri/commit/f805061d1152bc4790dbdb9475a506afcdd1de75) ([#13079](https://www.github.com/tauri-apps/tauri/pull/13079) by [@Pietagorh](https://www.github.com/tauri-apps/tauri/../../Pietagorh)) Add support for passing TOML and JSON5 config files to `--config` arg
+
+### Bug Fixes
+
+- [`794af778e`](https://www.github.com/tauri-apps/tauri/commit/794af778e4915ffb6a4fe9bae8fba04bc880503d) ([#13117](https://www.github.com/tauri-apps/tauri/pull/13117) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix setting merge config value to null with `--config` arg no longer works
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.4.1`
+
+## \[2.4.0]
+
+### New Features
+
+- [`d91bfa5cb`](https://www.github.com/tauri-apps/tauri/commit/d91bfa5cb921a078758edd45ef3eaff71358d1eb) ([#12970](https://www.github.com/tauri-apps/tauri/pull/12970) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow merging multiple configuration values on `tauri dev`, `tauri build`, `tauri bundle`, `tauri android dev`, `tauri android build`, `tauri ios dev` and `tauri ios build`.
+- [`30f5a1553`](https://www.github.com/tauri-apps/tauri/commit/30f5a1553d3c0ce460c9006764200a9210915a44) ([#12366](https://www.github.com/tauri-apps/tauri/pull/12366) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added `trafficLightPosition` window configuration to set the traffic light buttons position on macOS.
+
+### Enhancements
+
+- [`f981a5ee8`](https://www.github.com/tauri-apps/tauri/commit/f981a5ee8b292b9ea09329f60cecc7f688dda734) ([#12602](https://www.github.com/tauri-apps/tauri/pull/12602) by [@kxxt](https://www.github.com/tauri-apps/tauri/../../kxxt)) Add basic support for linux riscv64 platform.
+
+### Bug Fixes
+
+- [`0c4700e99`](https://www.github.com/tauri-apps/tauri/commit/0c4700e9907f242eabe579eb6149a1d75174185c) ([#12985](https://www.github.com/tauri-apps/tauri/pull/12985) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The cli will now accept `--bundles updater` again. It's still no-op as it has been for all v2 versions. If you want to build updater artifacts, enable `createUpdaterArtifacts` in `tauri.conf.json`.
+- [`b83921226`](https://www.github.com/tauri-apps/tauri/commit/b83921226cb3084992bb5357e7e39a09ea97843e) ([#12977](https://www.github.com/tauri-apps/tauri/pull/12977) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `tauri ios` commands using the wrong working directory with `bun@>1.2`.
+- [`f268b3dbd`](https://www.github.com/tauri-apps/tauri/commit/f268b3dbdf313484c85b4a1f69cd7cec63049f35) ([#12871](https://www.github.com/tauri-apps/tauri/pull/12871) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ignore parent .gitignore files on the Tauri project path detection.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.4.0`
+
+## \[2.3.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.3.1`
+
+## \[2.3.0]
+
+### Enhancements
+
+- [`a2d36b8c3`](https://www.github.com/tauri-apps/tauri/commit/a2d36b8c34a8dcfc6736797ca5cd4665faf75e7e) ([#12181](https://www.github.com/tauri-apps/tauri/pull/12181) by [@bastiankistner](https://www.github.com/tauri-apps/tauri/../../bastiankistner)) Add an option to change the default background throttling policy (currently for WebKit only).
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.3.0`
+
+## \[2.2.7]
+
+### Bug Fixes
+
+- [`8e9134c4a`](https://www.github.com/tauri-apps/tauri/commit/8e9134c4a2047329be0dbb868b7ae061a9d3f190) ([#12511](https://www.github.com/tauri-apps/tauri/pull/12511) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused `tauri dev` to fail because of an incorrect `--bins` flag.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.7`
+
+## \[2.2.6]
+
+### Enhancements
+
+- [`1a86974aa`](https://www.github.com/tauri-apps/tauri/commit/1a86974aa3d09957c6b1142a17bbfed9998798fd) ([#12406](https://www.github.com/tauri-apps/tauri/pull/12406) by [@bradleat](https://www.github.com/tauri-apps/tauri/../../bradleat)) `ios build --open` will now let xcode start the rust build process.
+- [`0b79af711`](https://www.github.com/tauri-apps/tauri/commit/0b79af711430934362602fb950c3e4cb5b59cf9c) ([#12438](https://www.github.com/tauri-apps/tauri/pull/12438) by [@3lpsy](https://www.github.com/tauri-apps/tauri/../../3lpsy)) Log the command used to start the rust app in development.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.2.6`
+
 ## \[2.2.5]
 
 ### Dependencies

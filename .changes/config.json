@@ -4,7 +4,7 @@
     "feat": "New Features",
     "enhance": "Enhancements",
     "bug": "Bug Fixes",
-    "pref": "Performance Improvements",
+    "perf": "Performance Improvements",
     "changes": "What's Changed",
     "sec": "Security fixes",
     "deps": "Dependencies",

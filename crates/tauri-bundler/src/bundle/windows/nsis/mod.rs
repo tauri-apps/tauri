@@ -131,7 +131,7 @@ fn get_and_extract_nsis(nsis_toolset_path: &Path, _tauri_tools_path: &Path) -> c
   Ok(())
 }
 
-fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
+fn try_add_numeric_build_number(version_str: &str) -> anyhow::Result<String> {
   let version = semver::Version::parse(version_str).context("invalid app version")?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
@@ -141,7 +141,10 @@ fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      anyhow::bail!("optional build metadata in app version must be numeric-only");
+      log::warn!(
+        "Unable to parse version build metadata. Numeric value expected, received: `{}`. This will be replaced with `0` in `VIProductVersion` because Windows requires this field to be numeric.",
+        version.build
+      );
     }
   }
 
@@ -150,6 +153,7 @@ fn add_build_number_if_needed(version_str: &str) -> anyhow::Result<String> {
     version.major, version.minor, version.patch,
   ))
 }
+
 fn build_nsis_app_installer(
   settings: &Settings,
   _nsis_toolset_path: &Path,
@@ -214,7 +218,7 @@ fn build_nsis_app_installer(
   data.insert("version", to_json(version));
   data.insert(
     "version_with_build",
-    to_json(add_build_number_if_needed(version)?),
+    to_json(try_add_numeric_build_number(version)?),
   );
 
   data.insert(
@@ -463,6 +467,7 @@ fn build_nsis_app_installer(
   let mut handlebars = Handlebars::new();
   handlebars.register_helper("or", Box::new(handlebars_or));
   handlebars.register_helper("association-description", Box::new(association_description));
+  handlebars.register_helper("no-escape", Box::new(handlebars_no_escape));
   handlebars.register_escape_fn(|s| {
     let mut output = String::new();
     for c in s.chars() {
@@ -591,6 +596,24 @@ fn association_description(
   Ok(())
 }
 
+fn handlebars_no_escape(
+  h: &handlebars::Helper<'_>,
+  _: &Handlebars<'_>,
+  _: &handlebars::Context,
+  _: &mut handlebars::RenderContext<'_, '_>,
+  out: &mut dyn handlebars::Output,
+) -> handlebars::HelperResult {
+  // get parameter from helper or throw an error
+  let param = h
+    .param(0)
+    .ok_or(handlebars::RenderErrorReason::ParamNotFoundForIndex(
+      "no-escape",
+      0,
+    ))?;
+  write!(out, "{}", param.render())?;
+  Ok(())
+}
+
 /// BTreeMap<OriginalPath, (ParentOfTargetPath, TargetPath)>
 type ResourcesMap = BTreeMap<PathBuf, (PathBuf, PathBuf)>;
 fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
@@ -716,6 +739,7 @@ fn get_lang_data(lang: &str) -> Option<(String, &[u8])> {
     "turkish" => include_bytes!("./languages/Turkish.nsh"),
     "swedish" => include_bytes!("./languages/Swedish.nsh"),
     "portuguese" => include_bytes!("./languages/Portuguese.nsh"),
+    "ukrainian" => include_bytes!("./languages/Ukrainian.nsh"),
     _ => return None,
   };
   Some((path, content))

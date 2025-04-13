@@ -6,7 +6,7 @@ use std::{
   borrow::Cow,
   collections::HashMap,
   fmt,
-  sync::{Arc, Mutex, MutexGuard},
+  sync::{atomic::AtomicBool, Arc, Mutex, MutexGuard},
 };
 
 use serde::Serialize;
@@ -19,18 +19,18 @@ use tauri_utils::{
   html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
+use crate::resources::ResourceTable;
 use crate::{
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
     OnPageLoad,
   },
-  event::{assert_event_name_is_valid, Event, EventId, EventTarget, Listeners},
+  event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
   utils::{config::Config, PackageInfo},
-  Assets, Context, Pattern, Runtime, StateManager, Window,
+  Assets, Context, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
-use crate::{event::EmitArgs, resources::ResourceTable, Webview};
 
 #[cfg(desktop)]
 mod menu;
@@ -220,6 +220,10 @@ pub struct AppManager<R: Runtime> {
   pub(crate) invoke_key: String,
 
   pub(crate) channel_interceptor: Option<ChannelInterceptor<R>>,
+
+  /// Sets to true in [`AppHandle::request_restart`] and [`AppHandle::restart`]
+  /// and we will call `restart` on the next `RuntimeRunEvent::Exit` event
+  pub(crate) restart_on_exit: AtomicBool,
 }
 
 impl<R: Runtime> fmt::Debug for AppManager<R> {
@@ -241,6 +245,11 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
 
     d.finish()
   }
+}
+
+pub(crate) enum EmitPayload<'a, S: Serialize> {
+  Serialize(&'a S),
+  Str(String),
 }
 
 impl<R: Runtime> AppManager<R> {
@@ -316,6 +325,7 @@ impl<R: Runtime> AppManager<R> {
       resources_table: Arc::default(),
       invoke_key,
       channel_interceptor,
+      restart_on_exit: AtomicBool::new(false),
     }
   }
 
@@ -391,34 +401,30 @@ impl<R: Runtime> AppManager<R> {
       // if the url is `tauri://localhost`, we should load `index.html`
       "index.html".to_string()
     } else {
-      // skip leading `/`
-      path.chars().skip(1).collect::<String>()
+      // skip the leading `/`, if it starts with one.
+      path.strip_prefix('/').unwrap_or(path.as_str()).to_string()
     };
 
     let mut asset_path = AssetKey::from(path.as_str());
 
     let asset_response = assets
-      .get(&path.as_str().into())
+      .get(&asset_path)
       .or_else(|| {
         log::debug!("Asset `{path}` not found; fallback to {path}.html");
-        let fallback = format!("{}.html", path.as_str()).into();
+        let fallback = format!("{path}.html").into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
         asset
       })
       .or_else(|| {
-        log::debug!(
-          "Asset `{}` not found; fallback to {}/index.html",
-          path,
-          path
-        );
-        let fallback = format!("{}/index.html", path.as_str()).into();
+        log::debug!("Asset `{path}` not found; fallback to {path}/index.html",);
+        let fallback = format!("{path}/index.html").into();
         let asset = assets.get(&fallback);
         asset_path = fallback;
         asset
       })
       .or_else(|| {
-        log::debug!("Asset `{}` not found; fallback to index.html", path);
+        log::debug!("Asset `{path}` not found; fallback to index.html");
         let fallback = AssetKey::from("index.html");
         let asset = assets.get(&fallback);
         asset_path = fallback;
@@ -451,13 +457,13 @@ impl<R: Runtime> AppManager<R> {
             csp_header.replace(Csp::DirectiveMap(csp_map).to_string());
           }
 
-          asset.as_bytes().to_vec()
+          asset.into_bytes()
         } else {
           asset
         };
         let mime_type = tauri_utils::mime_type::MimeType::parse(&final_data, &path);
         Ok(Asset {
-          bytes: final_data.to_vec(),
+          bytes: final_data,
           mime_type,
           csp_header,
         })
@@ -506,23 +512,25 @@ impl<R: Runtime> AppManager<R> {
     &self.package_info
   }
 
-  pub fn listen<F: Fn(Event) + Send + 'static>(
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
+  pub(crate) fn listen<F: Fn(Event) + Send + 'static>(
     &self,
-    event: String,
+    event: EventName,
     target: EventTarget,
     handler: F,
   ) -> EventId {
-    assert_event_name_is_valid(&event);
     self.listeners().listen(event, target, handler)
   }
 
-  pub fn once<F: FnOnce(Event) + Send + 'static>(
+  /// # Panics
+  /// Will panic if `event` contains characters other than alphanumeric, `-`, `/`, `:` and `_`
+  pub(crate) fn once<F: FnOnce(Event) + Send + 'static>(
     &self,
-    event: String,
+    event: EventName,
     target: EventTarget,
     handler: F,
   ) -> EventId {
-    assert_event_name_is_valid(&event);
     self.listeners().once(event, target, handler)
   }
 
@@ -534,22 +542,21 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit", skip(self, payload))
   )]
-  pub fn emit<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
-    assert_event_name_is_valid(event);
-
+  pub(crate) fn emit<S: Serialize>(
+    &self,
+    event: EventName<&str>,
+    payload: EmitPayload<'_, S>,
+  ) -> crate::Result<()> {
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
+    let emit_args = match payload {
+      EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
+      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload)?,
+    };
 
     let listeners = self.listeners();
-    let webviews = self
-      .webview
-      .webviews_lock()
-      .values()
-      .cloned()
-      .collect::<Vec<_>>();
 
-    listeners.emit_js(webviews.iter(), event, &emit_args)?;
+    listeners.emit_js(self.webview.webviews_lock().values(), &emit_args)?;
     listeners.emit(emit_args)?;
 
     Ok(())
@@ -559,22 +566,27 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit::filter", skip(self, payload, filter))
   )]
-  pub fn emit_filter<S, F>(&self, event: &str, payload: S, filter: F) -> crate::Result<()>
+  pub(crate) fn emit_filter<S, F>(
+    &self,
+    event: EventName<&str>,
+    payload: EmitPayload<'_, S>,
+    filter: F,
+  ) -> crate::Result<()>
   where
-    S: Serialize + Clone,
+    S: Serialize,
     F: Fn(&EventTarget) -> bool,
   {
-    assert_event_name_is_valid(event);
-
     #[cfg(feature = "tracing")]
     let _span = tracing::debug_span!("emit::run").entered();
-    let emit_args = EmitArgs::new(event, payload)?;
+    let emit_args = match payload {
+      EmitPayload::Serialize(payload) => EmitArgs::new(event, payload)?,
+      EmitPayload::Str(payload) => EmitArgs::new_str(event, payload)?,
+    };
 
     let listeners = self.listeners();
 
     listeners.emit_js_filter(
       self.webview.webviews_lock().values(),
-      event,
       &emit_args,
       Some(&filter),
     )?;
@@ -588,55 +600,51 @@ impl<R: Runtime> AppManager<R> {
     feature = "tracing",
     tracing::instrument("app::emit::to", skip(self, target, payload), fields(target))
   )]
-  pub fn emit_to<I, S>(&self, target: I, event: &str, payload: S) -> crate::Result<()>
+  pub(crate) fn emit_to<S>(
+    &self,
+    target: EventTarget,
+    event: EventName<&str>,
+    payload: EmitPayload<'_, S>,
+  ) -> crate::Result<()>
   where
-    I: Into<EventTarget>,
-    S: Serialize + Clone,
+    S: Serialize,
   {
-    let target = target.into();
     #[cfg(feature = "tracing")]
     tracing::Span::current().record("target", format!("{target:?}"));
+
+    fn filter_target(target: &EventTarget, candidate: &EventTarget) -> bool {
+      match target {
+        // if targeting any label, filter matching labels
+        EventTarget::AnyLabel { label } => match candidate {
+          EventTarget::Window { label: l }
+          | EventTarget::Webview { label: l }
+          | EventTarget::WebviewWindow { label: l }
+          | EventTarget::AnyLabel { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::Window { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::Window { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::Webview { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::Webview { label: l } => l == label,
+          _ => false,
+        },
+        EventTarget::WebviewWindow { label } => match candidate {
+          EventTarget::AnyLabel { label: l } | EventTarget::WebviewWindow { label: l } => {
+            l == label
+          }
+          _ => false,
+        },
+        // otherwise match same target
+        _ => target == candidate,
+      }
+    }
 
     match target {
       // if targeting all, emit to all using emit without filter
       EventTarget::Any => self.emit(event, payload),
-
-      // if targeting any label, emit using emit_filter and filter labels
-      EventTarget::AnyLabel {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::Window { label }
-        | EventTarget::Webview { label }
-        | EventTarget::WebviewWindow { label }
-        | EventTarget::AnyLabel { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::Window {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::Window { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::Webview {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::Webview { label } => label == &target_label,
-        _ => false,
-      }),
-
-      EventTarget::WebviewWindow {
-        label: target_label,
-      } => self.emit_filter(event, payload, |t| match t {
-        EventTarget::AnyLabel { label } | EventTarget::WebviewWindow { label } => {
-          label == &target_label
-        }
-        _ => false,
-      }),
-
-      // otherwise match same target
-      _ => self.emit_filter(event, payload, |t| t == &target),
+      target => self.emit_filter(event, payload, |t| filter_target(&target, t)),
     }
   }
 

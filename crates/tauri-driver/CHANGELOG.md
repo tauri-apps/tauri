@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.0.3]
+
+### Bug Fixes
+
+- [`fb294af8e`](https://www.github.com/tauri-apps/tauri/commit/fb294af8e3717d547029f3bbf9323318e0d9861a) ([#12383](https://www.github.com/tauri-apps/tauri/pull/12383) by [@bicarlsen](https://www.github.com/tauri-apps/tauri/../../bicarlsen)) Parse ms:edgeOptions separately to prevent `invalid argument` errors.
+
 ## \[2.0.2]
 
 ### Enhancements

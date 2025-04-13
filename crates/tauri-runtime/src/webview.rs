@@ -7,7 +7,9 @@
 use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
-use tauri_utils::config::{Color, WebviewUrl, WindowConfig, WindowEffectsConfig};
+use tauri_utils::config::{
+  BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig, WindowEffectsConfig,
+};
 use url::Url;
 
 use std::{
@@ -31,6 +33,12 @@ type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
+
+#[cfg(target_os = "ios")]
+type InputAccessoryViewBuilderFn = dyn Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
+  + Send
+  + Sync
+  + 'static;
 
 /// Download event.
 pub enum DownloadEvent<'a> {
@@ -191,11 +199,24 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
 }
 
 /// The attributes used to create an webview.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WebviewAttributes {
   pub url: WebviewUrl,
   pub user_agent: Option<String>,
-  pub initialization_scripts: Vec<String>,
+  /// A list of initialization javascript scripts to run when loading new pages.
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
+  pub initialization_scripts: Vec<InitializationScript>,
   pub data_directory: Option<PathBuf>,
   pub drag_drop_handler_enabled: bool,
   pub clipboard: bool,
@@ -215,6 +236,43 @@ pub struct WebviewAttributes {
   pub use_https_scheme: bool,
   pub devtools: Option<bool>,
   pub background_color: Option<Color>,
+  pub traffic_light_position: Option<dpi::Position>,
+  pub background_throttling: Option<BackgroundThrottlingPolicy>,
+  pub javascript_disabled: bool,
+  /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+  /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  pub allow_link_preview: bool,
+  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Returning `None` effectively removes the view.
+  ///
+  /// The closure parameter is the webview instance.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  ///
+  /// # Stability
+  ///
+  /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
+  #[cfg(target_os = "ios")]
+  pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+}
+
+#[cfg(target_os = "ios")]
+#[non_exhaustive]
+pub struct InputAccessoryViewBuilder(pub Box<InputAccessoryViewBuilderFn>);
+
+#[cfg(target_os = "ios")]
+impl std::fmt::Debug for InputAccessoryViewBuilder {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    f.debug_struct("InputAccessoryViewBuilder").finish()
+  }
+}
+
+#[cfg(target_os = "ios")]
+impl InputAccessoryViewBuilder {
+  pub fn new(builder: Box<InputAccessoryViewBuilderFn>) -> Self {
+    Self(builder)
+  }
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -225,10 +283,19 @@ impl From<&WindowConfig> for WebviewAttributes {
       .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
+      .background_throttling(config.background_throttling.clone())
       .devtools(config.devtools);
+
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
       builder = builder.transparent(config.transparent);
+    }
+    #[cfg(target_os = "macos")]
+    {
+      if let Some(position) = &config.traffic_light_position {
+        builder =
+          builder.traffic_light_position(dpi::LogicalPosition::new(position.x, position.y).into());
+      }
     }
     builder = builder.accept_first_mouse(config.accept_first_mouse);
     if !config.drag_drop_enabled {
@@ -248,6 +315,14 @@ impl From<&WindowConfig> for WebviewAttributes {
     }
     if let Some(color) = config.background_color {
       builder = builder.background_color(color);
+    }
+    builder.javascript_disabled = config.javascript_disabled;
+    builder.allow_link_preview = config.allow_link_preview;
+    #[cfg(target_os = "ios")]
+    if config.disable_input_accessory_view {
+      builder
+        .input_accessory_view_builder
+        .replace(InputAccessoryViewBuilder::new(Box::new(|_webview| None)));
     }
     builder
   }
@@ -279,6 +354,12 @@ impl WebviewAttributes {
       use_https_scheme: false,
       devtools: None,
       background_color: None,
+      traffic_light_position: None,
+      background_throttling: None,
+      javascript_disabled: false,
+      allow_link_preview: true,
+      #[cfg(target_os = "ios")]
+      input_accessory_view_builder: None,
     }
   }
 
@@ -289,10 +370,53 @@ impl WebviewAttributes {
     self
   }
 
-  /// Sets the init script.
+  /// Adds an init script for the main frame.
+  ///
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
-    self.initialization_scripts.push(script.to_string());
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
+    self.initialization_scripts.push(InitializationScript {
+      script: script.into(),
+      for_main_frame_only: true,
+    });
+    self
+  }
+
+  /// Adds an init script for all frames.
+  ///
+  /// When webview load a new page, this initialization code will be executed.
+  /// It is guaranteed that code is executed before `window.onload`.
+  ///
+  /// This is executed on all frames, main frame and also sub frames.
+  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
+  #[must_use]
+  pub fn initialization_script_on_all_frames(mut self, script: impl Into<String>) -> Self {
+    self.initialization_scripts.push(InitializationScript {
+      script: script.into(),
+      for_main_frame_only: false,
+    });
     self
   }
 
@@ -444,7 +568,64 @@ impl WebviewAttributes {
     self.background_color = Some(color);
     self
   }
+
+  /// Change the position of the window controls. Available on macOS only.
+  ///
+  /// Requires titleBarStyle: Overlay and decorations: true.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn traffic_light_position(mut self, position: dpi::Position) -> Self {
+    self.traffic_light_position = Some(position);
+    self
+  }
+
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.allow_link_preview = allow_link_preview;
+    self
+  }
+
+  /// Change the default background throttling behavior.
+  ///
+  /// By default, browsers use a suspend policy that will throttle timers and even unload
+  /// the whole tab (view) to free resources after roughly 5 minutes when a view became
+  /// minimized or hidden. This will pause all tasks until the documents visibility state
+  /// changes back from hidden to visible by bringing the view back to the foreground.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  ///
+  /// see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+  #[must_use]
+  pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
+    self.background_throttling = policy;
+    self
+  }
 }
 
 /// IPC handler.
 pub type WebviewIpcHandler<T, R> = Box<dyn Fn(DetachedWebview<T, R>, Request<String>) + Send>;
+
+/// An initialization script
+#[derive(Debug, Clone)]
+pub struct InitializationScript {
+  /// The script to run
+  pub script: String,
+  /// Whether the script should be injected to main frame only
+  pub for_main_frame_only: bool,
+}

@@ -30,7 +30,12 @@ import {
   once
 } from './event'
 import { invoke } from './core'
-import { Color, Window, getCurrentWindow } from './window'
+import {
+  BackgroundThrottlingPolicy,
+  Color,
+  Window,
+  getCurrentWindow
+} from './window'
 import { WebviewWindow } from './webviewWindow'
 
 /** The drag and drop event types. */
@@ -286,7 +291,7 @@ class Webview {
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: unknown): Promise<void> {
+  async emit<T>(event: string, payload?: T): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
@@ -298,7 +303,7 @@ class Webview {
       }
       return
     }
-    return emit(event, payload)
+    return emit<T>(event, payload)
   }
 
   /**
@@ -314,10 +319,10 @@ class Webview {
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emitTo(
+  async emitTo<T>(
     target: string | EventTarget,
     event: string,
-    payload?: unknown
+    payload?: T
   ): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
@@ -330,7 +335,7 @@ class Webview {
       }
       return
     }
-    return emitTo(target, event, payload)
+    return emitTo<T>(target, event, payload)
   }
 
   /** @ignore */
@@ -398,7 +403,7 @@ class Webview {
    * @returns A promise indicating the success or failure of the operation.
    */
   async close(): Promise<void> {
-    return invoke('plugin:webview|close', {
+    return invoke('plugin:webview|webview_close', {
       label: this.label
     })
   }
@@ -767,6 +772,41 @@ interface WebviewOptions {
    * @since 2.1.0
    */
   backgroundColor?: Color
+
+  /** Change the default background throttling behaviour.
+   *
+   * By default, browsers use a suspend policy that will throttle timers and even unload
+   * the whole tab (view) to free resources after roughly 5 minutes when a view became
+   * minimized or hidden. This will pause all tasks until the documents visibility state
+   * changes back from hidden to visible by bringing the view back to the foreground.
+   *
+   * ## Platform-specific
+   *
+   * - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+   * - **iOS**: Supported since version 17.0+.
+   * - **macOS**: Supported since version 14.0+.
+   *
+   * see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+   *
+   * @since 2.3.0
+   */
+  backgroundThrottling?: BackgroundThrottlingPolicy
+  /**
+   * Whether we should disable JavaScript code execution on the webview or not.
+   */
+  javascriptDisabled?: boolean
+  /**
+   * on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+   * see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+   */
+  allowLinkPreview?: boolean
+  /**
+   * Allows disabling the input accessory view on iOS.
+   *
+   * The accessory view is the view that appears above the keyboard when a text input element is focused.
+   * It usually displays a view with "Done", "Next" buttons.
+   */
+  disableInputAccessoryView?: boolean
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

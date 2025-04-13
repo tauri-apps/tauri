@@ -13,7 +13,7 @@ use std::{
 use serde::Serialize;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
 use tauri_runtime::{
-  webview::{DetachedWebview, PendingWebview},
+  webview::{DetachedWebview, InitializationScript, PendingWebview},
   window::DragDropEvent,
 };
 use tauri_utils::config::WebviewUrl;
@@ -25,13 +25,12 @@ use crate::{
   pattern::PatternJavascript,
   sealed::ManagerBase,
   webview::PageLoadPayload,
-  Emitter, EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview,
-  Window,
+  EventLoopMessage, EventTarget, Manager, Runtime, Scopes, UriSchemeContext, Webview, Window,
 };
 
 use super::{
   window::{DragDropPayload, DRAG_DROP_EVENT, DRAG_ENTER_EVENT, DRAG_LEAVE_EVENT, DRAG_OVER_EVENT},
-  AppManager,
+  {AppManager, EmitPayload},
 };
 
 // we need to proxy the dev server on mobile because we can't use `localhost`, so we use the local IP address
@@ -123,7 +122,6 @@ impl<R: Runtime> WebviewManager<R> {
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let app_manager = manager.manager();
 
-    let is_init_global = app_manager.config.app.with_global_tauri;
     let plugin_init_scripts = app_manager
       .plugins
       .lock()
@@ -184,7 +182,6 @@ impl<R: Runtime> WebviewManager<R> {
       app_manager,
       &ipc_init.into_string(),
       &pattern_init.into_string(),
-      is_init_global,
       use_https_scheme,
     )?);
 
@@ -210,9 +207,15 @@ impl<R: Runtime> WebviewManager<R> {
       }
     }
 
-    webview_attributes
-      .initialization_scripts
-      .splice(0..0, all_initialization_scripts);
+    webview_attributes.initialization_scripts.splice(
+      0..0,
+      all_initialization_scripts
+        .into_iter()
+        .map(|script| InitializationScript {
+          script,
+          for_main_frame_only: true,
+        }),
+    );
 
     pending.webview_attributes = webview_attributes;
 
@@ -223,16 +226,13 @@ impl<R: Runtime> WebviewManager<R> {
       let protocol = protocol.clone();
       let app_handle = manager.app_handle().clone();
 
-      pending.register_uri_scheme_protocol(
-        uri_scheme.clone(),
-        move |webview_id, request, responder| {
-          let context = UriSchemeContext {
-            app_handle: &app_handle,
-            webview_label: webview_id,
-          };
-          (protocol.protocol)(context, request, UriSchemeResponder(responder))
-        },
-      );
+      pending.register_uri_scheme_protocol(uri_scheme, move |webview_id, request, responder| {
+        let context = UriSchemeContext {
+          app_handle: &app_handle,
+          webview_label: webview_id,
+        };
+        (protocol.protocol)(context, request, UriSchemeResponder(responder))
+      });
     }
 
     let window_url = Url::parse(&pending.url).unwrap();
@@ -346,7 +346,6 @@ impl<R: Runtime> WebviewManager<R> {
     app_manager: &AppManager<R>,
     ipc_script: &str,
     pattern_script: &str,
-    with_global_tauri: bool,
     use_https_scheme: bool,
   ) -> crate::Result<String> {
     #[derive(Template)]
@@ -356,8 +355,6 @@ impl<R: Runtime> WebviewManager<R> {
       pattern_script: &'a str,
       #[raw]
       ipc_script: &'a str,
-      #[raw]
-      bundle_script: &'a str,
       #[raw]
       core_script: &'a str,
       #[raw]
@@ -374,12 +371,6 @@ impl<R: Runtime> WebviewManager<R> {
       invoke_key: &'a str,
     }
 
-    let bundle_script = if with_global_tauri {
-      include_str!("../../scripts/bundle.global.js")
-    } else {
-      ""
-    };
-
     let freeze_prototype = if app_manager.config.app.security.freeze_prototype {
       include_str!("../../scripts/freeze_prototype.js")
     } else {
@@ -389,7 +380,6 @@ impl<R: Runtime> WebviewManager<R> {
     InitJavascript {
       pattern_script,
       ipc_script,
-      bundle_script,
       core_script: &CoreJavascript {
         os_name: std::env::consts::OS,
         protocol_scheme: if use_https_scheme { "https" } else { "http" },
@@ -539,13 +529,17 @@ impl<R: Runtime> WebviewManager<R> {
         os_name: &'a str,
       }
 
-      pending.webview_attributes.initialization_scripts.push(
-        HotkeyZoom {
-          os_name: std::env::consts::OS,
-        }
-        .render_default(&Default::default())?
-        .into_string(),
-      )
+      pending
+        .webview_attributes
+        .initialization_scripts
+        .push(InitializationScript {
+          script: HotkeyZoom {
+            os_name: std::env::consts::OS,
+          }
+          .render_default(&Default::default())?
+          .into_string(),
+          for_main_frame_only: true,
+        })
     }
 
     #[cfg(feature = "isolation")]
@@ -628,12 +622,14 @@ impl<R: Runtime> WebviewManager<R> {
         .expect("failed to run on_webview_created hook");
     }
 
-    let _ = webview.manager.emit(
-      "tauri://webview-created",
-      Some(crate::webview::CreatedEvent {
-        label: webview.label().into(),
-      }),
-    );
+    let event = crate::EventName::from_str("tauri://webview-created");
+    let payload = Some(crate::webview::CreatedEvent {
+      label: webview.label().into(),
+    });
+
+    let _ = webview
+      .manager
+      .emit(event, EmitPayload::Serialize(&payload));
 
     webview
   }
@@ -657,14 +653,21 @@ impl<R: Runtime> WebviewManager<R> {
 
 impl<R: Runtime> Webview<R> {
   /// Emits event to [`EventTarget::Window`] and [`EventTarget::WebviewWindow`]
-  fn emit_to_webview<S: Serialize + Clone>(&self, event: &str, payload: S) -> crate::Result<()> {
+  fn emit_to_webview<S: Serialize>(
+    &self,
+    event: crate::EventName<&str>,
+    payload: &S,
+  ) -> crate::Result<()> {
     let window_label = self.label();
-    self.emit_filter(event, payload, |target| match target {
-      EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
-        label == window_label
-      }
-      _ => false,
-    })
+    let payload = EmitPayload::Serialize(payload);
+    self
+      .manager()
+      .emit_filter(event, payload, |target| match target {
+        EventTarget::Webview { label } | EventTarget::WebviewWindow { label } => {
+          label == window_label
+        }
+        _ => false,
+      })
   }
 }
 
@@ -676,14 +679,14 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
           paths: Some(paths),
           position,
         };
-        webview.emit_to_webview(DRAG_ENTER_EVENT, payload)?
+        webview.emit_to_webview(DRAG_ENTER_EVENT, &payload)?
       }
       DragDropEvent::Over { position } => {
         let payload = DragDropPayload {
           position,
           paths: None,
         };
-        webview.emit_to_webview(DRAG_OVER_EVENT, payload)?
+        webview.emit_to_webview(DRAG_OVER_EVENT, &payload)?
       }
       DragDropEvent::Drop { paths, position } => {
         let scopes = webview.state::<Scopes>();
@@ -698,9 +701,9 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
           paths: Some(paths),
           position,
         };
-        webview.emit_to_webview(DRAG_DROP_EVENT, payload)?
+        webview.emit_to_webview(DRAG_DROP_EVENT, &payload)?
       }
-      DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, ())?,
+      DragDropEvent::Leave => webview.emit_to_webview(DRAG_LEAVE_EVENT, &())?,
       _ => unimplemented!(),
     },
   }

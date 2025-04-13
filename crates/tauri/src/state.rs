@@ -4,9 +4,9 @@
 
 use std::{
   any::{Any, TypeId},
-  cell::UnsafeCell,
   collections::HashMap,
   hash::BuildHasherDefault,
+  pin::Pin,
   sync::Mutex,
 };
 
@@ -97,17 +97,16 @@ impl std::hash::Hasher for IdentHash {
   }
 }
 
-type TypeIdMap = HashMap<TypeId, Box<dyn Any>, BuildHasherDefault<IdentHash>>;
+/// Safety:
+/// - The `key` must equal to `(*value).type_id()`, see the safety doc in methods of [StateManager] for details.
+/// - Once you insert a value, you can't remove/mutated/move it anymore, see [StateManager::try_get] for details.
+type TypeIdMap = HashMap<TypeId, Pin<Box<dyn Any + Sync + Send>>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
 #[derive(Debug)]
 pub struct StateManager {
-  map: Mutex<UnsafeCell<TypeIdMap>>,
+  map: Mutex<TypeIdMap>,
 }
-
-// SAFETY: data is accessed behind a lock
-unsafe impl Sync for StateManager {}
-unsafe impl Send for StateManager {}
 
 impl StateManager {
   pub(crate) fn new() -> Self {
@@ -116,37 +115,38 @@ impl StateManager {
     }
   }
 
-  fn with_map_ref<'a, F: FnOnce(&'a TypeIdMap) -> R, R>(&'a self, f: F) -> R {
-    let map = self.map.lock().unwrap();
-    let map = map.get();
-    // SAFETY: safe to access since we are holding a lock
-    f(unsafe { &*map })
-  }
-
-  fn with_map_mut<F: FnOnce(&mut TypeIdMap) -> R, R>(&self, f: F) -> R {
-    let mut map = self.map.lock().unwrap();
-    let map = map.get_mut();
-    f(map)
-  }
-
   pub(crate) fn set<T: Send + Sync + 'static>(&self, state: T) -> bool {
-    self.with_map_mut(|map| {
-      let type_id = TypeId::of::<T>();
-      let already_set = map.contains_key(&type_id);
-      if !already_set {
-        map.insert(type_id, Box::new(state) as Box<dyn Any>);
-      }
-      !already_set
-    })
+    let mut map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<T>();
+    let already_set = map.contains_key(&type_id);
+    if !already_set {
+      let ptr = Box::new(state) as Box<dyn Any + Sync + Send>;
+      let pinned_ptr = Box::into_pin(ptr);
+      map.insert(
+        type_id,
+        // SAFETY: keep the type of the key is the same as the type of the value，
+        // see [try_get] methods for details.
+        pinned_ptr,
+      );
+    }
+    !already_set
   }
 
-  pub(crate) fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
-    self.with_map_mut(|map| {
-      let type_id = TypeId::of::<T>();
-      map
-        .remove(&type_id)
-        .and_then(|ptr| ptr.downcast().ok().map(|b| *b))
-    })
+  /// SAFETY: Calling this method will move the `value`,
+  /// which will cause references obtained through [Self::try_get] to dangle.
+  pub(crate) unsafe fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
+    let mut map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<T>();
+    let pinned_ptr = map.remove(&type_id)?;
+    // SAFETY: The caller decides to break the immovability/safety here, then OK, just let it go.
+    let ptr = unsafe { Pin::into_inner_unchecked(pinned_ptr) };
+    let value = unsafe {
+      ptr
+        .downcast::<T>()
+        // SAFETY: the type of the key is the same as the type of the value
+        .unwrap_unchecked()
+    };
+    Some(*value)
   }
 
   /// Gets the state associated with the specified type.
@@ -158,12 +158,18 @@ impl StateManager {
 
   /// Gets the state associated with the specified type.
   pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
-    self.with_map_ref(|map| {
-      map
-        .get(&TypeId::of::<T>())
-        .and_then(|ptr| ptr.downcast_ref::<T>())
-        .map(State)
-    })
+    let map = self.map.lock().unwrap();
+    let type_id = TypeId::of::<T>();
+    let ptr = map.get(&type_id)?;
+    let value = unsafe {
+      ptr
+        .downcast_ref::<T>()
+        // SAFETY: the type of the key is the same as the type of the value
+        .unwrap_unchecked()
+    };
+    // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
+    let v_ref = unsafe { &*(value as *const T) };
+    Some(State(v_ref))
   }
 }
 
@@ -197,8 +203,9 @@ mod tests {
     let state = StateManager::new();
     assert!(state.set(1u32));
     assert_eq!(*state.get::<u32>(), 1);
-    assert!(state.unmanage::<u32>().is_some());
-    assert!(state.unmanage::<u32>().is_none());
+    // safety: the reference returned by `try_get` is already dropped.
+    assert!(unsafe { state.unmanage::<u32>() }.is_some());
+    assert!(unsafe { state.unmanage::<u32>() }.is_none());
     assert_eq!(state.try_get::<u32>(), None);
     assert!(state.set(2u32));
     assert_eq!(*state.get::<u32>(), 2);

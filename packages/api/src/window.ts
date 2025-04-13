@@ -441,7 +441,7 @@ class Window {
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emit(event: string, payload?: unknown): Promise<void> {
+  async emit<T>(event: string, payload?: T): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line
       for (const handler of this.listeners[event] || []) {
@@ -453,7 +453,7 @@ class Window {
       }
       return
     }
-    return emit(event, payload)
+    return emit<T>(event, payload)
   }
 
   /**
@@ -468,10 +468,10 @@ class Window {
    * @param event Event name. Must include only alphanumeric characters, `-`, `/`, `:` and `_`.
    * @param payload Event payload.
    */
-  async emitTo(
+  async emitTo<T>(
     target: string | EventTarget,
     event: string,
-    payload?: unknown
+    payload?: T
   ): Promise<void> {
     if (localTauriEvents.includes(event)) {
       // eslint-disable-next-line security/detect-object-injection
@@ -484,7 +484,7 @@ class Window {
       }
       return
     }
-    return emitTo(target, event, payload)
+    return emitTo<T>(target, event, payload)
   }
 
   /** @ignore */
@@ -795,6 +795,22 @@ class Window {
    */
   async theme(): Promise<Theme | null> {
     return invoke('plugin:window|theme', {
+      label: this.label
+    })
+  }
+
+  /**
+   * Whether the window is configured to be always on top of other windows or not.
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * const alwaysOnTop = await getCurrentWindow().isAlwaysOnTop();
+   * ```
+   *
+   * @returns Whether the window is visible or not.
+   */
+  async isAlwaysOnTop(): Promise<boolean> {
+    return invoke('plugin:window|is_always_on_top', {
       label: this.label
     })
   }
@@ -2022,6 +2038,17 @@ type Color =
   | string
 
 /**
+ * Background throttling policy
+ *
+ * @since 2.0.0
+ */
+enum BackgroundThrottlingPolicy {
+  Disabled = 'disabled',
+  Throttle = 'throttle',
+  Suspend = 'suspend'
+}
+
+/**
  * Platform-specific window effects
  *
  * @since 2.0.0
@@ -2195,6 +2222,14 @@ interface Effects {
 }
 
 /**
+ * Minimum margin to work area
+ */
+interface PreventOverflowMargin {
+  width: number
+  height: number
+}
+
+/**
  * Configuration for the window to create.
  *
  * @since 1.0.0
@@ -2218,6 +2253,21 @@ interface WindowOptions {
   maxWidth?: number
   /** The maximum height. Only applies if `maxWidth` is also set. */
   maxHeight?: number
+  /**
+   * Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+   * on creation, which means the window size will be limited to `monitor size - taskbar size`
+   *
+   * Can either be set to `true` or to a {@link PreventOverflowMargin} object to set an additional margin
+   * that should be considered to determine the working area
+   * (in this case the window size will be limited to `monitor size - taskbar size - margin`)
+   *
+   * **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+   *
+   * #### Platform-specific
+   *
+   * - **iOS / Android:** Unsupported.
+   */
+  preventOverflow?: boolean | PreventOverflowMargin
   /** Whether the window is resizable or not. */
   resizable?: boolean
   /** Window title. */
@@ -2338,6 +2388,36 @@ interface WindowOptions {
    * @since 2.1.0
    */
   backgroundColor?: Color
+
+  /** Change the default background throttling behaviour.
+   *
+   * ## Platform-specific
+   *
+   * - **Linux / Windows / Android**: Unsupported. Workarounds like a pending WebLock transaction might suffice.
+   * - **iOS**: Supported since version 17.0+.
+   * - **macOS**: Supported since version 14.0+.
+   *
+   * see https://github.com/tauri-apps/tauri/issues/5250#issuecomment-2569380578
+   *
+   * @since 2.3.0
+   */
+  backgroundThrottling?: BackgroundThrottlingPolicy
+  /**
+   * Whether we should disable JavaScript code execution on the webview or not.
+   */
+  javascriptDisabled?: boolean
+  /**
+   * on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+   * see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+   */
+  allowLinkPreview?: boolean
+  /**
+   * Allows disabling the input accessory view on iOS.
+   *
+   * The accessory view is the view that appears above the keyboard when a text input element is focused.
+   * It usually displays a view with "Done", "Next" buttons.
+   */
+  disableInputAccessoryView?: boolean
 }
 
 function mapMonitor(m: Monitor | null): Monitor | null {
@@ -2460,5 +2540,6 @@ export type {
   ScaleFactorChanged,
   WindowOptions,
   Color,
+  BackgroundThrottlingPolicy,
   DragDropEvent
 }

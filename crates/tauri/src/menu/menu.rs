@@ -74,7 +74,7 @@ impl<R: Runtime> ContextMenuBase for Menu<R> {
         unsafe {
           self_
             .inner()
-            .show_context_menu_for_hwnd(hwnd.0 as _, position)
+            .show_context_menu_for_hwnd(hwnd.0 as _, position);
         }
       }
     })

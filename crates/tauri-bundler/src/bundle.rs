@@ -13,12 +13,6 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
-impl From<goblin::error::Error> for crate::error::Error {
-  fn from(value: goblin::error::Error) -> Self {
-    crate::Error::BinaryParseError(value.to_string())
-  }
-}
-
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   log::info!(

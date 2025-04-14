@@ -66,7 +66,7 @@ pub enum Error {
   HashError,
   /// Failed to parse binary
   #[error("Binary parse error: `{0}`")]
-  BinaryParseError(String),
+  BinaryParseError(#[from] goblin::error::Error),
   /// Package type is not supported by target platform
   #[error("Wrong package type {0} for platform {1}")]
   InvalidPackageType(String, String),

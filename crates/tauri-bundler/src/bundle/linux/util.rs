@@ -8,11 +8,11 @@ pub fn patch_binary(
   binary_path: &std::path::PathBuf,
   package_type: &crate::PackageType,
 ) -> crate::Result<()> {
-  let mut file_data = std::fs::read(binary_path).expect("Could not binary read file.");
+  let mut file_data = std::fs::read(binary_path).expect("Could not read binary file.");
 
   let elf = match goblin::Object::parse(&file_data)? {
     goblin::Object::Elf(elf) => elf,
-    _ => return Err(crate::Error::BinaryParseError("Not an ELF file".into())),
+    _ => return Err(crate::Error::GenericError("Not an ELF file".to_owned())),
   };
 
   if let Some(offset) = find_bundle_type_symbol(elf) {

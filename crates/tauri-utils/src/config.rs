@@ -111,6 +111,40 @@ impl Default for WebviewUrl {
   }
 }
 
+/// Variable holding the type of bundle the executable is stored in. This is modified by binary
+/// patching during build
+#[unsafe(no_mangle)]
+#[link_section = ".tauri"]
+static __TAURI_BUNDLE_TYPE: &str = "UNK_BUNDLE";
+
+/// Get the type or a bundle current binary is packaged in.
+pub fn get_current_bundle_type() -> PackageType {
+  match __TAURI_BUNDLE_TYPE {
+    "DEB_BUNDLE" => PackageType::Deb,
+    "RPM_BUNDLE" => PackageType::Rpm,
+    "APP_BUNDLE" => PackageType::AppImage,
+    "MSI_BUNDLE" => PackageType::Msi,
+    "NSS_BUNDLE" => PackageType::Nsis,
+    _ => PackageType::Unknonwn,
+  }
+}
+
+/// Type of package binary was bundled in
+pub enum PackageType {
+  /// The debian bundle (.deb).
+  Deb,
+  /// The RPM bundle (.rpm).
+  Rpm,
+  /// The AppImage bundle (.appimage).
+  AppImage,
+  /// The Microsoft Installer bundle (.msi).
+  Msi,
+  /// The NSIS bundle (.exe).
+  Nsis,
+  /// Binary is not packaged or the package type cannot be determined
+  Unknonwn,
+}
+
 /// A bundle referenced by tauri-bundler.
 #[derive(Debug, PartialEq, Eq, Clone)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]

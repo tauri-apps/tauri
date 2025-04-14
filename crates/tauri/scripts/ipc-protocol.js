@@ -33,7 +33,7 @@
         'Tauri-Error': error,
         'Tauri-Invoke-Key': __TAURI_INVOKE_KEY__
       })
-      if (options?.headers) {
+      if (options && options.headers) {
         const overrideHeaders =
           options.headers instanceof Headers
             ? options.headers.entries()

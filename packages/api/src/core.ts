@@ -220,7 +220,7 @@ type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
  * @since 2.0.0
  */
 interface InvokeOptions {
-  headers: Headers | Record<string, string>
+  headers: HeadersInit
 }
 
 /**

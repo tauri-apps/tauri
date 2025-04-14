@@ -1,0 +1,12 @@
+[package]
+name = "tauri-schema-generator"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[build-dependencies]
+tauri-utils = { features = ["schema"], path = "../tauri-utils" }
+schemars = { version = "0.8.18", features = ["url", "preserve_order"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+url = { version = "2", features = ["serde"] }

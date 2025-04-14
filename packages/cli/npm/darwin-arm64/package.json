@@ -1,0 +1,32 @@
+{
+  "name": "@tauri-apps/cli-darwin-arm64",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tauri-apps/tauri.git"
+  },
+  "homepage": "https://github.com/tauri-apps/tauri#readme",
+  "bugs": {
+    "url": "https://github.com/tauri-apps/tauri/issues"
+  },
+  "contributors": [
+    "Tauri Programme within The Commons Conservancy"
+  ],
+  "license": "Apache-2.0 OR MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "cli.darwin-arm64.node",
+  "files": [
+    "cli.darwin-arm64.node"
+  ],
+  "engines": {
+    "node": ">= 10"
+  }
+}

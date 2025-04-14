@@ -4,17 +4,81 @@
 
 version: 2
 updates:
-  # NPM packages
-  - package-ecosystem: 'npm'
-    directory: '/tooling/api'
+  # Crates
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri'
     schedule:
       internal: 'daily'
     labels:
       - 'type: chore'
     # disable version updates
     open-pull-requests-limit: 0
-  - package-ecosystem: 'npm'
-    directory: '/tooling/cli/node'
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-build'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-codegen'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-macros'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-runtime'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-runtime-wry'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-utils'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-cli'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-bundler'
+    schedule:
+      internal: 'daily'
+    labels:
+      - 'type: chore'
+    # disable version updates
+    open-pull-requests-limit: 0
+  - package-ecosystem: 'cargo'
+    directory: '/crates/tauri-macos-sign'
     schedule:
       internal: 'daily'
     labels:
@@ -22,83 +86,17 @@ updates:
     # disable version updates
     open-pull-requests-limit: 0
 
-  # Tooling
-  - package-ecosystem: 'cargo'
-    directory: '/tooling/cli'
+  # NPM Packages
+  - package-ecosystem: 'npm'
+    directory: '/packages/api'
     schedule:
       internal: 'daily'
     labels:
       - 'type: chore'
     # disable version updates
     open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/tooling/bundler'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/tooling/webdriver'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-
-  # Core
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri-build'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri-codegen'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri-macros'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri-runtime'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri-runtime-wry'
-    schedule:
-      internal: 'daily'
-    labels:
-      - 'type: chore'
-    # disable version updates
-    open-pull-requests-limit: 0
-  - package-ecosystem: 'cargo'
-    directory: '/core/tauri-utils'
+  - package-ecosystem: 'npm'
+    directory: '/packages/cli'
     schedule:
       internal: 'daily'
     labels:

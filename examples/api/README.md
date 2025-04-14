@@ -9,40 +9,21 @@ In the future, this app will be used on Tauri's integration tests.
 
 - Compile Tauri
   go to root of the Tauri repo and run:
-  Linux / Mac:
 
 ```
-# choose to install node cli (1)
-bash .scripts/setup.sh
-```
-
-Windows:
-
-```
-./.scripts/setup.ps1
-```
-
-- Install dependencies (Run inside of this folder `examples/api/`)
-
-```bash
-# with yarn
-$ yarn
-# with npm
-$ npm install
+pnpm i
+pnpm build:debug
 ```
 
 - Run the app in development mode (Run inside of this folder `examples/api/`)
 
 ```bash
-# with yarn
-$ yarn tauri dev
-# with npm
-$ npm run tauri dev
+$ pnpm tauri dev
 ```
 
 - Build an run the release app (Run inside of this folder `examples/api/`)
 
 ```bash
-$ yarn tauri build
+$ pnpm tauri build
 $ ./src-tauri/target/release/app
 ```

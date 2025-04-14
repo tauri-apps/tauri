@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../tooling/cli/schema.json",
+  "$schema": "../../../crates/tauri-cli/schema.json",
   "identifier": "com.tauri.dev-file-associations-demo",
   "build": {
     "frontendDist": ["../index.html"]

@@ -3,17 +3,17 @@
   import MenuBuilder from '../components/MenuBuilder.svelte'
   import { Menu } from '@tauri-apps/api/menu'
 
-  export let onMessage
+  let { onMessage } = $props()
 
-  let icon = null
-  let tooltip = null
-  let title = null
-  let iconAsTemplate = false
-  let menuOnLeftClick = true
-  let menuItems = []
+  let icon = $state(null)
+  let tooltip = $state(null)
+  let title = $state(null)
+  let iconAsTemplate = $state(false)
+  let menuOnLeftClick = $state(true)
+  let menuItems = $state([])
 
-  function onItemClick(event) {
-    onMessage(`Item ${event.detail.text} clicked`)
+  function onItemClick(detail) {
+    onMessage(`Item ${detail.text} clicked`)
   }
 
   async function create() {
@@ -48,8 +48,8 @@
     />
 
     <label>
+      <input type="checkbox" class="checkbox" bind:checked={menuOnLeftClick} />
       Menu on left click
-      <input type="checkbox" bind:checked={menuOnLeftClick} />
     </label>
   </div>
 
@@ -62,17 +62,17 @@
     />
 
     <label>
+      <input type="checkbox" class="checkbox" bind:checked={iconAsTemplate} />
       Icon as template
-      <input type="checkbox" bind:checked={iconAsTemplate} />
     </label>
   </div>
 
   <div class="flex children:grow">
-    <MenuBuilder bind:items={menuItems} on:itemClick={onItemClick} />
+    <MenuBuilder bind:items={menuItems} itemClick={onItemClick} />
   </div>
 
   <div class="flex">
-    <button class="btn" on:click={create} title="Creates the tray icon"
+    <button class="btn" onclick={create} title="Creates the tray icon"
       >Create tray</button
     >
   </div>

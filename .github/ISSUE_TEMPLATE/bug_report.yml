@@ -45,7 +45,7 @@ body:
     id: info
     attributes:
       label: Full `tauri info` output
-      description: "Output of `npm run tauri info` or `cargo tauri info`"
+      description: 'Output of `npm run tauri info` or `cargo tauri info`'
       render: text
     validations:
       required: true

@@ -1,6 +1,7 @@
 // Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
+#![cfg(all(desktop, not(test)))]
 
 use tauri::{
   command,
@@ -43,6 +44,9 @@ pub fn popup<R: tauri::Runtime>(
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("app-menu")
-    .invoke_handler(tauri::generate_handler![popup, toggle])
+    .invoke_handler(tauri::generate_handler![
+      #![plugin(app_menu)]
+      popup, toggle
+    ])
     .build()
 }

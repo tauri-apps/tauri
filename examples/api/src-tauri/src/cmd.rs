@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use serde::{Deserialize, Serialize};
-use tauri::{command, ipc::CommandScope};
+use tauri::{
+  command,
+  ipc::{Channel, CommandScope},
+};
 
 #[derive(Debug, Deserialize)]
 #[allow(unused)]
@@ -28,7 +31,7 @@ pub fn log_operation(
   } else if !command_scope.allows().iter().any(|s| s.event == event) {
     Err("not allowed")
   } else {
-    log::info!("{} {:?}", event, payload);
+    log::info!("{event} {payload:?}");
     Ok(())
   }
 }
@@ -40,8 +43,21 @@ pub struct ApiResponse {
 
 #[command]
 pub fn perform_request(endpoint: String, body: RequestBody) -> ApiResponse {
-  println!("{} {:?}", endpoint, body);
+  println!("{endpoint} {body:?}");
   ApiResponse {
     message: "message response".into(),
   }
+}
+
+#[command]
+pub fn echo(request: tauri::ipc::Request<'_>) -> tauri::ipc::Response {
+  tauri::ipc::Response::new(request.body().clone())
+}
+
+#[command]
+pub fn spam(channel: Channel<i32>) -> tauri::Result<()> {
+  for i in 1..=1_000 {
+    channel.send(i)?;
+  }
+  Ok(())
 }

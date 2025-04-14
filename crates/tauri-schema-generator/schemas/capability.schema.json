@@ -1,0 +1,234 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Capability",
+  "description": "A grouping and boundary mechanism developers can use to isolate access to the IPC layer.\n\n It controls application windows' and webviews' fine grained access\n to the Tauri core, application, or plugin commands.\n If a webview or its window is not matching any capability then it has no access to the IPC layer at all.\n\n This can be done to create groups of windows, based on their required system access, which can reduce\n impact of frontend vulnerabilities in less privileged windows.\n Windows can be added to a capability by exact name (e.g. `main-window`) or glob patterns like `*` or `admin-*`.\n A Window can have none, one, or multiple associated capabilities.\n\n ## Example\n\n ```json\n {\n   \"identifier\": \"main-user-files-write\",\n   \"description\": \"This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programatic access to files selected by the user.\",\n   \"windows\": [\n     \"main\"\n   ],\n   \"permissions\": [\n     \"core:default\",\n     \"dialog:open\",\n     {\n       \"identifier\": \"fs:allow-write-text-file\",\n       \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n     },\n   ],\n   \"platforms\": [\"macOS\",\"windows\"]\n }\n ```",
+  "type": "object",
+  "required": [
+    "identifier",
+    "permissions"
+  ],
+  "properties": {
+    "identifier": {
+      "description": "Identifier of the capability.\n\n ## Example\n\n `main-user-files-write`",
+      "type": "string"
+    },
+    "description": {
+      "description": "Description of what the capability is intended to allow on associated windows.\n\n It should contain a description of what the grouped permissions should allow.\n\n ## Example\n\n This capability allows the `main` window access to `filesystem` write related\n commands and `dialog` commands to enable programatic access to files selected by the user.",
+      "default": "",
+      "type": "string"
+    },
+    "remote": {
+      "description": "Configure remote URLs that can use the capability permissions.\n\n This setting is optional and defaults to not being set, as our\n default use case is that the content is served from our local application.\n\n :::caution\n Make sure you understand the security implications of providing remote\n sources with local system access.\n :::\n\n ## Example\n\n ```json\n {\n   \"urls\": [\"https://*.mydomain.dev\"]\n }\n ```",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/CapabilityRemote"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "local": {
+      "description": "Whether this capability is enabled for local app URLs or not. Defaults to `true`.",
+      "default": true,
+      "type": "boolean"
+    },
+    "windows": {
+      "description": "List of windows that are affected by this capability. Can be a glob pattern.\n\n If a window label matches any of the patterns in this list,\n the capability will be enabled on all the webviews of that window,\n regardless of the value of [`Self::webviews`].\n\n On multiwebview windows, prefer specifying [`Self::webviews`] and omitting [`Self::windows`]\n for a fine grained access control.\n\n ## Example\n\n `[\"main\"]`",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "webviews": {
+      "description": "List of webviews that are affected by this capability. Can be a glob pattern.\n\n The capability will be enabled on all the webviews\n whose label matches any of the patterns in this list,\n regardless of whether the webview's window label matches a pattern in [`Self::windows`].\n\n ## Example\n\n `[\"sub-webview-one\", \"sub-webview-two\"]`",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "permissions": {
+      "description": "List of permissions attached to this capability.\n\n Must include the plugin name as prefix in the form of `${plugin-name}:${permission-name}`.\n For commands directly implemented in the application itself only `${permission-name}`\n is required.\n\n ## Example\n\n ```json\n [\n   \"core:default\",\n   \"shell:allow-open\",\n   \"dialog:open\",\n   {\n     \"identifier\": \"fs:allow-write-text-file\",\n     \"allow\": [{ \"path\": \"$HOME/test.txt\" }]\n   }\n ]\n ```",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PermissionEntry"
+      },
+      "uniqueItems": true
+    },
+    "platforms": {
+      "description": "Limit which target platforms this capability applies to.\n\n By default all platforms are targeted.\n\n ## Example\n\n `[\"macOS\",\"windows\"]`",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/Target"
+      }
+    }
+  },
+  "definitions": {
+    "CapabilityRemote": {
+      "description": "Configuration for remote URLs that are associated with the capability.",
+      "type": "object",
+      "required": [
+        "urls"
+      ],
+      "properties": {
+        "urls": {
+          "description": "Remote domains this capability refers to using the [URLPattern standard](https://urlpattern.spec.whatwg.org/).\n\n ## Examples\n\n - \"https://*.mydomain.dev\": allows subdomains of mydomain.dev\n - \"https://mydomain.dev/api/*\": allows any subpath of mydomain.dev/api",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "PermissionEntry": {
+      "description": "An entry for a permission value in a [`Capability`] can be either a raw permission [`Identifier`]\n or an object that references a permission and extends its scope.",
+      "anyOf": [
+        {
+          "description": "Reference a permission or permission set by identifier.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Identifier"
+            }
+          ]
+        },
+        {
+          "description": "Reference a permission or permission set by identifier and extends its scope.",
+          "type": "object",
+          "required": [
+            "identifier"
+          ],
+          "properties": {
+            "identifier": {
+              "description": "Identifier of the permission or permission set.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Identifier"
+                }
+              ]
+            },
+            "allow": {
+              "description": "Data that defines what is allowed by the scope.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/Value"
+              }
+            },
+            "deny": {
+              "description": "Data that defines what is denied by the scope. This should be prioritized by validation logic.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "$ref": "#/definitions/Value"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Identifier": {
+      "type": "string"
+    },
+    "Value": {
+      "description": "All supported ACL values.",
+      "anyOf": [
+        {
+          "description": "Represents a null JSON value.",
+          "type": "null"
+        },
+        {
+          "description": "Represents a [`bool`].",
+          "type": "boolean"
+        },
+        {
+          "description": "Represents a valid ACL [`Number`].",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Number"
+            }
+          ]
+        },
+        {
+          "description": "Represents a [`String`].",
+          "type": "string"
+        },
+        {
+          "description": "Represents a list of other [`Value`]s.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Value"
+          }
+        },
+        {
+          "description": "Represents a map of [`String`] keys to [`Value`]s.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Value"
+          }
+        }
+      ]
+    },
+    "Number": {
+      "description": "A valid ACL number.",
+      "anyOf": [
+        {
+          "description": "Represents an [`i64`].",
+          "type": "integer",
+          "format": "int64"
+        },
+        {
+          "description": "Represents a [`f64`].",
+          "type": "number",
+          "format": "double"
+        }
+      ]
+    },
+    "Target": {
+      "description": "Platform target.",
+      "oneOf": [
+        {
+          "description": "MacOS.",
+          "type": "string",
+          "enum": [
+            "macOS"
+          ]
+        },
+        {
+          "description": "Windows.",
+          "type": "string",
+          "enum": [
+            "windows"
+          ]
+        },
+        {
+          "description": "Linux.",
+          "type": "string",
+          "enum": [
+            "linux"
+          ]
+        },
+        {
+          "description": "Android.",
+          "type": "string",
+          "enum": [
+            "android"
+          ]
+        },
+        {
+          "description": "iOS.",
+          "type": "string",
+          "enum": [
+            "iOS"
+          ]
+        }
+      ]
+    }
+  }
+}

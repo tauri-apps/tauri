@@ -1,120 +1,25 @@
 {
-  "extends": ["config:base"],
+  "extends": ["config:recommended"],
   "baseBranches": ["dev", "1.x"],
-  "schedule": "after 3am on Wednesday",
-  "ignorePaths": [],
   "labels": ["type: chore"],
   "enabledManagers": ["cargo", "npm"],
-  "cargo": {
-    "enabled": true
-  },
+  "rangeStrategy": "replace",
   "packageRules": [
     {
-      "packagePatterns": ["*"],
+      "semanticCommitType": "chore",
+      "matchPackageNames": ["*"]
+    },
+    {
+      "description": "Disable node/pnpm version updates",
+      "matchPackageNames": ["node", "pnpm"],
+      "matchDepTypes": ["engines", "packageManager"],
       "enabled": false
     },
     {
-      "enabled": true,
-      "paths": ["core/tauri/**"],
-      "groupName": "Tauri Core",
-      "groupSlug": "allTauriCore",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false,
-      "ignoreDeps": ["cargo_toml", "toml"]
-    },
-    {
-      "enabled": true,
-      "paths": ["core/tauri-build/**"],
-      "groupName": "Tauri Build",
-      "groupSlug": "allTauriBuild",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false,
-      "ignoreDeps": ["cargo_toml"]
-    },
-    {
-      "enabled": true,
-      "paths": ["core/tauri-codegen/**"],
-      "groupName": "Tauri Codegen",
-      "groupSlug": "allTauriCodegen",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["core/tauri-macros/**"],
-      "groupName": "Tauri Macros",
-      "groupSlug": "allTauriMacros",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["core/tauri-utils/**"],
-      "groupName": "Tauri Utils",
-      "groupSlug": "allTauriUtils",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/cli/**"],
-      "groupName": "Tauri CLI",
-      "groupSlug": "allTauriCLI",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false,
-      "matchManagers": ["cargo"],
-      "ignoreDeps": ["minisign"]
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/bundler/**"],
-      "groupName": "Tauri Bundler",
-      "groupSlug": "allTauriBundler",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/cli/node"],
-      "groupName": "Tauri JS CLI",
-      "groupSlug": "allTauriJSCLI",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
-    },
-    {
-      "enabled": true,
-      "paths": ["tooling/api/**"],
-      "groupName": "Tauri API Definitions",
-      "groupSlug": "allTauriAPIDefinitions",
-      "commitMessagePrefix": "chore(deps)",
-      "lockFileMaintenance": {
-        "enabled": true
-      },
-      "rebaseConflictedPrs": false
+      "description": "Disable oxc_* crates because of MSRV and PR spam",
+      "matchPackageNames": ["oxc_*"],
+      "enabled": false
     }
-  ]
+  ],
+  "postUpdateOptions": ["pnpmDedupe"]
 }

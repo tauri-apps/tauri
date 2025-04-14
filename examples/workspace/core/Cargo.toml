@@ -1,6 +1,0 @@
-[package]
-name = "core-api"
-version = { workspace = true }
-edition = "2021"
-
-[dependencies]

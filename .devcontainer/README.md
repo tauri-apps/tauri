@@ -24,7 +24,7 @@ Prerequisites are mainly derived from VS Code's instructions for usage of develo
 
 ### A note on filesystem performance
 
-Due to limitations in how Docker shares files between the Docker host and a container, it's also recommended that developers [clone Tauri source code into a container volume](https://code.visualstudio.com/remote/advancedcontainers/improve-performance#_use-clone-repository-in-container-volume). This is optional, but highly advised as many filesystem/IO heavy operations (`cargo build`, `yarn install`, etc) will be very slow if they operate on directories shared with a Docker container from the Docker host.
+Due to limitations in how Docker shares files between the Docker host and a container, it's also recommended that developers [clone Tauri source code into a container volume](https://code.visualstudio.com/remote/advancedcontainers/improve-performance#_use-clone-repository-in-container-volume). This is optional, but highly advised as many filesystem/IO heavy operations (`cargo build`, `pnpm install`, etc) will be very slow if they operate on directories shared with a Docker container from the Docker host.
 
 To do this, open your project with VS Code and run **Remote-Containers: Clone Repository in Container Volume...** from the Command Palette (<kbd>F1</kbd>).
 

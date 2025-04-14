@@ -1,0 +1,23 @@
+[package]
+name = "tauri-schema-worker"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+worker = { version = "0.5", features = ['http', 'axum'] }
+worker-macros = { version = "0.5", features = ['http'] }
+console_error_panic_hook = { version = "0.1" }
+axum = { version = "0.7", default-features = false }
+tower-service = "0.3"
+semver = { version = "1", features = ["serde"] }
+serde = { version = "1", features = ["derive"] }
+anyhow = "1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+  'cfg(wasm_bindgen_unstable_test_coverage)',
+] }

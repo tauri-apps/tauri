@@ -21,7 +21,7 @@ To learn more about the details of how all of these pieces fit together, please 
 
 If you are interested in making a tauri app, please visit the [documentation website](https://tauri.app).
 
-The quickest way to get started is to install the [prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites) for your system and create a new project with [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app/#usage). For example with `npm`:
+The quickest way to get started is to install the [prerequisites](https://v2.tauri.app/start/prerequisites/) for your system and create a new project with [`create-tauri-app`](https://github.com/tauri-apps/create-tauri-app/#usage). For example with `npm`:
 
 ```sh
 npm create tauri-app@latest
@@ -35,7 +35,7 @@ The list of Tauri's features includes, but is not limited to:
 - Built-in self updater (desktop only)
 - System tray icons
 - Native notifications
-- Localhost free (🔥)
+- Native WebView Protocol (tauri doesn't create a localhost http(s) server to serve the WebView contents)
 - GitHub action for streamlined CI
 - VS Code extension
 
@@ -43,13 +43,13 @@ The list of Tauri's features includes, but is not limited to:
 
 Tauri currently supports development and distribution on the following platforms:
 
-| Platform           | Versions                                                                                                        |
-| :----------------- | :-------------------------------------------------------------------------------------------------------------- |
-| Windows            | 7 and above                                                                                                     |
-| macOS              | 10.15 and above                                                                                                 |
-| Linux              | webkit2gtk 4.0 for Tauri v1 (for example Ubuntu 18.04). webkit2gtk 4.1 for Tauri v2 (for example Ubuntu 22.04). |
-| iOS/iPadOS (alpha) | 9 and above                                                                                                     |
-| Android (alpha)    | 7 and above                                                                                                     |
+| Platform   | Versions                                                                                                        |
+| :--------- | :-------------------------------------------------------------------------------------------------------------- |
+| Windows    | 7 and above                                                                                                     |
+| macOS      | 10.15 and above                                                                                                 |
+| Linux      | webkit2gtk 4.0 for Tauri v1 (for example Ubuntu 18.04). webkit2gtk 4.1 for Tauri v2 (for example Ubuntu 22.04). |
+| iOS/iPadOS | 9 and above                                                                                                     |
+| Android    | 7 and above (currently 8 and above)                                                                             |
 
 ## Contributing
 
@@ -61,7 +61,7 @@ Thank you to everyone contributing to Tauri!
 
 ### Documentation
 
-Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: https://github.com/tauri-apps/tauri-docs
+Documentation in a polyglot system is a tricky proposition. To this end, we prefer to use inline documentation in the Rust & JS source code as much as possible. Check out the hosting repository for the documentation site for further information: <https://github.com/tauri-apps/tauri-docs>
 
 ## Partners
 

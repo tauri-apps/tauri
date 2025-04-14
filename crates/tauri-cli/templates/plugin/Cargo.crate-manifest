@@ -1,0 +1,17 @@
+[package]
+name = "tauri-plugin-{{ plugin_name }}"
+version = "0.1.0"
+authors = [ "{{ author }}" ]
+description = ""
+edition = "2021"
+rust-version = "1.77.2"
+exclude = ["/examples", "/dist-js", "/guest-js", "/node_modules"]
+links = "tauri-plugin-{{ plugin_name }}"
+
+[dependencies]
+tauri = {{  tauri_dep }}
+serde = "1.0"
+thiserror = "2"
+
+[build-dependencies]
+tauri-plugin = {{{ tauri_plugin_dep }}}

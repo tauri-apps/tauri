@@ -1,0 +1,13 @@
+[[permission]]
+identifier = "allow-app"
+description = "Allows accessing the $APP path."
+[[permission.scope.allow]]
+path = "$APP"
+
+[[permission]]
+identifier = "allow-download-dir"
+description = "Allows accessing the $DOWNLOAD directory."
+[[permission.scope.allow]]
+path = "$DOWNLOAD"
+[[permission.scope.allow]]
+path = "$DOWNLOAD/**"

@@ -25,7 +25,8 @@ use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
-    device::{Device, DeviceKind},
+    device::{Device, DeviceKind, RunError},
+    target::BuildError,
   },
   env::Env,
   opts::{NoiseLevel, Profile},
@@ -283,24 +284,29 @@ fn run_dev(
         cli_options,
       )?;
 
-      if open {
+      let open_xcode = || {
         if !set_host {
           log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
         }
         open_and_wait(config, &env)
+      };
+
+      if open {
+        open_xcode()
       } else if let Some(device) = &device {
         match run(device, options, config, noise_level, &env) {
           Ok(c) => Ok(Box::new(c) as Box<dyn DevProcess + Send>),
+          Err(RunError::BuildFailed(BuildError::Sdk(sdk_err))) => {
+            log::warn!("{sdk_err}");
+            open_xcode()
+          }
           Err(e) => {
             crate::dev::kill_before_dev_process();
-            Err(e)
+            Err(e.into())
           }
         }
       } else {
-        if !set_host {
-          log::warn!("{PHYSICAL_IPHONE_DEV_WARNING}");
-        }
-        open_and_wait(config, &env)
+        open_xcode()
       }
     },
   )
@@ -312,7 +318,7 @@ fn run(
   config: &AppleConfig,
   noise_level: NoiseLevel,
   env: &Env,
-) -> crate::Result<DevChild> {
+) -> std::result::Result<DevChild, RunError> {
   let profile = if options.debug {
     Profile::Debug
   } else {
@@ -328,5 +334,4 @@ fn run(
       profile,
     )
     .map(DevChild::new)
-    .map_err(Into::into)
 }

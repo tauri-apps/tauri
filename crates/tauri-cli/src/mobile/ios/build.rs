@@ -327,7 +327,7 @@ fn run_build(
           .skip_codesign();
       }
 
-      target.build(config, env, noise_level, profile, build_config)?;
+      target.build(None, config, env, noise_level, profile, build_config)?;
 
       let mut archive_config = ArchiveConfig::new();
       if skip_signing {

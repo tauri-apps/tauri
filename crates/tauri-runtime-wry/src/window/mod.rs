@@ -77,7 +77,7 @@ pub fn calculate_window_center_position(
   }
 
   tao::dpi::PhysicalPosition::new(
-    (monitor_size.width - window_size.width) as i32 / 2 + monitor_position.x,
-    (monitor_size.height - window_size.height) as i32 / 2 + monitor_position.y,
+    (monitor_size.width as i32 - window_size.width as i32) / 2 + monitor_position.x,
+    (monitor_size.height as i32 - window_size.height as i32) / 2 + monitor_position.y,
   )
 }

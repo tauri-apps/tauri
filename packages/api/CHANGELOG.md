@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.5.0]
+
+### New Features
+
+- [`66e6325f4`](https://www.github.com/tauri-apps/tauri/commit/66e6325f43efa49ec2165c45afec911a1a14ecfb) ([#13136](https://www.github.com/tauri-apps/tauri/pull/13136)) Allow passing the callback as the parameter of constructor of `Channel` so you can use it like this `new Channel((message) => console.log(message))`
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `disableInputAccessoryView: bool` config for iOS.
+- [`c1cd0a2dd`](https://www.github.com/tauri-apps/tauri/commit/c1cd0a2ddb5bc3e99451cbe399b5fc9f0035f571) ([#13090](https://www.github.com/tauri-apps/tauri/pull/13090)) macOS/iOS: add option to disable or enable link previews when building a webview (the webkit api has it enabled by default)
+
+  - `WindowOptions::allowLinkPreview`
+  - `WebviewOptions::allowLinkPreview`
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+- [`dd4f13ce4`](https://www.github.com/tauri-apps/tauri/commit/dd4f13ce4b3cd89cde2fa3f18a063c272f215621) ([#13185](https://www.github.com/tauri-apps/tauri/pull/13185)) Added `app.setDockVisibility` for macOS.
+
+### Enhancements
+
+- [`b8f86669a`](https://www.github.com/tauri-apps/tauri/commit/b8f86669ab05f7dbdd15839a20999e63dc43bda6) ([#13145](https://www.github.com/tauri-apps/tauri/pull/13145)) `core.isTauri` now leverages `globalThis` instead of `window` in order to be used in unit tests.
+
+### Bug Fixes
+
+- [`66e6325f4`](https://www.github.com/tauri-apps/tauri/commit/66e6325f43efa49ec2165c45afec911a1a14ecfb) ([#13136](https://www.github.com/tauri-apps/tauri/pull/13136)) Fix `Channel`'s callback attached to `window` never cleaned up
+
 ## \[2.4.1]
 
 ### Enhancements

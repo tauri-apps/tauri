@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.6.0]
+
+### New Features
+
+- [`dd4f13ce4`](https://www.github.com/tauri-apps/tauri/commit/dd4f13ce4b3cd89cde2fa3f18a063c272f215621) ([#13185](https://www.github.com/tauri-apps/tauri/pull/13185)) MacOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `WebviewAttributes::input_accessory_view_builder` on iOS.
+- [`c1cd0a2dd`](https://www.github.com/tauri-apps/tauri/commit/c1cd0a2ddb5bc3e99451cbe399b5fc9f0035f571) ([#13090](https://www.github.com/tauri-apps/tauri/pull/13090)) macOS/iOS: add option to disable or enable link previews when building a webview (the webkit api has it enabled by default)
+
+  - `WebViewBuilder.allow_link_preview(allow_link_preview: bool)`
+  - `WebviewWindowBuilder.allow_link_preview(allow_link_preview: bool)`
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+
+### Bug Fixes
+
+- [`07953fb9c`](https://www.github.com/tauri-apps/tauri/commit/07953fb9c3dc09e86657aa16020978e89b03ed56) ([#13222](https://www.github.com/tauri-apps/tauri/pull/13222)) Emit `WindowEvent::Focused` events when using the multiwebview (unstable feature flag) mode on Windows.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.4.0`
+- Upgraded to `tauri-runtime@2.6.0`
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update tao to 0.33.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update webview2-com to 0.37.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update windows to 0.61.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update wry to 0.51.
+
 ## \[2.5.1]
 
 ### Dependencies

@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.0.4]
+
+### Enhancements
+
+- [`0cf2d9933`](https://www.github.com/tauri-apps/tauri/commit/0cf2d9933f20375349f9f307b4dd7049690030d9) ([#13238](https://www.github.com/tauri-apps/tauri/pull/13238)) Automatically append the `.exe` extension on the application path in `tauri:options`.
+
+### Bug Fixes
+
+- [`577c7ffc4`](https://www.github.com/tauri-apps/tauri/commit/577c7ffc45ef005403cdf698e595614038c7d1e1) ([#10108](https://www.github.com/tauri-apps/tauri/pull/10108)) Ensure the webdriver process is closed when the tauri-driver process finishes.
+
 ## \[2.0.3]
 
 ### Bug Fixes

@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.4.0]
+
+### New Features
+
+- [`b0babb6df`](https://www.github.com/tauri-apps/tauri/commit/b0babb6df12dafe45c21a2c9c424fd86ffd75ca7) ([#12938](https://www.github.com/tauri-apps/tauri/pull/12938)) Added hebrew translation for the custom Tauri messages in the NSIS bundle.
+- [`0aa48fb9e`](https://www.github.com/tauri-apps/tauri/commit/0aa48fb9e4b9d7b5bf3522000a76ebc1836394ed) ([#13030](https://www.github.com/tauri-apps/tauri/pull/13030)) Added `bundleVersion` to iOS and macOS configuration to support specifying a `CFBundleVersion`.
+
+### Enhancements
+
+- [`8d994f60f`](https://www.github.com/tauri-apps/tauri/commit/8d994f60fe05ec0f45cbe926506bbe10b0d36e3c) ([#11676](https://www.github.com/tauri-apps/tauri/pull/11676)) Sign NSIS and WiX DLLs when bundling
+- [`8d994f60f`](https://www.github.com/tauri-apps/tauri/commit/8d994f60fe05ec0f45cbe926506bbe10b0d36e3c) ([#11676](https://www.github.com/tauri-apps/tauri/pull/11676)) Sign DLLs from resources.
+
+### Bug Fixes
+
+- [`9ea76503d`](https://www.github.com/tauri-apps/tauri/commit/9ea76503dcf8da11fab65550f4ab8d3565a424ef) ([#13186](https://www.github.com/tauri-apps/tauri/pull/13186)) Fix NSIS bundler can't include resources and sidecars with `$` in the path
+- [`2dccfab53`](https://www.github.com/tauri-apps/tauri/commit/2dccfab5321fef55d45f3a4c674b6151b1c4424a) ([#13236](https://www.github.com/tauri-apps/tauri/pull/13236)) Fix `fileAssociations` missing `LSHandlerRank` on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.4.0`
+
 ## \[2.3.1]
 
 ### Bug Fixes

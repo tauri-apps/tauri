@@ -1,5 +1,55 @@
 # Changelog
 
+## \[2.5.0]
+
+### New Features
+
+- [`dd4f13ce4`](https://www.github.com/tauri-apps/tauri/commit/dd4f13ce4b3cd89cde2fa3f18a063c272f215621) ([#13185](https://www.github.com/tauri-apps/tauri/pull/13185)) MacOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.
+- [`8cf662e34`](https://www.github.com/tauri-apps/tauri/commit/8cf662e34bf738a0d16bb7b9aeb35667e2e4984b) ([#13076](https://www.github.com/tauri-apps/tauri/pull/13076)) -   add API to run initialization scripts on all frames
+  \-   `WebviewBuilder::initialization_script_on_all_frames`
+  \-   `WebviewWindowBuilder::initialization_script_on_all_frames`
+  \-   `WebviewAttributes::initialization_script_on_all_frames`
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `WebviewWindowBuilder::with_input_accessory_view_builder` and `WebviewBuilder::with_input_accessory_view_builder` on iOS.
+- [`c1cd0a2dd`](https://www.github.com/tauri-apps/tauri/commit/c1cd0a2ddb5bc3e99451cbe399b5fc9f0035f571) ([#13090](https://www.github.com/tauri-apps/tauri/pull/13090)) macOS/iOS: add option to disable or enable link previews when building a webview (the webkit api has it enabled by default)
+
+  - `WebViewBuilder.allow_link_preview(allow_link_preview: bool)`
+  - `WebviewWindowBuilder.allow_link_preview(allow_link_preview: bool)`
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `WindowBuilder::prevent_overflow`, `WebviewWindowBuilder::prevent_overflow`, `WindowBuilder::prevent_overflow_with_margin` and `WebviewWindowBuilder::prevent_overflow_with_margin` APIs to prevent the window from overflowing the monitor size on creation.
+
+### Enhancements
+
+- [`9356fa15d`](https://www.github.com/tauri-apps/tauri/commit/9356fa15d87e14b4512fe1b86383a597e6e641d4) ([#13239](https://www.github.com/tauri-apps/tauri/pull/13239)) Enhance panic message when fetching unmanaged state.
+- [`ebd3dcb92`](https://www.github.com/tauri-apps/tauri/commit/ebd3dcb92f8c0381daf6f5fdb2eaeef05f11bb6c) ([#13135](https://www.github.com/tauri-apps/tauri/pull/13135)) `Webview::eval` and `WebviewWindow::eval` now takes `impl Into<String>` instead of `&str` to allow passing the scripts more flexible and efficiently
+- [`fbd57a1af`](https://www.github.com/tauri-apps/tauri/commit/fbd57a1afd94cc4aadff0b252724fe44060c67e5) ([#13175](https://www.github.com/tauri-apps/tauri/pull/13175)) `Builder::invoke_system` takes `AsRef<str>` now
+
+### Bug Fixes
+
+- [`66e6325f4`](https://www.github.com/tauri-apps/tauri/commit/66e6325f43efa49ec2165c45afec911a1a14ecfb) ([#13136](https://www.github.com/tauri-apps/tauri/pull/13136)) Fix `Channel`'s callback attached to `window` never cleaned up
+- [`0d39ff6b0`](https://www.github.com/tauri-apps/tauri/commit/0d39ff6b09e0a58a2e031d60f7bdc92b48d3cdf0) ([#13150](https://www.github.com/tauri-apps/tauri/pull/13150)) Fix missing `core:` in referenced commands in ACL error message
+- [`690146e31`](https://www.github.com/tauri-apps/tauri/commit/690146e3115f615818ec6927eb56fab157221504) ([#13217](https://www.github.com/tauri-apps/tauri/pull/13217)) Fix large number of commands with large structs as parameters causing stack overflow on debug build on Windows
+- [`f888502fd`](https://www.github.com/tauri-apps/tauri/commit/f888502fd228ad96b105e1e66f01c20c9f109983) ([#13227](https://www.github.com/tauri-apps/tauri/pull/13227)) `invoke` will now properly throw when `options.headers` contains non-ascii characters instead of silently replacing them
+- [`f888502fd`](https://www.github.com/tauri-apps/tauri/commit/f888502fd228ad96b105e1e66f01c20c9f109983) ([#13227](https://www.github.com/tauri-apps/tauri/pull/13227)) Fix `invoke` ignores the headers option if it's an `Headers`
+- [`b8c0d7e40`](https://www.github.com/tauri-apps/tauri/commit/b8c0d7e402b2ea8114bfa0f9322c986bd3eb7845) ([#13040](https://www.github.com/tauri-apps/tauri/pull/13040)) Fix `run_return` not responding to `restart` and `request_restart`
+
+### Performance Improvements
+
+- [`66e6325f4`](https://www.github.com/tauri-apps/tauri/commit/66e6325f43efa49ec2165c45afec911a1a14ecfb) ([#13136](https://www.github.com/tauri-apps/tauri/pull/13136)) Improve `Channel`'s performance when sending small amount of data (e.g. sending a number)
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.4.0`
+- Upgraded to `tauri-runtime@2.6.0`
+- Upgraded to `tauri-runtime-wry@2.6.0`
+- Upgraded to `tauri-macros@2.2.0`
+- Upgraded to `tauri-build@2.2.0`
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update webview2-com to 0.37.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update windows to 0.61.
+
+### Breaking Changes
+
+- [`fca5154e7`](https://www.github.com/tauri-apps/tauri/commit/fca5154e7ab57bb1bc8c6f4c3c6e4b5650d170d9) ([#13130](https://www.github.com/tauri-apps/tauri/pull/13130)) Removed re-exported `WebviewAttributes` from `tauri-runtime` which is exposed by accident in `tauri` and not used by any public facing APIs
+
 ## \[2.4.1]
 
 ### Enhancements

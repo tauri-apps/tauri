@@ -1090,6 +1090,34 @@ impl Display for BundleTypeRole {
   }
 }
 
+// Issue #13159 - Missing the LSHandlerRank and Apple warns after uploading to App Store Connect.
+// https://github.com/tauri-apps/tauri/issues/13159
+/// Corresponds to LSHandlerRank
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum HandlerRank {
+  /// LSHandlerRank.Default. This app is an opener of files of this type; this value is also used if no rank is specified.
+  #[default]
+  Default,
+  /// LSHandlerRank.Owner. This app is the primary creator of files of this type.
+  Owner,
+  /// LSHandlerRank.Alternate. This app is a secondary viewer of files of this type.
+  Alternate,
+  /// LSHandlerRank.None. This app is never selected to open files of this type, but it accepts drops of files of this type.
+  None,
+}
+
+impl Display for HandlerRank {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Default => write!(f, "Default"),
+      Self::Owner => write!(f, "Owner"),
+      Self::Alternate => write!(f, "Alternate"),
+      Self::None => write!(f, "None"),
+    }
+  }
+}
+
 /// An extension for a [`FileAssociation`].
 ///
 /// A leading `.` is automatically stripped.
@@ -1131,6 +1159,9 @@ pub struct FileAssociation {
   /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
+  /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
+  #[serde(default)]
+  pub rank: HandlerRank,
 }
 
 /// Deep link protocol configuration.

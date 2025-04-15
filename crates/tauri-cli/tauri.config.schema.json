@@ -1966,6 +1966,15 @@
             "string",
             "null"
           ]
+        },
+        "rank": {
+          "description": "The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.",
+          "default": "Default",
+          "allOf": [
+            {
+              "$ref": "#/definitions/HandlerRank"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -2007,6 +2016,39 @@
         },
         {
           "description": "CFBundleTypeRole.None",
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        }
+      ]
+    },
+    "HandlerRank": {
+      "description": "Corresponds to LSHandlerRank",
+      "oneOf": [
+        {
+          "description": "LSHandlerRank.Default. This app is an opener of files of this type; this value is also used if no rank is specified.",
+          "type": "string",
+          "enum": [
+            "Default"
+          ]
+        },
+        {
+          "description": "LSHandlerRank.Owner. This app is the primary creator of files of this type.",
+          "type": "string",
+          "enum": [
+            "Owner"
+          ]
+        },
+        {
+          "description": "LSHandlerRank.Alternate. This app is a secondary viewer of files of this type.",
+          "type": "string",
+          "enum": [
+            "Alternate"
+          ]
+        },
+        {
+          "description": "LSHandlerRank.None. This app is never selected to open files of this type, but it accepts drops of files of this type.",
           "type": "string",
           "enum": [
             "None"

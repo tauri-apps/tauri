@@ -271,6 +271,7 @@ fn create_info_plist(
               "CFBundleTypeRole".into(),
               association.role.to_string().into(),
             );
+            dict.insert("LSHandlerRank".into(), association.rank.to_string().into());
             plist::Value::Dictionary(dict)
           })
           .collect(),

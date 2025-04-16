@@ -181,13 +181,13 @@ objc2-web-kit = { version = "0.3", features = [
 
 [features]
 default = ["wry", "compression", "common-controls-v6"]
-unstable = ["tauri-runtime-wry/unstable"]
+unstable = ["tauri-runtime-wry?/unstable"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",
 ]
 tray-icon = ["dep:tray-icon"]
-tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry/tracing"]
+tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]
 test = []
 compression = ["tauri-macros/compression", "tauri-utils/compression"]
 wry = ["webview2-com", "webkit2gtk", "tauri-runtime-wry"]
@@ -201,13 +201,13 @@ custom-protocol = ["tauri-macros/custom-protocol"]
 native-tls = ["reqwest/native-tls"]
 native-tls-vendored = ["reqwest/native-tls-vendored"]
 rustls-tls = ["reqwest/rustls-tls"]
-devtools = ["tauri-runtime/devtools", "tauri-runtime-wry/devtools"]
+devtools = ["tauri-runtime/devtools", "tauri-runtime-wry?/devtools"]
 process-relaunch-dangerous-allow-symlink-macos = [
   "tauri-utils/process-relaunch-dangerous-allow-symlink-macos",
 ]
 macos-private-api = [
   "tauri-runtime/macos-private-api",
-  "tauri-runtime-wry/macos-private-api",
+  "tauri-runtime-wry?/macos-private-api",
 ]
 webview-data-url = ["data-url"]
 protocol-asset = ["http-range"]
@@ -215,7 +215,7 @@ config-json5 = ["tauri-macros/config-json5"]
 config-toml = ["tauri-macros/config-toml"]
 image-ico = ["image/ico"]
 image-png = ["image/png"]
-macos-proxy = ["tauri-runtime-wry/macos-proxy"]
+macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
 specta = ["dep:specta"]
 
 [[example]]

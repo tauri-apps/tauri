@@ -17,6 +17,7 @@ use crate::{
 /// A guard for a state value.
 ///
 /// See [`Manager::manage`](`crate::Manager::manage`) for usage examples.
+#[derive(Clone)]
 pub struct State<'r, T: Send + Sync + 'static>(&'r T);
 
 impl<'r, T: Send + Sync + 'static> State<'r, T> {
@@ -35,12 +36,6 @@ impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
   #[inline(always)]
   fn deref(&self) -> &T {
     self.0
-  }
-}
-
-impl<T: Send + Sync + 'static> Clone for State<'_, T> {
-  fn clone(&self) -> Self {
-    State(self.0)
   }
 }
 

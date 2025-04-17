@@ -27,19 +27,24 @@ pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 pub const CHANNEL_PLUGIN_NAME: &str = "__TAURI_CHANNEL__";
 // TODO: Change this to `plugin:channel|fetch` in v3
 pub const FETCH_CHANNEL_DATA_COMMAND: &str = "plugin:__TAURI_CHANNEL__|fetch";
-pub(crate) const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+const CHANNEL_ID_HEADER_NAME: &str = "Tauri-Channel-Id";
+
+/// Maximum size a JSON we should send directly without going through the fetch process
+// 8192 byte JSON payload runs roughly 2x faster through eval than through fetch on WebView2 v135
+const MAX_JSON_DIRECT_EXECUTE_THRESHOLD: usize = 8192;
+// 1024 byte payload runs  roughly 30% faster through eval than through fetch on macOS
+const MAX_RAW_DIRECT_EXECUTE_THRESHOLD: usize = 1024;
 
 static CHANNEL_COUNTER: AtomicU32 = AtomicU32::new(0);
 static CHANNEL_DATA_COUNTER: AtomicU32 = AtomicU32::new(0);
 
 /// Maps a channel id to a pending data that must be send to the JavaScript side via the IPC.
 #[derive(Default, Clone)]
-pub struct ChannelDataIpcQueue(pub(crate) Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
+pub struct ChannelDataIpcQueue(Arc<Mutex<HashMap<u32, InvokeResponseBody>>>);
 
 /// An IPC channel.
 pub struct Channel<TSend = InvokeResponseBody> {
-  id: u32,
-  on_message: Arc<dyn Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync>,
+  inner: Arc<ChannelInner>,
   phantom: std::marker::PhantomData<TSend>,
 }
 
@@ -53,9 +58,25 @@ const _: () = {
 impl<TSend> Clone for Channel<TSend> {
   fn clone(&self) -> Self {
     Self {
-      id: self.id,
-      on_message: self.on_message.clone(),
-      phantom: Default::default(),
+      inner: self.inner.clone(),
+      phantom: self.phantom,
+    }
+  }
+}
+
+type OnDropFn = Option<Box<dyn Fn() + Send + Sync + 'static>>;
+type OnMessageFn = Box<dyn Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync>;
+
+struct ChannelInner {
+  id: u32,
+  on_message: OnMessageFn,
+  on_drop: OnDropFn,
+}
+
+impl Drop for ChannelInner {
+  fn drop(&mut self) {
+    if let Some(on_drop) = &self.on_drop {
+      on_drop();
     }
   }
 }
@@ -65,7 +86,7 @@ impl<TSend> Serialize for Channel<TSend> {
   where
     S: Serializer,
   {
-    serializer.serialize_str(&format!("{IPC_PAYLOAD_PREFIX}{}", self.id))
+    serializer.serialize_str(&format!("{IPC_PAYLOAD_PREFIX}{}", self.inner.id))
   }
 }
 
@@ -97,9 +118,9 @@ impl FromStr for JavaScriptChannelId {
   type Err = &'static str;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    s.split_once(IPC_PAYLOAD_PREFIX)
+    s.strip_prefix(IPC_PAYLOAD_PREFIX)
       .ok_or("invalid channel string")
-      .and_then(|(_prefix, id)| id.parse().map_err(|_| "invalid channel ID"))
+      .and_then(|id| id.parse().map_err(|_| "invalid channel ID"))
       .map(|id| Self(CallbackFn(id)))
   }
 }
@@ -107,34 +128,63 @@ impl FromStr for JavaScriptChannelId {
 impl JavaScriptChannelId {
   /// Gets a [`Channel`] for this channel ID on the given [`Webview`].
   pub fn channel_on<R: Runtime, TSend>(&self, webview: Webview<R>) -> Channel<TSend> {
-    let callback_id = self.0;
-    let counter = AtomicUsize::new(0);
+    let callback_fn = self.0;
+    let callback_id = callback_fn.0;
 
-    Channel::new_with_id(callback_id.0, move |body| {
-      let i = counter.fetch_add(1, Ordering::Relaxed);
+    let counter = Arc::new(AtomicUsize::new(0));
+    let counter_clone = counter.clone();
+    let webview_clone = webview.clone();
 
-      if let Some(interceptor) = &webview.manager.channel_interceptor {
-        if interceptor(&webview, callback_id, i, &body) {
-          return Ok(());
+    Channel::new_with_id(
+      callback_id,
+      Box::new(move |body| {
+        let current_index = counter.fetch_add(1, Ordering::Relaxed);
+
+        if let Some(interceptor) = &webview.manager.channel_interceptor {
+          if interceptor(&webview, callback_fn, current_index, &body) {
+            return Ok(());
+          }
         }
-      }
 
-      let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
+        match body {
+          // Don't go through the fetch process if the payload is small
+          InvokeResponseBody::Json(string) if string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD => {
+            webview.eval(format!(
+              "window['_{callback_id}']({{ message: {string}, index: {current_index} }})"
+            ))?;
+          }
+          InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
+            webview.eval(format!(
+              "window['_{callback_id}']({{ message: {}, index: {current_index} }})",
+              serde_json::to_string(&bytes)?,
+            ))?;
+          }
+          // use the fetch API to speed up larger response payloads
+          _ => {
+            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-      webview
-        .state::<ChannelDataIpcQueue>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(data_id, body);
+            webview
+              .state::<ChannelDataIpcQueue>()
+              .0
+              .lock()
+              .unwrap()
+              .insert(data_id, body);
 
-      webview.eval(format!(
-        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}]({{ message: response, id: {i} }})).catch(console.error)",
-        callback_id.0
-      ))?;
+            webview.eval(format!(
+              "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}']({{ message: response, index: {current_index} }})).catch(console.error)",
+            ))?;
+          }
+        }
 
-      Ok(())
-    })
+        Ok(())
+      }),
+      Some(Box::new(move || {
+        let current_index = counter_clone.load(Ordering::Relaxed);
+        let _ = webview_clone.eval(format!(
+          "window['_{callback_id}']({{ end: true, index: {current_index} }})",
+        ));
+      })),
+    )
   }
 }
 
@@ -157,53 +207,76 @@ impl<TSend> Channel<TSend> {
   pub fn new<F: Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync + 'static>(
     on_message: F,
   ) -> Self {
-    Self::new_with_id(CHANNEL_COUNTER.fetch_add(1, Ordering::Relaxed), on_message)
+    Self::new_with_id(
+      CHANNEL_COUNTER.fetch_add(1, Ordering::Relaxed),
+      Box::new(on_message),
+      None,
+    )
   }
 
-  fn new_with_id<F: Fn(InvokeResponseBody) -> crate::Result<()> + Send + Sync + 'static>(
-    id: u32,
-    on_message: F,
-  ) -> Self {
+  fn new_with_id(id: u32, on_message: OnMessageFn, on_drop: OnDropFn) -> Self {
     #[allow(clippy::let_and_return)]
     let channel = Self {
-      id,
-      on_message: Arc::new(on_message),
+      inner: Arc::new(ChannelInner {
+        id,
+        on_message,
+        on_drop,
+      }),
       phantom: Default::default(),
     };
 
     #[cfg(mobile)]
     crate::plugin::mobile::register_channel(Channel {
-      id,
-      on_message: channel.on_message.clone(),
+      inner: channel.inner.clone(),
       phantom: Default::default(),
     });
 
     channel
   }
 
+  // This is used from the IPC handler
   pub(crate) fn from_callback_fn<R: Runtime>(webview: Webview<R>, callback: CallbackFn) -> Self {
-    Channel::new_with_id(callback.0, move |body| {
-      let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let callback_id = callback.0;
+    Channel::new_with_id(
+      callback_id,
+      Box::new(move |body| {
+        match body {
+          // Don't go through the fetch process if the payload is small
+          InvokeResponseBody::Json(string) if string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD => {
+            webview.eval(format!("window['_{callback_id}']({string})"))?;
+          }
+          InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
+            webview.eval(format!(
+              "window['_{callback_id}']({})",
+              serde_json::to_string(&bytes)?,
+            ))?;
+          }
+          // use the fetch API to speed up larger response payloads
+          _ => {
+            let data_id = CHANNEL_DATA_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-      webview
-        .state::<ChannelDataIpcQueue>()
-        .0
-        .lock()
-        .unwrap()
-        .insert(data_id, body);
+            webview
+              .state::<ChannelDataIpcQueue>()
+              .0
+              .lock()
+              .unwrap()
+              .insert(data_id, body);
 
-      webview.eval(format!(
-        "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_' + {}](response)).catch(console.error)",
-        callback.0
-      ))?;
+            webview.eval(format!(
+              "window.__TAURI_INTERNALS__.invoke('{FETCH_CHANNEL_DATA_COMMAND}', null, {{ headers: {{ '{CHANNEL_ID_HEADER_NAME}': '{data_id}' }} }}).then((response) => window['_{callback_id}'](response)).catch(console.error)",
+            ))?;
+          }
+        }
 
-      Ok(())
-    })
+        Ok(())
+      }),
+      None,
+    )
   }
 
   /// The channel identifier.
   pub fn id(&self) -> u32 {
-    self.id
+    self.inner.id
   }
 
   /// Sends the given data through the channel.
@@ -211,7 +284,7 @@ impl<TSend> Channel<TSend> {
   where
     TSend: IpcResponse,
   {
-    (self.on_message)(data.body()?)
+    (self.inner.on_message)(data.body()?)
   }
 }
 

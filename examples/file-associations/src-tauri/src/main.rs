@@ -42,7 +42,7 @@ fn handle_file_associations(app: AppHandle, files: Vec<PathBuf>) {
     .join(",");
 
   tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-    .initialization_script(&format!("window.openedFiles = [{files}]"))
+    .initialization_script(format!("window.openedFiles = [{files}]"))
     .build()
     .unwrap();
 }

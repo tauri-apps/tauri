@@ -2,8 +2,8 @@
   import { Menu, Submenu } from '@tauri-apps/api/menu'
   import MenuBuilder from '../components/MenuBuilder.svelte'
 
-  export let onMessage
-  let items = []
+  let { onMessage } = $props()
+  let items = $state([])
   let menu = null
   let submenu = null
   let menuItemCount = 0
@@ -35,15 +35,15 @@
     m.popup()
   }
 
-  function onItemClick(event) {
-    onMessage(`Item ${event.detail.text} clicked`)
+  function onItemClick(detail) {
+    onMessage(`Item ${detail.text} clicked`)
   }
 </script>
 
 <div class="grid gap-4">
-  <MenuBuilder bind:items on:itemClick={onItemClick} />
+  <MenuBuilder bind:items itemClick={onItemClick} />
   <div>
-    <button class="btn" on:click={create}>Create menu</button>
-    <button class="btn" on:click={popup}>Popup</button>
+    <button class="btn" onclick={create}>Create menu</button>
+    <button class="btn" onclick={popup}>Popup</button>
   </div>
 </div>

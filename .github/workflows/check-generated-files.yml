@@ -44,9 +44,7 @@ jobs:
     if: needs.changes.outputs.api == 'true'
     steps:
       - uses: actions/checkout@v4
-      - run: |
-          npm i -g --force corepack
-          corepack enable
+      - run: npm i -g --force corepack
       - uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'

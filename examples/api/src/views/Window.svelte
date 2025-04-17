@@ -11,14 +11,14 @@
   } from '@tauri-apps/api/window'
   import { WebviewWindow } from '@tauri-apps/api/webviewWindow'
 
-  export let onMessage
+  let { onMessage } = $props()
 
   const webview = WebviewWindow.getCurrent()
 
-  let selectedWebview = webview.label
-  const webviewMap = {
+  let selectedWebview = $state(webview.label)
+  const webviewMap = $state({
     [webview.label]: webview
-  }
+  })
 
   const cursorIconOptions = [
     'default',
@@ -87,56 +87,59 @@
 
   const mainEl = document.querySelector('main')
 
-  let newWebviewLabel
+  let newWebviewLabel = $state()
 
-  let resizable = true
-  let maximizable = true
-  let minimizable = true
-  let closable = true
-  let maximized = false
-  let decorations = true
-  let alwaysOnTop = false
-  let alwaysOnBottom = false
-  let contentProtected = false
-  let fullscreen = false
-  let width = null
-  let height = null
-  let minWidth = null
-  let minHeight = null
-  let maxWidth = null
-  let maxHeight = null
-  let x = null
-  let y = null
-  let scaleFactor = 1
-  let innerPosition = new PhysicalPosition(x, y)
-  let outerPosition = new PhysicalPosition(x, y)
-  let innerSize = new PhysicalSize(width, height)
-  let outerSize = new PhysicalSize(width, height)
+  let resizable = $state(true)
+  let maximizable = $state(true)
+  let minimizable = $state(true)
+  let closable = $state(true)
+  let maximized = $state(false)
+  let decorations = $state(true)
+  let alwaysOnTop = $state(false)
+  let alwaysOnBottom = $state(false)
+  let contentProtected = $state(false)
+  let fullscreen = $state(false)
+  let width = $state(null)
+  let height = $state(null)
+  let minWidth = $state(null)
+  let minHeight = $state(null)
+  let maxWidth = $state(null)
+  let maxHeight = $state(null)
+  let x = $state(null)
+  let y = $state(null)
+  let scaleFactor = $state(1)
+  let innerPosition = $state(new PhysicalPosition(0, 0))
+  let outerPosition = $state(new PhysicalPosition(0, 0))
+  let innerSize = $state(new PhysicalSize(0, 0))
+  let outerSize = $state(new PhysicalSize(0, 0))
   let resizeEventUnlisten
   let moveEventUnlisten
-  let cursorGrab = false
-  let cursorVisible = true
-  let cursorX = null
-  let cursorY = null
+  let cursorGrab = $state(false)
+  let cursorVisible = $state(true)
+  let cursorX = $state(null)
+  let cursorY = $state(null)
   /** @type {import('@tauri-apps/api/window').CursorIcon} */
-  let cursorIcon = 'default'
-  let cursorIgnoreEvents = false
-  let windowTitle = 'Awesome Tauri Example!'
+  let cursorIcon = $state('default')
+  let cursorIgnoreEvents = $state(false)
+  let windowTitle = $state('Awesome Tauri Example!')
 
   /** @type {import('@tauri-apps/api/window').Theme | 'auto'} */
-  let theme = 'auto'
+  let theme = $state('auto')
 
-  let effects = []
-  let selectedEffect
-  let effectState
-  let effectRadius
-  let effectR, effectG, effectB, effectA
+  let effects = $state([])
+  let selectedEffect = $state()
+  let effectState = $state()
+  let effectRadius = $state()
+  let effectR = $state(),
+    effectG = $state(),
+    effectB = $state(),
+    effectA = $state()
 
   /** @type {ProgressBarStatus} */
-  let selectedProgressBarStatus = ProgressBarStatus.None
-  let progress = 0
+  let selectedProgressBarStatus = $state(ProgressBarStatus.None)
+  let progress = $state(0)
 
-  let windowIconPath
+  let windowIconPath = $state()
 
   function setTitle() {
     webviewMap[selectedWebview].setTitle(windowTitle)
@@ -268,10 +271,10 @@
       radius: effectRadius
     }
     if (
-      Number.isInteger(effectR) &&
-      Number.isInteger(effectG) &&
-      Number.isInteger(effectB) &&
-      Number.isInteger(effectA)
+      Number.isInteger(effectR)
+      && Number.isInteger(effectG)
+      && Number.isInteger(effectB)
+      && Number.isInteger(effectA)
     ) {
       payload.color = [effectR, effectG, effectB, effectA]
     }
@@ -297,48 +300,86 @@
     webviewMap[selectedWebview]?.setSize(new PhysicalSize(width, height))
   }
 
-  $: {
+  $effect(() => {
     webviewMap[selectedWebview]
     loadWindowPosition()
     loadWindowSize()
-  }
-  $: webviewMap[selectedWebview]?.setResizable(resizable)
-  $: webviewMap[selectedWebview]?.setMaximizable(maximizable)
-  $: webviewMap[selectedWebview]?.setMinimizable(minimizable)
-  $: webviewMap[selectedWebview]?.setClosable(closable)
-  $: maximized
-    ? webviewMap[selectedWebview]?.maximize()
-    : webviewMap[selectedWebview]?.unmaximize()
-  $: webviewMap[selectedWebview]?.setDecorations(decorations)
-  $: webviewMap[selectedWebview]?.setAlwaysOnTop(alwaysOnTop)
-  $: webviewMap[selectedWebview]?.setAlwaysOnBottom(alwaysOnBottom)
-  $: webviewMap[selectedWebview]?.setContentProtected(contentProtected)
-  $: webviewMap[selectedWebview]?.setFullscreen(fullscreen)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setResizable(resizable)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setMaximizable(maximizable)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setMinimizable(minimizable)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setClosable(closable)
+  })
+  $effect(() => {
+    maximized
+      ? webviewMap[selectedWebview]?.maximize()
+      : webviewMap[selectedWebview]?.unmaximize()
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setDecorations(decorations)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setAlwaysOnTop(alwaysOnTop)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setAlwaysOnBottom(alwaysOnBottom)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setContentProtected(contentProtected)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setFullscreen(fullscreen)
+  })
 
-  $: minWidth && minHeight
-    ? webviewMap[selectedWebview]?.setMinSize(
-        new LogicalSize(minWidth, minHeight)
-      )
-    : webviewMap[selectedWebview]?.setMinSize(null)
-  $: maxWidth > 800 && maxHeight > 400
-    ? webviewMap[selectedWebview]?.setMaxSize(
-        new LogicalSize(maxWidth, maxHeight)
-      )
-    : webviewMap[selectedWebview]?.setMaxSize(null)
-  $: webviewMap[selectedWebview]
-    ?.scaleFactor()
-    .then((factor) => (scaleFactor = factor))
-  $: addWindowEventListeners(webviewMap[selectedWebview])
+  $effect(() => {
+    minWidth && minHeight
+      ? webviewMap[selectedWebview]?.setMinSize(
+          new LogicalSize(minWidth, minHeight)
+        )
+      : webviewMap[selectedWebview]?.setMinSize(null)
+  })
+  $effect(() => {
+    maxWidth > 800 && maxHeight > 400
+      ? webviewMap[selectedWebview]?.setMaxSize(
+          new LogicalSize(maxWidth, maxHeight)
+        )
+      : webviewMap[selectedWebview]?.setMaxSize(null)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]
+      ?.scaleFactor()
+      .then((factor) => (scaleFactor = factor))
+  })
+  $effect(() => {
+    addWindowEventListeners(webviewMap[selectedWebview])
+  })
 
-  $: webviewMap[selectedWebview]?.setCursorGrab(cursorGrab)
-  $: webviewMap[selectedWebview]?.setCursorVisible(cursorVisible)
-  $: webviewMap[selectedWebview]?.setCursorIcon(cursorIcon)
-  $: cursorX !== null &&
-    cursorY !== null &&
-    webviewMap[selectedWebview]?.setCursorPosition(
-      new PhysicalPosition(cursorX, cursorY)
-    )
-  $: webviewMap[selectedWebview]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+  $effect(() => {
+    webviewMap[selectedWebview]?.setCursorGrab(cursorGrab)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setCursorVisible(cursorVisible)
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setCursorIcon(cursorIcon)
+  })
+  $effect(() => {
+    cursorX !== null
+      && cursorY !== null
+      && webviewMap[selectedWebview]?.setCursorPosition(
+        new PhysicalPosition(cursorX, cursorY)
+      )
+  })
+  $effect(() => {
+    webviewMap[selectedWebview]?.setIgnoreCursorEvents(cursorIgnoreEvents)
+  })
 
   onDestroy(() => {
     resizeEventUnlisten?.()
@@ -363,7 +404,13 @@
     {/if}
     <div class="grid gap-1">
       <h4 class="my-2">Create New Window</h4>
-      <form class="flex gap-2" on:submit|preventDefault={createWebviewWindow}>
+      <form
+        class="flex gap-2"
+        onsubmit={(ev) => {
+          createWebviewWindow()
+          ev.preventDefault()
+        }}
+      >
         <input
           class="input"
           type="text"
@@ -378,7 +425,13 @@
     <div class="flex flex-wrap items-center gap-4">
       <div class="grid gap-1 grow">
         <h4 class="my-2">Change Window Icon</h4>
-        <form class="flex gap-2" on:submit|preventDefault={changeIcon}>
+        <form
+          class="flex gap-2"
+          onsubmit={(ev) => {
+            changeIcon()
+            ev.preventDefault()
+          }}
+        >
           <input
             class="input flex-1 min-w-10"
             placeholder="Window icon path"
@@ -389,7 +442,13 @@
       </div>
       <div class="grid gap-1 grow">
         <h4 class="my-2">Set Window Title</h4>
-        <form class="flex gap-2" on:submit|preventDefault={setTitle}>
+        <form
+          class="flex gap-2"
+          onsubmit={(ev) => {
+            setTitle()
+            ev.preventDefault()
+          }}
+        >
           <input class="input flex-1 min-w-10" bind:value={windowTitle} />
           <button class="btn" type="submit">Set</button>
         </form>
@@ -399,34 +458,34 @@
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
-        on:click={() => webviewMap[selectedWebview].center()}
+        onclick={() => webviewMap[selectedWebview].center()}
       >
         Center
       </button>
       <button
         class="btn"
         title="Unminimizes after 2 seconds"
-        on:click={minimize}
+        onclick={minimize}
       >
         Minimize
       </button>
-      <button class="btn" title="Visible again after 2 seconds" on:click={hide}>
+      <button class="btn" title="Visible again after 2 seconds" onclick={hide}>
         Hide
       </button>
       <button
         class="btn"
         title="Enabled again after 2 seconds"
-        on:click={disable}
+        onclick={disable}
       >
         Disable
       </button>
       <button
         class="btn"
-        on:click={requestUserAttention}
+        onclick={requestUserAttention}
         title="Minimizes the window, requests attention for 3s and then resets it"
         >Request attention</button
       >
-      <button class="btn" on:click={switchTheme}>Switch Theme ({theme})</button>
+      <button class="btn" onclick={switchTheme}>Switch Theme ({theme})</button>
     </div>
     <div class="grid cols-[repeat(auto-fill,minmax(180px,1fr))]">
       <label>
@@ -482,7 +541,7 @@
             class="input"
             type="number"
             bind:value={x}
-            on:change={updatePosition}
+            onchange={updatePosition}
             min="0"
           />
         </label>
@@ -492,7 +551,7 @@
             class="input"
             type="number"
             bind:value={y}
-            on:change={updatePosition}
+            onchange={updatePosition}
             min="0"
           />
         </label>
@@ -504,7 +563,7 @@
             class="input"
             type="number"
             bind:value={width}
-            on:change={updateSize}
+            onchange={updateSize}
             min="400"
           />
         </label>
@@ -514,7 +573,7 @@
             class="input"
             type="number"
             bind:value={height}
-            on:change={updateSize}
+            onchange={updateSize}
             min="400"
           />
         </div>
@@ -651,7 +710,7 @@
           <select
             class="input"
             bind:value={selectedProgressBarStatus}
-            on:change={updateProgressBar}
+            onchange={updateProgressBar}
           >
             {#each progressBarStatusOptions as status}
               <option value={status}>{status}</option>
@@ -667,7 +726,7 @@
             min="0"
             max="100"
             bind:value={progress}
-            on:change={updateProgressBar}
+            onchange={updateProgressBar}
           />
         </label>
       </div>
@@ -680,7 +739,7 @@
             Applied effects: {effects.length ? effects.join(', ') : 'None'}
           </div>
 
-          <button class="btn" on:click={clearEffects}>Clear</button>
+          <button class="btn" onclick={clearEffects}>Clear</button>
         </div>
 
         <div class="flex gap-2">
@@ -741,7 +800,7 @@
         </div>
 
         <div class="flex">
-          <button class="btn" on:click={addEffect}>Add</button>
+          <button class="btn" onclick={addEffect}>Add</button>
         </div>
       </div>
     {/if}

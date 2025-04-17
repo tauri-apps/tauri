@@ -48,7 +48,6 @@ struct CspHashStrings {
 
 /// Sets the CSP value to the asset HTML if needed (on Linux).
 /// Returns the CSP string for access on the response header (on Windows and macOS).
-#[allow(clippy::borrowed_box)]
 pub(crate) fn set_csp<R: Runtime>(
   asset: &mut String,
   assets: &impl std::borrow::Borrow<dyn Assets<R>>,

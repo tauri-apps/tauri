@@ -612,6 +612,11 @@ pub struct MacConfig {
   /// The files to include in the application relative to the Contents directory.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -651,6 +656,7 @@ impl Default for MacConfig {
     Self {
       frameworks: None,
       files: HashMap::new(),
+      bundle_version: None,
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
@@ -1084,6 +1090,34 @@ impl Display for BundleTypeRole {
   }
 }
 
+// Issue #13159 - Missing the LSHandlerRank and Apple warns after uploading to App Store Connect.
+// https://github.com/tauri-apps/tauri/issues/13159
+/// Corresponds to LSHandlerRank
+#[derive(Debug, Default, PartialEq, Eq, Clone, Deserialize, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub enum HandlerRank {
+  /// LSHandlerRank.Default. This app is an opener of files of this type; this value is also used if no rank is specified.
+  #[default]
+  Default,
+  /// LSHandlerRank.Owner. This app is the primary creator of files of this type.
+  Owner,
+  /// LSHandlerRank.Alternate. This app is a secondary viewer of files of this type.
+  Alternate,
+  /// LSHandlerRank.None. This app is never selected to open files of this type, but it accepts drops of files of this type.
+  None,
+}
+
+impl Display for HandlerRank {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      Self::Default => write!(f, "Default"),
+      Self::Owner => write!(f, "Owner"),
+      Self::Alternate => write!(f, "Alternate"),
+      Self::None => write!(f, "None"),
+    }
+  }
+}
+
 /// An extension for a [`FileAssociation`].
 ///
 /// A leading `.` is automatically stripped.
@@ -1125,6 +1159,9 @@ pub struct FileAssociation {
   /// The mime-type e.g. 'image/png' or 'text/plain'. Linux-only.
   #[serde(alias = "mime-type")]
   pub mime_type: Option<String>,
+  /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
+  #[serde(default)]
+  pub rank: HandlerRank,
 }
 
 /// Deep link protocol configuration.
@@ -1462,6 +1499,30 @@ pub struct WindowEffectsConfig {
   pub color: Option<Color>,
 }
 
+/// Enable prevent overflow with a margin
+/// so that the window's size + this margin won't overflow the workarea
+#[derive(Debug, PartialEq, Clone, Deserialize, Serialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PreventOverflowMargin {
+  /// Horizontal margin in physical unit
+  pub width: u32,
+  /// Vertical margin in physical unit
+  pub height: u32,
+}
+
+/// Prevent overflow with a margin
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum PreventOverflowConfig {
+  /// Enable prevent overflow or not
+  Enable(bool),
+  /// Enable prevent overflow with a margin
+  /// so that the window's size + this margin won't overflow the workarea
+  Margin(PreventOverflowMargin),
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1515,6 +1576,13 @@ pub struct WindowConfig {
   /// The max window height.
   #[serde(alias = "max-height")]
   pub max_height: Option<f64>,
+  /// Whether or not to prevent the window from overflowing the workarea
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[serde(alias = "prevent-overflow")]
+  pub prevent_overflow: Option<PreventOverflowConfig>,
   /// Whether the window is resizable or not. When resizable is set to false, native window's maximize button is automatically disabled.
   #[serde(default = "default_true")]
   pub resizable: bool,
@@ -1736,6 +1804,20 @@ pub struct WindowConfig {
   /// Whether we should disable JavaScript code execution on the webview or not.
   #[serde(default, alias = "javascript-disabled")]
   pub javascript_disabled: bool,
+  /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+  /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  #[serde(default = "default_true", alias = "allow-link-preview")]
+  pub allow_link_preview: bool,
+  /// Allows disabling the input accessory view on iOS.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  #[serde(
+    default,
+    alias = "disable-input-accessory-view",
+    alias = "disable_input_accessory_view"
+  )]
+  pub disable_input_accessory_view: bool,
 }
 
 impl Default for WindowConfig {
@@ -1755,6 +1837,7 @@ impl Default for WindowConfig {
       min_height: None,
       max_width: None,
       max_height: None,
+      prevent_overflow: None,
       resizable: true,
       maximizable: true,
       minimizable: true,
@@ -1791,6 +1874,8 @@ impl Default for WindowConfig {
       background_color: None,
       background_throttling: None,
       javascript_disabled: false,
+      allow_link_preview: true,
+      disable_input_accessory_view: false,
     }
   }
 }
@@ -2146,6 +2231,7 @@ impl HeaderAddition for Builder {
 }
 
 /// A struct, where the keys are some specific http header names.
+///
 /// If the values to those keys are defined, then they will be send as part of a response message.
 /// This does not include error messages and ipc messages
 ///
@@ -2522,6 +2608,11 @@ pub struct IosConfig {
   /// The `APPLE_DEVELOPMENT_TEAM` environment variable can be set to overwrite it.
   #[serde(alias = "development-team")]
   pub development_team: Option<String>,
+  /// The version of the build that identifies an iteration of the bundle.
+  ///
+  /// Translates to the bundle's CFBundleVersion property.
+  #[serde(alias = "bundle-version")]
+  pub bundle_version: Option<String>,
   /// A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.
   ///
   /// Maps to the IPHONEOS_DEPLOYMENT_TARGET value.
@@ -2538,6 +2629,7 @@ impl Default for IosConfig {
       template: None,
       frameworks: None,
       development_team: None,
+      bundle_version: None,
       minimum_system_version: ios_minimum_system_version(),
     }
   }
@@ -2841,7 +2933,19 @@ pub struct Config {
   /// App main binary filename. Defaults to the name of your cargo crate.
   #[serde(alias = "main-binary-name")]
   pub main_binary_name: Option<String>,
-  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field. If removed the version number from `Cargo.toml` is used.
+  /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
+  ///
+  /// If removed the version number from `Cargo.toml` is used.
+  /// It's recommended to manage the app versioning in the Tauri config.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > macOS > bundleVersion`](MacConfig::bundle_version).
+  /// - **iOS**: Translates to the bundle's CFBundleShortVersionString property and is used as the default CFBundleVersion.
+  ///    You can set an specific bundle version using [`bundle > iOS > bundleVersion`](IosConfig::bundle_version).
+  ///    The `tauri ios build` CLI command has a `--build-number <number>` option that lets you append a build number to the app version.
+  /// - **Android**: By default version 1.0 is used. You can set a version code using [`bundle > android > versionCode`](AndroidConfig::version_code).
   ///
   /// By default version 1.0 is used on Android.
   #[serde(deserialize_with = "version_deserializer", default)]
@@ -3022,6 +3126,32 @@ mod build {
     }
   }
 
+  impl ToTokens for PreventOverflowMargin {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let width = self.width;
+      let height = self.height;
+
+      literal_struct!(
+        tokens,
+        ::tauri::utils::config::PreventOverflowMargin,
+        width,
+        height
+      )
+    }
+  }
+
+  impl ToTokens for PreventOverflowConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::PreventOverflowConfig };
+
+      #[allow(deprecated)]
+      tokens.append_all(match self {
+        Self::Enable(enable) => quote! { #prefix::Enable(#enable) },
+        Self::Margin(margin) => quote! { #prefix::Margin(#margin) },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3038,6 +3168,7 @@ mod build {
       let min_height = opt_lit(self.min_height.as_ref());
       let max_width = opt_lit(self.max_width.as_ref());
       let max_height = opt_lit(self.max_height.as_ref());
+      let prevent_overflow = opt_lit(self.prevent_overflow.as_ref());
       let resizable = self.resizable;
       let maximizable = self.maximizable;
       let minimizable = self.minimizable;
@@ -3074,6 +3205,8 @@ mod build {
       let background_color = opt_lit(self.background_color.as_ref());
       let background_throttling = opt_lit(self.background_throttling.as_ref());
       let javascript_disabled = self.javascript_disabled;
+      let allow_link_preview = self.allow_link_preview;
+      let disable_input_accessory_view = self.disable_input_accessory_view;
 
       literal_struct!(
         tokens,
@@ -3092,6 +3225,7 @@ mod build {
         min_height,
         max_width,
         max_height,
+        prevent_overflow,
         resizable,
         maximizable,
         minimizable,
@@ -3127,7 +3261,9 @@ mod build {
         devtools,
         background_color,
         background_throttling,
-        javascript_disabled
+        javascript_disabled,
+        allow_link_preview,
+        disable_input_accessory_view
       );
     }
   }

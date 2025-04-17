@@ -3,7 +3,7 @@
   import { Channel, invoke } from '@tauri-apps/api/core'
   import { onMount, onDestroy } from 'svelte'
 
-  export let onMessage
+  let { onMessage } = $props()
   let unlisten
 
   const webviewWindow = getCurrentWebviewWindow()
@@ -58,13 +58,13 @@
 </script>
 
 <div>
-  <button class="btn" id="log" on:click={log}>Call Log API</button>
-  <button class="btn" id="request" on:click={performRequest}>
+  <button class="btn" id="log" onclick={log}>Call Log API</button>
+  <button class="btn" id="request" onclick={performRequest}>
     Call Request (async) API
   </button>
-  <button class="btn" id="event" on:click={emitEvent}>
+  <button class="btn" id="event" onclick={emitEvent}>
     Send event to Rust
   </button>
-  <button class="btn" id="request" on:click={echo}> Echo </button>
-  <button class="btn" id="request" on:click={spam}> Spam </button>
+  <button class="btn" id="request" onclick={echo}> Echo </button>
+  <button class="btn" id="request" onclick={spam}> Spam </button>
 </div>

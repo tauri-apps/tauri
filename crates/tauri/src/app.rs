@@ -390,8 +390,6 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// Needs to be called from Main Thread
   pub async fn fetch_data_store_identifiers(&self) -> crate::Result<Vec<[u8; 16]>> {
-    use std::sync::Mutex;
-
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<Vec<[u8; 16]>, tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
@@ -415,8 +413,6 @@ impl<R: Runtime> AppHandle<R> {
   ///
   /// Needs to be called from Main Thread
   pub async fn remove_data_store(&self, uuid: [u8; 16]) -> crate::Result<()> {
-    use std::sync::Mutex;
-
     let (tx, rx) = tokio::sync::oneshot::channel::<Result<(), tauri_runtime::Error>>();
     let lock: Arc<Mutex<Option<_>>> = Arc::new(Mutex::new(Some(tx)));
     let runtime_handle = self.runtime_handle.clone();
@@ -599,6 +595,26 @@ impl<R: Runtime> AppHandle<R> {
     self
       .runtime_handle
       .set_activation_policy(activation_policy)
+      .map_err(Into::into)
+  }
+
+  /// Sets the dock visibility for the application.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.handle().set_dock_visibility(false);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_dock_visibility(&self, visible: bool) -> crate::Result<()> {
+    self
+      .runtime_handle
+      .set_dock_visibility(visible)
       .map_err(Into::into)
   }
 }
@@ -1130,6 +1146,27 @@ impl<R: Runtime> App<R> {
     }
   }
 
+  /// Sets the dock visibility for the application.
+  ///
+  /// # Examples
+  /// ```,no_run
+  /// tauri::Builder::default()
+  ///   .setup(move |app| {
+  ///     #[cfg(target_os = "macos")]
+  ///     app.set_dock_visibility(false);
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(target_os = "macos")]
+  #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
+  pub fn set_dock_visibility(&mut self, visible: bool) {
+    if let Some(runtime) = self.runtime.as_mut() {
+      runtime.set_dock_visibility(visible);
+    } else {
+      let _ = self.app_handle().set_dock_visibility(visible);
+    }
+  }
+
   /// Change the device event filter mode.
   ///
   /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
@@ -1494,9 +1531,10 @@ impl<R: Runtime> Builder<R> {
   ///
   /// Note that the implementation details is up to your implementation.
   #[must_use]
-  pub fn invoke_system(mut self, initialization_script: String) -> Self {
-    self.invoke_initialization_script =
-      initialization_script.replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
+  pub fn invoke_system(mut self, initialization_script: impl AsRef<str>) -> Self {
+    self.invoke_initialization_script = initialization_script
+      .as_ref()
+      .replace("__INVOKE_KEY__", &format!("\"{}\"", self.invoke_key));
     self
   }
 

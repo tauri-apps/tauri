@@ -280,18 +280,25 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     #maybe_macro_export
     #[doc(hidden)]
     macro_rules! #wrapper {
-        // double braces because the item is expected to be a block expression
-        ($path:path, $invoke:ident) => {{
-          #[allow(unused_imports)]
-          use #root::ipc::private::*;
-          // prevent warnings when the body is a `compile_error!` or if the command has no arguments
-          #[allow(unused_variables)]
-          let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = $invoke;
+      // double braces because the item is expected to be a block expression
+      ($path:path, $invoke:ident) => {
+        // The IIFE here is for preventing stack overflow on Windows debug build,
+        // see https://github.com/tauri-apps/tauri/issues/12488
+        {
+          #[cfg_attr(not(debug_assertions), inline(always))]
+          move || {
+            #[allow(unused_imports)]
+            use #root::ipc::private::*;
+            // prevent warnings when the body is a `compile_error!` or if the command has no arguments
+            #[allow(unused_variables)]
+            let #root::ipc::Invoke { message: #message, resolver: #resolver, acl: #acl } = $invoke;
 
-          #maybe_span
+            #maybe_span
 
-          #body
-      }};
+            #body
+          }
+        }()
+      };
     }
 
     // allow the macro to be resolved with the same path as the command function

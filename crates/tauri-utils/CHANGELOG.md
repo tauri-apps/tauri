@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.4.0]
+
+### New Features
+
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `disableInputAccessoryView: bool` config for iOS.
+- [`0aa48fb9e`](https://www.github.com/tauri-apps/tauri/commit/0aa48fb9e4b9d7b5bf3522000a76ebc1836394ed) ([#13030](https://www.github.com/tauri-apps/tauri/pull/13030)) Added `bundleVersion` to iOS and macOS configuration to support specifying a `CFBundleVersion`.
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+
+### Bug Fixes
+
+- [`2dccfab53`](https://www.github.com/tauri-apps/tauri/commit/2dccfab5321fef55d45f3a4c674b6151b1c4424a) ([#13236](https://www.github.com/tauri-apps/tauri/pull/13236)) Fix `fileAssociations` missing `LSHandlerRank` on macOS.
+
 ## \[2.3.1]
 
 ### Enhancements

@@ -27,16 +27,17 @@
       && (canUseCustomProtocol || cmd === fetchChannelDataCommand)
     ) {
       const { contentType, data } = processIpcMessage(payload)
+
+      const headers = new Headers((options && options.headers) || {})
+      headers.set('Content-Type', contentType)
+      headers.set('Tauri-Callback', callback)
+      headers.set('Tauri-Error', error)
+      headers.set('Tauri-Invoke-Key', __TAURI_INVOKE_KEY__)
+
       fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
         method: 'POST',
         body: data,
-        headers: {
-          'Content-Type': contentType,
-          'Tauri-Callback': callback,
-          'Tauri-Error': error,
-          'Tauri-Invoke-Key': __TAURI_INVOKE_KEY__,
-          ...((options && options.headers) || {})
-        }
+        headers
       })
         .then((response) => {
           const cb =

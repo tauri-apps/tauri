@@ -7,7 +7,7 @@
     ]
   },
   "scripts": {
-    "tauri": "node ../../packages/cli/node/tauri.js"
+    "tauri": "node ../../packages/cli/tauri.js"
   },
   "devDependencies": {}
 }

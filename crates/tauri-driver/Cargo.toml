@@ -1,6 +1,6 @@
 [package]
 name = "tauri-driver"
-version = "2.0.3"
+version = "2.0.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 categories = ["gui", "web-programming"]
 license = "Apache-2.0 OR MIT"
@@ -33,3 +33,6 @@ which = "7"
 [target."cfg(unix)".dependencies]
 signal-hook = "0.3"
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
+
+[target."cfg(windows)".dependencies]
+win32job = "2"

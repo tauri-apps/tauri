@@ -1,5 +1,25 @@
 # Changelog
 
+## \[2.5.0]
+
+### New Features
+
+- [`0aa48fb9e`](https://www.github.com/tauri-apps/tauri/commit/0aa48fb9e4b9d7b5bf3522000a76ebc1836394ed) ([#13030](https://www.github.com/tauri-apps/tauri/pull/13030)) Added `bundleVersion` to iOS and macOS configuration to support specifying a `CFBundleVersion`.
+
+### Enhancements
+
+- [`ad3fd3890`](https://www.github.com/tauri-apps/tauri/commit/ad3fd3890f1fa26a9f9be04ff1bc156d6dd2a8bc) ([#13152](https://www.github.com/tauri-apps/tauri/pull/13152)) Detect package manager from environment variable `npm_config_user_agent` first
+- [`82406c61e`](https://www.github.com/tauri-apps/tauri/commit/82406c61e0fbb775ef00791ccab45349325bdd45) ([#13231](https://www.github.com/tauri-apps/tauri/pull/13231)) Improve iOS simulator usage, checking if Xcode iOS SDK is installed and allowing usage of Simulator for older iOS releases (previously only supported when running on Xcode via `ios dev --open`).
+
+### Bug Fixes
+
+- [`2dccfab53`](https://www.github.com/tauri-apps/tauri/commit/2dccfab5321fef55d45f3a4c674b6151b1c4424a) ([#13236](https://www.github.com/tauri-apps/tauri/pull/13236)) Fix `fileAssociations` missing `LSHandlerRank` on macOS.
+- [`080252903`](https://www.github.com/tauri-apps/tauri/commit/0802529031c4fd309edff374a8694e93ddec161d) ([#13210](https://www.github.com/tauri-apps/tauri/pull/13210)) Fixes iOS dev not working on Xcode 16.3 simulators. To apply the fix, either regenerate the Xcode project with `rm -r src-tauri/gen/apple && tauri ios init` or remove the `arm64-sim` architecture from the Xcode project.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.5.0`
+
 ## \[2.4.1]
 
 ### Enhancements

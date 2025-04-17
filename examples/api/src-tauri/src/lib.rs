@@ -91,6 +91,8 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         }),
       });
       log::info!("got response: {:?}", response);
+      // when #[cfg(desktop)], Rust will detect pattern as irrefutable
+      #[allow(irrefutable_let_patterns)]
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }

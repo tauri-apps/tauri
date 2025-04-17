@@ -15,6 +15,7 @@ use std::{
 };
 
 /// Resources are Rust objects that are stored in [ResourceTable] and managed by tauri.
+///
 /// They are identified in JS by a numeric ID (the resource ID, or rid).
 /// Resources can be created in commands. Resources can also be retrieved in commands by
 /// their rid. Resources are thread-safe.

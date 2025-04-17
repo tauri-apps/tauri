@@ -34,6 +34,12 @@ type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
+#[cfg(target_os = "ios")]
+type InputAccessoryViewBuilderFn = dyn Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
+  + Send
+  + Sync
+  + 'static;
+
 /// Download event.
 pub enum DownloadEvent<'a> {
   /// Download requested.
@@ -193,7 +199,7 @@ impl<T: UserEvent, R: Runtime<T>> PartialEq for DetachedWebview<T, R> {
 }
 
 /// The attributes used to create an webview.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WebviewAttributes {
   pub url: WebviewUrl,
   pub user_agent: Option<String>,
@@ -203,8 +209,13 @@ pub struct WebviewAttributes {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
-  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   pub initialization_scripts: Vec<InitializationScript>,
   pub data_directory: Option<PathBuf>,
   pub drag_drop_handler_enabled: bool,
@@ -228,6 +239,40 @@ pub struct WebviewAttributes {
   pub traffic_light_position: Option<dpi::Position>,
   pub background_throttling: Option<BackgroundThrottlingPolicy>,
   pub javascript_disabled: bool,
+  /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
+  /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  pub allow_link_preview: bool,
+  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Returning `None` effectively removes the view.
+  ///
+  /// The closure parameter is the webview instance.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  ///
+  /// # Stability
+  ///
+  /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
+  #[cfg(target_os = "ios")]
+  pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+}
+
+#[cfg(target_os = "ios")]
+#[non_exhaustive]
+pub struct InputAccessoryViewBuilder(pub Box<InputAccessoryViewBuilderFn>);
+
+#[cfg(target_os = "ios")]
+impl std::fmt::Debug for InputAccessoryViewBuilder {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::result::Result<(), std::fmt::Error> {
+    f.debug_struct("InputAccessoryViewBuilder").finish()
+  }
+}
+
+#[cfg(target_os = "ios")]
+impl InputAccessoryViewBuilder {
+  pub fn new(builder: Box<InputAccessoryViewBuilderFn>) -> Self {
+    Self(builder)
+  }
 }
 
 impl From<&WindowConfig> for WebviewAttributes {
@@ -272,6 +317,13 @@ impl From<&WindowConfig> for WebviewAttributes {
       builder = builder.background_color(color);
     }
     builder.javascript_disabled = config.javascript_disabled;
+    builder.allow_link_preview = config.allow_link_preview;
+    #[cfg(target_os = "ios")]
+    if config.disable_input_accessory_view {
+      builder
+        .input_accessory_view_builder
+        .replace(InputAccessoryViewBuilder::new(Box::new(|_webview| None)));
+    }
     builder
   }
 }
@@ -305,6 +357,9 @@ impl WebviewAttributes {
       traffic_light_position: None,
       background_throttling: None,
       javascript_disabled: false,
+      allow_link_preview: true,
+      #[cfg(target_os = "ios")]
+      input_accessory_view_builder: None,
     }
   }
 
@@ -323,15 +378,18 @@ impl WebviewAttributes {
   /// This is executed only on the main frame.
   /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
   ///
-  ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
-  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn initialization_script(mut self, script: &str) -> Self {
+  pub fn initialization_script(mut self, script: impl Into<String>) -> Self {
     self.initialization_scripts.push(InitializationScript {
-      script: script.to_string(),
+      script: script.into(),
       for_main_frame_only: true,
     });
     self
@@ -347,12 +405,16 @@ impl WebviewAttributes {
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** The Android WebView does not provide an API for initialization scripts,
-  ///   so we prepend them to each HTML head. They are only implemented on custom protocol URLs.
+  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   #[must_use]
-  pub fn initialization_script_on_all_frames(mut self, script: &str) -> Self {
+  pub fn initialization_script_on_all_frames(mut self, script: impl Into<String>) -> Self {
     self.initialization_scripts.push(InitializationScript {
-      script: script.to_string(),
+      script: script.into(),
       for_main_frame_only: false,
     });
     self
@@ -520,6 +582,21 @@ impl WebviewAttributes {
     self
   }
 
+  /// Whether to show a link preview when long pressing on links. Available on macOS and iOS only.
+  ///
+  /// Default is true.
+  ///
+  /// See https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android:** Unsupported.
+  #[must_use]
+  pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
+    self.allow_link_preview = allow_link_preview;
+    self
+  }
+
   /// Change the default background throttling behavior.
   ///
   /// By default, browsers use a suspend policy that will throttle timers and even unload
@@ -551,13 +628,4 @@ pub struct InitializationScript {
   pub script: String,
   /// Whether the script should be injected to main frame only
   pub for_main_frame_only: bool,
-}
-
-impl InitializationScript {
-  pub fn new(script: &str, for_main_frame_only: bool) -> Self {
-    Self {
-      script: script.to_owned(),
-      for_main_frame_only,
-    }
-  }
 }

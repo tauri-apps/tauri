@@ -589,7 +589,7 @@ mod tests {
     let invoke_key = "1234ahdsjkl123";
     let callback = 12378123;
     let error = 6243;
-    let headers = HeaderMap::from_iter(vec![
+    let mut headers = HeaderMap::from_iter(vec![
       (
         CONTENT_TYPE,
         HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap(),
@@ -629,7 +629,6 @@ mod tests {
       "anotherKey": "asda",
     });
 
-    let mut headers = headers;
     headers.insert(
       CONTENT_TYPE,
       HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),

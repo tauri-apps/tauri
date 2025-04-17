@@ -80,24 +80,32 @@ pub struct Options {
   pub ci: bool,
   /// Describes how Xcode should export the archive.
   ///
-  /// Use this to create a package ready for the App Store (app-store-connect option) or TestFlight (release-testing option).
+  /// Use this to create a package ready for distribution.
+  /// for more information, see https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases
+  ///
+  /// - `app-store`: Distribute using TestFlight or through the App Store.
+  /// - `ad-hoc`: Distribute to a limited number of devices you register in App Store Connect.
+  /// - `enterprise`: Distribute to members of your organization.
+  /// - `development`: Distribute to a limited number of devices you register in App Store Connect.
   #[clap(long, value_enum)]
   pub export_method: Option<ExportMethod>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ExportMethod {
-  AppStoreConnect,
-  ReleaseTesting,
-  Debugging,
+  AppStore,
+  AdHoc,
+  Enterprise,
+  Development,
 }
 
 impl std::fmt::Display for ExportMethod {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::AppStoreConnect => write!(f, "app-store-connect"),
-      Self::ReleaseTesting => write!(f, "release-testing"),
-      Self::Debugging => write!(f, "debugging"),
+      Self::AppStore => write!(f, "app-store"),
+      Self::AdHoc => write!(f, "ad-hoc"),
+      Self::Enterprise => write!(f, "enterprise"),
+      Self::Development => write!(f, "development"),
     }
   }
 }
@@ -107,10 +115,11 @@ impl std::str::FromStr for ExportMethod {
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s {
-      "app-store-connect" => Ok(Self::AppStoreConnect),
-      "release-testing" => Ok(Self::ReleaseTesting),
-      "debugging" => Ok(Self::Debugging),
-      _ => Err("unknown ios target"),
+      "app-store" => Ok(Self::AppStore),
+      "ad-hoc" => Ok(Self::AdHoc),
+      "enterprise" => Ok(Self::Enterprise),
+      "development" => Ok(Self::Development),
+      _ => Err("unknown ios export method"),
     }
   }
 }

@@ -6,6 +6,7 @@ use std::{
   any::{Any, TypeId},
   collections::HashMap,
   hash::BuildHasherDefault,
+  marker::PhantomData,
   sync::Arc,
   sync::Mutex,
 };
@@ -19,7 +20,10 @@ use crate::{
 ///
 /// See [`Manager::manage`](`crate::Manager::manage`) for usage examples.
 #[derive(Clone)]
-pub struct State<'r, T: Send + Sync + 'static>(&'r T);
+pub struct State<'r, T: Send + Sync + 'static> {
+  _life: PhantomData<&'r T>,
+  t: &'r T,
+}
 
 impl<'r, T: Send + Sync + 'static> State<'r, T> {
   /// Retrieve a borrow to the underlying value with a lifetime of `'r`.
@@ -27,7 +31,7 @@ impl<'r, T: Send + Sync + 'static> State<'r, T> {
   /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
   #[inline(always)]
   pub fn inner(&self) -> &'r T {
-    self.0
+    self.t
   }
 }
 
@@ -36,19 +40,19 @@ impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
 
   #[inline(always)]
   fn deref(&self) -> &T {
-    self.0
+    self.t
   }
 }
 
 impl<T: Send + Sync + 'static + PartialEq> PartialEq for State<'_, T> {
   fn eq(&self, other: &Self) -> bool {
-    self.0 == other.0
+    self.t == other.t
   }
 }
 
 impl<T: Send + Sync + std::fmt::Debug> std::fmt::Debug for State<'_, T> {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    f.debug_tuple("State").field(&self.0).finish()
+    f.debug_tuple("State").field(&self.t).finish()
   }
 }
 
@@ -149,7 +153,10 @@ impl StateManager {
       .expect("the type of the key should be same as the type of the value");
     // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
     let v_ref = unsafe { &*(value as *const T) };
-    Some(State(v_ref))
+    Some(State {
+      _life: PhantomData,
+      t: v_ref,
+    })
   }
 }
 

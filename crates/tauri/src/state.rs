@@ -6,6 +6,7 @@ use std::{
   any::{Any, TypeId},
   collections::HashMap,
   hash::BuildHasherDefault,
+  sync::Arc,
   sync::Mutex,
 };
 
@@ -93,7 +94,7 @@ impl std::hash::Hasher for IdentHash {
 
 /// Safety:
 /// - Once you insert a value, you can't remove/mutated/move it anymore, see [StateManager::try_get] for details.
-type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
+type TypeIdMap = HashMap<TypeId, Arc<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
 #[derive(Debug)]
@@ -113,7 +114,7 @@ impl StateManager {
     let type_id = TypeId::of::<T>();
     let already_set = map.contains_key(&type_id);
     if !already_set {
-      let state = Box::new(state) as Box<dyn Any + Sync + Send>;
+      let state = Arc::new(state) as Arc<dyn Any + Sync + Send>;
       map.insert(type_id, state);
     }
     !already_set
@@ -128,7 +129,7 @@ impl StateManager {
     let value = state
       .downcast::<T>()
       .expect("the type of the key should be same as the type of the value");
-    Some(*value)
+    Arc::into_inner(value)
   }
 
   /// Gets the state associated with the specified type.

@@ -22,7 +22,7 @@ use crate::{
 #[derive(Clone)]
 pub struct State<'r, T: Send + Sync + 'static> {
   _life: PhantomData<&'r T>,
-  t: &'r T,
+  t: Arc<dyn Any + Send + Sync>,
 }
 
 impl<'r, T: Send + Sync + 'static> State<'r, T> {
@@ -31,7 +31,13 @@ impl<'r, T: Send + Sync + 'static> State<'r, T> {
   /// [`std::ops::Deref`] with a [`std::ops::Deref::Target`] of `T`.
   #[inline(always)]
   pub fn inner(&self) -> &'r T {
-    self.t
+    let x: &(dyn Any + Send + Sync) = &*self.t;
+    // SAFETY: everything returned from this function must no longer live when fn unmanage() is called
+    unsafe {
+      &*(x
+        .downcast_ref::<T>()
+        .expect("the type of the key should be same as the type of the value") as *const T)
+    }
   }
 }
 
@@ -40,13 +46,13 @@ impl<T: Send + Sync + 'static> std::ops::Deref for State<'_, T> {
 
   #[inline(always)]
   fn deref(&self) -> &T {
-    self.t
+    self.inner()
   }
 }
 
 impl<T: Send + Sync + 'static + PartialEq> PartialEq for State<'_, T> {
   fn eq(&self, other: &Self) -> bool {
-    self.t == other.t
+    self.t.downcast_ref::<T>() == other.t.downcast_ref::<T>()
   }
 }
 
@@ -148,14 +154,9 @@ impl StateManager {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
     let state = map.get(&type_id)?;
-    let value = state
-      .downcast_ref::<T>()
-      .expect("the type of the key should be same as the type of the value");
-    // SAFETY: We ensure the lifetime of `value` is the same as [StateManager] and `value` will not be mutated/moved.
-    let v_ref = unsafe { &*(value as *const T) };
     Some(State {
       _life: PhantomData,
-      t: v_ref,
+      t: state.clone(),
     })
   }
 }

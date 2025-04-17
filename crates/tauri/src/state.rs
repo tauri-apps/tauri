@@ -6,7 +6,6 @@ use std::{
   any::{Any, TypeId},
   collections::HashMap,
   hash::BuildHasherDefault,
-  pin::Pin,
   sync::Mutex,
 };
 
@@ -100,7 +99,7 @@ impl std::hash::Hasher for IdentHash {
 /// Safety:
 /// - The `key` must equal to `(*value).type_id()`, see the safety doc in methods of [StateManager] for details.
 /// - Once you insert a value, you can't remove/mutated/move it anymore, see [StateManager::try_get] for details.
-type TypeIdMap = HashMap<TypeId, Pin<Box<dyn Any + Sync + Send>>, BuildHasherDefault<IdentHash>>;
+type TypeIdMap = HashMap<TypeId, Box<dyn Any + Sync + Send>, BuildHasherDefault<IdentHash>>;
 
 /// The Tauri state manager.
 #[derive(Debug)]
@@ -120,13 +119,12 @@ impl StateManager {
     let type_id = TypeId::of::<T>();
     let already_set = map.contains_key(&type_id);
     if !already_set {
-      let ptr = Box::new(state) as Box<dyn Any + Sync + Send>;
-      let pinned_ptr = Box::into_pin(ptr);
+      let state = Box::new(state) as Box<dyn Any + Sync + Send>;
       map.insert(
         type_id,
         // SAFETY: keep the type of the key is the same as the type of the value，
         // see [try_get] methods for details.
-        pinned_ptr,
+        state,
       );
     }
     !already_set
@@ -137,11 +135,9 @@ impl StateManager {
   pub(crate) unsafe fn unmanage<T: Send + Sync + 'static>(&self) -> Option<T> {
     let mut map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
-    let pinned_ptr = map.remove(&type_id)?;
-    // SAFETY: The caller decides to break the immovability/safety here, then OK, just let it go.
-    let ptr = unsafe { Pin::into_inner_unchecked(pinned_ptr) };
+    let state = map.remove(&type_id)?;
     let value = unsafe {
-      ptr
+      state
         .downcast::<T>()
         // SAFETY: the type of the key is the same as the type of the value
         .unwrap_unchecked()
@@ -160,9 +156,9 @@ impl StateManager {
   pub fn try_get<T: Send + Sync + 'static>(&self) -> Option<State<'_, T>> {
     let map = self.map.lock().unwrap();
     let type_id = TypeId::of::<T>();
-    let ptr = map.get(&type_id)?;
+    let state = map.get(&type_id)?;
     let value = unsafe {
-      ptr
+      state
         .downcast_ref::<T>()
         // SAFETY: the type of the key is the same as the type of the value
         .unwrap_unchecked()

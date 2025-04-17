@@ -742,7 +742,7 @@ impl ScopeManager {
     key: &str,
   ) -> crate::Result<ScopeValue<T>> {
     match self.global_scope_cache.try_get::<ScopeValue<T>>() {
-      Some(cached) => Ok(cached.inner().clone()),
+      Some(cached) => Ok(cached.clone()),
       None => {
         let mut allow = Vec::new();
         let mut deny = Vec::new();
@@ -779,7 +779,7 @@ impl ScopeManager {
   ) -> crate::Result<ScopeValue<T>> {
     let cache = self.command_cache.get(key).unwrap();
     match cache.try_get::<ScopeValue<T>>() {
-      Some(cached) => Ok(cached.inner().clone()),
+      Some(cached) => Ok(cached.clone()),
       None => {
         let resolved_scope = self
           .command_scope

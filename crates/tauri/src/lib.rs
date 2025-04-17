@@ -753,13 +753,14 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
 
   /// Gets the managed [`Env`].
   fn env(&self) -> Env {
-    self.state::<Env>().inner().clone()
+    use std::ops::Deref;
+    self.state::<Env>().deref().clone()
   }
 
   /// Gets the scope for the asset protocol.
   #[cfg(feature = "protocol-asset")]
   fn asset_protocol_scope(&self) -> scope::fs::Scope {
-    self.state::<Scopes>().inner().asset_protocol.clone()
+    self.state::<Scopes>().asset_protocol.clone()
   }
 
   /// The path resolver.

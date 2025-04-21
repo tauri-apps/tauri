@@ -154,9 +154,9 @@ impl JavaScriptChannelId {
             ))?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
+            let formated_bytes = serde_json::to_string(&bytes)?;
             webview.eval(format!(
-              "window['_{callback_id}']({{ message: {}, index: {current_index} }})",
-              serde_json::to_string(&bytes)?,
+              "window['_{callback_id}']({{ message: new Uint8Array({formated_bytes}).buffer, index: {current_index} }})",
             ))?;
           }
           // use the fetch API to speed up larger response payloads
@@ -246,9 +246,9 @@ impl<TSend> Channel<TSend> {
             webview.eval(format!("window['_{callback_id}']({string})"))?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
+            let formated_bytes = serde_json::to_string(&bytes)?;
             webview.eval(format!(
-              "window['_{callback_id}']({})",
-              serde_json::to_string(&bytes)?,
+              "window['_{callback_id}'](new Uint8Array({formated_bytes}).buffer)",
             ))?;
           }
           // use the fetch API to speed up larger response payloads

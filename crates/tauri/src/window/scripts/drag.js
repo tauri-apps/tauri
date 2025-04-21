@@ -20,7 +20,7 @@
     const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
     if (
       // element has the magic data attribute
-      attr
+      attr !== null
       //  and not false
       && attr !== 'false'
       // and was left mouse button
@@ -55,7 +55,7 @@
       const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
       if (
         // element has the magic data attribute
-        attr
+        attr !== null
         // and not false
         && attr !== 'false'
         // and was left mouse button

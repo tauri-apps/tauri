@@ -17,9 +17,12 @@
   let initialY = 0
 
   document.addEventListener('mousedown', (e) => {
+    const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
     if (
-      // element has the magic data attribute and not false
-      e.target.getAttribute(TAURI_DRAG_REGION_ATTR) !== 'false'
+      // element has the magic data attribute
+      attr
+      //  and not false
+      && attr !== 'false'
       // and was left mouse button
       && e.button === 0
       // and was normal click to drag or double click to maximize
@@ -49,9 +52,12 @@
   // if the mouse moves outside the data-tauri-drag-region
   if (osName === 'macos') {
     document.addEventListener('mouseup', (e) => {
+      const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
       if (
-        // element has the magic data attribute and not false
-        e.target.getAttribute(TAURI_DRAG_REGION_ATTR) !== 'false'
+        // element has the magic data attribute
+        attr
+        // and not false
+        && attr !== 'false'
         // and was left mouse button
         && e.button === 0
         // and was double click

@@ -19,7 +19,7 @@
   document.addEventListener('mousedown', (e) => {
     if (
       // element has the magic data attribute and not false
-      e.target.getAttribute(TAURI_DRAG_REGION_ATTR) !== "false"
+      e.target.getAttribute(TAURI_DRAG_REGION_ATTR) !== 'false'
       // and was left mouse button
       && e.button === 0
       // and was normal click to drag or double click to maximize
@@ -51,7 +51,7 @@
     document.addEventListener('mouseup', (e) => {
       if (
         // element has the magic data attribute and not false
-        e.target.getAttribute(TAURI_DRAG_REGION_ATTR) !== "false"
+        e.target.getAttribute(TAURI_DRAG_REGION_ATTR) !== 'false'
         // and was left mouse button
         && e.button === 0
         // and was double click

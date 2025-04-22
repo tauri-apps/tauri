@@ -12,8 +12,8 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 
+use self::monitor::MonitorExt;
 use http::Request;
-use monitor::MonitorExt;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
@@ -130,7 +130,6 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
-#[cfg(desktop)]
 mod monitor;
 #[cfg(any(
   windows,

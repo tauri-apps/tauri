@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::PhysicalRect;
 use tao::dpi::{LogicalPosition, LogicalSize, PhysicalPosition};
 
 impl super::MonitorExt for tao::monitor::MonitorHandle {

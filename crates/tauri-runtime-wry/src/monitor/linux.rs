@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::PhysicalRect;
 use gtk::prelude::MonitorExt;
 use tao::{
   dpi::{PhysicalPosition, PhysicalSize},

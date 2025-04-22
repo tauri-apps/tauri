@@ -604,7 +604,7 @@ tauri::Builder::default()
 
     let mut pending = self.into_pending_webview(&window, window.label())?;
 
-    pending.webview_attributes.bounds = Some(tauri_runtime::Rect { size, position });
+    pending.webview_attributes.bounds = Some(tauri_runtime::dpi::Rect { size, position });
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
 
@@ -1237,7 +1237,7 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Resizes this webview.
-  pub fn set_bounds(&self, bounds: tauri_runtime::Rect) -> crate::Result<()> {
+  pub fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> crate::Result<()> {
     self
       .webview
       .dispatcher
@@ -1302,7 +1302,7 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Returns the bounds of the webviews's client area.
-  pub fn bounds(&self) -> crate::Result<tauri_runtime::Rect> {
+  pub fn bounds(&self) -> crate::Result<tauri_runtime::dpi::Rect> {
     self.webview.dispatcher.bounds().map_err(Into::into)
   }
 

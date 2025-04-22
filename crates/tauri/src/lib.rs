@@ -218,9 +218,12 @@ pub use {
   },
   self::manager::Asset,
   self::runtime::{
-    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Pixel, Position, Size},
+    dpi::{
+      LogicalPosition, LogicalRect, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize,
+      Pixel, Position, Rect, Size,
+    },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
-    DeviceEventFilter, Rect, UserAttentionType,
+    DeviceEventFilter, UserAttentionType,
   },
   self::state::{State, StateManager},
   self::utils::{

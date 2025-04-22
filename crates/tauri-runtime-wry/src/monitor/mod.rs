@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tauri_runtime::Rect;
+use tauri_runtime::dpi::PhysicalRect;
 
 #[cfg(any(
   target_os = "linux",
@@ -23,5 +23,5 @@ pub trait MonitorExt {
   /// ## Platform-specific:
   ///
   /// - **Android / iOS**: Unsupported.
-  fn work_area(&self) -> Rect;
+  fn work_area(&self) -> PhysicalRect<i32, u32>;
 }

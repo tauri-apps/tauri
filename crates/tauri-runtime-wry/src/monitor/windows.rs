@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use tao::dpi::{PhysicalPosition, PhysicalSize};
-use tauri_runtime::Rect;
+use tauri_runtime::dpi::PhysicalRect;
 
 impl super::MonitorExt for tao::monitor::MonitorHandle {
-  fn work_area(&self) -> Rect {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
     use tao::platform::windows::MonitorHandleExtWindows;
     use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
     let mut monitor_info = MONITORINFO {
@@ -15,18 +15,17 @@ impl super::MonitorExt for tao::monitor::MonitorHandle {
     };
     let status = unsafe { GetMonitorInfoW(HMONITOR(self.hmonitor() as _), &mut monitor_info) };
     if status.as_bool() {
-      Rect {
+      PhysicalRect {
         size: PhysicalSize::new(
           (monitor_info.rcWork.right - monitor_info.rcWork.left) as u32,
           (monitor_info.rcWork.bottom - monitor_info.rcWork.top) as u32,
-        )
-        .into(),
-        position: PhysicalPosition::new(monitor_info.rcWork.left, monitor_info.rcWork.top).into(),
+        ),
+        position: PhysicalPosition::new(monitor_info.rcWork.left, monitor_info.rcWork.top),
       }
     } else {
-      Rect {
-        size: self.size().into(),
-        position: self.position().into(),
+      PhysicalRect {
+        size: self.size(),
+        position: self.position(),
       }
     }
   }

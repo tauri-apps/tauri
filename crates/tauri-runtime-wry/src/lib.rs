@@ -462,8 +462,8 @@ impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
 }
 
 pub struct RectWrapper(pub wry::Rect);
-impl From<tauri_runtime::Rect> for RectWrapper {
-  fn from(value: tauri_runtime::Rect) -> Self {
+impl From<tauri_runtime::dpi::Rect> for RectWrapper {
+  fn from(value: tauri_runtime::dpi::Rect) -> Self {
     RectWrapper(wry::Rect {
       position: value.position,
       size: value.size,
@@ -1404,7 +1404,7 @@ pub enum WebviewMessage {
   Hide,
   SetPosition(Position),
   SetSize(Size),
-  SetBounds(tauri_runtime::Rect),
+  SetBounds(tauri_runtime::dpi::Rect),
   SetFocus,
   Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
@@ -1413,7 +1413,7 @@ pub enum WebviewMessage {
   ClearAllBrowsingData,
   // Getters
   Url(Sender<Result<String>>),
-  Bounds(Sender<Result<tauri_runtime::Rect>>),
+  Bounds(Sender<Result<tauri_runtime::dpi::Rect>>),
   Position(Sender<Result<PhysicalPosition<i32>>>),
   Size(Sender<Result<PhysicalSize<u32>>>),
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
@@ -1542,7 +1542,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     webview_getter!(self, WebviewMessage::Url)?
   }
 
-  fn bounds(&self) -> Result<tauri_runtime::Rect> {
+  fn bounds(&self) -> Result<tauri_runtime::dpi::Rect> {
     webview_getter!(self, WebviewMessage::Bounds)?
   }
 
@@ -1600,7 +1600,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     )
   }
 
-  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
+  fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Webview(
@@ -3668,7 +3668,7 @@ fn handle_user_message<T: UserEvent>(
             tx.send(
               webview
                 .bounds()
-                .map(|bounds| tauri_runtime::Rect {
+                .map(|bounds| tauri_runtime::dpi::Rect {
                   size: bounds.size,
                   position: bounds.position,
                 })
@@ -4270,10 +4270,9 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       if let Some(margin) = window_builder.prevent_overflow {
         let work_area = monitor.work_area();
         let margin = margin.to_physical::<u32>(scale_factor);
-        let work_area_size = work_area.size.to_physical::<u32>(scale_factor);
         let constraint = PhysicalSize::new(
-          work_area_size.width - margin.width,
-          work_area_size.height - margin.height,
+          work_area.size.width - margin.width,
+          work_area.size.height - margin.height,
         );
         if window_size.width > constraint.width || window_size.height > constraint.height {
           if window_size.width > constraint.width {

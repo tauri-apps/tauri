@@ -14,13 +14,17 @@ impl super::MonitorExt for tao::monitor::MonitorHandle {
       let rect = ns_screen.visibleFrame();
       let scale_factor = self.scale_factor();
       PhysicalRect {
-        size: LogicalSize::new(rect.size.width, rect.size.height).to_physical(scale_factor),
-        position: LogicalPosition::new(rect.origin.x, rect.origin.y).to_physical(scale_factor),
+        size: LogicalSize::new(rect.size.width, rect.size.height)
+          .to_physical(scale_factor)
+          .into(),
+        position: LogicalPosition::new(rect.origin.x, rect.origin.y)
+          .to_physical(scale_factor)
+          .into(),
       }
     } else {
       PhysicalRect {
-        size: self.size(),
-        position: PhysicalPosition::default(),
+        size: self.size().into(),
+        position: self.position().into(),
       }
     }
   }

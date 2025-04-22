@@ -51,6 +51,11 @@ export interface Monitor {
   size: PhysicalSize
   /** the Top-left corner position of the monitor relative to the larger full screen area. */
   position: PhysicalPosition
+  /** The monitor's work area. */
+  workArea: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   scaleFactor: number
 }
@@ -2427,7 +2432,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
         name: m.name,
         scaleFactor: m.scaleFactor,
         position: new PhysicalPosition(m.position),
-        size: new PhysicalSize(m.size)
+        size: new PhysicalSize(m.size),
+        workArea: {
+          position: new PhysicalPosition(m.workArea.position),
+          size: new PhysicalSize(m.workArea.size)
+        }
       }
 }
 

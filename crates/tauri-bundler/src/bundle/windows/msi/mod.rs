@@ -475,7 +475,7 @@ pub fn build_wix_app_installer(
   // when we're performing code signing, we'll sign some WiX DLLs, so we make a local copy
   let wix_toolset_path = if settings.can_sign() {
     let wix_path = output_path.join("wix");
-    crate::utils::fs_utils::copy_dir(&wix_toolset_path, &wix_path)
+    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
       .context("failed to copy wix directory")?;
     wix_path
   } else {
@@ -790,7 +790,7 @@ pub fn build_wix_app_installer(
   // sign default extensions
   if settings.can_sign() {
     for path in &fragment_extensions {
-      try_sign(&path, settings)?;
+      try_sign(path, settings)?;
     }
   }
 

@@ -518,7 +518,7 @@ impl WindowEventWrapper {
           if !*focused
             && focused_webview
               .as_deref()
-              .map_or(false, |w| w != FOCUSED_WEBVIEW_MARKER)
+              .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
           {
             return Self(None);
           }
@@ -586,6 +586,7 @@ impl From<MonitorHandleWrapper> for Monitor {
       name: monitor.0.name(),
       position: PhysicalPositionWrapper(monitor.0.position()).into(),
       size: PhysicalSizeWrapper(monitor.0.size()).into(),
+      work_area: monitor.0.work_area(),
       scale_factor: monitor.0.scale_factor(),
     }
   }
@@ -4269,9 +4270,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
       if let Some(margin) = window_builder.prevent_overflow {
         let work_area = monitor.work_area();
         let margin = margin.to_physical::<u32>(scale_factor);
+        let work_area_size = work_area.size.to_physical::<u32>(scale_factor);
         let constraint = PhysicalSize::new(
-          work_area.size.width - margin.width,
-          work_area.size.height - margin.height,
+          work_area_size.width - margin.width,
+          work_area_size.height - margin.height,
         );
         if window_size.width > constraint.width || window_size.height > constraint.height {
           if window_size.width > constraint.width {

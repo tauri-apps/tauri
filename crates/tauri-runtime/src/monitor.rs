@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::dpi::{PhysicalPosition, PhysicalSize};
+use crate::{
+  dpi::{PhysicalPosition, PhysicalSize},
+  Rect,
+};
 
 /// Monitor descriptor.
 #[derive(Debug, Clone)]
@@ -14,6 +17,8 @@ pub struct Monitor {
   pub size: PhysicalSize<u32>,
   /// The top-left corner position of the monitor relative to the larger full screen area.
   pub position: PhysicalPosition<i32>,
+  /// The monitor's work_area.
+  pub work_area: Rect,
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.
   pub scale_factor: f64,
 }

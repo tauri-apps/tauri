@@ -67,8 +67,9 @@ pub fn calculate_window_center_position(
   {
     use crate::monitor::MonitorExt;
     let work_area = target_monitor.work_area();
-    monitor_size = work_area.size;
-    monitor_position = work_area.position;
+    let scale_factor = target_monitor.scale_factor();
+    monitor_size = work_area.size.to_physical::<u32>(scale_factor);
+    monitor_position = work_area.position.to_physical::<i32>(scale_factor);
   }
   #[cfg(mobile)]
   {

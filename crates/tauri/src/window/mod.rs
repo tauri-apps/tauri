@@ -9,6 +9,7 @@ pub(crate) mod plugin;
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize},
   webview::PendingWebview,
+  Rect,
 };
 pub use tauri_utils::{config::Color, WindowEffect as Effect, WindowEffectState as EffectState};
 
@@ -61,6 +62,7 @@ pub struct Monitor {
   pub(crate) name: Option<String>,
   pub(crate) size: PhysicalSize<u32>,
   pub(crate) position: PhysicalPosition<i32>,
+  pub(crate) work_area: Rect,
   pub(crate) scale_factor: f64,
 }
 
@@ -70,6 +72,7 @@ impl From<RuntimeMonitor> for Monitor {
       name: monitor.name,
       size: monitor.size,
       position: monitor.position,
+      work_area: monitor.work_area,
       scale_factor: monitor.scale_factor,
     }
   }
@@ -90,6 +93,11 @@ impl Monitor {
   /// Returns the top-left corner position of the monitor relative to the larger full screen area.
   pub fn position(&self) -> &PhysicalPosition<i32> {
     &self.position
+  }
+
+  /// Returns the monitor's work_area.
+  pub fn work_area(&self) -> &Rect {
+    &self.work_area
   }
 
   /// Returns the scale factor that can be used to map logical pixels to physical pixels, and vice versa.

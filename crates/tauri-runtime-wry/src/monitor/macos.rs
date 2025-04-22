@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect};
+use tauri_runtime::dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalRect};
 
 impl super::MonitorExt for tao::monitor::MonitorHandle {
   fn work_area(&self) -> PhysicalRect<i32, u32> {

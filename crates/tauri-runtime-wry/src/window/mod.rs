@@ -15,6 +15,8 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+use crate::monitor::MonitorExt;
+
 pub trait WindowExt {
   /// Enable or disable the window
   ///
@@ -61,23 +63,10 @@ pub fn calculate_window_center_position(
   window_size: tao::dpi::PhysicalSize<u32>,
   target_monitor: tao::monitor::MonitorHandle,
 ) -> tao::dpi::PhysicalPosition<i32> {
-  let monitor_size: tao::dpi::PhysicalSize<u32>;
-  let monitor_position: tao::dpi::PhysicalPosition<i32>;
-  #[cfg(desktop)]
-  {
-    use crate::monitor::MonitorExt;
-    let work_area = target_monitor.work_area();
-    monitor_size = work_area.size;
-    monitor_position = work_area.position;
-  }
-  #[cfg(mobile)]
-  {
-    monitor_size = target_monitor.size();
-    monitor_position = target_monitor.position();
-  }
+  let work_area = target_monitor.work_area();
 
   tao::dpi::PhysicalPosition::new(
-    (monitor_size.width as i32 - window_size.width as i32) / 2 + monitor_position.x,
-    (monitor_size.height as i32 - window_size.height as i32) / 2 + monitor_position.y,
+    (work_area.size.width as i32 - window_size.width as i32) / 2 + work_area.position.x,
+    (work_area.size.height as i32 - window_size.height as i32) / 2 + work_area.position.y,
   )
 }

@@ -118,7 +118,7 @@ export type WebviewLabel = string
  * });
  * // alternatively, load a remote URL:
  * const webview = new Webview(appWindow, 'theUniqueLabel', {
- *   url: 'https://github.com/tauri-apps/tauri'
+ *   url: 'https://github.com/tauri-apps/tauri',
  *
  *   // create a webview with specific logical position and size
  *   x: 0,

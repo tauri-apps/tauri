@@ -25,3 +25,13 @@ pub trait MonitorExt {
   /// - **Android / iOS**: Unsupported.
   fn work_area(&self) -> PhysicalRect<i32, u32>;
 }
+
+#[cfg(mobile)]
+impl MonitorExt for tao::monitor::MonitorHandle {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
+    PhysicalRect {
+      size: self.size(),
+      position: self.position(),
+    }
+  }
+}

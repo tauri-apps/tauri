@@ -15,6 +15,7 @@ mod desktop_commands {
   use serde::{Deserialize, Serialize};
   use tauri_runtime::dpi::{Position, Size};
   use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
+  use url::Url;
 
   use super::*;
   use crate::{
@@ -46,6 +47,8 @@ mod desktop_commands {
     window_effects: Option<WindowEffectsConfig>,
     #[serde(default)]
     incognito: bool,
+    #[serde(alias = "proxy-url")]
+    pub proxy_url: Option<Url>,
     #[serde(default)]
     zoom_hotkeys_enabled: bool,
     #[serde(default)]
@@ -70,6 +73,7 @@ mod desktop_commands {
       builder.webview_attributes.accept_first_mouse = config.accept_first_mouse;
       builder.webview_attributes.window_effects = config.window_effects;
       builder.webview_attributes.incognito = config.incognito;
+      builder.webview_attributes.proxy_url = config.proxy_url;
       builder.webview_attributes.zoom_hotkeys_enabled = config.zoom_hotkeys_enabled;
       builder.webview_attributes.background_throttling = config.background_throttling;
       builder.webview_attributes.javascript_disabled = config.javascript_disabled;

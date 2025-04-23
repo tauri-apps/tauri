@@ -20,7 +20,9 @@ use crate::{
   Manager, Runtime, State, Webview,
 };
 
-use super::{CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response};
+use super::{
+  format_callback, CallbackFn, InvokeError, InvokeResponseBody, IpcResponse, Request, Response,
+};
 
 pub const IPC_PAYLOAD_PREFIX: &str = "__CHANNEL__:";
 // TODO: Change this to `channel` in v3
@@ -149,15 +151,14 @@ impl JavaScriptChannelId {
         match body {
           // Don't go through the fetch process if the payload is small
           InvokeResponseBody::Json(string) if string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD => {
-            webview.eval(format!(
-              "window['_{callback_id}']({{ message: {string}, index: {current_index} }})"
-            ))?;
+            webview.eval(format_callback::format_raw(
+              CallbackFn(callback_id),
+              format!("{{ message: {string}, index: {current_index} }}"),
+            )?)?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
             let bytes_as_json_array = serde_json::to_string(&bytes)?;
-            webview.eval(format!(
-              "window['_{callback_id}']({{ message: new Uint8Array({bytes_as_json_array}).buffer, index: {current_index} }})",
-            ))?;
+            webview.eval(format_callback::format_raw(CallbackFn(callback_id), format!("{{ message: new Uint8Array({bytes_as_json_array}).buffer, index: {current_index} }}"))?)?;
           }
           // use the fetch API to speed up larger response payloads
           _ => {
@@ -180,9 +181,13 @@ impl JavaScriptChannelId {
       }),
       Some(Box::new(move || {
         let current_index = counter_clone.load(Ordering::Relaxed);
-        let _ = webview_clone.eval(format!(
-          "window['_{callback_id}']({{ end: true, index: {current_index} }})",
-        ));
+        let _ = webview_clone.eval(format!("window['_{callback_id}']()",));
+        let _ = format_callback::format_raw(
+          CallbackFn(callback_id),
+          format!("{{ end: true, index: {current_index} }}"),
+        )
+        .and_then(|v| webview_clone.eval(v))
+        .ok();
       })),
     )
   }
@@ -243,13 +248,17 @@ impl<TSend> Channel<TSend> {
         match body {
           // Don't go through the fetch process if the payload is small
           InvokeResponseBody::Json(string) if string.len() < MAX_JSON_DIRECT_EXECUTE_THRESHOLD => {
-            webview.eval(format!("window['_{callback_id}']({string})"))?;
+            webview.eval(format_callback::format_raw(
+              CallbackFn(callback_id),
+              string,
+            )?)?;
           }
           InvokeResponseBody::Raw(bytes) if bytes.len() < MAX_RAW_DIRECT_EXECUTE_THRESHOLD => {
             let bytes_as_json_array = serde_json::to_string(&bytes)?;
-            webview.eval(format!(
-              "window['_{callback_id}'](new Uint8Array({bytes_as_json_array}).buffer)",
-            ))?;
+            webview.eval(format_callback::format_raw(
+              CallbackFn(callback_id),
+              format!("new Uint8Array({bytes_as_json_array}).buffer"),
+            )?)?;
           }
           // use the fetch API to speed up larger response payloads
           _ => {

@@ -3537,6 +3537,7 @@ mod build {
       let cross_origin_opener_policy = opt_lit(self.cross_origin_opener_policy.as_ref());
       let cross_origin_resource_policy = opt_lit(self.cross_origin_resource_policy.as_ref());
       let permissions_policy = opt_lit(self.permissions_policy.as_ref());
+      let service_worker_allowed = opt_lit(self.service_worker_allowed.as_ref());
       let timing_allow_origin = opt_lit(self.timing_allow_origin.as_ref());
       let x_content_type_options = opt_lit(self.x_content_type_options.as_ref());
       let tauri_custom_header = opt_lit(self.tauri_custom_header.as_ref());
@@ -3553,6 +3554,7 @@ mod build {
         cross_origin_opener_policy,
         cross_origin_resource_policy,
         permissions_policy,
+        service_worker_allowed,
         timing_allow_origin,
         x_content_type_options,
         tauri_custom_header

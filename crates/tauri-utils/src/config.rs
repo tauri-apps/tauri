@@ -2210,6 +2210,10 @@ impl HeaderAddition for Builder {
         self = self.header("Permission-Policy", value.to_string());
       };
 
+      if let Some(value) = &headers.service_worker_allowed {
+        self = self.header("Service-Worker-Allowed", value.to_string());
+      }
+
       // Add the header Timing-Allow-Origin, if we find a value for it
       if let Some(value) = &headers.timing_allow_origin {
         self = self.header("Timing-Allow-Origin", value.to_string());
@@ -2347,6 +2351,17 @@ pub struct HeaderConfig {
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy>
   #[serde(rename = "Permissions-Policy")]
   pub permissions_policy: Option<HeaderSource>,
+  /// The HTTP Service-Worker-Allowed response header is used to broaden the path restriction for a
+  /// service worker's default scope.
+  ///
+  /// By default, the scope for a service worker registration is the directory where the service
+  /// worker script is located. For example, if the script `sw.js` is located in `/js/sw.js`,
+  /// it can only control URLs under `/js/` by default. Servers can use the `Service-Worker-Allowed`
+  /// header to allow a service worker to control URLs outside of its own directory.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Service-Worker-Allowed>
+  #[serde(rename = "Service-Worker-Allowed")]
+  pub service_worker_allowed: Option<HeaderSource>,
   /// The Timing-Allow-Origin response header specifies origins that are allowed to see values
   /// of attributes retrieved via features of the Resource Timing API, which would otherwise be
   /// reported as zero due to cross-origin restrictions.
@@ -2383,6 +2398,7 @@ impl HeaderConfig {
       cross_origin_opener_policy: None,
       cross_origin_resource_policy: None,
       permissions_policy: None,
+      service_worker_allowed: None,
       timing_allow_origin: None,
       x_content_type_options: None,
       tauri_custom_header: None,

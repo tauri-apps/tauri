@@ -1678,6 +1678,17 @@
             }
           ]
         },
+        "Service-Worker-Allowed": {
+          "description": "The HTTP Service-Worker-Allowed response header is used to broaden the path restriction for a\n service worker's default scope.\n\n By default, the scope for a service worker registration is the directory where the service\n worker script is located. For example, if the script `sw.js` is located in `/js/sw.js`,\n it can only control URLs under `/js/` by default. Servers can use the `Service-Worker-Allowed`\n header to allow a service worker to control URLs outside of its own directory.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Service-Worker-Allowed>",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HeaderSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "Timing-Allow-Origin": {
           "description": "The Timing-Allow-Origin response header specifies origins that are allowed to see values\n of attributes retrieved via features of the Resource Timing API, which would otherwise be\n reported as zero due to cross-origin restrictions.\n\n See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Timing-Allow-Origin>",
           "anyOf": [

@@ -598,6 +598,13 @@ impl<R: Runtime> TrayIcon<R> {
 
 impl<R: Runtime> Resource for TrayIcon<R> {
   fn close(self: std::sync::Arc<Self>) {
+    self
+      .app_handle
+      .state::<plugin::TrayIcons>()
+      .icons
+      .lock()
+      .unwrap()
+      .remove(&self.id.0);
     self.app_handle.remove_tray_by_id(&self.id);
   }
 }

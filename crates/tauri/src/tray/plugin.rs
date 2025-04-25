@@ -19,8 +19,8 @@ use crate::{
 
 use super::{TrayIcon, TrayIconEvent};
 
-struct TrayIcons {
-  icons: Mutex<HashMap<String, ResourceId>>,
+pub(crate) struct TrayIcons {
+  pub(crate) icons: Mutex<HashMap<String, ResourceId>>,
 }
 
 #[derive(Deserialize)]

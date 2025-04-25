@@ -1102,7 +1102,7 @@ impl<R: Runtime> App<R> {
   )]
   fn register_core_plugins(&self) -> crate::Result<()> {
     self.handle.plugin(crate::path::plugin::init())?;
-    self.handle.plugin(crate::event::plugin::init())?;
+    self.handle.plugin(crate::event::plugin::init(self))?;
     self.handle.plugin(crate::window::plugin::init())?;
     self.handle.plugin(crate::webview::plugin::init())?;
     self.handle.plugin(crate::app::plugin::init())?;

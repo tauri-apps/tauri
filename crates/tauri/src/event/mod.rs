@@ -162,7 +162,7 @@ impl Event {
   }
 }
 
-pub fn listen_js_script(
+pub(crate) fn listen_js_script(
   listeners_object_name: &str,
   serialized_target: &str,
   event: EventName<&str>,
@@ -188,7 +188,7 @@ pub fn listen_js_script(
   )
 }
 
-pub fn emit_js_script(
+pub(crate) fn emit_js_script(
   event_emit_function_name: &str,
   emit_args: &EmitArgs,
   serialized_ids: &str,
@@ -202,23 +202,23 @@ pub fn emit_js_script(
   ))
 }
 
-pub fn unlisten_js_script(
+pub(crate) fn unlisten_js_script(
   listeners_object_name: &str,
-  event_name: EventName<&str>,
-  event_id: EventId,
+  event_arg: &str,
+  event_id_arg: &str,
 ) -> String {
   format!(
     "(function () {{
-        const listeners = (window['{listeners_object_name}'] || {{}})['{event_name}']
+        const listeners = (window['{listeners_object_name}'] || {{}})[{event_arg}]
         if (listeners) {{
-          delete window['{listeners_object_name}']['{event_name}'][{event_id}];
+          delete window['{listeners_object_name}'][{event_arg}][{event_id_arg}];
         }}
       }})()
     ",
   )
 }
 
-pub fn event_initialization_script(function: &str, listeners: &str) -> String {
+pub(crate) fn event_initialization_script(function: &str, listeners: &str) -> String {
   format!(
     "Object.defineProperty(window, '{function}', {{
       value: function (eventData, ids) {{

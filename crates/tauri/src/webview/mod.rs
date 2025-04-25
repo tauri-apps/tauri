@@ -1680,12 +1680,6 @@ fn main() {
   pub(crate) fn unlisten_js(&self, event: EventName<&str>, id: EventId) -> crate::Result<()> {
     let listeners = self.manager().listeners();
 
-    self.eval(crate::event::unlisten_js_script(
-      listeners.listeners_object_name(),
-      event,
-      id,
-    ))?;
-
     listeners.unlisten_js(event, id);
 
     Ok(())

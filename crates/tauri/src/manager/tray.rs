@@ -2,19 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{collections::HashMap, fmt, sync::Mutex};
+use std::{
+  collections::HashMap,
+  fmt,
+  sync::{Arc, Mutex},
+};
 
 use crate::{
   app::GlobalTrayIconEventListener,
   image::Image,
   tray::{TrayIcon, TrayIconEvent, TrayIconId},
-  AppHandle, Runtime,
+  AppHandle, Manager, ResourceId, Runtime,
 };
 
 pub struct TrayManager<R: Runtime> {
   pub(crate) icon: Option<Image<'static>>,
   /// Tray icons
-  pub(crate) icons: Mutex<Vec<TrayIcon<R>>>,
+  pub(crate) icons: Mutex<Vec<(TrayIconId, ResourceId)>>,
   /// Global Tray icon event listeners.
   pub(crate) global_event_listeners: Mutex<Vec<GlobalTrayIconEventListener<AppHandle<R>>>>,
   /// Tray icon event listeners.
@@ -41,29 +45,35 @@ impl<R: Runtime> TrayManager<R> {
       .push(Box::new(handler));
   }
 
-  pub fn tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
+  pub fn tray_by_id<'a, I>(&self, app: &AppHandle<R>, id: &'a I) -> Option<TrayIcon<R>>
   where
     I: ?Sized,
     TrayIconId: PartialEq<&'a I>,
   {
-    self
-      .icons
-      .lock()
-      .unwrap()
-      .iter()
-      .find(|t| t.id() == &id)
-      .cloned()
+    let icons = self.icons.lock().unwrap();
+    icons.iter().find_map(|(tray_icon_id, rid)| {
+      if tray_icon_id == &id {
+        Some(Arc::unwrap_or_clone(
+          app.resources_table().get::<TrayIcon<R>>(*rid).ok()?,
+        ))
+      } else {
+        None
+      }
+    })
   }
 
-  pub fn remove_tray_by_id<'a, I>(&self, id: &'a I) -> Option<TrayIcon<R>>
+  pub fn remove_tray_by_id<'a, I>(&self, app: &AppHandle<R>, id: &'a I) -> Option<TrayIcon<R>>
   where
     I: ?Sized,
     TrayIconId: PartialEq<&'a I>,
   {
     let mut icons = self.icons.lock().unwrap();
-    let idx = icons.iter().position(|t| t.id() == &id);
-    if let Some(idx) = idx {
-      return Some(icons.swap_remove(idx));
+    for (i, (tray_icon_id, rid)) in icons.iter_mut().enumerate() {
+      if tray_icon_id == &id {
+        let icon = app.resources_table().take::<TrayIcon<R>>(*rid).unwrap();
+        icons.swap_remove(i);
+        return Some(Arc::unwrap_or_clone(icon));
+      }
     }
     None
   }

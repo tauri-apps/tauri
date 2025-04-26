@@ -741,7 +741,7 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        self.manager.tray.tray_by_id(id)
+        self.manager.tray.tray_by_id(self.app_handle(), id)
       }
 
       /// Removes a tray icon using the provided id from tauri's internal state and returns it.
@@ -755,7 +755,7 @@ macro_rules! shared_app_impl {
         I: ?Sized,
         TrayIconId: PartialEq<&'a I>,
       {
-        self.manager.tray.remove_tray_by_id(id)
+        self.manager.tray.remove_tray_by_id(self.app_handle(), id)
       }
 
       /// Gets the app's configuration, defined on the `tauri.conf.json` file.

@@ -59,7 +59,6 @@ mod desktop_commands {
   #[command(root = "crate")]
   pub async fn create_webview<R: Runtime>(
     app: AppHandle<R>,
-    label: String,
     window_label: String,
     options: WindowConfig,
   ) -> crate::Result<()> {
@@ -73,7 +72,7 @@ mod desktop_commands {
     let width = options.width;
     let height = options.height;
 
-    let builder = crate::webview::WebviewBuilder::from_config(label, options);
+    let builder = crate::webview::WebviewBuilder::from_config(options);
 
     window.add_child(
       builder,

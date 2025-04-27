@@ -200,8 +200,10 @@ class Webview {
     if (!options?.skip) {
       invoke('plugin:webview|create_webview', {
         windowLabel: window.label,
-        label,
-        options
+        options: {
+          ...options,
+          label
+        }
       })
         .then(async () => this.emit('tauri://created'))
         .catch(async (e: string) => this.emit('tauri://error', e))

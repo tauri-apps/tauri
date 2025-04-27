@@ -177,17 +177,15 @@ pub fn setup(
     let target_path = fs::canonicalize(get_cargo_target_dir(&options.args)?)?;
     let mut out_folders = Vec::new();
     if let Ok(web_asset_canonical) = web_asset_path.canonicalize() {
-      if target_path.starts_with(&web_asset_canonical) {
-        if let Ok(relative_path) = target_path.strip_prefix(web_asset_path) {
-          let relative_str = relative_path.to_string_lossy();
-          if !relative_str.is_empty() {
-            out_folders.push(relative_str.to_string());
-          }
+      if let Ok(relative_path) = target_path.strip_prefix(&web_asset_canonical) {
+        let relative_str = relative_path.to_string_lossy();
+        if !relative_str.is_empty() {
+          out_folders.push(relative_str.to_string());
         }
       }
 
       for folder in &["node_modules", "src-tauri"] {
-        let sub_path = web_asset_path.join(folder);
+        let sub_path = web_asset_canonical.join(folder);
         if sub_path.is_dir() {
           out_folders.push(folder.to_string());
         }

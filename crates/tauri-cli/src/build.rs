@@ -174,28 +174,26 @@ pub fn setup(
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
     // https://github.com/tauri-apps/tauri/issues/13287
-    let mut target_path = get_cargo_target_dir(&options.args)?;
-    target_path = tauri_path.join(target_path);
-    let target_path = fs::canonicalize(target_path)?;
-
+    let target_path = fs::canonicalize(get_cargo_target_dir(&options.args)?)?;
     let mut out_folders = Vec::new();
-    if target_path.starts_with(web_asset_path) {
-      // Get the path of target_path relative to web_asset_path
-      if let Ok(relative_path) = target_path.strip_prefix(web_asset_path) {
-        let relative_str = relative_path.to_string_lossy();
-        if !relative_str.is_empty() {
-          out_folders.push(relative_str.to_string());
+    if let Ok(web_asset_canonical) = web_asset_path.canonicalize() {
+      if target_path.starts_with(&web_asset_canonical) {
+        if let Ok(relative_path) = target_path.strip_prefix(web_asset_path) {
+          let relative_str = relative_path.to_string_lossy();
+          if !relative_str.is_empty() {
+            out_folders.push(relative_str.to_string());
+          }
+        }
+      }
+
+      for folder in &["node_modules", "src-tauri"] {
+        let sub_path = web_asset_path.join(folder);
+        if sub_path.is_dir() {
+          out_folders.push(folder.to_string());
         }
       }
     }
 
-    for folder in &["node_modules", "src-tauri"] {
-      let sub_path = web_asset_path.join(folder);
-      // If the subfolder exists and its canonicalized path equals the target path, add to out_folders
-      if sub_path.is_dir() && fs::canonicalize(&sub_path)? == target_path {
-        out_folders.push(folder.to_string());
-      }
-    }
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
         "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",

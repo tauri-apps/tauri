@@ -62,17 +62,19 @@ mod desktop_commands {
     window_label: String,
     options: WindowConfig,
   ) -> crate::Result<()> {
+    use anyhow::Context;
+
     let window = app
       .manager()
       .get_window(&window_label)
       .ok_or(crate::Error::WindowNotFound)?;
 
-    let x = options.x;
-    let y = options.y;
+    let x = options.x.context("missing parameter `options.x`")?;
+    let y = options.y.context("missing parameter `options.y`")?;
     let width = options.width;
     let height = options.height;
 
-    let builder = crate::webview::WebviewBuilder::from_config(options);
+    let builder = crate::webview::WebviewBuilder::from_config(&options);
 
     window.add_child(
       builder,

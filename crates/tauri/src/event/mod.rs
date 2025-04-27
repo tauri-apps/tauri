@@ -230,7 +230,7 @@ pub fn event_initialization_script(function_name: &str, listeners: &str) -> Stri
           const listener = listeners[id]
           if (listener) {{
             eventData.id = id
-            window.__TAURI_INTERNALS__.runCallback(handlerId, eventData)
+            window.__TAURI_INTERNALS__.runCallback(listener.handlerId, eventData)
           }}
         }}
       }}

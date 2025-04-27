@@ -47,7 +47,7 @@
     }
   }
 
-  // Maybe let's rename it to `transformCallback`?
+  // Maybe let's rename it to `registerCallback`?
   Object.defineProperty(window.__TAURI_INTERNALS__, 'transformCallback', {
     value: registerCallback
   })
@@ -81,11 +81,11 @@
   Object.defineProperty(window.__TAURI_INTERNALS__, 'invoke', {
     value: function (cmd, payload = {}, options) {
       return new Promise(function (resolve, reject) {
-        const callback = window.__TAURI_INTERNALS__.transformCallback((r) => {
+        const callback = registerCallback((r) => {
           resolve(r)
           unregisterCallback(error)
         }, true)
-        const error = window.__TAURI_INTERNALS__.transformCallback((e) => {
+        const error = registerCallback((e) => {
           reject(e)
           unregisterCallback(callback)
         }, true)

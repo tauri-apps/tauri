@@ -59,10 +59,10 @@
 export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
 /**
- * Transforms a callback function to a string identifier that can be passed to the backend.
+ * Stores the callback in a know location, and returns a number identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
  *
- * @return A unique identifier associated with the callback function.
+ * @return An unique identifier associated with the callback function.
  *
  * @since 1.0.0
  */

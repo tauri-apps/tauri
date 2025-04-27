@@ -607,7 +607,13 @@ impl<R: Runtime> TrayIcon<R> {
 
 impl<R: Runtime> Resource for TrayIcon<R> {
   fn close(self: std::sync::Arc<Self>) {
-    self.app_handle.remove_tray_by_id(&self.id);
+    let mut icons = self.app_handle.manager.tray.icons.lock().unwrap();
+    for (i, (tray_icon_id, _rid)) in icons.iter_mut().enumerate() {
+      if tray_icon_id == &self.id {
+        icons.swap_remove(i);
+        return;
+      }
+    }
   }
 }
 

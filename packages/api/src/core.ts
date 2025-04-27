@@ -59,7 +59,7 @@
 export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
 /**
- * Stores the callback in a know location, and returns a number identifier that can be passed to the backend.
+ * Stores the callback in a known location, and returns an identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
  *
  * @return An unique identifier associated with the callback function.
@@ -326,7 +326,7 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   return !!((globalThis as any) || window).isTauri
 }
 

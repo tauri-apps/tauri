@@ -40,7 +40,7 @@ cargo-mobile2 = { version = "0.20", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.24", features = ["server"] }
-jsonrpsee-core = "0.24"
+jsonrpsee-core = "0.25"
 jsonrpsee-client-transport = { version = "0.24", features = ["ws"] }
 jsonrpsee-ws-client = { version = "0.24", default-features = false }
 sublime_fuzzy = "0.7"

@@ -131,7 +131,7 @@ class Channel<T = unknown> {
   }
 
   private cleanupCallback() {
-    Reflect.deleteProperty(window, `_${this.id}`)
+    window.__TAURI_INTERNALS__.unregisterCallback(this.id)
   }
 
   set onmessage(handler: (response: T) => void) {

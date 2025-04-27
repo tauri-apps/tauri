@@ -12,6 +12,7 @@ declare global {
     __TAURI_INTERNALS__: {
       invoke: typeof invoke
       transformCallback: typeof transformCallback
+      unregisterCallback: (number) => void
       convertFileSrc: typeof convertFileSrc
       ipc: (message: {
         cmd: string

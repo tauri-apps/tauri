@@ -40,25 +40,16 @@
         headers
       })
         .then((response) => {
-          const cb =
+          const callbackId =
             response.headers.get('Tauri-Response') === 'ok' ? callback : error
           // we need to split here because on Android the content-type gets duplicated
           switch ((response.headers.get('content-type') || '').split(',')[0]) {
             case 'application/json':
-              return response.json().then((r) => [cb, r])
+              return response.json().then((r) => [callbackId, r])
             case 'text/plain':
-              return response.text().then((r) => [cb, r])
+              return response.text().then((r) => [callbackId, r])
             default:
-              return response.arrayBuffer().then((r) => [cb, r])
-          }
-        })
-        .then(([cb, data]) => {
-          if (window[`_${cb}`]) {
-            window[`_${cb}`](data)
-          } else {
-            console.warn(
-              `[TAURI] Couldn't find callback id {cb} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
-            )
+              return response.arrayBuffer().then((r) => [callbackId, r])
           }
         })
         .catch((e) => {
@@ -70,6 +61,9 @@
           // so we need to fallback to the postMessage interface
           customProtocolIpcFailed = true
           sendIpcMessage(message)
+        })
+        .then(([callbackId, data]) => {
+          window.__TAURI_INTERNALS__.runCallback(callbackId, data)
         })
     } else {
       // otherwise use the postMessage interface

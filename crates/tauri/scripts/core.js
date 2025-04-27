@@ -19,24 +19,42 @@
     }
   })
 
+  const callbacks = new Map()
+
+  function registerCallback(callback, once) {
+    const identifier = uid()
+    callbacks.set(identifier, (data) => {
+      if (once) {
+        unregisterCallback(identifier)
+      }
+      return callback && callback(data)
+    })
+    return identifier
+  }
+
+  function unregisterCallback(id) {
+    callbacks.delete(id)
+  }
+
+  // Maybe let's rename it to `transformCallback`?
   Object.defineProperty(window.__TAURI_INTERNALS__, 'transformCallback', {
-    value: function transformCallback(callback, once) {
-      const identifier = uid()
-      const prop = `_${identifier}`
+    value: registerCallback
+  })
 
-      Object.defineProperty(window, prop, {
-        value: (result) => {
-          if (once) {
-            Reflect.deleteProperty(window, prop)
-          }
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'unregisterCallback', {
+    value: unregisterCallback
+  })
 
-          return callback && callback(result)
-        },
-        writable: false,
-        configurable: true
-      })
-
-      return identifier
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'runCallback', {
+    value: function runCallback(id, data) {
+      const callback = callbacks.get(id)
+      if (callback) {
+        callback(data)
+      } else {
+        console.warn(
+          `[TAURI] Couldn't find callback id ${id} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
+        )
+      }
     }
   })
 
@@ -58,11 +76,11 @@
       return new Promise(function (resolve, reject) {
         const callback = window.__TAURI_INTERNALS__.transformCallback((r) => {
           resolve(r)
-          delete window[`_${error}`]
+          unregisterCallback(error)
         }, true)
         const error = window.__TAURI_INTERNALS__.transformCallback((e) => {
           reject(e)
-          delete window[`_${callback}`]
+          unregisterCallback(callback)
         }, true)
 
         const action = () => {

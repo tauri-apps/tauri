@@ -132,21 +132,19 @@ pub fn normalize(path: String) -> String {
 }
 
 #[command(root = "crate")]
-pub fn join(mut paths: Vec<String>) -> String {
+pub fn join(paths: Vec<String>) -> String {
   let path = PathBuf::from(
     paths
-      .iter_mut()
-      .map(|p| {
-        // Add a `MAIN_SEPARATOR` if it doesn't already have one.
+      .into_iter()
+      .map(|mut p| {
+        // Add a `MAIN_SEPARATOR` if it doesn't already have one and is not an empty string.
         // Doing this to ensure that the vector elements are separated in
         // the resulting string so path.components() can work correctly when called
         // in `normalize_path_no_absolute()` later on.
-        // Issue #13313 - path.join('', 'a') returns "/a" instead of "a"
-        // https://github.com/tauri-apps/tauri/issues/13313
         if !p.is_empty() && !p.ends_with('/') && !p.ends_with('\\') {
           p.push(MAIN_SEPARATOR);
         }
-        p.to_string()
+        p
       })
       .collect::<String>(),
   );
@@ -292,64 +290,24 @@ mod tests {
 
   #[test]
   fn join() {
-    #[cfg(not(target_os = "windows"))]
-    {
-      let paths = vec!["".to_string()];
-      assert_eq!(super::join(paths), ".");
-
-      let paths = vec!["".to_string(), "".to_string()];
-      assert_eq!(super::join(paths), ".");
-
-      let paths = vec!["a".to_string()];
-      assert_eq!(super::join(paths), "a");
-
-      let paths = vec!["".to_string(), "a".to_string()];
-      assert_eq!(super::join(paths), "a");
-
-      let paths = vec!["a".to_string(), "b".to_string()];
-      assert_eq!(super::join(paths), "a/b");
-
-      let paths = vec!["a".to_string(), "".to_string(), "b".to_string()];
-      assert_eq!(super::join(paths), "a/b");
-
-      let paths = vec!["a".to_string(), "/b".to_string(), "c".to_string()];
-      assert_eq!(super::join(paths), "a/b/c");
-
-      let paths = vec!["a".to_string(), "b/c".to_string(), "d".to_string()];
-      assert_eq!(super::join(paths), "a/b/c/d");
-
-      let paths = vec!["a/".to_string(), "b".to_string()];
-      assert_eq!(super::join(paths), "a/b");
+    fn check(paths: Vec<&str>, expected_unix: &str, expected_windows: &str) {
+      let expected = if cfg!(windows) {
+        expected_windows
+      } else {
+        expected_unix
+      };
+      let paths = paths.into_iter().map(String::from).collect();
+      assert_eq!(super::join(paths), expected);
     }
 
-    #[cfg(target_os = "windows")]
-    {
-      let paths = vec!["".to_string()];
-      assert_eq!(super::join(paths), ".");
-
-      let paths = vec!["".to_string(), "".to_string()];
-      assert_eq!(super::join(paths), ".");
-
-      let paths = vec!["a".to_string()];
-      assert_eq!(super::join(paths), "a");
-
-      let paths = vec!["".to_string(), "a".to_string()];
-      assert_eq!(super::join(paths), "a");
-
-      let paths = vec!["a".to_string(), "b".to_string()];
-      assert_eq!(super::join(paths), "a\\b");
-
-      let paths = vec!["a".to_string(), "".to_string(), "b".to_string()];
-      assert_eq!(super::join(paths), "a\\b");
-
-      let paths = vec!["a".to_string(), "\\b".to_string(), "c".to_string()];
-      assert_eq!(super::join(paths), "a\\b\\c");
-
-      let paths = vec!["a".to_string(), "b\\c".to_string(), "d".to_string()];
-      assert_eq!(super::join(paths), "a\\b\\c\\d");
-
-      let paths = vec!["a\\".to_string(), "b".to_string()];
-      assert_eq!(super::join(paths), "a\\b");
-    }
+    check(vec![""], ".", ".");
+    check(vec!["", ""], ".", ".");
+    check(vec!["a"], "a", "a");
+    check(vec!["", "a"], "a", "a");
+    check(vec!["a", "b"], "a/b", r"a\b");
+    check(vec!["a", "", "b"], "a/b", r"a\b");
+    check(vec!["a", "/b", "c"], "a/b/c", r"a\b\c");
+    check(vec!["a", "b/c", "d"], "a/b/c/d", r"a\b\c\d");
+    check(vec!["a/", "b"], "a/b", r"a\b");
   }
 }

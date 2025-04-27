@@ -53,13 +53,25 @@ impl<R: Runtime> TrayManager<R> {
     let icons = self.icons.lock().unwrap();
     icons.iter().find_map(|(tray_icon_id, rid)| {
       if tray_icon_id == &id {
-        Some(Arc::unwrap_or_clone(
-          app.resources_table().get::<TrayIcon<R>>(*rid).ok()?,
-        ))
+        let icon = app.resources_table().get::<TrayIcon<R>>(*rid).ok()?;
+        Some(Arc::unwrap_or_clone(icon))
       } else {
         None
       }
     })
+  }
+
+  pub fn tray_resource_by_id(&self, id: &str) -> Option<ResourceId> {
+    let icons = self.icons.lock().unwrap();
+    icons.iter().find_map(
+      |(tray_icon_id, rid)| {
+        if tray_icon_id == id {
+          Some(*rid)
+        } else {
+          None
+        }
+      },
+    )
   }
 
   pub fn remove_tray_by_id<'a, I>(&self, app: &AppHandle<R>, id: &'a I) -> Option<TrayIcon<R>>
@@ -70,7 +82,7 @@ impl<R: Runtime> TrayManager<R> {
     let mut icons = self.icons.lock().unwrap();
     for (i, (tray_icon_id, rid)) in icons.iter_mut().enumerate() {
       if tray_icon_id == &id {
-        let icon = app.resources_table().take::<TrayIcon<R>>(*rid).unwrap();
+        let icon = app.resources_table().take::<TrayIcon<R>>(*rid).ok()?;
         icons.swap_remove(i);
         return Some(Arc::unwrap_or_clone(icon));
       }

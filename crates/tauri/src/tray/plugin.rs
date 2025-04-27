@@ -96,22 +96,7 @@ fn new<R: Runtime>(
 
 #[command(root = "crate")]
 fn get_by_id<R: Runtime>(app: AppHandle<R>, id: &str) -> Option<ResourceId> {
-  app
-    .manager
-    .tray
-    .icons
-    .lock()
-    .unwrap()
-    .iter()
-    .find_map(
-      |(tray_icon_id, rid)| {
-        if tray_icon_id == id {
-          Some(*rid)
-        } else {
-          None
-        }
-      },
-    )
+  app.manager.tray.tray_resource_by_id(id)
 }
 
 #[command(root = "crate")]

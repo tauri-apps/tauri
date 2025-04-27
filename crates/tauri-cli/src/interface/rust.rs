@@ -1036,7 +1036,7 @@ impl RustAppSettings {
         .product_name
         .clone()
         .unwrap_or_else(|| cargo_package_settings.name.clone()),
-      version: version.clone(),
+      version,
       description: cargo_package_settings
         .description
         .clone()

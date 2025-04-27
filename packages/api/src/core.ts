@@ -67,6 +67,7 @@ export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
  * @since 1.0.0
  */
 function transformCallback<T = unknown>(
+  // TODO: Make this not optional in v3
   callback?: (response: T) => void,
   once = false
 ): number {

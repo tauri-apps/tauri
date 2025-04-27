@@ -36,6 +36,17 @@
     callbacks.delete(id)
   }
 
+  function runCallback(id, data) {
+    const callback = callbacks.get(id)
+    if (callback) {
+      callback(data)
+    } else {
+      console.warn(
+        `[TAURI] Couldn't find callback id ${id}. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
+      )
+    }
+  }
+
   // Maybe let's rename it to `transformCallback`?
   Object.defineProperty(window.__TAURI_INTERNALS__, 'transformCallback', {
     value: registerCallback
@@ -46,16 +57,12 @@
   })
 
   Object.defineProperty(window.__TAURI_INTERNALS__, 'runCallback', {
-    value: function runCallback(id, data) {
-      const callback = callbacks.get(id)
-      if (callback) {
-        callback(data)
-      } else {
-        console.warn(
-          `[TAURI] Couldn't find callback id ${id} in window. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
-        )
-      }
-    }
+    value: runCallback
+  })
+
+  // This is just for the debugging purposes
+  Object.defineProperty(window.__TAURI_INTERNALS__, 'callbacks', {
+    value: callbacks
   })
 
   const ipcQueue = []

@@ -92,20 +92,19 @@ pub fn format<T: Serialize>(function_name: CallbackFn, arg: &T) -> crate::Result
 /// See [json-parse-benchmark](https://github.com/GoogleChromeLabs/json-parse-benchmark).
 pub fn format_raw(function_name: CallbackFn, json_string: String) -> crate::Result<String> {
   serialize_js_with(json_string, Default::default(), |arg| {
-    format_raw_js(function_name.0, Some(arg))
+    format_raw_js(function_name.0, arg)
   })
 }
 
 /// Formats a callback function invocation, properly accounting for error handling.
-pub fn format_raw_js(id: u32, js: Option<&str>) -> String {
+pub fn format_raw_js(id: u32, js: &str) -> String {
   format!(
     r#"
   if (window["_{id}"]) {{
-    window["_{id}"]({})
+    window["_{id}"]({js})
   }} else {{
     console.warn("[TAURI] Couldn't find callback id {id} in window. This happens when the app is reloaded while Rust is running an asynchronous operation.")
-  }}"#,
-    js.unwrap_or("")
+  }}"#
   )
 }
 

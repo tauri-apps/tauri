@@ -1148,22 +1148,29 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   Ok(serde_json::from_slice(&output.stdout)?)
 }
 
+/// Get the cargo target directory based on the provided arguments.
+/// If "--target-dir" is specified in args, use it as the target directory (relative to current directory).
+/// Otherwise, use the target directory from cargo metadata.
+pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
+  let path = if let Some(target) = get_cargo_option(args, "--target-dir") {
+    std::env::current_dir()?.join(target)
+  } else {
+    get_cargo_metadata()
+      .with_context(|| "failed to get cargo metadata")?
+      .target_directory
+  };
+
+  Ok(path)
+}
+
 /// This function determines the 'target' directory and suffixes it with the profile
 /// to determine where the compiled binary will be located.
 fn get_target_dir(triple: Option<&str>, options: &Options) -> crate::Result<PathBuf> {
-  let mut path = if let Some(target) = get_cargo_option(&options.args, "--target-dir") {
-    std::env::current_dir()?.join(target)
-  } else {
-    let mut path = get_cargo_metadata()
-      .with_context(|| "failed to get cargo metadata")?
-      .target_directory;
+  let mut path = get_cargo_target_dir(&options.args)?;
 
-    if let Some(triple) = triple {
-      path.push(triple);
-    }
-
-    path
-  };
+  if let Some(triple) = triple {
+    path.push(triple);
+  }
 
   path.push(get_profile_dir(options));
 
@@ -1633,7 +1640,10 @@ mod tests {
     );
     assert_eq!(
       get_target_dir(Some("x86_64-pc-windows-msvc"), &options).unwrap(),
-      current_dir.join("path/to/some/dir/release")
+      current_dir
+        .join("path/to/some/dir")
+        .join("x86_64-pc-windows-msvc")
+        .join("release")
     );
 
     let options = Options {

@@ -491,6 +491,23 @@ class Webview {
   }
 
   /**
+   * Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().setAutoReisze(true);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setAutoResize(autoResize: boolean): Promise<void> {
+    return invoke('plugin:webview|set_webview_auto_resize', {
+      label: this.label,
+      value: autoResize
+    })
+  }
+
+  /**
    * Hide the webview.
    * @example
    * ```typescript

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf, sync::Mutex};
 
 use serde::Deserialize;
 
@@ -14,10 +14,14 @@ use crate::{
   plugin::{Builder, TauriPlugin},
   resources::ResourceId,
   tray::TrayIconBuilder,
-  AppHandle, Manager, Runtime, Webview,
+  AppHandle, Manager, Runtime, State, Webview,
 };
 
 use super::{TrayIcon, TrayIconEvent};
+
+pub(crate) struct TrayIcons {
+  pub(crate) icons: Mutex<HashMap<String, ResourceId>>,
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +40,7 @@ struct TrayIconOptions {
 #[command(root = "crate")]
 fn new<R: Runtime>(
   webview: Webview<R>,
+  icons: State<'_, TrayIcons>,
   options: TrayIconOptions,
   handler: Channel<TrayIconEvent>,
 ) -> crate::Result<(ResourceId, String)> {
@@ -91,6 +96,8 @@ fn new<R: Runtime>(
   let id = tray.id().as_ref().to_string();
   let rid = resources_table.add(tray);
 
+  icons.icons.lock().unwrap().insert(id.clone(), rid);
+
   Ok((rid, id))
 }
 
@@ -98,13 +105,26 @@ fn new<R: Runtime>(
 fn get_by_id<R: Runtime>(
   app: AppHandle<R>,
   webview: Webview<R>,
+  icons: State<'_, TrayIcons>,
   id: &str,
 ) -> crate::Result<Option<ResourceId>> {
+  // if the icon was created by this plugin, return the resource id
+  // this lets a getById call match the rid of a TrayIcon.new call
+  // which allows it to close a previously created icon
+  if let Some(rid) = icons.icons.lock().unwrap().get(id) {
+    return Ok(Some(*rid));
+  }
+
   let tray = app.tray_by_id(id);
   let maybe_rid = tray.map(|tray| {
     let mut resources_table = webview.resources_table();
     resources_table.add(tray)
   });
+
+  if let Some(rid) = maybe_rid {
+    icons.icons.lock().unwrap().insert(id.to_string(), rid);
+  }
+
   Ok(maybe_rid)
 }
 
@@ -226,6 +246,12 @@ fn set_show_menu_on_left_click<R: Runtime>(
 
 pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
   Builder::new("tray")
+    .setup(|app, _api| {
+      app.manage(TrayIcons {
+        icons: Default::default(),
+      });
+      Ok(())
+    })
     .invoke_handler(crate::generate_handler![
       #![plugin(tray)]
       new,

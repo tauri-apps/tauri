@@ -2354,6 +2354,23 @@
               "$ref": "#/definitions/HandlerRank"
             }
           ]
+        },
+        "itemContentTypes": {
+          "description": "The document file types the app supports. Maps to `LSItemContentTypes` on macOS.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "$ref": "#/definitions/UniformTypeIdentifiers"
+          }
+        },
+        "iconFile": {
+          "description": "This key contains a string with the name of the icon file (.icns) to associate with this macOS document type. Maps to `CFBundleTypeIconFile` on macOS.\n For more information about specifying document icons, see [Document Icons](https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW9).",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false
@@ -2434,6 +2451,10 @@
           ]
         }
       ]
+    },
+    "UniformTypeIdentifiers": {
+      "description": "Provide uniform type identifiers that describe file types for storage or transfer.",
+      "type": "string"
     },
     "WindowsConfig": {
       "description": "Windows bundler configuration.\n\n See more: <https://v2.tauri.app/reference/config/#windowsconfig>",

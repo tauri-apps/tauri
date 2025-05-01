@@ -61,6 +61,7 @@ open class Plugin: NSObject {
 
     if var eventListeners = listeners[args.event] {
       eventListeners.append(args.handler)
+      listeners[args.event] = eventListeners
     } else {
       listeners[args.event] = [args.handler]
     }

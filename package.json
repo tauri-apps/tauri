@@ -25,9 +25,9 @@
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "prettier": "^3.5.2"
+    "prettier": "^3.5.3"
   },
-  "packageManager": "pnpm@10.5.2",
+  "packageManager": "pnpm@10.10.0",
   "pnpm": {
     "overrides": {
       "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",

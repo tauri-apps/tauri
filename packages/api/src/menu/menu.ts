@@ -213,7 +213,8 @@ export class Menu extends MenuItemBase {
   /**
    * Popup this menu as a context menu on the specified window.
    *
-   * If the position, is provided, it is relative to the window's top-left corner.
+   * @param at If a position is provided, it is relative to the window's top-left corner.
+   * If there isn't one provided, the menu will pop up at the current location of the mouse.
    */
   async popup(
     at?: PhysicalPosition | LogicalPosition | Position,

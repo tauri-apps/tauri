@@ -18,7 +18,7 @@ impl super::MonitorExt for tao::monitor::MonitorHandle {
       let mut position = self.position().to_logical::<f64>(scale_factor);
 
       position.x += visible_frame.origin.x - screen_frame.origin.x;
-      position.y -= visible_frame.origin.y - screen_frame.origin.y;
+      position.y += visible_frame.origin.y - screen_frame.origin.y;
 
       PhysicalRect {
         size: LogicalSize::new(visible_frame.size.width, visible_frame.size.height)

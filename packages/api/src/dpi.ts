@@ -6,6 +6,10 @@ import { SERIALIZE_TO_IPC_FN } from './core'
 
 /**
  * A size represented in logical pixels.
+ * Logical pixels are scaled according to the window's DPI scale.
+ * Most browser APIs (i.e. `MouseEvent`'s `clientX`) will return logical pixels.
+ *
+ * For logical-pixel-based position, see {@linkcode LogicalPosition}.
  *
  * @since 2.0.0
  */
@@ -71,6 +75,12 @@ class LogicalSize {
 
 /**
  * A size represented in physical pixels.
+ *
+ * Physical pixels represent actual screen pixels, and are DPI-independent.
+ * For high-DPI windows, this means that any point in the window on the screen
+ * will have a different position in logical pixels (@linkcode LogicalSize).
+ *
+ * For physical-pixel-based position, see {@linkcode PhysicalPosition}.
  *
  * @since 2.0.0
  */
@@ -197,6 +207,7 @@ class Size {
 
 /**
  *  A position represented in logical pixels.
+ * For an explanation of what logical pixels are, see description of {@linkcode LogicalSize}.
  *
  * @since 2.0.0
  */
@@ -262,6 +273,8 @@ class LogicalPosition {
 
 /**
  *  A position represented in physical pixels.
+ *
+ * For an explanation of what physical pixels are, see description of {@linkcode PhysicalSize}.
  *
  * @since 2.0.0
  */

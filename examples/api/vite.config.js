@@ -27,7 +27,7 @@ export default defineConfig({
   clearScreen: false,
   // tauri expects a fixed port, fail if that port is not available
   server: {
-    host: host || false,
+    host: host ?? false,
     port: 1420,
     strictPort: true,
     hmr: host

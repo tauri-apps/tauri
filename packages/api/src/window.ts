@@ -2446,7 +2446,7 @@ function mapMonitor(m: Monitor | null): Monitor | null {
  * @example
  * ```typescript
  * import { currentMonitor } from '@tauri-apps/api/window';
- * const monitor = currentMonitor();
+ * const monitor = await currentMonitor();
  * ```
  *
  * @since 1.0.0
@@ -2463,7 +2463,7 @@ async function currentMonitor(): Promise<Monitor | null> {
  * @example
  * ```typescript
  * import { primaryMonitor } from '@tauri-apps/api/window';
- * const monitor = primaryMonitor();
+ * const monitor = await primaryMonitor();
  * ```
  *
  * @since 1.0.0
@@ -2479,7 +2479,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * @example
  * ```typescript
  * import { monitorFromPoint } from '@tauri-apps/api/window';
- * const monitor = monitorFromPoint();
+ * const monitor = await monitorFromPoint(100.0, 200.0);
  * ```
  *
  * @since 1.0.0
@@ -2496,7 +2496,7 @@ async function monitorFromPoint(x: number, y: number): Promise<Monitor | null> {
  * @example
  * ```typescript
  * import { availableMonitors } from '@tauri-apps/api/window';
- * const monitors = availableMonitors();
+ * const monitors = await availableMonitors();
  * ```
  *
  * @since 1.0.0

@@ -40,9 +40,9 @@
   },
   "devDependencies": {
     "@napi-rs/cli": "2.18.4",
-    "@types/node": "^22.13.5",
+    "@types/node": "^22.15.3",
     "cross-env": "7.0.3",
-    "vitest": "^3.0.7"
+    "vitest": "^3.1.2"
   },
   "engines": {
     "node": ">= 10"

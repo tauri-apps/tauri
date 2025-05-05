@@ -1668,7 +1668,7 @@ fn main() {
       &serde_json::to_string(&target)?,
       event,
       id,
-      &format!("window['_{}']", handler.0),
+      handler,
     ))?;
 
     listeners.listen_js(event, self.label(), target, id);
@@ -1679,12 +1679,6 @@ fn main() {
   /// Unregister a JS event listener.
   pub(crate) fn unlisten_js(&self, event: EventName<&str>, id: EventId) -> crate::Result<()> {
     let listeners = self.manager().listeners();
-
-    self.eval(crate::event::unlisten_js_script(
-      listeners.listeners_object_name(),
-      event,
-      id,
-    ))?;
 
     listeners.unlisten_js(event, id);
 

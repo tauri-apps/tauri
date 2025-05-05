@@ -75,11 +75,11 @@ class LogicalSize {
 
 /**
  * A size represented in physical pixels.
- * 
+ *
  * Physical pixels represent actual screen pixels, and are DPI-independent.
- * For high-DPI windows, this means that any point in the window on the screen 
+ * For high-DPI windows, this means that any point in the window on the screen
  * will have a different position in logical pixels (@linkcode LogicalSize).
- * 
+ *
  * For physical-pixel-based position, see {@linkcode PhysicalPosition}.
  *
  * @since 2.0.0

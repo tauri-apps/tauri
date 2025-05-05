@@ -1668,7 +1668,7 @@ fn main() {
       &serde_json::to_string(&target)?,
       event,
       id,
-      &format!("window['_{}']", handler.0),
+      handler,
     ))?;
 
     listeners.listen_js(event, self.label(), target, id);

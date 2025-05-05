@@ -13,6 +13,8 @@ mod event_name;
 
 pub(crate) use event_name::EventName;
 
+use crate::ipc::CallbackFn;
+
 /// Unique id of an event.
 pub type EventId = u32;
 
@@ -167,8 +169,9 @@ pub(crate) fn listen_js_script(
   serialized_target: &str,
   event: EventName<&str>,
   event_id: EventId,
-  handler: &str,
+  handler: CallbackFn,
 ) -> String {
+  let handler_id = handler.0;
   format!(
     "(function () {{
       if (window['{listeners_object_name}'] === void 0) {{
@@ -180,7 +183,7 @@ pub(crate) fn listen_js_script(
       const eventListeners = window['{listeners_object_name}']['{event}']
       const listener = {{
         target: {serialized_target},
-        handler: {handler}
+        handlerId: {handler_id}
       }};
       Object.defineProperty(eventListeners, '{event_id}', {{ value: listener, configurable: true }});
     }})()
@@ -211,23 +214,23 @@ pub(crate) fn unlisten_js_script(
     "(function () {{
         const listeners = (window['{listeners_object_name}'] || {{}})[{event_arg}]
         if (listeners) {{
-          delete window['{listeners_object_name}'][{event_arg}][{event_id_arg}];
+          window.__TAURI_INTERNALS__.unregisterCallback(listeners[{event_id}].handlerId)
         }}
       }})()
     ",
   )
 }
 
-pub(crate) fn event_initialization_script(function: &str, listeners: &str) -> String {
+pub(crate) fn event_initialization_script(function_name: &str, listeners: &str) -> String {
   format!(
-    "Object.defineProperty(window, '{function}', {{
+    "Object.defineProperty(window, '{function_name}', {{
       value: function (eventData, ids) {{
         const listeners = (window['{listeners}'] && window['{listeners}'][eventData.event]) || []
         for (const id of ids) {{
           const listener = listeners[id]
-          if (listener && listener.handler) {{
+          if (listener) {{
             eventData.id = id
-            listener.handler(eventData)
+            window.__TAURI_INTERNALS__.runCallback(listener.handlerId, eventData)
           }}
         }}
       }}

@@ -59,14 +59,15 @@
 export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
 /**
- * Transforms a callback function to a string identifier that can be passed to the backend.
+ * Stores the callback in a known location, and returns an identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
  *
- * @return A unique identifier associated with the callback function.
+ * @return An unique identifier associated with the callback function.
  *
  * @since 1.0.0
  */
 function transformCallback<T = unknown>(
+  // TODO: Make this not optional in v3
   callback?: (response: T) => void,
   once = false
 ): number {
@@ -131,7 +132,7 @@ class Channel<T = unknown> {
   }
 
   private cleanupCallback() {
-    Reflect.deleteProperty(window, `_${this.id}`)
+    window.__TAURI_INTERNALS__.unregisterCallback(this.id)
   }
 
   set onmessage(handler: (response: T) => void) {
@@ -325,7 +326,7 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any,@typescript-eslint/no-unsafe-member-access
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
   return !!((globalThis as any) || window).isTauri
 }
 

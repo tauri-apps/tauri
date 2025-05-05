@@ -79,9 +79,6 @@ async fn emit_to<R: Runtime>(
 pub(crate) fn init<R: Runtime, M: Manager<R>>(manager: &M) -> TauriPlugin<R> {
   let listeners = manager.manager().listeners();
 
-  let unlisten_script =
-    crate::event::unlisten_js_script(listeners.listeners_object_name(), "event", "eventId");
-
   #[derive(Template)]
   #[default_template("./init.js")]
   struct InitJavascript {
@@ -90,7 +87,10 @@ pub(crate) fn init<R: Runtime, M: Manager<R>>(manager: &M) -> TauriPlugin<R> {
   }
 
   let init_script = InitJavascript {
-    unregister_listener_function: format!("(event, eventId) => {unlisten_script}"),
+    unregister_listener_function: format!(
+      "(event, eventId) => {}",
+      crate::event::unlisten_js_script(listeners.listeners_object_name(), "event", "eventId")
+    ),
   };
 
   Builder::new("event")

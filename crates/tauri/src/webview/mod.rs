@@ -604,7 +604,7 @@ tauri::Builder::default()
 
     let mut pending = self.into_pending_webview(&window, window.label())?;
 
-    pending.webview_attributes.bounds = Some(tauri_runtime::Rect { size, position });
+    pending.webview_attributes.bounds = Some(tauri_runtime::dpi::Rect { size, position });
 
     let use_https_scheme = pending.webview_attributes.use_https_scheme;
 
@@ -1237,7 +1237,7 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Resizes this webview.
-  pub fn set_bounds(&self, bounds: tauri_runtime::Rect) -> crate::Result<()> {
+  pub fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> crate::Result<()> {
     self
       .webview
       .dispatcher
@@ -1302,7 +1302,7 @@ impl<R: Runtime> Webview<R> {
   }
 
   /// Returns the bounds of the webviews's client area.
-  pub fn bounds(&self) -> crate::Result<tauri_runtime::Rect> {
+  pub fn bounds(&self) -> crate::Result<tauri_runtime::dpi::Rect> {
     self.webview.dispatcher.bounds().map_err(Into::into)
   }
 
@@ -1668,7 +1668,7 @@ fn main() {
       &serde_json::to_string(&target)?,
       event,
       id,
-      &format!("window['_{}']", handler.0),
+      handler,
     ))?;
 
     listeners.listen_js(event, self.label(), target, id);
@@ -1679,12 +1679,6 @@ fn main() {
   /// Unregister a JS event listener.
   pub(crate) fn unlisten_js(&self, event: EventName<&str>, id: EventId) -> crate::Result<()> {
     let listeners = self.manager().listeners();
-
-    self.eval(crate::event::unlisten_js_script(
-      listeners.listeners_object_name(),
-      event,
-      id,
-    ))?;
 
     listeners.unlisten_js(event, id);
 

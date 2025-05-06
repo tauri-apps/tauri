@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.5.1]
+
+### Enhancements
+
+- [`31becbd1d`](https://www.github.com/tauri-apps/tauri/commit/31becbd1d19ae75d82854d7d28e7b204be0d9a4c) ([#13269](https://www.github.com/tauri-apps/tauri/pull/13269) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Respect `data-tauri-drag-region="false"`, it will no longer start dragging. This is useful when binding the attribute to a state using React, or another framework.
+
+### Bug Fixes
+
+- [`da2a6ae5e`](https://www.github.com/tauri-apps/tauri/commit/da2a6ae5e396aace7d90d15f150294241a6ba0e2) ([#13268](https://www.github.com/tauri-apps/tauri/pull/13268) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression that made the raw type messages received from `Channel.onmessage` became `number[]` instead of `ArrayBuffer` when that message is small
+- [`85b191252`](https://www.github.com/tauri-apps/tauri/commit/85b19125294917e10e89fc9e09722eaaa4f69962) ([#13241](https://www.github.com/tauri-apps/tauri/pull/13241) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Make `tauri-runtime-wry` optional even with features like `macos-private-api`
+
 ## \[2.5.0]
 
 ### New Features

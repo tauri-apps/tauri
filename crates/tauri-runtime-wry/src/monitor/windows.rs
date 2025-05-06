@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use super::PhysicalRect;
 use tao::dpi::{PhysicalPosition, PhysicalSize};
+use tauri_runtime::dpi::PhysicalRect;
 
 impl super::MonitorExt for tao::monitor::MonitorHandle {
-  fn work_area(&self) -> PhysicalRect {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
     use tao::platform::windows::MonitorHandleExtWindows;
     use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
     let mut monitor_info = MONITORINFO {
@@ -25,7 +25,7 @@ impl super::MonitorExt for tao::monitor::MonitorHandle {
     } else {
       PhysicalRect {
         size: self.size(),
-        position: PhysicalPosition::default(),
+        position: self.position(),
       }
     }
   }

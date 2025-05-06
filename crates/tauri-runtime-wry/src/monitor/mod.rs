@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use tao::dpi::{PhysicalPosition, PhysicalSize};
+use tauri_runtime::dpi::PhysicalRect;
 
 #[cfg(any(
   target_os = "linux",
@@ -17,16 +17,21 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
-pub struct PhysicalRect {
-  pub size: PhysicalSize<u32>,
-  pub position: PhysicalPosition<i32>,
-}
-
 pub trait MonitorExt {
   /// Get the work area of this monitor
   ///
   /// ## Platform-specific:
   ///
   /// - **Android / iOS**: Unsupported.
-  fn work_area(&self) -> PhysicalRect;
+  fn work_area(&self) -> PhysicalRect<i32, u32>;
+}
+
+#[cfg(mobile)]
+impl MonitorExt for tao::monitor::MonitorHandle {
+  fn work_area(&self) -> PhysicalRect<i32, u32> {
+    PhysicalRect {
+      size: self.size(),
+      position: self.position(),
+    }
+  }
 }

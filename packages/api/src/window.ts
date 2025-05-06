@@ -51,6 +51,11 @@ export interface Monitor {
   size: PhysicalSize
   /** the Top-left corner position of the monitor relative to the larger full screen area. */
   position: PhysicalPosition
+  /** The monitor's work area. */
+  workArea: {
+    position: PhysicalPosition
+    size: PhysicalSize
+  }
   /** The scale factor that can be used to map physical pixels to logical pixels. */
   scaleFactor: number
 }
@@ -2427,7 +2432,11 @@ function mapMonitor(m: Monitor | null): Monitor | null {
         name: m.name,
         scaleFactor: m.scaleFactor,
         position: new PhysicalPosition(m.position),
-        size: new PhysicalSize(m.size)
+        size: new PhysicalSize(m.size),
+        workArea: {
+          position: new PhysicalPosition(m.workArea.position),
+          size: new PhysicalSize(m.workArea.size)
+        }
       }
 }
 
@@ -2437,7 +2446,7 @@ function mapMonitor(m: Monitor | null): Monitor | null {
  * @example
  * ```typescript
  * import { currentMonitor } from '@tauri-apps/api/window';
- * const monitor = currentMonitor();
+ * const monitor = await currentMonitor();
  * ```
  *
  * @since 1.0.0
@@ -2454,7 +2463,7 @@ async function currentMonitor(): Promise<Monitor | null> {
  * @example
  * ```typescript
  * import { primaryMonitor } from '@tauri-apps/api/window';
- * const monitor = primaryMonitor();
+ * const monitor = await primaryMonitor();
  * ```
  *
  * @since 1.0.0
@@ -2470,7 +2479,7 @@ async function primaryMonitor(): Promise<Monitor | null> {
  * @example
  * ```typescript
  * import { monitorFromPoint } from '@tauri-apps/api/window';
- * const monitor = monitorFromPoint();
+ * const monitor = await monitorFromPoint(100.0, 200.0);
  * ```
  *
  * @since 1.0.0
@@ -2487,7 +2496,7 @@ async function monitorFromPoint(x: number, y: number): Promise<Monitor | null> {
  * @example
  * ```typescript
  * import { availableMonitors } from '@tauri-apps/api/window';
- * const monitors = availableMonitors();
+ * const monitors = await availableMonitors();
  * ```
  *
  * @since 1.0.0

@@ -9,12 +9,12 @@ use crate::{
     app_paths::tauri_dir,
     config::{get as get_config, ConfigHandle, FrontendDist},
   },
-  interface::{AppInterface, Interface},
+  interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
 };
 use anyhow::Context;
 use clap::{ArgAction, Parser};
-use std::env::set_current_dir;
+use std::{env::set_current_dir, fs};
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -172,19 +172,32 @@ pub fn setup(
         ));
     }
 
+    // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
+    // https://github.com/tauri-apps/tauri/issues/13287
+    let target_path = fs::canonicalize(get_cargo_target_dir(&options.args)?)?;
     let mut out_folders = Vec::new();
-    for folder in &["node_modules", "src-tauri", "target"] {
-      if web_asset_path.join(folder).is_dir() {
-        out_folders.push(folder.to_string());
+    if let Ok(web_asset_canonical) = web_asset_path.canonicalize() {
+      if let Ok(relative_path) = target_path.strip_prefix(&web_asset_canonical) {
+        let relative_str = relative_path.to_string_lossy();
+        if !relative_str.is_empty() {
+          out_folders.push(relative_str.to_string());
+        }
+      }
+
+      for folder in &["node_modules", "src-tauri"] {
+        let sub_path = web_asset_canonical.join(folder);
+        if sub_path.is_dir() {
+          out_folders.push(folder.to_string());
+        }
       }
     }
+
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
-          "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-          out_folders,
-          if out_folders.len() == 1 { "folder" } else { "folders" }
-        )
-      );
+        "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+        out_folders,
+        if out_folders.len() == 1 { "folder" } else { "folders" }
+      ));
     }
   }
 

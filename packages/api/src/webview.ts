@@ -106,27 +106,45 @@ export type WebviewLabel = string
  *
  * const appWindow = new Window('uniqueLabel');
  *
- * // loading embedded asset:
- * const webview = new Webview(appWindow, 'theUniqueLabel', {
- *   url: 'path/to/page.html'
- * });
- * // alternatively, load a remote URL:
- * const webview = new Webview(appWindow, 'theUniqueLabel', {
- *   url: 'https://github.com/tauri-apps/tauri'
- * });
+ * appWindow.once('tauri://created', async function () {
+ *   // `new Webview` Should be called after the window is successfully created,
+ *   // or webview may not be attached to the window since window is not created yet.
  *
- * webview.once('tauri://created', function () {
- *  // webview successfully created
- * });
- * webview.once('tauri://error', function (e) {
- *  // an error happened creating the webview
- * });
+ *   // loading embedded asset:
+ *   const webview = new Webview(appWindow, 'theUniqueLabel', {
+ *     url: 'path/to/page.html',
  *
- * // emit an event to the backend
- * await webview.emit("some-event", "data");
- * // listen to an event from the backend
- * const unlisten = await webview.listen("event-name", e => {});
- * unlisten();
+ *     // create a webview with specific logical position and size
+ *     x: 0,
+ *     y: 0,
+ *     width: 800,
+ *     height: 600,
+ *   });
+ *   // alternatively, load a remote URL:
+ *   const webview = new Webview(appWindow, 'theUniqueLabel', {
+ *     url: 'https://github.com/tauri-apps/tauri',
+ *
+ *     // create a webview with specific logical position and size
+ *     x: 0,
+ *     y: 0,
+ *     width: 800,
+ *     height: 600,
+ *   });
+ *
+ *   webview.once('tauri://created', function () {
+ *     // webview successfully created
+ *   });
+ *   webview.once('tauri://error', function (e) {
+ *     // an error happened creating the webview
+ *   });
+ *
+ *
+ *   // emit an event to the backend
+ *   await webview.emit("some-event", "data");
+ *   // listen to an event from the backend
+ *   const unlisten = await webview.listen("event-name", e => { });
+ *   unlisten();
+ * });
  * ```
  *
  * @since 2.0.0
@@ -147,14 +165,24 @@ class Webview {
    * import { Window } from '@tauri-apps/api/window'
    * import { Webview } from '@tauri-apps/api/webview'
    * const appWindow = new Window('my-label')
-   * const webview = new Webview(appWindow, 'my-label', {
-   *   url: 'https://github.com/tauri-apps/tauri'
-   * });
-   * webview.once('tauri://created', function () {
-   *  // webview successfully created
-   * });
-   * webview.once('tauri://error', function (e) {
-   *  // an error happened creating the webview
+   *
+   * appWindow.once('tauri://created', async function() {
+   *   const webview = new Webview(appWindow, 'my-label', {
+   *     url: 'https://github.com/tauri-apps/tauri',
+   *
+   *     // create a webview with specific logical position and size
+   *     x: 0,
+   *     y: 0,
+   *     width: 800,
+   *     height: 600,
+   *   });
+   *
+   *   webview.once('tauri://created', function () {
+   *     // webview successfully created
+   *   });
+   *   webview.once('tauri://error', function (e) {
+   *     // an error happened creating the webview
+   *   });
    * });
    * ```
    *
@@ -172,8 +200,10 @@ class Webview {
     if (!options?.skip) {
       invoke('plugin:webview|create_webview', {
         windowLabel: window.label,
-        label,
-        options
+        options: {
+          ...options,
+          label
+        }
       })
         .then(async () => this.emit('tauri://created'))
         .catch(async (e: string) => this.emit('tauri://error', e))
@@ -459,6 +489,23 @@ class Webview {
   async setFocus(): Promise<void> {
     return invoke('plugin:webview|set_webview_focus', {
       label: this.label
+    })
+  }
+
+  /**
+   * Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
+   * @example
+   * ```typescript
+   * import { getCurrentWebview } from '@tauri-apps/api/webview';
+   * await getCurrentWebview().setAutoReisze(true);
+   * ```
+   *
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setAutoResize(autoResize: boolean): Promise<void> {
+    return invoke('plugin:webview|set_webview_auto_resize', {
+      label: this.label,
+      value: autoResize
     })
   }
 

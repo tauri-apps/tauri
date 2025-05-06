@@ -10,7 +10,7 @@ on:
       - dev
   pull_request:
     paths:
-      - '.github/workflows/lint-cli.yml'
+      - '.github/workflows/lint-rust.yml'
       - 'crates/**'
 
 env:

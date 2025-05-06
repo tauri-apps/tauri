@@ -2210,6 +2210,10 @@ impl HeaderAddition for Builder {
         self = self.header("Permission-Policy", value.to_string());
       };
 
+      if let Some(value) = &headers.service_worker_allowed {
+        self = self.header("Service-Worker-Allowed", value.to_string());
+      }
+
       // Add the header Timing-Allow-Origin, if we find a value for it
       if let Some(value) = &headers.timing_allow_origin {
         self = self.header("Timing-Allow-Origin", value.to_string());
@@ -2347,6 +2351,17 @@ pub struct HeaderConfig {
   /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy>
   #[serde(rename = "Permissions-Policy")]
   pub permissions_policy: Option<HeaderSource>,
+  /// The HTTP Service-Worker-Allowed response header is used to broaden the path restriction for a
+  /// service worker's default scope.
+  ///
+  /// By default, the scope for a service worker registration is the directory where the service
+  /// worker script is located. For example, if the script `sw.js` is located in `/js/sw.js`,
+  /// it can only control URLs under `/js/` by default. Servers can use the `Service-Worker-Allowed`
+  /// header to allow a service worker to control URLs outside of its own directory.
+  ///
+  /// See <https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Service-Worker-Allowed>
+  #[serde(rename = "Service-Worker-Allowed")]
+  pub service_worker_allowed: Option<HeaderSource>,
   /// The Timing-Allow-Origin response header specifies origins that are allowed to see values
   /// of attributes retrieved via features of the Resource Timing API, which would otherwise be
   /// reported as zero due to cross-origin restrictions.
@@ -2383,6 +2398,7 @@ impl HeaderConfig {
       cross_origin_opener_policy: None,
       cross_origin_resource_policy: None,
       permissions_policy: None,
+      service_worker_allowed: None,
       timing_allow_origin: None,
       x_content_type_options: None,
       tauri_custom_header: None,
@@ -3521,6 +3537,7 @@ mod build {
       let cross_origin_opener_policy = opt_lit(self.cross_origin_opener_policy.as_ref());
       let cross_origin_resource_policy = opt_lit(self.cross_origin_resource_policy.as_ref());
       let permissions_policy = opt_lit(self.permissions_policy.as_ref());
+      let service_worker_allowed = opt_lit(self.service_worker_allowed.as_ref());
       let timing_allow_origin = opt_lit(self.timing_allow_origin.as_ref());
       let x_content_type_options = opt_lit(self.x_content_type_options.as_ref());
       let tauri_custom_header = opt_lit(self.tauri_custom_header.as_ref());
@@ -3537,6 +3554,7 @@ mod build {
         cross_origin_opener_policy,
         cross_origin_resource_policy,
         permissions_policy,
+        service_worker_allowed,
         timing_allow_origin,
         x_content_type_options,
         tauri_custom_header

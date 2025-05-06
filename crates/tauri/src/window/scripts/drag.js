@@ -11,12 +11,18 @@
   // moves after the double click, it should be cancelled (see https://github.com/tauri-apps/tauri/issues/8306)
   //-----------------------//
   const TAURI_DRAG_REGION_ATTR = 'data-tauri-drag-region'
-  let x = 0,
-    y = 0
+
+  // initial mousedown position for macOS
+  let initialX = 0
+  let initialY = 0
+
   document.addEventListener('mousedown', (e) => {
+    const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
     if (
       // element has the magic data attribute
-      e.target.hasAttribute(TAURI_DRAG_REGION_ATTR)
+      attr !== null
+      //  and not false
+      && attr !== 'false'
       // and was left mouse button
       && e.button === 0
       // and was normal click to drag or double click to maximize
@@ -25,8 +31,8 @@
       // macOS maximization happens on `mouseup`,
       // so we save needed state and early return
       if (osName === 'macos' && e.detail == 2) {
-        x = e.clientX
-        y = e.clientY
+        initialX = e.clientX
+        initialY = e.clientY
         return
       }
 
@@ -46,16 +52,19 @@
   // if the mouse moves outside the data-tauri-drag-region
   if (osName === 'macos') {
     document.addEventListener('mouseup', (e) => {
+      const attr = e.target.getAttribute(TAURI_DRAG_REGION_ATTR)
       if (
         // element has the magic data attribute
-        e.target.hasAttribute(TAURI_DRAG_REGION_ATTR)
+        attr !== null
+        // and not false
+        && attr !== 'false'
         // and was left mouse button
         && e.button === 0
         // and was double click
         && e.detail === 2
         // and the cursor hasn't moved from initial mousedown
-        && e.clientX === x
-        && e.clientY === y
+        && e.clientX === initialX
+        && e.clientY === initialY
       ) {
         window.__TAURI_INTERNALS__.invoke(
           'plugin:window|internal_toggle_maximize'

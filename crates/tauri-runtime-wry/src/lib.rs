@@ -12,9 +12,8 @@
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
 
+use self::monitor::MonitorExt;
 use http::Request;
-#[cfg(desktop)]
-use monitor::MonitorExt;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
@@ -131,7 +130,6 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
-#[cfg(desktop)]
 mod monitor;
 #[cfg(any(
   windows,
@@ -462,8 +460,8 @@ impl From<DeviceEventFilter> for DeviceEventFilterWrapper {
 }
 
 pub struct RectWrapper(pub wry::Rect);
-impl From<tauri_runtime::Rect> for RectWrapper {
-  fn from(value: tauri_runtime::Rect) -> Self {
+impl From<tauri_runtime::dpi::Rect> for RectWrapper {
+  fn from(value: tauri_runtime::dpi::Rect) -> Self {
     RectWrapper(wry::Rect {
       position: value.position,
       size: value.size,
@@ -518,7 +516,7 @@ impl WindowEventWrapper {
           if !*focused
             && focused_webview
               .as_deref()
-              .map_or(false, |w| w != FOCUSED_WEBVIEW_MARKER)
+              .is_some_and(|w| w != FOCUSED_WEBVIEW_MARKER)
           {
             return Self(None);
           }
@@ -586,6 +584,7 @@ impl From<MonitorHandleWrapper> for Monitor {
       name: monitor.0.name(),
       position: PhysicalPositionWrapper(monitor.0.position()).into(),
       size: PhysicalSizeWrapper(monitor.0.size()).into(),
+      work_area: monitor.0.work_area(),
       scale_factor: monitor.0.scale_factor(),
     }
   }
@@ -1403,7 +1402,7 @@ pub enum WebviewMessage {
   Hide,
   SetPosition(Position),
   SetSize(Size),
-  SetBounds(tauri_runtime::Rect),
+  SetBounds(tauri_runtime::dpi::Rect),
   SetFocus,
   Reparent(WindowId, Sender<Result<()>>),
   SetAutoResize(bool),
@@ -1412,7 +1411,7 @@ pub enum WebviewMessage {
   ClearAllBrowsingData,
   // Getters
   Url(Sender<Result<String>>),
-  Bounds(Sender<Result<tauri_runtime::Rect>>),
+  Bounds(Sender<Result<tauri_runtime::dpi::Rect>>),
   Position(Sender<Result<PhysicalPosition<i32>>>),
   Size(Sender<Result<PhysicalSize<u32>>>),
   WithWebview(Box<dyn FnOnce(Webview) + Send>),
@@ -1541,7 +1540,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     webview_getter!(self, WebviewMessage::Url)?
   }
 
-  fn bounds(&self) -> Result<tauri_runtime::Rect> {
+  fn bounds(&self) -> Result<tauri_runtime::dpi::Rect> {
     webview_getter!(self, WebviewMessage::Bounds)?
   }
 
@@ -1599,7 +1598,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     )
   }
 
-  fn set_bounds(&self, bounds: tauri_runtime::Rect) -> Result<()> {
+  fn set_bounds(&self, bounds: tauri_runtime::dpi::Rect) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Webview(
@@ -3667,7 +3666,7 @@ fn handle_user_message<T: UserEvent>(
             tx.send(
               webview
                 .bounds()
-                .map(|bounds| tauri_runtime::Rect {
+                .map(|bounds| tauri_runtime::dpi::Rect {
                   size: bounds.size,
                   position: bounds.position,
                 })
@@ -4226,12 +4225,12 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
         let monitor_size = m.size();
 
         // type annotations required for 32bit targets.
-        let window_position: LogicalPosition<i32> = window_position.to_logical(m.scale_factor());
+        let window_position = window_position.to_physical::<i32>(m.scale_factor());
 
         monitor_pos.x <= window_position.x
-          && window_position.x <= monitor_pos.x + monitor_size.width as i32
+          && window_position.x < monitor_pos.x + monitor_size.width as i32
           && monitor_pos.y <= window_position.y
-          && window_position.y <= monitor_pos.y + monitor_size.height as i32
+          && window_position.y < monitor_pos.y + monitor_size.height as i32
       })
     } else {
       event_loop.primary_monitor()

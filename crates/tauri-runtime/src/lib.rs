@@ -14,19 +14,21 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 use raw_window_handle::DisplayHandle;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
 use tauri_utils::config::Color;
 use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
+/// UI scaling utilities.
+pub mod dpi;
 /// Types useful for interacting with a user's monitors.
 pub mod monitor;
 pub mod webview;
 pub mod window;
 
-use dpi::{PhysicalPosition, PhysicalSize, Position, Size};
+use dpi::{PhysicalPosition, PhysicalSize, Position, Rect, Size};
 use monitor::Monitor;
 use window::{
   CursorIcon, DetachedWindow, PendingWindow, RawWindow, WebviewEvent, WindowEvent,
@@ -40,32 +42,11 @@ use http::{
   status::InvalidStatusCode,
 };
 
-/// UI scaling utilities.
-pub use dpi;
-
 /// Cookie extraction
 pub use cookie::Cookie;
 
 pub type WindowEventId = u32;
 pub type WebviewEventId = u32;
-
-/// A rectangular region.
-#[derive(Clone, Copy, Debug, Serialize)]
-pub struct Rect {
-  /// Rect position.
-  pub position: dpi::Position,
-  /// Rect size.
-  pub size: dpi::Size,
-}
-
-impl Default for Rect {
-  fn default() -> Self {
-    Self {
-      position: Position::Logical((0, 0).into()),
-      size: Size::Logical((0, 0).into()),
-    }
-  }
-}
 
 /// Progress bar status.
 #[derive(Debug, Clone, Copy, Deserialize)]

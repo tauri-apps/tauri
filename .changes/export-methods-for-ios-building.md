@@ -1,6 +1,6 @@
 ---
-@tauri-apps/cli: patch
-tauri-cli: patch
+@tauri-apps/cli: patch:bug
+tauri-cli: patch:bug
 ---
 
-fix(cli): wrong export methods for iOS building (#11092)
+Use correct export methods for iOS building on Xcode < 15.4

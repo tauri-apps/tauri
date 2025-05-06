@@ -1,6 +1,6 @@
 ---
-"@tauri-apps/cli": patch
-"tauri-cli": patch
+"@tauri-apps/cli": patch:enhance
+"tauri-cli": patch:enhance
 ---
 
-feat(cli): allow electron to start tauri
+Allow electron to run the CLI directly

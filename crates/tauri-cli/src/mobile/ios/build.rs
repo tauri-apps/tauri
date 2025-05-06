@@ -3,9 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use super::{
-  detect_target_ok, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  log_finished, merge_plist, open_and_wait, project_config, synchronize_project_config,
-  MobileTarget, OptionsHandle,
+  detect_target_ok, ensure_init, env, get_app, get_config, get_xcode_version, inject_resources,
+  load_pbxproj, log_finished, merge_plist, open_and_wait, project_config,
+  synchronize_project_config, MobileTarget, OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -37,6 +37,8 @@ use std::{
   fs,
   path::PathBuf,
 };
+
+const DEPRECATED_EXPORT_METHODS_XCODE_VERSION: semver::Version = semver::Version::new(15, 4, 0);
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -83,29 +85,26 @@ pub struct Options {
   /// Use this to create a package ready for distribution.
   /// for more information, see https://developer.apple.com/documentation/xcode/distributing-your-app-for-beta-testing-and-releases
   ///
-  /// - `app-store`: Distribute using TestFlight or through the App Store.
-  /// - `ad-hoc`: Distribute to a limited number of devices you register in App Store Connect.
-  /// - `enterprise`: Distribute to members of your organization.
-  /// - `development`: Distribute to a limited number of devices you register in App Store Connect.
+  /// - `app-store-connect`: Distribute using TestFlight or through the App Store.
+  /// - `release-testing`: Distribute to a limited number of devices you register in App Store Connect.
+  /// - `debugging`: Package the application for local testing.
   #[clap(long, value_enum)]
   pub export_method: Option<ExportMethod>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum ExportMethod {
-  AppStore,
-  AdHoc,
-  Enterprise,
-  Development,
+  AppStoreConnect,
+  ReleaseTesting,
+  Debugging,
 }
 
 impl std::fmt::Display for ExportMethod {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
-      Self::AppStore => write!(f, "app-store"),
-      Self::AdHoc => write!(f, "ad-hoc"),
-      Self::Enterprise => write!(f, "enterprise"),
-      Self::Development => write!(f, "development"),
+      Self::AppStoreConnect => write!(f, "app-store-connect"),
+      Self::ReleaseTesting => write!(f, "release-testing"),
+      Self::Debugging => write!(f, "debugging"),
     }
   }
 }
@@ -115,10 +114,9 @@ impl std::str::FromStr for ExportMethod {
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     match s {
-      "app-store" => Ok(Self::AppStore),
-      "ad-hoc" => Ok(Self::AdHoc),
-      "enterprise" => Ok(Self::Enterprise),
-      "development" => Ok(Self::Development),
+      "app-store-connect" => Ok(Self::AppStoreConnect),
+      "release-testing" => Ok(Self::ReleaseTesting),
+      "debugging" => Ok(Self::Debugging),
       _ => Err("unknown ios export method"),
     }
   }
@@ -212,7 +210,24 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let mut export_options_plist = plist::Dictionary::new();
   if let Some(method) = options.export_method {
-    export_options_plist.insert("method".to_string(), method.to_string().into());
+    let xcode_version = get_xcode_version().unwrap_or_else(|_|
+      // by default we'll use the deprecated method
+      semver::Version::new(14, 0, 0));
+
+    if xcode_version < DEPRECATED_EXPORT_METHODS_XCODE_VERSION {
+      // use the method names that were deprecated in Xcode 15.4
+      export_options_plist.insert(
+        "method".to_string(),
+        match method {
+          ExportMethod::AppStoreConnect => "app-store".into(),
+          ExportMethod::ReleaseTesting => "ad-hoc".into(),
+          ExportMethod::Debugging => "development".into(),
+        },
+      );
+    } else {
+      // use the default, new method names
+      export_options_plist.insert("method".to_string(), method.to_string().into());
+    }
   }
 
   let (keychain, provisioning_profile) = super::signing_from_env()?;

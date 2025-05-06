@@ -39,6 +39,7 @@ use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
   path::PathBuf,
+  process::Command,
   str::FromStr,
   thread::sleep,
   time::Duration,
@@ -649,4 +650,25 @@ pub fn synchronize_project_config(
   }
 
   Ok(())
+}
+
+pub fn get_xcode_version() -> Result<semver::Version> {
+  let output = Command::new("xcodebuild").arg("-version").output()?;
+
+  if output.status.success() {
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+      if line.starts_with("Xcode ") {
+        if let Some(version) = line.split_whitespace().nth(1) {
+          let mut tokens = version.split('.').collect::<Vec<&str>>();
+          if tokens.len() == 2 {
+            tokens.push("0");
+          }
+          return Ok(semver::Version::parse(&tokens.join("."))?);
+        }
+      }
+    }
+  }
+
+  anyhow::bail!("failed to run xcodebuild -version")
 }

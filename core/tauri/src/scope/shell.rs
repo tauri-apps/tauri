@@ -282,7 +282,7 @@ impl Scope {
       .map(|s| {
         std::path::PathBuf::from(s)
           .components()
-          .last()
+          .next_back()
           .unwrap()
           .as_os_str()
           .to_string_lossy()

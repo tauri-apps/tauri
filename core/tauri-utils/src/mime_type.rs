@@ -53,7 +53,7 @@ impl MimeType {
 
   /// parse a URI suffix to convert text/plain mimeType to their actual web compatible mimeType with specified fallback for unknown file extensions.
   pub fn parse_from_uri_with_fallback(uri: &str, fallback: MimeType) -> MimeType {
-    let suffix = uri.split('.').last();
+    let suffix = uri.split('.').next_back();
     match suffix {
       Some("bin") => Self::OctetStream,
       Some("css" | "less" | "sass" | "styl") => Self::Css,

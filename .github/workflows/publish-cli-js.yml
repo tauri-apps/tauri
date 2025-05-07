@@ -6,12 +6,12 @@ name: publish `@tauri-apps/cli`
 env:
   DEBUG: napi:*
   APP_NAME: cli
-  MACOSX_DEPLOYMENT_TARGET: '10.13'
+  MACOSX_DEPLOYMENT_TARGET: "10.13"
 on:
   workflow_dispatch:
     inputs:
       releaseId:
-        description: 'ID of the `@tauri-apps/cli` release'
+        description: "ID of the `@tauri-apps/cli` release"
         required: true
   repository_dispatch:
     types: [publish-js-cli]
@@ -91,7 +91,7 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
@@ -99,7 +99,7 @@ jobs:
           node-version: 16
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache-dependency-path: "tooling/cli/node/yarn.lock"
           architecture: ${{ matrix.settings.architecture }}
       - name: Install
         uses: actions-rs/toolchain@v1
@@ -112,7 +112,7 @@ jobs:
       - uses: Swatinem/rust-cache@v1
         with:
           key: ${{ matrix.settings.target }}
-          working-directory: 'tooling/cli/'
+          working-directory: "tooling/cli/"
         if: ${{ matrix.settings.docker }}
       - name: Setup toolchain
         run: ${{ matrix.settings.setup }}
@@ -144,7 +144,7 @@ jobs:
   #    runs-on: macos-10.15
   #    name: Build FreeBSD
   #    steps:
-  #      - uses: actions/checkout@v3
+  #      - uses: actions/checkout@v4
   #      - name: Build
   #        id: build
   #        uses: vmactions/freebsd-vm@v0.1.6
@@ -198,30 +198,30 @@ jobs:
       matrix:
         settings:
           - host: macos-latest
-            target: 'aarch64-apple-darwin'
+            target: "aarch64-apple-darwin"
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
-          - '16'
-          - '18'
-          - '20'
+          - "16"
+          - "18"
+          - "20"
     runs-on: ${{ matrix.settings.host }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache-dependency-path: "tooling/cli/node/yarn.lock"
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: 'tooling/cli/node/'
+          path: "tooling/cli/node/"
       - name: List packages
         run: ls -R .
         shell: bash
@@ -235,26 +235,26 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '16'
-          - '18'
-          - '20'
+          - "16"
+          - "18"
+          - "20"
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache-dependency-path: "tooling/cli/node/yarn.lock"
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-x86_64-unknown-linux-gnu
-          path: 'tooling/cli/node/'
+          path: "tooling/cli/node/"
       - name: List packages
         run: ls -R .
         shell: bash
@@ -272,28 +272,28 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '16'
-          - '18'
-          - '20'
+          - "16"
+          - "18"
+          - "20"
     runs-on: ubuntu-22.04
     container:
       image: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node }}
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache-dependency-path: "tooling/cli/node/yarn.lock"
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-x86_64-unknown-linux-musl
-          path: 'tooling/cli/node/'
+          path: "tooling/cli/node/"
       - name: List packages
         run: ls -R .
         shell: bash
@@ -315,9 +315,9 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '16'
-          - '18'
-          - '20'
+          - "16"
+          - "18"
+          - "20"
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
           - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
@@ -325,7 +325,7 @@ jobs:
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset
         working-directory: ${{ github.workspace }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: List packages
         run: ls -R .
         shell: bash
@@ -335,17 +335,17 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: bindings-aarch64-unknown-linux-gnu
-          path: 'tooling/cli/node/'
+          path: "tooling/cli/node/"
       - name: Download armv7-gnueabihf artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
-          path: 'tooling/cli/node/'
+          path: "tooling/cli/node/"
       # TODO: actually run test, blocked by https://github.com/rust-lang/cargo/issues/8719
       - uses: addnab/docker-run-action@v3
         with:
           image: ${{ matrix.image }}
-          options: '-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo'
+          options: "-v ${{ github.workspace }}:/build -w /build -e RUSTUP_HOME=/usr/local/rustup -e CARGO_HOME=/usr/local/cargo"
           shell: bash
           run: |
             set -e
@@ -371,14 +371,14 @@ jobs:
       - test-linux-x64-musl-binding
       #- test-linux-arm-bindings
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Setup node
         uses: actions/setup-node@v3
         with:
           node-version: 20
           check-latest: true
           cache: yarn
-          cache-dependency-path: 'tooling/cli/node/yarn.lock'
+          cache-dependency-path: "tooling/cli/node/yarn.lock"
       - name: Install dependencies
         run: yarn install --ignore-scripts --frozen-lockfile --registry https://registry.npmjs.org --network-timeout 300000
       - name: Download all artifacts

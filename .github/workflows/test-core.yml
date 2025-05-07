@@ -11,9 +11,9 @@ on:
       - 1.x
   pull_request:
     paths:
-      - '.github/workflows/test-core.yml'
-      - 'core/**'
-      - '!core/tauri/scripts/**'
+      - ".github/workflows/test-core.yml"
+      - "core/**"
+      - "!core/tauri/scripts/**"
 
 env:
   RUST_BACKTRACE: 1
@@ -34,34 +34,36 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.61.0'
+              toolchain: "1.61.0",
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-22.04,
-              toolchain: '1.60.0'
+              toolchain: "1.60.0",
             }
-          - {
-              target: x86_64-apple-darwin,
-              os: macos-13,
-              toolchain: '1.60.0'
-            }
+          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.60.0" }
         features:
+          - { args: --no-default-features, key: no-default }
+          - { args: --features api-all, key: api-all }
           - {
-              args: --no-default-features,
-              key: no-default
-            }
-          - {
-              args: --features api-all,
-              key: api-all
-            }
-          - {
-              args: --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test,
-              key: all
+              args: --features tracing,
+              compression,
+              wry,
+              linux-protocol-headers,
+              isolation,
+              custom-protocol,
+              api-all,
+              cli,
+              updater,
+              system-tray,
+              windows7-compat,
+              http-multipart,
+              test,
+              key: all,
             }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1

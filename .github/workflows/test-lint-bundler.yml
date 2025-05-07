@@ -11,8 +11,8 @@ on:
       - 1.x
   pull_request:
     paths:
-      - '.github/workflows/test-bundler.yml'
-      - 'tooling/bundler/**'
+      - ".github/workflows/test-bundler.yml"
+      - "tooling/bundler/**"
 
 env:
   RUST_BACKTRACE: 1
@@ -32,7 +32,7 @@ jobs:
         platform: [ubuntu-22.04, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1
@@ -52,7 +52,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install minimal stable with clippy and rustfmt
         uses: actions-rs/toolchain@v1

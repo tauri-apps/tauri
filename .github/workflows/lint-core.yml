@@ -11,10 +11,10 @@ on:
       - 1.x
   pull_request:
     paths:
-      - '.github/workflows/lint-core.yml'
-      - 'core/**'
-      - '!core/tauri/scripts/**'
-      - 'examples/**'
+      - ".github/workflows/lint-core.yml"
+      - "core/**"
+      - "!core/tauri/scripts/**"
+      - "examples/**"
 
 env:
   RUST_BACKTRACE: 1
@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -48,16 +48,16 @@ jobs:
     strategy:
       matrix:
         clippy:
-          - { args: '', key: 'empty' }
+          - { args: "", key: "empty" }
           - {
-              args: '--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test',
-              key: 'all'
+              args: "--features compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test",
+              key: "all",
             }
-          - { args: '--features custom-protocol', key: 'custom-protocol' }
-          - { args: '--features api-all', key: 'api-all' }
+          - { args: "--features custom-protocol", key: "custom-protocol" }
+          - { args: "--features api-all", key: "api-all" }
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install dependencies
         run: |

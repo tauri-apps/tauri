@@ -5,11 +5,11 @@
 name: test updater artifacts
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   pull_request:
     paths:
-      - '.github/workflows/test-updater-artifacts.yml'
-      - 'examples/updater/**'
+      - ".github/workflows/test-updater-artifacts.yml"
+      - "examples/updater/**"
   workflow_dispatch:
 
 env:
@@ -30,7 +30,7 @@ jobs:
         platform: [ubuntu-22.04, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: install stable
         uses: actions-rs/toolchain@v1
         with:

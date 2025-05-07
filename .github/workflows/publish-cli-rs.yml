@@ -4,7 +4,7 @@
 
 name: publish `tauri-cli`
 env:
-  MACOSX_DEPLOYMENT_TARGET: '10.13'
+  MACOSX_DEPLOYMENT_TARGET: "10.13"
 on:
   workflow_dispatch:
   repository_dispatch:
@@ -20,30 +20,30 @@ jobs:
         config:
           - os: ubuntu-20.04
             rust_target: x86_64-unknown-linux-gnu
-            ext: ''
-            args: ''
+            ext: ""
+            args: ""
           - os: macos-latest
             rust_target: x86_64-apple-darwin
-            ext: ''
-            args: ''
+            ext: ""
+            args: ""
           - os: macos-latest
             rust_target: aarch64-apple-darwin
-            ext: ''
-            args: ''
+            ext: ""
+            args: ""
           - os: windows-latest
             rust_target: x86_64-pc-windows-msvc
-            ext: '.exe'
-            args: ''
+            ext: ".exe"
+            args: ""
           - os: windows-latest
             rust_target: aarch64-pc-windows-msvc
-            ext: '.exe'
-            args: '--no-default-features --features native-tls,native-tls-vendored'
+            ext: ".exe"
+            args: "--no-default-features --features native-tls,native-tls-vendored"
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: 'Setup Rust'
+      - name: "Setup Rust"
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.config.rust_target }}
@@ -77,7 +77,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Download built CLIs
         uses: actions/download-artifact@v3

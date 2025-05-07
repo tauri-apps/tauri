@@ -11,8 +11,8 @@ on:
       - 1.x
   pull_request:
     paths:
-      - '.github/workflows/lint-cli.yml'
-      - 'tooling/cli/**'
+      - ".github/workflows/lint-cli.yml"
+      - "tooling/cli/**"
 
 env:
   RUST_BACKTRACE: 1
@@ -27,7 +27,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -45,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - uses: actions-rs/toolchain@v1
         with:

@@ -11,9 +11,9 @@ on:
       - 1.x
   pull_request:
     paths:
-      - '.github/workflows/test-cli-js.yml'
+      - ".github/workflows/test-cli-js.yml"
       # currently` @tauri-apps/cli` only tests the template
-      - 'tooling/cli/templates/app/**'
+      - "tooling/cli/templates/app/**"
 
 env:
   RUST_BACKTRACE: 1
@@ -33,7 +33,7 @@ jobs:
         platform: [ubuntu-22.04, macos-latest, windows-latest]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: install Rust stable
         uses: actions-rs/toolchain@v1

@@ -7,14 +7,14 @@ name: Audit
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   push:
     paths:
-      - '.github/workflows/audit.yml'
-      - '**/Cargo.lock'
-      - '**/Cargo.toml'
-      - '**/package.json'
-      - '**/yarn.lock'
+      - ".github/workflows/audit.yml"
+      - "**/Cargo.lock"
+      - "**/Cargo.toml"
+      - "**/package.json"
+      - "**/yarn.lock"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,16 +24,16 @@ jobs:
   audit-rust:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: rust audit
-        uses: actions-rs/audit-check@v1
+        uses: rustsec/audit-check@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   audit-js:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: audit workspace
         run: yarn audit
       - name: audit @tauri-apps/api

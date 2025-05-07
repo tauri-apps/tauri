@@ -7,9 +7,9 @@ name: lint js
 on:
   pull_request:
     paths:
-      - '.github/workflows/lint-js.yml'
-      - 'tooling/cli/node/**'
-      - 'tooling/api/**'
+      - ".github/workflows/lint-js.yml"
+      - "tooling/cli/node/**"
+      - "tooling/api/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -19,7 +19,7 @@ jobs:
   eslint-cli:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v2
         with:
           node-version: 16
@@ -39,7 +39,7 @@ jobs:
   eslint-api:
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: actions/setup-node@v2
         with:
           node-version: 16

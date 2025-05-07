@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1
@@ -36,7 +36,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: cross
-          path: '~/.cargo/bin/cross'
+          path: "~/.cargo/bin/cross"
           if-no-files-found: error
 
       - name: build CLI
@@ -60,11 +60,11 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - { name: 'aarch64-unknown-linux-gnu', filename: 'aarch64' }
+          - { name: "aarch64-unknown-linux-gnu", filename: "aarch64" }
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: install stable
         uses: actions-rs/toolchain@v1
@@ -83,13 +83,13 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: cross
-          path: '~/.cargo/bin'
+          path: "~/.cargo/bin"
 
       - name: Download CLI
         uses: actions/download-artifact@v3
         with:
           name: cargo-tauri
-          path: 'examples/api'
+          path: "examples/api"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2

@@ -41,7 +41,7 @@ jobs:
           toolchain: 1.71
           override: true
       - name: setup node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
           node-version: 16
           cache: yarn

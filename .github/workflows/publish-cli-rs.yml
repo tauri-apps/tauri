@@ -65,7 +65,7 @@ jobs:
           args: --manifest-path ./tooling/cli/Cargo.toml --release ${{ matrix.config.args }}
 
       - name: Upload CLI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cargo-tauri-${{ matrix.config.rust_target }}${{ matrix.config.ext }}
           path: tooling/cli/target/release/cargo-tauri${{ matrix.config.ext }}
@@ -80,7 +80,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download built CLIs
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: outputs
 

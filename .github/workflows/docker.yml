@@ -33,7 +33,7 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Upload cross
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cross
           path: "~/.cargo/bin/cross"
@@ -46,7 +46,7 @@ jobs:
           args: --manifest-path ./tooling/cli/Cargo.toml
 
       - name: Upload CLI
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: cargo-tauri
           path: tooling/cli/target/debug/cargo-tauri
@@ -80,13 +80,13 @@ jobs:
           node-version: 16
 
       - name: Download cross
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cross
           path: "~/.cargo/bin"
 
       - name: Download CLI
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cargo-tauri
           path: "examples/api"

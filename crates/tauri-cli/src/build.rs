@@ -14,7 +14,7 @@ use crate::{
 };
 use anyhow::Context;
 use clap::{ArgAction, Parser};
-use std::{env::set_current_dir, fs};
+use std::env::set_current_dir;
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]

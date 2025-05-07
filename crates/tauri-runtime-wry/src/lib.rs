@@ -31,23 +31,13 @@ use tauri_runtime::{
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
+pub use tao::event::{DeviceEvent, DeviceId};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
 use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
-#[cfg(windows)]
-use webview2_com::FocusChangedEventHandler;
-#[cfg(windows)]
-use windows::Win32::Foundation::HWND;
-#[cfg(target_os = "ios")]
-use wry::WebViewBuilderExtIos;
-#[cfg(windows)]
-use wry::WebViewBuilderExtWindows;
-#[cfg(target_vendor = "apple")]
-use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
-
 use tao::{
   dpi::{
     LogicalPosition as TaoLogicalPosition, LogicalSize as TaoLogicalSize,
@@ -66,6 +56,7 @@ use tao::{
     UserAttentionType as TaoUserAttentionType,
   },
 };
+
 #[cfg(desktop)]
 use tauri_utils::config::PreventOverflowConfig;
 #[cfg(target_os = "macos")]
@@ -75,10 +66,20 @@ use tauri_utils::{
   Theme,
 };
 use url::Url;
+#[cfg(windows)]
+use webview2_com::FocusChangedEventHandler;
+#[cfg(windows)]
+use windows::Win32::Foundation::HWND;
+#[cfg(target_os = "ios")]
+use wry::WebViewBuilderExtIos;
+#[cfg(windows)]
+use wry::WebViewBuilderExtWindows;
 use wry::{
   DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
   WebView, WebViewBuilder,
 };
+#[cfg(target_vendor = "apple")]
+use wry::{WebViewBuilderExtDarwin, WebViewExtDarwin};
 
 pub use tao;
 pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};
@@ -237,6 +238,9 @@ pub(crate) fn send_user_message<T: UserEvent>(
   }
 }
 
+type DeviceEventCallback =
+  Arc<Mutex<Option<Box<dyn Fn(DeviceId, DeviceEvent) + Send + 'static>>>>;
+
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
   pub window_id_map: WindowIdStore,
@@ -244,6 +248,7 @@ pub struct Context<T: UserEvent> {
   pub proxy: TaoEventLoopProxy<Message<T>>,
   main_thread: DispatcherMainThreadContext<T>,
   plugins: Arc<Mutex<Vec<Box<dyn Plugin<T> + Send>>>>,
+  device_event_callback: DeviceEventCallback,
   next_window_id: Arc<AtomicU32>,
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
@@ -2707,6 +2712,7 @@ impl<T: UserEvent> Wry<T> {
         #[cfg(feature = "tracing")]
         active_tracing_spans: Default::default(),
       },
+      device_event_callback: Default::default(),
       plugins: Default::default(),
       next_window_id: Default::default(),
       next_webview_id: Default::default(),
@@ -2718,6 +2724,18 @@ impl<T: UserEvent> Wry<T> {
       context,
       event_loop,
     })
+  }
+
+  pub fn set_device_event_callback<F>(&self, f: F)
+  where
+    F: Fn(DeviceId, DeviceEvent) + Send + 'static,
+  {
+    self
+      .context
+      .device_event_callback
+      .lock()
+      .unwrap()
+      .replace(Box::new(f));
   }
 }
 
@@ -2960,6 +2978,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     let window_id_map = self.context.window_id_map.clone();
     let web_context = &self.context.main_thread.web_context;
     let plugins = self.context.plugins.clone();
+    let device_event_callback = self.context.device_event_callback.clone();
 
     #[cfg(feature = "tracing")]
     let active_tracing_spans = self.context.main_thread.active_tracing_spans.clone();
@@ -2998,6 +3017,7 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
           event,
           event_loop,
           control_flow,
+          device_event_callback.clone(),
           EventLoopIterationContext {
             callback: &mut callback,
             windows: windows.clone(),
@@ -3043,6 +3063,7 @@ where
   let window_id_map = runtime.context.window_id_map.clone();
   let web_context = runtime.context.main_thread.web_context.clone();
   let plugins = runtime.context.plugins.clone();
+  let device_event_callback = runtime.context.device_event_callback.clone();
 
   #[cfg(feature = "tracing")]
   let active_tracing_spans = runtime.context.main_thread.active_tracing_spans.clone();
@@ -3072,6 +3093,7 @@ where
       event,
       event_loop,
       control_flow,
+      device_event_callback.clone(),
       EventLoopIterationContext {
         callback: &mut callback,
         window_id_map: window_id_map.clone(),
@@ -3879,6 +3901,7 @@ fn handle_event_loop<T: UserEvent>(
   event: Event<'_, Message<T>>,
   event_loop: &EventLoopWindowTarget<Message<T>>,
   control_flow: &mut ControlFlow,
+  device_event_callback: DeviceEventCallback,
   context: EventLoopIterationContext<'_, T>,
 ) {
   let EventLoopIterationContext {
@@ -3893,6 +3916,13 @@ fn handle_event_loop<T: UserEvent>(
   }
 
   match event {
+    Event::DeviceEvent {
+      device_id, event, ..
+    } => {
+      if let Some(device_event_function) = device_event_callback.lock().unwrap().as_ref() {
+        device_event_function(device_id, event);
+      }
+    }
     Event::NewEvents(StartCause::Init) => {
       callback(RunEvent::Ready);
     }

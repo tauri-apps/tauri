@@ -709,6 +709,20 @@ impl App<crate::Wry> {
   {
     self.handle.runtime_handle.plugin(plugin);
   }
+
+  /// Adds a callback to be called when a device event is received.
+  /// 
+  /// This is only available on the Wry runtime.
+  pub fn set_device_event_callback<F>(&self, callback: F)
+  where
+    F: Fn(tauri_runtime_wry::DeviceId, tauri_runtime_wry::DeviceEvent) + Send + 'static,
+  {
+    if let Some(runtime) = self.runtime.as_ref() {
+      runtime.set_device_event_callback(callback);
+    } else {
+      log::warn!("device event callback is not supported on this platform");
+    }
+  }
 }
 
 macro_rules! shared_app_impl {

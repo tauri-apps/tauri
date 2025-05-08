@@ -17,6 +17,7 @@ use http::Request;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
+  device_events::DeviceEventFilter,
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
@@ -24,14 +25,13 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
   },
-  Cookie, DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon,
-  ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
-  UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
+  Cookie, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
+  ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType,
+  UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
-pub use tao::event::{DeviceEvent, DeviceId};
 #[cfg(target_os = "macos")]
 use tao::platform::macos::{EventLoopWindowTargetExtMacOS, WindowBuilderExtMacOS};
 #[cfg(target_os = "linux")]
@@ -131,6 +131,7 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
+mod map_device_event;
 mod monitor;
 #[cfg(any(
   windows,
@@ -237,9 +238,22 @@ pub(crate) fn send_user_message<T: UserEvent>(
       .map_err(|_| Error::FailedToSendMessage)
   }
 }
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A unique identifier for a device.
+/// There is no meaning to the value of this identifier, it is just a unique identifier.
+pub struct DeviceId(tao::event::DeviceId);
 
-type DeviceEventCallback =
-  Arc<Mutex<Option<Box<dyn Fn(DeviceId, DeviceEvent) + Send + 'static>>>>;
+impl tauri_runtime::device_events::DeviceId for DeviceId {
+  unsafe fn dummy() -> Self {
+    DeviceId(unsafe { tao::event::DeviceId::dummy() })
+  }
+}
+
+type DeviceEventCallback = Arc<
+  Mutex<
+    Option<Box<dyn FnMut(DeviceId, tauri_runtime::device_events::DeviceEvent) + Send + 'static>>,
+  >,
+>;
 
 #[derive(Clone)]
 pub struct Context<T: UserEvent> {
@@ -2725,18 +2739,6 @@ impl<T: UserEvent> Wry<T> {
       event_loop,
     })
   }
-
-  pub fn set_device_event_callback<F>(&self, f: F)
-  where
-    F: Fn(DeviceId, DeviceEvent) + Send + 'static,
-  {
-    self
-      .context
-      .device_event_callback
-      .lock()
-      .unwrap()
-      .replace(Box::new(f));
-  }
 }
 
 impl<T: UserEvent> Runtime<T> for Wry<T> {
@@ -2965,10 +2967,24 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
     self.event_loop.hide_application();
   }
 
-  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) {
     self
       .event_loop
       .set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
+  }
+
+  type DeviceId = DeviceId;
+
+  fn set_device_event_callback<F>(&self, callback: F)
+  where
+    F: FnMut(Self::DeviceId, tauri_runtime::device_events::DeviceEvent) + Send + 'static,
+  {
+    self
+      .context
+      .device_event_callback
+      .lock()
+      .unwrap()
+      .replace(Box::new(callback));
   }
 
   #[cfg(desktop)]
@@ -3070,23 +3086,27 @@ where
   let proxy = runtime.event_loop.create_proxy();
 
   move |event, event_loop, control_flow| {
-    for p in plugins.lock().unwrap().iter_mut() {
-      let prevent_default = p.on_event(
-        &event,
-        event_loop,
-        &proxy,
-        control_flow,
-        EventLoopIterationContext {
-          callback: &mut callback,
-          window_id_map: window_id_map.clone(),
-          windows: windows.clone(),
-          #[cfg(feature = "tracing")]
-          active_tracing_spans: active_tracing_spans.clone(),
-        },
-        &web_context,
-      );
-      if prevent_default {
-        return;
+    // if device event skip the plugins to optimize performance
+    // if device filter is set to always and this is not here there will be a performance hit
+    if !matches!(event, Event::DeviceEvent { .. }) {
+      for p in plugins.lock().unwrap().iter_mut() {
+        let prevent_default = p.on_event(
+          &event,
+          event_loop,
+          &proxy,
+          control_flow,
+          EventLoopIterationContext {
+            callback: &mut callback,
+            window_id_map: window_id_map.clone(),
+            windows: windows.clone(),
+            #[cfg(feature = "tracing")]
+            active_tracing_spans: active_tracing_spans.clone(),
+          },
+          &web_context,
+        );
+        if prevent_default {
+          return;
+        }
       }
     }
     handle_event_loop(
@@ -3919,8 +3939,10 @@ fn handle_event_loop<T: UserEvent>(
     Event::DeviceEvent {
       device_id, event, ..
     } => {
-      if let Some(device_event_function) = device_event_callback.lock().unwrap().as_ref() {
-        device_event_function(device_id, event);
+      if let Some(device_event_function) = device_event_callback.lock().unwrap().as_mut() {
+        if let Some(mapped_event) = map_device_event::map_device_event(event) {
+          device_event_function(DeviceId(device_id), mapped_event);
+        }
       }
     }
     Event::NewEvents(StartCause::Init) => {

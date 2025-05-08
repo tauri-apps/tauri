@@ -2202,7 +2202,7 @@ tauri::Builder::default()
     let runtime_handle = runtime.handle();
 
     let app_handle = AppHandle {
-      runtime_handle: runtime_handle,
+      runtime_handle,
       manager: manager.clone(),
       event_loop: Arc::new(Mutex::new(EventLoop {
         main_thread_id: std::thread::current().id(),
@@ -2220,7 +2220,7 @@ tauri::Builder::default()
     let mut app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
-      manager: manager,
+      manager,
       handle: app_handle,
       ran_setup: false,
     };

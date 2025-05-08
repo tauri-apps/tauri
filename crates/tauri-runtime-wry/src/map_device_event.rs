@@ -195,8 +195,10 @@ fn map_physical_key(event: tao::keyboard::KeyCode) -> Option<Code> {
     tao::keyboard::KeyCode::AudioVolumeMute => Some(Code::AudioVolumeMute),
     tao::keyboard::KeyCode::AudioVolumeUp => Some(Code::AudioVolumeUp),
     tao::keyboard::KeyCode::WakeUp => Some(Code::WakeUp),
-    tao::keyboard::KeyCode::Hyper => Some(Code::Hyper),
-    tao::keyboard::KeyCode::Turbo => Some(Code::Turbo),
+    // maybe needs to be changed but [`Code::Hyper`] is deprecated
+    tao::keyboard::KeyCode::Hyper => Some(Code::MetaLeft),
+    // maybe needs to be changed but [`Code::Super`] is deprecated
+    tao::keyboard::KeyCode::Turbo => Some(Code::MetaLeft),
     tao::keyboard::KeyCode::Abort => Some(Code::Abort),
     tao::keyboard::KeyCode::Resume => Some(Code::Resume),
     tao::keyboard::KeyCode::Suspend => Some(Code::Suspend),

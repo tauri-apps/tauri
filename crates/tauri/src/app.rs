@@ -2073,12 +2073,12 @@ tauri::Builder::default()
   /// - ** Wayland / macOS / iOS / Android**: Unsupported.
   ///
   /// # Example
-  /// ```,no_run
+  /// ```
   /// tauri::Builder::default().on_device_event(|_app, _device_id, event| match event {
-  ///   DeviceEvent::MouseMotion { delta } => {
+  ///   tauri::DeviceEvent::MouseMotion { delta } => {
   ///     println!("Mouse moved: {:?}", delta);
   ///   }
-  ///   DeviceEvent::MouseWheel { delta } => {
+  ///   tauri::DeviceEvent::MouseWheel { delta } => {
   ///     println!("Mouse wheel: {:?}", delta);
   ///   }
   ///   _ => {}

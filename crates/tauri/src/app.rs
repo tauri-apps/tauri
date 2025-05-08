@@ -32,14 +32,12 @@ use tauri_macros::default_runtime;
 #[cfg(desktop)]
 use tauri_runtime::EventLoopProxy;
 use tauri_runtime::{
+  device_events::DeviceEvent,
   dpi::{PhysicalPosition, PhysicalSize},
   window::DragDropEvent,
   RuntimeInitArgs,
 };
 use tauri_utils::{assets::AssetsIter, PackageInfo};
-
-#[cfg(feature = "wry")]
-pub use tauri_runtime_wry::{DeviceEvent, DeviceId};
 
 use std::{
   borrow::Cow,
@@ -711,20 +709,6 @@ impl App<crate::Wry> {
     <P as tauri_runtime_wry::PluginBuilder<EventLoopMessage>>::Plugin: Send,
   {
     self.handle.runtime_handle.plugin(plugin);
-  }
-
-  /// Adds a callback to be called when a device event is received.
-  ///
-  /// This is only available on the Wry runtime.
-  pub fn set_device_event_callback<F>(&self, callback: F)
-  where
-    F: Fn(DeviceId, DeviceEvent) + Send + 'static,
-  {
-    if let Some(runtime) = self.runtime.as_ref() {
-      runtime.set_device_event_callback(callback);
-    } else {
-      log::warn!("device event callback is not supported on this platform");
-    }
   }
 }
 
@@ -1422,6 +1406,10 @@ pub struct Builder<R: Runtime> {
   /// The device event filter.
   device_event_filter: DeviceEventFilter,
 
+  /// device event callback
+  device_event_callback:
+    Option<Box<dyn FnMut(&AppHandle<R>, R::DeviceId, DeviceEvent) + Send + 'static>>,
+
   pub(crate) invoke_key: String,
 }
 
@@ -1487,6 +1475,7 @@ impl<R: Runtime> Builder<R> {
       window_event_listeners: Vec::new(),
       webview_event_listeners: Vec::new(),
       device_event_filter: Default::default(),
+      device_event_callback: None,
       invoke_key,
     }
   }
@@ -2060,9 +2049,9 @@ tauri::Builder::default()
   ///
   /// ## Platform-specific
   ///
-  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  /// - ** Wayland / macOS / iOS / Android**: Unsupported.
   ///
-  /// # Examples
+  /// # Example
   /// ```,no_run
   /// tauri::Builder::default()
   ///   .device_event_filter(tauri::DeviceEventFilter::Always);
@@ -2071,6 +2060,35 @@ tauri::Builder::default()
   /// [`tao`]: https://crates.io/crates/tao
   pub fn device_event_filter(mut self, filter: DeviceEventFilter) -> Self {
     self.device_event_filter = filter;
+    self
+  }
+
+  /// Registers a device event callback.
+  ///
+  /// if [`DeviceEventFilter`] is set to [`DeviceEventFilter::Always`], this callback will be called for all device events.
+  /// This leads to high CPU usage for unfocused windows, so it is recommended to use [`DeviceEventFilter::FocusedOnly`] unless nessary and keep processing to a minimum.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Wayland / macOS / iOS / Android**: Unsupported.
+  ///
+  /// # Example
+  /// ```,no_run
+  /// tauri::Builder::default().on_device_event(|_app, _device_id, event| match event {
+  ///   DeviceEvent::MouseMotion { delta } => {
+  ///     println!("Mouse moved: {:?}", delta);
+  ///   }
+  ///   DeviceEvent::MouseWheel { delta } => {
+  ///     println!("Mouse wheel: {:?}", delta);
+  ///   }
+  ///   _ => {}
+  /// });
+  /// ```
+  pub fn on_device_event<F>(mut self, callback: F) -> Self
+  where
+    F: FnMut(&AppHandle<R>, R::DeviceId, DeviceEvent) + Send + 'static,
+  {
+    self.device_event_callback = Some(Box::new(callback));
     self
   }
 
@@ -2183,18 +2201,27 @@ tauri::Builder::default()
 
     let runtime_handle = runtime.handle();
 
+    let app_handle = AppHandle {
+      runtime_handle: runtime_handle,
+      manager: manager.clone(),
+      event_loop: Arc::new(Mutex::new(EventLoop {
+        main_thread_id: std::thread::current().id(),
+      })),
+    };
+
+    if let Some(mut device_event_callback) = self.device_event_callback {
+      let app_handle_clone = app_handle.clone();
+      runtime.set_device_event_callback(move |id, event| {
+        device_event_callback(&app_handle_clone, id, event);
+      });
+    }
+
     #[allow(unused_mut)]
     let mut app = App {
       runtime: Some(runtime),
       setup: Some(self.setup),
-      manager: manager.clone(),
-      handle: AppHandle {
-        runtime_handle,
-        manager,
-        event_loop: Arc::new(Mutex::new(EventLoop {
-          main_thread_id: std::thread::current().id(),
-        })),
-      },
+      manager: manager,
+      handle: app_handle,
       ran_setup: false,
     };
 

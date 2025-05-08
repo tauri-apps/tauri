@@ -444,7 +444,7 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   /// - ** Wayland / macOS / iOS / Android**: Unsupported.
   ///
   /// [`tao`]: https://crates.io/crates/tao
-  fn set_device_event_callback< F>(&self, callback: F)
+  fn set_device_event_callback<F>(&self, callback: F)
   where
     F: FnMut(Self::DeviceId, device_events::DeviceEvent) + Send + 'static;
 

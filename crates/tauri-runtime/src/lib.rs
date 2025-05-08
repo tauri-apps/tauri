@@ -13,6 +13,7 @@
 )]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+use device_events::DeviceEventFilter;
 use raw_window_handle::DisplayHandle;
 use serde::Deserialize;
 use std::{borrow::Cow, fmt::Debug, sync::mpsc::Sender};
@@ -21,6 +22,7 @@ use tauri_utils::Theme;
 use url::Url;
 use webview::{DetachedWebview, PendingWebview};
 
+pub mod device_events;
 /// UI scaling utilities.
 pub mod dpi;
 /// Types useful for interacting with a user's monitors.
@@ -88,23 +90,6 @@ pub enum UserAttentionType {
   /// - **macOS:** Bounces the dock icon once.
   /// - **Windows:** Flashes the taskbar button until the application is in focus.
   Informational,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(tag = "type")]
-pub enum DeviceEventFilter {
-  /// Always filter out device events.
-  Always,
-  /// Filter out device events while the window is not focused.
-  Unfocused,
-  /// Report all device events regardless of window focus.
-  Never,
-}
-
-impl Default for DeviceEventFilter {
-  fn default() -> Self {
-    Self::Unfocused
-  }
 }
 
 /// Defines the orientation that a window resize will be performed.
@@ -434,6 +419,8 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self);
 
+  type DeviceId: device_events::DeviceId;
+
   /// Change the device event filter mode.
   ///
   /// Since the DeviceEvent capture can lead to high CPU usage for unfocused windows, [`tao`]
@@ -442,10 +429,24 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   ///
   /// ## Platform-specific
   ///
-  /// - ** Linux / macOS / iOS / Android**: Unsupported.
+  /// - ** Wayland / macOS / iOS / Android**: Unsupported.
   ///
   /// [`tao`]: https://crates.io/crates/tao
-  fn set_device_event_filter(&mut self, filter: DeviceEventFilter);
+  fn set_device_event_filter(&self, filter: DeviceEventFilter);
+
+  /// Set a callback to be called when a device event is received.
+  ///
+  /// By default, the device events are filtered out when the window is not focused.
+  /// To change this behavior, use [`set_device_event_filter`](Runtime::set_device_event_filter).
+  ///
+  /// ## Platform-specific
+  ///
+  /// - ** Wayland / macOS / iOS / Android**: Unsupported.
+  ///
+  /// [`tao`]: https://crates.io/crates/tao
+  fn set_device_event_callback< F>(&self, callback: F)
+  where
+    F: FnMut(Self::DeviceId, device_events::DeviceEvent) + Send + 'static;
 
   /// Runs an iteration of the runtime event loop and returns control flow to the caller.
   #[cfg(desktop)]

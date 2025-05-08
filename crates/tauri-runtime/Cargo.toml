@@ -18,11 +18,11 @@ rustc-args = ["--cfg", "docsrs"]
 rustdoc-args = ["--cfg", "docsrs"]
 default-target = "x86_64-unknown-linux-gnu"
 targets = [
-  "x86_64-pc-windows-msvc",
-  "x86_64-unknown-linux-gnu",
-  "x86_64-apple-darwin",
-  "x86_64-linux-android",
-  "x86_64-apple-ios",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "x86_64-linux-android",
+    "x86_64-apple-ios",
 ]
 
 [dependencies]
@@ -34,6 +34,7 @@ http = "1"
 raw-window-handle = "0.6"
 url = { version = "2" }
 dpi = { version = "0.1", features = ["serde"] }
+keyboard-types = { version = "0.8.0", features = ["serde"] }
 # WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
 cookie = "0.18"
 
@@ -50,8 +51,8 @@ jni = "0.21"
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 objc2 = "0.6"
 objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
-  "UIView",
-  "UIResponder",
+    "UIView",
+    "UIResponder",
 ] }
 
 [target."cfg(target_os = \"macos\")".dependencies]

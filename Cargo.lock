@@ -4174,6 +4174,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "keyboard-types"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd6e0f18953c66af118a70064505bd3780a226d65b06553b7293fb8933067967"
+dependencies = [
+ "bitflags 2.7.0",
+ "serde",
+]
+
+[[package]]
 name = "konst"
 version = "0.3.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4606,7 +4616,7 @@ dependencies = [
  "crossbeam-channel",
  "dpi",
  "gtk",
- "keyboard-types",
+ "keyboard-types 0.7.0",
  "libxdo",
  "objc2 0.6.0",
  "objc2-app-kit",
@@ -8759,6 +8769,7 @@ dependencies = [
  "gtk",
  "http 1.2.0",
  "jni",
+ "keyboard-types 0.8.0",
  "objc2 0.6.0",
  "objc2-ui-kit",
  "raw-window-handle",

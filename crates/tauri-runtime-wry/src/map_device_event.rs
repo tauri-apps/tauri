@@ -1,3 +1,7 @@
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+
 use tauri_runtime::device_events::{Code, DeviceEvent, MouseScrollDelta};
 
 pub fn map_device_event(event: tao::event::DeviceEvent) -> Option<DeviceEvent> {

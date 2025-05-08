@@ -943,6 +943,12 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   #[must_use]
   pub fn disable_drag_drop_handler(mut self) -> Self {
     self.webview_builder = self.webview_builder.disable_drag_drop_handler();
+
+    #[cfg(target_os = "windows")]
+    {
+      self.window_builder = self.window_builder.drag_and_drop(false);
+    }
+
     self
   }
 

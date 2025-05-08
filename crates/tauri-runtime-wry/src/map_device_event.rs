@@ -50,7 +50,7 @@ fn map_element_state(
 
 fn map_physical_key(event: tao::keyboard::KeyCode) -> Option<Code> {
   match event {
-    tao::keyboard::KeyCode::Unidentified(native_key_code) => todo!(),
+    tao::keyboard::KeyCode::Unidentified(_) => None,
     tao::keyboard::KeyCode::Backquote => Some(Code::Backquote),
     tao::keyboard::KeyCode::Backslash => Some(Code::Backslash),
     tao::keyboard::KeyCode::BracketLeft => Some(Code::BracketLeft),

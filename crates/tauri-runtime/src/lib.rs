@@ -169,6 +169,8 @@ pub enum Error {
   #[cfg(any(target_os = "macos", target_os = "ios"))]
   #[error("failed to remove data store")]
   FailedToRemoveDataStore,
+  #[error("Could not find the webview runtime, make sure it is installed")]
+  WebviewRuntimeNotInstalled,
 }
 
 /// Result type.

@@ -185,6 +185,7 @@ unstable = ["tauri-runtime-wry?/unstable"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",
+  "tauri-runtime-wry?/common-controls-v6",
 ]
 tray-icon = ["dep:tray-icon"]
 tracing = ["dep:tracing", "tauri-macros/tracing", "tauri-runtime-wry?/tracing"]

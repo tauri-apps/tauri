@@ -130,6 +130,8 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
+#[cfg(not(debug_assertions))]
+mod dialog;
 mod monitor;
 #[cfg(any(
   windows,
@@ -248,6 +250,7 @@ pub struct Context<T: UserEvent> {
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
+  webview_runtime_installed: bool,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -2712,6 +2715,7 @@ impl<T: UserEvent> Wry<T> {
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
+      webview_runtime_installed: wry::webview_version().is_ok(),
     };
 
     Ok(Self {
@@ -4421,6 +4425,20 @@ fn create_webview<T: UserEvent>(
   pending: PendingWebview<T, Wry<T>>,
   #[allow(unused_variables)] focused_webview: Arc<Mutex<Option<String>>>,
 ) -> Result<WebviewWrapper> {
+  if !context.webview_runtime_installed {
+    #[cfg(all(not(debug_assertions), windows))]
+    dialog::error(
+      r#"Could not find the WebView2 Runtime.
+
+Make sure it is installed or download it from <A href="https://developer.microsoft.com/en-us/microsoft-edge/webview2">https://developer.microsoft.com/en-us/microsoft-edge/webview2</A>
+
+You may have it installed on another user account, but it is not available for this one.
+"#,
+    );
+
+    return Err(Error::WebviewRuntimeNotInstalled);
+  }
+
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,

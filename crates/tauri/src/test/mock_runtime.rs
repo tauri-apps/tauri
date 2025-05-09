@@ -6,6 +6,7 @@
 #![allow(missing_docs)]
 
 use tauri_runtime::{
+  device_events::DeviceEventFilter,
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
   webview::{DetachedWebview, PendingWebview},
@@ -13,9 +14,9 @@ use tauri_runtime::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, PendingWindow, RawWindow, WindowBuilder,
     WindowBuilderBase, WindowEvent, WindowId,
   },
-  DeviceEventFilter, Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState,
-  Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent,
-  WebviewDispatch, WindowDispatch, WindowEventId,
+  Error, EventLoopProxy, ExitRequestedEventAction, Icon, ProgressBarState, Result, RunEvent,
+  Runtime, RuntimeHandle, RuntimeInitArgs, UserAttentionType, UserEvent, WebviewDispatch,
+  WindowDispatch, WindowEventId,
 };
 
 #[cfg(target_os = "macos")]
@@ -1111,6 +1112,14 @@ impl MockRuntime {
   }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct DeviceId(u32);
+impl tauri_runtime::device_events::DeviceId for DeviceId {
+  unsafe fn dummy() -> Self {
+    Self(0)
+  }
+}
+
 impl<T: UserEvent> Runtime<T> for MockRuntime {
   type WindowDispatcher = MockWindowDispatcher;
   type WebviewDispatcher = MockWebviewDispatcher;
@@ -1235,7 +1244,15 @@ impl<T: UserEvent> Runtime<T> for MockRuntime {
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) {}
 
-  fn set_device_event_filter(&mut self, filter: DeviceEventFilter) {}
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) {}
+
+  type DeviceId = DeviceId;
+
+  fn set_device_event_callback<F>(&self, callback: F)
+  where
+    F: FnMut(Self::DeviceId, tauri_runtime::device_events::DeviceEvent) + Send + 'static,
+  {
+  }
 
   #[cfg(any(
     target_os = "macos",

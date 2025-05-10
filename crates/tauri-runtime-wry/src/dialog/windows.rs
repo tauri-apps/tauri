@@ -13,12 +13,10 @@ enum Level {
 }
 
 pub fn error<S: AsRef<str>>(err: S) {
-  dialog_inner(err, Level::Error);
+  dialog_inner(err.as_ref(), Level::Error);
 }
 
-fn dialog_inner<S: AsRef<str>>(err: S, level: Level) {
-  let err = err.as_ref();
-
+fn dialog_inner(err: &str, level: Level) {
   let title = match level {
     Level::Warning => w!("Warning"),
     Level::Error => w!("Error"),

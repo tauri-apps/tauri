@@ -14,9 +14,8 @@ use url::Url;
 
 use tauri_macros::default_runtime;
 use tauri_utils::{
-  assets::{AssetKey, CspHash},
+  assets::{AssetKey, CspHash, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
   config::{Csp, CspDirectiveSources},
-  html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
 use crate::resources::ResourceTable;

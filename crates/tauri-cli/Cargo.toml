@@ -63,6 +63,7 @@ tauri-utils = { version = "2.4.0", path = "../tauri-utils", features = [
   "schema",
   "config-json5",
   "config-toml",
+  "html-manipulation",
 ] }
 tauri-utils-v1 = { version = "1", package = "tauri-utils", features = [
   "isolation",

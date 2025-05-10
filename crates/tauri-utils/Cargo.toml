@@ -22,8 +22,8 @@ brotli = { version = "8", optional = true, default-features = false, features = 
   "std",
 ] }
 url = { version = "2", features = ["serde"] }
-html5ever = "0.26"
-kuchiki = { package = "kuchikiki", version = "0.8" }
+html5ever = { version = "0.26", optional = true }
+kuchiki = { package = "kuchikiki", version = "0.8", optional = true }
 proc-macro2 = { version = "1", optional = true }
 quote = { version = "1", optional = true }
 # Our code requires at least 0.8.18 so don't change this to 0.8
@@ -59,7 +59,14 @@ getrandom = { version = "0.2", features = ["std"] }
 serial_test = "3"
 
 [features]
-build = ["proc-macro2", "quote", "cargo_metadata", "schema", "swift-rs"]
+build = [
+  "proc-macro2",
+  "quote",
+  "cargo_metadata",
+  "schema",
+  "swift-rs",
+  "html-manipulation",
+]
 compression = ["brotli"]
 schema = ["schemars"]
 isolation = ["aes-gcm", "getrandom", "serialize-to-javascript"]
@@ -67,3 +74,4 @@ process-relaunch-dangerous-allow-symlink-macos = []
 config-json5 = ["json5"]
 config-toml = []
 resources = ["walkdir"]
+html-manipulation = ["dep:html5ever", "dep:kuchiki"]

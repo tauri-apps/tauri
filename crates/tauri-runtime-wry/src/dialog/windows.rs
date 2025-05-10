@@ -29,7 +29,6 @@ fn dialog_inner(err: &str, level: Level) {
 
     let err = remove_hyperlink(err);
     let err = HSTRING::from(err);
-    let err = PCWSTR(err.as_ptr());
 
     unsafe {
       MessageBoxW(

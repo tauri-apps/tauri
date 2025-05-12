@@ -180,7 +180,7 @@ objc2-web-kit = { version = "0.3", features = [
 ] }
 
 [features]
-default = ["wry", "compression", "common-controls-v6"]
+default = ["wry", "compression", "common-controls-v6", "dynamic-acl"]
 unstable = ["tauri-runtime-wry?/unstable"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
@@ -217,6 +217,7 @@ config-toml = ["tauri-macros/config-toml"]
 image-ico = ["image/ico"]
 image-png = ["image/png"]
 macos-proxy = ["tauri-runtime-wry?/macos-proxy"]
+dynamic-acl = []
 specta = ["dep:specta"]
 
 [[example]]

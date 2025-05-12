@@ -64,7 +64,9 @@ macro_rules! ios_plugin_binding {
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use ipc::{RuntimeAuthority, RuntimeCapability};
+use ipc::RuntimeAuthority;
+#[cfg(feature = "dynamic-acl")]
+use ipc::RuntimeCapability;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -820,6 +822,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// [`tauri.conf.json > app > security > capabilities`]: https://tauri.app/reference/config/#capabilities
   /// [tauri_build::Attributes::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
+  #[cfg(feature = "dynamic-acl")]
   fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()

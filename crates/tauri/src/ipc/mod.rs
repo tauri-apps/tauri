@@ -22,15 +22,18 @@ use tauri_utils::acl::resolved::ResolvedCommand;
 use crate::{webview::Webview, Runtime, StateManager};
 
 mod authority;
+#[cfg(feature = "dynamic-acl")]
+mod capability_builder;
 pub(crate) mod channel;
 mod command;
 pub(crate) mod format_callback;
 pub(crate) mod protocol;
 
 pub use authority::{
-  CapabilityBuilder, CommandScope, GlobalScope, Origin, RuntimeAuthority, RuntimeCapability,
-  ScopeObject, ScopeObjectMatch, ScopeValue,
+  CommandScope, GlobalScope, Origin, RuntimeAuthority, ScopeObject, ScopeObjectMatch, ScopeValue,
 };
+#[cfg(feature = "dynamic-acl")]
+pub use capability_builder::{CapabilityBuilder, RuntimeCapability};
 pub use channel::{Channel, JavaScriptChannelId};
 pub use command::{private, CommandArg, CommandItem};
 

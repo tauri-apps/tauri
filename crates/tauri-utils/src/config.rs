@@ -2800,7 +2800,7 @@ pub struct BuildConfig {
   /// and they'll try to get all the allowed commands and remove the rest
   ///
   /// Note:
-  ///   - This won't be accounting for dynamically added ACLs so make sure to check it when using this
+  ///   - This won't be accounting for dynamically added ACLs when you use features from the `dynamic-acl` (currently enabled by default) feature flag, so make sure to check it when using this
   ///   - This feature requires tauri-plugin 2.1 and tauri 2.4
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,

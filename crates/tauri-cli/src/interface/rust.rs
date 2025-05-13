@@ -5,8 +5,8 @@
 use std::{
   collections::HashMap,
   ffi::OsStr,
-  fs::{File, FileType},
-  io::{BufRead, Read, Write},
+  fs::FileType,
+  io::{BufRead, Write},
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
@@ -131,16 +131,18 @@ impl Interface for Rust {
         }
       })
       .unwrap();
-      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
-      let (manifest, _modified) = rewrite_manifest(config)?;
-      let now = Instant::now();
-      let timeout = Duration::from_secs(2);
-      loop {
-        if now.elapsed() >= timeout {
-          break;
-        }
-        if rx.try_recv().is_ok() {
-          break;
+      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)?;
+      let (manifest, modified) = rewrite_manifest(config)?;
+      if modified {
+        let now = Instant::now();
+        let timeout = Duration::from_secs(2);
+        loop {
+          if now.elapsed() >= timeout {
+            break;
+          }
+          if rx.try_recv().is_ok() {
+            break;
+          }
         }
       }
       manifest
@@ -409,12 +411,10 @@ fn dev_options(
 
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
-  let Some(path) = path.to_str() else {
-    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
-  };
-  let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
+  let path = path.to_str().context("path is not UTF-8 compatible")?;
+  let res = glob(path).with_context(|| format!("could not parse pattern `{path}`"))?;
   let res = res
-    .map(|p| p.with_context(|| format!("unable to match path to pattern `{}`", &path)))
+    .map(|p| p.with_context(|| format!("unable to match path to pattern `{path}`")))
     .collect::<Result<Vec<_>, _>>()?;
   Ok(res)
 }
@@ -614,8 +614,7 @@ impl<T> MaybeWorkspace<T> {
         ))
       }
       MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
-        "`workspace=false` is unsupported for `package.{}`",
-        label,
+        "`workspace=false` is unsupported for `package.{label}`"
       )),
     }
   }
@@ -694,12 +693,9 @@ impl CargoSettings {
   /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
-    let mut toml_str = String::new();
-    let mut toml_file = File::open(toml_path).with_context(|| "failed to open Cargo.toml")?;
-    toml_file
-      .read_to_string(&mut toml_str)
-      .with_context(|| "failed to read Cargo.toml")?;
-    toml::from_str(&toml_str).with_context(|| "failed to parse Cargo.toml")
+    let toml_str = std::fs::read_to_string(&toml_path)
+      .with_context(|| format!("Failed to read {}", toml_path.display()))?;
+    toml::from_str(&toml_str).with_context(|| format!("Failed to parse {}", toml_path.display()))
   }
 }
 
@@ -976,10 +972,10 @@ impl AppSettings for RustAppSettings {
       .unwrap()
       .inner
       .as_table()
-      .get("package")
-      .and_then(|p| p.as_table())
-      .and_then(|p| p.get("name"))
-      .and_then(|n| n.as_str())
+      .get("package")?
+      .as_table()?
+      .get("name")?
+      .as_str()
       .map(|n| n.to_string())
   }
 
@@ -990,10 +986,10 @@ impl AppSettings for RustAppSettings {
       .unwrap()
       .inner
       .as_table()
-      .get("lib")
-      .and_then(|p| p.as_table())
-      .and_then(|p| p.get("name"))
-      .and_then(|n| n.as_str())
+      .get("lib")?
+      .as_table()?
+      .get("name")?
+      .as_str()
       .map(|n| n.to_string())
   }
 }
@@ -1001,8 +997,7 @@ impl AppSettings for RustAppSettings {
 impl RustAppSettings {
   pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let tauri_dir = tauri_dir();
-    let cargo_settings =
-      CargoSettings::load(tauri_dir).with_context(|| "failed to load cargo settings")?;
+    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
@@ -1013,7 +1008,7 @@ impl RustAppSettings {
     };
 
     let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
-      .with_context(|| "failed to load cargo settings from workspace root")?
+      .context("failed to load cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
 
@@ -1194,7 +1189,7 @@ fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> 
 pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   Ok(
     get_cargo_metadata()
-      .with_context(|| "failed to get cargo metadata")?
+      .context("failed to get cargo metadata")?
       .workspace_root,
   )
 }

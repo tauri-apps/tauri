@@ -411,7 +411,9 @@ tauri::Builder::default()
     let window_ = window.clone();
     // run on the main thread to fix a deadlock on webview.eval if the tracing feature is enabled
     let _ = window.run_on_main_thread(move || {
-      let _ = crate::vibrancy::set_window_effects(&window_, self.window_effects);
+      if let Some(effects) = self.window_effects {
+        _ = crate::vibrancy::set_window_effects(&window_, Some(effects));
+      }
       let event = crate::EventName::from_str("tauri://window-created");
       let payload = Some(crate::webview::CreatedEvent {
         label: window_label,

@@ -4858,10 +4858,9 @@ You may have it installed on another user account, but it is not available for t
     .unwrap();
     unsafe {
       let label_ = label.clone();
-      let focused_webview_ = focused_webview.clone();
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let mut focused_webview = focused_webview_.lock().unwrap();
+          let mut focused_webview = focused_webview.lock().unwrap();
           // when using multiwebview mode, we should handle webview focus changes
           // so we check is the currently focused webview matches this webview's
           // (in this case, it means we lost the window focus)

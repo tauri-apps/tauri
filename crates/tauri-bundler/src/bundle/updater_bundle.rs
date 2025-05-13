@@ -193,7 +193,7 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
           p.push(c);
           (p, b)
         });
-    let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
+    let archived_path = archived_path.with_extension(format!("{bundle_name}.zip"));
 
     log::info!(action = "Bundling"; "{}", display_path(&archived_path));
 

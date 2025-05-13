@@ -276,7 +276,7 @@ impl<R: Runtime> AppManager<R> {
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
-    if let Pattern::Isolation { ref mut key, .. } = &mut context.pattern {
+    if let Pattern::Isolation { key, .. } = &mut context.pattern {
       *key = uuid::Uuid::new_v4().to_string();
     }
 

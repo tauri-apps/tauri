@@ -17,6 +17,7 @@ use std::{
     Arc, Mutex,
   },
 };
+use tauri_utils::platform::Target as TargetPlatform;
 
 pub struct DevChild {
   manually_killed_app: Arc<AtomicBool>,
@@ -188,16 +189,16 @@ pub fn build(
 
     let lipo_status = lipo_cmd.output_ok()?.status;
     if !lipo_status.success() {
-      return Err(anyhow::anyhow!(format!(
+      return Err(anyhow::anyhow!(
         "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
-      )));
+      ));
     }
   } else {
     build_production_app(options, available_targets, config_features)
       .with_context(|| "failed to build app")?;
   }
 
-  rename_app(bin_path, main_binary_name)
+  rename_app(bin_path, main_binary_name, &app_settings.target_platform)
 }
 
 fn build_production_app(
@@ -305,12 +306,18 @@ fn validate_target(
   Ok(())
 }
 
-fn rename_app(bin_path: PathBuf, main_binary_name: Option<&str>) -> crate::Result<PathBuf> {
+fn rename_app(
+  bin_path: PathBuf,
+  main_binary_name: Option<&str>,
+  target_platform: &TargetPlatform,
+) -> crate::Result<PathBuf> {
   if let Some(main_binary_name) = main_binary_name {
-    let new_path = bin_path
-      .with_file_name(main_binary_name)
-      .with_extension(bin_path.extension().unwrap_or_default());
-
+    let extension = if matches!(target_platform, TargetPlatform::Windows) {
+      ".exe"
+    } else {
+      ""
+    };
+    let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
     fs::rename(&bin_path, &new_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",

@@ -2946,7 +2946,19 @@ pub struct Config {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App main binary filename. Defaults to the name of your cargo crate.
+  /// Overrides app's main binary filename.
+  ///
+  /// By default, Tauri uses the output binary from `cargo`, by setting this, we will rename that binary in `tauri-cli`'s
+  /// `tauri build` command, and target `tauri bundle` to it
+  ///
+  /// If possible, change the [`package name`] or set the [`name field`] instead,
+  /// and if that's not enough and you're using nightly, consider using the [`different-binary-name`] feature instead
+  ///
+  /// Note: this config should not include the binary extension (e.g. `.exe`), we'll add that for you
+  ///
+  /// [`package name`]: https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field
+  /// [`name field`]: https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-name-field
+  /// [`different-binary-name`]: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name
   #[serde(alias = "main-binary-name")]
   pub main_binary_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.

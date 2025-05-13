@@ -44,16 +44,12 @@ fn normalize(path: &Path) -> PathBuf {
 pub fn external_binaries(external_binaries: &[String], target_triple: &str) -> Vec<String> {
   let mut paths = Vec::new();
   for curr_path in external_binaries {
-    paths.push(format!(
-      "{}-{}{}",
-      curr_path,
-      target_triple,
-      if target_triple.contains("windows") {
-        ".exe"
-      } else {
-        ""
-      }
-    ));
+    let extension = if target_triple.contains("windows") {
+      ".exe"
+    } else {
+      ""
+    };
+    paths.push(format!("{curr_path}-{target_triple}{extension}"));
   }
   paths
 }

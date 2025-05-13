@@ -35,7 +35,7 @@ use crate::{
   },
   ConfigValue,
 };
-use tauri_utils::{display_path, platform::Target};
+use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
 mod desktop;
@@ -537,7 +537,7 @@ impl Rust {
 
           if let Some(event_path) = event.paths.first() {
             if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
-              if is_configuration_file(self.app_settings.target, event_path) {
+              if is_configuration_file(self.app_settings.target_platform, event_path) {
                 if let Ok(config) = reload_config(merge_configs) {
                   let (manifest, modified) =
                     rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
@@ -652,7 +652,16 @@ struct WorkspacePackageSettings {
 #[derive(Clone, Debug, Deserialize)]
 struct BinarySettings {
   name: String,
+  /// This is from nightly: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name
+  filename: Option<String>,
   path: Option<String>,
+}
+
+impl BinarySettings {
+  /// The file name without the binary extension (e.g. `.exe`)
+  pub fn file_name(&self) -> &str {
+    self.filename.as_ref().unwrap_or(&self.name)
+  }
 }
 
 /// The package settings.
@@ -711,7 +720,7 @@ pub struct RustAppSettings {
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
-  target: Target,
+  target_platform: TargetPlatform,
 }
 
 #[derive(Deserialize)]
@@ -878,13 +887,19 @@ impl AppSettings for RustAppSettings {
       .out_dir(options)
       .context("failed to get project out directory")?;
 
-    let ext = if self.target_triple.contains("windows") {
-      "exe"
-    } else {
-      ""
+    let mut path = out_dir.join(bin_name);
+    if matches!(self.target_platform, TargetPlatform::Windows) {
+      // Append the `.exe` extension without overriding the existing extensions
+      let extension = if let Some(extension) = path.extension() {
+        let mut extension = extension.to_os_string();
+        extension.push(".exe");
+        extension
+      } else {
+        "exe".into()
+      };
+      path.set_extension(extension);
     };
-
-    Ok(out_dir.join(bin_name).with_extension(ext))
+    Ok(path)
   }
 
   fn get_binaries(&self) -> crate::Result<Vec<BundleBinary>> {
@@ -897,9 +912,10 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        let is_main = bin.name == self.cargo_package_settings.name || bin.name == default_run;
+        let file_name = bin.file_name();
+        let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
         binaries.push(BundleBinary::with_path(
-          bin.name.clone(),
+          file_name.to_owned(),
           is_main,
           bin.path.clone(),
         ))
@@ -1100,7 +1116,7 @@ impl RustAppSettings {
             .to_string()
         })
     });
-    let target = Target::from_triple(&target_triple);
+    let target = TargetPlatform::from_triple(&target_triple);
 
     Ok(Self {
       manifest: Mutex::new(manifest),
@@ -1110,7 +1126,7 @@ impl RustAppSettings {
       package_settings,
       cargo_config,
       target_triple,
-      target,
+      target_platform: target,
     })
   }
 

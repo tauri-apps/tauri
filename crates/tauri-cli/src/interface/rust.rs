@@ -134,7 +134,7 @@ impl Interface for Rust {
       watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)?;
       let (manifest, modified) = rewrite_manifest(config)?;
       if modified {
-        // Wait for the modified event so we don't trigger a re-build laster on
+        // Wait for the modified event so we don't trigger a re-build later on
         let _ = rx.recv_timeout(Duration::from_secs(2));
       }
       manifest

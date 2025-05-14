@@ -1103,7 +1103,7 @@ impl RustAppSettings {
             .to_string()
         })
     });
-    let target = TargetPlatform::from_triple(&target_triple);
+    let target_platform = TargetPlatform::from_triple(&target_triple);
 
     Ok(Self {
       manifest: Mutex::new(manifest),
@@ -1113,7 +1113,7 @@ impl RustAppSettings {
       package_settings,
       cargo_config,
       target_triple,
-      target_platform: target,
+      target_platform,
     })
   }
 

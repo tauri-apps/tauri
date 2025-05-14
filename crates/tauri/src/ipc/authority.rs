@@ -133,8 +133,13 @@ impl RuntimeAuthority {
   /// Adds the given capability to the runtime authority.
   #[cfg(feature = "dynamic-acl")]
   pub fn add_capability(&mut self, capability: impl super::RuntimeCapability) -> crate::Result<()> {
+    self.add_capability_inner(capability.build())
+  }
+
+  #[cfg(feature = "dynamic-acl")]
+  fn add_capability_inner(&mut self, capability: CapabilityFile) -> crate::Result<()> {
     let mut capabilities = BTreeMap::new();
-    match capability.build() {
+    match capability {
       CapabilityFile::Capability(c) => {
         capabilities.insert(c.identifier.clone(), c);
       }

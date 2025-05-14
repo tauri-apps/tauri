@@ -9,6 +9,8 @@ use std::{
 
 use walkdir::WalkDir;
 
+use crate::platform::Target as TargetPlatform;
+
 /// Given a path (absolute or relative) to a resource file, returns the
 /// relative path from the bundle resources directory where that resource
 /// should be stored.
@@ -41,19 +43,19 @@ fn normalize(path: &Path) -> PathBuf {
 }
 
 /// Parses the external binaries to bundle, adding the target triple suffix to each of them.
-pub fn external_binaries(external_binaries: &[String], target_triple: &str) -> Vec<String> {
+pub fn external_binaries(
+  external_binaries: &[String],
+  target_triple: &str,
+  target_platform: &TargetPlatform,
+) -> Vec<String> {
   let mut paths = Vec::new();
   for curr_path in external_binaries {
-    paths.push(format!(
-      "{}-{}{}",
-      curr_path,
-      target_triple,
-      if target_triple.contains("windows") {
-        ".exe"
-      } else {
-        ""
-      }
-    ));
+    let extension = if matches!(target_platform, TargetPlatform::Windows) {
+      ".exe"
+    } else {
+      ""
+    };
+    paths.push(format!("{curr_path}-{target_triple}{extension}"));
   }
   paths
 }

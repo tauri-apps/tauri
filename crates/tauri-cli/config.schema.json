@@ -24,7 +24,7 @@
       "pattern": "^[^/\\:*?\"<>|]+$"
     },
     "mainBinaryName": {
-      "description": "App main binary filename. Defaults to the name of your cargo crate.",
+      "description": "Overrides app's main binary filename.\n\n By default, Tauri uses the output binary from `cargo`, by setting this, we will rename that binary in `tauri-cli`'s\n `tauri build` command, and target `tauri bundle` to it\n\n If possible, change the [`package name`] or set the [`name field`] instead,\n and if that's not enough and you're using nightly, consider using the [`different-binary-name`] feature instead\n\n Note: this config should not include the binary extension (e.g. `.exe`), we'll add that for you\n\n [`package name`]: https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field\n [`name field`]: https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-name-field\n [`different-binary-name`]: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name",
       "type": [
         "string",
         "null"

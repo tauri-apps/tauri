@@ -528,7 +528,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
-      ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
+      ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| &p.name),

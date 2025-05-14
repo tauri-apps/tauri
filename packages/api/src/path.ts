@@ -674,12 +674,12 @@ async function join(...paths: string[]): Promise<string> {
 }
 
 /**
- * Returns the directory name of a `path`. Trailing directory separators are ignored.
+ * Returns the parent directory of a given `path`. Trailing directory separators are ignored.
  * @example
  * ```typescript
  * import { dirname } from '@tauri-apps/api/path';
  * const dir = await dirname('/path/to/somedir/');
- * assert(dir === 'somedir');
+ * assert(dir === '/path/to');
  * ```
  *
  * @since 1.0.0

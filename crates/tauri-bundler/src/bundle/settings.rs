@@ -858,6 +858,7 @@ impl SettingsBuilder {
     } else {
       target_triple()?
     };
+    let target_platform = TargetPlatform::from_triple(&target);
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
@@ -875,10 +876,10 @@ impl SettingsBuilder {
           .bundle_settings
           .external_bin
           .as_ref()
-          .map(|bins| external_binaries(bins, &target)),
+          .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
-      target_platform: TargetPlatform::from_triple(&target),
+      target_platform,
       target,
     })
   }

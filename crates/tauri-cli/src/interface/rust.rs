@@ -11,7 +11,7 @@ use std::{
   process::Command,
   str::FromStr,
   sync::{mpsc::sync_channel, Arc, Mutex},
-  time::{Duration, Instant},
+  time::Duration,
 };
 
 use anyhow::Context;
@@ -126,24 +126,16 @@ impl Interface for Rust {
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
-        if let Ok(events) = r {
-          let _ = tx.send(events);
+        if let Ok(_events) = r {
+          let _ = tx.send(());
         }
       })
       .unwrap();
       watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)?;
       let (manifest, modified) = rewrite_manifest(config)?;
       if modified {
-        let now = Instant::now();
-        let timeout = Duration::from_secs(2);
-        loop {
-          if now.elapsed() >= timeout {
-            break;
-          }
-          if rx.try_recv().is_ok() {
-            break;
-          }
-        }
+        // Wait for the modified event so we don't trigger a re-build laster on
+        let _ = rx.recv_timeout(Duration::from_secs(2));
       }
       manifest
     };

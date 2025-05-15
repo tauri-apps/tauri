@@ -272,7 +272,6 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn set_activation_policy(&self, activation_policy: ActivationPolicy) -> Result<()>;
 
   /// Sets the dock visibility for the application.
-  ///
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_dock_visibility(&self, visible: bool) -> Result<()>;
@@ -297,14 +296,24 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   /// Run a task on the main thread.
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
+  /// Get a handle to the display controller of the windowing system.
   fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
 
+  /// Returns the primary monitor of the system.
+  ///
+  /// Returns None if it can't identify any monitor as a primary one.
   fn primary_monitor(&self) -> Option<Monitor>;
+
+  /// Returns the monitor that contains the given point.
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
+
+  /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Vec<Monitor>;
 
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
+  /// Sets the app theme.
   fn set_theme(&self, theme: Option<Theme>);
 
   /// Shows the application, but does not automatically focus it.
@@ -407,12 +416,21 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
     pending: PendingWebview<T, Self>,
   ) -> Result<DetachedWebview<T, Self>>;
 
+  /// Returns the primary monitor of the system.
+  ///
+  /// Returns None if it can't identify any monitor as a primary one.
   fn primary_monitor(&self) -> Option<Monitor>;
+
+  /// Returns the monitor that contains the given point.
   fn monitor_from_point(&self, x: f64, y: f64) -> Option<Monitor>;
+
+  /// Returns the list of all the monitors available on the system.
   fn available_monitors(&self) -> Vec<Monitor>;
 
+  /// Get the cursor position relative to the top-left hand corner of the desktop.
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>>;
 
+  /// Sets the app theme.
   fn set_theme(&self, theme: Option<Theme>);
 
   /// Sets the activation policy for the application.
@@ -421,7 +439,6 @@ pub trait Runtime<T: UserEvent>: Debug + Sized + 'static {
   fn set_activation_policy(&mut self, activation_policy: ActivationPolicy);
 
   /// Sets the dock visibility for the application.
-  ///
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn set_dock_visibility(&mut self, visible: bool);

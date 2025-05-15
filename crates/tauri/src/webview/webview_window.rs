@@ -1980,7 +1980,12 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_title_bar_style(style)
   }
 
-  /// Set the window theme.
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
   pub fn set_theme(&self, theme: Option<tauri_utils::Theme>) -> crate::Result<()> {
     self.window.set_theme(theme)
   }

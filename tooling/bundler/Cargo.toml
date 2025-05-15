@@ -38,7 +38,7 @@ hex = "0.4"
 semver = "1"
 sha1 = "0.10"
 sha2 = "0.10"
-zip = "0.6" # v2 raised msrv, v1 looks off
+zip = "3.0" # v2 raised msrv, v1 looks off
 dunce = "1"
 
 [target."cfg(target_os = \"windows\")".dependencies]

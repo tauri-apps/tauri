@@ -64,6 +64,10 @@
       "items": {
         "$ref": "#/definitions/Target"
       }
+    },
+    "devOnly": {
+      "description": "Whether this capability is only applied on dev or not.",
+      "type": "boolean"
     }
   },
   "definitions": {

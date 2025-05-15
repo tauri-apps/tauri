@@ -202,6 +202,18 @@ pub struct Capability {
   /// `["macOS","windows"]`
   #[serde(skip_serializing_if = "Option::is_none")]
   pub platforms: Option<Vec<Target>>,
+  /// Whether this capability is only applied on dev or not.
+  #[serde(
+    default,
+    skip_serializing_if = "is_false",
+    rename = "devOnly",
+    alias = "dev-only"
+  )]
+  pub dev_only: bool,
+}
+
+fn is_false(f: &bool) -> bool {
+  !f
 }
 
 impl Capability {
@@ -431,6 +443,7 @@ mod tests {
       webviews: vec![],
       permissions: vec![],
       platforms: None,
+      dev_only: false,
     };
     let capability_json = serde_json::to_string(&capability).unwrap();
 

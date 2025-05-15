@@ -103,6 +103,7 @@ pub fn command(options: Options) -> Result<()> {
       })
       .collect(),
     platforms: None,
+    dev_only: false,
   };
 
   let path = match options.out {

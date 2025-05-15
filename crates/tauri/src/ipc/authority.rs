@@ -95,6 +95,7 @@ impl CapabilityBuilder {
       webviews: Vec::new(),
       permissions: Vec::new(),
       platforms: None,
+      dev_only: false,
     })
   }
 

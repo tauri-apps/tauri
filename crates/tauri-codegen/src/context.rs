@@ -398,7 +398,10 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     Some(&capabilities_file_path),
     additional_capabilities.as_deref(),
   )
-  .unwrap();
+  .unwrap()
+  .into_iter()
+  .filter(|(_key, capability)| !capability.dev_only || dev)
+  .collect();
 
   let resolved = Resolved::resolve(&acl, capabilities, target).expect("failed to resolve ACL");
 

@@ -46,6 +46,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         webviews: vec![],
         permissions,
         platforms: None,
+        dev_only: false,
       })?,
     )?;
 

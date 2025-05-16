@@ -111,7 +111,7 @@ notify-rust = { version = "4", optional = true }
 gtk = { version = "0.15", features = [ "v3_20" ] } # Do not update without consensus
 glib = "0.15" # Do not update without consensus
 webkit2gtk = { version = "0.18.2", features = [ "v2_22" ] } # Do not update without consensus
-nix = { version = "0.26.0", default-features = false, features = [ "user", "socket", "uio" ], optional = true } # 0.27 raised msrv
+nix = { version = "0.30.0", default-features = false, features = [ "user", "socket", "uio" ], optional = true } # 0.27 raised msrv
 
 [target."cfg(target_os = \"macos\")".dependencies]
 embed_plist = "1.2"

@@ -68,6 +68,12 @@ impl Origin {
 
 /// This is used internally by [`crate::generate_handler!`]
 /// to only include the raw ACL when it's needed
+///
+/// ## Stability
+///
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[cfg(any(feature = "dynamic-acl", debug_assertions))]
 #[doc(hidden)]
 #[macro_export]
@@ -79,6 +85,12 @@ macro_rules! runtime_acl {
 
 /// This is used internally by [`crate::generate_handler!`]
 /// to only include the raw ACL when it's needed
+///
+/// ## Stability
+///
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
 #[cfg(not(any(feature = "dynamic-acl", debug_assertions)))]
 #[doc(hidden)]
 #[macro_export]

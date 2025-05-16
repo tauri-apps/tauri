@@ -18,6 +18,7 @@ use syn::{
 };
 use tauri_utils::acl::REMOVE_UNUSED_COMMANDS_ENV_VAR;
 
+#[allow(clippy::large_enum_variant)]
 enum WrapperAttributeKind {
   Meta(Meta),
   Async,

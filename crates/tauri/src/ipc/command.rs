@@ -75,32 +75,32 @@ impl<'de, D: Deserialize<'de>, R: Runtime> CommandArg<'de, R> for D {
 macro_rules! pass {
   ($fn:ident, $($arg:ident: $argt:ty),+) => {
     fn $fn<V: Visitor<'de>>(self, $($arg: $argt),*) -> Result<V::Value, Self::Error> {
-      if self.key.is_empty() {
-        return Err(serde_json::Error::custom(format!(
-            "command {} has an argument with no name with a non-optional value",
-            self.name
-          )))
-      }
+      self.deserialize_json()?.$fn($($arg),*)
+    }
+  }
+}
 
-      match &self.message.payload {
-        InvokeBody::Raw(_body) => {
-          Err(serde_json::Error::custom(format!(
-            "command {} expected a value for key {} but the IPC call used a bytes payload",
-            self.name, self.key
-          )))
-        }
-        InvokeBody::Json(v) => {
-          match v.get(self.key) {
-            Some(value) => value.$fn($($arg),*),
-            None => {
-              Err(serde_json::Error::custom(format!(
-                "command {} missing required key {}",
-                self.name, self.key
-              )))
-            }
-          }
-        }
-      }
+impl<'a, R: Runtime> CommandItem<'a, R> {
+  fn deserialize_json(self) -> serde_json::Result<&'a serde_json::Value> {
+    if self.key.is_empty() {
+      return Err(serde_json::Error::custom(format!(
+        "command {} has an argument with no name with a non-optional value",
+        self.name
+      )));
+    }
+
+    match &self.message.payload {
+      InvokeBody::Raw(_body) => Err(serde_json::Error::custom(format!(
+        "command {} expected a value for key {} but the IPC call used a bytes payload",
+        self.name, self.key
+      ))),
+      InvokeBody::Json(v) => match v.get(self.key) {
+        Some(value) => Ok(value),
+        None => Err(serde_json::Error::custom(format!(
+          "command {} missing required key {}",
+          self.name, self.key
+        ))),
+      },
     }
   }
 }

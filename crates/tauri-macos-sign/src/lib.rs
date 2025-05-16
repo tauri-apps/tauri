@@ -263,9 +263,7 @@ fn assert_command(
   let status =
     response.map_err(|e| std::io::Error::new(e.kind(), format!("{error_message}: {e}")))?;
   if !status.success() {
-    Err(std::io::Error::other(
-      error_message,
-    ))
+    Err(std::io::Error::other(error_message))
   } else {
     Ok(())
   }

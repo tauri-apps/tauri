@@ -65,13 +65,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install stable
-        uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.platform.toolchain }}
-          target: ${{ matrix.platform.target }}
-          override: true
-          default: true
+          targets: ${{ matrix.platform.target }}
 
       - name: install Linux dependencies
         if: contains(matrix.platform.target, 'unknown-linux')

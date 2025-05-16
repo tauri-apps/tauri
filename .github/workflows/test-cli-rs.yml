@@ -35,10 +35,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: 1.71.0
-          override: true
+        uses: dtolnay/rust-toolchain@1.71
 
       - name: install Linux dependencies
         if: matrix.platform == 'ubuntu-latest'
@@ -51,7 +48,4 @@ jobs:
           workspaces: tooling/cli
 
       - name: test CLI
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path ./tooling/cli/Cargo.toml
+        run: cargo test --manifest-path ./tooling/cli/Cargo.toml

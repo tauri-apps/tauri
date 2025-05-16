@@ -58,11 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: install stable
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
+      - uses: dtolnay/rust-toolchain@stable
 
       - name: install Linux dependencies
         run: |
@@ -74,10 +70,7 @@ jobs:
           workspaces: core -> ../target
 
       - name: generate schema.json
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --manifest-path ./core/tauri-config-schema/Cargo.toml
+        run: cargo build --manifest-path ./core/tauri-config-schema/Cargo.toml
 
       - name: check schema
         run: ./.scripts/ci/has-diff.sh

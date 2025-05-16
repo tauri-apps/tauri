@@ -31,17 +31,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
   clippy:
     runs-on: ubuntu-22.04
@@ -64,11 +58,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y webkit2gtk-4.0 libayatana-appindicator3-dev
 
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: clippy
 
       - uses: Swatinem/rust-cache@v2
@@ -76,8 +67,4 @@ jobs:
           workspaces: core -> ../target
           save-if: ${{ matrix.clippy.key == 'all' }}
 
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path ./core/tauri/Cargo.toml --all-targets ${{ matrix.clippy.args }} -- -D warnings
-          name: ${{ matrix.clippy.key }}
+      - run: cargo clippy --manifest-path ./core/tauri/Cargo.toml --all-targets ${{ matrix.clippy.args }} -- -D warnings

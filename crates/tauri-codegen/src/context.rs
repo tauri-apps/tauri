@@ -409,8 +409,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     identity,
   );
 
-  let runtime_authority =
-    quote!(#root::runtime_acl!(#root::ipc::RuntimeAuthority::new, #acl_tokens, #resolved));
+  let runtime_authority = quote!(#root::runtime_authority!(#acl_tokens, #resolved));
 
   let plugin_global_api_scripts = if config.app.with_global_tauri {
     if let Some(scripts) = tauri_utils::plugin::read_global_api_scripts(&out_dir) {

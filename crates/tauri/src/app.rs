@@ -294,9 +294,9 @@ impl<R: Runtime> AssetResolver<R> {
     self.get_for_scheme(path, use_https_scheme)
   }
 
-  ///  Same as [AssetResolver::get] but resolves the custom protocol scheme based on a parameter.
+  ///  Same as [`AssetResolver::get`] but resolves the custom protocol scheme based on a parameter.
   ///
-  /// - `use_https_scheme`: If `true` when using [`Pattern::Isolation`](tauri::Pattern::Isolation),
+  /// - `use_https_scheme`: If `true` when using [`Pattern::Isolation`](crate::Pattern::Isolation),
   ///   the csp header will contain `https://tauri.localhost` instead of `http://tauri.localhost`
   pub fn get_for_scheme(&self, path: String, use_https_scheme: bool) -> Option<Asset> {
     #[cfg(dev)]

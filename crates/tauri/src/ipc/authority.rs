@@ -66,7 +66,7 @@ impl Origin {
   }
 }
 
-/// This is used internally by [`crate::generate_handler!`]
+/// This is used internally by [`crate::generate_handler!`] for constructing [`RuntimeAuthority`]
 /// to only include the raw ACL when it's needed
 ///
 /// ## Stability
@@ -77,13 +77,13 @@ impl Origin {
 #[cfg(any(feature = "dynamic-acl", debug_assertions))]
 #[doc(hidden)]
 #[macro_export]
-macro_rules! runtime_acl {
-  ($func:path, $acl:expr, $resolved_acl:expr) => {
-    $func($acl, $resolved_acl)
+macro_rules! runtime_authority {
+  ($acl:expr, $resolved_acl:expr) => {
+    $crate::ipc::RuntimeAuthority::new($acl, $resolved_acl)
   };
 }
 
-/// This is used internally by [`crate::generate_handler!`]
+/// This is used internally by [`crate::generate_handler!`] for constructing [`RuntimeAuthority`]
 /// to only include the raw ACL when it's needed
 ///
 /// ## Stability
@@ -94,13 +94,16 @@ macro_rules! runtime_acl {
 #[cfg(not(any(feature = "dynamic-acl", debug_assertions)))]
 #[doc(hidden)]
 #[macro_export]
-macro_rules! runtime_acl {
-  ($func:path, $_acl:expr, $resolved_acl:expr) => {
-    $func($resolved_acl)
+macro_rules! runtime_authority {
+  ($_acl:expr, $resolved_acl:expr) => {
+    $crate::ipc::RuntimeAuthority::new($resolved_acl)
   };
 }
 
 impl RuntimeAuthority {
+  /// Contruct a new [`RuntimeAuthority`] from the ACL
+  ///
+  /// **Please prefer using the [`runtime_authority`] macro instead of calling this directly**
   #[doc(hidden)]
   pub fn new(
     #[cfg(any(feature = "dynamic-acl", debug_assertions))] acl: BTreeMap<String, Manifest>,

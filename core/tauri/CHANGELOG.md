@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.8.3]
+
+### Bug Fixes
+
+- [`f72d0e18e`](https://www.github.com/tauri-apps/tauri/commit/f72d0e18eb155ce03542644f7be0b077df654048) ([#10427](https://www.github.com/tauri-apps/tauri/pull/10427) by [@jLynx](https://www.github.com/tauri-apps/tauri/../../jLynx)) Fix update installation on macOS when using an user without admin privileges.
+
 ## \[1.8.2]
 
 ### Dependencies

@@ -16,7 +16,7 @@ serde = { version = "1", features = [ "derive" ] }
 serde_json = "1"
 thiserror = "1"
 phf = { version = "0.11", features = [ "macros" ] }
-brotli = { version = "7", optional = true }
+brotli = { version = "8", optional = true }
 url = { version = "2", features = [ "serde" ] }
 html5ever = "0.26" # kuchikiki requires 0.26 still
 kuchiki = { package = "kuchikiki", version = "0.8" }

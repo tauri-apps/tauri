@@ -163,7 +163,7 @@ where
     ));
   }
 
-  let dir_name = if let Some(val) = from.components().last() {
+  let dir_name = if let Some(val) = from.components().next_back() {
     val.as_os_str()
   } else {
     return Err(crate::Error::PathUtilError(

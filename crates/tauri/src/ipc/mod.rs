@@ -6,7 +6,10 @@
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
-use std::{pin::Pin, sync::{Arc, Mutex}};
+use std::{
+  pin::Pin,
+  sync::{Arc, Mutex},
+};
 
 use futures_util::Future;
 use http::HeaderMap;

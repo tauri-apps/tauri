@@ -343,7 +343,7 @@ impl<R: Runtime> InvokeResolver<R> {
   /// Reply to the invoke promise with an async task which is already serialized.
   pub fn respond_async_serialized(
     self,
-    task: Pin<Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send>>,
+    task: Pin<Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static>>,
   ) {
     crate::async_runtime::spawn(async move {
       let response = match task.await {

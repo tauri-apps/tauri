@@ -341,7 +341,15 @@ impl<R: Runtime> InvokeResolver<R> {
   }
 
   /// Reply to the invoke promise with an async task which is already serialized.
-  pub fn respond_async_serialized(
+  pub fn respond_async_serialized<F>(self, task: F)
+  where
+    F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
+  {
+    self.respond_async_serialized_dyn(Box::pin(task))
+  }
+
+  /// Reply to the invoke promise with an async task which is already serialized.
+  fn respond_async_serialized_dyn(
     self,
     task: Pin<Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static>>,
   ) {

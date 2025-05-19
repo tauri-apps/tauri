@@ -331,22 +331,22 @@ fn body_async(
       use tracing::Instrument;
 
       let span = tracing::debug_span!("ipc::request::run");
-      #resolver.respond_async_serialized(Box::pin(async move {
+      #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
       }
-      .instrument(span)));
+      .instrument(span));
       return true;
     }
 
     #[cfg(not(feature = "tracing"))]
     quote! {
-      #resolver.respond_async_serialized(Box::pin(async move {
+      #resolver.respond_async_serialized(async move {
         let result = $path(#(#args?),*);
         let kind = (&result).async_kind();
         kind.future(result).await
-      }));
+      });
       return true;
     }
   })

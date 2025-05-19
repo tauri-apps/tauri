@@ -6,10 +6,7 @@
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
-use std::{
-  pin::Pin,
-  sync::{Arc, Mutex},
-};
+use std::sync::{Arc, Mutex};
 
 use futures_util::Future;
 use http::HeaderMap;
@@ -358,9 +355,12 @@ impl<R: Runtime> InvokeResolver<R> {
   }
 
   /// Dynamic dispatch the [`Self::respond_async_serialized`] call
+  #[cfg(debug_assertions)]
   fn respond_async_serialized_dyn(
     self,
-    task: Pin<Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static>>,
+    task: std::pin::Pin<
+      Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static>,
+    >,
   ) {
     self.respond_async_serialized_inner(task)
   }

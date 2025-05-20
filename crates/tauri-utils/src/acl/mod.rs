@@ -352,17 +352,15 @@ pub fn has_app_manifest(acl: &BTreeMap<String, crate::acl::manifest::Manifest>) 
 /// Get the capabilities from the config file
 pub fn get_capabilities(
   config: &Config,
-  pre_built_capabilities_file_path: Option<&Path>,
+  pre_built_capabilities_file_path: &Path,
   additional_capability_files: Option<&[PathBuf]>,
 ) -> anyhow::Result<BTreeMap<String, Capability>> {
   let mut capabilities_from_files: BTreeMap<String, Capability> = BTreeMap::new();
-  if let Some(capabilities_file_path) = pre_built_capabilities_file_path {
-    if capabilities_file_path.exists() {
-      let capabilities_file =
-        std::fs::read_to_string(capabilities_file_path).context("failed to read capabilities")?;
-      capabilities_from_files =
-        serde_json::from_str(&capabilities_file).context("failed to parse capabilities")?;
-    }
+  if pre_built_capabilities_file_path.exists() {
+    let capabilities_file = std::fs::read_to_string(pre_built_capabilities_file_path)
+      .context("failed to read capabilities")?;
+    capabilities_from_files =
+      serde_json::from_str(&capabilities_file).context("failed to parse capabilities")?;
   }
 
   let mut capabilities = if config.app.security.capabilities.is_empty() {

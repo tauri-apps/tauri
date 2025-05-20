@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-  acl::{has_app_manifest, AllowedCommands, Error},
+  acl::{has_app_manifest, AllowedCommands, Error, CAPABILITIES_FILE_NAME},
   config::Config,
   write_if_changed,
 };
@@ -419,11 +419,6 @@ pub fn generate_allowed_commands(
     println!("cargo:rerun-if-changed={}", capabilities_path.display());
   }
 
-  let mut capabilities = crate::acl::build::parse_capabilities(&format!(
-    "{}/**/*",
-    glob::Pattern::escape(&capabilities_path.to_string_lossy())
-  ))?;
-
   let target_triple = env::var("TARGET")?;
   let target = crate::platform::Target::from_triple(&target_triple);
   let (mut config, config_paths) = crate::config::parse::read_from(target, &config_directory)?;
@@ -460,9 +455,23 @@ pub fn generate_allowed_commands(
     })
     .collect();
 
-  capabilities.extend(crate::acl::get_capabilities(&config, None, None)?);
+  let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  // the capabilities file only exist in the tauri-build context
+  if !capabilities_file_path.exists() {
+    let capabilities = crate::acl::build::parse_capabilities(&format!(
+      "{}/**/*",
+      glob::Pattern::escape(&capabilities_path.to_string_lossy())
+    ))?;
+    // write to capabilities path because we still want to go through acl::get_capabilities because it filters based on the config
+    std::fs::write(
+      &capabilities_file_path,
+      serde_json::to_string(&capabilities)?,
+    )?;
+  }
+  let capabilities = crate::acl::get_capabilities(&config, &capabilities_file_path, None)?;
 
   let permission_entries = capabilities
+    .clone()
     .into_iter()
     .flat_map(|(_, capabilities)| capabilities.permissions);
   let mut allowed_commands = AllowedCommands {

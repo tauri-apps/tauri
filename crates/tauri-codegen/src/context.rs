@@ -395,7 +395,7 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
   let capabilities = get_capabilities(
     &config,
-    Some(&capabilities_file_path),
+    &capabilities_file_path,
     additional_capabilities.as_deref(),
   )
   .unwrap();

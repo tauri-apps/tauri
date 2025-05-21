@@ -355,8 +355,6 @@ pub fn get_capabilities(
   capabilities_from_files: BTreeMap<String, Capability>,
   additional_capability_files: Option<&[PathBuf]>,
 ) -> anyhow::Result<BTreeMap<String, Capability>> {
-  let mut capabilities_from_files: BTreeMap<String, Capability> = BTreeMap::new();
-
   let mut capabilities = if config.app.security.capabilities.is_empty() {
     capabilities_from_files
   } else {

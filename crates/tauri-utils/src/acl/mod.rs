@@ -28,7 +28,7 @@ use std::{
   collections::{BTreeMap, HashSet},
   fs,
   num::NonZeroU64,
-  path::{Path, PathBuf},
+  path::PathBuf,
   str::FromStr,
   sync::Arc,
 };

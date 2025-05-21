@@ -393,6 +393,7 @@ pub fn generate_docs(
 /// Generate allowed commands file for the `generate_handler` macro to remove never allowed commands
 pub fn generate_allowed_commands(
   out_dir: &Path,
+  capabilities_from_files: Option<BTreeMap<String, Capability>>,
   permissions_map: BTreeMap<String, Vec<PermissionFile>>,
 ) -> Result<(), anyhow::Error> {
   println!("cargo:rerun-if-env-changed={REMOVE_UNUSED_COMMANDS_ENV_VAR}");
@@ -455,20 +456,15 @@ pub fn generate_allowed_commands(
     })
     .collect();
 
-  let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
-  // the capabilities file only exist in the tauri-build context
-  if !capabilities_file_path.exists() {
-    let capabilities = crate::acl::build::parse_capabilities(&format!(
+  let capabilities_from_files = if let Some(capabilities) = capabilities_from_files {
+    capabilities
+  } else {
+    crate::acl::build::parse_capabilities(&format!(
       "{}/**/*",
       glob::Pattern::escape(&capabilities_path.to_string_lossy())
-    ))?;
-    // write to capabilities path because we still want to go through acl::get_capabilities because it filters based on the config
-    std::fs::write(
-      &capabilities_file_path,
-      serde_json::to_string(&capabilities)?,
-    )?;
-  }
-  let capabilities = crate::acl::get_capabilities(&config, &capabilities_file_path, None)?;
+    ))?
+  };
+  let capabilities = crate::acl::get_capabilities(&config, capabilities_from_files, None)?;
 
   let permission_entries = capabilities
     .clone()

@@ -437,7 +437,7 @@ pub fn build(out_dir: &Path, target: Target, attributes: &Attributes) -> super::
     permissions_map.insert(APP_ACL_KEY.to_string(), app_acl.permission_files);
   }
 
-  tauri_utils::acl::build::generate_allowed_commands(out_dir, permissions_map)?;
+  tauri_utils::acl::build::generate_allowed_commands(out_dir, Some(capabilities), permissions_map)?;
 
   Ok(())
 }

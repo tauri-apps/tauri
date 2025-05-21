@@ -11,7 +11,7 @@ use std::{
 };
 
 use crate::{
-  acl::{has_app_manifest, AllowedCommands, Error, CAPABILITIES_FILE_NAME},
+  acl::{has_app_manifest, AllowedCommands, Error},
   config::Config,
   write_if_changed,
 };

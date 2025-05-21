@@ -352,7 +352,7 @@ pub fn has_app_manifest(acl: &BTreeMap<String, crate::acl::manifest::Manifest>) 
 /// Get the capabilities from the config file
 pub fn get_capabilities(
   config: &Config,
-  capabilities_from_files: BTreeMap<String, Capability>,
+  mut capabilities_from_files: BTreeMap<String, Capability>,
   additional_capability_files: Option<&[PathBuf]>,
 ) -> anyhow::Result<BTreeMap<String, Capability>> {
   let mut capabilities = if config.app.security.capabilities.is_empty() {

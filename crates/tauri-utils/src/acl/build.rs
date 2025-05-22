@@ -467,7 +467,6 @@ pub fn generate_allowed_commands(
   let capabilities = crate::acl::get_capabilities(&config, capabilities_from_files, None)?;
 
   let permission_entries = capabilities
-    .clone()
     .into_iter()
     .flat_map(|(_, capabilities)| capabilities.permissions);
   let mut allowed_commands = AllowedCommands {

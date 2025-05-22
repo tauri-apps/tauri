@@ -393,9 +393,16 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
   };
 
   let capabilities_file_path = out_dir.join(CAPABILITIES_FILE_NAME);
+  let capabilities_from_files = if capabilities_file_path.exists() {
+    let capabilities_json =
+      std::fs::read_to_string(&capabilities_file_path).expect("failed to read capabilities");
+    serde_json::from_str(&capabilities_json).expect("failed to parse capabilities")
+  } else {
+    Default::default()
+  };
   let capabilities = get_capabilities(
     &config,
-    Some(&capabilities_file_path),
+    capabilities_from_files,
     additional_capabilities.as_deref(),
   )
   .unwrap();

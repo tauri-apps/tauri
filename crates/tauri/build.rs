@@ -350,7 +350,7 @@ fn main() {
   }
 
   let permissions = define_permissions(&out_dir);
-  tauri_utils::acl::build::generate_allowed_commands(&out_dir, permissions).unwrap();
+  tauri_utils::acl::build::generate_allowed_commands(&out_dir, None, permissions).unwrap();
 }
 
 const LICENSE_HEADER: &str = r"# Copyright 2019-2024 Tauri Programme within The Commons Conservancy

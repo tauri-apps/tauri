@@ -367,6 +367,8 @@ impl Attributes {
 
   /// Set the glob pattern to be used to find the capabilities.
   ///
+  /// **WARNING:** The `removeUnusedCommands` option does not work with a custom capabilities path.
+  ///
   /// **Note:** You must emit [rerun-if-changed] instructions for your capabilities directory.
   ///
   /// [rerun-if-changed]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-changed

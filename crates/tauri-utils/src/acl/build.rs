@@ -393,6 +393,7 @@ pub fn generate_docs(
 /// Generate allowed commands file for the `generate_handler` macro to remove never allowed commands
 pub fn generate_allowed_commands(
   out_dir: &Path,
+  capabilities_from_files: Option<BTreeMap<String, Capability>>,
   permissions_map: BTreeMap<String, Vec<PermissionFile>>,
 ) -> Result<(), anyhow::Error> {
   println!("cargo:rerun-if-env-changed={REMOVE_UNUSED_COMMANDS_ENV_VAR}");
@@ -418,11 +419,6 @@ pub fn generate_allowed_commands(
   if capabilities_path.exists() {
     println!("cargo:rerun-if-changed={}", capabilities_path.display());
   }
-
-  let mut capabilities = crate::acl::build::parse_capabilities(&format!(
-    "{}/**/*",
-    glob::Pattern::escape(&capabilities_path.to_string_lossy())
-  ))?;
 
   let target_triple = env::var("TARGET")?;
   let target = crate::platform::Target::from_triple(&target_triple);
@@ -460,7 +456,15 @@ pub fn generate_allowed_commands(
     })
     .collect();
 
-  capabilities.extend(crate::acl::get_capabilities(&config, None, None)?);
+  let capabilities_from_files = if let Some(capabilities) = capabilities_from_files {
+    capabilities
+  } else {
+    crate::acl::build::parse_capabilities(&format!(
+      "{}/**/*",
+      glob::Pattern::escape(&capabilities_path.to_string_lossy())
+    ))?
+  };
+  let capabilities = crate::acl::get_capabilities(&config, capabilities_from_files, None)?;
 
   let permission_entries = capabilities
     .into_iter()

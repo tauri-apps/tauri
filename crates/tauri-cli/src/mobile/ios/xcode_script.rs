@@ -175,7 +175,8 @@ pub fn command(options: Options) -> Result<()> {
 
   let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
-  let simulator = options.arches.contains(&"Simulator".to_string());
+  let simulator =
+    options.platform == "iOS Simulator" || options.arches.contains(&"Simulator".to_string());
   let arches = if simulator {
     // when compiling for the simulator, we don't need to build other targets
     vec![if cfg!(target_arch = "aarch64") {

@@ -171,6 +171,17 @@ fn set_title<R: Runtime>(
 }
 
 #[command(root = "crate")]
+fn set_title_monospaced_digit<R: Runtime>(
+  app: AppHandle<R>,
+  rid: ResourceId,
+  title: Option<String>,
+) -> crate::Result<()> {
+  let resources_table = app.resources_table();
+  let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  tray.set_title_monospaced_digit(title)
+}
+
+#[command(root = "crate")]
 fn set_visible<R: Runtime>(app: AppHandle<R>, rid: ResourceId, visible: bool) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
@@ -221,6 +232,7 @@ pub(crate) fn init<R: Runtime>() -> TauriPlugin<R> {
       set_menu,
       set_tooltip,
       set_title,
+      set_title_monospaced_digit,
       set_visible,
       set_temp_dir_path,
       set_icon_as_template,

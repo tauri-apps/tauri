@@ -550,6 +550,14 @@ impl<R: Runtime> TrayIcon<R> {
     run_item_main_thread!(self, |self_: Self| self_.inner.set_title(s))
   }
 
+  /// Set the title for this tray icon using the system monospaced digit font. **macOS only**.
+  pub fn set_title_monospaced_digit<S: AsRef<str>>(&self, title: Option<S>) -> crate::Result<()> {
+    let s = title.map(|s| s.as_ref().to_string());
+    run_item_main_thread!(self, |self_: Self| self_
+      .inner
+      .set_title_monospaced_digit(s))
+  }
+
   /// Show or hide this tray icon.
   pub fn set_visible(&self, visible: bool) -> crate::Result<()> {
     run_item_main_thread!(self, |self_: Self| self_.inner.set_visible(visible))?.map_err(Into::into)

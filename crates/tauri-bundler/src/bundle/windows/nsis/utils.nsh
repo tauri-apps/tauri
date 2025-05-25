@@ -67,9 +67,6 @@
   ${EndIf}
   app_check_done_${UniqueID}:
     !undef UniqueID
-    !undef appRunning_${UniqueID}
-    !undef appRunningOkKill_${UniqueID}
-    !undef failedToKillApp_${UniqueID}
 !macroend
 
 ; Sets AppUserModelId on a shortcut

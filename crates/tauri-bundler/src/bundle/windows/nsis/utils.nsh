@@ -19,43 +19,57 @@
 !macroend
 
 ; Checks whether app is running or not and prompts to kill it.
-!macro CheckIfAppIsRunning
+!macro CheckIfAppIsRunning executableName productName
+  !define UniqueID ${__LINE__}
+
+  ; Replace {{product_name}} placeholder in the messages with the passed product name
+  nsis_tauri_utils::StrReplace "$(appRunning)" "{{product_name}}" "${productName}"
+  Pop $R1
+  nsis_tauri_utils::StrReplace "$(appRunningOkKill)" "{{product_name}}" "${productName}"
+  Pop $R2
+  nsis_tauri_utils::StrReplace "$(failedToKillApp)" "{{product_name}}" "${productName}"
+  Pop $R3
+
   !if "${INSTALLMODE}" == "currentUser"
-    nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
+    nsis_tauri_utils::FindProcessCurrentUser "${executableName}"
   !else
-    nsis_tauri_utils::FindProcess "${MAINBINARYNAME}.exe"
+    nsis_tauri_utils::FindProcess "${executableName}"
   !endif
   Pop $R0
   ${If} $R0 = 0
-      IfSilent kill 0
-      ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
-      kill:
+      IfSilent kill_${UniqueID} 0
+      ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL $R2 IDOK kill_${UniqueID} IDCANCEL cancel_${UniqueID} ${|}
+      kill_${UniqueID}:
         !if "${INSTALLMODE}" == "currentUser"
-          nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
+          nsis_tauri_utils::KillProcessCurrentUser "${executableName}"
         !else
-          nsis_tauri_utils::KillProcess "${MAINBINARYNAME}.exe"
+          nsis_tauri_utils::KillProcess "${executableName}"
         !endif
         Pop $R0
         Sleep 500
         ${If} $R0 = 0
-          Goto app_check_done
+          Goto app_check_done_${UniqueID}
         ${Else}
-          IfSilent silent ui
-          silent:
+          IfSilent silent_${UniqueID} ui_${UniqueID}
+          silent_${UniqueID}:
             System::Call 'kernel32::AttachConsole(i -1)i.r0'
             ${If} $0 != 0
               System::Call 'kernel32::GetStdHandle(i -11)i.r0'
               System::call 'kernel32::SetConsoleTextAttribute(i r0, i 0x0004)' ; set red color
-              FileWrite $0 "$(appRunning)$\n"
+              FileWrite $0 "$R1$\n"
             ${EndIf}
             Abort
-          ui:
-            Abort "$(failedToKillApp)"
+          ui_${UniqueID}:
+            Abort $R3
         ${EndIf}
-      cancel:
-        Abort "$(appRunning)"
+      cancel_${UniqueID}:
+        Abort $R1
   ${EndIf}
-  app_check_done:
+  app_check_done_${UniqueID}:
+    !undef UniqueID
+    !undef appRunning_${UniqueID}
+    !undef appRunningOkKill_${UniqueID}
+    !undef failedToKillApp_${UniqueID}
 !macroend
 
 ; Sets AppUserModelId on a shortcut

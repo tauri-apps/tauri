@@ -8350,7 +8350,6 @@ dependencies = [
  "dirs 6.0.0",
  "dunce",
  "embed_plist",
- "futures-util",
  "getrandom 0.2.15",
  "glob",
  "gtk",

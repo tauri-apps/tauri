@@ -52,7 +52,6 @@ tokio = { version = "1", features = [
   "fs",
   "io-util",
 ] }
-futures-util = "0.3"
 uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"

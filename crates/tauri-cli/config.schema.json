@@ -3436,7 +3436,7 @@
           ]
         },
         "hardenedRuntime": {
-          "description": "Whether the codesign should enable [hardened runtime] (for executables) or not.\n\n [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>",
+          "description": "Whether the codesign should enable [hardened runtime](https://developer.apple.com/documentation/security/hardened_runtime) (for executables) or not.",
           "default": true,
           "type": "boolean"
         },

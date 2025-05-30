@@ -214,7 +214,11 @@ fn create_info_plist(
     settings.bundle_identifier().into(),
   );
   plist.insert("CFBundleInfoDictionaryVersion".into(), "6.0".into());
-  plist.insert("CFBundleName".into(), settings.product_name().into());
+  if let Some(bundle_name) = settings.macos().bundle_name.clone() {
+    plist.insert("CFBundleName".into(), bundle_name.into());
+  } else {
+    plist.insert("CFBundleName".into(), settings.product_name().into());
+  }
   plist.insert("CFBundlePackageType".into(), "APPL".into());
   plist.insert(
     "CFBundleShortVersionString".into(),

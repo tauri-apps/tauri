@@ -636,16 +636,6 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
-  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
-  ///
-  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
-  /// reaching out to Apple's servers which is helpful in offline environments.
-  ///
-  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
-  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
-  /// On subsequent runs, it's recommended to disable this setting again.
-  #[serde(alias = "skip-stapling")]
-  pub skip_stapling: bool,
   /// Whether the codesign should enable [hardened runtime](https://developer.apple.com/documentation/security/hardened_runtime) (for executables) or not.
   #[serde(alias = "hardened-runtime", default = "default_true")]
   pub hardened_runtime: bool,
@@ -668,7 +658,6 @@ impl Default for MacConfig {
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
-      skip_stapling: false,
       hardened_runtime: true,
       provider_short_name: None,
       entitlements: None,
@@ -1484,9 +1473,9 @@ impl schemars::JsonSchema for Color {
 pub enum BackgroundThrottlingPolicy {
   /// A policy where background throttling is disabled
   Disabled,
-  /// A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
+  /// A policy where a web view that's not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
   Suspend,
-  /// A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.
+  /// A policy where a web view that's not in a window limits processing, but does not fully suspend tasks.
   Throttle,
 }
 

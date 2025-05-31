@@ -87,6 +87,7 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: Vec::new(),
       ci: options.ci,
+      skip_stapling: false,
     }
   }
 }

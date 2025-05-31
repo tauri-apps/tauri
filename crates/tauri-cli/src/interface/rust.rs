@@ -54,6 +54,7 @@ pub struct Options {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub skip_stapling: bool,
 }
 
 impl From<crate::build::Options> for Options {
@@ -66,6 +67,7 @@ impl From<crate::build::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: true,
+      skip_stapling: options.skip_stapling,
     }
   }
 }
@@ -78,6 +80,7 @@ impl From<crate::bundle::Options> for Options {
       target: options.target,
       features: options.features,
       no_watch: true,
+      skip_stapling: options.skip_stapling,
       ..Default::default()
     }
   }
@@ -93,6 +96,7 @@ impl From<crate::dev::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: options.no_watch,
+      skip_stapling: false,
     }
   }
 }
@@ -789,6 +793,7 @@ impl AppSettings for RustAppSettings {
 
   fn get_bundle_settings(
     &self,
+    options: &Options,
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
@@ -826,6 +831,8 @@ impl AppSettings for RustAppSettings {
       updater_settings,
       arch64bits,
     )?;
+
+    settings.macos.skip_stapling = options.skip_stapling;
 
     if let Some(plugin_config) = config
       .plugins
@@ -1441,7 +1448,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
-      skip_stapling: config.macos.skip_stapling,
+      skip_stapling: false,
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,

@@ -620,6 +620,8 @@ pub struct MacConfig {
   /// The name of the builder that built the bundle.
   /// 
   /// Translates to the bundle's CFBundleName property.
+  /// 
+  /// If not set, defaults to the package's product name.
   #[serde(alias = "bundle-name")]
   pub bundle_name: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.

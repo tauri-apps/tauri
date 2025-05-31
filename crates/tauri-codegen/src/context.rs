@@ -309,11 +309,17 @@ pub fn context_codegen(data: ContextData) -> EmbeddedAssetsResult<TokenStream> {
     };
 
     if let Some(plist) = info_plist.as_dictionary_mut() {
-      if let Some(bundle_name) = &config.bundle.macos.bundle_name {
-        plist.insert("CFBundleName".into(), bundle_name.clone().into());
-      }  else if let Some(product_name) = &config.product_name {
-        plist.insert("CFBundleName".into(), product_name.clone().into());
-      }
+      plist.insert(
+        "CFBundleName".into(),
+        config
+          .bundle
+          .macos
+          .bundle_name
+          .as_deref()
+          .or_else(|| config.product_name.as_deref())
+          .unwrap()
+          .into(),
+      );
       if let Some(version) = &config.version {
         let bundle_version = &config.bundle.macos.bundle_version;
         plist.insert("CFBundleShortVersionString".into(), version.clone().into());

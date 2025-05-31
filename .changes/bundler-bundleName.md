@@ -2,7 +2,6 @@
 tauri-bundler: "minor:feat"
 tauri-cli: "minor:feat"
 tauri-codegen: "minor:feat"
-tauri-schema-generator: "minor:feat"
 tauri-utils: "minor:feat"
 @tauri-apps/cli: "minor:feat"
 ---

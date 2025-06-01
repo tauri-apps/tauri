@@ -1,7 +1,6 @@
 {
   "$schema": "../../../../../crates/tauri-schema-generator/schemas/config.schema.json",
   "identifier": "studio.tauri.example",
-  "productName": "TestApp",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:4000"

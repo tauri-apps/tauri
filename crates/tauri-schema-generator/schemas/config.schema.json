@@ -3414,7 +3414,7 @@
           ]
         },
         "bundleName": {
-          "description": "The name of the builder that built the bundle.\n \n Translates to the bundle's CFBundleName property.\n \n If not set, defaults to the package's product name.",
+          "description": "The name of the builder that built the bundle.\n\n Translates to the bundle's CFBundleName property.\n\n If not set, defaults to the package's product name.",
           "type": [
             "string",
             "null"

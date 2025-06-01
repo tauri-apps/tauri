@@ -17,6 +17,9 @@
     }
   },
   "bundle": {
-    "active": true
+    "active": true,
+    "macOS": {
+      "bundleName": "TestBundleName"
+    }
   }
 }

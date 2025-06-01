@@ -618,9 +618,9 @@ pub struct MacConfig {
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
   /// The name of the builder that built the bundle.
-  /// 
+  ///
   /// Translates to the bundle's CFBundleName property.
-  /// 
+  ///
   /// If not set, defaults to the package's product name.
   #[serde(alias = "bundle-name")]
   pub bundle_name: Option<String>,

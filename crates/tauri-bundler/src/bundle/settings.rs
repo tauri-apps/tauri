@@ -334,7 +334,7 @@ pub struct MacOsSettings {
   /// The version of the build that identifies an iteration of the bundle.
   pub bundle_version: Option<String>,
   /// The name of the build that identifies a string of the bundle.
-  /// 
+  ///
   /// If not set, defaults to the package's product name.
   pub bundle_name: Option<String>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).

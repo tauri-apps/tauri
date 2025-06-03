@@ -217,8 +217,9 @@ fn create_info_plist(
   if let Some(bundle_name) = settings
     .macos()
     .bundle_name
-    .as_ref()
-    .or(settings.product_name())
+    .as_deref()
+    .unwrap_or_else(|| settings.product_name())
+    .into()
   {
     plist.insert("CFBundleName".into(), bundle_name.into());
   }

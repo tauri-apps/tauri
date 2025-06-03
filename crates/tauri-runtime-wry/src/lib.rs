@@ -4881,7 +4881,6 @@ You may have it installed on another user account, but it is not available for t
     .unwrap();
 
     if let Ok(webview) = unsafe { controller.CoreWebView2() } {
-      let window_id_ = window_id.clone();
       let proxy_clone = context.proxy.clone();
       unsafe {
         let _ = webview.add_ContainsFullScreenElementChanged(
@@ -4891,7 +4890,7 @@ You may have it installed on another user account, but it is not available for t
               .ok_or_else(windows::core::Error::empty)?
               .ContainsFullScreenElement(&mut contains_fullscreen_element)?;
             let _ = proxy_clone.send_event(Message::Window(
-              *window_id_.lock().unwrap(),
+              *window_id.lock().unwrap(),
               WindowMessage::SetFullscreen(contains_fullscreen_element.as_bool()),
             ));
             Ok(())

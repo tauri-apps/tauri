@@ -3413,6 +3413,13 @@
             "null"
           ]
         },
+        "bundleName": {
+          "description": "The name of the builder that built the bundle.\n\n Translates to the bundle's CFBundleName property.\n\n If not set, defaults to the package's product name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.\n\n Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`\n and the `MACOSX_DEPLOYMENT_TARGET` environment variable.\n\n An empty string is considered an invalid value so the default value is used.",
           "default": "10.13",

@@ -617,6 +617,13 @@ pub struct MacConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
+  /// The name of the builder that built the bundle.
+  ///
+  /// Translates to the bundle's CFBundleName property.
+  ///
+  /// If not set, defaults to the package's product name.
+  #[serde(alias = "bundle-name")]
+  pub bundle_name: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -655,6 +662,7 @@ impl Default for MacConfig {
       frameworks: None,
       files: HashMap::new(),
       bundle_version: None,
+      bundle_name: None,
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,

@@ -1438,6 +1438,7 @@ fn tauri_config_to_bundle_settings(
       frameworks: config.macos.frameworks,
       files: config.macos.files,
       bundle_version: config.macos.bundle_version,
+      bundle_name: config.macos.bundle_name,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,

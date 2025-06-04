@@ -407,6 +407,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+   fn focusable(self, focusable: bool) -> Self {
+    self
+  }
+
   fn maximized(self, maximized: bool) -> Self {
     self
   }

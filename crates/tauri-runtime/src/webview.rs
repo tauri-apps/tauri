@@ -226,6 +226,7 @@ pub struct WebviewAttributes {
   pub incognito: bool,
   pub transparent: bool,
   pub focus: bool,
+  pub focusable: bool,
   pub bounds: Option<Rect>,
   pub auto_resize: bool,
   pub proxy_url: Option<Url>,
@@ -280,6 +281,7 @@ impl From<&WindowConfig> for WebviewAttributes {
     let mut builder = Self::new(config.url.clone())
       .incognito(config.incognito)
       .focused(config.focus)
+      .focusable(config.focus)
       .zoom_hotkeys_enabled(config.zoom_hotkeys_enabled)
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
@@ -344,6 +346,7 @@ impl WebviewAttributes {
       incognito: false,
       transparent: false,
       focus: true,
+      focusable: true,
       bounds: None,
       auto_resize: false,
       proxy_url: None,
@@ -484,6 +487,13 @@ impl WebviewAttributes {
   #[must_use]
   pub fn focused(mut self, focus: bool) -> Self {
     self.focus = focus;
+    self
+  }
+
+  /// Whether the webview should be focusable or not.
+  #[must_use]
+  pub fn focusable(mut self, focusable: bool) -> Self {
+    self.focusable = focusable;
     self
   }
 

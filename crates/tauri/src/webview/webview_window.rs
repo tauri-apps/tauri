@@ -524,6 +524,14 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Whether the window will be focusable or not.
+  #[must_use]
+  pub fn focusable(mut self, focusable: bool) -> Self {
+    self.window_builder = self.window_builder.focusable(focusable);
+    self.webview_builder = self.webview_builder.focusable(focusable);
+    self
+  }
+
   /// Whether the window will be initially focused or not.
   #[must_use]
   pub fn focused(mut self, focused: bool) -> Self {

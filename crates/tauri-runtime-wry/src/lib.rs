@@ -866,6 +866,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .title(config.title.to_string())
         .inner_size(config.width, config.height)
         .focused(config.focus)
+        .focusable(config.focusable)
         .visible(config.visible)
         .resizable(config.resizable)
         .fullscreen(config.fullscreen)
@@ -1028,6 +1029,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn focused(mut self, focused: bool) -> Self {
     self.inner = self.inner.with_focused(focused);
+    self
+  }
+
+ fn focusable(mut self, focusable: bool) -> Self {
+    self.inner = self.inner.with_focusable(focusable);
     self
   }
 

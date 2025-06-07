@@ -1214,7 +1214,7 @@ impl BundleResources {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
 pub enum Updater {
-  /// Generates lagacy zipped v1 compatible updaters
+  /// Generates legacy zipped v1 compatible updaters
   String(V1Compatible),
   /// Produce updaters and their signatures or not
   // Can't use untagged on enum field here: https://github.com/GREsau/schemars/issues/222
@@ -1227,12 +1227,12 @@ impl Default for Updater {
   }
 }
 
-/// Generates lagacy zipped v1 compatible updaters
+/// Generates legacy zipped v1 compatible updaters
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum V1Compatible {
-  /// Generates lagacy zipped v1 compatible updaters
+  /// Generates legacy zipped v1 compatible updaters
   V1Compatible,
 }
 

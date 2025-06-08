@@ -53,7 +53,7 @@ First, [join our Discord server](https://discord.gg/SpmNs4S) and let us know tha
 
 To set up your machine for development, follow the [Tauri setup guide](https://v2.tauri.app/start/prerequisites/) to get all the tools you need to develop Tauri apps. The only additional tool you may need is [PNPM](https://pnpm.io/), it is only required if you are developing the Node CLI or API packages (`packages/cli` and `packages/api`).
 
-Next, [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) and clone [repository](https://github.com/tauri-apps) you want to contribute to.
+Next, [fork](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/fork-a-repo) and clone [this repository](https://github.com/tauri-apps).
 The development process varies depending on what part of Tauri you are contributing to, see the guides below for per-package instructions.
 
 Some Tauri packages will be automatically built when running one of the examples. Others, however, will need to be built beforehand. To initialize, execute these commands in the repository root:

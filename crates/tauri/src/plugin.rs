@@ -361,6 +361,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// }
   /// ```
   #[must_use]
+  // TODO: Rename to initialization_script in v3
   pub fn js_init_script(mut self, js_init_script: impl Into<String>) -> Self {
     self.js_init_script = Some(InitializationScript {
       script: js_init_script.into(),

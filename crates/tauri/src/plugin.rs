@@ -74,7 +74,12 @@ pub trait Plugin<R: Runtime>: Send {
   /// Same as [`Plugin::initialization_script_2`] but returns an [`InitializationScript`] instead
   /// We plan to replace [`Plugin::initialization_script`] with this signature in v3
   fn initialization_script_2(&self) -> Option<InitializationScript> {
-    None
+    self
+      .initialization_script()
+      .map(|script| InitializationScript {
+        script,
+        for_main_frame_only: true,
+      })
   }
 
   /// Callback invoked when the window is created.
@@ -361,7 +366,7 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// }
   /// ```
   #[must_use]
-  // TODO: Rename to initialization_script in v3
+  // TODO: Rename to `initialization_script` in v3
   pub fn js_init_script(mut self, js_init_script: impl Into<String>) -> Self {
     self.js_init_script = Some(InitializationScript {
       script: js_init_script.into(),

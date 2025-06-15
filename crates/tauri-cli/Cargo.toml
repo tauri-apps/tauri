@@ -122,7 +122,7 @@ insta = "1"
 pretty_assertions = "1"
 
 [target."cfg(windows)".dependencies.windows-sys]
-version = "0.59"
+version = "0.60"
 features = [
   "Win32_Storage_FileSystem",
   "Win32_System_IO",

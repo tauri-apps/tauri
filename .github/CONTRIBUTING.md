@@ -81,16 +81,16 @@ to:
 
 `tauri = { path = "path/to/local/tauri/crates/tauri" }`
 
-If any other creates depend on Tauri you will have to point them to the local repo as well.
+If any other crates depend on Tauri you will have to point them to the local repo as well.
 
 ### Developing Tauri Bundler and Rust CLI
 
-The code for the bundler is located in [bundler crate](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-bundler), and the code for the Rust CLI is located in [tauri-cli](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-cli).
+The code for the bundler is located in [crates/tauri-bundler](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-bundler), and the code for the Rust CLI is located in [tauri-cli](https://github.com/tauri-apps/tauri/tree/dev/crates/tauri-cli).
 Running `cargo install --path .` in the Rust CLI directory will allow you to run `cargo tauri build` and `cargo tauri dev` anywhere, using the updated copy of the bundler and cli. You will have to run this command each time you make a change in either package.
 
 ### Developing The Node.js CLI (`@tauri-apps/cli`)
 
-[`@tauri-apps/cli`](https://github.com/tauri-apps/tauri/tree/dev/packages/cli) is a wrapper to `tauri-cli` so most changes should be written on the Rust CLI (see above).
+[`@tauri-apps/cli`](https://github.com/tauri-apps/tauri/tree/dev/packages/cli) is a small wrapper around `tauri-cli` so most changes should be happen in the Rust CLI (see above).
 
 #### Building the documentation locally
 
@@ -102,7 +102,7 @@ $ RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features --open
 
 ### Developing the JS API
 
-The JS API provides bindings between the developer's JS in the Webview and the builtin Tauri APIs, written in Rust. Its code is located in [/packages/api](https://github.com/tauri-apps/tauri/tree/dev/packages/api).
+The JS API provides bindings between the developer's JS in the Webview and the built-in Tauri APIs, written in Rust. Its code is located in [/packages/api](https://github.com/tauri-apps/tauri/tree/dev/packages/api).
 After making changes to the code, run `pnpm build` to build it. To test your changes, we recommend using the API example app, located in [/examples/api](https://github.com/tauri-apps/tauri/tree/dev/examples/api). It will automatically use your local copy of the JS API and provides a helpful UI to test the various commands.
 
 ## Financial Contribution

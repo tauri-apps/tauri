@@ -25,6 +25,8 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
+use schemars::schema::Schema;
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{
@@ -43,6 +45,18 @@ use std::{
   path::PathBuf,
   str::FromStr,
 };
+
+#[cfg(feature = "schema")]
+fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
+  let value = description.into();
+  if value.is_empty() {
+    schema
+  } else {
+    let mut schema_obj = schema.into_object();
+    schema_obj.metadata().description = value.into();
+    Schema::Object(schema_obj)
+  }
+}
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
@@ -221,14 +235,11 @@ impl schemars::JsonSchema for BundleTarget {
         ..Default::default()
       }
       .into(),
-      schemars::_private::metadata::add_description(
+      add_description(
         gen.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
       ),
-      schemars::_private::metadata::add_description(
-        gen.subschema_for::<BundleType>(),
-        "A single bundle target.",
-      ),
+      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
     ];
 
     schemars::schema::SchemaObject {

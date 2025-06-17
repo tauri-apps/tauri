@@ -279,10 +279,7 @@ fn run_dev(
         config: dev_options.config.clone(),
         target_device: None,
       };
-      let _handle = write_options(
-        &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
-        cli_options,
-      )?;
+      let _handle = write_options(&tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
       let open_xcode = || {
         if !set_host {

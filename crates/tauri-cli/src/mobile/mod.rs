@@ -10,7 +10,6 @@ use crate::{
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue,
 };
-#[cfg(unix)]
 use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;

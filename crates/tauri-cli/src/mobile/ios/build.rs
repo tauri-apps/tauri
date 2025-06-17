@@ -295,7 +295,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: None,
   };
-  let handle = write_options(&tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
   if options.open {
     return Ok(handle);

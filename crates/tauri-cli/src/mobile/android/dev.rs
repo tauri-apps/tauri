@@ -275,7 +275,7 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(&tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
+      let _handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
       inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 

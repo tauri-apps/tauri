@@ -45,19 +45,19 @@
     "eslint:fix": "eslint src/**/*.ts --fix"
   },
   "devDependencies": {
-    "@eslint/js": "^9.25.1",
+    "@eslint/js": "^9.29.0",
     "@rollup/plugin-terser": "0.4.4",
-    "@rollup/plugin-typescript": "12.1.3",
+    "@rollup/plugin-typescript": "12.1.2",
     "@types/eslint": "^9.6.1",
-    "@types/node": "^22.15.3",
-    "eslint": "^9.25.1",
+    "@types/node": "^22.15.32",
+    "eslint": "^9.29.0",
     "eslint-config-prettier": "10.1.5",
     "eslint-plugin-security": "3.0.1",
     "fast-glob": "3.3.3",
-    "globals": "^16.0.0",
+    "globals": "^16.2.0",
     "rollup": "4.44.0",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.31.1"
+    "typescript-eslint": "^8.34.1"
   }
 }

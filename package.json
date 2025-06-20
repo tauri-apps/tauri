@@ -27,7 +27,7 @@
   "devDependencies": {
     "prettier": "^3.5.3"
   },
-  "packageManager": "pnpm@10.10.0",
+  "packageManager": "pnpm@10.12.1",
   "pnpm": {
     "overrides": {
       "brace-expansion@<4.0.1": ">=4.0.1",

@@ -212,6 +212,9 @@ impl<R: Runtime> PathResolver<R> {
   ///
   /// ## Platform-specific
   ///
+  /// Although we provide the exact path where this function resolves to,
+  /// this is not a contract and things might change in the future
+  ///
   /// - **Windows:** Resolves to the directory that contains the main executable.
   /// - **Linux:** When running in an AppImage, the `APPDIR` variable will be set to
   ///   the mounted location of the app, and the resource dir will be `${APPDIR}/usr/lib/${exe_name}`.

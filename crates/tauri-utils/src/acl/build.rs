@@ -349,7 +349,7 @@ pub fn generate_docs(
     }
 
     if let Some(default) = &permission.default {
-      default_permission = format!("## Default Permission\n\n");
+      default_permission.push_str("## Default Permission\n\n");
       default_permission.push_str(default.description.as_deref().unwrap_or_default().trim());
       default_permission.push('\n');
       default_permission.push('\n');

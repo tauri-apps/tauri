@@ -101,6 +101,11 @@ pub struct Options {
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments.
+  /// e.g. `tauri ios dev -- [runnerArgs]`.
+  #[clap(last(true))]
+  pub args: Vec<String>,
 }
 
 impl From<Options> for DevOptions {
@@ -112,7 +117,7 @@ impl From<Options> for DevOptions {
       exit_on_panic: options.exit_on_panic,
       config: options.config,
       release_mode: options.release_mode,
-      args: Vec::new(),
+      args: options.args,
       no_watch: options.no_watch,
       no_dev_server: options.no_dev_server,
       no_dev_server_wait: options.no_dev_server_wait,
@@ -265,7 +270,7 @@ fn run_dev(
     MobileOptions {
       debug: true,
       features: options.features,
-      args: Vec::new(),
+      args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
     },

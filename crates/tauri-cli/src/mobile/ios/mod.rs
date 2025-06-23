@@ -514,6 +514,13 @@ pub fn synchronize_project_config(
     .unwrap()
     .identifier
     .clone();
+  let product_name = tauri_config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .product_name
+    .clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();
@@ -539,6 +546,14 @@ pub fn synchronize_project_config(
         "PRODUCT_BUNDLE_IDENTIFIER",
         &identifier,
       );
+
+      if let Some(product_name) = &product_name {
+        pbxproj.set_build_settings(
+          &build_configuration_ref.id,
+          "PRODUCT_NAME",
+          &format!("\"{product_name}\""),
+        );
+      }
 
       if let Some(identity) = &project_config.code_sign_identity {
         let identity = format!("\"{identity}\"");

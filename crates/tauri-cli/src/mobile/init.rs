@@ -6,7 +6,7 @@ use super::{get_app, Target};
 use crate::{
   helpers::{config::get as get_tauri_config, template::JsonMap},
   interface::{AppInterface, Interface},
-  Result,
+  ConfigValue, Result,
 };
 use cargo_mobile2::{
   android::env::Env as AndroidEnv,
@@ -28,11 +28,19 @@ pub fn command(
   ci: bool,
   reinstall_deps: bool,
   skip_targets_install: bool,
+  config: Vec<ConfigValue>,
 ) -> Result<()> {
   let wrapper = TextWrapper::default();
 
-  exec(target, &wrapper, ci, reinstall_deps, skip_targets_install)
-    .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  exec(
+    target,
+    &wrapper,
+    ci,
+    reinstall_deps,
+    skip_targets_install,
+    config,
+  )
+  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
   Ok(())
 }
 
@@ -42,8 +50,12 @@ pub fn exec(
   #[allow(unused_variables)] non_interactive: bool,
   #[allow(unused_variables)] reinstall_deps: bool,
   skip_targets_install: bool,
+  config: Vec<ConfigValue>,
 ) -> Result<App> {
-  let tauri_config = get_tauri_config(target.platform_target(), &[])?;
+  let tauri_config = get_tauri_config(
+    target.platform_target(),
+    &config.iter().map(|conf| &conf.0).collect::<Vec<_>>(),
+  )?;
 
   let tauri_config_guard = tauri_config.lock().unwrap();
   let tauri_config_ = tauri_config_guard.as_ref().unwrap();

@@ -32,7 +32,7 @@ use crate::{
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
     pbxproj, strip_semver_prerelease_tag,
   },
-  Result,
+  ConfigValue, Result,
 };
 
 use std::{
@@ -77,6 +77,15 @@ pub struct InitOptions {
   /// Skips installing rust toolchains via rustup
   #[clap(long)]
   skip_targets_install: bool,
+  /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
+  ///
+  /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
+  ///
+  /// Note that a platform-specific file is looked up and merged with the default file by default
+  /// (tauri.macos.conf.json, tauri.linux.conf.json, tauri.windows.conf.json, tauri.android.conf.json and tauri.ios.conf.json)
+  /// but you can use this for more specific use cases such as different build flavors.
+  #[clap(short, long)]
+  pub config: Vec<ConfigValue>,
 }
 
 #[derive(Subcommand)]
@@ -98,6 +107,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
         options.ci,
         options.reinstall_deps,
         options.skip_targets_install,
+        options.config,
       )?
     }
     Commands::Dev(options) => dev::command(options, noise_level)?,

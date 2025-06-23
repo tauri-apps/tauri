@@ -2762,20 +2762,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gdkx11"
-version = "0.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3caa00e14351bebbc8183b3c36690327eb77c49abc2268dd4bd36b856db3fbfe"
-dependencies = [
- "gdk",
- "gdkx11-sys",
- "gio",
- "glib",
- "libc",
- "x11",
-]
-
-[[package]]
 name = "gdkx11-sys"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10779,8 +10765,7 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 [[package]]
 name = "wry"
 version = "0.51.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c886a0a9d2a94fd90cfa1d929629b79cfefb1546e2c7430c63a47f0664c0e4e2"
+source = "git+https://github.com/WSH032/wry.git?branch=feat/set-cookies#af0c0fa38742b8b444bcef22733d4364c6026bd1"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",
@@ -10788,7 +10773,6 @@ dependencies = [
  "crossbeam-channel",
  "dpi",
  "dunce",
- "gdkx11",
  "gtk",
  "html5ever",
  "http 1.2.0",
@@ -10818,7 +10802,6 @@ dependencies = [
  "windows 0.61.1",
  "windows-core 0.61.0",
  "windows-version",
- "x11-dl",
 ]
 
 [[package]]

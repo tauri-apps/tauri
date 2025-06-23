@@ -1393,6 +1393,8 @@ pub enum WebviewMessage {
   EvaluateScript(String, Sender<()>, tracing::Span),
   CookiesForUrl(Url, Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
   Cookies(Sender<Result<Vec<tauri_runtime::Cookie<'static>>>>),
+  SetCookie(tauri_runtime::Cookie<'static>),
+  DeleteCookie(tauri_runtime::Cookie<'static>),
   WebviewEvent(WebviewEvent),
   SynthesizedWindowEvent(SynthesizedWindowEvent),
   Navigate(Url),
@@ -1679,6 +1681,38 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
 
   fn cookies(&self) -> Result<Vec<Cookie<'static>>> {
     webview_getter!(self, WebviewMessage::Cookies)?
+  }
+
+  fn set_cookie(&self, cookie: &Cookie<'_>) -> Result<()> {
+    // TODO, FIXME: Because [Message] requires `T: 'static`,
+    // we currently need to clone the cookie.
+    let cookie = cookie.clone().into_owned();
+    let current_window_id = self.window_id.lock().unwrap();
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *current_window_id,
+        self.webview_id,
+        WebviewMessage::SetCookie(cookie),
+      ),
+    )?;
+    Ok(())
+  }
+
+  fn delete_cookie(&self, cookie: &Cookie<'_>) -> Result<()> {
+    // TODO, FIXME: Because [Message] requires `T: 'static`,
+    // we currently need to clone the cookie.
+    let cookie = cookie.clone().into_owned();
+    let current_window_id = self.window_id.lock().unwrap();
+    send_user_message(
+      &self.context,
+      Message::Webview(
+        *current_window_id,
+        self.webview_id,
+        WebviewMessage::DeleteCookie(cookie),
+      ),
+    )?;
+    Ok(())
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {
@@ -3647,6 +3681,18 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::Cookies(tx) => {
             tx.send(webview.cookies().map_err(|_| Error::FailedToSendMessage))
               .unwrap();
+          }
+
+          WebviewMessage::SetCookie(cookie) => {
+            if let Err(e) = webview.set_cookie(&cookie) {
+              log::error!("failed to set webview cookie: {e}");
+            }
+          }
+
+          WebviewMessage::DeleteCookie(cookie) => {
+            if let Err(e) = webview.delete_cookie(&cookie) {
+              log::error!("failed to delete webview cookie: {e}");
+            }
           }
 
           WebviewMessage::CookiesForUrl(url, tx) => {

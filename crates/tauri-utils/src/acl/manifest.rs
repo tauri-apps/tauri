@@ -7,7 +7,6 @@
 use std::{collections::BTreeMap, num::NonZeroU64};
 
 use super::{Permission, PermissionSet};
-#[cfg(feature = "schema")]
 use serde::{Deserialize, Serialize};
 
 /// The default permission set of the plugin.

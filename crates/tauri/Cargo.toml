@@ -61,7 +61,7 @@ tauri-macros = { version = "2.2.0", path = "../tauri-macros" }
 tauri-utils = { version = "2.4.0", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.6.0", path = "../tauri-runtime-wry", optional = true }
+tauri-runtime-wry = { version = "2.6.0", path = "../tauri-runtime-wry", default-features = false, optional = true }
 getrandom = "0.2"
 serde_repr = "0.1"
 http = "1"
@@ -122,7 +122,7 @@ window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = { version = "0.37", optional = true }
+webview2-com = { version = "0.38", optional = true }
 window-vibrancy = "0.6"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
@@ -179,8 +179,9 @@ objc2-web-kit = { version = "0.3", features = [
 ] }
 
 [features]
-default = ["wry", "compression", "common-controls-v6", "dynamic-acl"]
+default = ["wry", "compression", "common-controls-v6", "dynamic-acl", "x11"]
 unstable = ["tauri-runtime-wry?/unstable"]
+x11 = ["tauri-runtime-wry?/x11"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",

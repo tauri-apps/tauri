@@ -39,9 +39,9 @@
 
 - Upgraded to `tauri-utils@2.5.0`
 - Upgraded to `tauri-runtime-wry@2.7.0`
-- Upgraded to `tauri-macros@2.2.1`
-- Upgraded to `tauri-build@2.2.1`
-- Upgraded to `tauri-runtime@2.6.1`
+- Upgraded to `tauri-macros@2.3.0`
+- Upgraded to `tauri-build@2.3.0`
+- Upgraded to `tauri-runtime@2.7.0`
 - [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Updated tao to 0.34, wry to 0.52 and webview2-com to 0.38.
 
 ### Breaking Changes

@@ -56,8 +56,8 @@ uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.6.1", path = "../tauri-runtime" }
-tauri-macros = { version = "2.2.1", path = "../tauri-macros" }
+tauri-runtime = { version = "2.7.0", path = "../tauri-runtime" }
+tauri-macros = { version = "2.3.0", path = "../tauri-macros" }
 tauri-utils = { version = "2.5.0", features = [
   "resources",
 ], path = "../tauri-utils" }
@@ -154,7 +154,7 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.2.1" }
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.3.0" }
 tauri-utils = { path = "../tauri-utils/", version = "2.5.0", features = [
   "build",
 ] }

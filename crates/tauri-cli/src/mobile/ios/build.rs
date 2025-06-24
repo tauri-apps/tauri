@@ -83,6 +83,11 @@ pub struct Options {
   /// Use this to create a package ready for the App Store (app-store-connect option) or TestFlight (release-testing option).
   #[clap(long, value_enum)]
   pub export_method: Option<ExportMethod>,
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments.
+  /// e.g. `tauri ios build -- [runnerArgs]`.
+  #[clap(last(true))]
+  pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -125,7 +130,7 @@ impl From<Options> for BuildOptions {
       bundles: None,
       no_bundle: false,
       config: options.config,
-      args: Vec::new(),
+      args: options.args,
       ci: options.ci,
     }
   }
@@ -282,6 +287,7 @@ fn run_build(
   let out_dir = app_settings.out_dir(&InterfaceOptions {
     debug: build_options.debug,
     target: build_options.target.clone(),
+    args: build_options.args.clone(),
     ..Default::default()
   })?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
@@ -295,10 +301,7 @@ fn run_build(
     config: build_options.config.clone(),
     target_device: None,
   };
-  let handle = write_options(
-    &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
-    cli_options,
-  )?;
+  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
   if options.open {
     return Ok(handle);

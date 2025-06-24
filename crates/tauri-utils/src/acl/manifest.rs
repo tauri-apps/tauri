@@ -109,9 +109,7 @@ impl Manifest {
         serde_json::from_value::<schemars::Schema>(s.clone()).map(|s| {
           // convert RootSchema to Schema
           let scope_schema = schemars::json_schema!({
-            "array": {
-              "items": s
-            }
+            "items": s
           });
 
           (

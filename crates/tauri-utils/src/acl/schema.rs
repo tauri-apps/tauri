@@ -181,20 +181,21 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
 
 /// Collect and include all possible identifiers in `Identifier` defintion in the schema
 fn extend_identifier_schema(schema: &mut Schema, acl: &BTreeMap<String, Manifest>) {
-  if let Some(serde_json::Value::Object(identifier_schema)) = schema.get_mut("Identifier") {
+  if let Some(identifier_schema) = schema
+    .get_mut("$defs")
+    .unwrap()
+    .as_object_mut()
+    .unwrap()
+    .get_mut("Identifier")
+  {
     let permission_schemas = acl
       .iter()
       .flat_map(|(name, manifest)| manifest.gen_possible_permission_schemas(Some(name)))
       .collect::<Vec<_>>();
-
-    let new_subschemas = json_schema!({
+    *identifier_schema = json!({
+      "description": "Permission identifier",
       "oneOf": permission_schemas
     });
-
-    identifier_schema.insert("subschemas".to_owned(), new_subschemas.into());
-    identifier_schema.insert("object".to_owned(), serde_json::Value::Null);
-    identifier_schema.insert("instance_type".to_owned(), serde_json::Value::Null);
-    identifier_schema.insert("description".to_owned(), "Permission identifier".into());
   }
 }
 

@@ -219,10 +219,8 @@ impl Capability {
 fn unique_permission(gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
   schemars::json_schema!({
     "type": "array",
-    "array": {
-      "uniqueItems": true,
-      "items": gen.subschema_for::<PermissionEntry>()
-    }
+    "uniqueItems": true,
+    "items": gen.subschema_for::<PermissionEntry>()
   })
 }
 

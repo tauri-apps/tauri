@@ -1957,7 +1957,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.0",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7228,8 +7228,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09c024468a378b7e36765cd36702b7a90cc3cba11654f6685c8f233408e89e92"
 dependencies = [
  "dyn-clone",
- "indexmap 1.9.3",
- "schemars_derive",
+ "schemars_derive 0.8.21",
+ "serde",
+ "serde_json",
+ "url",
+]
+
+[[package]]
+name = "schemars"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "febc07c7e70b5db4f023485653c754d76e1bbe8d9dbfa20193ce13da9f9633f4"
+dependencies = [
+ "dyn-clone",
+ "ref-cast",
+ "schemars_derive 1.0.0",
  "serde",
  "serde_json",
  "url",
@@ -7239,7 +7252,20 @@ dependencies = [
 [[package]]
 name = "schemars_derive"
 version = "0.8.21"
-source = "git+https://github.com/tauri-apps/schemars.git?branch=feat/preserve-description-newlines#c30f98480e6e4742aa72202d55d5264c6b2e6476"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1eee588578aff73f856ab961cd2f79e36bc45d7ded33a7562adba4667aecc0e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 2.0.95",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1eeedaab7b1e1d09b5b4661121f4d27f9e7487089b0117833ccd7a882ee1ecc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8416,7 +8442,7 @@ dependencies = [
  "heck 0.5.0",
  "json-patch 3.0.1",
  "quote",
- "schemars",
+ "schemars 1.0.0",
  "semver",
  "serde",
  "serde_json",
@@ -8668,7 +8694,7 @@ dependencies = [
  "anyhow",
  "glob",
  "plist",
- "schemars",
+ "schemars 1.0.0",
  "serde",
  "serde_json",
  "tauri-utils 2.4.0",
@@ -8759,7 +8785,7 @@ dependencies = [
 name = "tauri-schema-generator"
 version = "0.0.0"
 dependencies = [
- "schemars",
+ "schemars 1.0.0",
  "serde",
  "serde_json",
  "tauri-utils 2.4.0",
@@ -8799,7 +8825,7 @@ dependencies = [
  "log",
  "memchr",
  "phf 0.11.3",
- "schemars",
+ "schemars 0.8.21",
  "semver",
  "serde",
  "serde_json",
@@ -8835,7 +8861,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "schemars",
+ "schemars 1.0.0",
  "semver",
  "serde",
  "serde-untagged",

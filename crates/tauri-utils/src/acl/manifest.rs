@@ -8,7 +8,6 @@ use std::{collections::BTreeMap, num::NonZeroU64};
 
 use super::{Permission, PermissionSet};
 #[cfg(feature = "schema")]
-use schemars::schema::*;
 use serde::{Deserialize, Serialize};
 
 /// The default permission set of the plugin.
@@ -98,7 +97,7 @@ impl Manifest {
 }
 
 #[cfg(feature = "schema")]
-type ScopeSchema = (Schema, schemars::Map<String, Schema>);
+type ScopeSchema = (schemars::Schema, serde_json::Map<String, serde_json::Value>);
 
 #[cfg(feature = "schema")]
 impl Manifest {
@@ -108,17 +107,18 @@ impl Manifest {
       .global_scope_schema
       .as_ref()
       .map(|s| {
-        serde_json::from_value::<RootSchema>(s.clone()).map(|s| {
+        serde_json::from_value::<schemars::Schema>(s.clone()).map(|s| {
           // convert RootSchema to Schema
-          let scope_schema = Schema::Object(SchemaObject {
-            array: Some(Box::new(ArrayValidation {
-              items: Some(Schema::Object(s.schema).into()),
-              ..Default::default()
-            })),
-            ..Default::default()
+          let scope_schema = schemars::json_schema!({
+            "array": {
+              "items": s
+            }
           });
 
-          (scope_schema, s.definitions)
+          (
+            scope_schema,
+            s.get("definitions").unwrap().as_object().unwrap().clone(),
+          )
         })
       })
       .transpose()

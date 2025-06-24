@@ -195,6 +195,7 @@ impl<'de> Deserialize<'de> for BundleType {
 
 /// Targets to bundle. Each value is case insensitive.
 #[derive(Debug, PartialEq, Eq, Clone)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
 pub enum BundleTarget {
   /// Bundle all targets.
   All,
@@ -202,48 +203,6 @@ pub enum BundleTarget {
   List(Vec<BundleType>),
   /// A single bundle target.
   One(BundleType),
-}
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for BundleTarget {
-  fn schema_name() -> std::string::String {
-    "BundleTarget".to_owned()
-  }
-
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let any_of = vec![
-      schemars::schema::SchemaObject {
-        const_value: Some("all".into()),
-        metadata: Some(Box::new(schemars::schema::Metadata {
-          description: Some("Bundle all targets.".to_owned()),
-          ..Default::default()
-        })),
-        ..Default::default()
-      }
-      .into(),
-      schemars::_private::metadata::add_description(
-        gen.subschema_for::<Vec<BundleType>>(),
-        "A list of bundle targets.",
-      ),
-      schemars::_private::metadata::add_description(
-        gen.subschema_for::<BundleType>(),
-        "A single bundle target.",
-      ),
-    ];
-
-    schemars::schema::SchemaObject {
-      subschemas: Some(Box::new(schemars::schema::SubschemaValidation {
-        any_of: Some(any_of),
-        ..Default::default()
-      })),
-      metadata: Some(Box::new(schemars::schema::Metadata {
-        description: Some("Targets to bundle. Each value is case insensitive.".to_owned()),
-        ..Default::default()
-      })),
-      ..Default::default()
-    }
-    .into()
-  }
 }
 
 impl Default for BundleTarget {
@@ -1332,6 +1291,7 @@ pub struct BundleConfig {
 
 /// A tuple struct of RGBA colors. Each value has minimum of 0 and maximum of 255.
 #[derive(Debug, PartialEq, Eq, Serialize, Default, Clone, Copy)]
+#[cfg_attr(feature = "schema", derive(JsonSchema), schemars(with = "InnerColor"))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Color(pub u8, pub u8, pub u8, pub u8);
 
@@ -1416,7 +1376,13 @@ fn default_alpha() -> u8 {
 #[serde(untagged)]
 enum InnerColor {
   /// Color hex string, for example: #fff, #ffffff, or #ffffffff.
-  String(String),
+  String(
+    #[cfg_attr(
+      feature = "schema",
+      schemars(pattern("^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$"))
+    )]
+    String,
+  ),
   /// Array of RGB colors. Each value has minimum of 0 and maximum of 255.
   Rgb((u8, u8, u8)),
   /// Array of RGBA colors. Each value has minimum of 0 and maximum of 255.
@@ -1450,27 +1416,6 @@ impl<'de> Deserialize<'de> for Color {
     };
 
     Ok(color)
-  }
-}
-
-#[cfg(feature = "schema")]
-impl schemars::JsonSchema for Color {
-  fn schema_name() -> String {
-    "Color".to_string()
-  }
-
-  fn json_schema(_gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-    let mut schema = schemars::schema_for!(InnerColor).schema;
-    schema.metadata = None; // Remove `title: InnerColor` from schema
-
-    // add hex color pattern validation
-    let any_of = schema.subschemas().any_of.as_mut().unwrap();
-    let schemars::schema::Schema::Object(str_schema) = any_of.first_mut().unwrap() else {
-      unreachable!()
-    };
-    str_schema.string().pattern = Some("^#?([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6}|[A-Fa-f0-9]{8})$".into());
-
-    schema.into()
   }
 }
 
@@ -2950,7 +2895,7 @@ pub struct Config {
   pub schema: Option<String>,
   /// App name.
   #[serde(alias = "product-name")]
-  #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
+  #[cfg_attr(feature = "schema", schemars(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
   /// Overrides app's main binary filename.
   ///

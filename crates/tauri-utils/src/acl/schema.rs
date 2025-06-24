@@ -11,7 +11,8 @@ use std::{
   slice::Iter,
 };
 
-use schemars::schema::*;
+use schemars::{json_schema, Schema};
+use serde_json::json;
 
 use super::{Error, PERMISSION_SCHEMAS_FOLDER_NAME};
 use crate::{platform::Target, write_if_changed};
@@ -59,27 +60,11 @@ pub trait PermissionSchemaGenerator<
       _ => id.to_string(),
     };
 
-    let extensions = if let Some(description) = description {
-      [(
-        // This is non-standard, and only used by vscode right now,
-        // but it does work really well
-        "markdownDescription".to_string(),
-        serde_json::Value::String(description.to_string()),
-      )]
-      .into()
-    } else {
-      Default::default()
-    };
-
-    Schema::Object(SchemaObject {
-      metadata: Some(Box::new(Metadata {
-        description: description.map(ToString::to_string),
-        ..Default::default()
-      })),
-      instance_type: Some(InstanceType::String.into()),
-      const_value: Some(serde_json::Value::String(command_name)),
-      extensions,
-      ..Default::default()
+    json_schema!({
+      "type": "string",
+      "const": command_name,
+      "description": description,
+      "markdownDescription": description
     })
   }
 
@@ -195,22 +180,21 @@ impl<'a> PermissionSchemaGenerator<'a, Iter<'a, PermissionSet>, Iter<'a, Permiss
 }
 
 /// Collect and include all possible identifiers in `Identifier` defintion in the schema
-fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Manifest>) {
-  if let Some(Schema::Object(identifier_schema)) = schema.definitions.get_mut("Identifier") {
+fn extend_identifier_schema(schema: &mut Schema, acl: &BTreeMap<String, Manifest>) {
+  if let Some(serde_json::Value::Object(identifier_schema)) = schema.get_mut("Identifier") {
     let permission_schemas = acl
       .iter()
       .flat_map(|(name, manifest)| manifest.gen_possible_permission_schemas(Some(name)))
       .collect::<Vec<_>>();
 
-    let new_subschemas = Box::new(SubschemaValidation {
-      one_of: Some(permission_schemas),
-      ..Default::default()
+    let new_subschemas = json_schema!({
+      "oneOf": permission_schemas
     });
 
-    identifier_schema.subschemas = Some(new_subschemas);
-    identifier_schema.object = None;
-    identifier_schema.instance_type = None;
-    identifier_schema.metadata().description = Some("Permission identifier".to_string());
+    identifier_schema.insert("subschemas".to_owned(), new_subschemas.into());
+    identifier_schema.insert("object".to_owned(), serde_json::Value::Null);
+    identifier_schema.insert("instance_type".to_owned(), serde_json::Value::Null);
+    identifier_schema.insert("description".to_owned(), "Permission identifier".into());
   }
 }
 
@@ -241,25 +225,27 @@ fn extend_identifier_schema(schema: &mut RootSchema, acl: &BTreeMap<String, Mani
 ///   }
 /// }
 /// ```
-fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<String, Manifest>) {
+fn extend_permission_entry_schema(root_schema: &mut Schema, acl: &BTreeMap<String, Manifest>) {
   const IDENTIFIER: &str = "identifier";
   const ALLOW: &str = "allow";
   const DENY: &str = "deny";
 
   let mut collected_defs = vec![];
 
-  if let Some(Schema::Object(obj)) = root_schema.definitions.get_mut("PermissionEntry") {
-    let any_of = obj.subschemas().any_of.as_mut().unwrap();
-    let Schema::Object(extened_permission_entry) = any_of.last_mut().unwrap() else {
+  if let Some(serde_json::Value::Object(obj)) = root_schema
+    .get_mut("definitions")
+    .unwrap()
+    .get_mut("PermissionEntry")
+  {
+    let any_of = obj.get_mut("anyOf").unwrap().as_array_mut().unwrap();
+    let serde_json::Value::Object(extened_permission_entry) = any_of.last_mut().unwrap() else {
       unreachable!("PermissionsEntry should be an object not a boolean");
     };
 
     // remove default properties and save it to be added later as a fallback
-    let obj = extened_permission_entry.object.as_mut().unwrap();
-    let default_properties = std::mem::take(&mut obj.properties);
+    let default_properties = extened_permission_entry.remove("properties").unwrap();
 
     let defaut_identifier = default_properties.get(IDENTIFIER).cloned().unwrap();
-    let default_identifier = (IDENTIFIER.to_string(), defaut_identifier);
 
     let mut all_of = vec![];
 
@@ -271,39 +257,51 @@ fn extend_permission_entry_schema(root_schema: &mut RootSchema, acl: &BTreeMap<S
     });
 
     for ((scope_schema, defs), acl_perm_schema) in schemas {
-      let mut perm_schema = SchemaObject::default();
-      perm_schema.subschemas().any_of = Some(acl_perm_schema);
+      let if_schema = json_schema!({
+        "properties": {
+          IDENTIFIER: {
+            "anyOf": acl_perm_schema
+          }
+        }
+      });
 
-      let mut if_schema = SchemaObject::default();
-      if_schema.object().properties = [(IDENTIFIER.to_string(), perm_schema.into())].into();
+      let then_schema = json_schema!({
+        "properties": {
+          ALLOW: scope_schema.clone(),
+          DENY: scope_schema.clone(),
+        }
+      });
 
-      let mut then_schema = SchemaObject::default();
-      then_schema.object().properties = [
-        (ALLOW.to_string(), scope_schema.clone()),
-        (DENY.to_string(), scope_schema.clone()),
-      ]
-      .into();
+      all_of.push(json_schema!({
+        "properties": {
+          ALLOW: scope_schema.clone(),
+          DENY: scope_schema.clone(),
+          IDENTIFIER: defaut_identifier
+        },
+        "if": if_schema,
+        "then": then_schema
+      }));
 
-      let mut obj = SchemaObject::default();
-      obj.object().properties = [default_identifier.clone()].into();
-      obj.subschemas().if_schema = Some(Box::new(if_schema.into()));
-      obj.subschemas().then_schema = Some(Box::new(then_schema.into()));
-
-      all_of.push(Schema::Object(obj));
       collected_defs.extend(defs);
     }
 
     // add back default properties as a fallback
-    let mut default_obj = SchemaObject::default();
-    default_obj.object().properties = default_properties;
-    all_of.push(Schema::Object(default_obj));
+    let default_obj = json_schema!({
+      "properties": default_properties
+    });
+    all_of.push(default_obj);
 
     // replace extended PermissionEntry with the new schema
-    extened_permission_entry.subschemas().all_of = Some(all_of);
+    extened_permission_entry.insert("allOf".to_owned(), all_of.into());
   }
 
   // extend root schema with definitions collected from plugins
-  root_schema.definitions.extend(collected_defs);
+  root_schema
+    .get_mut("definitions")
+    .unwrap()
+    .as_object_mut()
+    .unwrap()
+    .extend(collected_defs);
 }
 
 /// Generate schema for CapabilityFile with all possible plugins permissions
@@ -341,37 +339,42 @@ pub fn generate_capability_schema(
 }
 
 /// Extend schema with collected permissions from the passed [`PermissionFile`]s.
-fn extend_permission_file_schema(schema: &mut RootSchema, permissions: &[PermissionFile]) {
+fn extend_permission_file_schema(schema: &mut Schema, permissions: &[PermissionFile]) {
   // collect possible permissions
-  let permission_schemas = permissions
+  let permission_schemas: Vec<_> = permissions
     .iter()
     .flat_map(|p| p.gen_possible_permission_schemas(None))
     .collect();
 
-  if let Some(Schema::Object(obj)) = schema.definitions.get_mut("PermissionSet") {
-    let permissions_obj = obj.object().properties.get_mut("permissions");
-    if let Some(Schema::Object(permissions_obj)) = permissions_obj {
+  let definitions = schema
+    .get_mut("definitions")
+    .unwrap()
+    .as_object_mut()
+    .unwrap();
+  if let Some(serde_json::Value::Object(obj)) = definitions.get_mut("PermissionSet") {
+    let permissions_obj = obj
+      .get_mut("permissions")
+      .unwrap()
+      .as_object_mut()
+      .unwrap()
+      .get_mut("permissions");
+    if let Some(serde_json::Value::Object(permissions_obj)) = permissions_obj {
       // replace the permissions property schema object
       // from a mere string to a referecnce to `PermissionKind`
-      permissions_obj.array().items.replace(
-        Schema::Object(SchemaObject {
-          reference: Some("#/definitions/PermissionKind".into()),
-          ..Default::default()
-        })
-        .into(),
+      permissions_obj.insert(
+        "items".to_owned(),
+        json!({
+          "reference": "#/definitions/PermissionKind"
+        }),
       );
 
       // add the new `PermissionKind` definition in the schema that
       // is a list of all possible permissions collected
-      schema.definitions.insert(
+      definitions.insert(
         "PermissionKind".into(),
-        Schema::Object(SchemaObject {
-          instance_type: Some(InstanceType::String.into()),
-          subschemas: Some(Box::new(SubschemaValidation {
-            one_of: Some(permission_schemas),
-            ..Default::default()
-          })),
-          ..Default::default()
+        json!({
+          "type": "string",
+          "oneOf": permission_schemas
         }),
       );
     }

@@ -1,4 +1,4 @@
-// Copyright 2019-2023 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -10,9 +10,6 @@
 //! This is a core functionality that is not considered part of the stable API.
 //! If you use it, note that it may include breaking changes in the future.
 
-#[cfg(target_os = "linux")]
-#[cfg(feature = "schema")]
-use schemars::JsonSchema;
 use semver::Version;
 use serde::{
   de::{Deserializer, Error as DeError, Visitor},

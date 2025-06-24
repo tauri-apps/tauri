@@ -346,11 +346,7 @@ fn extend_permission_file_schema(schema: &mut Schema, permissions: &[PermissionF
     .flat_map(|p| p.gen_possible_permission_schemas(None))
     .collect();
 
-  let definitions = schema
-    .get_mut("$defs")
-    .unwrap()
-    .as_object_mut()
-    .unwrap();
+  let definitions = schema.get_mut("$defs").unwrap().as_object_mut().unwrap();
   if let Some(serde_json::Value::Object(obj)) = definitions.get_mut("PermissionSet") {
     let permissions_obj = obj
       .get_mut("properties")

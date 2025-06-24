@@ -233,7 +233,7 @@ fn extend_permission_entry_schema(root_schema: &mut Schema, acl: &BTreeMap<Strin
   let mut collected_defs = vec![];
 
   if let Some(serde_json::Value::Object(obj)) = root_schema
-    .get_mut("definitions")
+    .get_mut("$defs")
     .unwrap()
     .get_mut("PermissionEntry")
   {
@@ -297,7 +297,7 @@ fn extend_permission_entry_schema(root_schema: &mut Schema, acl: &BTreeMap<Strin
 
   // extend root schema with definitions collected from plugins
   root_schema
-    .get_mut("definitions")
+    .get_mut("$defs")
     .unwrap()
     .as_object_mut()
     .unwrap()
@@ -347,13 +347,13 @@ fn extend_permission_file_schema(schema: &mut Schema, permissions: &[PermissionF
     .collect();
 
   let definitions = schema
-    .get_mut("definitions")
+    .get_mut("$defs")
     .unwrap()
     .as_object_mut()
     .unwrap();
   if let Some(serde_json::Value::Object(obj)) = definitions.get_mut("PermissionSet") {
     let permissions_obj = obj
-      .get_mut("permissions")
+      .get_mut("properties")
       .unwrap()
       .as_object_mut()
       .unwrap()

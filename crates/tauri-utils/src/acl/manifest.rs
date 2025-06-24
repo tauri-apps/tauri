@@ -116,7 +116,7 @@ impl Manifest {
 
           (
             scope_schema,
-            s.get("definitions").unwrap().as_object().unwrap().clone(),
+            s.get("$defs").unwrap().as_object().unwrap().clone(),
           )
         })
       })

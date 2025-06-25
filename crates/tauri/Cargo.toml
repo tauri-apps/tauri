@@ -62,7 +62,7 @@ tauri-utils = { version = "2.5.0", features = [
   "resources",
 ], path = "../tauri-utils" }
 tauri-runtime-wry = { version = "2.7.0", path = "../tauri-runtime-wry", default-features = false, optional = true }
-getrandom = "0.2"
+getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
 dirs = "6"

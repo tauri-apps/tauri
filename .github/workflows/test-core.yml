@@ -10,13 +10,13 @@ on:
       - dev
   pull_request:
     paths:
-      - '.github/workflows/test-core.yml'
-      - 'crates/**'
-      - '!crates/tauri/scripts/**'
-      - '!crates/tauri-cli/**'
-      - '!crates/tauri-bundler/**'
-      - '!crates/tauri-macos-sign/**'
-      - '!crates/tauri-schema-generator/**'
+      - ".github/workflows/test-core.yml"
+      - "crates/**"
+      - "!crates/tauri/scripts/**"
+      - "!crates/tauri-cli/**"
+      - "!crates/tauri-bundler/**"
+      - "!crates/tauri-macos-sign/**"
+      - "!crates/tauri-schema-generator/**"
 
 env:
   RUST_BACKTRACE: 1
@@ -37,37 +37,37 @@ jobs:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.77.2',
+              toolchain: "1.77.2",
               cross: false,
-              command: 'test'
+              command: "test",
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-latest,
-              toolchain: '1.77.2',
+              toolchain: "1.77.2",
               cross: false,
-              command: 'test'
+              command: "test",
             }
           - {
               target: aarch64-apple-darwin,
               os: macos-14,
-              toolchain: '1.77.2',
+              toolchain: "1.77.2",
               cross: false,
-              command: 'test'
+              command: "test",
             }
           - {
               target: aarch64-apple-ios,
               os: macos-latest,
-              toolchain: '1.77.2',
+              toolchain: "1.77.2",
               cross: false,
-              command: 'build'
+              command: "build",
             }
           - {
               target: aarch64-linux-android,
               os: ubuntu-latest,
-              toolchain: '1.77.2',
+              toolchain: "1.77.2",
               cross: true,
-              command: 'build'
+              command: "build",
             }
         features:
           - { args: --no-default-features, key: no-default }
@@ -90,7 +90,7 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          prefix-key: v2
+          prefix-key: v3
           save-if: ${{ matrix.features.key == 'all' }}
 
       - name: test

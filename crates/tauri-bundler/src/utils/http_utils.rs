@@ -51,13 +51,26 @@ fn generate_github_alternative_url(url: &str) -> Option<(ureq::Agent, String)> {
 }
 
 fn create_agent_and_url(url: &str) -> (ureq::Agent, String) {
-  generate_github_alternative_url(url).unwrap_or((
-    ureq::Agent::config_builder()
-      .proxy(ureq::Proxy::try_from_env())
-      .build()
-      .into(),
-    url.to_owned(),
-  ))
+  generate_github_alternative_url(url).unwrap_or((base_ureq_agent(), url.to_owned()))
+}
+
+pub(crate) fn base_ureq_agent() -> ureq::Agent {
+  #[cfg(feature = "platform-certs")]
+  let agent: ureq::Agent = ureq::Agent::config_builder()
+    .tls_config(
+      ureq::tls::TlsConfig::builder()
+        .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+        .build(),
+    )
+    .proxy(ureq::Proxy::try_from_env())
+    .build()
+    .into();
+  #[cfg(not(feature = "platform-certs"))]
+  let agent: ureq::Agent = ureq::Agent::config_builder()
+    .proxy(ureq::Proxy::try_from_env())
+    .build()
+    .into();
+  agent
 }
 
 #[allow(dead_code)]

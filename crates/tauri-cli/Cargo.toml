@@ -85,7 +85,7 @@ log = { version = "0.4.21", features = ["kv", "kv_std"] }
 env_logger = "0.11"
 icns = { package = "tauri-icns", version = "0.1" }
 image = { version = "0.25", default-features = false, features = ["ico"] }
-axum = { version = "0.7", features = ["ws"] }
+axum = { version = "0.8", features = ["ws"] }
 html5ever = "0.29"
 kuchiki = { package = "kuchikiki", version = "=0.8.8-speedreader" }
 tokio = { version = "1", features = ["macros", "sync"] }

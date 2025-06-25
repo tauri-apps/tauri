@@ -209,7 +209,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         enum_values: Some(vec!["all".into()]),
@@ -221,14 +221,14 @@ impl schemars::JsonSchema for BundleTarget {
       }
       .into(),
       apply_metadata(
-        gen.subschema_for::<Vec<BundleType>>(),
+        generator.subschema_for::<Vec<BundleType>>(),
         schemars::schema::Metadata {
           description: Some("A list of bundle targets.".to_owned()),
           ..Default::default()
         },
       ),
       apply_metadata(
-        gen.subschema_for::<BundleType>(),
+        generator.subschema_for::<BundleType>(),
         schemars::schema::Metadata {
           description: Some("A single bundle target.".to_owned()),
           ..Default::default()
@@ -722,7 +722,7 @@ pub struct BundleConfig {
   /// The application identifier in reverse domain name notation (e.g. `com.tauri.example`).
   /// This string must be unique across applications since it is used in system configurations like
   /// the bundle ID and path to the webview data directory.
-  /// This string must contain only alphanumeric characters (A–Z, a–z, and 0–9), hyphens (-),
+  /// This string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-),
   /// and periods (.).
   pub identifier: String,
   /// The application's publisher. Defaults to the second element in the identifier string.

@@ -8,7 +8,7 @@ publish = false
 crate-type = ["cdylib"]
 
 [dependencies]
-worker = { version = "0.5", features = ['http', 'axum'] }
+worker = { version = "0.6", features = ['http', 'axum'] }
 worker-macros = { version = "0.5", features = ['http'] }
 console_error_panic_hook = { version = "0.1" }
 axum = { version = "0.7", default-features = false }

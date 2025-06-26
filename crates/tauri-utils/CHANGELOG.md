@@ -1,5 +1,30 @@
 # Changelog
 
+## \[2.5.0]
+
+### New Features
+
+- [`414619c36`](https://www.github.com/tauri-apps/tauri/commit/414619c36e94e21939534dd72c0438b93da75546) ([#13536](https://www.github.com/tauri-apps/tauri/pull/13536) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Added support for the `bundleName` property in the macOS bundler configuration. This allows specifying the `CFBundleName` value for generated macOS bundles.
+- [`09c19932d`](https://www.github.com/tauri-apps/tauri/commit/09c19932d2ddf05f28bcdc73796a966532e7ca1c) ([#13304](https://www.github.com/tauri-apps/tauri/pull/13304) by [@39zde](https://www.github.com/tauri-apps/tauri/../../39zde)) Adds the option to configure the HTTP `Service-Worker-Allowed` response header in `app > security > headers`
+
+### Bug Fixes
+
+- [`eb3f0248c`](https://www.github.com/tauri-apps/tauri/commit/eb3f0248c25f1d259cf0fa9448b3c7c2b75b24a7) ([#13646](https://www.github.com/tauri-apps/tauri/pull/13646) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Only write `This default permission set includes the following` to the reference if the default permission set is not empty
+- [`c8a30a61d`](https://www.github.com/tauri-apps/tauri/commit/c8a30a61d20552b43afd6f21cb66d18185314148) ([#13476](https://www.github.com/tauri-apps/tauri/pull/13476) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix capability filtering via `tauri.conf.json > app > security > capabilities` not working when generating allowed commands.
+- [`b52da29d5`](https://www.github.com/tauri-apps/tauri/commit/b52da29d5dbdb675ddba438a335e6a59f620e536) ([#13429](https://www.github.com/tauri-apps/tauri/pull/13429) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `mainBinaryName` doesn't work when there's `.` in it
+
+### What's Changed
+
+- [`168629646`](https://www.github.com/tauri-apps/tauri/commit/168629646335f24cc7f1c4a61df22688b2198f98) ([#13418](https://www.github.com/tauri-apps/tauri/pull/13418) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Put dynamic ACL into a feature `dynamic-acl`, this is currently enabled by default to align with the previous behaviors, you can disable it through `default-features = false` to reduce the final binary size by not including the ACL references
+
+### Dependencies
+
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Update html5ever to 0.29 and kuchikiki to version 0.8.8-speedreader.
+
+### Breaking Changes
+
+- [`b7cdb3b39`](https://www.github.com/tauri-apps/tauri/commit/b7cdb3b39ef7e84773ce9312535825801350fa20) ([#13410](https://www.github.com/tauri-apps/tauri/pull/13410) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Feature gated the HTML manipulation code in `tauri-utils` behined a flag to reduce compile time
+
 ## \[2.4.0]
 
 ### New Features

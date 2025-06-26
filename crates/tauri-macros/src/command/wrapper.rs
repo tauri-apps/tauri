@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::env::var;
+use std::{env::var, sync::OnceLock};
 
 use heck::{ToLowerCamelCase, ToSnakeCase};
 use proc_macro::TokenStream;
@@ -485,26 +485,29 @@ fn is_rustc_at_least(major: u32, minor: u32) -> bool {
   version.0 >= major && version.1 >= minor
 }
 
-fn rustc_version() -> (u32, u32) {
-  cross_command("rustc")
-    .arg("-V")
-    .output()
-    .ok()
-    .and_then(|o| {
-      let version = String::from_utf8_lossy(&o.stdout)
-        .trim()
-        .split(' ')
-        .nth(1)
-        .unwrap_or_default()
-        .split('.')
-        .take(2)
-        .flat_map(|p| p.parse::<u32>().ok())
-        .collect::<Vec<_>>();
-      version
-        .first()
-        .and_then(|major| version.get(1).map(|minor| (*major, *minor)))
-    })
-    .unwrap_or((1, 0))
+fn rustc_version() -> &'static (u32, u32) {
+  static RUSTC_VERSION: OnceLock<(u32, u32)> = OnceLock::new();
+  RUSTC_VERSION.get_or_init(|| {
+    cross_command("rustc")
+      .arg("-V")
+      .output()
+      .ok()
+      .and_then(|o| {
+        let version = String::from_utf8_lossy(&o.stdout)
+          .trim()
+          .split(' ')
+          .nth(1)
+          .unwrap_or_default()
+          .split('.')
+          .take(2)
+          .flat_map(|p| p.parse::<u32>().ok())
+          .collect::<Vec<_>>();
+        version
+          .first()
+          .and_then(|major| version.get(1).map(|minor| (*major, *minor)))
+      })
+      .unwrap_or((1, 0))
+  })
 }
 
 fn cross_command(bin: &str) -> std::process::Command {

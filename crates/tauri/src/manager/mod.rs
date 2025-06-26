@@ -135,7 +135,7 @@ fn replace_csp_nonce(
     let mut raw = [0u8; 4];
     #[cfg(target_pointer_width = "16")]
     let mut raw = [0u8; 2];
-    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    getrandom::fill(&mut raw).expect("failed to get random bytes");
     let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()

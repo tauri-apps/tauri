@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.7.0]
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629)) Update html5ever to 0.29 and kuchikiki to version 0.8.8-speedreader.
+
 ## \[2.6.0]
 
 ### New Features

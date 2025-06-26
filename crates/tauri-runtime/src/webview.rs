@@ -30,7 +30,11 @@ type WebResourceRequestHandler =
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
+type NewWindowHandler = dyn Fn(&Url) -> bool + Send;
+
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+
+type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
@@ -94,6 +98,10 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<NavigationHandler>>,
 
+  pub new_window_handler: Option<Box<NewWindowHandler>>,
+
+  pub document_title_changed_handler: Option<Box<DocumentTitleChangedHandler>>,
+
   /// The resolved URL to load on the webview.
   pub url: String,
 
@@ -125,6 +133,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         label,
         ipc_handler: None,
         navigation_handler: None,
+        new_window_handler: None,
+        document_title_changed_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,

@@ -50,10 +50,11 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+pub(crate) type NewWindowHandler = dyn Fn(&Url) -> bool + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
-
+pub(crate) type OnDocumentTitleChanged = dyn Fn(String) + Send + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
@@ -236,7 +237,9 @@ unstable_struct!(
     pub(crate) webview_attributes: WebviewAttributes,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
+    pub(crate) new_window_handler: Option<Box<NewWindowHandler>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
+    pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
   }
 );
@@ -312,7 +315,9 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      new_window_handler: None,
       on_page_load_handler: None,
+      document_title_changed_handler: None,
       download_handler: None,
     }
   }
@@ -351,7 +356,9 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::from(config),
       web_resource_request_handler: None,
       navigation_handler: None,
+      new_window_handler: None,
       on_page_load_handler: None,
+      document_title_changed_handler: None,
       download_handler: None,
     }
   }
@@ -446,6 +453,20 @@ tauri::Builder::default()
   )]
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
+  /// Defines a closure to be executed when a new window is created.
+  ///
+  /// Returning `false` prevents the new window from being created.
+  pub fn on_new_window<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.new_window_handler.replace(Box::new(f));
+    self
+  }
+
+  /// Defines a closure to be executed when document title change.
+  pub fn on_document_title_changed<F: Fn(String) + Send + 'static>(mut self, f: F) -> Self {
+    self.document_title_changed_handler.replace(Box::new(f));
     self
   }
 
@@ -550,6 +571,7 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
+    pending.new_window_handler = self.new_window_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
     if let Some(download_handler) = self.download_handler.take() {

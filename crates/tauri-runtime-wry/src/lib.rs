@@ -4556,6 +4556,20 @@ You may have it installed on another user account, but it is not available for t
     });
   }
 
+  if let Some(new_window_handler) = pending.new_window_handler {
+    webview_builder = webview_builder.with_new_window_req_handler(move |url| {
+      url
+        .parse()
+        .map(|url| new_window_handler(&url))
+        .unwrap_or(true)
+    });
+  }
+
+  if let Some(document_title_changed_handler) = pending.document_title_changed_handler {
+    webview_builder =
+      webview_builder.with_document_title_changed_handler(document_title_changed_handler)
+  }
+
   let webview_bounds = if let Some(bounds) = webview_attributes.bounds {
     let bounds: RectWrapper = bounds.into();
     let bounds = bounds.0;

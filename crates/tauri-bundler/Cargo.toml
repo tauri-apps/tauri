@@ -63,7 +63,7 @@ tauri-macos-sign = { version = "2.1.0", path = "../tauri-macos-sign" }
 heck = "0.5"
 ar = "0.9"
 md5 = "0.7"
-rpm = { version = "0.16", features = ["bzip2-compression"] }
+rpm = { version = "0.17", features = ["bzip2-compression"] }
 
 [target."cfg(unix)".dependencies]
 which = "7"

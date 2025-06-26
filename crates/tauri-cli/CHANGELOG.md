@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.6.1]
+
+### Bug Fixes
+
+- [`4b7370e9e`](https://www.github.com/tauri-apps/tauri/commit/4b7370e9e0ba299361c8ad96c08882337e44f091) ([#13710](https://www.github.com/tauri-apps/tauri/pull/13710) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue in the plugin template (`tauri plugin init`) that prevented the js build command to fail.
+
 ## \[2.6.0]
 
 ### New Features

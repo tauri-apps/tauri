@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.6.1]
+
+### Bug Fixes
+
+- [`5bbcaaec8`](https://www.github.com/tauri-apps/tauri/commit/5bbcaaec891c3011b147caed8908a5d043a34f48) ([#13707](https://www.github.com/tauri-apps/tauri/pull/13707) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix a regression that the JavaScript API can no longer set menus and icons for tray icons
+
+### Dependencies
+
+- Upgraded to `tauri-macros@2.3.1`
+
 ## \[2.6.0]
 
 ### New Features

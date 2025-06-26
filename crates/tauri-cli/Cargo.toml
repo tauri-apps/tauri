@@ -42,7 +42,7 @@ cargo-mobile2 = { version = "0.20", default-features = false }
 jsonrpsee = { version = "0.24", features = ["server"] }
 jsonrpsee-core = "0.24"
 jsonrpsee-client-transport = { version = "0.24", features = ["ws"] }
-jsonrpsee-ws-client = { version = "0.24", default-features = false }
+jsonrpsee-ws-client = { version = "0.25", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }

@@ -10,7 +10,7 @@ use std::{
 
 use crate::{assert_command, CommandExt};
 use anyhow::Result;
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 
 mod identity;
 
@@ -67,9 +67,9 @@ impl Keychain {
     let home_dir = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("failed to resolve home dir"))?;
     let keychain_path = home_dir.join("Library").join("Keychains").join(format!(
       "{}.keychain-db",
-      Alphanumeric.sample_string(&mut rand::thread_rng(), 16)
+      Alphanumeric.sample_string(&mut rand::rng(), 16)
     ));
-    let keychain_password = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+    let keychain_password = Alphanumeric.sample_string(&mut rand::rng(), 16);
 
     let keychain_list_output = Command::new("security")
       .args(["list-keychain", "-d", "user"])

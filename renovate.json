@@ -1,6 +1,6 @@
 {
   "extends": ["config:recommended"],
-  "baseBranches": ["dev", "1.x"],
+  "baseBranches": ["dev"],
   "labels": ["type: chore"],
   "enabledManagers": ["cargo", "npm"],
   "rangeStrategy": "replace",

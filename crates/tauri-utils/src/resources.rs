@@ -328,7 +328,7 @@ mod tests {
 
   fn setup_test_dirs() {
     let mut random = [0; 1];
-    getrandom::getrandom(&mut random).unwrap();
+    getrandom::fill(&mut random).unwrap();
 
     let temp = std::env::temp_dir();
     let temp = temp.join(format!("tauri_resource_paths_iter_test_{}", random[0]));

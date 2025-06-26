@@ -1,5 +1,29 @@
 # Changelog
 
+## \[2.6.0]
+
+### New Features
+
+- [`414619c36`](https://www.github.com/tauri-apps/tauri/commit/414619c36e94e21939534dd72c0438b93da75546) ([#13536](https://www.github.com/tauri-apps/tauri/pull/13536) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Added support for the `bundleName` property in the macOS bundler configuration. This allows specifying the `CFBundleName` value for generated macOS bundles.
+- [`3242e1c94`](https://www.github.com/tauri-apps/tauri/commit/3242e1c946c441b58665ba5d612f3a3f1eafe0b6) ([#13659](https://www.github.com/tauri-apps/tauri/pull/13659) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow passing Cargo arguments to mobile dev and build commands.
+- [`d1ce9af62`](https://www.github.com/tauri-apps/tauri/commit/d1ce9af62881e3f7d86a495c9c40df5b7f9d1c04) ([#13660](https://www.github.com/tauri-apps/tauri/pull/13660) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow passing `--config` arguments to the `ios init` and `android init` commands to tweak the configuration used to initialize the mobile projects.
+- [`7322f0579`](https://www.github.com/tauri-apps/tauri/commit/7322f057923aaec88960ad5556776774b745762f) ([#13502](https://www.github.com/tauri-apps/tauri/pull/13502) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Allow using `CheckIfAppIsRunning` macro inside NSIS hooks, for example `!insertmacro CheckIfAppIsRunning "another-executable.exe" "Another Executable"`.
+- [`4a880ca69`](https://www.github.com/tauri-apps/tauri/commit/4a880ca697bab6d63a2a51ea94e1988cc8c4ea4a) ([#13658](https://www.github.com/tauri-apps/tauri/pull/13658) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Synchronize Tauri config productName changes with the iOS Xcode project.
+- [`8ee14a864`](https://www.github.com/tauri-apps/tauri/commit/8ee14a86480510c15823586cf28084e615cb7a9c) ([#13618](https://www.github.com/tauri-apps/tauri/pull/13618) by [@Sky-walkerX](https://www.github.com/tauri-apps/tauri/../../Sky-walkerX)) Warn the user that the app id shouldn't end in `.app` because it conflicts with the application bundle extension on macOS
+
+### Bug Fixes
+
+- [`574a4d4d3`](https://www.github.com/tauri-apps/tauri/commit/574a4d4d36762b5b09dc3fcfcbcae3a0df0b6d89) ([#13426](https://www.github.com/tauri-apps/tauri/pull/13426) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `dev`, `build` and `bundle` commands always take 2 seconds to start
+- [`35aa7e121`](https://www.github.com/tauri-apps/tauri/commit/35aa7e1218f34d0805e280e3ec32529d0cb0d733) ([#13294](https://www.github.com/tauri-apps/tauri/pull/13294) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) fix: allow the target directory to be inside frontendDir as long as it is not the Rust target directory inside frontendDir.
+- [`ec6065fa4`](https://www.github.com/tauri-apps/tauri/commit/ec6065fa4a6427266ecfb0c0f62f008574bb7880) ([#13625](https://www.github.com/tauri-apps/tauri/pull/13625) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes Android and iOS dev/build commands not working when the app identifier is being modified by the `--config` option.
+- [`5a5291d66`](https://www.github.com/tauri-apps/tauri/commit/5a5291d66cb8a955c9d4f8e975782646ac0cc6e7) ([#13483](https://www.github.com/tauri-apps/tauri/pull/13483) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix simulator build detection on Xcode.
+
+### Dependencies
+
+- Upgraded to `tauri-bundler@2.5.0`
+- Upgraded to `tauri-utils@2.5.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Update html5ever to 0.29 and kuchikiki to version 0.8.8-speedreader.
+
 ## \[2.5.0]
 
 ### New Features

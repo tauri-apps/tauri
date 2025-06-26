@@ -146,7 +146,7 @@ async fn stable_version(crate_: &str) -> anyhow::Result<Version> {
 }
 
 fn fetch_req(url: &str) -> anyhow::Result<worker::Request> {
-  let mut headers = Headers::new();
+  let headers = Headers::new();
   headers.append(header::USER_AGENT.as_str(), USERAGENT)?;
 
   worker::Request::new_with_init(

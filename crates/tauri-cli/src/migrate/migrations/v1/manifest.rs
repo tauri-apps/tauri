@@ -8,7 +8,7 @@ use crate::{
 };
 
 use anyhow::Context;
-use tauri_utils_v1::config::Allowlist;
+use tauri_utils::config_v1::Allowlist;
 use toml_edit::{DocumentMut, Entry, Item, TableLike, Value};
 
 use std::path::Path;
@@ -163,7 +163,7 @@ fn features_to_rename() -> Vec<(&'static str, &'static str)> {
 }
 
 fn features_to_remove() -> Vec<&'static str> {
-  let mut features_to_remove = tauri_utils_v1::config::AllowlistConfig::all_features();
+  let mut features_to_remove = tauri_utils::config_v1::AllowlistConfig::all_features();
   features_to_remove.extend(&[
     "reqwest-client",
     "http-multipart",

@@ -139,7 +139,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///   let mut conf = app.config().app.windows.iter().find(|c| c.label == "template-for-multiwindow").unwrap().clone();
   ///   // This should be a unique label for all windows. For example, we can use a random suffix:
   ///   let mut buf = [0u8; 1];
-  ///   assert_eq!(getrandom::getrandom(&mut buf), Ok(()));
+  ///   assert_eq!(getrandom::fill(&mut buf), Ok(()));
   ///   conf.label = format!("my-multiwindow-{}", buf[0]);
   ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &conf)
   ///     .unwrap()

@@ -25,8 +25,6 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
-use schemars::schema::Schema;
-#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{
@@ -45,18 +43,6 @@ use std::{
   path::PathBuf,
   str::FromStr,
 };
-
-#[cfg(feature = "schema")]
-fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
-  let value = description.into();
-  if value.is_empty() {
-    schema
-  } else {
-    let mut schema_obj = schema.into_object();
-    schema_obj.metadata().description = value.into();
-    Schema::Object(schema_obj)
-  }
-}
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
@@ -209,12 +195,18 @@ impl<'de> Deserialize<'de> for BundleType {
 
 /// Targets to bundle. Each value is case insensitive.
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[cfg_attr(
+  feature = "schema",
+  derive(JsonSchema),
+  schemars(rename_all = "lowercase")
+)]
 pub enum BundleTarget {
   /// Bundle all targets.
   All,
+  #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A list of bundle targets.
   List(Vec<BundleType>),
+  #[cfg_attr(feature = "schema", schemars(untagged))]
   /// A single bundle target.
   One(BundleType),
 }

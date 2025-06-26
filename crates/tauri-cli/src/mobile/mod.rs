@@ -5,12 +5,11 @@
 use crate::{
   helpers::{
     app_paths::tauri_dir,
-    config::{reload as reload_config, Config as TauriConfig, ConfigHandle},
+    config::{reload as reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
   ConfigValue,
 };
-#[cfg(unix)]
 use anyhow::Context;
 use anyhow::{bail, Result};
 use heck::ToSnekCase;
@@ -365,7 +364,10 @@ fn env() -> Result<Env, EnvError> {
 pub struct OptionsHandle(#[allow(unused)] Runtime, #[allow(unused)] ServerHandle);
 
 /// Writes CLI options to be used later on the Xcode and Android Studio build commands
-pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result<OptionsHandle> {
+pub fn write_options(
+  config: &ConfigMetadata,
+  mut options: CliOptions,
+) -> crate::Result<OptionsHandle> {
   options.vars.extend(env_vars());
 
   let runtime = Runtime::new().unwrap();
@@ -383,18 +385,28 @@ pub fn write_options(identifier: &str, mut options: CliOptions) -> crate::Result
   let (handle, addr) = r?;
 
   write(
-    temp_dir().join(format!("{identifier}-server-addr")),
+    temp_dir().join(format!(
+      "{}-server-addr",
+      config
+        .original_identifier()
+        .context("app configuration is missing an identifier")?
+    )),
     addr.to_string(),
   )?;
 
   Ok(OptionsHandle(runtime, handle))
 }
 
-fn read_options(identifier: &str) -> CliOptions {
+fn read_options(config: &ConfigMetadata) -> CliOptions {
   let runtime = tokio::runtime::Runtime::new().unwrap();
   let options = runtime
     .block_on(async move {
-      let addr_path = temp_dir().join(format!("{identifier}-server-addr"));
+      let addr_path = temp_dir().join(format!(
+        "{}-server-addr",
+        config
+          .original_identifier()
+          .context("app configuration is missing an identifier")?
+      ));
       let (tx, rx) = WsTransportClientBuilder::default()
         .build(
           format!(

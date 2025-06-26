@@ -195,23 +195,34 @@ pub fn command(mut options: Options) -> Result<()> {
       template_target_path
     );
   } else {
-    let (tauri_dep, tauri_build_dep) = if let Some(tauri_path) = &options.tauri_path {
-      (
-        format!(
-          r#"{{  path = {:?} }}"#,
-          resolve_tauri_path(tauri_path, "crates/tauri")
-        ),
-        format!(
-          "{{  path = {:?} }}",
-          resolve_tauri_path(tauri_path, "crates/tauri-build")
-        ),
-      )
-    } else {
-      (
-        format!(r#"{{ version = "{}" }}"#, metadata.tauri),
-        format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
-      )
-    };
+    let (tauri_dep, tauri_build_dep, tauri_utils_dep, tauri_plugin_dep) =
+      if let Some(tauri_path) = &options.tauri_path {
+        (
+          format!(
+            r#"{{  path = {:?} }}"#,
+            resolve_tauri_path(tauri_path, "crates/tauri")
+          ),
+          format!(
+            "{{  path = {:?} }}",
+            resolve_tauri_path(tauri_path, "crates/tauri-build")
+          ),
+          format!(
+            "{{  path = {:?} }}",
+            resolve_tauri_path(tauri_path, "crates/tauri-utils")
+          ),
+          format!(
+            "{{  path = {:?} }}",
+            resolve_tauri_path(tauri_path, "crates/tauri-plugin")
+          ),
+        )
+      } else {
+        (
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri),
+          format!(r#"{{ version = "{}" }}"#, metadata.tauri_build),
+          r#"{{ version = "2" }}"#.to_string(),
+          r#"{{ version = "2" }}"#.to_string(),
+        )
+      };
 
     let _ = remove_dir_all(&template_target_path);
     let mut handlebars = Handlebars::new();
@@ -223,6 +234,8 @@ pub fn command(mut options: Options) -> Result<()> {
       data.insert("patch_tauri_dep", to_json(true));
     }
     data.insert("tauri_build_dep", to_json(tauri_build_dep));
+    data.insert("tauri_utils_dep", to_json(tauri_utils_dep));
+    data.insert("tauri_plugin_dep", to_json(tauri_plugin_dep));
     data.insert(
       "frontend_dist",
       to_json(options.frontend_dist.as_deref().unwrap_or("../dist")),

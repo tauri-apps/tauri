@@ -1,5 +1,53 @@
 # Changelog
 
+## \[2.6.0]
+
+### New Features
+
+- [`50ebddaa2`](https://www.github.com/tauri-apps/tauri/commit/50ebddaa2d83033a393a176ba07ef28352b98210) ([#13319](https://www.github.com/tauri-apps/tauri/pull/13319) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Expose the `setAutoResize` API for webviews in `@tauri-apps/api`.
+- [`267368fd4`](https://www.github.com/tauri-apps/tauri/commit/267368fd4f83e0a71dfb1b72a66d56592a2066bc) ([#13276](https://www.github.com/tauri-apps/tauri/pull/13276) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Monitor::work_area` getter
+- [`267368fd4`](https://www.github.com/tauri-apps/tauri/commit/267368fd4f83e0a71dfb1b72a66d56592a2066bc) ([#13276](https://www.github.com/tauri-apps/tauri/pull/13276) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Added `tauri::PhysicalRect` and `tauri::LogicalRect` types.
+- [`09c19932d`](https://www.github.com/tauri-apps/tauri/commit/09c19932d2ddf05f28bcdc73796a966532e7ca1c) ([#13304](https://www.github.com/tauri-apps/tauri/pull/13304) by [@39zde](https://www.github.com/tauri-apps/tauri/../../39zde)) Adds the option to configure the HTTP `Service-Worker-Allowed` response header in `app > security > headers`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Added `x11` Cargo feature (enabled by default). Disabling it is useful for apps that only support Wayland, reducing its size.
+  **NOTE**: When manually disabling tauri default features, you must enable the `x11` feature to support it.
+
+### Enhancements
+
+- [`96ecfca42`](https://www.github.com/tauri-apps/tauri/commit/96ecfca428e4e5d9ff5d5eeed3f94a06a466ed02) ([#13406](https://www.github.com/tauri-apps/tauri/pull/13406) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Check if the webview runtime is accessible when creating a webview, returning an error if it doesn't.
+
+### Bug Fixes
+
+- [`94b77b36e`](https://www.github.com/tauri-apps/tauri/commit/94b77b36e35cd8396a5589fbcce26cf44f43d938) ([#13288](https://www.github.com/tauri-apps/tauri/pull/13288) by [@oscartbeaumont](https://www.github.com/tauri-apps/tauri/../../oscartbeaumont)) Prevent the JavaScript runtime crashing when channel events fire in a webview that no longer has callbacks for the channel.
+- [`bc2f0e48a`](https://www.github.com/tauri-apps/tauri/commit/bc2f0e48acba5c1c99b9fceb1000863c47df89ef) ([#13401](https://www.github.com/tauri-apps/tauri/pull/13401) by [@oscartbeaumont](https://www.github.com/tauri-apps/tauri/../../oscartbeaumont)) fix(macOS): caculation for work area
+- [`dfacb656d`](https://www.github.com/tauri-apps/tauri/commit/dfacb656d266de5d99656b1513eacc0f498f0b0a) ([#13360](https://www.github.com/tauri-apps/tauri/pull/13360) by [@velocitysystems](https://www.github.com/tauri-apps/tauri/../../velocitysystems)) Fixes multiple event listeners registration for iOS plugins.
+- [`23b9da75b`](https://www.github.com/tauri-apps/tauri/commit/23b9da75b91379cca9520bc53b10fdf39ebae241) ([#13324](https://www.github.com/tauri-apps/tauri/pull/13324) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Fixed path joining behavior where `path.join('', 'a')` incorrectly returns "/a" instead of "a".
+- [`638804e9c`](https://www.github.com/tauri-apps/tauri/commit/638804e9c488afdcd51bff8f329a321903337263) ([#13423](https://www.github.com/tauri-apps/tauri/pull/13423) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Fixed set_window_effects not runs on main thread in WindowBuilder.
+- [`039f44b7b`](https://www.github.com/tauri-apps/tauri/commit/039f44b7b1ecd411e3b3406aa28ccb8e8a0ec63a) ([#13307](https://www.github.com/tauri-apps/tauri/pull/13307) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix `TrayIcon.getById` returning a new resource ID instead of reusing a previously created id from `TrayIcon.new`.
+- [`76cbeef20`](https://www.github.com/tauri-apps/tauri/commit/76cbeef20848d9adf95c0e95ca17058dbf76fe1e) ([#13278](https://www.github.com/tauri-apps/tauri/pull/13278) by [@situ2001](https://www.github.com/tauri-apps/tauri/../../situ2001)) Fix JavaScript API `Webview.proxyUrl` had no effect when used in the `Webview` constructor
+- [`b985eaf0a`](https://www.github.com/tauri-apps/tauri/commit/b985eaf0a231ea570e36d686c665cddbc76ab4f6) ([#13306](https://www.github.com/tauri-apps/tauri/pull/13306) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Immediately unregister event listener when the unlisten function is called.
+
+### Performance Improvements
+
+- [`6a39f4999`](https://www.github.com/tauri-apps/tauri/commit/6a39f49991e613e8f3befe0e8dff288482ccdd89) ([#13464](https://www.github.com/tauri-apps/tauri/pull/13464) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Use dynamic dispatch for async commands in dev, this should speed up the compilation time by quite a bit, and significantly reduces the incremental compilation time
+
+### What's Changed
+
+- [`168629646`](https://www.github.com/tauri-apps/tauri/commit/168629646335f24cc7f1c4a61df22688b2198f98) ([#13418](https://www.github.com/tauri-apps/tauri/pull/13418) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Put dynamic ACL into a feature `dynamic-acl`, this is currently enabled by default to align with the previous behaviors, you can disable it through `default-features = false` to reduce the final binary size by not including the ACL references
+- [`b5c549d18`](https://www.github.com/tauri-apps/tauri/commit/b5c549d1898ecdb712822c02dc665cc6771fbd07) ([#13325](https://www.github.com/tauri-apps/tauri/pull/13325) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `transformCallback` now registers the callbacks inside `window.__TAURI_INTERNALS__.callbacks` instead of directly on `window['_{id}']`
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+- Upgraded to `tauri-runtime-wry@2.7.0`
+- Upgraded to `tauri-macros@2.3.0`
+- Upgraded to `tauri-build@2.3.0`
+- Upgraded to `tauri-runtime@2.7.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Updated tao to 0.34, wry to 0.52 and webview2-com to 0.38.
+
+### Breaking Changes
+
+- [`b7cdb3b39`](https://www.github.com/tauri-apps/tauri/commit/b7cdb3b39ef7e84773ce9312535825801350fa20) ([#13410](https://www.github.com/tauri-apps/tauri/pull/13410) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Feature gated the HTML manipulation code in `tauri-utils` behined a flag to reduce compile time
+
 ## \[2.5.1]
 
 ### Enhancements

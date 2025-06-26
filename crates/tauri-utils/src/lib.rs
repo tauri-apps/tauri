@@ -23,6 +23,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 pub mod acl;
 pub mod assets;
 pub mod config;
+pub mod config_v1;
 #[cfg(feature = "html-manipulation")]
 pub mod html;
 pub mod io;

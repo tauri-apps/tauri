@@ -112,7 +112,7 @@ pub fn serialize_node(node: &NodeRef) -> Vec<u8> {
 
 /// Parses the given HTML string.
 pub fn parse(html: String) -> NodeRef {
-  kuchiki::parse_html().one(html)
+  kuchiki::parse_html().one(html).document_node
 }
 
 fn with_head<F: FnOnce(&NodeRef)>(document: &NodeRef, f: F) {
@@ -288,7 +288,6 @@ pub fn inline_isolation(document: &NodeRef, dir: &Path) {
 
 #[cfg(test)]
 mod tests {
-  use kuchiki::traits::*;
 
   #[test]
   fn csp() {
@@ -297,7 +296,7 @@ mod tests {
       "<html></html>".to_string(),
     ];
     for html in htmls {
-      let document = kuchiki::parse_html().one(html);
+      let document = super::parse(html);
       let csp = "csp-string";
       super::inject_csp(&document, csp);
       assert_eq!(

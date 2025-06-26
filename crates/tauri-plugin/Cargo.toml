@@ -1,6 +1,6 @@
 [package]
 name = "tauri-plugin"
-version = "2.2.0"
+version = "2.3.0"
 description = "Build script and runtime Tauri plugin definitions"
 authors.workspace = true
 homepage.workspace = true
@@ -30,14 +30,14 @@ runtime = []
 [dependencies]
 anyhow = { version = "1", optional = true }
 serde = { version = "1", optional = true }
-tauri-utils = { version = "2.4.0", default-features = false, features = [
+tauri-utils = { version = "2.5.0", default-features = false, features = [
   "build",
 ], path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
 toml = { version = "0.8", optional = true }
-# Our code requires at least 0.8.18 so don't simplify this to 0.8
-schemars = { version = "0.8.18", features = ["preserve_order"] }
+# Our code requires at least 0.8.21 so don't simplify this to 0.8
+schemars = { version = "0.8.21", features = ["preserve_order"] }
 walkdir = { version = "2", optional = true }
 
 [target."cfg(target_os = \"macos\")".dependencies]

@@ -4473,7 +4473,7 @@ You may have it installed on another user account, but it is not available for t
     }
   };
 
-  let mut webview_builder = WebViewBuilder::with_web_context(&mut web_context.inner)
+  let mut webview_builder = WebViewBuilder::new_with_web_context(&mut web_context.inner)
     .with_id(&label)
     .with_focused(webview_attributes.focus)
     .with_url(&url)

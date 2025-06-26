@@ -1,5 +1,28 @@
 # Changelog
 
+## \[2.7.0]
+
+### New Features
+
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Added `x11` Cargo feature (enabled by default). Disabling it is useful for apps that only support Wayland, reducing its size.
+  **NOTE**: When manually disabling tauri default features, you must enable the `x11` feature to support it.
+
+### Enhancements
+
+- [`96ecfca42`](https://www.github.com/tauri-apps/tauri/commit/96ecfca428e4e5d9ff5d5eeed3f94a06a466ed02) ([#13406](https://www.github.com/tauri-apps/tauri/pull/13406) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Check if the webview runtime is accessible when creating a webview, returning an error if it doesn't.
+
+### Bug Fixes
+
+- [`f0662e41f`](https://www.github.com/tauri-apps/tauri/commit/f0662e41f4f78ec5a3f88aa76a7367d37d740291) ([#13365](https://www.github.com/tauri-apps/tauri/pull/13365) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix monitor check on the window prevent overflow implementation.
+- [`4acae1ec0`](https://www.github.com/tauri-apps/tauri/commit/4acae1ec02f2e0b0501d6b79b0bb862893296abd) ([#13443](https://www.github.com/tauri-apps/tauri/pull/13443) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `AppHandle::set_theme` crashes or has no effect on macOS if not ran on main thread
+- [`78d15e892`](https://www.github.com/tauri-apps/tauri/commit/78d15e892d30fb3f8494f0c00685fb455740a181) ([#13558](https://www.github.com/tauri-apps/tauri/pull/13558) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Allow web fullscreen APIs to work on Windows (e.g. `video.requestFullscreen` and `document.exitFullscreen`)
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+- Upgraded to `tauri-runtime@2.7.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Updated tao to 0.34, wry to 0.52 and webview2-com to 0.38.
+
 ## \[2.6.0]
 
 ### New Features

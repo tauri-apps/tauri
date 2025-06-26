@@ -33,11 +33,6 @@ Releasing can be as easy as merging the version pull request but here is a check
 
 - [ ] Double check that every package is bumped correctly and there are no accidental major or minor being released unless that is indeed the intention.
 - [ ] Make sure that there are no pending or unfinished [covector-version-or-publish.yml](./workflows/covector-version-or-publish.yml) workflow runs.
-- [ ] Sign the Version PR before merging as we require signed commits
-  - [ ] `git fetch --all`
-  - [ ] `git checkout release/version-updates`
-  - [ ] `git commit --amend -S`
-  - [ ] `git push --force`
 - [ ] Approve and merge the version pull request
 
 ## Publishing failed, what to do?

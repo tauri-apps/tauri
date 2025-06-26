@@ -119,6 +119,7 @@ jobs:
           commit-message: 'apply version updates'
           labels: 'version updates'
           body: ${{ steps.covector.outputs.change }}
+          sign-commits: true
 
       - name: Trigger doc update
         if: |

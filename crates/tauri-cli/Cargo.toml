@@ -48,7 +48,7 @@ clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
 tauri-bundler = { version = "2.5.0", default-features = false, path = "../tauri-bundler" }
-colored = "2"
+colored = "3"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 json5 = "0.4"

@@ -572,6 +572,7 @@ tauri::Builder::default()
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
     pending.new_window_handler = self.new_window_handler.take();
+    pending.document_title_changed_handler = self.document_title_changed_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
     if let Some(download_handler) = self.download_handler.take() {

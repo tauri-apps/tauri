@@ -18,7 +18,7 @@ x509-certificate = "0.23"
 once-cell-regex = "0.2"
 os_pipe = "1"
 plist = "1"
-rand = "0.8"
+rand = "0.9"
 dirs = "6"
 log = { version = "0.4.21", features = ["kv"] }
 apple-codesign = { version = "0.27", default-features = false }

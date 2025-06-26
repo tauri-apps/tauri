@@ -86,7 +86,10 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.17", default-features = false, features = ["serde", "gtk"] }
+muda = { version = "0.17", default-features = false, features = [
+  "serde",
+  "gtk",
+] }
 tray-icon = { version = "0.21", default-features = false, features = [
   "serde",
 ], optional = true }

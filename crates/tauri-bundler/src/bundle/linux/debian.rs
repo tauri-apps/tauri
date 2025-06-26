@@ -305,7 +305,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     let mut file = File::open(path)?;
     let mut hash = md5::Context::new();
     io::copy(&mut file, &mut hash)?;
-    for byte in hash.compute().iter() {
+    for byte in hash.finalize().iter() {
       write!(md5sums_file, "{byte:02x}")?;
     }
     let rel_path = path.strip_prefix(data_dir)?;

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.6.2]
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.7.1`
+
 ## \[2.6.1]
 
 ### Bug Fixes

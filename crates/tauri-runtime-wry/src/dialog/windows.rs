@@ -46,7 +46,7 @@ fn dialog_inner(err: &str, level: Level) {
 
   #[cfg(feature = "common-controls-v6")]
   {
-    use windows::core::HRESULT;
+    use windows::core::{HRESULT, PCWSTR};
     use windows::Win32::Foundation::*;
     use windows::Win32::UI::Controls::*;
     use windows::Win32::UI::Shell::*;

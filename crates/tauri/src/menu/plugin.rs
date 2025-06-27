@@ -99,6 +99,7 @@ struct SubmenuPayload {
   text: String,
   enabled: Option<bool>,
   items: Vec<MenuItemPayloadKind>,
+  icon: Option<Icon>,
 }
 
 impl SubmenuPayload {
@@ -114,6 +115,14 @@ impl SubmenuPayload {
     };
     if let Some(enabled) = self.enabled {
       builder = builder.enabled(enabled);
+    }
+    if let Some(icon) = self.icon {
+      builder = match icon {
+        Icon::Native(native_icon) => builder.submenu_native_icon(native_icon),
+        Icon::Icon(js_icon) => {
+          builder.submenu_icon(js_icon.into_img(resources_table)?.as_ref().clone())
+        }
+      };
     }
     for item in self.items {
       builder = item.with_item(webview, resources_table, |i| Ok(builder.item(i)))?;
@@ -380,6 +389,7 @@ fn new<R: Runtime>(
         text: options.text.unwrap_or_default(),
         enabled: options.enabled,
         items: options.items.unwrap_or_default(),
+        icon: options.icon,
       }
       .create_item(&webview, &resources_table)?;
       let id = submenu.id().clone();

@@ -46,7 +46,7 @@ fn main() {
 
   // start our webdriver intermediary node
   if let Err(e) = server::run(args, driver) {
-    eprintln!("error while running server: {}", e);
+    eprintln!("error while running server: {e}");
     std::process::exit(1);
   }
 }

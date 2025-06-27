@@ -207,9 +207,9 @@ pub fn command(options: Options) -> Result<()> {
       Some(rust_triple.into()),
     )?;
 
-    let cflags = format!("CFLAGS_{}", env_triple);
-    let cxxflags = format!("CFLAGS_{}", env_triple);
-    let objc_include_path = format!("OBJC_INCLUDE_PATH_{}", env_triple);
+    let cflags = format!("CFLAGS_{env_triple}");
+    let cxxflags = format!("CFLAGS_{env_triple}");
+    let objc_include_path = format!("OBJC_INCLUDE_PATH_{env_triple}");
     let mut target_env = host_env.clone();
     target_env.insert(cflags.as_ref(), isysroot.as_ref());
     target_env.insert(cxxflags.as_ref(), isysroot.as_ref());

@@ -177,8 +177,7 @@ fn build_nsis_app_installer(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };

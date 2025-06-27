@@ -187,7 +187,7 @@ impl Keychain {
       SigningIdentity::Team(t) => t.certificate_name(),
       SigningIdentity::Identifier(i) => i.clone(),
     };
-    println!("Signing with identity \"{}\"", identity);
+    println!("Signing with identity \"{identity}\"");
 
     println!("Signing {}", path.display());
 

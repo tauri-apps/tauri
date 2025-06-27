@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.7.1]
+
+### Bug Fixes
+
+- [`f010ca5e9`](https://www.github.com/tauri-apps/tauri/commit/f010ca5e9199e6baae65990ab75a83ea29e4fe18) ([#13719](https://www.github.com/tauri-apps/tauri/pull/13719) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed a compile error when using tauri without the `common-controls-v6` feature enabled.
+
 ## \[2.7.0]
 
 ### New Features

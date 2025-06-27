@@ -2156,7 +2156,7 @@ impl Display for HeaderSource {
         let len = m.len();
         let mut i = 0;
         for (key, value) in m {
-          write!(f, "{} {}", key, value)?;
+          write!(f, "{key} {value}")?;
           i += 1;
           if i != len {
             write!(f, "; ")?;

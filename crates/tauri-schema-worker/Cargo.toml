@@ -23,5 +23,6 @@ unexpected_cfgs = { level = "warn", check-cfg = [
 ] }
 
 # https://github.com/rustwasm/wasm-pack/issues/1501
-[package.metadata.wasm-pack.profile.release]
-wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+#[package.metadata.wasm-pack.profile.release]
+#wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+# This possibly resulted in 1101 worker errors.

@@ -116,7 +116,7 @@ async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response
         _ = ws.recv() => return,
         fs_reload_event = rx.recv() => fs_reload_event.is_ok(),
     } {
-      let msg = ws::Message::Text(r#"{"reload": true}"#.to_owned());
+      let msg = ws::Message::Text(r#"{"reload": true}"#.into());
       if ws.send(msg).await.is_err() {
         break;
       }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
+#![allow(clippy::result_large_err)]
+
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 use std::ffi::OsStr;

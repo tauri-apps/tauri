@@ -209,7 +209,7 @@ impl schemars::JsonSchema for BundleTarget {
     "BundleTarget".to_owned()
   }
 
-  fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+  fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
     let any_of = vec![
       schemars::schema::SchemaObject {
         enum_values: Some(vec!["all".into()]),
@@ -221,14 +221,14 @@ impl schemars::JsonSchema for BundleTarget {
       }
       .into(),
       apply_metadata(
-        gen.subschema_for::<Vec<BundleType>>(),
+        generator.subschema_for::<Vec<BundleType>>(),
         schemars::schema::Metadata {
           description: Some("A list of bundle targets.".to_owned()),
           ..Default::default()
         },
       ),
       apply_metadata(
-        gen.subschema_for::<BundleType>(),
+        generator.subschema_for::<BundleType>(),
         schemars::schema::Metadata {
           description: Some("A single bundle target.".to_owned()),
           ..Default::default()

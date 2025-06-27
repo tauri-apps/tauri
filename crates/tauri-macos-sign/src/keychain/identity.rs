@@ -42,9 +42,7 @@ impl Team {
       .and_then(|v| v.to_string().ok());
 
     let name = if let Some(organization) = organization {
-      println!(
-        "found cert {common_name:?} with organization {organization:?}"
-      );
+      println!("found cert {common_name:?} with organization {organization:?}");
       organization
     } else {
       println!(

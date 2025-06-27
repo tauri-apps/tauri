@@ -89,7 +89,7 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
   let mut results = HashMap::<String, u64>::new();
 
   for (name, example_exe) in get_all_benchmarks() {
-    let benchmark_file = utils::target_dir().join(format!("mprof{}_.dat", name));
+    let benchmark_file = utils::target_dir().join(format!("mprof{name}_.dat"));
     let benchmark_file = benchmark_file.to_str().unwrap();
 
     let proc = Command::new("mprof")
@@ -105,7 +105,7 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
       .spawn()?;
 
     let proc_result = proc.wait_with_output()?;
-    println!("{:?}", proc_result);
+    println!("{proc_result:?}");
     results.insert(
       name.to_string(),
       utils::parse_max_mem(benchmark_file).unwrap(),
@@ -126,11 +126,11 @@ fn rlib_size(target_dir: &std::path::Path, prefix: &str) -> u64 {
     if name.starts_with(prefix) && name.ends_with(".rlib") {
       let start = name.split('-').next().unwrap().to_string();
       if seen.contains(&start) {
-        println!("skip {}", name);
+        println!("skip {name}");
       } else {
         seen.insert(start);
         size += entry.metadata().unwrap().len();
-        println!("check size {} {}", name, size);
+        println!("check size {name} {size}");
       }
     }
   }
@@ -142,7 +142,7 @@ fn get_binary_sizes(target_dir: &Path) -> Result<HashMap<String, u64>> {
   let mut sizes = HashMap::<String, u64>::new();
 
   let wry_size = rlib_size(target_dir, "libwry");
-  println!("wry {} bytes", wry_size);
+  println!("wry {wry_size} bytes");
   sizes.insert("wry_rlib".to_string(), wry_size);
 
   // add size for all EXEC_TIME_BENCHMARKS

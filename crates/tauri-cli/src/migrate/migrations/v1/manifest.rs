@@ -349,7 +349,7 @@ mod tests {
     [dependencies]
     tauri = {{ version = "1.0.0", features = [{}] }}
 "#,
-        features.iter().map(|f| format!("{:?}", f)).join(", ")
+        features.iter().map(|f| format!("{f:?}")).join(", ")
       )
     });
   }
@@ -363,7 +363,7 @@ mod tests {
     version = "1.0.0"
     features = [{}]
 "#,
-        features.iter().map(|f| format!("{:?}", f)).join(", ")
+        features.iter().map(|f| format!("{f:?}")).join(", ")
       )
     });
   }

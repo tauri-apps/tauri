@@ -314,7 +314,7 @@ fn escape_kotlin_keyword(
     .split('.')
     .map(|s| {
       if KOTLIN_ONLY_KEYWORDS.contains(&s) {
-        format!("`{}`", s)
+        format!("`{s}`")
       } else {
         s.to_string()
       }

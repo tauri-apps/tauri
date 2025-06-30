@@ -11,3 +11,4 @@ rustfmt.toml
 __tests__
 src
 Cargo.toml
+build.rs

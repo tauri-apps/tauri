@@ -8,3 +8,6 @@ test
 .prettierignore
 rustfmt.toml
 *.node
+__tests__
+src
+Cargo.toml

@@ -12,7 +12,9 @@ declare global {
     __TAURI_INTERNALS__: {
       invoke: typeof invoke
       transformCallback: typeof transformCallback
-      unregisterCallback: (number) => void
+      unregisterCallback: (id: number) => void
+      runCallback: (id: number, data: unknown) => void
+      callbacks: Map<number, (data: unknown) => void>
       convertFileSrc: typeof convertFileSrc
       ipc: (message: {
         cmd: string

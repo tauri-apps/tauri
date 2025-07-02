@@ -61,6 +61,30 @@ function mockInternals() {
  * })
  * ```
  *
+ * `listen` can also be mocked with direct calls to the `emit` function:
+ * ```js
+ * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
+ * import { emit, listen } from "@tauri-apps/api/event"
+ *
+ * afterEach(() => {
+ *    clearMocks()
+ * })
+ *
+ * test("mocked event", () => {
+ *  mockIPC(() => {}); // a call to `mockIPC` is still required even if no `invoke` calls are mocked
+ *
+ *  const eventHandler = vi.fn();
+ *  listen('test-event', eventHandler); // typically in component setup or similar
+ *
+ *  emit('test-event', { foo: 'bar' });
+ *  expect(eventHandler).toHaveBeenCalledWith({
+ *    event: 'test-event',
+ *    payload: { foo: 'bar' }
+ *  });
+ * })
+ * ```
+ * `emitTo` is currently **not** supported by this mock implementation.
+ *
  * @since 1.0.0
  */
 export function mockIPC(

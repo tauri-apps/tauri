@@ -226,18 +226,18 @@ export function clearMocks(): void {
     return
   }
 
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.invoke
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.transformCallback
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.unregisterCallback
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.runCallback
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.callbacks
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.convertFileSrc
-  // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.metadata
 }

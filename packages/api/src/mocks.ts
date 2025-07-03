@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import type { invoke, InvokeArgs, InvokeOptions } from './core'
+import type { InvokeArgs, InvokeOptions } from './core'
 
 function mockInternals() {
   window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
@@ -66,18 +66,27 @@ export function mockIPC(
 ): void {
   mockInternals()
 
-  const callbacks = new Map()
+  // eslint-disable-next-line @typescript-eslint/require-await
+  async function invoke<T>(
+    cmd: string,
+    args?: InvokeArgs,
+    _options?: InvokeOptions
+  ): Promise<T> {
+    return cb(cmd, args) as T
+  }
+
+  const callbacks = new Map<number, (data: unknown) => void>()
 
   function registerCallback<T = unknown>(
     callback?: (response: T) => void,
     once = false
   ) {
     const identifier = window.crypto.getRandomValues(new Uint32Array(1))[0]
-    callbacks.set(identifier, (data: T) => {
+    callbacks.set(identifier, (data) => {
       if (once) {
         unregisterCallback(identifier)
       }
-      return callback && callback(data)
+      return callback && callback(data as T)
     })
     return identifier
   }
@@ -86,16 +95,23 @@ export function mockIPC(
     callbacks.delete(id)
   }
 
-  window.__TAURI_INTERNALS__.transformCallback = registerCallback
+  function runCallback(id: number, data: unknown) {
+    const callback = callbacks.get(id)
+    if (callback) {
+      callback(data)
+    } else {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[TAURI] Couldn't find callback id ${id}. This might happen when the app is reloaded while Rust is running an asynchronous operation.`
+      )
+    }
+  }
 
-  // eslint-disable-next-line @typescript-eslint/require-await
-  window.__TAURI_INTERNALS__.invoke = async function (
-    cmd: string,
-    args?: InvokeArgs,
-    _options?: InvokeOptions
-  ): Promise<unknown> {
-    return cb(cmd, args)
-  } as typeof invoke
+  window.__TAURI_INTERNALS__.invoke = invoke
+  window.__TAURI_INTERNALS__.transformCallback = registerCallback
+  window.__TAURI_INTERNALS__.unregisterCallback = unregisterCallback
+  window.__TAURI_INTERNALS__.runCallback = runCallback
+  window.__TAURI_INTERNALS__.callbacks = callbacks
 }
 
 /**
@@ -210,13 +226,18 @@ export function clearMocks(): void {
     return
   }
 
-  if (window.__TAURI_INTERNALS__?.convertFileSrc)
-    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-    delete window.__TAURI_INTERNALS__.convertFileSrc
-  if (window.__TAURI_INTERNALS__?.invoke)
-    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-    delete window.__TAURI_INTERNALS__.invoke
-  if (window.__TAURI_INTERNALS__?.metadata)
-    // @ts-expect-error "The operand of a 'delete' operator must be optional' does not matter in this case
-    delete window.__TAURI_INTERNALS__.metadata
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.invoke
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.transformCallback
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.unregisterCallback
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.runCallback
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.callbacks
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.convertFileSrc
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_INTERNALS__.metadata
 }

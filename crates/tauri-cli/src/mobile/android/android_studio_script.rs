@@ -4,7 +4,7 @@
 
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
-  helpers::config::get as get_tauri_config,
+  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
   interface::{AppInterface, Interface},
   mobile::CliOptions,
   Result,
@@ -46,12 +46,33 @@ pub fn command(options: Options) -> Result<()> {
     Profile::Debug
   };
 
-  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[])?;
+  let (tauri_config, cli_options) = {
+    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[])?;
+    let cli_options = {
+      let tauri_config_guard = tauri_config.lock().unwrap();
+      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+      read_options(tauri_config_)
+    };
 
-  let (config, metadata, cli_options) = {
+    let tauri_config = if cli_options.config.is_empty() {
+      tauri_config
+    } else {
+      // reload config with merges from the android dev|build script
+      reload_tauri_config(
+        &cli_options
+          .config
+          .iter()
+          .map(|conf| &conf.0)
+          .collect::<Vec<_>>(),
+      )?
+    };
+
+    (tauri_config, cli_options)
+  };
+
+  let (config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = read_options(tauri_config_);
     let (config, metadata) = get_config(
       &get_app(
         MobileTarget::Android,
@@ -62,7 +83,7 @@ pub fn command(options: Options) -> Result<()> {
       None,
       &cli_options,
     );
-    (config, metadata, cli_options)
+    (config, metadata)
   };
 
   ensure_init(

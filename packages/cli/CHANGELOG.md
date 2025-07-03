@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.6.2]
+
+### Bug Fixes
+
+- [`cbd962972`](https://www.github.com/tauri-apps/tauri/commit/cbd9629729ed6eb208ba2234d014c11c4e9f1c8c) ([#13730](https://www.github.com/tauri-apps/tauri/pull/13730) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Load `--config` arguments when running the Xcode and Android Studio build scripts.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.6.2`
+
 ## \[2.6.1]
 
 ### Dependencies

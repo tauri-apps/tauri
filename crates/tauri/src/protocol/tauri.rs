@@ -121,6 +121,7 @@ fn get_response<R: Runtime>(
     for (name, value) in request.headers() {
       proxy_builder = proxy_builder.header(name, value);
     }
+    proxy_builder = proxy_builder.body(request.body().clone());
     match crate::async_runtime::safe_block_on(proxy_builder.send()) {
       Ok(r) => {
         let mut response_cache_ = response_cache.lock().unwrap();

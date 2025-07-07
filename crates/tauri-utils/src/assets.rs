@@ -12,6 +12,11 @@ use std::{
   path::{Component, Path},
 };
 
+/// The token used for script nonces.
+pub const SCRIPT_NONCE_TOKEN: &str = "__TAURI_SCRIPT_NONCE__";
+/// The token used for style nonces.
+pub const STYLE_NONCE_TOKEN: &str = "__TAURI_STYLE_NONCE__";
+
 /// Assets iterator.
 pub type AssetsIter<'a> = dyn Iterator<Item = (Cow<'a, str>, Cow<'a, [u8]>)> + 'a;
 

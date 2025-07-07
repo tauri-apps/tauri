@@ -35,7 +35,7 @@ pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) ->
     match res {
       Ok(_) => function.call(Ok(true), ThreadsafeFunctionCallMode::Blocking),
       Err(e) => function.call(
-        Err(Error::new(Status::GenericFailure, format!("{:#}", e))),
+        Err(Error::new(Status::GenericFailure, format!("{e:#}"))),
         ThreadsafeFunctionCallMode::Blocking,
       ),
     }

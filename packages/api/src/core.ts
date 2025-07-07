@@ -49,7 +49,6 @@
  *   }
  * }
  *
- *
  * type UserId = UserIdString | UserIdNumber
  * ```
  *
@@ -60,14 +59,15 @@
 export const SERIALIZE_TO_IPC_FN = '__TAURI_TO_IPC_KEY__'
 
 /**
- * Transforms a callback function to a string identifier that can be passed to the backend.
+ * Stores the callback in a known location, and returns an identifier that can be passed to the backend.
  * The backend uses the identifier to `eval()` the callback.
  *
- * @return A unique identifier associated with the callback function.
+ * @return An unique identifier associated with the callback function.
  *
  * @since 1.0.0
  */
 function transformCallback<T = unknown>(
+  // TODO: Make this not optional in v3
   callback?: (response: T) => void,
   once = false
 ): number {
@@ -75,40 +75,64 @@ function transformCallback<T = unknown>(
 }
 
 class Channel<T = unknown> {
+  /** The callback id returned from {@linkcode transformCallback} */
   id: number
-  // @ts-expect-error field used by the IPC serializer
-  private readonly __TAURI_CHANNEL_MARKER__ = true
-  #onmessage: (response: T) => void = () => {
-    // no-op
-  }
-  // the id is used as a mechanism to preserve message order
-  #nextMessageId = 0
+  #onmessage: (response: T) => void
+
+  // the index is used as a mechanism to preserve message order
+  #nextMessageIndex = 0
   #pendingMessages: T[] = []
+  #messageEndIndex: number | undefined
 
-  constructor() {
-    this.id = transformCallback(
-      ({ message, id }: { message: T; id: number }) => {
-        // Process the message if we're at the right order
-        if (id == this.#nextMessageId) {
-          this.#onmessage(message)
-          this.#nextMessageId += 1
+  constructor(onmessage?: (response: T) => void) {
+    this.#onmessage = onmessage || (() => {})
 
-          // process pending messages
-          while (this.#nextMessageId in this.#pendingMessages) {
-            const message = this.#pendingMessages[this.#nextMessageId]
-            this.#onmessage(message)
-            // eslint-disable-next-line @typescript-eslint/no-array-delete
-            delete this.#pendingMessages[this.#nextMessageId]
-            this.#nextMessageId += 1
-          }
+    this.id = transformCallback<
+      // Normal message
+      | { message: T; index: number }
+      // Message when the channel gets dropped in the rust side
+      | { end: true; index: number }
+    >((rawMessage) => {
+      const index = rawMessage.index
+
+      if ('end' in rawMessage) {
+        if (index == this.#nextMessageIndex) {
+          this.cleanupCallback()
+        } else {
+          this.#messageEndIndex = index
         }
-        // Queue the message if we're not
-        else {
-          // eslint-disable-next-line security/detect-object-injection
-          this.#pendingMessages[id] = message
+        return
+      }
+
+      const message = rawMessage.message
+      // Process the message if we're at the right order
+      if (index == this.#nextMessageIndex) {
+        this.#onmessage(message)
+        this.#nextMessageIndex += 1
+
+        // process pending messages
+        while (this.#nextMessageIndex in this.#pendingMessages) {
+          const message = this.#pendingMessages[this.#nextMessageIndex]
+          this.#onmessage(message)
+          // eslint-disable-next-line @typescript-eslint/no-array-delete
+          delete this.#pendingMessages[this.#nextMessageIndex]
+          this.#nextMessageIndex += 1
+        }
+
+        if (this.#nextMessageIndex === this.#messageEndIndex) {
+          this.cleanupCallback()
         }
       }
-    )
+      // Queue the message if we're not
+      else {
+        // eslint-disable-next-line security/detect-object-injection
+        this.#pendingMessages[index] = message
+      }
+    })
+  }
+
+  private cleanupCallback() {
+    window.__TAURI_INTERNALS__.unregisterCallback(this.id)
   }
 
   set onmessage(handler: (response: T) => void) {
@@ -160,8 +184,7 @@ async function addPluginListener<T>(
   event: string,
   cb: (payload: T) => void
 ): Promise<PluginListener> {
-  const handler = new Channel<T>()
-  handler.onmessage = cb
+  const handler = new Channel<T>(cb)
   return invoke(`plugin:${plugin}|registerListener`, { event, handler }).then(
     () => new PluginListener(plugin, event, handler.id)
   )
@@ -198,7 +221,7 @@ type InvokeArgs = Record<string, unknown> | number[] | ArrayBuffer | Uint8Array
  * @since 2.0.0
  */
 interface InvokeOptions {
-  headers: Headers | Record<string, string>
+  headers: HeadersInit
 }
 
 /**
@@ -303,7 +326,8 @@ export class Resource {
 }
 
 function isTauri(): boolean {
-  return 'isTauri' in window && !!window.isTauri
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+  return !!((globalThis as any) || window).isTauri
 }
 
 export type { InvokeArgs, InvokeOptions }

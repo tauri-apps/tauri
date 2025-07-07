@@ -209,6 +209,23 @@ impl<R: Runtime> PathResolver<R> {
   }
 
   /// Returns the path to the resource directory of this app.
+  ///
+  /// ## Platform-specific
+  ///
+  /// Although we provide the exact path where this function resolves to,
+  /// this is not a contract and things might change in the future
+  ///
+  /// - **Windows:** Resolves to the directory that contains the main executable.
+  /// - **Linux:** When running in an AppImage, the `APPDIR` variable will be set to
+  ///   the mounted location of the app, and the resource dir will be `${APPDIR}/usr/lib/${exe_name}`.
+  ///   If not running in an AppImage, the path is `/usr/lib/${exe_name}`.
+  ///   When running the app from `src-tauri/target/(debug|release)/`, the path is `${exe_dir}/../lib/${exe_name}`.
+  /// - **macOS:** Resolves to `${exe_dir}/../Resources` (inside .app).
+  /// - **iOS:** Resolves to `${exe_dir}/assets`.
+  /// - **Android:** Currently the resources are stored in the APK as assets so it's not a normal file system path,
+  ///   we return a special URI prefix `asset://localhost/` here that can be used with the [file system plugin](https://tauri.app/plugin/file-system/),
+  ///   with that, you can read the files through [`FsExt::fs`](https://docs.rs/tauri-plugin-fs/latest/tauri_plugin_fs/trait.FsExt.html#tymethod.fs)
+  ///   like this: `app.fs().read_to_string(app.path().resource_dir().unwrap().join("resource"));`
   pub fn resource_dir(&self) -> Result<PathBuf> {
     crate::utils::platform::resource_dir(self.0.package_info(), &self.0.env())
       .map_err(|_| Error::UnknownPath)

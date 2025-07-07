@@ -80,10 +80,7 @@ pub fn restart(env: &Env) -> ! {
     #[cfg(target_os = "macos")]
     restart_macos_app(&path, env);
 
-    if let Err(e) = Command::new(path)
-      .args(env.args_os.iter().skip(1).collect::<Vec<_>>())
-      .spawn()
-    {
+    if let Err(e) = Command::new(path).args(env.args_os.iter().skip(1)).spawn() {
       log::error!("failed to restart app: {e}");
     }
   }
@@ -96,14 +93,14 @@ fn restart_macos_app(current_binary: &std::path::Path, env: &Env) {
   use std::process::{exit, Command};
 
   if let Some(macos_directory) = current_binary.parent() {
-    if macos_directory.components().last()
+    if macos_directory.components().next_back()
       != Some(std::path::Component::Normal(std::ffi::OsStr::new("MacOS")))
     {
       return;
     }
 
     if let Some(contents_directory) = macos_directory.parent() {
-      if contents_directory.components().last()
+      if contents_directory.components().next_back()
         != Some(std::path::Component::Normal(std::ffi::OsStr::new(
           "Contents",
         )))

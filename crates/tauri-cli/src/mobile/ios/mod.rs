@@ -30,15 +30,16 @@ use crate::{
   helpers::{
     app_paths::tauri_dir,
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
-    pbxproj,
+    pbxproj, strip_semver_prerelease_tag,
   },
-  Result,
+  ConfigValue, Result,
 };
 
 use std::{
   env::{set_var, var_os},
   fs::create_dir_all,
   path::PathBuf,
+  str::FromStr,
   thread::sleep,
   time::Duration,
 };
@@ -76,6 +77,15 @@ pub struct InitOptions {
   /// Skips installing rust toolchains via rustup
   #[clap(long)]
   skip_targets_install: bool,
+  /// JSON strings or paths to JSON, JSON5 or TOML files to merge with the default configuration file
+  ///
+  /// Configurations are merged in the order they are provided, which means a particular value overwrites previous values when a config key-value pair conflicts.
+  ///
+  /// Note that a platform-specific file is looked up and merged with the default file by default
+  /// (tauri.macos.conf.json, tauri.linux.conf.json, tauri.windows.conf.json, tauri.android.conf.json and tauri.ios.conf.json)
+  /// but you can use this for more specific use cases such as different build flavors.
+  #[clap(short, long)]
+  pub config: Vec<ConfigValue>,
 }
 
 #[derive(Subcommand)]
@@ -97,6 +107,7 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
         options.ci,
         options.reinstall_deps,
         options.skip_targets_install,
+        options.config,
       )?
     }
     Commands::Dev(options) => dev::command(options, noise_level)?,
@@ -112,7 +123,7 @@ pub fn get_config(
   tauri_config: &TauriConfig,
   features: Option<&Vec<String>>,
   cli_options: &CliOptions,
-) -> (AppleConfig, AppleMetadata) {
+) -> Result<(AppleConfig, AppleMetadata)> {
   let mut ios_options = cli_options.clone();
   if let Some(features) = features {
     ios_options
@@ -120,6 +131,83 @@ pub fn get_config(
       .get_or_insert(Vec::new())
       .extend_from_slice(features);
   }
+
+  let bundle_version = if let Some(bundle_version) = tauri_config
+    .bundle
+    .ios
+    .bundle_version
+    .clone()
+    .or_else(|| tauri_config.version.clone())
+  {
+    // if it's a semver string, we must strip the prerelease tag
+    if let Ok(mut version) = semver::Version::from_str(&bundle_version) {
+      if !version.pre.is_empty() {
+        log::warn!("CFBundleVersion cannot have prerelease tag; stripping from {bundle_version}");
+        strip_semver_prerelease_tag(&mut version)?;
+      }
+      // correctly serialize version - cannot contain `+` as build metadata separator
+      Some(format!(
+        "{}.{}.{}{}",
+        version.major,
+        version.minor,
+        version.patch,
+        if version.build.is_empty() {
+          "".to_string()
+        } else {
+          format!(".{}", version.build.as_str())
+        }
+      ))
+    } else {
+      // let it go as is - cargo-mobile2 will validate it
+      Some(bundle_version)
+    }
+  } else {
+    None
+  };
+  let full_bundle_version_short = if let Some(app_version) = &tauri_config.version {
+    if let Ok(mut version) = semver::Version::from_str(app_version) {
+      if !version.pre.is_empty() {
+        log::warn!(
+          "CFBundleShortVersionString cannot have prerelease tag; stripping from {app_version}"
+        );
+        strip_semver_prerelease_tag(&mut version)?;
+      }
+      // correctly serialize version - cannot contain `+` as build metadata separator
+      Some(format!(
+        "{}.{}.{}{}",
+        version.major,
+        version.minor,
+        version.patch,
+        if version.build.is_empty() {
+          "".to_string()
+        } else {
+          format!(".{}", version.build.as_str())
+        }
+      ))
+    } else {
+      // let it go as is - cargo-mobile2 will validate it
+      Some(app_version.clone())
+    }
+  } else {
+    bundle_version.clone()
+  };
+  let bundle_version_short = if let Some(full_version) = full_bundle_version_short.as_deref() {
+    let mut s = full_version.split('.');
+    let short_version = format!(
+      "{}.{}.{}",
+      s.next().unwrap_or("0"),
+      s.next().unwrap_or("0"),
+      s.next().unwrap_or("0")
+    );
+
+    if short_version != full_version {
+      log::warn!("{full_version:?} is not a valid CFBundleShortVersionString since it must contain exactly three dot separated integers; setting it to {short_version} instead");
+    }
+
+    Some(short_version)
+  } else {
+    None
+  };
 
   let raw = RawAppleConfig {
     development_team: std::env::var(APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME)
@@ -140,12 +228,12 @@ pub fn get_config(
           }
         }),
     ios_features: ios_options.features.clone(),
-    bundle_version: tauri_config.version.clone(),
-    bundle_version_short: tauri_config.version.clone(),
+    bundle_version,
+    bundle_version_short,
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
-  let config = AppleConfig::from_raw(app.clone(), Some(raw)).unwrap();
+  let config = AppleConfig::from_raw(app.clone(), Some(raw))?;
 
   let tauri_dir = tauri_dir();
 
@@ -194,7 +282,7 @@ pub fn get_config(
   set_var("TAURI_IOS_PROJECT_PATH", config.project_dir());
   set_var("TAURI_IOS_APP_NAME", config.app().name());
 
-  (config, metadata)
+  Ok((config, metadata))
 }
 
 fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
@@ -436,6 +524,13 @@ pub fn synchronize_project_config(
     .unwrap()
     .identifier
     .clone();
+  let product_name = tauri_config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .product_name
+    .clone();
 
   let manual_signing = project_config.code_sign_identity.is_some()
     || project_config.provisioning_profile_uuid.is_some();
@@ -461,6 +556,14 @@ pub fn synchronize_project_config(
         "PRODUCT_BUNDLE_IDENTIFIER",
         &identifier,
       );
+
+      if let Some(product_name) = &product_name {
+        pbxproj.set_build_settings(
+          &build_configuration_ref.id,
+          "PRODUCT_NAME",
+          &format!("\"{product_name}\""),
+        );
+      }
 
       if let Some(identity) = &project_config.code_sign_identity {
         let identity = format!("\"{identity}\"");

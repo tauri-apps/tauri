@@ -15,6 +15,8 @@ mod macos;
 #[cfg(windows)]
 mod windows;
 
+use crate::monitor::MonitorExt;
+
 pub trait WindowExt {
   /// Enable or disable the window
   ///
@@ -61,29 +63,10 @@ pub fn calculate_window_center_position(
   window_size: tao::dpi::PhysicalSize<u32>,
   target_monitor: tao::monitor::MonitorHandle,
 ) -> tao::dpi::PhysicalPosition<i32> {
-  #[cfg(windows)]
-  {
-    use ::windows::Win32::Graphics::Gdi::{GetMonitorInfoW, HMONITOR, MONITORINFO};
-    use tao::platform::windows::MonitorHandleExtWindows;
+  let work_area = target_monitor.work_area();
 
-    let mut monitor_info = MONITORINFO {
-      cbSize: std::mem::size_of::<MONITORINFO>() as u32,
-      ..Default::default()
-    };
-    let hmonitor = target_monitor.hmonitor();
-    let status = unsafe { GetMonitorInfoW(HMONITOR(hmonitor as _), &mut monitor_info) };
-    if status.into() {
-      let available_width = monitor_info.rcWork.right - monitor_info.rcWork.left;
-      let available_height = monitor_info.rcWork.bottom - monitor_info.rcWork.top;
-      let x = (available_width - window_size.width as i32) / 2 + monitor_info.rcWork.left;
-      let y = (available_height - window_size.height as i32) / 2 + monitor_info.rcWork.top;
-      return tao::dpi::PhysicalPosition::new(x, y);
-    }
-  }
-
-  let screen_size = target_monitor.size();
-  let monitor_pos = target_monitor.position();
-  let x = (screen_size.width as i32 - window_size.width as i32) / 2 + monitor_pos.x;
-  let y = (screen_size.height as i32 - window_size.height as i32) / 2 + monitor_pos.y;
-  tao::dpi::PhysicalPosition::new(x, y)
+  tao::dpi::PhysicalPosition::new(
+    (work_area.size.width as i32 - window_size.width as i32) / 2 + work_area.position.x,
+    (work_area.size.height as i32 - window_size.height as i32) / 2 + work_area.position.y,
+  )
 }

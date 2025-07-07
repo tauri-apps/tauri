@@ -25,11 +25,12 @@
     "example:api:dev": "pnpm run --filter \"api\" tauri dev"
   },
   "devDependencies": {
-    "prettier": "^3.5.2"
+    "prettier": "^3.5.3"
   },
-  "packageManager": "pnpm@10.5.2",
+  "packageManager": "pnpm@10.12.1",
   "pnpm": {
     "overrides": {
+      "brace-expansion@<4.0.1": ">=4.0.1",
       "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",
       "cookie@<0.7.0": ">=0.7.0",
       "esbuild@<0.25.0": ">=0.25.0"

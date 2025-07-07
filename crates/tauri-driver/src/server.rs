@@ -51,7 +51,10 @@ impl TauriOptions {
   #[cfg(target_os = "windows")]
   fn into_native_object(self) -> Map<String, Value> {
     let mut ms_edge_options = Map::new();
-    ms_edge_options.insert("binary".into(), json!(self.application));
+    ms_edge_options.insert(
+      "binary".into(),
+      json!(self.application.with_extension("exe")),
+    );
     ms_edge_options.insert("args".into(), self.args.into());
 
     if let Some(webview_options) = self.webview_options {
@@ -219,7 +222,7 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
               )
               .await
             {
-              println!("Error serving connection: {:?}", err);
+              println!("Error serving connection: {err:?}");
             }
           });
         } else {
@@ -227,7 +230,7 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
         }
       }
     } else {
-      println!("can not listen to address: {:?}", address);
+      println!("can not listen to address: {address:?}");
     }
   };
   srv.await;

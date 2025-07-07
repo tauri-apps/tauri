@@ -177,7 +177,7 @@ impl ResourceDirectory {
       directories.push_str(wix_string.as_str());
     }
     let wix_string = if self.name.is_empty() {
-      format!("{}{}", files, directories)
+      format!("{files}{directories}")
     } else {
       format!(
         r#"<Directory Id="I{id}" Name="{name}">{files}{directories}</Directory>"#,
@@ -221,8 +221,7 @@ fn app_installer_output_path(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {:?}",
-        target
+        "Unsupported architecture: {target:?}"
       )))
     }
   };
@@ -352,8 +351,7 @@ fn run_candle(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };
@@ -443,8 +441,7 @@ pub fn build_wix_app_installer(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };
@@ -471,6 +468,16 @@ pub fn build_wix_app_installer(
     fs::remove_dir_all(&output_path)?;
   }
   fs::create_dir_all(&output_path)?;
+
+  // when we're performing code signing, we'll sign some WiX DLLs, so we make a local copy
+  let wix_toolset_path = if settings.can_sign() {
+    let wix_path = output_path.join("wix");
+    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
+      .context("failed to copy wix directory")?;
+    wix_path
+  } else {
+    wix_toolset_path.to_path_buf()
+  };
 
   let mut data = BTreeMap::new();
 
@@ -763,7 +770,11 @@ pub fn build_wix_app_installer(
     let fragment = fragment_handlebars.render_template(&fragment_content, &data)?;
     let mut extensions = Vec::new();
     for cap in extension_regex.captures_iter(&fragment) {
-      extensions.push(wix_toolset_path.join(format!("Wix{}.dll", &cap[1])));
+      let path = wix_toolset_path.join(format!("Wix{}.dll", &cap[1]));
+      if settings.can_sign() {
+        try_sign(&path, settings)?;
+      }
+      extensions.push(path);
     }
     candle_inputs.push((fragment_path, extensions));
   }
@@ -773,11 +784,18 @@ pub fn build_wix_app_installer(
   fragment_extensions.insert(wix_toolset_path.join("WixUIExtension.dll"));
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
 
+  // sign default extensions
+  if settings.can_sign() {
+    for path in &fragment_extensions {
+      try_sign(path, settings)?;
+    }
+  }
+
   for (path, extensions) in candle_inputs {
     for ext in &extensions {
       fragment_extensions.insert(ext.clone());
     }
-    run_candle(settings, wix_toolset_path, &output_path, path, extensions)?;
+    run_candle(settings, &wix_toolset_path, &output_path, path, extensions)?;
   }
 
   let mut output_paths = Vec::new();
@@ -824,7 +842,7 @@ pub fn build_wix_app_installer(
 
     let locale_contents = locale_contents.replace(
       "</WixLocalization>",
-      &format!("{}</WixLocalization>", unset_locale_strings),
+      &format!("{unset_locale_strings}</WixLocalization>"),
     );
     let locale_path = output_path.join("locale.wxl");
     {
@@ -853,7 +871,7 @@ pub fn build_wix_app_installer(
     log::info!(action = "Running"; "light to produce {}", display_path(&msi_path));
 
     run_light(
-      wix_toolset_path,
+      &wix_toolset_path,
       &output_path,
       arguments,
       &(fragment_extensions.clone().into_iter().collect()),
@@ -968,8 +986,11 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     if added_resources.contains(&resource_path) {
       continue;
     }
-
     added_resources.push(resource_path.clone());
+
+    if settings.can_sign() {
+      try_sign(&resource_path, settings)?;
+    }
 
     let resource_entry = ResourceFile {
       id: format!("I{}", Uuid::new_v4().as_simple()),
@@ -1055,6 +1076,10 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .to_string_lossy()
       .into_owned();
     if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {
+      if settings.can_sign() {
+        try_sign(resource_path, settings)?;
+      }
+
       dlls.push(ResourceFile {
         id: format!("I{}", Uuid::new_v4().as_simple()),
         guid: Uuid::new_v4().to_string(),

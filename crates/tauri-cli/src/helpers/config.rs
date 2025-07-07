@@ -22,6 +22,8 @@ pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 pub struct ConfigMetadata {
   /// The current target.
   target: Target,
+
+  original_identifier: Option<String>,
   /// The actual configuration, merged with any extension.
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
@@ -39,15 +41,17 @@ impl std::ops::Deref for ConfigMetadata {
 }
 
 impl ConfigMetadata {
+  /// The original bundle identifier from the config file.
+  /// This does not take any extensions into account.
+  pub fn original_identifier(&self) -> Option<&str> {
+    self.original_identifier.as_deref()
+  }
+
   /// Checks which config is overwriting the bundle identifier.
   pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
-        .and_then(|config| config.get("tauri"))
-        .and_then(|tauri_config| tauri_config.as_object())
-        .and_then(|tauri_config| tauri_config.get("bundle"))
-        .and_then(|bundle_config| bundle_config.as_object())
         .and_then(|bundle_config| bundle_config.get("identifier"))
         .and_then(|id| id.as_str())
       {
@@ -153,6 +157,12 @@ fn get_internal(
   let config_file_name = config_path.file_name().unwrap().to_string_lossy();
   let mut extensions = HashMap::new();
 
+  let original_identifier = config
+    .as_object()
+    .and_then(|config| config.get("identifier"))
+    .and_then(|id| id.as_str())
+    .map(ToString::to_string);
+
   if let Some((platform_config, config_path)) =
     tauri_utils::config::parse::read_platform(target, tauri_dir)?
   {
@@ -220,6 +230,7 @@ fn get_internal(
 
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
     target,
+    original_identifier,
     inner: config,
     extensions,
   });

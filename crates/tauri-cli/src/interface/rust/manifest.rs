@@ -14,7 +14,7 @@ use toml_edit::{Array, DocumentMut, InlineTable, Item, TableLike, Value};
 use std::{
   collections::{HashMap, HashSet},
   fs::File,
-  io::{Read, Write},
+  io::Write,
   path::Path,
 };
 
@@ -83,15 +83,12 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
 }
 
 pub fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String)> {
-  let mut manifest_str = String::new();
-
-  let mut manifest_file = File::open(manifest_path)
-    .with_context(|| format!("failed to open `{manifest_path:?}` file"))?;
-  manifest_file.read_to_string(&mut manifest_str)?;
+  let manifest_str = std::fs::read_to_string(manifest_path)
+    .with_context(|| format!("Failed to read `{manifest_path:?}` file"))?;
 
   let manifest: DocumentMut = manifest_str
     .parse::<DocumentMut>()
-    .with_context(|| "failed to parse Cargo.toml")?;
+    .with_context(|| "Failed to parse Cargo.toml")?;
 
   Ok((manifest, manifest_str))
 }

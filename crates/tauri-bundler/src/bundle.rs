@@ -13,6 +13,8 @@ mod settings;
 mod updater_bundle;
 mod windows;
 
+use tauri_utils::{display_path, platform::Target as TargetPlatform};
+
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   log::info!(
@@ -29,14 +31,12 @@ fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<(
   Ok(())
 }
 
-use tauri_utils::display_path;
-
 pub use self::{
   category::AppCategory,
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, MacOsSettings, PackageSettings, PackageType, Position, RpmSettings, Settings,
-    SettingsBuilder, Size, UpdaterSettings,
+    DmgSettings, IosSettings, MacOsSettings, PackageSettings, PackageType, Position, RpmSettings,
+    Settings, SettingsBuilder, Size, UpdaterSettings,
   },
 };
 #[cfg(target_os = "macos")]
@@ -64,19 +64,14 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
   package_types.sort_by_key(|a| a.priority());
 
-  let target_os = settings
-    .target()
-    .split('-')
-    .nth(2)
-    .unwrap_or(std::env::consts::OS)
-    .replace("darwin", "macos");
+  let target_os = settings.target_platform();
 
-  if target_os != std::env::consts::OS {
+  if *target_os != TargetPlatform::current() {
     log::warn!("Cross-platform compilation is experimental and does not support all features. Please use a matching host system for full compatibility.");
   }
 
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
-  if target_os == "windows" {
+  if matches!(target_os, TargetPlatform::Windows) {
     if settings.can_sign() {
       for bin in settings.binaries() {
         let bin_path = settings.binary_path(bin);

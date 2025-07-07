@@ -589,7 +589,7 @@ mod tests {
     let invoke_key = "1234ahdsjkl123";
     let callback = 12378123;
     let error = 6243;
-    let headers = HeaderMap::from_iter(vec![
+    let mut headers = HeaderMap::from_iter(vec![
       (
         CONTENT_TYPE,
         HeaderValue::from_str(mime::APPLICATION_OCTET_STREAM.as_ref()).unwrap(),
@@ -629,7 +629,6 @@ mod tests {
       "anotherKey": "asda",
     });
 
-    let mut headers = headers;
     headers.insert(
       CONTENT_TYPE,
       HeaderValue::from_str(mime::APPLICATION_JSON.as_ref()).unwrap(),
@@ -659,7 +658,7 @@ mod tests {
     };
 
     let mut nonce = [0u8; 12];
-    getrandom::getrandom(&mut nonce).unwrap();
+    getrandom::fill(&mut nonce).unwrap();
 
     let body_raw = vec![1, 41, 65, 12, 78];
     let body_bytes = crypto_keys.aes_gcm().encrypt(&nonce, &body_raw).unwrap();

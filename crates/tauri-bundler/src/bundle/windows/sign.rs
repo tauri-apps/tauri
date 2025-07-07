@@ -142,12 +142,21 @@ pub fn sign_command_custom<P: AsRef<Path>>(
 ) -> crate::Result<Command> {
   let path = path.as_ref();
 
+  let cwd = std::env::current_dir()?;
+
   let mut cmd = Command::new(&command.cmd);
   for arg in &command.args {
     if arg == "%1" {
       cmd.arg(path);
     } else {
-      cmd.arg(arg);
+      let path = Path::new(arg);
+      // turn relative paths into absolute paths - so the uninstall command can use them
+      // since the !uninstfinalize NSIS hook runs in a different directory
+      if path.exists() && path.is_relative() {
+        cmd.arg(cwd.join(path));
+      } else {
+        cmd.arg(arg);
+      }
     }
   }
   Ok(cmd)
@@ -241,9 +250,9 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
   }
 }
 
-pub fn try_sign(file_path: &std::path::PathBuf, settings: &Settings) -> crate::Result<()> {
+pub fn try_sign<P: AsRef<Path>>(file_path: P, settings: &Settings) -> crate::Result<()> {
   if settings.can_sign() {
-    log::info!(action = "Signing"; "{}", tauri_utils::display_path(file_path));
+    log::info!(action = "Signing"; "{}", tauri_utils::display_path(file_path.as_ref()));
     sign(file_path, &settings.sign_params())?;
   }
   Ok(())

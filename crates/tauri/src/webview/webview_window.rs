@@ -27,10 +27,7 @@ use crate::{
     UserAttentionType,
   },
 };
-use tauri_utils::{
-  config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig},
-  Theme,
-};
+use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
 
 use crate::{
@@ -113,7 +110,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Initializes a webview window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new [`WebviewWindowBuilder`].
+  /// that the initial window was closed or change the label of the cloned [`WindowConfig`].
   ///
   /// # Known issues
   ///
@@ -127,7 +124,24 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// ```
   /// #[tauri::command]
   /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap())
+  ///     .unwrap()
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// - Create a window in a command from a config with a specific label, and change its label so multiple instances can exist:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn open_window_multiple(app: tauri::AppHandle) {
+  ///   let mut conf = app.config().app.windows.iter().find(|c| c.label == "template-for-multiwindow").unwrap().clone();
+  ///   // This should be a unique label for all windows. For example, we can use a random suffix:
+  ///   let mut buf = [0u8; 1];
+  ///   assert_eq!(getrandom::fill(&mut buf), Ok(()));
+  ///   conf.label = format!("my-multiwindow-{}", buf[0]);
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &conf)
   ///     .unwrap()
   ///     .build()
   ///     .unwrap();
@@ -408,6 +422,34 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     constraints: tauri_runtime::window::WindowSizeConstraints,
   ) -> Self {
     self.window_builder = self.window_builder.inner_size_constraints(constraints);
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation, which means the window size will be limited to `monitor size - taskbar size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow(mut self) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow();
+    self
+  }
+
+  /// Prevent the window from overflowing the working area (e.g. monitor size - taskbar size)
+  /// on creation with a margin, which means the window size will be limited to `monitor size - taskbar size - margin size`
+  ///
+  /// **NOTE**: The overflow check is only performed on window creation, resizes can still overflow
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **iOS / Android:** Unsupported.
+  #[must_use]
+  pub fn prevent_overflow_with_margin(mut self, margin: impl Into<Size>) -> Self {
+    self.window_builder = self.window_builder.prevent_overflow_with_margin(margin);
     self
   }
 
@@ -797,8 +839,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{WebviewWindowBuilder, Runtime};
-  ///
   /// const INIT_SCRIPT: &str = r#"
   ///   if (window.location.origin === 'https://tauri.app') {
   ///     console.log("hello world from js init script");
@@ -841,8 +881,6 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   /// # Examples
   ///
   /// ```rust
-  /// use tauri::{WebviewWindowBuilder, Runtime};
-  ///
   /// const INIT_SCRIPT: &str = r#"
   ///   if (window.location.origin === 'https://tauri.app') {
   ///     console.log("hello world from js init script");
@@ -1085,6 +1123,58 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   #[must_use]
   pub fn disable_javascript(mut self) -> Self {
     self.webview_builder = self.webview_builder.disable_javascript();
+    self
+  }
+
+  /// Allows overriding the the keyboard accessory view on iOS.
+  /// Returning `None` effectively removes the view.
+  ///
+  /// The closure parameter is the webview instance.
+  ///
+  /// The accessory view is the view that appears above the keyboard when a text input element is focused.
+  /// It usually displays a view with "Done", "Next" buttons.
+  ///
+  /// # Examples
+  ///
+  /// ```
+  /// fn main() {
+  ///   tauri::Builder::default()
+  ///     .setup(|app| {
+  ///       let mut builder = tauri::WebviewWindowBuilder::new(app, "label", tauri::WebviewUrl::App("index.html".into()));
+  ///       #[cfg(target_os = "ios")]
+  ///       {
+  ///         window_builder = window_builder.with_input_accessory_view_builder(|_webview| unsafe {
+  ///           let mtm = objc2_foundation::MainThreadMarker::new_unchecked();
+  ///           let button = objc2_ui_kit::UIButton::buttonWithType(objc2_ui_kit::UIButtonType(1), mtm);
+  ///           button.setTitle_forState(
+  ///             Some(&objc2_foundation::NSString::from_str("Tauri")),
+  ///             objc2_ui_kit::UIControlState(0),
+  ///           );
+  ///           Some(button.downcast().unwrap())
+  ///         });
+  ///       }
+  ///       let webview = builder.build()?;
+  ///       Ok(())
+  ///     });
+  /// }
+  /// ```
+  ///
+  /// # Stability
+  ///
+  /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
+  #[cfg(target_os = "ios")]
+  pub fn with_input_accessory_view_builder<
+    F: Fn(&objc2_ui_kit::UIView) -> Option<objc2::rc::Retained<objc2_ui_kit::UIView>>
+      + Send
+      + Sync
+      + 'static,
+  >(
+    mut self,
+    builder: F,
+  ) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .with_input_accessory_view_builder(builder);
     self
   }
 }
@@ -1890,8 +1980,13 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_title_bar_style(style)
   }
 
-  /// Set the window theme.
-  pub fn set_theme(&self, theme: Option<Theme>) -> crate::Result<()> {
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
+  pub fn set_theme(&self, theme: Option<tauri_utils::Theme>) -> crate::Result<()> {
     self.window.set_theme(theme)
   }
 }

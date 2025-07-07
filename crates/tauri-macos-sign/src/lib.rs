@@ -130,7 +130,7 @@ pub fn notarize(
       submit_output.status, submit_output.id, submit_output.message
     );
     if submit_output.status == "Accepted" {
-      println!("Notarizing {}", log_message);
+      println!("Notarizing {log_message}");
       staple_app(app_bundle_path.to_path_buf())?;
       Ok(())
     } else if let Ok(output) = Command::new("xcrun")
@@ -263,10 +263,7 @@ fn assert_command(
   let status =
     response.map_err(|e| std::io::Error::new(e.kind(), format!("{error_message}: {e}")))?;
   if !status.success() {
-    Err(std::io::Error::new(
-      std::io::ErrorKind::Other,
-      error_message,
-    ))
+    Err(std::io::Error::other(error_message))
   } else {
     Ok(())
   }

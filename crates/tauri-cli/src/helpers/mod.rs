@@ -97,7 +97,7 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
+      .with_context(|| format!("failed to run `{script}` with `cmd /C`"))?;
     #[cfg(not(target_os = "windows"))]
     let status = Command::new("sh")
       .arg("-c")
@@ -114,6 +114,26 @@ pub fn run_hook(
         script,
         status.code().unwrap_or_default()
       );
+    }
+  }
+
+  Ok(())
+}
+
+#[cfg(target_os = "macos")]
+pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Result<()> {
+  if !version.pre.is_empty() {
+    if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
+      version.pre = semver::Prerelease::EMPTY;
+      version.build = semver::BuildMetadata::new(&format!(
+        "{prefix}{number}",
+        prefix = if version.build.is_empty() {
+          "".to_string()
+        } else {
+          format!(".{}", version.build.as_str())
+        }
+      ))
+      .with_context(|| format!("bundle version {number:?} prerelease is invalid"))?;
     }
   }
 

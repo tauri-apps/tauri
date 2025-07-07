@@ -22,15 +22,18 @@
     "fileAssociations": [
       {
         "ext": ["png"],
-        "mimeType": "image/png"
+        "mimeType": "image/png",
+        "rank": "Default"
       },
       {
         "ext": ["jpg", "jpeg"],
-        "mimeType": "image/jpeg"
+        "mimeType": "image/jpeg",
+        "rank": "Alternate"
       },
       {
         "ext": ["gif"],
-        "mimeType": "image/gif"
+        "mimeType": "image/gif",
+        "rank": "Owner"
       }
     ]
   }

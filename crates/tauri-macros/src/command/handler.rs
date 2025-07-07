@@ -66,7 +66,7 @@ impl Parse for Handler {
 }
 
 /// Try to get the plugin name by parsing the input for a `#![plugin(...)]` attribute,
-/// if it's not present, try getting it from `CARGO_PKG_NAME` enviroment variable
+/// if it's not present, try getting it from `CARGO_PKG_NAME` environment variable
 fn try_get_plugin_name(input: &ParseBuffer<'_>) -> Result<Option<String>, syn::Error> {
   if let Ok(attrs) = input.call(Attribute::parse_inner) {
     for attr in attrs {

@@ -14,7 +14,7 @@ use crate::{
   utils::fs_utils,
   Settings,
 };
-use tauri_utils::display_path;
+use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 use std::{
   fs::{self, File},
@@ -27,14 +27,9 @@ use zip::write::SimpleFileOptions;
 
 // Build update
 pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<Vec<PathBuf>> {
-  let target_os = settings
-    .target()
-    .split('-')
-    .nth(2)
-    .unwrap_or(std::env::consts::OS)
-    .replace("darwin", "macos");
+  let target_os = settings.target_platform();
 
-  if target_os == "windows" {
+  if matches!(target_os, TargetPlatform::Windows) {
     return bundle_update_windows(settings, bundles);
   }
 
@@ -193,7 +188,7 @@ fn bundle_update_windows(settings: &Settings, bundles: &[Bundle]) -> crate::Resu
           p.push(c);
           (p, b)
         });
-    let archived_path = archived_path.with_extension(format!("{}.zip", bundle_name));
+    let archived_path = archived_path.with_extension(format!("{bundle_name}.zip"));
 
     log::info!(action = "Bundling"; "{}", display_path(&archived_path));
 

@@ -44,7 +44,7 @@ jobs:
             architecture: x64
             target: aarch64-pc-windows-msvc
             build: pnpm build --target aarch64-pc-windows-msvc
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian
             build: |
@@ -52,7 +52,7 @@ jobs:
               cd packages/cli
               pnpm build --target x86_64-unknown-linux-gnu
               strip *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: x86_64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
             build: |
@@ -64,7 +64,7 @@ jobs:
             build: |
               pnpm build --features native-tls-vendored --target=aarch64-apple-darwin
               strip -x *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
             build: |
@@ -72,7 +72,7 @@ jobs:
               cd packages/cli
               pnpm build --target aarch64-unknown-linux-gnu
               aarch64-unknown-linux-gnu-strip *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             architecture: x64
             target: armv7-unknown-linux-gnueabihf
             setup: |
@@ -81,7 +81,7 @@ jobs:
             build: |
               pnpm build --target=armv7-unknown-linux-gnueabihf
               arm-linux-gnueabihf-strip *.node
-          - host: ubuntu-20.04
+          - host: ubuntu-22.04
             architecture: x64
             target: aarch64-unknown-linux-musl
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-alpine
@@ -319,7 +319,6 @@ jobs:
           - '20'
         image:
           - ghcr.io/napi-rs/napi-rs/nodejs:aarch64-16
-          - ghcr.io/napi-rs/napi-rs/nodejs:armhf-16
     runs-on: ubuntu-latest
     steps:
       - run: docker run --rm --privileged multiarch/qemu-user-static:register --reset

@@ -1,5 +1,59 @@
 # Changelog
 
+## \[2.7.1]
+
+### Bug Fixes
+
+- [`f010ca5e9`](https://www.github.com/tauri-apps/tauri/commit/f010ca5e9199e6baae65990ab75a83ea29e4fe18) ([#13719](https://www.github.com/tauri-apps/tauri/pull/13719) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed a compile error when using tauri without the `common-controls-v6` feature enabled.
+
+## \[2.7.0]
+
+### New Features
+
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Added `x11` Cargo feature (enabled by default). Disabling it is useful for apps that only support Wayland, reducing its size.
+  **NOTE**: When manually disabling tauri default features, you must enable the `x11` feature to support it.
+
+### Enhancements
+
+- [`96ecfca42`](https://www.github.com/tauri-apps/tauri/commit/96ecfca428e4e5d9ff5d5eeed3f94a06a466ed02) ([#13406](https://www.github.com/tauri-apps/tauri/pull/13406) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Check if the webview runtime is accessible when creating a webview, returning an error if it doesn't.
+
+### Bug Fixes
+
+- [`f0662e41f`](https://www.github.com/tauri-apps/tauri/commit/f0662e41f4f78ec5a3f88aa76a7367d37d740291) ([#13365](https://www.github.com/tauri-apps/tauri/pull/13365) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix monitor check on the window prevent overflow implementation.
+- [`4acae1ec0`](https://www.github.com/tauri-apps/tauri/commit/4acae1ec02f2e0b0501d6b79b0bb862893296abd) ([#13443](https://www.github.com/tauri-apps/tauri/pull/13443) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `AppHandle::set_theme` crashes or has no effect on macOS if not ran on main thread
+- [`78d15e892`](https://www.github.com/tauri-apps/tauri/commit/78d15e892d30fb3f8494f0c00685fb455740a181) ([#13558](https://www.github.com/tauri-apps/tauri/pull/13558) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Allow web fullscreen APIs to work on Windows (e.g. `video.requestFullscreen` and `document.exitFullscreen`)
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+- Upgraded to `tauri-runtime@2.7.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Updated tao to 0.34, wry to 0.52 and webview2-com to 0.38.
+
+## \[2.6.0]
+
+### New Features
+
+- [`dd4f13ce4`](https://www.github.com/tauri-apps/tauri/commit/dd4f13ce4b3cd89cde2fa3f18a063c272f215621) ([#13185](https://www.github.com/tauri-apps/tauri/pull/13185)) MacOS: Add `set_dock_visibility` method to support setting the visibility of the application in the dock.
+- [`ea36294cb`](https://www.github.com/tauri-apps/tauri/commit/ea36294cbca98f7725c91d1464fd92e77c89698a) ([#13208](https://www.github.com/tauri-apps/tauri/pull/13208)) Added `WebviewAttributes::input_accessory_view_builder` on iOS.
+- [`c1cd0a2dd`](https://www.github.com/tauri-apps/tauri/commit/c1cd0a2ddb5bc3e99451cbe399b5fc9f0035f571) ([#13090](https://www.github.com/tauri-apps/tauri/pull/13090)) macOS/iOS: add option to disable or enable link previews when building a webview (the webkit api has it enabled by default)
+
+  - `WebViewBuilder.allow_link_preview(allow_link_preview: bool)`
+  - `WebviewWindowBuilder.allow_link_preview(allow_link_preview: bool)`
+- [`b072e2b29`](https://www.github.com/tauri-apps/tauri/commit/b072e2b2967640ae4fa1af466ae878c156551edd) ([#9687](https://www.github.com/tauri-apps/tauri/pull/9687)) Add `preventOverflow` config option to prevent the window from overflowing the monitor size on creation
+
+### Bug Fixes
+
+- [`07953fb9c`](https://www.github.com/tauri-apps/tauri/commit/07953fb9c3dc09e86657aa16020978e89b03ed56) ([#13222](https://www.github.com/tauri-apps/tauri/pull/13222)) Emit `WindowEvent::Focused` events when using the multiwebview (unstable feature flag) mode on Windows.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.4.0`
+- Upgraded to `tauri-runtime@2.6.0`
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update tao to 0.33.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update webview2-com to 0.37.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update windows to 0.61.
+- [`bb5faa21f`](https://www.github.com/tauri-apps/tauri/commit/bb5faa21f418dd765ce81b495b56e9c519251b6d) ([#13163](https://www.github.com/tauri-apps/tauri/pull/13163)) Update wry to 0.51.
+
 ## \[2.5.1]
 
 ### Dependencies

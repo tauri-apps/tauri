@@ -86,11 +86,13 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       let response = app.sample().ping(PingRequest {
         value: value.clone(),
         on_event: Channel::new(|event| {
-          println!("got channel event: {:?}", event);
+          println!("got channel event: {event:?}");
           Ok(())
         }),
       });
       log::info!("got response: {:?}", response);
+      // when #[cfg(desktop)], Rust will detect pattern as irrefutable
+      #[allow(irrefutable_let_patterns)]
       if let Ok(res) = response {
         assert_eq!(res.value, value);
       }
@@ -100,7 +102,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
         let server = match tiny_http::Server::http("localhost:3003") {
           Ok(s) => s,
           Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("{e}");
             std::process::exit(1);
           }
         };

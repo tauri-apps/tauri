@@ -15,17 +15,25 @@ You can configure the ports used with arguments when starting the binary:
 
 Supported platforms:
 
-- **[pre-alpha]** Linux w/ `WebKitWebDriver`
-- **[pre-alpha]** Windows w/ [Microsoft Edge Driver]
-- **[Todo]** macOS w/ [Appium Mac2 Driver] (probably)
+- Linux via `WebKitWebDriver`
+- Windows via [Microsoft Edge Driver]
+- **[Todo]** macOS via [Appium Mac2 Driver] (probably)
 
 _note: the (probably) items haven't been proof-of-concept'd yet, and if it is
 not possible to use the listed native webdriver, then a custom implementation
 will be used that wraps around [wry]._
 
+## Installation
+
+You can install tauri-driver using Cargo:
+
+```sh
+cargo install tauri-driver --locked
+```
+
 ## Trying it out
 
-Check out the documentation at https://tauri.app/docs/testing/webdriver/introduction,
+Check out the documentation at https://tauri.app/develop/tests/webdriver/,
 including a small example application with WebDriver tests.
 
 [WebDriver Intermediary Node]: https://www.w3.org/TR/webdriver/#dfn-intermediary-nodes

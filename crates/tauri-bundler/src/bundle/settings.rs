@@ -12,6 +12,7 @@ use tauri_utils::{
     BundleType, DeepLinkProtocol, FileAssociation, NSISInstallerMode, NsisCompression,
     RpmCompression,
   },
+  platform::Target as TargetPlatform,
   resources::{external_binaries, ResourcePaths},
 };
 
@@ -306,6 +307,13 @@ pub struct DmgSettings {
   pub application_folder_position: Position,
 }
 
+/// The iOS bundle settings.
+#[derive(Clone, Debug, Default)]
+pub struct IosSettings {
+  /// The version of the build that identifies an iteration of the bundle.
+  pub bundle_version: Option<String>,
+}
+
 /// The macOS bundle settings.
 #[derive(Clone, Debug, Default)]
 pub struct MacOsSettings {
@@ -323,6 +331,12 @@ pub struct MacOsSettings {
   /// List of custom files to add to the application bundle.
   /// Maps the path in the Contents directory in the app to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,
+  /// The version of the build that identifies an iteration of the bundle.
+  pub bundle_version: Option<String>,
+  /// The name of the build that identifies a string of the bundle.
+  ///
+  /// If not set, defaults to the package's product name.
+  pub bundle_name: Option<String>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,
@@ -643,6 +657,8 @@ pub struct BundleSettings {
   pub rpm: RpmSettings,
   /// DMG-specific settings.
   pub dmg: DmgSettings,
+  /// iOS-specific settings.
+  pub ios: IosSettings,
   /// MacOS-specific settings.
   pub macos: MacOsSettings,
   /// Updater configuration.
@@ -749,6 +765,8 @@ pub struct Settings {
   bundle_settings: BundleSettings,
   /// the binaries to bundle.
   binaries: Vec<BundleBinary>,
+  /// The target platform.
+  target_platform: TargetPlatform,
   /// The target triple.
   target: String,
 }
@@ -844,6 +862,7 @@ impl SettingsBuilder {
     } else {
       target_triple()?
     };
+    let target_platform = TargetPlatform::from_triple(&target);
 
     Ok(Settings {
       log_level: self.log_level.unwrap_or(log::Level::Error),
@@ -861,9 +880,10 @@ impl SettingsBuilder {
           .bundle_settings
           .external_bin
           .as_ref()
-          .map(|bins| external_binaries(bins, &target)),
+          .map(|bins| external_binaries(bins, &target, &target_platform)),
         ..self.bundle_settings
       },
+      target_platform,
       target,
     })
   }
@@ -888,6 +908,11 @@ impl Settings {
   /// Returns the target triple.
   pub fn target(&self) -> &str {
     &self.target
+  }
+
+  /// Returns the [`TargetPlatform`].
+  pub fn target_platform(&self) -> &TargetPlatform {
+    &self.target_platform
   }
 
   /// Returns the architecture for the binary being bundled (e.g. "arm", "x86" or "x86_64").
@@ -944,19 +969,23 @@ impl Settings {
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {
-    let target_os = self
-      .target()
-      .split('-')
-      .nth(2)
-      .unwrap_or(std::env::consts::OS);
+    let target_os = self.target_platform();
 
-    let path = self.project_out_directory.join(binary.name());
+    let mut path = self.project_out_directory.join(binary.name());
 
-    if target_os == "windows" {
-      path.with_extension("exe")
-    } else {
-      path
-    }
+    if matches!(target_os, TargetPlatform::Windows) {
+      // Append the `.exe` extension without overriding the existing extensions
+      let extension = if let Some(extension) = path.extension() {
+        let mut extension = extension.to_os_string();
+        extension.push(".exe");
+        extension
+      } else {
+        "exe".into()
+      };
+      path.set_extension(extension);
+    };
+
+    path
   }
 
   /// Returns the list of binaries to bundle.
@@ -974,18 +1003,13 @@ impl Settings {
   ///
   /// Fails if the host/target's native package type is not supported.
   pub fn package_types(&self) -> crate::Result<Vec<PackageType>> {
-    let target_os = self
-      .target
-      .split('-')
-      .nth(2)
-      .unwrap_or(std::env::consts::OS)
-      .replace("darwin", "macos");
+    let target_os = self.target_platform();
 
-    let platform_types = match target_os.as_str() {
-      "macos" => vec![PackageType::MacOsBundle, PackageType::Dmg],
-      "ios" => vec![PackageType::IosBundle],
-      "linux" => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
-      "windows" => vec![PackageType::WindowsMsi, PackageType::Nsis],
+    let platform_types = match target_os {
+      TargetPlatform::MacOS => vec![PackageType::MacOsBundle, PackageType::Dmg],
+      TargetPlatform::Ios => vec![PackageType::IosBundle],
+      TargetPlatform::Linux => vec![PackageType::Deb, PackageType::Rpm, PackageType::AppImage],
+      TargetPlatform::Windows => vec![PackageType::WindowsMsi, PackageType::Nsis],
       os => {
         return Err(crate::Error::GenericError(format!(
           "Native {os} bundles not yet supported."
@@ -1188,6 +1212,11 @@ impl Settings {
   /// Returns the DMG settings.
   pub fn dmg(&self) -> &DmgSettings {
     &self.bundle_settings.dmg
+  }
+
+  /// Returns the iOS settings.
+  pub fn ios(&self) -> &IosSettings {
+    &self.bundle_settings.ios
   }
 
   /// Returns the MacOS settings.

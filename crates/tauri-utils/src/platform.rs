@@ -347,7 +347,7 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 
 // Variable holding the type of bundle the executable is stored in. This is modified by binary
 // patching during build
-#[unsafe(no_mangle)]
+#[no_mangle]
 #[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
 #[cfg_attr(target_vendor = "apple", link_section = "__DATA,__tauri_bundle_type")]
 static __TAURI_BUNDLE_TYPE: &str = "UNK";

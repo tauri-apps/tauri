@@ -40,7 +40,7 @@ export enum BundleType {
   /** Linux AppImage */
   AppImage = 'appimage',
   /** macOS app bundle */
-  App = 'app',
+  App = 'app'
 }
 
 /**

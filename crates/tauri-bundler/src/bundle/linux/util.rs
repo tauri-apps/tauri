@@ -15,29 +15,26 @@ pub fn patch_binary(
     _ => return Err(crate::Error::GenericError("Not an ELF file".to_owned())),
   };
 
-  if let Some(offset) = find_bundle_type_symbol(elf) {
-    let offset = offset as usize;
-    if offset + 3 <= file_data.len() {
-      let chars = &mut file_data[offset..offset + 3];
-      match package_type {
-        crate::PackageType::Deb => chars.copy_from_slice(b"DEB"),
-        crate::PackageType::Rpm => chars.copy_from_slice(b"RPM"),
-        crate::PackageType::AppImage => chars.copy_from_slice(b"APP"),
-        _ => {
-          return Err(crate::Error::InvalidPackageType(
-            package_type.short_name().to_owned(),
-            "linux".to_owned(),
-          ))
-        }
+  let offset = find_bundle_type_symbol(elf).ok_or(crate::Error::MissingBundleTypeVar)?;
+  let offset = offset as usize;
+  if offset + 3 <= file_data.len() {
+    let chars = &mut file_data[offset..offset + 3];
+    match package_type {
+      crate::PackageType::Deb => chars.copy_from_slice(b"DEB"),
+      crate::PackageType::Rpm => chars.copy_from_slice(b"RPM"),
+      crate::PackageType::AppImage => chars.copy_from_slice(b"APP"),
+      _ => {
+        return Err(crate::Error::InvalidPackageType(
+          package_type.short_name().to_owned(),
+          "linux".to_owned(),
+        ))
       }
-      if let Err(error) = std::fs::write(binary_path, &file_data) {
-        return Err(crate::Error::BinaryWriteError(error.to_string()));
-      }
-    } else {
-      return Err(crate::Error::BinaryOffsetOutOfRange);
     }
+
+    std::fs::write(binary_path, &file_data)
+      .map_err(|error| crate::Error::BinaryWriteError(error.to_string()))?;
   } else {
-    return Err(crate::Error::MissingBundleTypeVar);
+    return Err(crate::Error::BinaryOffsetOutOfRange);
   }
 
   Ok(())

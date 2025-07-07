@@ -17,16 +17,26 @@ use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
-  log::info!(
-    "Patching binary {:?} for type {}",
-    binary,
-    package_type.short_name()
-  );
-  #[cfg(target_os = "linux")]
-  linux::patch_binary(binary, package_type)?;
-
-  #[cfg(target_os = "windows")]
-  windows::patch_binary(binary, package_type)?;
+  match package_type {
+    #[cfg(target_os = "linux")]
+    PackageType::AppImage | PackageType::Deb | PackageType::Rpm => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      linux::patch_binary(binary, package_type)?;
+    }
+    PackageType::Nsis | PackageType::WindowsMsi => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      windows::patch_binary(binary, package_type)?;
+    }
+    _ => (),
+  }
 
   Ok(())
 }

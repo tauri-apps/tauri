@@ -15,5 +15,4 @@ pub use util::{
   WIX_UPDATER_OUTPUT_FOLDER_NAME,
 };
 
-#[cfg(target_os = "windows")]
 pub use util::patch_binary;

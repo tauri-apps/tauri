@@ -349,7 +349,7 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 // patching during build
 #[no_mangle]
 #[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
-#[cfg_attr(target_vendor = "apple", link_section = "__DATA,__tauri_bundle_type")]
+#[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
 static __TAURI_BUNDLE_TYPE: &str = "UNK";
 
 /// Get the type of the bundle current binary is packaged in.

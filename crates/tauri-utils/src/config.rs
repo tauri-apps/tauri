@@ -128,23 +128,31 @@ impl Default for WebviewUrl {
 /// Variable holding the type of bundle the executable is stored in. This is modified by binary
 /// patching during build
 #[unsafe(no_mangle)]
-#[link_section = ".tauri"]
-static __TAURI_BUNDLE_TYPE: &str = "UNK_BUNDLE";
+#[link_section = "tauri,bundle_type"]
+static __TAURI_BUNDLE_TYPE: &str = "UNK";
 
 /// Get the type or a bundle current binary is packaged in.
 pub fn get_current_bundle_type() -> PackageType {
   match __TAURI_BUNDLE_TYPE {
-    "DEB_BUNDLE" => PackageType::Deb,
-    "RPM_BUNDLE" => PackageType::Rpm,
-    "APP_BUNDLE" => PackageType::AppImage,
-    "MSI_BUNDLE" => PackageType::Msi,
-    "NSS_BUNDLE" => PackageType::Nsis,
-    _ => PackageType::Unknonwn,
+    "DEB" => PackageType::Deb,
+    "RPM" => PackageType::Rpm,
+    "APP" => PackageType::AppImage,
+    "MSI" => PackageType::Msi,
+    "NSS" => PackageType::Nsis,
+    _ => {
+      if cfg!(target_os = "macos") {
+        PackageType::App
+      } else {
+        PackageType::Unknown
+      }
+    }
   }
 }
 
 /// Type of package binary was bundled in
 pub enum PackageType {
+  /// macOS application bundle (.app).
+  App,
   /// The debian bundle (.deb).
   Deb,
   /// The RPM bundle (.rpm).
@@ -156,7 +164,7 @@ pub enum PackageType {
   /// The NSIS bundle (.exe).
   Nsis,
   /// Binary is not packaged or the package type cannot be determined
-  Unknonwn,
+  Unknown,
 }
 
 /// A bundle referenced by tauri-bundler.

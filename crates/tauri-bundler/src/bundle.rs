@@ -114,11 +114,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {
       continue;
-    } // REMOVE THIS?
-
-    if settings.updater().is_some() {
-      patch_binary(&settings.binary_path(main_binary), package_type)?;
     }
+
+    patch_binary(&settings.binary_path(main_binary), package_type)?;
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]
@@ -140,7 +138,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
-      #[cfg(target_os = "windows")]
       PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]

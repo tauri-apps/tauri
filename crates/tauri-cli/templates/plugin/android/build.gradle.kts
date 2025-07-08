@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "{{android_package_id}}"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 21

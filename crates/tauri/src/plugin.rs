@@ -71,7 +71,7 @@ pub trait Plugin<R: Runtime>: Send {
   }
 
   // TODO: Change `initialization_script` to this in v3
-  /// Same as [`Plugin::initialization_script_2`] but returns an [`InitializationScript`] instead
+  /// Same as [`Plugin::initialization_script`] but returns an [`InitializationScript`] instead
   /// We plan to replace [`Plugin::initialization_script`] with this signature in v3
   fn initialization_script_2(&self) -> Option<InitializationScript> {
     self

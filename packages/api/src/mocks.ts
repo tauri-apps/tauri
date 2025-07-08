@@ -319,4 +319,10 @@ export function clearMocks(): void {
   delete window.__TAURI_INTERNALS__.convertFileSrc
   // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.metadata
+
+  if (typeof window.__TAURI_EVENT_PLUGIN_INTERNALS__ !== 'object') {
+    return
+  }
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener
 }

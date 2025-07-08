@@ -3,11 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 import type { InvokeArgs, InvokeOptions } from './core'
-import { EventName } from './event';
+import { EventName } from './event'
 
 function mockInternals() {
   window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
-  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = window.__TAURI_EVENT_PLUGIN_INTERNALS__ ?? {}
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ =
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ ?? {}
 }
 
 /**
@@ -92,48 +93,46 @@ export function mockIPC(
 ): void {
   mockInternals()
 
-
   function isEventPluginInvoke(cmd: string): boolean {
-    return cmd.startsWith('plugin:event|');
+    return cmd.startsWith('plugin:event|')
   }
 
   function handleEventPlugin(cmd: string, args?: InvokeArgs): unknown {
     switch (cmd.split('|')[1]) {
       case 'listen':
-        return handleListen(args as {event: EventName, handler: number});
+        return handleListen(args as { event: EventName; handler: number })
       case 'emit':
-        return handleEmit(args as {event: EventName, payload?: unknown});
+        return handleEmit(args as { event: EventName; payload?: unknown })
       case 'unlisten':
-        return handleRemoveListener(args as {event: EventName, id: number});
+        return handleRemoveListener(args as { event: EventName; id: number })
     }
   }
 
-  const listeners = new Map<string, number[]>();
-  function handleListen(args: { event: EventName, handler: number }) {
+  const listeners = new Map<string, number[]>()
+  function handleListen(args: { event: EventName; handler: number }) {
     if (!listeners.has(args.event)) {
-      listeners.set(args.event, []);
+      listeners.set(args.event, [])
     }
-    listeners.get(args.event)!.push(args.handler);
-    return args.handler;
+    listeners.get(args.event)!.push(args.handler)
+    return args.handler
   }
 
-  function handleEmit(args: { event: EventName, payload?: unknown }) {
-    const eventListeners = listeners.get(args.event) || [];
+  function handleEmit(args: { event: EventName; payload?: unknown }) {
+    const eventListeners = listeners.get(args.event) || []
     for (const handler of eventListeners) {
-      runCallback(handler, args);
+      runCallback(handler, args)
     }
-    return null;
+    return null
   }
-  function handleRemoveListener(args: { event: EventName, id: number }) {
-    const eventListeners = listeners.get(args.event);
+  function handleRemoveListener(args: { event: EventName; id: number }) {
+    const eventListeners = listeners.get(args.event)
     if (eventListeners) {
-      const index = eventListeners.indexOf(args.id);
+      const index = eventListeners.indexOf(args.id)
       if (index !== -1) {
-        eventListeners.splice(index, 1);
+        eventListeners.splice(index, 1)
       }
     }
   }
-
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async function invoke<T>(
@@ -141,9 +140,8 @@ export function mockIPC(
     args?: InvokeArgs,
     _options?: InvokeOptions
   ): Promise<T> {
-
     if (isEventPluginInvoke(cmd)) {
-      return handleEventPlugin(cmd, args) as T;
+      return handleEventPlugin(cmd, args) as T
     }
 
     return cb(cmd, args) as T
@@ -182,7 +180,7 @@ export function mockIPC(
   }
 
   function unregisterListener(event: EventName, id: number) {
-    unregisterCallback(id);
+    unregisterCallback(id)
   }
 
   window.__TAURI_INTERNALS__.invoke = invoke
@@ -190,7 +188,8 @@ export function mockIPC(
   window.__TAURI_INTERNALS__.unregisterCallback = unregisterCallback
   window.__TAURI_INTERNALS__.runCallback = runCallback
   window.__TAURI_INTERNALS__.callbacks = callbacks
-  window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener = unregisterListener
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener =
+    unregisterListener
 }
 
 /**

@@ -2,5 +2,5 @@
 'tauri-cli': 'patch:bug'
 ---
 
-Update compileSdk, targetSdk to 35
+Update compileSdk, targetSdk to 36
 

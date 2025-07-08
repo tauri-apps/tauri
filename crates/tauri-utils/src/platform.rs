@@ -8,7 +8,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Env, PackageInfo};
+use crate::{config::BundleType, Env, PackageInfo};
 
 mod starting_binary;
 
@@ -252,20 +252,19 @@ fn is_cargo_output_directory(path: &std::path::Path) -> bool {
 
 /// Computes the resource directory of the current environment.
 ///
-/// On Windows, it's the path to the executable.
+/// ## Platform-specific
 ///
-/// On Linux, when running in an AppImage the `APPDIR` variable will be set to
-/// the mounted location of the app, and the resource dir will be
-/// `${APPDIR}/usr/lib/${exe_name}`. If not running in an AppImage, the path is
-/// `/usr/lib/${exe_name}`.  When running the app from
-/// `src-tauri/target/(debug|release)/`, the path is
-/// `${exe_dir}/../lib/${exe_name}`.
-///
-/// On MacOS, it's `${exe_dir}../Resources` (inside .app).
-///
-/// On iOS, it's `${exe_dir}/assets`.
-///
-/// Android uses a special URI prefix that is resolved by the Tauri file system plugin `asset://localhost/`
+/// - **Windows:** Resolves to the directory that contains the main executable.
+/// - **Linux:** When running in an AppImage, the `APPDIR` variable will be set to
+///   the mounted location of the app, and the resource dir will be `${APPDIR}/usr/lib/${exe_name}`.
+///   If not running in an AppImage, the path is `/usr/lib/${exe_name}`.
+///   When running the app from `src-tauri/target/(debug|release)/`, the path is `${exe_dir}/../lib/${exe_name}`.
+/// - **macOS:** Resolves to `${exe_dir}/../Resources` (inside .app).
+/// - **iOS:** Resolves to `${exe_dir}/assets`.
+/// - **Android:** Currently the resources are stored in the APK as assets so it's not a normal file system path,
+///   we return a special URI prefix `asset://localhost/` here that can be used with the [file system plugin](https://tauri.app/plugin/file-system/),
+///   with that, you can read the files through [`FsExt::fs`](https://docs.rs/tauri-plugin-fs/latest/tauri_plugin_fs/trait.FsExt.html#tymethod.fs)
+///   like this: `app.fs().read_to_string(app.path().resource_dir().unwrap().join("resource"));`
 pub fn resource_dir(package_info: &PackageInfo, env: &Env) -> crate::Result<PathBuf> {
   #[cfg(target_os = "android")]
   return resource_dir_android(package_info, env);
@@ -344,6 +343,32 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
   }
 
   res
+}
+
+// Variable holding the type of bundle the executable is stored in. This is modified by binary
+// patching during build
+#[no_mangle]
+#[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
+#[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
+static __TAURI_BUNDLE_TYPE: &str = "UNK";
+
+/// Get the type of the bundle current binary is packaged in.
+/// If the bundle type is unknown, it returns [`Option::None`].
+pub fn bundle_type() -> Option<BundleType> {
+  match __TAURI_BUNDLE_TYPE {
+    "DEB" => Some(BundleType::Deb),
+    "RPM" => Some(BundleType::Rpm),
+    "APP" => Some(BundleType::AppImage),
+    "MSI" => Some(BundleType::Msi),
+    "NSS" => Some(BundleType::Nsis),
+    _ => {
+      if cfg!(target_os = "macos") {
+        Some(BundleType::App)
+      } else {
+        None
+      }
+    }
+  }
 }
 
 #[cfg(feature = "build")]

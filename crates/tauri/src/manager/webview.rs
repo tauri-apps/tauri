@@ -461,7 +461,7 @@ impl<R: Runtime> WebviewManager<R> {
           if html.contains('<') && html.contains('>') {
             let document = tauri_utils::html::parse(html);
             tauri_utils::html::inject_csp(&document, &csp.to_string());
-            url.set_path(&format!("{},{}", mime::TEXT_HTML, document.to_string()));
+            url.set_path(&format!("{},{document}", mime::TEXT_HTML));
           }
         }
       }

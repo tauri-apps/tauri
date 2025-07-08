@@ -225,7 +225,7 @@ pub fn items() -> Vec<SectionItem> {
         );
       webview2_version()
         .map(|v| {
-          v.map(|v| (format!("WebView2: {}", v), Status::Success))
+          v.map(|v| (format!("WebView2: {v}"), Status::Success))
             .unwrap_or_else(|| (error.clone(), Status::Error))
         })
         .unwrap_or_else(|_| (error, Status::Error)).into()

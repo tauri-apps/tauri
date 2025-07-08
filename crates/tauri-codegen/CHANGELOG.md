@@ -1,5 +1,19 @@
 # Changelog
 
+## \[2.3.0]
+
+### New Features
+
+- [`414619c36`](https://www.github.com/tauri-apps/tauri/commit/414619c36e94e21939534dd72c0438b93da75546) ([#13536](https://www.github.com/tauri-apps/tauri/pull/13536) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Added support for the `bundleName` property in the macOS bundler configuration. This allows specifying the `CFBundleName` value for generated macOS bundles.
+
+### What's Changed
+
+- [`168629646`](https://www.github.com/tauri-apps/tauri/commit/168629646335f24cc7f1c4a61df22688b2198f98) ([#13418](https://www.github.com/tauri-apps/tauri/pull/13418) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Put dynamic ACL into a feature `dynamic-acl`, this is currently enabled by default to align with the previous behaviors, you can disable it through `default-features = false` to reduce the final binary size by not including the ACL references
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.5.0`
+
 ## \[2.2.0]
 
 ### Dependencies

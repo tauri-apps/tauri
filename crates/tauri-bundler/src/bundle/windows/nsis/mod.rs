@@ -48,7 +48,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
+  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
@@ -177,8 +177,7 @@ fn build_nsis_app_installer(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };

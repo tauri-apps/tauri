@@ -80,7 +80,7 @@ pub struct ResourceTable {
 impl ResourceTable {
   fn new_random_rid() -> u32 {
     let mut bytes = [0_u8; 4];
-    getrandom::getrandom(&mut bytes).expect("failed to get random bytes");
+    getrandom::fill(&mut bytes).expect("failed to get random bytes");
     u32::from_ne_bytes(bytes)
   }
 

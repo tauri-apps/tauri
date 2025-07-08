@@ -8,7 +8,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Env, PackageInfo};
+use crate::{config::BundleType, Env, PackageInfo};
 
 mod starting_binary;
 
@@ -343,6 +343,32 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
   }
 
   res
+}
+
+// Variable holding the type of bundle the executable is stored in. This is modified by binary
+// patching during build
+#[no_mangle]
+#[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
+#[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
+static __TAURI_BUNDLE_TYPE: &str = "UNK";
+
+/// Get the type of the bundle current binary is packaged in.
+/// If the bundle type is unknown, it returns [`Option::None`].
+pub fn bundle_type() -> Option<BundleType> {
+  match __TAURI_BUNDLE_TYPE {
+    "DEB" => Some(BundleType::Deb),
+    "RPM" => Some(BundleType::Rpm),
+    "APP" => Some(BundleType::AppImage),
+    "MSI" => Some(BundleType::Msi),
+    "NSS" => Some(BundleType::Nsis),
+    _ => {
+      if cfg!(target_os = "macos") {
+        Some(BundleType::App)
+      } else {
+        None
+      }
+    }
+  }
 }
 
 #[cfg(feature = "build")]

@@ -6,7 +6,6 @@ use std::{
   fs::create_dir_all,
   path::{Path, PathBuf},
 };
-
 use ureq::ResponseExt;
 
 use crate::utils::http_utils::download;
@@ -83,4 +82,78 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
     PROCESSOR_ARCHITECTURE_AMD64 => Some("x64"),
     _ => None,
   }
+}
+
+pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) -> crate::Result<()> {
+  let file_data = std::fs::read(binary_path)?;
+  let mut file_data = file_data; // make mutable
+
+  let pe = match goblin::Object::parse(&file_data)? {
+    goblin::Object::PE(pe) => pe,
+    _ => {
+      return Err(crate::Error::BinaryParseError(
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "binary is not a PE file").into(),
+      ));
+    }
+  };
+
+  let tauri_bundle_section = pe
+    .sections
+    .iter()
+    .find(|s| s.name().unwrap_or_default() == ".taubndl")
+    .ok_or(crate::Error::MissingBundleTypeVar)?;
+
+  let data_offset = tauri_bundle_section.pointer_to_raw_data as usize;
+
+  if data_offset + 8 > file_data.len() {
+    return Err(crate::Error::BinaryOffsetOutOfRange);
+  }
+
+  let ptr_bytes = &file_data[data_offset..data_offset + 8];
+  let ptr_value = u64::from_le_bytes(ptr_bytes.try_into().map_err(|_| {
+    crate::Error::BinaryParseError(
+      std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid pointer bytes").into(),
+    )
+  })?);
+
+  let rdata_section = pe
+    .sections
+    .iter()
+    .find(|s| s.name().unwrap_or_default() == ".rdata")
+    .ok_or_else(|| {
+      crate::Error::BinaryParseError(
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, ".rdata section not found").into(),
+      )
+    })?;
+
+  let rva = ptr_value.checked_sub(pe.image_base as u64).ok_or_else(|| {
+    crate::Error::BinaryParseError(
+      std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid RVA offset").into(),
+    )
+  })?;
+
+  let file_offset = rdata_section.pointer_to_raw_data as usize
+    + (rva as usize).saturating_sub(rdata_section.virtual_address as usize);
+
+  if file_offset + 3 > file_data.len() {
+    return Err(crate::Error::BinaryOffsetOutOfRange);
+  }
+
+  // Overwrite the string at that offset
+  let string_bytes = &mut file_data[file_offset..file_offset + 3];
+  match package_type {
+    crate::PackageType::Nsis => string_bytes.copy_from_slice(b"NSS"),
+    crate::PackageType::WindowsMsi => string_bytes.copy_from_slice(b"MSI"),
+    _ => {
+      return Err(crate::Error::InvalidPackageType(
+        package_type.short_name().to_owned(),
+        "windows".to_owned(),
+      ));
+    }
+  }
+
+  std::fs::write(binary_path, &file_data)
+    .map_err(|e| crate::Error::BinaryWriteError(e.to_string()))?;
+
+  Ok(())
 }

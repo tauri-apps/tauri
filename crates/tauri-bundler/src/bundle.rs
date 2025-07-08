@@ -15,6 +15,32 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+/// Patch a binary with bundle type information
+fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
+  match package_type {
+    #[cfg(target_os = "linux")]
+    PackageType::AppImage | PackageType::Deb | PackageType::Rpm => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      linux::patch_binary(binary, package_type)?;
+    }
+    PackageType::Nsis | PackageType::WindowsMsi => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      windows::patch_binary(binary, package_type)?;
+    }
+    _ => (),
+  }
+
+  Ok(())
+}
+
 pub use self::{
   category::AppCategory,
   settings::{
@@ -87,12 +113,20 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|b| b.main())
+    .expect("Main binary missing in settings");
+
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {
       continue;
     }
+
+    patch_binary(&settings.binary_path(main_binary), package_type)?;
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]

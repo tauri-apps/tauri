@@ -1,5 +1,5 @@
 ---
-'tauri-cli': 'patch:bug'
+'tauri-cli': 'patch:changes'
 ---
 
 Update compileSdk, targetSdk in android template to 36

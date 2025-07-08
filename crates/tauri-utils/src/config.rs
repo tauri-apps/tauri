@@ -788,6 +788,9 @@ pub struct WixConfig {
   /// The required dimensions are 493px × 312px.
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
+  /// Enables FIPS compliant algorithms.
+  #[serde(default, alias = "fips-compliant")]
+  pub fips_compliant: Option<bool>,
 }
 
 /// Compression algorithms used in the NSIS installer.

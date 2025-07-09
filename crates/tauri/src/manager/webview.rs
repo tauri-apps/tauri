@@ -413,10 +413,11 @@ impl<R: Runtime> WebviewManager<R> {
     #[allow(unused_mut)] // mut url only for the data-url parsing
     let mut url = match &pending.webview_attributes.url {
       WebviewUrl::App(path) => {
-        let url = if PROXY_DEV_SERVER {
+        let app_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
+        let url = if PROXY_DEV_SERVER && is_local_network_url(&app_url) {
           Cow::Owned(Url::parse("tauri://localhost").unwrap())
         } else {
-          app_manager.get_url(pending.webview_attributes.use_https_scheme)
+          app_url
         };
         // ignore "index.html" just to simplify the url
         if path.to_str() != Some("index.html") {
@@ -431,13 +432,13 @@ impl<R: Runtime> WebviewManager<R> {
       }
       WebviewUrl::External(url) => {
         let config_url = app_manager.get_url(pending.webview_attributes.use_https_scheme);
-        let is_local = config_url.make_relative(url).is_some();
+        let is_app_url = config_url.make_relative(url).is_some();
         let mut url = url.clone();
-        if is_local && PROXY_DEV_SERVER {
-          url.set_scheme("tauri").unwrap();
-          url.set_host(Some("localhost")).unwrap();
+        if is_app_url && PROXY_DEV_SERVER && is_local_network_url(&url) {
+          Url::parse("tauri://localhost").unwrap()
+        } else {
+          url
         }
-        url
       }
 
       WebviewUrl::CustomProtocol(url) => url.clone(),
@@ -709,4 +710,30 @@ fn on_webview_event<R: Runtime>(webview: &Webview<R>, event: &WebviewEvent) -> c
   }
 
   Ok(())
+}
+
+fn is_local_network_url(url: &url::Url) -> bool {
+  match url.host() {
+    Some(url::Host::Domain(s)) => s == "localhost",
+    Some(url::Host::Ipv4(_)) | Some(url::Host::Ipv6(_)) => true,
+    None => false,
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn local_network_url() {
+    assert!(is_local_network_url(&"http://localhost".parse().unwrap()));
+    assert!(is_local_network_url(
+      &"http://127.0.0.1:8080".parse().unwrap()
+    ));
+    assert!(is_local_network_url(
+      &"https://192.168.3.17".parse().unwrap()
+    ));
+
+    assert!(!is_local_network_url(&"https://tauri.app".parse().unwrap()));
+  }
 }

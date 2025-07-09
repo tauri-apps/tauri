@@ -2372,7 +2372,7 @@ impl Drop for WebviewWrapper {
 }
 
 pub struct WindowWrapper {
-  label: String,
+  pub label: String,
   inner: Option<Arc<Window>>,
   // whether this window has child webviews
   // or it's just a container for a single webview

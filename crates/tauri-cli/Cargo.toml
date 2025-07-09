@@ -56,7 +56,7 @@ notify = "8"
 notify-debouncer-full = "0.5"
 shared_child = "1"
 duct = "1.0"
-toml_edit = { version = "0.22", features = ["serde"] }
+toml_edit = { version = "0.23", features = ["serde"] }
 json-patch = "3"
 tauri-utils = { version = "2.5.0", path = "../tauri-utils", features = [
   "isolation",

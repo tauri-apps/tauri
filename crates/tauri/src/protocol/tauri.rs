@@ -69,7 +69,7 @@ pub fn get<R: Runtime>(
 }
 
 fn get_response<R: Runtime>(
-  request: Request<Vec<u8>>,
+  #[allow(unused_mut)] mut request: Request<Vec<u8>>,
   #[allow(unused_variables)] manager: &AppManager<R>,
   window_origin: &str,
   web_resource_request_handler: Option<&WebResourceRequestHandler>,
@@ -118,6 +118,7 @@ fn get_response<R: Runtime>(
       .build()
       .unwrap()
       .request(request.method().clone(), &url);
+    proxy_builder = proxy_builder.body(std::mem::take(request.body_mut()));
     for (name, value) in request.headers() {
       proxy_builder = proxy_builder.header(name, value);
     }

@@ -25,7 +25,7 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
@@ -47,7 +47,7 @@ use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   pub debug: bool,
   pub target: Option<String>,
   pub features: Option<Vec<String>>,

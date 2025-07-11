@@ -27,7 +27,7 @@ impl std::fmt::Debug for Image<'_> {
         // Reduces the debug size compared to the derived default, as the default
         // would format the raw bytes as numbers `[0, 0, 0, 0]` for 1 pixel.
         // The custom format doesn't grow as much with larger images:
-        // `Image { rgba: Cow::Borrowed([u8; 4096]), width: 32, height: 32 }) }`
+        // `Image { rgba: Cow::Borrowed([u8; 4096]), width: 32, height: 32 }`
         &format_args!(
           "Cow::{}([u8; {}])",
           match &self.rgba {

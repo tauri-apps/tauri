@@ -3942,7 +3942,7 @@ mod test {
 
   #[test]
   fn test_runner_config_in_build_config() {
-    use super::{BuildConfig, RunnerConfig};
+    use super::BuildConfig;
 
     // Test string format in BuildConfig
     let json = r#"{"runner": "cargo"}"#;
@@ -3956,7 +3956,7 @@ mod test {
 
   #[test]
   fn test_runner_config_in_build_config_object() {
-    use super::{BuildConfig, RunnerConfig};
+    use super::BuildConfig;
 
     // Test object format in BuildConfig
     let json = r#"{"runner": {"cmd": "cross", "cwd": "/workspace", "args": ["--target", "x86_64-unknown-linux-gnu"]}}"#;

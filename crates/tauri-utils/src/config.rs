@@ -3875,7 +3875,10 @@ mod test {
 
     assert_eq!(runner.cmd(), "my_runner");
     assert_eq!(runner.cwd(), Some("/tmp/build"));
-    assert_eq!(runner.args(), Some(&["--quiet".to_string(), "--verbose".to_string()][..]));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
 
     // Test object format serialization
     let serialized = serde_json::to_string(&runner).unwrap();
@@ -3965,7 +3968,15 @@ mod test {
     let runner = build_config.runner.unwrap();
     assert_eq!(runner.cmd(), "cross");
     assert_eq!(runner.cwd(), Some("/workspace"));
-    assert_eq!(runner.args(), Some(&["--target".to_string(), "x86_64-unknown-linux-gnu".to_string()][..]));
+    assert_eq!(
+      runner.args(),
+      Some(
+        &[
+          "--target".to_string(),
+          "x86_64-unknown-linux-gnu".to_string()
+        ][..]
+      )
+    );
   }
 
   #[test]
@@ -3991,7 +4002,10 @@ mod test {
 
     assert_eq!(runner.cmd(), "my_custom_cargo");
     assert_eq!(runner.cwd(), Some("/tmp/build"));
-    assert_eq!(runner.args(), Some(&["--quiet".to_string(), "--verbose".to_string()][..]));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
   }
 
   #[test]

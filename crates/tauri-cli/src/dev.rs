@@ -224,7 +224,14 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   }
 
   if options.runner.is_none() {
-    options.runner = config.lock().unwrap().as_ref().unwrap().build.runner.clone();
+    options.runner = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .runner
+      .clone();
   }
 
   let mut cargo_features = config

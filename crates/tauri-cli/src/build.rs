@@ -12,10 +12,10 @@ use crate::{
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
 };
-use tauri_utils::config::RunnerConfig;
 use anyhow::Context;
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
+use tauri_utils::config::RunnerConfig;
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]

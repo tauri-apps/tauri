@@ -2330,13 +2330,9 @@ interface WindowOptions {
    *
    * Requires `titleBarStyle: 'overlay'` and `decorations: true`.
    *
-   * #### Platform-specific:
-   *
-   * - **Windows / Linux**: Unsupported.
-   *
    * @since 2.4.0
    */
-  trafficLightPosition?: { x: number; y: number }
+  trafficLightPosition?: LogicalPosition
   /**
    * If `true`, sets the window title to be hidden on macOS.
    */

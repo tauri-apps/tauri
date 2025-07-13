@@ -2761,6 +2761,77 @@ pub enum HookCommand {
   },
 }
 
+/// The runner configuration.
+#[skip_serializing_none]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum RunnerConfig {
+  /// A string specifying the binary to run.
+  String(String),
+  /// An object with advanced configuration options.
+  Object {
+    /// The binary to run.
+    cmd: String,
+    /// The current working directory to run the command from.
+    cwd: Option<String>,
+    /// Arguments to pass to the command.
+    args: Option<Vec<String>>,
+  },
+}
+
+impl Default for RunnerConfig {
+  fn default() -> Self {
+    RunnerConfig::String("cargo".to_string())
+  }
+}
+
+impl RunnerConfig {
+  /// Returns the command to run.
+  pub fn cmd(&self) -> &str {
+    match self {
+      RunnerConfig::String(cmd) => cmd,
+      RunnerConfig::Object { cmd, .. } => cmd,
+    }
+  }
+
+  /// Returns the working directory.
+  pub fn cwd(&self) -> Option<&str> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { cwd, .. } => cwd.as_deref(),
+    }
+  }
+
+  /// Returns the arguments.
+  pub fn args(&self) -> Option<&[String]> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { args, .. } => args.as_deref(),
+    }
+  }
+}
+
+impl std::str::FromStr for RunnerConfig {
+  type Err = std::convert::Infallible;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Ok(RunnerConfig::String(s.to_string()))
+  }
+}
+
+impl From<&str> for RunnerConfig {
+  fn from(s: &str) -> Self {
+    RunnerConfig::String(s.to_string())
+  }
+}
+
+impl From<String> for RunnerConfig {
+  fn from(s: String) -> Self {
+    RunnerConfig::String(s)
+  }
+}
+
 /// The Build configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#buildconfig>
@@ -4054,76 +4125,5 @@ mod test {
     // With skip_serializing_none, null values should not be included
     assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
     assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
-  }
-}
-
-/// The runner configuration.
-#[skip_serializing_none]
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum RunnerConfig {
-  /// A string specifying the binary to run.
-  String(String),
-  /// An object with advanced configuration options.
-  Object {
-    /// The binary to run.
-    cmd: String,
-    /// The current working directory to run the command from.
-    cwd: Option<String>,
-    /// Arguments to pass to the command.
-    args: Option<Vec<String>>,
-  },
-}
-
-impl Default for RunnerConfig {
-  fn default() -> Self {
-    RunnerConfig::String("cargo".to_string())
-  }
-}
-
-impl RunnerConfig {
-  /// Returns the command to run.
-  pub fn cmd(&self) -> &str {
-    match self {
-      RunnerConfig::String(cmd) => cmd,
-      RunnerConfig::Object { cmd, .. } => cmd,
-    }
-  }
-
-  /// Returns the working directory.
-  pub fn cwd(&self) -> Option<&str> {
-    match self {
-      RunnerConfig::String(_) => None,
-      RunnerConfig::Object { cwd, .. } => cwd.as_deref(),
-    }
-  }
-
-  /// Returns the arguments.
-  pub fn args(&self) -> Option<&[String]> {
-    match self {
-      RunnerConfig::String(_) => None,
-      RunnerConfig::Object { args, .. } => args.as_deref(),
-    }
-  }
-}
-
-impl std::str::FromStr for RunnerConfig {
-  type Err = std::convert::Infallible;
-
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
-    Ok(RunnerConfig::String(s.to_string()))
-  }
-}
-
-impl From<&str> for RunnerConfig {
-  fn from(s: &str) -> Self {
-    RunnerConfig::String(s.to_string())
-  }
-}
-
-impl From<String> for RunnerConfig {
-  fn from(s: String) -> Self {
-    RunnerConfig::String(s)
   }
 }

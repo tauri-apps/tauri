@@ -351,22 +351,26 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
 #[no_mangle]
 #[cfg_attr(not(target_vendor = "apple"), link_section = ".taubndl")]
 #[cfg_attr(target_vendor = "apple", link_section = "__DATA,taubndl")]
-static __TAURI_BUNDLE_TYPE: &str = "UNK";
+// Marked as `mut` becuase it could get optimized away without it,
+// see https://github.com/tauri-apps/tauri/pull/13812
+static mut __TAURI_BUNDLE_TYPE: &str = "UNK";
 
 /// Get the type of the bundle current binary is packaged in.
 /// If the bundle type is unknown, it returns [`Option::None`].
 pub fn bundle_type() -> Option<BundleType> {
-  match __TAURI_BUNDLE_TYPE {
-    "DEB" => Some(BundleType::Deb),
-    "RPM" => Some(BundleType::Rpm),
-    "APP" => Some(BundleType::AppImage),
-    "MSI" => Some(BundleType::Msi),
-    "NSS" => Some(BundleType::Nsis),
-    _ => {
-      if cfg!(target_os = "macos") {
-        Some(BundleType::App)
-      } else {
-        None
+  unsafe {
+    match __TAURI_BUNDLE_TYPE {
+      "DEB" => Some(BundleType::Deb),
+      "RPM" => Some(BundleType::Rpm),
+      "APP" => Some(BundleType::AppImage),
+      "MSI" => Some(BundleType::Msi),
+      "NSS" => Some(BundleType::Nsis),
+      _ => {
+        if cfg!(target_os = "macos") {
+          Some(BundleType::App)
+        } else {
+          None
+        }
       }
     }
   }

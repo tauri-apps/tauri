@@ -126,7 +126,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    patch_binary(&settings.binary_path(main_binary), package_type)?;
+    if let Err(e) = patch_binary(&settings.binary_path(main_binary), package_type) {
+      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    }
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]

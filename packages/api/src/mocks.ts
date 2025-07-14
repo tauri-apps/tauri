@@ -12,6 +12,19 @@ function mockInternals() {
 }
 
 /**
+ * Options for `mockIPC`.
+ *
+ * # Options
+ * `shouldMockEvents`: If true, the `listen` and `emit` functions will be mocked, allowing you to test event handling without a real backend.
+ * **This will consume any events emitted with the `plugin:event` prefix.**
+ *
+ * @since 2.6.3
+ */
+export interface MockIPCOptions {
+  shouldMockEvents?: boolean
+}
+
+/**
  * Intercepts all IPC requests with the given mock handler.
  *
  * This function can be used when testing tauri frontend applications or when running the frontend in a Node.js context during static site generation.
@@ -62,7 +75,7 @@ function mockInternals() {
  * })
  * ```
  *
- * `listen` can also be mocked with direct calls to the `emit` function:
+ * `listen` can also be mocked with direct calls to the `emit` function. This functionality is opt-in via the `shouldMockEvents` option:
  * ```js
  * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
  * import { emit, listen } from "@tauri-apps/api/event"
@@ -72,7 +85,7 @@ function mockInternals() {
  * })
  *
  * test("mocked event", () => {
- *  mockIPC(() => {}); // a call to `mockIPC` is still required even if no `invoke` calls are mocked
+ *  mockIPC(() => {}, { shouldMockEvents: true }); // enable event mocking
  *
  *  const eventHandler = vi.fn();
  *  listen('test-event', eventHandler); // typically in component setup or similar
@@ -89,7 +102,8 @@ function mockInternals() {
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, payload?: InvokeArgs) => unknown
+  cb: (cmd: string, payload?: InvokeArgs) => unknown,
+  options?: MockIPCOptions
 ): void {
   mockInternals()
 
@@ -98,12 +112,12 @@ export function mockIPC(
   }
 
   function handleEventPlugin(cmd: string, args?: InvokeArgs): unknown {
-    switch (cmd.split('|')[1]) {
-      case 'listen':
+    switch (cmd) {
+      case 'plugin:event|listen':
         return handleListen(args as { event: EventName; handler: number })
-      case 'emit':
+      case 'plugin:event|emit':
         return handleEmit(args as { event: EventName; payload?: unknown })
-      case 'unlisten':
+      case 'plugin:event|unlisten':
         return handleRemoveListener(args as { event: EventName; id: number })
     }
   }
@@ -140,7 +154,7 @@ export function mockIPC(
     args?: InvokeArgs,
     _options?: InvokeOptions
   ): Promise<T> {
-    if (isEventPluginInvoke(cmd)) {
+    if (options?.shouldMockEvents && isEventPluginInvoke(cmd)) {
       return handleEventPlugin(cmd, args) as T
     }
 

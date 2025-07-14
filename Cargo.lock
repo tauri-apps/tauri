@@ -277,7 +277,7 @@ dependencies = [
  "figment",
  "filetime",
  "glob",
- "goblin",
+ "goblin 0.8.2",
  "hex",
  "log",
  "md-5",
@@ -1055,9 +1055,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.20.1"
+version = "0.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "434467ff052dd826c6fdff94b96a74439190d5cdbd58d8e49519885c5a69c287"
+checksum = "7f2e0347234eb5a7b47eb66d33dc18560a628f031dffe58c37a7efe44b53e6f9"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -1083,9 +1083,9 @@ dependencies = [
  "serde_json",
  "textwrap",
  "thiserror 2.0.12",
- "toml",
+ "toml 0.9.0",
  "ureq",
- "which",
+ "which 8.0.0",
  "windows 0.61.1",
  "x509-certificate 0.24.0",
 ]
@@ -1120,7 +1120,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02260d489095346e5cafd04dea8e8cb54d1d74fcd759022a9b72986ebe9a1257"
 dependencies = [
  "serde",
- "toml",
+ "toml 0.8.19",
 ]
 
 [[package]]
@@ -2182,7 +2182,7 @@ dependencies = [
  "cc",
  "memchr",
  "rustc_version",
- "toml",
+ "toml 0.8.19",
  "vswhom",
  "winreg 0.52.0",
 ]
@@ -2405,7 +2405,7 @@ dependencies = [
  "atomic",
  "pear",
  "serde",
- "toml",
+ "toml 0.8.19",
  "uncased",
  "version_check",
 ]
@@ -2974,6 +2974,17 @@ name = "goblin"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b363a30c165f666402fe6a3024d3bec7ebc898f96a4a23bd1c99f8dbf3f4f47"
+dependencies = [
+ "log",
+ "plain",
+ "scroll",
+]
+
+[[package]]
+name = "goblin"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "daa0a64d21a7eb230583b4c5f4e23b7e4e57974f96620f42a7e75e08ae66d745"
 dependencies = [
  "log",
  "plain",
@@ -4322,6 +4333,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
+name = "linux-raw-sys"
+version = "0.9.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd945864f07fe9f5371a27ad7b52a172b4b499999f1d97574c9fa68373937e12"
+
+[[package]]
 name = "litemap"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4468,9 +4485,9 @@ dependencies = [
 
 [[package]]
 name = "md5"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
+checksum = "ae960838283323069879657ca3de837e9f7bbb4c7bf6ea7f1b290d5e9476d2e0"
 
 [[package]]
 name = "memchr"
@@ -4563,9 +4580,9 @@ dependencies = [
 
 [[package]]
 name = "muda"
-version = "0.16.0"
+version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89fed9ce3e5c01700e3a129d3d74619bbf468645b58274b420885107e496ecff"
+checksum = "58b89bf91c19bf036347f1ab85a81c560f08c0667c8601bece664d860a600988"
 dependencies = [
  "crossbeam-channel",
  "dpi",
@@ -7053,6 +7070,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustix"
+version = "1.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c71e83d6afe7ff64890ec6b71d6a69bb8a610ab78ce364b3352876bb4c801266"
+dependencies = [
+ "bitflags 2.7.0",
+ "errno",
+ "libc",
+ "linux-raw-sys 0.9.4",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "rustls"
 version = "0.21.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7533,6 +7563,15 @@ name = "serde_spanned"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "serde_spanned"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "40734c41988f7306bb04f0ecf60ec0f3f1caa34290e4e8ea471dcd3346483b83"
 dependencies = [
  "serde",
 ]
@@ -8289,7 +8328,7 @@ dependencies = [
  "cfg-expr",
  "heck 0.5.0",
  "pkg-config",
- "toml",
+ "toml 0.8.19",
  "version-compare",
 ]
 
@@ -8368,7 +8407,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.6.0"
+version = "2.6.2"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8444,7 +8483,7 @@ dependencies = [
  "tauri-codegen",
  "tauri-utils",
  "tauri-winres",
- "toml",
+ "toml 0.8.19",
  "walkdir",
 ]
 
@@ -8459,6 +8498,7 @@ dependencies = [
  "dunce",
  "flate2",
  "glob",
+ "goblin 0.9.3",
  "handlebars",
  "heck 0.5.0",
  "hex",
@@ -8487,7 +8527,7 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
- "which",
+ "which 7.0.1",
  "windows-registry 0.5.0",
  "windows-sys 0.60.2",
  "zip 4.0.0",
@@ -8495,7 +8535,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.6.0"
+version = "2.6.2"
 dependencies = [
  "anyhow",
  "ar",
@@ -8548,7 +8588,7 @@ dependencies = [
  "phf 0.11.3",
  "plist",
  "pretty_assertions",
- "rand 0.8.5",
+ "rand 0.9.1",
  "regex",
  "resvg",
  "semver",
@@ -8563,7 +8603,7 @@ dependencies = [
  "tauri-utils",
  "tempfile",
  "tokio",
- "toml",
+ "toml 0.8.19",
  "toml_edit 0.22.22",
  "ureq",
  "url",
@@ -8624,7 +8664,7 @@ dependencies = [
  "signal-hook",
  "signal-hook-tokio",
  "tokio",
- "which",
+ "which 7.0.1",
  "win32job",
 ]
 
@@ -8662,7 +8702,7 @@ dependencies = [
  "os_pipe",
  "p12",
  "plist",
- "rand 0.8.5",
+ "rand 0.9.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -8671,7 +8711,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.3.0"
+version = "2.3.1"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",
@@ -8692,7 +8732,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tauri-utils",
- "toml",
+ "toml 0.8.19",
  "walkdir",
 ]
 
@@ -8751,7 +8791,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.7.0"
+version = "2.7.1"
 dependencies = [
  "gtk",
  "http 1.3.1",
@@ -8834,7 +8874,7 @@ dependencies = [
  "serialize-to-javascript",
  "swift-rs",
  "thiserror 2.0.12",
- "toml",
+ "toml 0.8.19",
  "url",
  "urlpattern",
  "uuid",
@@ -8848,7 +8888,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56eaa45f707bedf34d19312c26d350bc0f3c59a47e58e8adbeecdc850d2c13a0"
 dependencies = [
  "embed-resource",
- "toml",
+ "toml 0.8.19",
 ]
 
 [[package]]
@@ -9169,11 +9209,25 @@ version = "0.8.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
 dependencies = [
+ "serde",
+ "serde_spanned 0.6.8",
+ "toml_datetime 0.6.8",
+ "toml_edit 0.22.22",
+]
+
+[[package]]
+name = "toml"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f271e09bde39ab52250160a67e88577e0559ad77e9085de6e9051a2c4353f8f8"
+dependencies = [
  "indexmap 2.7.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
- "toml_edit 0.22.22",
+ "serde_spanned 1.0.0",
+ "toml_datetime 0.7.0",
+ "toml_parser",
+ "toml_writer",
+ "winnow 0.7.11",
 ]
 
 [[package]]
@@ -9186,13 +9240,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml_datetime"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bade1c3e902f58d73d3f294cd7f20391c1cb2fbcb643b73566bc773971df91e3"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "toml_edit"
 version = "0.19.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b5bb770da30e5cbfde35a2d7b9b8a2c4b8ef89548a7a6aeab5c9a576e3e7421"
 dependencies = [
  "indexmap 2.7.0",
- "toml_datetime",
+ "toml_datetime 0.6.8",
  "winnow 0.5.40",
 ]
 
@@ -9203,7 +9266,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70f427fce4d84c72b5b732388bf4a9f4531b53f74e2887e3ecb2481f68f66d81"
 dependencies = [
  "indexmap 2.7.0",
- "toml_datetime",
+ "toml_datetime 0.6.8",
  "winnow 0.5.40",
 ]
 
@@ -9215,10 +9278,25 @@ checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
  "indexmap 2.7.0",
  "serde",
- "serde_spanned",
- "toml_datetime",
+ "serde_spanned 0.6.8",
+ "toml_datetime 0.6.8",
  "winnow 0.6.22",
 ]
+
+[[package]]
+name = "toml_parser"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5c1c469eda89749d2230d8156a5969a69ffe0d6d01200581cdc6110674d293e"
+dependencies = [
+ "winnow 0.7.11",
+]
+
+[[package]]
+name = "toml_writer"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b679217f2848de74cabd3e8fc5e6d66f40b7da40f8e1954d92054d9010690fd5"
 
 [[package]]
 name = "tower"
@@ -9297,9 +9375,9 @@ dependencies = [
 
 [[package]]
 name = "tray-icon"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d433764348e7084bad2c5ea22c96c71b61b17afe3a11645710f533bd72b6a2b5"
+checksum = "2da75ec677957aa21f6e0b361df0daab972f13a5bee3606de0638fd4ee1c666a"
 dependencies = [
  "crossbeam-channel",
  "dirs 6.0.0",
@@ -10099,6 +10177,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "which"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fabb953106c3c8eea8306e4393700d7657561cb43122571b172bbfb7c7ba1d"
+dependencies = [
+ "env_home",
+ "rustix 1.0.7",
+ "winsafe",
+]
+
+[[package]]
 name = "widestring"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10645,6 +10734,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "winnow"
+version = "0.7.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74c7b26e3480b707944fc872477815d29a8e429d2f93a1ce000f5fa84a15cbcd"
+
+[[package]]
 name = "winreg"
 version = "0.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10768,9 +10863,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.52.0"
+version = "0.52.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b08db04817a654a7e3339647d9cf8b497ed9ddcd4ec7cfda5a3a220c10a3bba3"
+checksum = "12a714d9ba7075aae04a6e50229d6109e3d584774b99a6a8c60de1698ca111b9"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

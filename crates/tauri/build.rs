@@ -161,6 +161,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("default_window_icon", false),
       ("set_app_theme", false),
       ("set_dock_visibility", false),
+      ("bundle_type", true),
     ],
   ),
   (

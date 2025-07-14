@@ -42,21 +42,17 @@ impl Team {
       .and_then(|v| v.to_string().ok());
 
     let name = if let Some(organization) = organization {
-      println!(
-        "found cert {:?} with organization {:?}",
-        common_name, organization
-      );
+      println!("found cert {common_name:?} with organization {organization:?}");
       organization
     } else {
       println!(
-        "found cert {:?} but failed to get organization; falling back to displaying common name",
-        common_name
+        "found cert {common_name:?} but failed to get organization; falling back to displaying common name"
       );
       regex!(r"Apple Develop\w+: (.*) \(.+\)")
                 .captures(&common_name)
                 .map(|caps| caps[1].to_owned())
                 .unwrap_or_else(|| {
-                    println!("regex failed to capture nice part of name in cert {:?}; falling back to displaying full name", common_name);
+                    println!("regex failed to capture nice part of name in cert {common_name:?}; falling back to displaying full name");
                     common_name.clone()
                 })
     };
@@ -106,7 +102,7 @@ pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
       .into_iter()
       .flat_map(|(cert_prefix, cert)| {
         Team::from_x509(cert_prefix, cert).map_err(|err| {
-          eprintln!("{}", err);
+          eprintln!("{err}");
           err
         })
       })

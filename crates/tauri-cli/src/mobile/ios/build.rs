@@ -30,7 +30,7 @@ use cargo_mobile2::{
   opts::{NoiseLevel, Profile},
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 
 use std::{
   env::{set_current_dir, var, var_os},
@@ -367,7 +367,7 @@ fn run_build(
         // we must force sign the app binary with a dummy certificate just to preserve the entitlements
         // target.export() will sign it with an actual certificate for us
         if skip_signing {
-          let password = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+          let password = Alphanumeric.sample_string(&mut rand::rng(), 16);
           let certificate = tauri_macos_sign::certificate::generate_self_signed(
             tauri_macos_sign::certificate::SelfSignedCertificateRequest {
               algorithm: "rsa".to_string(),

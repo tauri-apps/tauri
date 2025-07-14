@@ -126,19 +126,18 @@ tauri-build = "{}"
       let init_fn = format!(
         r#"
 #[cfg(target_os = "ios")]
-tauri::ios_plugin_binding!(init_plugin_{name});
+tauri::ios_plugin_binding!(init_plugin_{plugin_name});
 
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
-  Builder::new("{name}")
+  Builder::new("{plugin_name}")
     .setup(|app| {{
       #[cfg(target_os = "ios")]
-      app.register_ios_plugin(init_plugin_{name})?;
+      app.register_ios_plugin(init_plugin_{plugin_name})?;
       Ok(())
     }})
     .build()
 }}
 "#,
-        name = plugin_name,
       );
 
       log::info!("iOS project added");

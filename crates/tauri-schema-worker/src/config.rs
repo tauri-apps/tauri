@@ -45,7 +45,7 @@ pub fn router() -> Router {
     .route("/config/latest", get(stable_schema))
     .route("/config/stable", get(stable_schema))
     .route("/config/next", get(next_schema)) // pre-releases versions, (rc, alpha and beta)
-    .route("/config/:version", get(schema_for_version))
+    .route("/config/{version}", get(schema_for_version))
 }
 
 async fn schema_for_version(Path(version): Path<String>) -> Result<String> {

@@ -110,7 +110,7 @@ pub fn gen(
   map.insert("windows", cfg!(windows));
 
   let identifier = config.app().identifier().replace('.', "/");
-  let package_path = format!("java/{}", identifier);
+  let package_path = format!("java/{identifier}");
 
   map.insert("package-path", &package_path);
 

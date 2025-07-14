@@ -126,7 +126,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
       continue;
     }
 
-    patch_binary(&settings.binary_path(main_binary), package_type)?;
+    if let Err(e) = patch_binary(&settings.binary_path(main_binary), package_type) {
+      log::warn!("Failed to add package type information to the binary. Updater plugin may not be able to update this package: {}", e);
+    }
 
     let bundle_paths = match package_type {
       #[cfg(target_os = "macos")]

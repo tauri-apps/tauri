@@ -2372,7 +2372,7 @@ impl Drop for WebviewWrapper {
 }
 
 pub struct WindowWrapper {
-  pub label: String,
+  label: String,
   inner: Option<Arc<Window>>,
   // whether this window has child webviews
   // or it's just a container for a single webview
@@ -2386,6 +2386,12 @@ pub struct WindowWrapper {
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
   focused_webview: Arc<Mutex<Option<String>>>,
+}
+
+impl WindowWrapper {
+  pub fn label(&self) -> String {
+    self.label.clone()
+  }
 }
 
 impl fmt::Debug for WindowWrapper {

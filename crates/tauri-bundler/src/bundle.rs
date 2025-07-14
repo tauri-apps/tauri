@@ -127,7 +127,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
 
     if let Err(e) = patch_binary(&settings.binary_path(main_binary), package_type) {
-      log::warn!("Failed to add package type information to the binary. Updater plugin may not be able to update this package: {}", e);
+      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
     }
 
     let bundle_paths = match package_type {

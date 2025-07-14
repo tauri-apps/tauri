@@ -1,5 +1,17 @@
 # Changelog
 
+## \[2.6.2]
+
+### Bug Fixes
+
+- [`cbd962972`](https://www.github.com/tauri-apps/tauri/commit/cbd9629729ed6eb208ba2234d014c11c4e9f1c8c) ([#13730](https://www.github.com/tauri-apps/tauri/pull/13730) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Load `--config` arguments when running the Xcode and Android Studio build scripts.
+
+## \[2.6.1]
+
+### Bug Fixes
+
+- [`4b7370e9e`](https://www.github.com/tauri-apps/tauri/commit/4b7370e9e0ba299361c8ad96c08882337e44f091) ([#13710](https://www.github.com/tauri-apps/tauri/pull/13710) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue in the plugin template (`tauri plugin init`) that prevented the js build command to fail.
+
 ## \[2.6.0]
 
 ### New Features

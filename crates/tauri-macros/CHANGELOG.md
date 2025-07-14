@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.3.1]
+
+### Performance Improvements
+
+- [`0a552a868`](https://www.github.com/tauri-apps/tauri/commit/0a552a868c559d367d85c264bf052009b048bd8e) ([#13690](https://www.github.com/tauri-apps/tauri/pull/13690) by [@montyc1999](https://www.github.com/tauri-apps/tauri/../../montyc1999)) Cache `rustc -V` output in `#[tauri::command]` macros
+
 ## \[2.2.1]
 
 ### Dependencies

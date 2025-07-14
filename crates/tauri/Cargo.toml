@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.6.0"
+version = "2.6.2"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -57,12 +57,12 @@ url = "2"
 anyhow = "1"
 thiserror = "2"
 tauri-runtime = { version = "2.7.0", path = "../tauri-runtime" }
-tauri-macros = { version = "2.3.0", path = "../tauri-macros" }
+tauri-macros = { version = "2.3.1", path = "../tauri-macros" }
 tauri-utils = { version = "2.5.0", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.7.0", path = "../tauri-runtime-wry", default-features = false, optional = true }
-getrandom = "0.2"
+tauri-runtime-wry = { version = "2.7.1", path = "../tauri-runtime-wry", default-features = false, optional = true }
+getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
 dirs = "6"
@@ -86,8 +86,11 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.16", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.20", default-features = false, features = [
+muda = { version = "0.17", default-features = false, features = [
+  "serde",
+  "gtk",
+] }
+tray-icon = { version = "0.21", default-features = false, features = [
   "serde",
 ], optional = true }
 

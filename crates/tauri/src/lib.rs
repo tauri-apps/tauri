@@ -1260,6 +1260,6 @@ mod z85 {
 /// [Z85]: https://rfc.zeromq.org/spec/32/
 pub(crate) fn generate_invoke_key() -> Result<String> {
   let mut bytes = [0u8; 16];
-  getrandom::getrandom(&mut bytes)?;
+  getrandom::fill(&mut bytes)?;
   Ok(z85::encode(&bytes))
 }

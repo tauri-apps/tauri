@@ -21,3 +21,7 @@ anyhow = "1"
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(wasm_bindgen_unstable_test_coverage)',
 ] }
+
+# https://github.com/rustwasm/wasm-pack/issues/1501
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["--enable-bulk-memory", "--enable-nontrapping-float-to-int"]

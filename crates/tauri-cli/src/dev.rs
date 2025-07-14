@@ -17,7 +17,7 @@ use crate::{
 use anyhow::{bail, Context};
 use clap::{ArgAction, Parser};
 use shared_child::SharedChild;
-use tauri_utils::platform::Target;
+use tauri_utils::{config::RunnerConfig, platform::Target};
 
 use std::{
   env::set_current_dir,
@@ -49,7 +49,7 @@ pub const TAURI_CLI_BUILTIN_WATCHER_IGNORE_FILE: &[u8] =
 pub struct Options {
   /// Binary to use to run the application
   #[clap(short, long)]
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// Target triple to build against
   #[clap(short, long)]
   pub target: Option<String>,
@@ -224,9 +224,14 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   }
 
   if options.runner.is_none() {
-    options
+    options.runner = config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
       .runner
-      .clone_from(&config.lock().unwrap().as_ref().unwrap().build.runner);
+      .clone();
   }
 
   let mut cargo_features = config

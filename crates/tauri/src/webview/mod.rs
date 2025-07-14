@@ -638,7 +638,7 @@ impl<R: Runtime> WebviewBuilder<R> {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [Self::initialization_script_for_all_frames] instead.
+  /// If you only want to run it in all frames, use [`Self::initialization_script_for_all_frames`] instead.
   ///
   /// ## Platform-specific
   ///
@@ -698,7 +698,7 @@ fn main() {
   /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
   ///
   /// This is executed on all frames (main frame and also sub frames).
-  /// If you only want to run the script in the main frame, use [Self::initialization_script] instead.
+  /// If you only want to run the script in the main frame, use [`Self::initialization_script`] instead.
   ///
   /// ## Platform-specific
   ///

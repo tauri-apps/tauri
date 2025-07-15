@@ -15,6 +15,7 @@ use crate::{
 use anyhow::Context;
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
+use tauri_utils::config::RunnerConfig;
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -25,7 +26,7 @@ use tauri_utils::platform::Target;
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// Builds with the debug flag
   #[clap(short, long)]
   pub debug: bool,
@@ -210,7 +211,7 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner.clone_from(&config_.build.runner);
+    options.runner = config_.build.runner.clone();
   }
 
   options

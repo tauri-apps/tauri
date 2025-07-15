@@ -2761,6 +2761,77 @@ pub enum HookCommand {
   },
 }
 
+/// The runner configuration.
+#[skip_serializing_none]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum RunnerConfig {
+  /// A string specifying the binary to run.
+  String(String),
+  /// An object with advanced configuration options.
+  Object {
+    /// The binary to run.
+    cmd: String,
+    /// The current working directory to run the command from.
+    cwd: Option<String>,
+    /// Arguments to pass to the command.
+    args: Option<Vec<String>>,
+  },
+}
+
+impl Default for RunnerConfig {
+  fn default() -> Self {
+    RunnerConfig::String("cargo".to_string())
+  }
+}
+
+impl RunnerConfig {
+  /// Returns the command to run.
+  pub fn cmd(&self) -> &str {
+    match self {
+      RunnerConfig::String(cmd) => cmd,
+      RunnerConfig::Object { cmd, .. } => cmd,
+    }
+  }
+
+  /// Returns the working directory.
+  pub fn cwd(&self) -> Option<&str> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { cwd, .. } => cwd.as_deref(),
+    }
+  }
+
+  /// Returns the arguments.
+  pub fn args(&self) -> Option<&[String]> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { args, .. } => args.as_deref(),
+    }
+  }
+}
+
+impl std::str::FromStr for RunnerConfig {
+  type Err = std::convert::Infallible;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Ok(RunnerConfig::String(s.to_string()))
+  }
+}
+
+impl From<&str> for RunnerConfig {
+  fn from(s: &str) -> Self {
+    RunnerConfig::String(s.to_string())
+  }
+}
+
+impl From<String> for RunnerConfig {
+  fn from(s: String) -> Self {
+    RunnerConfig::String(s)
+  }
+}
+
 /// The Build configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#buildconfig>
@@ -2770,7 +2841,7 @@ pub enum HookCommand {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
   /// The binary used to build and run the application.
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// The URL to load in development.
   ///
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
@@ -3436,11 +3507,34 @@ mod build {
     }
   }
 
+  impl ToTokens for RunnerConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::RunnerConfig };
+
+      tokens.append_all(match self {
+        Self::String(cmd) => {
+          let cmd = cmd.as_str();
+          quote!(#prefix::String(#cmd.into()))
+        }
+        Self::Object { cmd, cwd, args } => {
+          let cmd = cmd.as_str();
+          let cwd = opt_str_lit(cwd.as_ref());
+          let args = opt_lit(args.as_ref().map(|v| vec_lit(v, str_lit)).as_ref());
+          quote!(#prefix::Object {
+            cmd: #cmd.into(),
+            cwd: #cwd,
+            args: #args,
+          })
+        }
+      })
+    }
+  }
+
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_url = opt_lit(self.dev_url.as_ref().map(url_lit).as_ref());
       let frontend_dist = opt_lit(self.frontend_dist.as_ref());
-      let runner = quote!(None);
+      let runner = opt_lit(self.runner.as_ref());
       let before_dev_command = quote!(None);
       let before_build_command = quote!(None);
       let before_bundle_command = quote!(None);
@@ -3823,5 +3917,213 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+  }
+
+  #[test]
+  fn test_runner_config_string_format() {
+    use super::RunnerConfig;
+
+    // Test string format deserialization
+    let json = r#""cargo""#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "cargo");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+
+    // Test string format serialization
+    let serialized = serde_json::to_string(&runner).unwrap();
+    assert_eq!(serialized, r#""cargo""#);
+  }
+
+  #[test]
+  fn test_runner_config_object_format_full() {
+    use super::RunnerConfig;
+
+    // Test object format with all fields
+    let json = r#"{"cmd": "my_runner", "cwd": "/tmp/build", "args": ["--quiet", "--verbose"]}"#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "my_runner");
+    assert_eq!(runner.cwd(), Some("/tmp/build"));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
+
+    // Test object format serialization
+    let serialized = serde_json::to_string(&runner).unwrap();
+    let deserialized: RunnerConfig = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(runner, deserialized);
+  }
+
+  #[test]
+  fn test_runner_config_object_format_minimal() {
+    use super::RunnerConfig;
+
+    // Test object format with only cmd field
+    let json = r#"{"cmd": "cross"}"#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "cross");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_default() {
+    use super::RunnerConfig;
+
+    let default_runner = RunnerConfig::default();
+    assert_eq!(default_runner.cmd(), "cargo");
+    assert_eq!(default_runner.cwd(), None);
+    assert_eq!(default_runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_str() {
+    use super::RunnerConfig;
+
+    // Test From<&str> trait
+    let runner: RunnerConfig = "my_runner".into();
+    assert_eq!(runner.cmd(), "my_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_string() {
+    use super::RunnerConfig;
+
+    // Test From<String> trait
+    let runner: RunnerConfig = "another_runner".to_string().into();
+    assert_eq!(runner.cmd(), "another_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_str_parse() {
+    use super::RunnerConfig;
+    use std::str::FromStr;
+
+    // Test FromStr trait
+    let runner = RunnerConfig::from_str("parsed_runner").unwrap();
+    assert_eq!(runner.cmd(), "parsed_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_in_build_config() {
+    use super::BuildConfig;
+
+    // Test string format in BuildConfig
+    let json = r#"{"runner": "cargo"}"#;
+    let build_config: BuildConfig = serde_json::from_str(json).unwrap();
+
+    let runner = build_config.runner.unwrap();
+    assert_eq!(runner.cmd(), "cargo");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_in_build_config_object() {
+    use super::BuildConfig;
+
+    // Test object format in BuildConfig
+    let json = r#"{"runner": {"cmd": "cross", "cwd": "/workspace", "args": ["--target", "x86_64-unknown-linux-gnu"]}}"#;
+    let build_config: BuildConfig = serde_json::from_str(json).unwrap();
+
+    let runner = build_config.runner.unwrap();
+    assert_eq!(runner.cmd(), "cross");
+    assert_eq!(runner.cwd(), Some("/workspace"));
+    assert_eq!(
+      runner.args(),
+      Some(
+        &[
+          "--target".to_string(),
+          "x86_64-unknown-linux-gnu".to_string()
+        ][..]
+      )
+    );
+  }
+
+  #[test]
+  fn test_runner_config_in_full_config() {
+    use super::Config;
+
+    // Test runner config in full Tauri config
+    let json = r#"{
+      "productName": "Test App",
+      "version": "1.0.0",
+      "identifier": "com.test.app",
+      "build": {
+        "runner": {
+          "cmd": "my_custom_cargo",
+          "cwd": "/tmp/build",
+          "args": ["--quiet", "--verbose"]
+        }
+      }
+    }"#;
+
+    let config: Config = serde_json::from_str(json).unwrap();
+    let runner = config.build.runner.unwrap();
+
+    assert_eq!(runner.cmd(), "my_custom_cargo");
+    assert_eq!(runner.cwd(), Some("/tmp/build"));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
+  }
+
+  #[test]
+  fn test_runner_config_equality() {
+    use super::RunnerConfig;
+
+    let runner1 = RunnerConfig::String("cargo".to_string());
+    let runner2 = RunnerConfig::String("cargo".to_string());
+    let runner3 = RunnerConfig::String("cross".to_string());
+
+    assert_eq!(runner1, runner2);
+    assert_ne!(runner1, runner3);
+
+    let runner4 = RunnerConfig::Object {
+      cmd: "cargo".to_string(),
+      cwd: Some("/tmp".to_string()),
+      args: Some(vec!["--quiet".to_string()]),
+    };
+    let runner5 = RunnerConfig::Object {
+      cmd: "cargo".to_string(),
+      cwd: Some("/tmp".to_string()),
+      args: Some(vec!["--quiet".to_string()]),
+    };
+
+    assert_eq!(runner4, runner5);
+    assert_ne!(runner1, runner4);
+  }
+
+  #[test]
+  fn test_runner_config_untagged_serialization() {
+    use super::RunnerConfig;
+
+    // Test that serde untagged works correctly - string should serialize as string, not object
+    let string_runner = RunnerConfig::String("cargo".to_string());
+    let string_json = serde_json::to_string(&string_runner).unwrap();
+    assert_eq!(string_json, r#""cargo""#);
+
+    // Test that object serializes as object
+    let object_runner = RunnerConfig::Object {
+      cmd: "cross".to_string(),
+      cwd: None,
+      args: None,
+    };
+    let object_json = serde_json::to_string(&object_runner).unwrap();
+    assert!(object_json.contains("\"cmd\":\"cross\""));
+    // With skip_serializing_none, null values should not be included
+    assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
+    assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
   }
 }

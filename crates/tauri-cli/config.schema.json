@@ -1805,9 +1805,13 @@
       "properties": {
         "runner": {
           "description": "The binary used to build and run the application.",
-          "type": [
-            "string",
-            "null"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RunnerConfig"
+            },
+            {
+              "type": "null"
+            }
           ]
         },
         "devUrl": {
@@ -1879,6 +1883,45 @@
         }
       },
       "additionalProperties": false
+    },
+    "RunnerConfig": {
+      "description": "The runner configuration.",
+      "anyOf": [
+        {
+          "description": "A string specifying the binary to run.",
+          "type": "string"
+        },
+        {
+          "description": "An object with advanced configuration options.",
+          "type": "object",
+          "required": [
+            "cmd"
+          ],
+          "properties": {
+            "cmd": {
+              "description": "The binary to run.",
+              "type": "string"
+            },
+            "cwd": {
+              "description": "The current working directory to run the command from.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "args": {
+              "description": "Arguments to pass to the command.",
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ]
     },
     "FrontendDist": {
       "description": "Defines the URL or assets to embed in the application.",

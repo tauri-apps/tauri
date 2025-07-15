@@ -18,7 +18,7 @@ function mockInternals() {
  * `shouldMockEvents`: If true, the `listen` and `emit` functions will be mocked, allowing you to test event handling without a real backend.
  * **This will consume any events emitted with the `plugin:event` prefix.**
  *
- * @since 2.6.3
+ * @since 2.7.0
  */
 export interface MockIPCOptions {
   shouldMockEvents?: boolean

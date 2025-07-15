@@ -2389,8 +2389,8 @@ pub struct WindowWrapper {
 }
 
 impl WindowWrapper {
-  pub fn label(&self) -> String {
-    self.label.clone()
+  pub fn label(&self) -> &str {
+    &self.label
   }
 }
 

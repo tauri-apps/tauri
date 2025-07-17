@@ -376,6 +376,8 @@ pub struct WebviewAttributes {
   /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
   #[cfg(target_os = "ios")]
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+  #[cfg(target_os = "ios")]
+  pub limit_navigations_to_app_bound_domains: bool,
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
@@ -510,6 +512,8 @@ impl WebviewAttributes {
       scroll_bar_style: ScrollBarStyle::Default,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
+      #[cfg(target_os = "ios")]
+      limit_navigations_to_app_bound_domains: false,
       #[cfg(windows)]
       environment: None,
       #[cfg(any(
@@ -758,6 +762,39 @@ impl WebviewAttributes {
   #[must_use]
   pub fn allow_link_preview(mut self, allow_link_preview: bool) -> Self {
     self.allow_link_preview = allow_link_preview;
+    self
+  }
+  /// Whether to limit navigations to App-Bound Domains. This is necessary
+  /// to enable Service Workers on iOS according to [StackOverflow](https://stackoverflow.com/questions/49673399/service-workers-unavailable-in-wkwebview-in-ios-11-3/64155509#64155509).
+  ///
+  /// Note: If you pass in `true` make sure to add the following to Info.plist
+  /// in the iOS project:
+  /// ```xml
+  /// <plist>
+  /// <dict>
+  /// 	<key>WKAppBoundDomains</key>
+  /// 	<array>
+  /// 		<string>localhost</string>
+  /// 	</array>
+  /// </dict>
+  /// </plist>
+  /// ```
+  /// You should also add any additional domains which your app requests assets from.
+  /// Assets served through custom protocols like Tauri's IPC are added to the
+  /// list automatically. Available on iOS only.
+  ///
+  /// Default is false.
+  ///
+  /// See https://webkit.org/blog/10882/app-bound-domains/ and
+  /// https://developer.apple.com/documentation/webkit/wkwebviewconfiguration/limitsnavigationstoappbounddomains
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / Windows / Android / MacOS:** Unsupported.
+  #[must_use]
+  #[cfg(target_os = "ios")]
+  pub fn limit_navigations_to_app_bound_domains(mut self, limit_navigations: bool) -> Self {
+    self.limit_navigations_to_app_bound_domains = limit_navigations;
     self
   }
 

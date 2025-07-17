@@ -485,7 +485,7 @@ impl<R: Runtime> AppHandle<R> {
   ///   });
   /// ```
   pub fn plugin<P: Plugin<R> + 'static>(&self, plugin: P) -> crate::Result<()> {
-    self.plugin_dyn(Box::new(plugin))
+    self.plugin_boxed(Box::new(plugin))
   }
 
   /// Adds a Tauri application plugin.
@@ -493,7 +493,7 @@ impl<R: Runtime> AppHandle<R> {
   /// This method is similar to [`Self::plugin`],
   /// but accepts a boxed trait object instead of a generic type.
   #[cfg_attr(feature = "tracing", tracing::instrument(name = "app::plugin::register", skip(plugin), fields(name = plugin.name())))]
-  pub fn plugin_dyn(&self, mut plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
+  pub fn plugin_boxed(&self, mut plugin: Box<dyn Plugin<R>>) -> crate::Result<()> {
     let mut store = self.manager().plugins.lock().unwrap();
     store.initialize(&mut plugin, self, &self.config().plugins)?;
     store.register(plugin);
@@ -1690,7 +1690,7 @@ tauri::Builder::default()
   /// ```
   #[must_use]
   pub fn plugin<P: Plugin<R> + 'static>(self, plugin: P) -> Self {
-    self.plugin_dyn(Box::new(plugin))
+    self.plugin_boxed(Box::new(plugin))
   }
 
   /// Adds a Tauri application plugin.
@@ -1698,7 +1698,7 @@ tauri::Builder::default()
   /// This method is similar to [`Self::plugin`],
   /// but accepts a boxed trait object instead of a generic type.
   #[must_use]
-  pub fn plugin_dyn(mut self, plugin: Box<dyn Plugin<R>>) -> Self {
+  pub fn plugin_boxed(mut self, plugin: Box<dyn Plugin<R>>) -> Self {
     self.plugins.register(plugin);
     self
   }

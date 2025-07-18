@@ -24,22 +24,20 @@
   "main": "main.js",
   "types": "main.d.ts",
   "napi": {
-    "name": "cli",
-    "triples": {
-      "additional": [
-        "aarch64-apple-darwin",
-        "aarch64-unknown-linux-gnu",
-        "aarch64-unknown-linux-musl",
-        "armv7-unknown-linux-gnueabihf",
-        "x86_64-unknown-linux-musl",
-        "riscv64gc-unknown-linux-gnu",
-        "i686-pc-windows-msvc",
-        "aarch64-pc-windows-msvc"
-      ]
-    }
+    "binaryName": "cli",
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "armv7-unknown-linux-gnueabihf",
+      "x86_64-unknown-linux-musl",
+      "riscv64gc-unknown-linux-gnu",
+      "i686-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.18.4",
+    "@napi-rs/cli": "^3.0.0",
     "@types/node": "^22.15.32",
     "cross-env": "7.0.3",
     "vitest": "^3.2.4"

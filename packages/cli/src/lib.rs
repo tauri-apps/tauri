@@ -4,16 +4,19 @@
 
 #![cfg(any(target_os = "macos", target_os = "linux", windows))]
 
+use std::sync::Arc;
+
 use napi::{
-  threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-  Error, JsFunction, Result, Status,
+  threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
+  Error, Result, Status,
 };
 
 #[napi_derive::napi]
-pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) -> Result<()> {
-  let function: ThreadsafeFunction<bool, ErrorStrategy::CalleeHandled> = callback
-    .create_threadsafe_function(0, |ctx| ctx.env.get_boolean(ctx.value).map(|v| vec![v]))?;
-
+pub fn run(
+  args: Vec<String>,
+  bin_name: Option<String>,
+  callback: Arc<ThreadsafeFunction<bool>>,
+) -> Result<()> {
   // we need to run in a separate thread so Node.js consumers
   // can do work while `tauri dev` is running.
   std::thread::spawn(move || {
@@ -22,7 +25,7 @@ pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) ->
     })) {
       Ok(t) => t,
       Err(_) => {
-        return function.call(
+        return callback.call(
           Err(Error::new(
             Status::GenericFailure,
             "Tauri CLI unexpected panic",
@@ -33,8 +36,8 @@ pub fn run(args: Vec<String>, bin_name: Option<String>, callback: JsFunction) ->
     };
 
     match res {
-      Ok(_) => function.call(Ok(true), ThreadsafeFunctionCallMode::Blocking),
-      Err(e) => function.call(
+      Ok(_) => callback.call(Ok(true), ThreadsafeFunctionCallMode::Blocking),
+      Err(e) => callback.call(
         Err(Error::new(Status::GenericFailure, format!("{e:#}"))),
         ThreadsafeFunctionCallMode::Blocking,
       ),

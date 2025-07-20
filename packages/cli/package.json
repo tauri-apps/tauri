@@ -39,7 +39,7 @@
     }
   },
   "devDependencies": {
-    "@napi-rs/cli": "2.18.4",
+    "@napi-rs/cli": "3.0.0",
     "@types/node": "^22.15.32",
     "cross-env": "7.0.3",
     "vitest": "^3.2.4"

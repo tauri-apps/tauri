@@ -95,16 +95,14 @@ jobs:
           cargo update -p openssl --precise 0.10.66
           cargo update -p openssl-sys --precise 0.9.103
           cargo update -p cargo_toml --precise 0.15.2
-          cargo update -p libc --precise 0.2.163
+          cargo update -p libc:0.2 --precise 0.2.163
 
-      - name: Downgrade crates with MSRV conflict (cli)
-        if: ${{ matrix.project.name != 'core' }}
-        env:
-          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
-        # The --precise flag can only be used once per invocation.
-        # at least h2 and syn don't need the precise flag here with cargo 1.84
-        run: |
-          cargo update -p avif-serialize --precise 0.8.3
+      # - name: Downgrade crates with MSRV conflict (bundler)
+      #   if: ${{ matrix.project.name != 'core' }}
+      #   env:
+      #     CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+      #   run: |
+      #     cargo update -p avif-serialize --precise 0.8.3
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master

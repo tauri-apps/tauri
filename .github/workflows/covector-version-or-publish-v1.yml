@@ -95,6 +95,7 @@ jobs:
           cargo update -p openssl --precise 0.10.66
           cargo update -p openssl-sys --precise 0.9.103
           cargo update -p cargo_toml --precise 0.15.2
+          cargo update -p shared_child --precise 1.0.0
           cargo update -p libc:0.2 --precise 0.2.163
 
       - name: Downgrade crates with MSRV conflict (bundler)
@@ -102,8 +103,7 @@ jobs:
         env:
           CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
         run: |
-          cargo update -p image --precise 0.25.5
-          cargo update -p avif-serialize --precise 0.8.3
+          cargo update -p avif-serialize:0.8.4 --precise 0.8.2
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master

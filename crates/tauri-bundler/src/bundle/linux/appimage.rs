@@ -218,12 +218,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
 fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
-  let apprun = tools_path.join(format!("AppRun-{arch}"));
-  if !apprun.exists() {
+  let appimagetool = tools_path.join(format!("appimagetool-{arch}"));
+  if !appimagetool.exists() {
     let data = download(&format!(
-      "https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-{arch}"
+      "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-{arch}.AppImage"
     ))?;
-    write_and_make_executable(&apprun, data)?;
+    write_and_make_executable(&appimagetool, data)?;
   }
 
   let linuxdeploy_arch = if arch == "i686" { "i383" } else { arch };

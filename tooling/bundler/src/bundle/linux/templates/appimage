@@ -47,7 +47,7 @@ find -L /usr/lib* -name WebKitNetworkProcess -exec mkdir -p "$(dirname '{}')" \;
 find -L /usr/lib* -name WebKitWebProcess -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 find -L /usr/lib* -name libwebkit2gtkinjectedbundle.so -exec mkdir -p "$(dirname '{}')" \; -exec cp --parents '{}' "." \; || true
 
-( cd "{{tauri_tools_path}}" && ( wget -q -4 -N https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-${ARCH} || wget -q -4 -N https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH} ) )
+( cd "{{tauri_tools_path}}" && ( wget -q -4 -N https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch} || wget -q -4 -N https://github.com/AppImage/AppImageKit/releases/download/12/AppRun-${ARCH} ) )
 chmod +x "{{tauri_tools_path}}/AppRun-${ARCH}"
 
 # We need AppRun to be installed as {{app_name}}.AppDir/AppRun.

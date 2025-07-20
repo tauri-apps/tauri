@@ -51,7 +51,7 @@
     "@types/eslint": "^9.6.1",
     "@types/node": "^22.15.32",
     "eslint": "^9.29.0",
-    "eslint-config-prettier": "10.1.5",
+    "eslint-config-prettier": "10.1.8",
     "eslint-plugin-security": "3.0.1",
     "fast-glob": "3.3.3",
     "globals": "^16.2.0",

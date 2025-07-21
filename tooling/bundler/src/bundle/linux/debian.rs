@@ -57,13 +57,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     settings.version_string(),
     arch
   );
-  let package_name = format!("{}.deb", package_base_name);
+  let package_name = format!("{package_base_name}.deb");
 
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
     fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {}", package_base_name))?;
+      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
   }
   let package_path = base_dir.join(&package_name);
 
@@ -110,7 +110,7 @@ pub fn generate_data(
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     common::copy_file(&bin_path, bin_dir.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
   }
 
   copy_resource_files(settings, &data_dir).with_context(|| "Failed to copy resource files")?;
@@ -135,7 +135,7 @@ fn generate_changelog_file(settings: &Settings, data_dir: &Path) -> crate::Resul
   if let Some(changelog_src_path) = &settings.deb().changelog {
     let mut src_file = File::open(changelog_src_path)?;
     let bin_name = settings.main_binary_name();
-    let dest_path = data_dir.join(format!("usr/share/doc/{}/changelog.gz", bin_name));
+    let dest_path = data_dir.join(format!("usr/share/doc/{bin_name}/changelog.gz"));
 
     let changelog_file = common::create_file(&dest_path)?;
     let mut gzip_encoder = GzEncoder::new(changelog_file, Compression::new(9));
@@ -160,16 +160,16 @@ fn generate_control_file(
   let mut file = common::create_file(&dest_path)?;
   writeln!(file, "Package: {}", AsKebabCase(settings.product_name()))?;
   writeln!(file, "Version: {}", settings.version_string())?;
-  writeln!(file, "Architecture: {}", arch)?;
+  writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
   writeln!(file, "Installed-Size: {}", total_dir_size(data_dir)? / 1024)?;
   let authors = settings.authors_comma_separated().unwrap_or_default();
-  writeln!(file, "Maintainer: {}", authors)?;
+  writeln!(file, "Maintainer: {authors}")?;
   if let Some(section) = &settings.deb().section {
-    writeln!(file, "Section: {}", section)?;
+    writeln!(file, "Section: {section}")?;
   }
   if let Some(priority) = &settings.deb().priority {
-    writeln!(file, "Priority: {}", priority)?;
+    writeln!(file, "Priority: {priority}")?;
   } else {
     writeln!(file, "Priority: optional")?;
   }
@@ -215,13 +215,13 @@ fn generate_control_file(
   if long_description.is_empty() {
     long_description = "(none)";
   }
-  writeln!(file, "Description: {}", short_description)?;
+  writeln!(file, "Description: {short_description}")?;
   for line in long_description.lines() {
     let line = line.trim();
     if line.is_empty() {
       writeln!(file, " .")?;
     } else {
-      writeln!(file, " {}", line)?;
+      writeln!(file, " {line}")?;
     }
   }
   file.flush()?;
@@ -243,14 +243,14 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     let mut hash = md5::Context::new();
     io::copy(&mut file, &mut hash)?;
     for byte in hash.compute().iter() {
-      write!(md5sums_file, "{:02x}", byte)?;
+      write!(md5sums_file, "{byte:02x}")?;
     }
     let rel_path = path.strip_prefix(data_dir)?;
     let path_str = rel_path.to_str().ok_or_else(|| {
-      let msg = format!("Non-UTF-8 path: {:?}", rel_path);
+      let msg = format!("Non-UTF-8 path: {rel_path:?}");
       io::Error::new(io::ErrorKind::InvalidData, msg)
     })?;
-    writeln!(md5sums_file, "  {}", path_str)?;
+    writeln!(md5sums_file, "  {path_str}")?;
   }
   Ok(())
 }

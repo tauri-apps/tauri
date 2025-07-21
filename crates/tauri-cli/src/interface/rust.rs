@@ -1387,7 +1387,6 @@ fn tauri_config_to_bundle_settings(
       files: appimage_files,
       bundle_media_framework: config.linux.appimage.bundle_media_framework,
       bundle_xdg_open: false,
-      use_new_format: config.linux.appimage.use_new_format,
       squashfs: config.linux.appimage.squashfs,
       update_information: config.linux.appimage.update_information,
     },

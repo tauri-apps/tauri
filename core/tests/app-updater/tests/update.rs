@@ -408,7 +408,7 @@ fn update_app_flow<F: FnOnce(Options<'_>) -> (PathBuf, TauriVersion)>(build_app_
         .unwrap_or_else(|_| panic!("failed to read signature file {}", signature_path.display()));
 
       let out_updater_path =
-        out_bundle_path.with_extension(format!("{}.{}", bundle_updater_ext, updater_zip_ext));
+        out_bundle_path.with_extension(format!("{bundle_updater_ext}.{updater_zip_ext}"));
 
       (out_updater_path, signature)
     } else {

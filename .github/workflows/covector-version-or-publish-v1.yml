@@ -18,30 +18,26 @@ jobs:
       matrix:
         project:
           - name: core
-            flags: '--manifest-path=./Cargo.toml --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test'
+            flags: "--manifest-path=./Cargo.toml --features tracing,compression,wry,linux-protocol-headers,isolation,custom-protocol,api-all,cli,updater,system-tray,windows7-compat,http-multipart,test"
           - name: bundler
-            flags: '--manifest-path=./tooling/bundler/Cargo.toml'
-            toolchain: '1.71.0'
+            flags: "--manifest-path=./tooling/bundler/Cargo.toml"
+            toolchain: "1.71.0"
           - name: cli
-            flags: '--manifest-path=./tooling/cli/Cargo.toml'
-            toolchain: '1.71.0'
+            flags: "--manifest-path=./tooling/cli/Cargo.toml"
+            toolchain: "1.71.0"
 
         platform:
           - {
               target: x86_64-pc-windows-msvc,
               os: windows-latest,
-              toolchain: '1.61.0'
+              toolchain: "1.61.0",
             }
           - {
               target: x86_64-unknown-linux-gnu,
               os: ubuntu-22.04,
-              toolchain: '1.60.0'
+              toolchain: "1.60.0",
             }
-          - {
-              target: x86_64-apple-darwin,
-              os: macos-13,
-              toolchain: '1.60.0'
-            }
+          - { target: x86_64-apple-darwin, os: macos-13, toolchain: "1.60.0" }
     steps:
       - uses: actions/checkout@v4
 
@@ -99,6 +95,21 @@ jobs:
           cargo update -p openssl --precise 0.10.66
           cargo update -p openssl-sys --precise 0.9.103
           cargo update -p cargo_toml --precise 0.15.2
+          cargo update -p shared_child --precise 1.0.0
+          cargo update -p libc:0.2 --precise 0.2.163
+          cargo update -p os_pipe --precise 1.1.5
+
+      - name: Downgrade crates with MSRV conflict (bundler)
+        if: ${{ matrix.project.name != 'core' }}
+        env:
+          CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
+        run: |
+          cd tooling/bundler
+          cargo update -p avif-serialize --precise 0.8.3
+          cargo update -p zune-jpeg --precise 0.4.14
+          cd ../cli
+          cargo update -p avif-serialize --precise 0.8.3
+          cargo update -p zune-jpeg --precise 0.4.14
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master
@@ -175,7 +186,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 16
-          registry-url: 'https://registry.npmjs.org'
+          registry-url: "https://registry.npmjs.org"
           cache: yarn
           cache-dependency-path: tooling/*/yarn.lock
 
@@ -194,7 +205,7 @@ jobs:
           CARGO_AUDIT_OPTIONS: ${{ secrets.CARGO_AUDIT_OPTIONS }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          command: 'version-or-publish'
+          command: "version-or-publish"
           createRelease: true
           recognizeContributors: true
 
@@ -205,8 +216,8 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: release/version-updates-v1
           title: Apply Version Updates From Current Changes (v1)
-          commit-message: 'apply version updates'
-          labels: 'version updates'
+          commit-message: "apply version updates"
+          labels: "version updates"
           body: ${{ steps.covector.outputs.change }}
 
       - name: Trigger doc update

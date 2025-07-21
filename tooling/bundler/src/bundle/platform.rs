@@ -95,10 +95,10 @@ pub fn target_triple() -> Result<String, crate::Error> {
       )));
     };
 
-    format!("{}-{}", os, env)
+    format!("{os}-{env}")
   };
 
-  Ok(format!("{}-{}", arch, os))
+  Ok(format!("{arch}-{os}"))
 }
 
 #[cfg(test)]

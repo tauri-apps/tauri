@@ -1996,7 +1996,7 @@ pub(crate) fn ipc_scope_not_found_error_message(label: &str, url: &str) -> Strin
 }
 
 pub(crate) fn ipc_scope_window_error_message(label: &str) -> String {
-  format!("Scope not defined for window `{}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access", label)
+  format!("Scope not defined for window `{label}`. See https://tauri.app/v1/api/config/#securityconfig.dangerousremotedomainipcaccess and https://docs.rs/tauri/1/tauri/scope/struct.IpcScope.html#method.configure_remote_access")
 }
 
 pub(crate) fn ipc_scope_domain_error_message(url: &str) -> String {

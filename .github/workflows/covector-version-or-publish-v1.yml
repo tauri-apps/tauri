@@ -107,6 +107,9 @@ jobs:
           cd tooling/bundler
           cargo update -p avif-serialize --precise 0.8.3
           cargo update -p zune-jpeg --precise 0.4.14
+          cd ../cli
+          cargo update -p avif-serialize --precise 0.8.3
+          cargo update -p zune-jpeg --precise 0.4.14
 
       - name: install rust ${{ matrix.project.toolchain || matrix.platform.toolchain }}
         uses: dtolnay/rust-toolchain@master

@@ -4,7 +4,7 @@
 
 use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
-  helpers::config::get as get_tauri_config,
+  helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
   Result,
@@ -82,12 +82,33 @@ pub fn command(options: Options) -> Result<()> {
   let profile = profile_from_configuration(&options.configuration);
   let macos = macos_from_platform(&options.platform);
 
-  let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[])?;
+  let (tauri_config, cli_options) = {
+    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[])?;
+    let cli_options = {
+      let tauri_config_guard = tauri_config.lock().unwrap();
+      let tauri_config_ = tauri_config_guard.as_ref().unwrap();
+      read_options(tauri_config_)
+    };
+    let tauri_config = if cli_options.config.is_empty() {
+      tauri_config
+    } else {
+      // reload config with merges from the ios dev|build script
+      reload_tauri_config(
+        &cli_options
+          .config
+          .iter()
+          .map(|conf| &conf.0)
+          .collect::<Vec<_>>(),
+      )?
+    };
 
-  let (config, metadata, cli_options) = {
+    (tauri_config, cli_options)
+  };
+
+  let (config, metadata) = {
     let tauri_config_guard = tauri_config.lock().unwrap();
     let tauri_config_ = tauri_config_guard.as_ref().unwrap();
-    let cli_options = read_options(&tauri_config_.identifier);
+    let cli_options = read_options(tauri_config_);
     let (config, metadata) = get_config(
       &get_app(
         MobileTarget::Ios,
@@ -98,7 +119,7 @@ pub fn command(options: Options) -> Result<()> {
       None,
       &cli_options,
     )?;
-    (config, metadata, cli_options)
+    (config, metadata)
   };
   ensure_init(
     &tauri_config,
@@ -175,7 +196,8 @@ pub fn command(options: Options) -> Result<()> {
 
   let isysroot = format!("-isysroot {}", options.sdk_root.display());
 
-  let simulator = options.arches.contains(&"Simulator".to_string());
+  let simulator =
+    options.platform == "iOS Simulator" || options.arches.contains(&"Simulator".to_string());
   let arches = if simulator {
     // when compiling for the simulator, we don't need to build other targets
     vec![if cfg!(target_arch = "aarch64") {
@@ -206,9 +228,9 @@ pub fn command(options: Options) -> Result<()> {
       Some(rust_triple.into()),
     )?;
 
-    let cflags = format!("CFLAGS_{}", env_triple);
-    let cxxflags = format!("CFLAGS_{}", env_triple);
-    let objc_include_path = format!("OBJC_INCLUDE_PATH_{}", env_triple);
+    let cflags = format!("CFLAGS_{env_triple}");
+    let cxxflags = format!("CFLAGS_{env_triple}");
+    let objc_include_path = format!("OBJC_INCLUDE_PATH_{env_triple}");
     let mut target_env = host_env.clone();
     target_env.insert(cflags.as_ref(), isysroot.as_ref());
     target_env.insert(cxxflags.as_ref(), isysroot.as_ref());

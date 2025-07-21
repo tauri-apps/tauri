@@ -497,7 +497,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrentWebview } from '@tauri-apps/api/webview';
-   * await getCurrentWebview().setAutoReisze(true);
+   * await getCurrentWebview().setAutoResize(true);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.

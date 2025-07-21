@@ -14,9 +14,8 @@ use url::Url;
 
 use tauri_macros::default_runtime;
 use tauri_utils::{
-  assets::{AssetKey, CspHash},
+  assets::{AssetKey, CspHash, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
   config::{Csp, CspDirectiveSources},
-  html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
 use crate::resources::ResourceTable;
@@ -136,7 +135,7 @@ fn replace_csp_nonce(
     let mut raw = [0u8; 4];
     #[cfg(target_pointer_width = "16")]
     let mut raw = [0u8; 2];
-    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    getrandom::fill(&mut raw).expect("failed to get random bytes");
     let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
@@ -277,7 +276,7 @@ impl<R: Runtime> AppManager<R> {
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
-    if let Pattern::Isolation { ref mut key, .. } = &mut context.pattern {
+    if let Pattern::Isolation { key, .. } = &mut context.pattern {
       *key = uuid::Uuid::new_v4().to_string();
     }
 

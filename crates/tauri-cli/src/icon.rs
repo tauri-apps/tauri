@@ -60,6 +60,7 @@ pub struct Options {
   ios_color: String,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum Source {
   Svg(resvg::usvg::Tree),
   DynamicImage(DynamicImage),

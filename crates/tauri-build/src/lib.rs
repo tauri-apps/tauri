@@ -367,6 +367,8 @@ impl Attributes {
 
   /// Set the glob pattern to be used to find the capabilities.
   ///
+  /// **WARNING:** The `removeUnusedCommands` option does not work with a custom capabilities path.
+  ///
   /// **Note:** You must emit [rerun-if-changed] instructions for your capabilities directory.
   ///
   /// [rerun-if-changed]: https://doc.rust-lang.org/cargo/reference/build-scripts.html#rerun-if-changed
@@ -528,7 +530,7 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
 
   if let Some(paths) = &config.bundle.external_bin {
     copy_binaries(
-      ResourcePaths::new(external_binaries(paths, &target_triple).as_slice(), true),
+      ResourcePaths::new(&external_binaries(paths, &target_triple, &target), true),
       &target_triple,
       target_dir,
       manifest.package.as_ref().map(|p| &p.name),

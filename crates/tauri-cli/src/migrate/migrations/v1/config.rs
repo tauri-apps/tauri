@@ -18,7 +18,7 @@ use std::{
 
 pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
   if let Ok((mut config, config_path)) =
-    tauri_utils_v1::config::parse::parse_value(tauri_dir.join("tauri.conf.json"))
+    tauri_utils::config_v1::parse::parse_value(tauri_dir.join("tauri.conf.json"))
   {
     let migrated = migrate_config(&mut config)?;
     if config_path.extension().is_some_and(|ext| ext == "toml") {
@@ -375,16 +375,16 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
     let csp = if csp_value.is_null() {
       csp_value
     } else {
-      let mut csp: tauri_utils_v1::config::Csp = serde_json::from_value(csp_value)?;
+      let mut csp: tauri_utils::config_v1::Csp = serde_json::from_value(csp_value)?;
       match &mut csp {
-        tauri_utils_v1::config::Csp::Policy(csp) => {
+        tauri_utils::config_v1::Csp::Policy(csp) => {
           if csp.contains("connect-src") {
             *csp = csp.replace("connect-src", "connect-src ipc: http://ipc.localhost");
           } else {
             *csp = format!("{csp}; connect-src ipc: http://ipc.localhost");
           }
         }
-        tauri_utils_v1::config::Csp::DirectiveMap(csp) => {
+        tauri_utils::config_v1::Csp::DirectiveMap(csp) => {
           if let Some(connect_src) = csp.get_mut("connect-src") {
             if !connect_src.contains("ipc: http://ipc.localhost") {
               connect_src.push("ipc: http://ipc.localhost");
@@ -392,7 +392,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
           } else {
             csp.insert(
               "connect-src".into(),
-              tauri_utils_v1::config::CspDirectiveSources::List(vec![
+              tauri_utils::config_v1::CspDirectiveSources::List(vec![
                 "ipc: http://ipc.localhost".to_string()
               ]),
             );
@@ -422,8 +422,8 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
 fn process_allowlist(
   tauri_config: &mut Map<String, Value>,
   allowlist: Value,
-) -> Result<tauri_utils_v1::config::AllowlistConfig> {
-  let allowlist: tauri_utils_v1::config::AllowlistConfig = serde_json::from_value(allowlist)?;
+) -> Result<tauri_utils::config_v1::AllowlistConfig> {
+  let allowlist: tauri_utils::config_v1::AllowlistConfig = serde_json::from_value(allowlist)?;
 
   if allowlist.protocol.asset_scope != Default::default() {
     let security = tauri_config
@@ -447,7 +447,7 @@ fn process_allowlist(
 }
 
 fn allowlist_to_permissions(
-  allowlist: tauri_utils_v1::config::AllowlistConfig,
+  allowlist: tauri_utils::config_v1::AllowlistConfig,
 ) -> Vec<PermissionEntry> {
   macro_rules! permissions {
     ($allowlist: ident, $permissions_list: ident, $object: ident, $field: ident => $associated_permission: expr) => {{
@@ -475,8 +475,8 @@ fn allowlist_to_permissions(
   permissions!(allowlist, permissions, fs, rename_file => "fs:allow-rename");
   permissions!(allowlist, permissions, fs, exists => "fs:allow-exists");
   let (fs_allowed, fs_denied) = match allowlist.fs.scope {
-    tauri_utils_v1::config::FsAllowlistScope::AllowedPaths(paths) => (paths, Vec::new()),
-    tauri_utils_v1::config::FsAllowlistScope::Scope { allow, deny, .. } => (allow, deny),
+    tauri_utils::config_v1::FsAllowlistScope::AllowedPaths(paths) => (paths, Vec::new()),
+    tauri_utils::config_v1::FsAllowlistScope::Scope { allow, deny, .. } => (allow, deny),
   };
   if !(fs_allowed.is_empty() && fs_denied.is_empty()) {
     let fs_allowed = fs_allowed
@@ -568,7 +568,7 @@ fn allowlist_to_permissions(
     || allowlist.shell.all
     || !matches!(
       allowlist.shell.open,
-      tauri_utils_v1::config::ShellAllowlistOpen::Flag(false)
+      tauri_utils::config_v1::ShellAllowlistOpen::Flag(false)
     )
   {
     permissions.push(PermissionEntry::PermissionRef(
@@ -990,7 +990,7 @@ mod test {
 
   #[test]
   fn can_migrate_default_config() {
-    let original = serde_json::to_value(tauri_utils_v1::config::Config::default()).unwrap();
+    let original = serde_json::to_value(tauri_utils::config_v1::Config::default()).unwrap();
     migrate(&original);
   }
 

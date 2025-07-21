@@ -61,7 +61,7 @@ pub fn command(cli: Cli) -> Result<()> {
 
       let plugin_id = prompts::input(
         "What should be the Android Package ID for your plugin?",
-        Some(format!("com.plugin.{}", plugin_name)),
+        Some(format!("com.plugin.{plugin_name}")),
         false,
         false,
       )?
@@ -114,17 +114,15 @@ tauri-build = "{}"
       let init_fn = format!(
         r#"
 pub fn init<R: Runtime>() -> TauriPlugin<R> {{
-  Builder::new("{name}")
+  Builder::new("{plugin_name}")
     .setup(|app, api| {{
       #[cfg(target_os = "android")]
-      let handle = api.register_android_plugin("{identifier}", "ExamplePlugin")?;
+      let handle = api.register_android_plugin("{plugin_id}", "ExamplePlugin")?;
       Ok(())
     }})
     .build()
 }}
-"#,
-        name = plugin_name,
-        identifier = plugin_id
+"#
       );
 
       log::info!("Android project added");

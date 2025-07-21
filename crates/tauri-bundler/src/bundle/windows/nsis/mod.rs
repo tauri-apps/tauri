@@ -39,8 +39,8 @@ const NSIS_URL: &str =
 #[cfg(target_os = "windows")]
 const NSIS_SHA1: &str = "057e83c7d82462ec394af76c87d06733605543d4";
 const NSIS_TAURI_UTILS_URL: &str =
-  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.4.2/nsis_tauri_utils.dll";
-const NSIS_TAURI_UTILS_SHA1: &str = "6532DA4545864C6EC95F62F27F2199BFD668560B";
+  "https://github.com/tauri-apps/nsis-tauri-utils/releases/download/nsis_tauri_utils-v0.5.1/nsis_tauri_utils.dll";
+const NSIS_TAURI_UTILS_SHA1: &str = "B053B2E5FDB97257954C8F935D80964F056520AE";
 
 #[cfg(target_os = "windows")]
 const NSIS_REQUIRED_FILES: &[&str] = &[
@@ -48,7 +48,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
+  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",
@@ -177,8 +177,7 @@ fn build_nsis_app_installer(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };

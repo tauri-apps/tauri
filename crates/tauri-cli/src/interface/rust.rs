@@ -5,13 +5,13 @@
 use std::{
   collections::HashMap,
   ffi::OsStr,
-  fs::{File, FileType},
-  io::{BufRead, Read, Write},
+  fs::FileType,
+  io::{BufRead, Write},
   path::{Path, PathBuf},
   process::Command,
   str::FromStr,
   sync::{mpsc::sync_channel, Arc, Mutex},
-  time::{Duration, Instant},
+  time::Duration,
 };
 
 use anyhow::Context;
@@ -25,7 +25,7 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
@@ -35,7 +35,7 @@ use crate::{
   },
   ConfigValue,
 };
-use tauri_utils::{display_path, platform::Target};
+use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
 mod cargo_config;
 mod desktop;
@@ -47,7 +47,7 @@ use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   pub debug: bool,
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
@@ -126,22 +126,16 @@ impl Interface for Rust {
     let manifest = {
       let (tx, rx) = sync_channel(1);
       let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
-        if let Ok(events) = r {
-          let _ = tx.send(events);
+        if let Ok(_events) = r {
+          let _ = tx.send(());
         }
       })
       .unwrap();
-      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::Recursive)?;
-      let (manifest, _modified) = rewrite_manifest(config)?;
-      let now = Instant::now();
-      let timeout = Duration::from_secs(2);
-      loop {
-        if now.elapsed() >= timeout {
-          break;
-        }
-        if rx.try_recv().is_ok() {
-          break;
-        }
+      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)?;
+      let (manifest, modified) = rewrite_manifest(config)?;
+      if modified {
+        // Wait for the modified event so we don't trigger a re-build later on
+        let _ = rx.recv_timeout(Duration::from_secs(2));
       }
       manifest
     };
@@ -409,12 +403,10 @@ fn dev_options(
 
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
-  let Some(path) = path.to_str() else {
-    return Err(anyhow::anyhow!("path is not UTF-8 compatible"));
-  };
-  let res = glob(path).with_context(|| format!("could not parse pattern `{}`", &path))?;
+  let path = path.to_str().context("path is not UTF-8 compatible")?;
+  let res = glob(path).with_context(|| format!("could not parse pattern `{path}`"))?;
   let res = res
-    .map(|p| p.with_context(|| format!("unable to match path to pattern `{}`", &path)))
+    .map(|p| p.with_context(|| format!("unable to match path to pattern `{path}`")))
     .collect::<Result<Vec<_>, _>>()?;
   Ok(res)
 }
@@ -537,7 +529,7 @@ impl Rust {
 
           if let Some(event_path) = event.paths.first() {
             if !ignore_matcher.is_ignore(event_path, event_path.is_dir()) {
-              if is_configuration_file(self.app_settings.target, event_path) {
+              if is_configuration_file(self.app_settings.target_platform, event_path) {
                 if let Ok(config) = reload_config(merge_configs) {
                   let (manifest, modified) =
                     rewrite_manifest(config.lock().unwrap().as_ref().unwrap())?;
@@ -614,8 +606,7 @@ impl<T> MaybeWorkspace<T> {
         ))
       }
       MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
-        "`workspace=false` is unsupported for `package.{}`",
-        label,
+        "`workspace=false` is unsupported for `package.{label}`"
       )),
     }
   }
@@ -652,7 +643,16 @@ struct WorkspacePackageSettings {
 #[derive(Clone, Debug, Deserialize)]
 struct BinarySettings {
   name: String,
+  /// This is from nightly: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name
+  filename: Option<String>,
   path: Option<String>,
+}
+
+impl BinarySettings {
+  /// The file name without the binary extension (e.g. `.exe`)
+  pub fn file_name(&self) -> &str {
+    self.filename.as_ref().unwrap_or(&self.name)
+  }
 }
 
 /// The package settings.
@@ -694,12 +694,9 @@ impl CargoSettings {
   /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
-    let mut toml_str = String::new();
-    let mut toml_file = File::open(toml_path).with_context(|| "failed to open Cargo.toml")?;
-    toml_file
-      .read_to_string(&mut toml_str)
-      .with_context(|| "failed to read Cargo.toml")?;
-    toml::from_str(&toml_str).with_context(|| "failed to parse Cargo.toml")
+    let toml_str = std::fs::read_to_string(&toml_path)
+      .with_context(|| format!("Failed to read {}", toml_path.display()))?;
+    toml::from_str(&toml_str).with_context(|| format!("Failed to parse {}", toml_path.display()))
   }
 }
 
@@ -711,7 +708,7 @@ pub struct RustAppSettings {
   package_settings: PackageSettings,
   cargo_config: CargoConfig,
   target_triple: String,
-  target: Target,
+  target_platform: TargetPlatform,
 }
 
 #[derive(Deserialize)]
@@ -878,13 +875,19 @@ impl AppSettings for RustAppSettings {
       .out_dir(options)
       .context("failed to get project out directory")?;
 
-    let ext = if self.target_triple.contains("windows") {
-      "exe"
-    } else {
-      ""
+    let mut path = out_dir.join(bin_name);
+    if matches!(self.target_platform, TargetPlatform::Windows) {
+      // Append the `.exe` extension without overriding the existing extensions
+      let extension = if let Some(extension) = path.extension() {
+        let mut extension = extension.to_os_string();
+        extension.push(".exe");
+        extension
+      } else {
+        "exe".into()
+      };
+      path.set_extension(extension);
     };
-
-    Ok(out_dir.join(bin_name).with_extension(ext))
+    Ok(path)
   }
 
   fn get_binaries(&self) -> crate::Result<Vec<BundleBinary>> {
@@ -897,9 +900,10 @@ impl AppSettings for RustAppSettings {
         .clone()
         .unwrap_or_default();
       for bin in bins {
-        let is_main = bin.name == self.cargo_package_settings.name || bin.name == default_run;
+        let file_name = bin.file_name();
+        let is_main = file_name == self.cargo_package_settings.name || file_name == default_run;
         binaries.push(BundleBinary::with_path(
-          bin.name.clone(),
+          file_name.to_owned(),
           is_main,
           bin.path.clone(),
         ))
@@ -976,10 +980,10 @@ impl AppSettings for RustAppSettings {
       .unwrap()
       .inner
       .as_table()
-      .get("package")
-      .and_then(|p| p.as_table())
-      .and_then(|p| p.get("name"))
-      .and_then(|n| n.as_str())
+      .get("package")?
+      .as_table()?
+      .get("name")?
+      .as_str()
       .map(|n| n.to_string())
   }
 
@@ -990,10 +994,10 @@ impl AppSettings for RustAppSettings {
       .unwrap()
       .inner
       .as_table()
-      .get("lib")
-      .and_then(|p| p.as_table())
-      .and_then(|p| p.get("name"))
-      .and_then(|n| n.as_str())
+      .get("lib")?
+      .as_table()?
+      .get("name")?
+      .as_str()
       .map(|n| n.to_string())
   }
 }
@@ -1001,8 +1005,7 @@ impl AppSettings for RustAppSettings {
 impl RustAppSettings {
   pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let tauri_dir = tauri_dir();
-    let cargo_settings =
-      CargoSettings::load(tauri_dir).with_context(|| "failed to load cargo settings")?;
+    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
@@ -1013,7 +1016,7 @@ impl RustAppSettings {
     };
 
     let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
-      .with_context(|| "failed to load cargo settings from workspace root")?
+      .context("failed to load cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
 
@@ -1100,7 +1103,7 @@ impl RustAppSettings {
             .to_string()
         })
     });
-    let target = Target::from_triple(&target_triple);
+    let target_platform = TargetPlatform::from_triple(&target_triple);
 
     Ok(Self {
       manifest: Mutex::new(manifest),
@@ -1110,7 +1113,7 @@ impl RustAppSettings {
       package_settings,
       cargo_config,
       target_triple,
-      target,
+      target_platform,
     })
   }
 
@@ -1194,7 +1197,7 @@ fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> 
 pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   Ok(
     get_cargo_metadata()
-      .with_context(|| "failed to get cargo metadata")?
+      .context("failed to get cargo metadata")?
       .workspace_root,
   )
 }
@@ -1438,6 +1441,7 @@ fn tauri_config_to_bundle_settings(
       frameworks: config.macos.frameworks,
       files: config.macos.files,
       bundle_version: config.macos.bundle_version,
+      bundle_name: config.macos.bundle_name,
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,

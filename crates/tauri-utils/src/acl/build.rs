@@ -89,7 +89,7 @@ pub fn define_permissions<F: Fn(&Path) -> bool>(
     .collect::<Vec<PathBuf>>();
 
   let pkg_name_valid_path = pkg_name.replace(':', "-");
-  let permission_files_path = out_dir.join(format!("{}-permission-files", pkg_name_valid_path));
+  let permission_files_path = out_dir.join(format!("{pkg_name_valid_path}-permission-files"));
   let permission_files_json = serde_json::to_string(&permission_files)?;
   fs::write(&permission_files_path, permission_files_json)
     .map_err(|e| Error::WriteFile(e, permission_files_path.clone()))?;
@@ -326,10 +326,8 @@ pub fn generate_docs(
   out_dir: &Path,
   plugin_identifier: &str,
 ) -> Result<(), Error> {
+  let mut default_permission = "".to_owned();
   let mut permission_table = "".to_string();
-
-  let mut default_permission = "## Default Permission\n\n".to_string();
-  let mut contains_default = false;
 
   fn docs_from(id: &str, description: Option<&str>, plugin_identifier: &str) -> String {
     let mut docs = format!("\n<tr>\n<td>\n\n`{plugin_identifier}:{id}`\n\n</td>\n");
@@ -351,15 +349,16 @@ pub fn generate_docs(
     }
 
     if let Some(default) = &permission.default {
-      contains_default = true;
-
-      default_permission.push_str(default.description.as_deref().unwrap_or_default());
+      default_permission.push_str("## Default Permission\n\n");
+      default_permission.push_str(default.description.as_deref().unwrap_or_default().trim());
       default_permission.push('\n');
       default_permission.push('\n');
-      default_permission.push_str("#### This default permission set includes the following:\n");
-      default_permission.push('\n');
-      for permission in &default.permissions {
-        default_permission.push_str(&format!("- `{permission}`\n"));
+      if !default.permissions.is_empty() {
+        default_permission.push_str("#### This default permission set includes the following:\n\n");
+        for permission in &default.permissions {
+          default_permission.push_str(&format!("- `{permission}`\n"));
+        }
+        default_permission.push('\n');
       }
     }
 
@@ -373,12 +372,7 @@ pub fn generate_docs(
     }
   }
 
-  if !contains_default {
-    default_permission = "".to_string();
-  }
-
-  let docs =
-    format!("{default_permission}\n{PERMISSION_TABLE_HEADER}\n{permission_table}</table>\n");
+  let docs = format!("{default_permission}{PERMISSION_TABLE_HEADER}\n{permission_table}</table>\n");
 
   let reference_path = out_dir.join(PERMISSION_DOCS_FILE_NAME);
   write_if_changed(&reference_path, docs).map_err(|e| Error::WriteFile(e, reference_path))?;
@@ -393,6 +387,7 @@ pub fn generate_docs(
 /// Generate allowed commands file for the `generate_handler` macro to remove never allowed commands
 pub fn generate_allowed_commands(
   out_dir: &Path,
+  capabilities_from_files: Option<BTreeMap<String, Capability>>,
   permissions_map: BTreeMap<String, Vec<PermissionFile>>,
 ) -> Result<(), anyhow::Error> {
   println!("cargo:rerun-if-env-changed={REMOVE_UNUSED_COMMANDS_ENV_VAR}");
@@ -418,11 +413,6 @@ pub fn generate_allowed_commands(
   if capabilities_path.exists() {
     println!("cargo:rerun-if-changed={}", capabilities_path.display());
   }
-
-  let mut capabilities = crate::acl::build::parse_capabilities(&format!(
-    "{}/**/*",
-    glob::Pattern::escape(&capabilities_path.to_string_lossy())
-  ))?;
 
   let target_triple = env::var("TARGET")?;
   let target = crate::platform::Target::from_triple(&target_triple);
@@ -460,7 +450,15 @@ pub fn generate_allowed_commands(
     })
     .collect();
 
-  capabilities.extend(crate::acl::get_capabilities(&config, None, None)?);
+  let capabilities_from_files = if let Some(capabilities) = capabilities_from_files {
+    capabilities
+  } else {
+    crate::acl::build::parse_capabilities(&format!(
+      "{}/**/*",
+      glob::Pattern::escape(&capabilities_path.to_string_lossy())
+    ))?
+  };
+  let capabilities = crate::acl::get_capabilities(&config, capabilities_from_files, None)?;
 
   let permission_entries = capabilities
     .into_iter()

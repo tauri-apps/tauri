@@ -38,7 +38,7 @@ use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
-use webview2_com::FocusChangedEventHandler;
+use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "ios")]
@@ -130,6 +130,8 @@ use std::{
 pub type WebviewId = u32;
 type IpcHandler = dyn Fn(Request<String>) + 'static;
 
+#[cfg(not(debug_assertions))]
+mod dialog;
 mod monitor;
 #[cfg(any(
   windows,
@@ -171,7 +173,7 @@ impl WindowIdStore {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
+  pub fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -248,6 +250,7 @@ pub struct Context<T: UserEvent> {
   next_webview_id: Arc<AtomicU32>,
   next_window_event_id: Arc<AtomicU32>,
   next_webview_event_id: Arc<AtomicU32>,
+  webview_runtime_installed: bool,
 }
 
 impl<T: UserEvent> Context<T> {
@@ -409,7 +412,7 @@ pub enum ActiveTracingSpan {
 }
 
 #[derive(Debug)]
-pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
+pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
@@ -969,7 +972,6 @@ impl WindowBuilder for WindowBuilderWrapper {
   /// ## Platform-specific
   ///
   /// - **iOS / Android:** Unsupported.
-  #[must_use]
   fn prevent_overflow(mut self) -> Self {
     self
       .prevent_overflow
@@ -983,7 +985,6 @@ impl WindowBuilder for WindowBuilderWrapper {
   /// ## Platform-specific
   ///
   /// - **iOS / Android:** Unsupported.
-  #[must_use]
   fn prevent_overflow_with_margin(mut self, margin: Size) -> Self {
     self.prevent_overflow.replace(margin);
     self
@@ -1426,6 +1427,7 @@ pub enum WebviewMessage {
 
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
+  SetTheme(Option<Theme>),
 }
 
 pub type CreateWindowClosure<T> =
@@ -2386,6 +2388,12 @@ pub struct WindowWrapper {
   focused_webview: Arc<Mutex<Option<String>>>,
 }
 
+impl WindowWrapper {
+  pub fn label(&self) -> &str {
+    &self.label
+  }
+}
+
 impl fmt::Debug for WindowWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("WindowWrapper")
@@ -2595,15 +2603,10 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
-    self
-      .context
-      .main_thread
-      .window_target
-      .set_theme(match theme {
-        Some(Theme::Light) => Some(TaoTheme::Light),
-        Some(Theme::Dark) => Some(TaoTheme::Dark),
-        _ => None,
-      });
+    let _ = send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::SetTheme(theme)),
+    );
   }
 
   #[cfg(target_os = "macos")]
@@ -2712,6 +2715,7 @@ impl<T: UserEvent> Wry<T> {
       next_webview_id: Default::default(),
       next_window_event_id: Default::default(),
       next_webview_event_id: Default::default(),
+      webview_runtime_installed: wry::webview_version().is_ok(),
     };
 
     Ok(Self {
@@ -2911,18 +2915,18 @@ impl<T: UserEvent> Runtime<T> for Wry<T> {
   }
 
   fn cursor_position(&self) -> Result<PhysicalPosition<f64>> {
-    event_loop_window_getter!(self, EventLoopWindowTargetMessage::CursorPosition)?
+    self
+      .context
+      .main_thread
+      .window_target
+      .cursor_position()
       .map(PhysicalPositionWrapper)
       .map(Into::into)
       .map_err(|_| Error::FailedToGetCursorPosition)
   }
 
   fn set_theme(&self, theme: Option<Theme>) {
-    self.event_loop.set_theme(match theme {
-      Some(Theme::Light) => Some(TaoTheme::Light),
-      Some(Theme::Dark) => Some(TaoTheme::Dark),
-      _ => None,
-    });
+    self.event_loop.set_theme(to_tao_theme(theme));
   }
 
   #[cfg(target_os = "macos")]
@@ -3418,11 +3422,7 @@ fn handle_user_message<T: UserEvent>(
             window.set_traffic_light_inset(_position);
           }
           WindowMessage::SetTheme(theme) => {
-            window.set_theme(match theme {
-              Some(Theme::Light) => Some(TaoTheme::Light),
-              Some(Theme::Dark) => Some(TaoTheme::Dark),
-              _ => None,
-            });
+            window.set_theme(to_tao_theme(theme));
           }
           WindowMessage::SetBackgroundColor(color) => {
             window.set_background_color(color.map(Into::into))
@@ -3870,6 +3870,9 @@ fn handle_user_message<T: UserEvent>(
           .cursor_position()
           .map_err(|_| Error::FailedToSendMessage);
         sender.send(pos).unwrap();
+      }
+      EventLoopWindowTargetMessage::SetTheme(theme) => {
+        event_loop.set_theme(to_tao_theme(theme));
       }
     },
   }
@@ -4421,6 +4424,20 @@ fn create_webview<T: UserEvent>(
   pending: PendingWebview<T, Wry<T>>,
   #[allow(unused_variables)] focused_webview: Arc<Mutex<Option<String>>>,
 ) -> Result<WebviewWrapper> {
+  if !context.webview_runtime_installed {
+    #[cfg(all(not(debug_assertions), windows))]
+    dialog::error(
+      r#"Could not find the WebView2 Runtime.
+
+Make sure it is installed or download it from <A href="https://developer.microsoft.com/en-us/microsoft-edge/webview2">https://developer.microsoft.com/en-us/microsoft-edge/webview2</A>
+
+You may have it installed on another user account, but it is not available for this one.
+"#,
+    );
+
+    return Err(Error::WebviewRuntimeNotInstalled);
+  }
+
   #[allow(unused_mut)]
   let PendingWebview {
     webview_attributes,
@@ -4462,7 +4479,7 @@ fn create_webview<T: UserEvent>(
     }
   };
 
-  let mut webview_builder = WebViewBuilder::with_web_context(&mut web_context.inner)
+  let mut webview_builder = WebViewBuilder::new_with_web_context(&mut web_context.inner)
     .with_id(&label)
     .with_focused(webview_attributes.focus)
     .with_url(&url)
@@ -4810,8 +4827,7 @@ fn create_webview<T: UserEvent>(
   #[cfg(windows)]
   {
     let controller = webview.controller();
-    let proxy = context.proxy.clone();
-    let proxy_ = proxy.clone();
+    let proxy_clone = context.proxy.clone();
     let window_id_ = window_id.clone();
     let mut token = 0;
     unsafe {
@@ -4826,7 +4842,7 @@ fn create_webview<T: UserEvent>(
           focused_webview.replace(label_.clone());
 
           if !already_focused {
-            let _ = proxy.send_event(Message::Webview(
+            let _ = proxy_clone.send_event(Message::Webview(
               *window_id_.lock().unwrap(),
               id,
               WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
@@ -4840,10 +4856,11 @@ fn create_webview<T: UserEvent>(
     .unwrap();
     unsafe {
       let label_ = label.clone();
-      let focused_webview_ = focused_webview.clone();
+      let window_id_ = window_id.clone();
+      let proxy_clone = context.proxy.clone();
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
-          let mut focused_webview = focused_webview_.lock().unwrap();
+          let mut focused_webview = focused_webview.lock().unwrap();
           // when using multiwebview mode, we should handle webview focus changes
           // so we check is the currently focused webview matches this webview's
           // (in this case, it means we lost the window focus)
@@ -4856,8 +4873,8 @@ fn create_webview<T: UserEvent>(
           if lost_window_focus {
             // only reset when we lost window focus - otherwise some other webview is focused
             *focused_webview = None;
-            let _ = proxy_.send_event(Message::Webview(
-              *window_id.lock().unwrap(),
+            let _ = proxy_clone.send_event(Message::Webview(
+              *window_id_.lock().unwrap(),
               id,
               WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
             ));
@@ -4868,6 +4885,26 @@ fn create_webview<T: UserEvent>(
       )
     }
     .unwrap();
+
+    if let Ok(webview) = unsafe { controller.CoreWebView2() } {
+      let proxy_clone = context.proxy.clone();
+      unsafe {
+        let _ = webview.add_ContainsFullScreenElementChanged(
+          &ContainsFullScreenElementChangedEventHandler::create(Box::new(move |sender, _| {
+            let mut contains_fullscreen_element = windows::core::BOOL::default();
+            sender
+              .ok_or_else(windows::core::Error::empty)?
+              .ContainsFullScreenElement(&mut contains_fullscreen_element)?;
+            let _ = proxy_clone.send_event(Message::Window(
+              *window_id.lock().unwrap(),
+              WindowMessage::SetFullscreen(contains_fullscreen_element.as_bool()),
+            ));
+            Ok(())
+          })),
+          &mut token,
+        );
+      }
+    }
   }
 
   Ok(WebviewWrapper {
@@ -4937,4 +4974,12 @@ fn inner_size(
   has_children: bool,
 ) -> TaoPhysicalSize<u32> {
   window.inner_size()
+}
+
+fn to_tao_theme(theme: Option<Theme>) -> Option<TaoTheme> {
+  match theme {
+    Some(Theme::Light) => Some(TaoTheme::Light),
+    Some(Theme::Dark) => Some(TaoTheme::Dark),
+    _ => None,
+  }
 }

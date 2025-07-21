@@ -25,6 +25,8 @@
 
 use http::response::Builder;
 #[cfg(feature = "schema")]
+use schemars::schema::Schema;
+#[cfg(feature = "schema")]
 use schemars::JsonSchema;
 use semver::Version;
 use serde::{
@@ -43,6 +45,18 @@ use std::{
   path::PathBuf,
   str::FromStr,
 };
+
+#[cfg(feature = "schema")]
+fn add_description(schema: Schema, description: impl Into<String>) -> Schema {
+  let value = description.into();
+  if value.is_empty() {
+    schema
+  } else {
+    let mut schema_obj = schema.into_object();
+    schema_obj.metadata().description = value.into();
+    Schema::Object(schema_obj)
+  }
+}
 
 /// Items to help with parsing content into a [`Config`].
 pub mod parse;
@@ -221,14 +235,11 @@ impl schemars::JsonSchema for BundleTarget {
         ..Default::default()
       }
       .into(),
-      schemars::_private::metadata::add_description(
+      add_description(
         gen.subschema_for::<Vec<BundleType>>(),
         "A list of bundle targets.",
       ),
-      schemars::_private::metadata::add_description(
-        gen.subschema_for::<BundleType>(),
-        "A single bundle target.",
-      ),
+      add_description(gen.subschema_for::<BundleType>(), "A single bundle target."),
     ];
 
     schemars::schema::SchemaObject {
@@ -646,6 +657,13 @@ pub struct MacConfig {
   /// Translates to the bundle's CFBundleVersion property.
   #[serde(alias = "bundle-version")]
   pub bundle_version: Option<String>,
+  /// The name of the builder that built the bundle.
+  ///
+  /// Translates to the bundle's CFBundleName property.
+  ///
+  /// If not set, defaults to the package's product name.
+  #[serde(alias = "bundle-name")]
+  pub bundle_name: Option<String>,
   /// A version string indicating the minimum macOS X version that the bundled application supports. Defaults to `10.13`.
   ///
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
@@ -665,9 +683,7 @@ pub struct MacConfig {
   /// Identity to use for code signing.
   #[serde(alias = "signing-identity")]
   pub signing_identity: Option<String>,
-  /// Whether the codesign should enable [hardened runtime] (for executables) or not.
-  ///
-  /// [hardened runtime]: <https://developer.apple.com/documentation/security/hardened_runtime>
+  /// Whether the codesign should enable [hardened runtime](https://developer.apple.com/documentation/security/hardened_runtime) (for executables) or not.
   #[serde(alias = "hardened-runtime", default = "default_true")]
   pub hardened_runtime: bool,
   /// Provider short name for notarization.
@@ -686,6 +702,7 @@ impl Default for MacConfig {
       frameworks: None,
       files: HashMap::new(),
       bundle_version: None,
+      bundle_name: None,
       minimum_system_version: macos_minimum_system_version(),
       exception_domain: None,
       signing_identity: None,
@@ -1237,7 +1254,7 @@ impl BundleResources {
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields, untagged)]
 pub enum Updater {
-  /// Generates lagacy zipped v1 compatible updaters
+  /// Generates legacy zipped v1 compatible updaters
   String(V1Compatible),
   /// Produce updaters and their signatures or not
   // Can't use untagged on enum field here: https://github.com/GREsau/schemars/issues/222
@@ -1250,12 +1267,12 @@ impl Default for Updater {
   }
 }
 
-/// Generates lagacy zipped v1 compatible updaters
+/// Generates legacy zipped v1 compatible updaters
 #[derive(Debug, PartialEq, Eq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum V1Compatible {
-  /// Generates lagacy zipped v1 compatible updaters
+  /// Generates legacy zipped v1 compatible updaters
   V1Compatible,
 }
 
@@ -2168,7 +2185,7 @@ impl Display for HeaderSource {
         let len = m.len();
         let mut i = 0;
         for (key, value) in m {
-          write!(f, "{} {}", key, value)?;
+          write!(f, "{key} {value}")?;
           i += 1;
           if i != len {
             write!(f, "; ")?;
@@ -2773,6 +2790,77 @@ pub enum HookCommand {
   },
 }
 
+/// The runner configuration.
+#[skip_serializing_none]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum RunnerConfig {
+  /// A string specifying the binary to run.
+  String(String),
+  /// An object with advanced configuration options.
+  Object {
+    /// The binary to run.
+    cmd: String,
+    /// The current working directory to run the command from.
+    cwd: Option<String>,
+    /// Arguments to pass to the command.
+    args: Option<Vec<String>>,
+  },
+}
+
+impl Default for RunnerConfig {
+  fn default() -> Self {
+    RunnerConfig::String("cargo".to_string())
+  }
+}
+
+impl RunnerConfig {
+  /// Returns the command to run.
+  pub fn cmd(&self) -> &str {
+    match self {
+      RunnerConfig::String(cmd) => cmd,
+      RunnerConfig::Object { cmd, .. } => cmd,
+    }
+  }
+
+  /// Returns the working directory.
+  pub fn cwd(&self) -> Option<&str> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { cwd, .. } => cwd.as_deref(),
+    }
+  }
+
+  /// Returns the arguments.
+  pub fn args(&self) -> Option<&[String]> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { args, .. } => args.as_deref(),
+    }
+  }
+}
+
+impl std::str::FromStr for RunnerConfig {
+  type Err = std::convert::Infallible;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Ok(RunnerConfig::String(s.to_string()))
+  }
+}
+
+impl From<&str> for RunnerConfig {
+  fn from(s: &str) -> Self {
+    RunnerConfig::String(s.to_string())
+  }
+}
+
+impl From<String> for RunnerConfig {
+  fn from(s: String) -> Self {
+    RunnerConfig::String(s)
+  }
+}
+
 /// The Build configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#buildconfig>
@@ -2782,7 +2870,7 @@ pub enum HookCommand {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
   /// The binary used to build and run the application.
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// The URL to load in development.
   ///
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
@@ -2829,7 +2917,7 @@ pub struct BuildConfig {
   /// and they'll try to get all the allowed commands and remove the rest
   ///
   /// Note:
-  ///   - This won't be accounting for dynamically added ACLs so make sure to check it when using this
+  ///   - This won't be accounting for dynamically added ACLs when you use features from the `dynamic-acl` (currently enabled by default) feature flag, so make sure to check it when using this
   ///   - This feature requires tauri-plugin 2.1 and tauri 2.4
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
@@ -2975,7 +3063,19 @@ pub struct Config {
   #[serde(alias = "product-name")]
   #[cfg_attr(feature = "schema", validate(regex(pattern = "^[^/\\:*?\"<>|]+$")))]
   pub product_name: Option<String>,
-  /// App main binary filename. Defaults to the name of your cargo crate.
+  /// Overrides app's main binary filename.
+  ///
+  /// By default, Tauri uses the output binary from `cargo`, by setting this, we will rename that binary in `tauri-cli`'s
+  /// `tauri build` command, and target `tauri bundle` to it
+  ///
+  /// If possible, change the [`package name`] or set the [`name field`] instead,
+  /// and if that's not enough and you're using nightly, consider using the [`different-binary-name`] feature instead
+  ///
+  /// Note: this config should not include the binary extension (e.g. `.exe`), we'll add that for you
+  ///
+  /// [`package name`]: https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field
+  /// [`name field`]: https://doc.rust-lang.org/cargo/reference/cargo-targets.html#the-name-field
+  /// [`different-binary-name`]: https://doc.rust-lang.org/nightly/cargo/reference/unstable.html#different-binary-name
   #[serde(alias = "main-binary-name")]
   pub main_binary_name: Option<String>,
   /// App version. It is a semver version number or a path to a `package.json` file containing the `version` field.
@@ -3436,11 +3536,34 @@ mod build {
     }
   }
 
+  impl ToTokens for RunnerConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::RunnerConfig };
+
+      tokens.append_all(match self {
+        Self::String(cmd) => {
+          let cmd = cmd.as_str();
+          quote!(#prefix::String(#cmd.into()))
+        }
+        Self::Object { cmd, cwd, args } => {
+          let cmd = cmd.as_str();
+          let cwd = opt_str_lit(cwd.as_ref());
+          let args = opt_lit(args.as_ref().map(|v| vec_lit(v, str_lit)).as_ref());
+          quote!(#prefix::Object {
+            cmd: #cmd.into(),
+            cwd: #cwd,
+            args: #args,
+          })
+        }
+      })
+    }
+  }
+
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_url = opt_lit(self.dev_url.as_ref().map(url_lit).as_ref());
       let frontend_dist = opt_lit(self.frontend_dist.as_ref());
-      let runner = quote!(None);
+      let runner = opt_lit(self.runner.as_ref());
       let before_dev_command = quote!(None);
       let before_build_command = quote!(None);
       let before_bundle_command = quote!(None);
@@ -3823,5 +3946,213 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+  }
+
+  #[test]
+  fn test_runner_config_string_format() {
+    use super::RunnerConfig;
+
+    // Test string format deserialization
+    let json = r#""cargo""#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "cargo");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+
+    // Test string format serialization
+    let serialized = serde_json::to_string(&runner).unwrap();
+    assert_eq!(serialized, r#""cargo""#);
+  }
+
+  #[test]
+  fn test_runner_config_object_format_full() {
+    use super::RunnerConfig;
+
+    // Test object format with all fields
+    let json = r#"{"cmd": "my_runner", "cwd": "/tmp/build", "args": ["--quiet", "--verbose"]}"#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "my_runner");
+    assert_eq!(runner.cwd(), Some("/tmp/build"));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
+
+    // Test object format serialization
+    let serialized = serde_json::to_string(&runner).unwrap();
+    let deserialized: RunnerConfig = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(runner, deserialized);
+  }
+
+  #[test]
+  fn test_runner_config_object_format_minimal() {
+    use super::RunnerConfig;
+
+    // Test object format with only cmd field
+    let json = r#"{"cmd": "cross"}"#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "cross");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_default() {
+    use super::RunnerConfig;
+
+    let default_runner = RunnerConfig::default();
+    assert_eq!(default_runner.cmd(), "cargo");
+    assert_eq!(default_runner.cwd(), None);
+    assert_eq!(default_runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_str() {
+    use super::RunnerConfig;
+
+    // Test From<&str> trait
+    let runner: RunnerConfig = "my_runner".into();
+    assert_eq!(runner.cmd(), "my_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_string() {
+    use super::RunnerConfig;
+
+    // Test From<String> trait
+    let runner: RunnerConfig = "another_runner".to_string().into();
+    assert_eq!(runner.cmd(), "another_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_str_parse() {
+    use super::RunnerConfig;
+    use std::str::FromStr;
+
+    // Test FromStr trait
+    let runner = RunnerConfig::from_str("parsed_runner").unwrap();
+    assert_eq!(runner.cmd(), "parsed_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_in_build_config() {
+    use super::BuildConfig;
+
+    // Test string format in BuildConfig
+    let json = r#"{"runner": "cargo"}"#;
+    let build_config: BuildConfig = serde_json::from_str(json).unwrap();
+
+    let runner = build_config.runner.unwrap();
+    assert_eq!(runner.cmd(), "cargo");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_in_build_config_object() {
+    use super::BuildConfig;
+
+    // Test object format in BuildConfig
+    let json = r#"{"runner": {"cmd": "cross", "cwd": "/workspace", "args": ["--target", "x86_64-unknown-linux-gnu"]}}"#;
+    let build_config: BuildConfig = serde_json::from_str(json).unwrap();
+
+    let runner = build_config.runner.unwrap();
+    assert_eq!(runner.cmd(), "cross");
+    assert_eq!(runner.cwd(), Some("/workspace"));
+    assert_eq!(
+      runner.args(),
+      Some(
+        &[
+          "--target".to_string(),
+          "x86_64-unknown-linux-gnu".to_string()
+        ][..]
+      )
+    );
+  }
+
+  #[test]
+  fn test_runner_config_in_full_config() {
+    use super::Config;
+
+    // Test runner config in full Tauri config
+    let json = r#"{
+      "productName": "Test App",
+      "version": "1.0.0",
+      "identifier": "com.test.app",
+      "build": {
+        "runner": {
+          "cmd": "my_custom_cargo",
+          "cwd": "/tmp/build",
+          "args": ["--quiet", "--verbose"]
+        }
+      }
+    }"#;
+
+    let config: Config = serde_json::from_str(json).unwrap();
+    let runner = config.build.runner.unwrap();
+
+    assert_eq!(runner.cmd(), "my_custom_cargo");
+    assert_eq!(runner.cwd(), Some("/tmp/build"));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
+  }
+
+  #[test]
+  fn test_runner_config_equality() {
+    use super::RunnerConfig;
+
+    let runner1 = RunnerConfig::String("cargo".to_string());
+    let runner2 = RunnerConfig::String("cargo".to_string());
+    let runner3 = RunnerConfig::String("cross".to_string());
+
+    assert_eq!(runner1, runner2);
+    assert_ne!(runner1, runner3);
+
+    let runner4 = RunnerConfig::Object {
+      cmd: "cargo".to_string(),
+      cwd: Some("/tmp".to_string()),
+      args: Some(vec!["--quiet".to_string()]),
+    };
+    let runner5 = RunnerConfig::Object {
+      cmd: "cargo".to_string(),
+      cwd: Some("/tmp".to_string()),
+      args: Some(vec!["--quiet".to_string()]),
+    };
+
+    assert_eq!(runner4, runner5);
+    assert_ne!(runner1, runner4);
+  }
+
+  #[test]
+  fn test_runner_config_untagged_serialization() {
+    use super::RunnerConfig;
+
+    // Test that serde untagged works correctly - string should serialize as string, not object
+    let string_runner = RunnerConfig::String("cargo".to_string());
+    let string_json = serde_json::to_string(&string_runner).unwrap();
+    assert_eq!(string_json, r#""cargo""#);
+
+    // Test that object serializes as object
+    let object_runner = RunnerConfig::Object {
+      cmd: "cross".to_string(),
+      cwd: None,
+      args: None,
+    };
+    let object_json = serde_json::to_string(&object_runner).unwrap();
+    assert!(object_json.contains("\"cmd\":\"cross\""));
+    // With skip_serializing_none, null values should not be included
+    assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
+    assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
   }
 }

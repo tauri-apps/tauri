@@ -25,5 +25,5 @@ $ pnpm tauri dev
 
 ```bash
 $ pnpm tauri build
-$ ./src-tauri/target/release/app
+$ ../../target/release/api
 ```

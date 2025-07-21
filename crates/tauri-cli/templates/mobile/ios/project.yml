@@ -59,7 +59,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: {{apple.bundle-version-short}}
-        CFBundleVersion: {{apple.bundle-version}}
+        CFBundleVersion: "{{apple.bundle-version}}"
         {{~#each apple.plist-pairs}}
         {{this.key}}: {{this.value}}{{/each}}
     entitlements:

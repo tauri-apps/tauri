@@ -80,10 +80,7 @@ pub fn restart(env: &Env) -> ! {
     #[cfg(target_os = "macos")]
     restart_macos_app(&path, env);
 
-    if let Err(e) = Command::new(path)
-      .args(env.args_os.iter().skip(1).collect::<Vec<_>>())
-      .spawn()
-    {
+    if let Err(e) = Command::new(path).args(env.args_os.iter().skip(1)).spawn() {
       log::error!("failed to restart app: {e}");
     }
   }

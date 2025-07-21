@@ -73,6 +73,11 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments.
+  /// e.g. `tauri android build -- [runnerArgs]`.
+  #[clap(last(true))]
+  pub args: Vec<String>,
 }
 
 impl From<Options> for BuildOptions {
@@ -85,7 +90,7 @@ impl From<Options> for BuildOptions {
       bundles: None,
       no_bundle: false,
       config: options.config,
-      args: Vec::new(),
+      args: options.args,
       ci: options.ci,
     }
   }
@@ -197,6 +202,7 @@ fn run_build(
   let interface_options = InterfaceOptions {
     debug: build_options.debug,
     target: build_options.target.clone(),
+    args: build_options.args.clone(),
     ..Default::default()
   };
 
@@ -213,10 +219,7 @@ fn run_build(
     config: build_options.config,
     target_device: None,
   };
-  let handle = write_options(
-    &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
-    cli_options,
-  )?;
+  let handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
   inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 

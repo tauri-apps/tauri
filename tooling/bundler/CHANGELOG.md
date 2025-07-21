@@ -1,5 +1,11 @@
 # Changelog
 
+## \[1.7.4]
+
+### Bug Fixes
+
+- [`56fd1edea`](https://www.github.com/tauri-apps/tauri/commit/56fd1edeae20e1605b71f27c41bd1128ab5be110) ([#13864](https://www.github.com/tauri-apps/tauri/pull/13864) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The AppImage bundler now pulls the AppRun binaries from our GitHub mirror, fixing 404 errors.
+
 ## \[1.7.3]
 
 ### Dependencies

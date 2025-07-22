@@ -135,7 +135,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
 
     // sign main binary for every package type after patch
-    if settings.can_sign() {
+    if matches!(target_os, TargetPlatform::Windows) && settings.can_sign() {
       let bin_path = settings.binary_path(main_binary);
       windows::sign::try_sign(&bin_path, settings)?;
     }

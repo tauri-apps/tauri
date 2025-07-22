@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.7.0]
+
+### New Features
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Added `getBundleType` to the app module.
+
+### Enhancements
+
+- [`96391467e`](https://www.github.com/tauri-apps/tauri/commit/96391467e967c1e3c6475ce75166c58a326116a3) ([#13783](https://www.github.com/tauri-apps/tauri/pull/13783) by [@JosephBrooksbank](https://www.github.com/tauri-apps/tauri/../../JosephBrooksbank)) Allow events emitted with `emit` to be handled correctly by `listen` callbacks when in a mocked environment
+
+### Bug Fixes
+
+- [`152d971bc`](https://www.github.com/tauri-apps/tauri/commit/152d971bcd6c1fdc5716f7d5417dd4df5ce7479f) ([#13744](https://www.github.com/tauri-apps/tauri/pull/13744) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Expose `unregisterCallback`, `runCallback`, `callbacks` in `mockIPC`
+- [`b821796ad`](https://www.github.com/tauri-apps/tauri/commit/b821796add33cca4de72f48882684af487936d02) ([#13810](https://www.github.com/tauri-apps/tauri/pull/13810) by [@asdolo](https://www.github.com/tauri-apps/tauri/../../asdolo)) Add missing `trafficLightPosition` TypeScript type definition
+
 ## \[2.6.0]
 
 ### New Features

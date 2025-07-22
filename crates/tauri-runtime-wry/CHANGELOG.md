@@ -1,5 +1,16 @@
 # Changelog
 
+## \[2.7.2]
+
+### What's Changed
+
+- [`3025d9095`](https://www.github.com/tauri-apps/tauri/commit/3025d90951bfa152fc6f4255ac5a3fdd0f6353ca) ([#13822](https://www.github.com/tauri-apps/tauri/pull/13822) by [@clearlysid](https://www.github.com/tauri-apps/tauri/../../clearlysid)) Makes some methods on `WindowIdStore`, `WindowsStore` and `WindowWrapper` public
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.6.0`
+- Upgraded to `tauri-runtime@2.7.1`
+
 ## \[2.7.1]
 
 ### Bug Fixes

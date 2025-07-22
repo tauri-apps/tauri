@@ -32,7 +32,8 @@
     "overrides": {
       "brace-expansion@<4.0.1": ">=4.0.1",
       "cross-spawn@>=7.0.0 <7.0.5": ">=7.0.5",
-      "cookie@<0.7.0": ">=0.7.0"
+      "cookie@<0.7.0": ">=0.7.0",
+      "@eslint/plugin-kit@<0.3.3": ">=0.3.3"
     },
     "onlyBuiltDependencies": [
       "esbuild",

@@ -41,6 +41,12 @@
           "command": "echo '```\n\n</details>\n'",
           "dryRunCommand": true,
           "pipe": true
+        },
+        {
+          "command": "git restore Cargo.lock",
+          "dryRunCommand": true,
+          "runFromRoot": true,
+          "pipe": true
         }
       ],
       "publish": [

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.5.2]
+
+### Bug Fixes
+
+- [`af95fb601`](https://www.github.com/tauri-apps/tauri/commit/af95fb6014ea54a2636bfd299095608f6cd93221) ([#13870](https://www.github.com/tauri-apps/tauri/pull/13870) by [@kittuov](https://www.github.com/tauri-apps/tauri/../../kittuov)) The bundler now signs the main binary after patching it for every package type on windows
+
 ## \[2.5.1]
 
 ### Bug Fixes

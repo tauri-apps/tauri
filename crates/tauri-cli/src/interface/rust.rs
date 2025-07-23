@@ -415,7 +415,7 @@ fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   Ok(res)
 }
 
-fn get_watch_folders(additional_watch_folders: &Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
+fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<PathBuf>> {
   let tauri_path = tauri_dir();
   let workspace_path = get_workspace_dir()?;
 
@@ -493,7 +493,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
-    additional_watch_folders: &Vec<PathBuf>,
+    additional_watch_folders: &[PathBuf],
     merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {

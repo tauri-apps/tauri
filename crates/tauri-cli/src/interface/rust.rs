@@ -54,6 +54,7 @@ pub struct Options {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub watch_folders: Vec<PathBuf>,
 }
 
 impl From<crate::build::Options> for Options {
@@ -66,6 +67,7 @@ impl From<crate::build::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: true,
+      watch_folders: Vec::new(),
     }
   }
 }
@@ -93,6 +95,7 @@ impl From<crate::dev::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: options.no_watch,
+      watch_folders: options.watch_folders,
     }
   }
 }
@@ -104,6 +107,7 @@ pub struct MobileOptions {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -209,7 +213,7 @@ impl Interface for Rust {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(&merge_configs, run)
+      self.run_dev_watcher(&options.watch_folders, &merge_configs, run)
     }
   }
 
@@ -233,7 +237,7 @@ impl Interface for Rust {
     } else {
       let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&merge_configs, run)
+      self.run_dev_watcher(&options.watch_folders, &merge_configs, run)
     }
   }
 
@@ -411,12 +415,21 @@ fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   Ok(res)
 }
 
-fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+fn get_watch_folders(additional_watch_folders: &Vec<PathBuf>) -> crate::Result<Vec<PathBuf>> {
   let tauri_path = tauri_dir();
   let workspace_path = get_workspace_dir()?;
 
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // Add the additional watch folders, resolving the path from the tauri path if it is relative
+  watch_folders.extend(additional_watch_folders.iter().cloned().map(|dir| {
+    if dir.is_absolute() {
+      dir
+    } else {
+      tauri_path.join(dir)
+    }
+  }));
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
   let cargo_settings = CargoSettings::load(&workspace_path)?;
@@ -480,6 +493,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    additional_watch_folders: &Vec<PathBuf>,
     merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {
@@ -489,7 +503,7 @@ impl Rust {
     let (tx, rx) = sync_channel(1);
     let frontend_path = frontend_dir();
 
-    let watch_folders = get_watch_folders()?;
+    let watch_folders = get_watch_folders(additional_watch_folders)?;
 
     let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
       .expect("watch_folders should not be empty");

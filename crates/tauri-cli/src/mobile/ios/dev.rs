@@ -73,7 +73,7 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
-  /// List of relative paths to directories to watch for changes.
+  /// List of relative or absolute paths to directories to watch for changes.
   #[clap(long)]
   pub watch_folders: Vec<PathBuf>,
   /// Open Xcode instead of trying to run on a connected device

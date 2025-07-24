@@ -426,12 +426,12 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
   // Add the additional watch folders, resolving the path from the tauri path if it is relative
   watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
     let path = if dir.is_absolute() {
-      dir
+      dir.to_owned()
     } else {
-      &tauri_path.join(dir)
+      tauri_path.join(dir)
     };
 
-    let canonicalized = canonicalize(path).ok();
+    let canonicalized = canonicalize(&path).ok();
     if canonicalized.is_none() {
       log::warn!(
         "Additional watch folder '{}' not found, ignoring",

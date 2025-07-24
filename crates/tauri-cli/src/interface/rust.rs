@@ -424,27 +424,22 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
   let mut watch_folders = vec![tauri_path.to_path_buf()];
 
   // Add the additional watch folders, resolving the path from the tauri path if it is relative
-  watch_folders.extend(
-    additional_watch_folders
-      .iter()
-      .cloned()
-      .map(|dir| {
-        let path = if dir.is_absolute() {
-          dir
-        } else {
-          tauri_path.join(dir)
-        };
+  watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
+    let path = if dir.is_absolute() {
+      dir
+    } else {
+      &tauri_path.join(dir)
+    };
 
-        canonicalize(path)
-      })
-      .filter_map(|res| match res {
-        Ok(val) => Some(val),
-        Err(e) => {
-          log::error!("Failed to locate additional watch folder: {}", e);
-          None
-        }
-      }),
-  );
+    let canonicalized = canonicalize(path).ok();
+    if canonicalized.is_none() {
+      log::warn!(
+        "Additional watch folder '{}' not found, ignoring",
+        path.display()
+      );
+    }
+    canonicalized
+  }));
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
   let cargo_settings = CargoSettings::load(&workspace_path)?;

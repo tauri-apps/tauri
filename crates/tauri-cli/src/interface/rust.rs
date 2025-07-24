@@ -423,13 +423,21 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
   let mut watch_folders = vec![tauri_path.to_path_buf()];
 
   // Add the additional watch folders, resolving the path from the tauri path if it is relative
-  watch_folders.extend(additional_watch_folders.iter().cloned().map(|dir| {
-    if dir.is_absolute() {
-      dir
-    } else {
-      tauri_path.join(dir)
-    }
-  }));
+  watch_folders.extend(
+    additional_watch_folders
+      .iter()
+      .cloned()
+      .map(|dir| {
+        let path = if dir.is_absolute() {
+          dir
+        } else {
+          tauri_path.join(dir)
+        };
+
+        std::path::absolute(path)
+      })
+      .filter_map(Result::ok),
+  );
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
   let cargo_settings = CargoSettings::load(&workspace_path)?;
@@ -505,9 +513,8 @@ impl Rust {
 
     let watch_folders = get_watch_folders(additional_watch_folders)?;
 
-    let common_ancestor =
-      common_path::common_path_all(watch_folders.iter().map(Path::new))
-        .expect("watch_folders should not be empty");
+    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
+      .expect("watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
     let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {

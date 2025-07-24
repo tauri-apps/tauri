@@ -1883,7 +1883,7 @@
           "type": "boolean"
         },
         "additionalWatchFolders": {
-          "description": "List of relative or absolute paths to directories to watch for changes when running `tauri dev`.",
+          "description": "Additional paths to watch for changes when running `tauri dev`.",
           "default": [],
           "type": "array",
           "items": {

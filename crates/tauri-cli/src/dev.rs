@@ -82,7 +82,7 @@ pub struct Options {
   /// Disable the file watcher.
   #[clap(long)]
   pub no_watch: bool,
-  /// List of relative or absolute paths to directories to watch for changes.
+  /// Additional paths to watch for changes.
   #[clap(long)]
   pub additional_watch_folders: Vec<PathBuf>,
 

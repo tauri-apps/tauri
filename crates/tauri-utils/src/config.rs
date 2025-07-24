@@ -2892,8 +2892,8 @@ pub struct BuildConfig {
   ///   - This feature requires tauri-plugin 2.1 and tauri 2.4
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
-  /// List of relative or absolute paths to directories to watch for changes when running `tauri dev`.
-  #[serde(alias = "watch-directories", default)]
+  /// Additional paths to watch for changes when running `tauri dev`.
+  #[serde(alias = "additional-watch-directories", default)]
   pub additional_watch_folders: Vec<PathBuf>,
 }
 

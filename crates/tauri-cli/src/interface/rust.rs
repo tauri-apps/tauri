@@ -15,6 +15,7 @@ use std::{
 };
 
 use anyhow::Context;
+use dunce::canonicalize;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
@@ -434,7 +435,7 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
           tauri_path.join(dir)
         };
 
-        std::path::absolute(path)
+        canonicalize(path)
       })
       .filter_map(Result::ok),
   );

@@ -221,7 +221,7 @@ fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
   let apprun = tools_path.join(format!("AppRun-{arch}"));
   if !apprun.exists() {
     let data = download(&format!(
-      "https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-{arch}"
+      "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
     ))?;
     write_and_make_executable(&apprun, data)?;
   }

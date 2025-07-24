@@ -48,7 +48,7 @@ const NSIS_REQUIRED_FILES: &[&str] = &[
   "Bin/makensis.exe",
   "Stubs/lzma-x86-unicode",
   "Stubs/lzma_solid-x86-unicode",
-  "Plugins/x86-unicode/nsis_tauri_utils.dll",
+  "Plugins/x86-unicode/additional/nsis_tauri_utils.dll",
   "Include/MUI2.nsh",
   "Include/FileFunc.nsh",
   "Include/x64.nsh",

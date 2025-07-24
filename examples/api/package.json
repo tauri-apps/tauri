@@ -13,12 +13,12 @@
     "@tauri-apps/api": "../../packages/api/dist"
   },
   "devDependencies": {
-    "@iconify-json/codicon": "^1.2.21",
+    "@iconify-json/codicon": "^1.2.24",
     "@iconify-json/ph": "^1.2.2",
-    "@sveltejs/vite-plugin-svelte": "^5.1.0",
-    "@unocss/extractor-svelte": "^66.2.3",
-    "svelte": "^5.34.7",
-    "unocss": "^66.2.3",
-    "vite": "^6.3.5"
+    "@sveltejs/vite-plugin-svelte": "^6.0.0",
+    "@unocss/extractor-svelte": "^66.3.3",
+    "svelte": "^5.35.6",
+    "unocss": "^66.3.3",
+    "vite": "^7.0.4"
   }
 }

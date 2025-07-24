@@ -34,6 +34,9 @@ declare global {
         }
       }
     }
+    __TAURI_EVENT_PLUGIN_INTERNALS__: {
+      unregisterListener: (event: string, eventId: number) => void
+    }
   }
 }
 

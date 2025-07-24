@@ -15,6 +15,7 @@ use std::{
 };
 
 use anyhow::Context;
+use dunce::canonicalize;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
@@ -25,7 +26,7 @@ use tauri_bundler::{
   IosSettings, MacOsSettings, PackageSettings, Position, RpmSettings, Size, UpdaterSettings,
   WindowsSettings,
 };
-use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Updater};
+use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, RunnerConfig, Updater};
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
@@ -47,13 +48,14 @@ use manifest::{rewrite_manifest, Manifest};
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   pub debug: bool,
   pub target: Option<String>,
   pub features: Option<Vec<String>>,
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 impl From<crate::build::Options> for Options {
@@ -66,6 +68,7 @@ impl From<crate::build::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: true,
+      additional_watch_folders: Vec::new(),
     }
   }
 }
@@ -93,6 +96,7 @@ impl From<crate::dev::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
     }
   }
 }
@@ -104,6 +108,7 @@ pub struct MobileOptions {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -209,7 +214,7 @@ impl Interface for Rust {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(&merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
     }
   }
 
@@ -233,7 +238,7 @@ impl Interface for Rust {
     } else {
       let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
     }
   }
 
@@ -411,12 +416,30 @@ fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   Ok(res)
 }
 
-fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<PathBuf>> {
   let tauri_path = tauri_dir();
   let workspace_path = get_workspace_dir()?;
 
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // Add the additional watch folders, resolving the path from the tauri path if it is relative
+  watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
+    let path = if dir.is_absolute() {
+      dir.to_owned()
+    } else {
+      tauri_path.join(dir)
+    };
+
+    let canonicalized = canonicalize(&path).ok();
+    if canonicalized.is_none() {
+      log::warn!(
+        "Additional watch folder '{}' not found, ignoring",
+        path.display()
+      );
+    }
+    canonicalized
+  }));
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
   let cargo_settings = CargoSettings::load(&workspace_path)?;
@@ -480,6 +503,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    additional_watch_folders: &[PathBuf],
     merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {
@@ -489,7 +513,7 @@ impl Rust {
     let (tx, rx) = sync_channel(1);
     let frontend_path = frontend_dir();
 
-    let watch_folders = get_watch_folders()?;
+    let watch_folders = get_watch_folders(additional_watch_folders)?;
 
     let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
       .expect("watch_folders should not be empty");

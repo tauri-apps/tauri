@@ -1,5 +1,33 @@
 # Changelog
 
+## \[2.7.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.7.1`
+
+## \[2.7.0]
+
+### New Features
+
+- [`33d079392`](https://www.github.com/tauri-apps/tauri/commit/33d079392ac4a5a153b7d8a6d82fefd6f54a2bdf) ([#13811](https://www.github.com/tauri-apps/tauri/pull/13811) by [@mhbagheri-99](https://www.github.com/tauri-apps/tauri/../../mhbagheri-99)) Allow runner configuration to be an object with cmd, cwd, and args properties. The runner can now be configured as `{ "cmd": "my_runner", "cwd": "/path", "args": ["--quiet"] }` while maintaining backwards compatibility with the existing string format.
+
+### Enhancements
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Binaries are patched before bundling to add the type of a bundle they will placed in. This information will be used during update process to select the correct target.
+
+### Bug Fixes
+
+- [`916aeaa48`](https://www.github.com/tauri-apps/tauri/commit/916aeaa48646a483a78e51cfe1633800ee62c37c) ([#13781](https://www.github.com/tauri-apps/tauri/pull/13781) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes Android dev and build commands reading `tauri.ios.conf.json` instead of `tauri.android.conf.json` to merge platform-specific configuration.
+- [`0f248b111`](https://www.github.com/tauri-apps/tauri/commit/0f248b111ffb8af934eaf64bd8f4591e628da786) ([#13799](https://www.github.com/tauri-apps/tauri/pull/13799) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Install iOS dependencies when needed.
+- [`7a6fd5b75`](https://www.github.com/tauri-apps/tauri/commit/7a6fd5b75d61071e2771f6277c0376ec206d302a) ([#13863](https://www.github.com/tauri-apps/tauri/pull/13863) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The AppImage bundler now pulls the AppRun binaries from our GitHub mirror, fixing 404 errors.
+- [`bda830410`](https://www.github.com/tauri-apps/tauri/commit/bda8304107da7ca60caaba5674faa793491898c6) ([#13833](https://www.github.com/tauri-apps/tauri/pull/13833) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fail with an error when trying to migrate from v2 alpha
+- [`bda830410`](https://www.github.com/tauri-apps/tauri/commit/bda8304107da7ca60caaba5674faa793491898c6) ([#13833](https://www.github.com/tauri-apps/tauri/pull/13833) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Use v2 stable instead of v2-rc when migrating from v2-beta
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.7.0`
+
 ## \[2.6.2]
 
 ### Bug Fixes

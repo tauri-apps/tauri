@@ -230,10 +230,20 @@ fn cargo_command(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
 ) -> crate::Result<Command> {
-  let runner = options.runner.unwrap_or_else(|| "cargo".into());
+  let runner_config = options.runner.unwrap_or_else(|| "cargo".into());
 
-  let mut build_cmd = Command::new(runner);
+  let mut build_cmd = Command::new(runner_config.cmd());
   build_cmd.arg(if dev { "run" } else { "build" });
+
+  // Set working directory if specified
+  if let Some(cwd) = runner_config.cwd() {
+    build_cmd.current_dir(cwd);
+  }
+
+  // Add runner-specific arguments first
+  if let Some(runner_args) = runner_config.args() {
+    build_cmd.args(runner_args);
+  }
 
   if let Some(target) = &options.target {
     if available_targets.is_none() {

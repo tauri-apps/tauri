@@ -3,9 +3,25 @@
 // SPDX-License-Identifier: MIT
 
 import type { InvokeArgs, InvokeOptions } from './core'
+import { EventName } from './event'
 
 function mockInternals() {
   window.__TAURI_INTERNALS__ = window.__TAURI_INTERNALS__ ?? {}
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ =
+    window.__TAURI_EVENT_PLUGIN_INTERNALS__ ?? {}
+}
+
+/**
+ * Options for `mockIPC`.
+ *
+ * # Options
+ * `shouldMockEvents`: If true, the `listen` and `emit` functions will be mocked, allowing you to test event handling without a real backend.
+ * **This will consume any events emitted with the `plugin:event` prefix.**
+ *
+ * @since 2.7.0
+ */
+export interface MockIPCOptions {
+  shouldMockEvents?: boolean
 }
 
 /**
@@ -59,12 +75,78 @@ function mockInternals() {
  * })
  * ```
  *
+ * `listen` can also be mocked with direct calls to the `emit` function. This functionality is opt-in via the `shouldMockEvents` option:
+ * ```js
+ * import { mockIPC, clearMocks } from "@tauri-apps/api/mocks"
+ * import { emit, listen } from "@tauri-apps/api/event"
+ *
+ * afterEach(() => {
+ *    clearMocks()
+ * })
+ *
+ * test("mocked event", () => {
+ *  mockIPC(() => {}, { shouldMockEvents: true }); // enable event mocking
+ *
+ *  const eventHandler = vi.fn();
+ *  listen('test-event', eventHandler); // typically in component setup or similar
+ *
+ *  emit('test-event', { foo: 'bar' });
+ *  expect(eventHandler).toHaveBeenCalledWith({
+ *    event: 'test-event',
+ *    payload: { foo: 'bar' }
+ *  });
+ * })
+ * ```
+ * `emitTo` is currently **not** supported by this mock implementation.
+ *
  * @since 1.0.0
  */
 export function mockIPC(
-  cb: (cmd: string, payload?: InvokeArgs) => unknown
+  cb: (cmd: string, payload?: InvokeArgs) => unknown,
+  options?: MockIPCOptions
 ): void {
   mockInternals()
+
+  function isEventPluginInvoke(cmd: string): boolean {
+    return cmd.startsWith('plugin:event|')
+  }
+
+  function handleEventPlugin(cmd: string, args?: InvokeArgs): unknown {
+    switch (cmd) {
+      case 'plugin:event|listen':
+        return handleListen(args as { event: EventName; handler: number })
+      case 'plugin:event|emit':
+        return handleEmit(args as { event: EventName; payload?: unknown })
+      case 'plugin:event|unlisten':
+        return handleRemoveListener(args as { event: EventName; id: number })
+    }
+  }
+
+  const listeners = new Map<string, number[]>()
+  function handleListen(args: { event: EventName; handler: number }) {
+    if (!listeners.has(args.event)) {
+      listeners.set(args.event, [])
+    }
+    listeners.get(args.event)!.push(args.handler)
+    return args.handler
+  }
+
+  function handleEmit(args: { event: EventName; payload?: unknown }) {
+    const eventListeners = listeners.get(args.event) || []
+    for (const handler of eventListeners) {
+      runCallback(handler, args)
+    }
+    return null
+  }
+  function handleRemoveListener(args: { event: EventName; id: number }) {
+    const eventListeners = listeners.get(args.event)
+    if (eventListeners) {
+      const index = eventListeners.indexOf(args.id)
+      if (index !== -1) {
+        eventListeners.splice(index, 1)
+      }
+    }
+  }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   async function invoke<T>(
@@ -72,6 +154,10 @@ export function mockIPC(
     args?: InvokeArgs,
     _options?: InvokeOptions
   ): Promise<T> {
+    if (options?.shouldMockEvents && isEventPluginInvoke(cmd)) {
+      return handleEventPlugin(cmd, args) as T
+    }
+
     return cb(cmd, args) as T
   }
 
@@ -107,11 +193,17 @@ export function mockIPC(
     }
   }
 
+  function unregisterListener(event: EventName, id: number) {
+    unregisterCallback(id)
+  }
+
   window.__TAURI_INTERNALS__.invoke = invoke
   window.__TAURI_INTERNALS__.transformCallback = registerCallback
   window.__TAURI_INTERNALS__.unregisterCallback = unregisterCallback
   window.__TAURI_INTERNALS__.runCallback = runCallback
   window.__TAURI_INTERNALS__.callbacks = callbacks
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener =
+    unregisterListener
 }
 
 /**
@@ -240,4 +332,10 @@ export function clearMocks(): void {
   delete window.__TAURI_INTERNALS__.convertFileSrc
   // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
   delete window.__TAURI_INTERNALS__.metadata
+
+  if (typeof window.__TAURI_EVENT_PLUGIN_INTERNALS__ !== 'object') {
+    return
+  }
+  // @ts-expect-error "The operand of a 'delete' operator must be optional." does not matter in this case
+  delete window.__TAURI_EVENT_PLUGIN_INTERNALS__.unregisterListener
 }

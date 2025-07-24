@@ -1,5 +1,12 @@
 # Changelog
 
+## \[2.6.0]
+
+### New Features
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Added `platform::bundle_type`.
+- [`33d079392`](https://www.github.com/tauri-apps/tauri/commit/33d079392ac4a5a153b7d8a6d82fefd6f54a2bdf) ([#13811](https://www.github.com/tauri-apps/tauri/pull/13811) by [@mhbagheri-99](https://www.github.com/tauri-apps/tauri/../../mhbagheri-99)) Allow runner configuration to be an object with cmd, cwd, and args properties. The runner can now be configured as `{ "cmd": "my_runner", "cwd": "/path", "args": ["--quiet"] }` while maintaining backwards compatibility with the existing string format.
+
 ## \[2.5.0]
 
 ### New Features

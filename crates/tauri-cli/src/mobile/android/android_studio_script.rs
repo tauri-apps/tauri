@@ -47,7 +47,7 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let (tauri_config, cli_options) = {
-    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Ios, &[])?;
+    let tauri_config = get_tauri_config(tauri_utils::platform::Target::Android, &[])?;
     let cli_options = {
       let tauri_config_guard = tauri_config.lock().unwrap();
       let tauri_config_ = tauri_config_guard.as_ref().unwrap();

@@ -173,7 +173,7 @@ impl WindowIdStore {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
+  pub fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -412,7 +412,7 @@ pub enum ActiveTracingSpan {
 }
 
 #[derive(Debug)]
-pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
+pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
@@ -2386,6 +2386,12 @@ pub struct WindowWrapper {
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
   focused_webview: Arc<Mutex<Option<String>>>,
+}
+
+impl WindowWrapper {
+  pub fn label(&self) -> &str {
+    &self.label
+  }
 }
 
 impl fmt::Debug for WindowWrapper {

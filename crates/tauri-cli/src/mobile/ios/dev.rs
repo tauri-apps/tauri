@@ -32,7 +32,7 @@ use cargo_mobile2::{
   opts::{NoiseLevel, Profile},
 };
 
-use std::env::set_current_dir;
+use std::{env::set_current_dir, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
@@ -277,6 +277,7 @@ fn run_dev(
       args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
+      watch_folders: options.watch_folders,
     },
     |options| {
       let cli_options = CliOptions {

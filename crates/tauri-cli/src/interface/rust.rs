@@ -437,7 +437,13 @@ fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<
 
         canonicalize(path)
       })
-      .filter_map(Result::ok),
+      .filter_map(|res| match res {
+        Ok(val) => Some(val),
+        Err(e) => {
+          log::error!("Failed to locate additional watch folder: {}", e);
+          None
+        }
+      }),
   );
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member

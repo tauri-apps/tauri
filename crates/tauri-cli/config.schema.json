@@ -70,8 +70,8 @@
     "build": {
       "description": "The build configuration.",
       "default": {
-        "removeUnusedCommands": false,
-        "watchFolders": []
+        "additionalWatchFolders": [],
+        "removeUnusedCommands": false
       },
       "allOf": [
         {
@@ -1882,8 +1882,8 @@
           "default": false,
           "type": "boolean"
         },
-        "watchFolders": {
-          "description": "List of relative paths to directories to watch for changes when running `tauri dev`.",
+        "additionalWatchFolders": {
+          "description": "List of relative or absolute paths to directories to watch for changes when running `tauri dev`.",
           "default": [],
           "type": "array",
           "items": {

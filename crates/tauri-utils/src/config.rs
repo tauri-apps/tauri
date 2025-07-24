@@ -2894,7 +2894,7 @@ pub struct BuildConfig {
   pub remove_unused_commands: bool,
   /// List of relative or absolute paths to directories to watch for changes when running `tauri dev`.
   #[serde(alias = "watch-directories", default)]
-  pub watch_folders: Vec<PathBuf>,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -3543,7 +3543,7 @@ mod build {
       let before_bundle_command = quote!(None);
       let features = quote!(None);
       let remove_unused_commands = quote!(false);
-      let watch_folders = quote!(Vec::new());
+      let additional_watch_folders = quote!(Vec::new());
 
       literal_struct!(
         tokens,
@@ -3556,7 +3556,7 @@ mod build {
         before_bundle_command,
         features,
         remove_unused_commands,
-        watch_folders
+        additional_watch_folders
       );
     }
   }
@@ -3879,7 +3879,7 @@ mod test {
       before_bundle_command: None,
       features: None,
       remove_unused_commands: false,
-      watch_folders: Vec::new(),
+      additional_watch_folders: Vec::new(),
     };
 
     // create a bundle config

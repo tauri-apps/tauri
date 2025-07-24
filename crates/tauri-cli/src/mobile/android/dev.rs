@@ -68,7 +68,7 @@ pub struct Options {
   pub no_watch: bool,
   /// List of relative or absolute paths to directories to watch for changes.
   #[clap(long)]
-  pub watch_folders: Vec<PathBuf>,
+  pub additional_watch_folders: Vec<PathBuf>,
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -116,7 +116,7 @@ impl From<Options> for DevOptions {
       config: options.config,
       args: options.args,
       no_watch: options.no_watch,
-      watch_folders: options.watch_folders,
+      additional_watch_folders: options.additional_watch_folders,
       no_dev_server_wait: options.no_dev_server_wait,
       no_dev_server: options.no_dev_server,
       port: options.port,
@@ -269,7 +269,7 @@ fn run_dev(
       args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
-      watch_folders: options.watch_folders,
+      additional_watch_folders: options.additional_watch_folders,
     },
     |options| {
       let cli_options = CliOptions {

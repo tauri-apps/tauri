@@ -84,7 +84,7 @@ pub struct Options {
   pub no_watch: bool,
   /// List of relative or absolute paths to directories to watch for changes.
   #[clap(long)]
-  pub watch_folders: Vec<PathBuf>,
+  pub additional_watch_folders: Vec<PathBuf>,
 
   /// Disable the built-in dev server for static files.
   #[clap(long)]
@@ -340,15 +340,15 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
     }
   }
 
-  if options.watch_folders.is_empty() {
-    options.watch_folders.extend(
+  if options.additional_watch_folders.is_empty() {
+    options.additional_watch_folders.extend(
       config
         .lock()
         .unwrap()
         .as_ref()
         .unwrap()
         .build
-        .watch_folders
+        .additional_watch_folders
         .clone(),
     );
   }

@@ -54,7 +54,7 @@ pub struct Options {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
-  pub watch_folders: Vec<PathBuf>,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 impl From<crate::build::Options> for Options {
@@ -67,7 +67,7 @@ impl From<crate::build::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: true,
-      watch_folders: Vec::new(),
+      additional_watch_folders: Vec::new(),
     }
   }
 }
@@ -95,7 +95,7 @@ impl From<crate::dev::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: options.no_watch,
-      watch_folders: options.watch_folders,
+      additional_watch_folders: options.additional_watch_folders,
     }
   }
 }
@@ -107,7 +107,7 @@ pub struct MobileOptions {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
-  pub watch_folders: Vec<PathBuf>,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -213,7 +213,7 @@ impl Interface for Rust {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(&options.watch_folders, &merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
     }
   }
 
@@ -237,7 +237,7 @@ impl Interface for Rust {
     } else {
       let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&options.watch_folders, &merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
     }
   }
 
@@ -503,10 +503,11 @@ impl Rust {
     let (tx, rx) = sync_channel(1);
     let frontend_path = frontend_dir();
 
-    let watch_folders = get_watch_folders(additional_watch_folders)?;
+    let additional_watch_folders = get_watch_folders(additional_watch_folders)?;
 
-    let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
-      .expect("watch_folders should not be empty");
+    let common_ancestor =
+      common_path::common_path_all(additional_watch_folders.iter().map(Path::new))
+        .expect("additional_watch_folders should not be empty");
     let ignore_matcher = build_ignore_matcher(&common_ancestor);
 
     let mut watcher = new_debouncer(Duration::from_secs(1), None, move |r| {
@@ -515,7 +516,7 @@ impl Rust {
       }
     })
     .unwrap();
-    for path in watch_folders {
+    for path in additional_watch_folders {
       if !ignore_matcher.is_ignore(&path, true) {
         log::info!("Watching {} for changes...", display_path(&path));
         lookup(&path, |file_type, p| {

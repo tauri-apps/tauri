@@ -153,7 +153,7 @@ fn notarize_inner(
       submit_output.message
     );
     if submit_output.status == "Accepted" {
-      println!("Notarizing {}", log_message);
+      println!("Notarizing {log_message}");
 
       if wait {
         println!("Stapling app...");
@@ -166,6 +166,7 @@ fn notarize_inner(
           app_bundle_path.display()
         );
       }
+
       Ok(())
     } else if let Ok(output) = Command::new("xcrun")
       .args(["notarytool", "log"])

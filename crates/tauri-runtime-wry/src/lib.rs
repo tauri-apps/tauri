@@ -38,7 +38,7 @@ use tao::platform::unix::{WindowBuilderExtUnix, WindowExtUnix};
 #[cfg(windows)]
 use tao::platform::windows::{WindowBuilderExtWindows, WindowExtWindows};
 #[cfg(windows)]
-use webview2_com::FocusChangedEventHandler;
+use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEventHandler};
 #[cfg(windows)]
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "ios")]
@@ -173,7 +173,7 @@ impl WindowIdStore {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
+  pub fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -412,7 +412,7 @@ pub enum ActiveTracingSpan {
 }
 
 #[derive(Debug)]
-pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
+pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
@@ -2386,6 +2386,12 @@ pub struct WindowWrapper {
   #[cfg(windows)]
   surface: Option<softbuffer::Surface<Arc<Window>, Arc<Window>>>,
   focused_webview: Arc<Mutex<Option<String>>>,
+}
+
+impl WindowWrapper {
+  pub fn label(&self) -> &str {
+    &self.label
+  }
 }
 
 impl fmt::Debug for WindowWrapper {
@@ -4473,7 +4479,7 @@ You may have it installed on another user account, but it is not available for t
     }
   };
 
-  let mut webview_builder = WebViewBuilder::with_web_context(&mut web_context.inner)
+  let mut webview_builder = WebViewBuilder::new_with_web_context(&mut web_context.inner)
     .with_id(&label)
     .with_focused(webview_attributes.focus)
     .with_url(&url)
@@ -4821,8 +4827,7 @@ You may have it installed on another user account, but it is not available for t
   #[cfg(windows)]
   {
     let controller = webview.controller();
-    let proxy = context.proxy.clone();
-    let proxy_ = proxy.clone();
+    let proxy_clone = context.proxy.clone();
     let window_id_ = window_id.clone();
     let mut token = 0;
     unsafe {
@@ -4837,7 +4842,7 @@ You may have it installed on another user account, but it is not available for t
           focused_webview.replace(label_.clone());
 
           if !already_focused {
-            let _ = proxy.send_event(Message::Webview(
+            let _ = proxy_clone.send_event(Message::Webview(
               *window_id_.lock().unwrap(),
               id,
               WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(true)),
@@ -4851,6 +4856,8 @@ You may have it installed on another user account, but it is not available for t
     .unwrap();
     unsafe {
       let label_ = label.clone();
+      let window_id_ = window_id.clone();
+      let proxy_clone = context.proxy.clone();
       controller.add_LostFocus(
         &FocusChangedEventHandler::create(Box::new(move |_, _| {
           let mut focused_webview = focused_webview.lock().unwrap();
@@ -4866,8 +4873,8 @@ You may have it installed on another user account, but it is not available for t
           if lost_window_focus {
             // only reset when we lost window focus - otherwise some other webview is focused
             *focused_webview = None;
-            let _ = proxy_.send_event(Message::Webview(
-              *window_id.lock().unwrap(),
+            let _ = proxy_clone.send_event(Message::Webview(
+              *window_id_.lock().unwrap(),
               id,
               WebviewMessage::SynthesizedWindowEvent(SynthesizedWindowEvent::Focused(false)),
             ));
@@ -4878,6 +4885,26 @@ You may have it installed on another user account, but it is not available for t
       )
     }
     .unwrap();
+
+    if let Ok(webview) = unsafe { controller.CoreWebView2() } {
+      let proxy_clone = context.proxy.clone();
+      unsafe {
+        let _ = webview.add_ContainsFullScreenElementChanged(
+          &ContainsFullScreenElementChangedEventHandler::create(Box::new(move |sender, _| {
+            let mut contains_fullscreen_element = windows::core::BOOL::default();
+            sender
+              .ok_or_else(windows::core::Error::empty)?
+              .ContainsFullScreenElement(&mut contains_fullscreen_element)?;
+            let _ = proxy_clone.send_event(Message::Window(
+              *window_id.lock().unwrap(),
+              WindowMessage::SetFullscreen(contains_fullscreen_element.as_bool()),
+            ));
+            Ok(())
+          })),
+          &mut token,
+        );
+      }
+    }
   }
 
   Ok(WebviewWrapper {

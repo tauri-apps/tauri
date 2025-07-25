@@ -15,6 +15,7 @@ use crate::{
 use anyhow::Context;
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
+use tauri_utils::config::RunnerConfig;
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -25,7 +26,7 @@ use tauri_utils::platform::Target;
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// Builds with the debug flag
   #[clap(short, long)]
   pub debug: bool,
@@ -160,6 +161,14 @@ pub fn setup(
     std::process::exit(1);
   }
 
+  if config_.identifier.ends_with(".app") {
+    log::warn!(
+      "The bundle identifier \"{}\" set in `{} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
+      config_.identifier,
+      bundle_identifier_source
+    );
+  }
+
   if let Some(before_build) = config_.build.before_build_command.clone() {
     helpers::run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
   }
@@ -212,7 +221,7 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner.clone_from(&config_.build.runner);
+    options.runner = config_.build.runner.clone();
   }
 
   options

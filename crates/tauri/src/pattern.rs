@@ -84,12 +84,12 @@ pub(crate) struct PatternJavascript {
   pub(crate) pattern: PatternObject,
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "isolation")]
 pub(crate) fn format_real_schema(schema: &str, https: bool) -> String {
   if cfg!(windows) || cfg!(target_os = "android") {
     let scheme = if https { "https" } else { "http" };
-    format!("{scheme}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
+    format!("{scheme}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}/")
   } else {
-    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
+    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}/")
   }
 }

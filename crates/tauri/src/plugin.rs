@@ -18,6 +18,7 @@ use serde::{
 };
 use serde_json::Value as JsonValue;
 use tauri_macros::default_runtime;
+use tauri_runtime::webview::InitializationScript;
 use thiserror::Error;
 use url::Url;
 
@@ -50,13 +51,35 @@ pub trait Plugin<R: Runtime>: Send {
   /// Add the provided JavaScript to a list of scripts that should be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document and child frame page navigations,
-  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
-  ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicitly declared.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [`Plugin::initialization_script_2`] to set that to false.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   fn initialization_script(&self) -> Option<String> {
     None
+  }
+
+  // TODO: Change `initialization_script` to this in v3
+  /// Same as [`Plugin::initialization_script`] but returns an [`InitializationScript`] instead
+  /// We plan to replace [`Plugin::initialization_script`] with this signature in v3
+  fn initialization_script_2(&self) -> Option<InitializationScript> {
+    self
+      .initialization_script()
+      .map(|script| InitializationScript {
+        script,
+        for_main_frame_only: true,
+      })
   }
 
   /// Callback invoked when the window is created.
@@ -242,7 +265,7 @@ pub struct Builder<R: Runtime, C: DeserializeOwned = ()> {
   name: &'static str,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
-  js_init_script: Option<String>,
+  js_init_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
@@ -305,13 +328,23 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   /// Sets the provided JavaScript to be run after the global object has been created,
   /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
   ///
-  /// Since it runs on all top-level document and child frame page navigations,
-  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
-  ///
   /// The script is wrapped into its own context with `(function () { /* your script here */ })();`,
   /// so global variables must be assigned to `window` instead of implicitly declared.
   ///
   /// Note that calling this function multiple times overrides previous values.
+  ///
+  /// This is executed only on the main frame.
+  /// If you only want to run it in all frames, use [`Self::js_init_script_on_all_frames`] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
   ///
   /// # Examples
   ///
@@ -328,13 +361,46 @@ impl<R: Runtime, C: DeserializeOwned> Builder<R, C> {
   ///
   /// fn init<R: Runtime>() -> TauriPlugin<R> {
   ///   Builder::new("example")
-  ///     .js_init_script(INIT_SCRIPT.to_string())
+  ///     .js_init_script(INIT_SCRIPT)
   ///     .build()
   /// }
   /// ```
   #[must_use]
-  pub fn js_init_script(mut self, js_init_script: String) -> Self {
-    self.js_init_script = Some(js_init_script);
+  // TODO: Rename to `initialization_script` in v3
+  pub fn js_init_script(mut self, js_init_script: impl Into<String>) -> Self {
+    self.js_init_script = Some(InitializationScript {
+      script: js_init_script.into(),
+      for_main_frame_only: true,
+    });
+    self
+  }
+
+  /// Sets the provided JavaScript to be run after the global object has been created,
+  /// but before the HTML document has been parsed and before any other script included by the HTML document is run.
+  ///
+  /// Since it runs on all top-level document and child frame page navigations,
+  /// it's recommended to check the `window.location` to guard your script from running on unexpected origins.
+  ///
+  /// Note that calling this function multiple times overrides previous values.
+  ///
+  /// This is executed on all frames, main frame and also sub frames.
+  /// If you only want to run it in the main frame, use [`Self::js_init_script`] instead.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
+  ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
+  ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
+  ///
+  /// [addDocumentStartJavaScript]: https://developer.android.com/reference/androidx/webkit/WebViewCompat#addDocumentStartJavaScript(android.webkit.WebView,java.lang.String,java.util.Set%3Cjava.lang.String%3E)
+  /// [onPageStarted]: https://developer.android.com/reference/android/webkit/WebViewClient#onPageStarted(android.webkit.WebView,%20java.lang.String,%20android.graphics.Bitmap)
+  #[must_use]
+  pub fn js_init_script_on_all_frames(mut self, js_init_script: impl Into<String>) -> Self {
+    self.js_init_script = Some(InitializationScript {
+      script: js_init_script.into(),
+      for_main_frame_only: false,
+    });
     self
   }
 
@@ -695,7 +761,7 @@ pub struct TauriPlugin<R: Runtime, C: DeserializeOwned = ()> {
   app: Option<AppHandle<R>>,
   invoke_handler: Box<InvokeHandler<R>>,
   setup: Option<Box<SetupHook<R, C>>>,
-  js_init_script: Option<String>,
+  js_init_script: Option<InitializationScript>,
   on_navigation: Box<OnNavigation<R>>,
   on_page_load: Box<OnPageLoad<R>>,
   on_window_ready: Box<OnWindowReady<R>>,
@@ -751,6 +817,13 @@ impl<R: Runtime, C: DeserializeOwned> Plugin<R> for TauriPlugin<R, C> {
   }
 
   fn initialization_script(&self) -> Option<String> {
+    self
+      .js_init_script
+      .clone()
+      .map(|initialization_script| initialization_script.script)
+  }
+
+  fn initialization_script_2(&self) -> Option<InitializationScript> {
     self.js_init_script.clone()
   }
 
@@ -842,12 +915,20 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Generates an initialization script from all plugins in the store.
-  pub(crate) fn initialization_script(&self) -> Vec<String> {
+  pub(crate) fn initialization_script(&self) -> Vec<InitializationScript> {
     self
       .store
       .iter()
-      .filter_map(|p| p.initialization_script())
-      .map(|script| format!("(function () {{ {script} }})();"))
+      .filter_map(|p| p.initialization_script_2())
+      .map(
+        |InitializationScript {
+           script,
+           for_main_frame_only,
+         }| InitializationScript {
+          script: format!("(function () {{ {script} }})();"),
+          for_main_frame_only,
+        },
+      )
       .collect()
   }
 

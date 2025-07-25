@@ -6,9 +6,11 @@
 //!
 //! This module includes utilities to send messages to the JS layer of the webview.
 
-use std::sync::{Arc, Mutex};
+use std::{
+  future::Future,
+  sync::{Arc, Mutex},
+};
 
-use futures_util::Future;
 use http::HeaderMap;
 use serde::{
   de::{DeserializeOwned, IntoDeserializer},
@@ -339,6 +341,34 @@ impl<R: Runtime> InvokeResolver<R> {
 
   /// Reply to the invoke promise with an async task which is already serialized.
   pub fn respond_async_serialized<F>(self, task: F)
+  where
+    F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
+  {
+    // Dynamic dispatch the call in dev for a faster compile time
+    // TODO: Revisit this and see if we can do this for the release build as well if the performace hit is not a problem
+    #[cfg(debug_assertions)]
+    {
+      self.respond_async_serialized_dyn(Box::pin(task))
+    }
+    #[cfg(not(debug_assertions))]
+    {
+      self.respond_async_serialized_inner(task)
+    }
+  }
+
+  /// Dynamic dispatch the [`Self::respond_async_serialized`] call
+  #[cfg(debug_assertions)]
+  fn respond_async_serialized_dyn(
+    self,
+    task: std::pin::Pin<
+      Box<dyn Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static>,
+    >,
+  ) {
+    self.respond_async_serialized_inner(task)
+  }
+
+  /// Reply to the invoke promise with an async task which is already serialized.
+  fn respond_async_serialized_inner<F>(self, task: F)
   where
     F: Future<Output = Result<InvokeResponseBody, InvokeError>> + Send + 'static,
   {

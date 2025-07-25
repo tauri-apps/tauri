@@ -97,7 +97,7 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .with_context(|| format!("failed to run `{}` with `cmd /C`", script))?;
+      .with_context(|| format!("failed to run `{script}` with `cmd /C`"))?;
     #[cfg(not(target_os = "windows"))]
     let status = Command::new("sh")
       .arg("-c")

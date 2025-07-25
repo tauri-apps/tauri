@@ -15,6 +15,32 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+/// Patch a binary with bundle type information
+fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
+  match package_type {
+    #[cfg(target_os = "linux")]
+    PackageType::AppImage | PackageType::Deb | PackageType::Rpm => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      linux::patch_binary(binary, package_type)?;
+    }
+    PackageType::Nsis | PackageType::WindowsMsi => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      windows::patch_binary(binary, package_type)?;
+    }
+    _ => (),
+  }
+
+  Ok(())
+}
+
 pub use self::{
   category::AppCategory,
   settings::{
@@ -58,6 +84,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   if matches!(target_os, TargetPlatform::Windows) {
     if settings.can_sign() {
       for bin in settings.binaries() {
+        if bin.main() {
+          // we will sign the main binary after patching per "package type"
+          continue;
+        }
         let bin_path = settings.binary_path(bin);
         windows::sign::try_sign(&bin_path, settings)?;
       }
@@ -87,11 +117,27 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|b| b.main())
+    .expect("Main binary missing in settings");
+
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {
       continue;
+    }
+
+    if let Err(e) = patch_binary(&settings.binary_path(main_binary), package_type) {
+      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    }
+
+    // sign main binary for every package type after patch
+    if matches!(target_os, TargetPlatform::Windows) && settings.can_sign() {
+      let bin_path = settings.binary_path(main_binary);
+      windows::sign::try_sign(&bin_path, settings)?;
     }
 
     let bundle_paths = match package_type {

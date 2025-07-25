@@ -376,11 +376,12 @@ impl WebviewAttributes {
   /// It is guaranteed that code is executed before `window.onload`.
   ///
   /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
+  /// If you only want to run it in all frames, use [`Self::initialization_script_on_all_frames`] instead.
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
   ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
   ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///
@@ -401,11 +402,12 @@ impl WebviewAttributes {
   /// It is guaranteed that code is executed before `window.onload`.
   ///
   /// This is executed on all frames, main frame and also sub frames.
-  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  /// If you only want to run it in the main frame, use [`Self::initialization_script`] instead.
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
   ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
   ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///

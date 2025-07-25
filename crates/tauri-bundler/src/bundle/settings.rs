@@ -333,6 +333,10 @@ pub struct MacOsSettings {
   pub files: HashMap<PathBuf, PathBuf>,
   /// The version of the build that identifies an iteration of the bundle.
   pub bundle_version: Option<String>,
+  /// The name of the build that identifies a string of the bundle.
+  ///
+  /// If not set, defaults to the package's product name.
+  pub bundle_name: Option<String>,
   /// A version string indicating the minimum MacOS version that the bundled app supports (e.g. `"10.11"`).
   /// If you are using this config field, you may also want have your `build.rs` script emit `cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.11`.
   pub minimum_system_version: Option<String>,

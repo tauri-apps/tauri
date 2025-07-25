@@ -222,7 +222,7 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
               )
               .await
             {
-              println!("Error serving connection: {:?}", err);
+              println!("Error serving connection: {err:?}");
             }
           });
         } else {
@@ -230,7 +230,7 @@ pub async fn run(args: Args, mut _driver: Child) -> Result<(), Error> {
         }
       }
     } else {
-      println!("can not listen to address: {:?}", address);
+      println!("can not listen to address: {address:?}");
     }
   };
   srv.await;

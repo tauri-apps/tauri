@@ -49,8 +49,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     Arch::Riscv64 => "riscv64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {:?}",
-        target
+        "Unsupported architecture: {target:?}"
       )));
     }
   };
@@ -164,7 +163,7 @@ fn generate_control_file(
   let dest_path = control_dir.join("control");
   let mut file = fs_utils::create_file(&dest_path)?;
   let package = heck::AsKebabCase(settings.product_name());
-  writeln!(file, "Package: {}", package)?;
+  writeln!(file, "Package: {package}")?;
   writeln!(file, "Version: {}", settings.version_string())?;
   writeln!(file, "Architecture: {arch}")?;
   // Installed-Size must be divided by 1024, see https://www.debian.org/doc/debian-policy/ch-controlfields.html#installed-size
@@ -183,16 +182,16 @@ fn generate_control_file(
 
   writeln!(file, "Maintainer: {authors}")?;
   if let Some(section) = &settings.deb().section {
-    writeln!(file, "Section: {}", section)?;
+    writeln!(file, "Section: {section}")?;
   }
   if let Some(priority) = &settings.deb().priority {
-    writeln!(file, "Priority: {}", priority)?;
+    writeln!(file, "Priority: {priority}")?;
   } else {
     writeln!(file, "Priority: optional")?;
   }
 
   if let Some(homepage) = settings.homepage_url() {
-    writeln!(file, "Homepage: {}", homepage)?;
+    writeln!(file, "Homepage: {homepage}")?;
   }
 
   let dependencies = settings.deb().depends.as_ref().cloned().unwrap_or_default();
@@ -305,7 +304,7 @@ fn generate_md5sums(control_dir: &Path, data_dir: &Path) -> crate::Result<()> {
     let mut file = File::open(path)?;
     let mut hash = md5::Context::new();
     io::copy(&mut file, &mut hash)?;
-    for byte in hash.compute().iter() {
+    for byte in hash.finalize().iter() {
       write!(md5sums_file, "{byte:02x}")?;
     }
     let rel_path = path.strip_prefix(data_dir)?;

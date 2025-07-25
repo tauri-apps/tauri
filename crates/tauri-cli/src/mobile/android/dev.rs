@@ -34,7 +34,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::set_current_dir;
+use std::{env::set_current_dir, path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -66,6 +66,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Additional paths to watch for changes.
+  #[clap(long)]
+  pub additional_watch_folders: Vec<PathBuf>,
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -96,6 +99,11 @@ pub struct Options {
   /// Specify port for the built-in dev server for static files. Defaults to 1430.
   #[clap(long, env = "TAURI_CLI_PORT")]
   pub port: Option<u16>,
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments.
+  /// e.g. `tauri android dev -- [runnerArgs]`.
+  #[clap(last(true))]
+  pub args: Vec<String>,
 }
 
 impl From<Options> for DevOptions {
@@ -106,8 +114,9 @@ impl From<Options> for DevOptions {
       features: options.features,
       exit_on_panic: options.exit_on_panic,
       config: options.config,
-      args: Vec::new(),
+      args: options.args,
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
       no_dev_server_wait: options.no_dev_server_wait,
       no_dev_server: options.no_dev_server,
       port: options.port,
@@ -257,9 +266,10 @@ fn run_dev(
     MobileOptions {
       debug: !options.release_mode,
       features: options.features,
-      args: Vec::new(),
+      args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
     },
     |options| {
       let cli_options = CliOptions {
@@ -275,10 +285,7 @@ fn run_dev(
         }),
       };
 
-      let _handle = write_options(
-        &tauri_config.lock().unwrap().as_ref().unwrap().identifier,
-        cli_options,
-      )?;
+      let _handle = write_options(tauri_config.lock().unwrap().as_ref().unwrap(), cli_options)?;
 
       inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 

@@ -302,12 +302,12 @@ impl<R: Runtime> PluginHandle<R> {
     let response = rx.await.unwrap();
 
     match response {
-      Ok(r) => {
-        serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse)
-      }
-      Err(r) => serde_json::from_value::<ErrorResponse>(r)
-        .map(Into::into)
-        .map_err(PluginInvokeError::CannotDeserializeResponse)?,
+      Ok(r) => serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse),
+      Err(r) => Err(
+        serde_json::from_value::<ErrorResponse>(r)
+          .map(Into::into)
+          .map_err(PluginInvokeError::CannotDeserializeResponse)?,
+      ),
     }
   }
 

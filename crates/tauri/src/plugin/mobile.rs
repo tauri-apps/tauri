@@ -13,6 +13,9 @@ use crate::{
 
 #[cfg(mobile)]
 use std::sync::atomic::{AtomicI32, Ordering};
+#[cfg(mobile)]
+use tokio::sync::oneshot;
+
 
 use serde::{de::DeserializeOwned, Serialize};
 
@@ -280,6 +283,41 @@ impl<R: Runtime, C: DeserializeOwned> PluginApi<R, C> {
 
 impl<R: Runtime> PluginHandle<R> {
   /// Executes the given mobile command.
+  /// This is an async optimized variant of run_mobile_plugin
+  pub async fn run_mobile_plugin_async<T: DeserializeOwned>(
+    &self,
+    command: impl AsRef<str>,
+    payload: impl Serialize,
+  ) -> Result<T, PluginInvokeError> {
+    let (tx, rx) = oneshot::channel();
+    run_command(
+      self.name,
+      &self.handle,
+      command,
+      serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
+      move |response| {
+        tx.send(response).unwrap();
+      },
+    )?;
+
+
+    let response = rx.await;
+
+    match response {
+      Ok(Some(r)) => {
+        return serde_json::from_value(r).map_err(PluginInvokeError::CannotDeserializeResponse);
+      },
+      Err(r) => {
+        return Err(
+        serde_json::from_value::<ErrorResponse>(r)
+          .map(Into::into)
+          .map_err(PluginInvokeError::CannotDeserializeResponse)?,
+        ),
+      }
+    }
+  }
+
+  /// Executes the given mobile command.
   pub fn run_mobile_plugin<T: DeserializeOwned>(
     &self,
     command: impl AsRef<str>,
@@ -306,7 +344,6 @@ impl<R: Runtime> PluginHandle<R> {
       ),
     }
   }
-}
 
 #[cfg(target_os = "ios")]
 pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) + Send + 'static>(

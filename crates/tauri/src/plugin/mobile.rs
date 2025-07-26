@@ -299,7 +299,7 @@ impl<R: Runtime> PluginHandle<R> {
       },
     )?;
 
-    let response = rx.await;
+    let response = rx.await.unwrap();
 
     match response {
       Ok(Some(r)) => {

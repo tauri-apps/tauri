@@ -338,165 +338,161 @@ impl<R: Runtime> PluginHandle<R> {
       ),
     }
   }
+}
 
-  #[cfg(target_os = "ios")]
-  pub(crate) fn run_command<
-    R: Runtime,
-    C: AsRef<str>,
-    F: FnOnce(PluginResponse) + Send + 'static,
-  >(
-    name: &str,
-    _handle: &AppHandle<R>,
-    command: C,
-    payload: serde_json::Value,
-    handler: F,
-  ) -> Result<(), PluginInvokeError> {
-    use std::{
-      ffi::CStr,
-      os::raw::{c_char, c_int, c_ulonglong},
-    };
+#[cfg(target_os = "ios")]
+pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) + Send + 'static>(
+  name: &str,
+  _handle: &AppHandle<R>,
+  command: C,
+  payload: serde_json::Value,
+  handler: F,
+) -> Result<(), PluginInvokeError> {
+  use std::{
+    ffi::CStr,
+    os::raw::{c_char, c_int, c_ulonglong},
+  };
 
-    let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
-    PENDING_PLUGIN_CALLS
-      .get_or_init(Default::default)
-      .lock()
-      .unwrap()
-      .insert(id, Box::new(handler));
+  let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
+  PENDING_PLUGIN_CALLS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .insert(id, Box::new(handler));
 
-    unsafe {
-      extern "C" fn plugin_command_response_handler(
-        id: c_int,
-        success: c_int,
-        payload: *const c_char,
-      ) {
-        let payload = unsafe {
-          assert!(!payload.is_null());
-          CStr::from_ptr(payload)
-        };
+  unsafe {
+    extern "C" fn plugin_command_response_handler(
+      id: c_int,
+      success: c_int,
+      payload: *const c_char,
+    ) {
+      let payload = unsafe {
+        assert!(!payload.is_null());
+        CStr::from_ptr(payload)
+      };
 
-        if let Some(handler) = PENDING_PLUGIN_CALLS
-          .get_or_init(Default::default)
-          .lock()
-          .unwrap()
-          .remove(&id)
-        {
-          let json = payload.to_str().unwrap();
-          match serde_json::from_str(json) {
-            Ok(payload) => {
-              handler(if success == 1 {
-                Ok(payload)
-              } else {
-                Err(payload)
-              });
-            }
-            Err(err) => {
-              handler(Err(format!("{err}, data: {}", json).into()));
-            }
+      if let Some(handler) = PENDING_PLUGIN_CALLS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .remove(&id)
+      {
+        let json = payload.to_str().unwrap();
+        match serde_json::from_str(json) {
+          Ok(payload) => {
+            handler(if success == 1 {
+              Ok(payload)
+            } else {
+              Err(payload)
+            });
+          }
+          Err(err) => {
+            handler(Err(format!("{err}, data: {}", json).into()));
           }
         }
       }
-
-      extern "C" fn send_channel_data_handler(id: c_ulonglong, payload: *const c_char) {
-        let payload = unsafe {
-          assert!(!payload.is_null());
-          CStr::from_ptr(payload)
-        };
-
-        if let Some(channel) = CHANNELS
-          .get_or_init(Default::default)
-          .lock()
-          .unwrap()
-          .get(&(id as u32))
-        {
-          let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
-          let _ = channel.send(payload);
-        }
-      }
-
-      crate::ios::run_plugin_command(
-        id,
-        &name.into(),
-        &command.as_ref().into(),
-        &serde_json::to_string(&payload).unwrap().as_str().into(),
-        crate::ios::PluginMessageCallback(plugin_command_response_handler),
-        crate::ios::ChannelSendDataCallback(send_channel_data_handler),
-      );
     }
+
+    extern "C" fn send_channel_data_handler(id: c_ulonglong, payload: *const c_char) {
+      let payload = unsafe {
+        assert!(!payload.is_null());
+        CStr::from_ptr(payload)
+      };
+
+      if let Some(channel) = CHANNELS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap()
+        .get(&(id as u32))
+      {
+        let payload: serde_json::Value = serde_json::from_str(payload.to_str().unwrap()).unwrap();
+        let _ = channel.send(payload);
+      }
+    }
+
+    crate::ios::run_plugin_command(
+      id,
+      &name.into(),
+      &command.as_ref().into(),
+      &serde_json::to_string(&payload).unwrap().as_str().into(),
+      crate::ios::PluginMessageCallback(plugin_command_response_handler),
+      crate::ios::ChannelSendDataCallback(send_channel_data_handler),
+    );
+  }
+
+  Ok(())
+}
+
+#[cfg(target_os = "android")]
+pub(crate) fn run_command<
+  R: Runtime,
+  C: AsRef<str>,
+  F: FnOnce(PluginResponse) + Send + Clone + 'static,
+>(
+  name: &str,
+  handle: &AppHandle<R>,
+  command: C,
+  payload: serde_json::Value,
+  handler: F,
+) -> Result<(), PluginInvokeError> {
+  use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+
+  fn run<R: Runtime>(
+    id: i32,
+    plugin: &str,
+    command: String,
+    payload: &serde_json::Value,
+    env: &mut JNIEnv<'_>,
+    activity: &JObject<'_>,
+  ) -> Result<(), JniError> {
+    let plugin = env.new_string(plugin)?;
+    let command = env.new_string(&command)?;
+    let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
+    let plugin_manager = env
+      .call_method(
+        activity,
+        "getPluginManager",
+        "()Lapp/tauri/plugin/PluginManager;",
+        &[],
+      )?
+      .l()?;
+
+    env.call_method(
+      plugin_manager,
+      "runCommand",
+      "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+      &[
+        id.into(),
+        (&plugin).into(),
+        (&command).into(),
+        (&data).into(),
+      ],
+    )?;
 
     Ok(())
   }
 
-  #[cfg(target_os = "android")]
-  pub(crate) fn run_command<
-    R: Runtime,
-    C: AsRef<str>,
-    F: FnOnce(PluginResponse) + Send + Clone + 'static,
-  >(
-    name: &str,
-    handle: &AppHandle<R>,
-    command: C,
-    payload: serde_json::Value,
-    handler: F,
-  ) -> Result<(), PluginInvokeError> {
-    use jni::{errors::Error as JniError, objects::JObject, JNIEnv};
+  let handle = match handle.runtime() {
+    RuntimeOrDispatch::Runtime(r) => r.handle(),
+    RuntimeOrDispatch::RuntimeHandle(h) => h,
+    _ => unreachable!(),
+  };
 
-    fn run<R: Runtime>(
-      id: i32,
-      plugin: &str,
-      command: String,
-      payload: &serde_json::Value,
-      env: &mut JNIEnv<'_>,
-      activity: &JObject<'_>,
-    ) -> Result<(), JniError> {
-      let plugin = env.new_string(plugin)?;
-      let command = env.new_string(&command)?;
-      let data = env.new_string(&serde_json::to_string(payload).unwrap())?;
-      let plugin_manager = env
-        .call_method(
-          activity,
-          "getPluginManager",
-          "()Lapp/tauri/plugin/PluginManager;",
-          &[],
-        )?
-        .l()?;
+  let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
+  let plugin_name = name.to_string();
+  let command = command.as_ref().to_string();
 
-      env.call_method(
-        plugin_manager,
-        "runCommand",
-        "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
-        &[
-          id.into(),
-          (&plugin).into(),
-          (&command).into(),
-          (&data).into(),
-        ],
-      )?;
+  PENDING_PLUGIN_CALLS
+    .get_or_init(Default::default)
+    .lock()
+    .unwrap()
+    .insert(id, Box::new(handler.clone()));
 
-      Ok(())
+  handle.run_on_android_context(move |env, activity, _webview| {
+    if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
+      handler(Err(e.to_string().into()));
     }
+  });
 
-    let handle = match handle.runtime() {
-      RuntimeOrDispatch::Runtime(r) => r.handle(),
-      RuntimeOrDispatch::RuntimeHandle(h) => h,
-      _ => unreachable!(),
-    };
-
-    let id: i32 = PENDING_PLUGIN_CALLS_ID.fetch_add(1, Ordering::Relaxed);
-    let plugin_name = name.to_string();
-    let command = command.as_ref().to_string();
-
-    PENDING_PLUGIN_CALLS
-      .get_or_init(Default::default)
-      .lock()
-      .unwrap()
-      .insert(id, Box::new(handler.clone()));
-
-    handle.run_on_android_context(move |env, activity, _webview| {
-      if let Err(e) = run::<R>(id, &plugin_name, command, &payload, env, activity) {
-        handler(Err(e.to_string().into()));
-      }
-    });
-
-    Ok(())
-  }
+  Ok(())
 }

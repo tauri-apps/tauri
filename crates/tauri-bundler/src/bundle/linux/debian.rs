@@ -40,6 +40,8 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the DEB was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
+  let product_name = settings.product_name();
+  let version = settings.version_string();
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "amd64",
     Arch::X86 => "i386",
@@ -54,10 +56,12 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     }
   };
   let package_base_name = format!(
-    "{}_{}_{}",
-    settings.product_name(),
-    settings.version_string(),
-    arch
+    "{product_name}_{version}_{}",
+    if settings.consistent_name() {
+      settings.binary_arch().to_string()
+    } else {
+      arch.to_string()
+    }
   );
   let package_name = format!("{package_base_name}.deb");
 

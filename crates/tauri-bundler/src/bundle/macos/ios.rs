@@ -34,7 +34,23 @@ use std::{
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::warn!("iOS bundle support is still experimental.");
 
-  let app_product_name = format!("{}.app", settings.product_name());
+  let product_name = settings.product_name();
+  let package_base_name = if settings.consistent_name() {
+    let version = settings.version_string();
+    let arch = match settings.binary_arch() {
+      // Is this match correct?
+      Arch::AArch64 => "aarch64",
+      target => {
+        return Err(crate::Error::ArchError(format!(
+          "Unsupported architecture: {target:?}"
+        )));
+      }
+    };
+    format!("{product_name}_{version}_{}", settings.binary_arch())
+  } else {
+    product_name
+  };
+  let app_product_name = format!("{package_base_name}.app");
 
   let app_bundle_path = settings
     .project_out_directory()

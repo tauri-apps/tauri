@@ -19,8 +19,10 @@ use std::{
 /// Bundles the project.
 /// Returns a vector of PathBuf that shows where the AppImage was created.
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
-  // generate the deb binary name
-  let appimage_arch: &str = match settings.binary_arch() {
+  let product_name = settings.product_name();
+  let version = settings.version_string();
+  // generate the deb??? binary name (remove this comment?)
+  let arch = match settings.binary_arch() {
     Arch::X86_64 => "amd64",
     Arch::X86 => "i386",
     Arch::AArch64 => "aarch64",
@@ -57,7 +59,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
   let main_binary = settings.main_binary()?;
-  let product_name = settings.product_name();
 
   let mut settings = settings.clone();
   if main_binary.name().contains(' ') {
@@ -80,12 +81,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::create_dir_all(&output_path)?;
   let app_dir_path = output_path.join(format!("{}.AppDir", settings.product_name()));
-  let appimage_filename = format!(
-    "{}_{}_{}.AppImage",
-    settings.product_name(),
-    settings.version_string(),
-    appimage_arch
+  let package_base_name = format!(
+    "{product_name}_{version}_{}",
+    if settings.consistent_name() {
+      settings.binary_arch().to_string()
+    } else {
+      arch.to_string()
+    }
   );
+  let appimage_filename = format!("{package_base_name}.AppImage");
   let appimage_path = output_path.join(&appimage_filename);
   fs_utils::create_dir(&app_dir_path, true)?;
 

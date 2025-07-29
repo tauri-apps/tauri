@@ -417,4 +417,27 @@ impl<R: Runtime> Submenu<R> {
     })?;
     Ok(())
   }
+
+  /// Change this submenu icon or remove it.
+  pub fn set_icon(&self, icon: Option<crate::image::Image<'_>>) -> crate::Result<()> {
+    let icon = match icon {
+      Some(i) => Some(i.try_into()?),
+      None => None,
+    };
+    run_item_main_thread!(self, |self_: Self| (*self_.0).as_ref().set_icon(icon))
+  }
+
+  /// Change this submenu icon to a native image or remove it.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// - **Windows / Linux**: Unsupported.
+  pub fn set_native_icon(&self, _icon: Option<NativeIcon>) -> crate::Result<()> {
+    #[cfg(target_os = "macos")]
+    return run_item_main_thread!(self, |self_: Self| {
+      (*self_.0).as_ref().set_native_icon(_icon.map(Into::into))
+    });
+    #[allow(unreachable_code)]
+    Ok(())
+  }
 }

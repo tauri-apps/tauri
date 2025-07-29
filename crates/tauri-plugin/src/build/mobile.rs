@@ -31,6 +31,23 @@ pub fn update_entitlements<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()
   Ok(())
 }
 
+#[cfg(target_os = "macos")]
+pub fn update_info_plist<F: FnOnce(&mut plist::Dictionary)>(f: F) -> Result<()> {
+  if let (Some(project_path), Ok(app_name)) = (
+    var_os("TAURI_IOS_PROJECT_PATH").map(PathBuf::from),
+    std::env::var("TAURI_IOS_APP_NAME"),
+  ) {
+    update_plist_file(
+      project_path
+        .join(format!("{app_name}_iOS"))
+        .join("Info.plist"),
+      f,
+    )?;
+  }
+
+  Ok(())
+}
+
 pub fn update_android_manifest(block_identifier: &str, parent: &str, insert: String) -> Result<()> {
   if let Some(project_path) = var_os("TAURI_ANDROID_PROJECT_PATH").map(PathBuf::from) {
     let manifest_path = project_path.join("app/src/main/AndroidManifest.xml");

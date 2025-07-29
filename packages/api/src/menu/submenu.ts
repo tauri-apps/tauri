@@ -16,8 +16,7 @@ import { type LogicalPosition, PhysicalPosition, type Window } from '../window'
 import { type ItemKind, MenuItemBase, newMenu } from './base'
 import { type MenuOptions } from './menu'
 import { Position } from '../dpi'
-import { NativeIcon } from './iconMenuItem'
-import { Image, transformImage } from '../image'
+import { transformImage, MenuIcon } from '../image'
 
 /** @ignore */
 export function itemFromKind([rid, id, kind]: [number, string, ItemKind]):
@@ -54,7 +53,7 @@ export type SubmenuOptions = (Omit<MenuItemOptions, 'accelerator' | 'action'>
    * Icon to be used for the submenu.
    * Note: you may need the `image-ico` or `image-png` Cargo features to use this API.
    */
-  icon?: NativeIcon | string | Image | Uint8Array | ArrayBuffer | number[]
+  icon?: MenuIcon
 }
 
 /** A type that is a submenu inside a {@linkcode Menu} or {@linkcode Submenu}. */
@@ -296,27 +295,10 @@ export class Submenu extends MenuItemBase {
   }
 
   /** Sets an icon for this submenu */
-  async setIcon(
-    icon:
-      | NativeIcon
-      | string
-      | Image
-      | Uint8Array
-      | ArrayBuffer
-      | number[]
-      | null
-  ): Promise<void> {
+  async setIcon(icon: MenuIcon | null): Promise<void> {
     return invoke('plugin:menu|set_icon', {
       rid: this.rid,
       icon: transformImage(icon)
-    })
-  }
-
-  /** Sets a native icon for this submenu */
-  async setNativeIcon(icon: NativeIcon | null): Promise<void> {
-    return invoke('plugin:menu|set_native_icon', {
-      rid: this.rid,
-      icon
     })
   }
 }

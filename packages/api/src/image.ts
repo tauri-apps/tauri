@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import { Resource, invoke } from './core'
+import { NativeIcon } from './menu/iconMenuItem'
 
 /// Image dimensions type.
 export interface ImageSize {
@@ -11,6 +12,15 @@ export interface ImageSize {
   /// Image height.
   height: number
 }
+
+/** A type that represents an icon that can be used in menu items. */
+export type MenuIcon =
+  | NativeIcon
+  | string
+  | Image
+  | Uint8Array
+  | ArrayBuffer
+  | number[]
 
 /** An RGBA Image in row-major order from top to bottom. */
 export class Image extends Resource {

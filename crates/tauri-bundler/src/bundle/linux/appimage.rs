@@ -52,7 +52,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::create_dir_all(&tools_path)?;
 
-  let linuxdeploy_path = prepare_tools(&tools_path, tools_arch)?;
+  let linuxdeploy_path = prepare_tools(
+    &tools_path,
+    tools_arch,
+    settings.log_level() != log::Level::Error,
+  )?;
 
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
@@ -217,7 +221,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
-fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
+fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
   let apprun = tools_path.join(format!("AppRun-{arch}"));
   if !apprun.exists() {
     let data = download(&format!(
@@ -252,7 +256,10 @@ fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
     match data {
       Ok(data) => write_and_make_executable(&appimage, data)?,
       Err(err) => {
-        log::error!("Download of AppImage plugin failed. Using older built-in version instead.")
+        log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
+        if verbose {
+          log::debug!("{err:?}");
+        }
       }
     }
   }

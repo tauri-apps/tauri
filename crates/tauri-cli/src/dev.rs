@@ -22,6 +22,7 @@ use tauri_utils::{config::RunnerConfig, platform::Target};
 use std::{
   env::set_current_dir,
   net::{IpAddr, Ipv4Addr},
+  path::PathBuf,
   process::{exit, Command, Stdio},
   sync::{
     atomic::{AtomicBool, Ordering},
@@ -81,6 +82,9 @@ pub struct Options {
   /// Disable the file watcher.
   #[clap(long)]
   pub no_watch: bool,
+  /// Additional paths to watch for changes.
+  #[clap(long)]
+  pub additional_watch_folders: Vec<PathBuf>,
 
   /// Disable the built-in dev server for static files.
   #[clap(long)]
@@ -334,6 +338,19 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         std::thread::sleep(sleep_interval);
       }
     }
+  }
+
+  if options.additional_watch_folders.is_empty() {
+    options.additional_watch_folders.extend(
+      config
+        .lock()
+        .unwrap()
+        .as_ref()
+        .unwrap()
+        .build
+        .additional_watch_folders
+        .clone(),
+    );
   }
 
   Ok(())

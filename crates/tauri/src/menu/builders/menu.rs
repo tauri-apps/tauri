@@ -117,6 +117,8 @@ pub struct SubmenuBuilder<'m, R: Runtime, M: Manager<R>> {
   pub(crate) text: String,
   pub(crate) enabled: bool,
   pub(crate) items: Vec<crate::Result<MenuItemKind<R>>>,
+  pub(crate) icon: Option<crate::image::Image<'m>>,
+  pub(crate) native_icon: Option<NativeIcon>,
 }
 
 impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
@@ -131,6 +133,8 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
       text: text.as_ref().to_string(),
       enabled: true,
       manager,
+      icon: None,
+      native_icon: None,
     }
   }
 
@@ -145,7 +149,25 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
       enabled: true,
       items: Vec::new(),
       manager,
+      icon: None,
+      native_icon: None,
     }
+  }
+
+  /// Set an icon for the submenu.
+  /// Calling this method resets the native_icon.
+  pub fn submenu_icon(mut self, icon: crate::image::Image<'m>) -> Self {
+    self.icon = Some(icon);
+    self.native_icon = None;
+    self
+  }
+
+  /// Set a native icon for the submenu.
+  /// Calling this method resets the icon.
+  pub fn submenu_native_icon(mut self, icon: NativeIcon) -> Self {
+    self.native_icon = Some(icon);
+    self.icon = None;
+    self
   }
 
   /// Set the enabled state for the submenu.
@@ -157,7 +179,23 @@ impl<'m, R: Runtime, M: Manager<R>> SubmenuBuilder<'m, R, M> {
   /// Builds this submenu
   pub fn build(self) -> crate::Result<Submenu<R>> {
     let submenu = if let Some(id) = self.id {
-      Submenu::with_id(self.manager, id, self.text, self.enabled)?
+      if let Some(icon) = self.icon {
+        Submenu::with_id_and_icon(self.manager, id, self.text, self.enabled, Some(icon))?
+      } else if let Some(native_icon) = self.native_icon {
+        Submenu::with_id_and_native_icon(
+          self.manager,
+          id,
+          self.text,
+          self.enabled,
+          Some(native_icon),
+        )?
+      } else {
+        Submenu::with_id(self.manager, id, self.text, self.enabled)?
+      }
+    } else if let Some(icon) = self.icon {
+      Submenu::new_with_icon(self.manager, self.text, self.enabled, Some(icon))?
+    } else if let Some(native_icon) = self.native_icon {
+      Submenu::new_with_native_icon(self.manager, self.text, self.enabled, Some(native_icon))?
     } else {
       Submenu::new(self.manager, self.text, self.enabled)?
     };

@@ -397,12 +397,32 @@ pub struct Context<R: Runtime> {
   pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
 }
 
+/// Temporary struct that overrides the Debug formatting for the `app_icon` field.
+///
+/// It reduces the output size compared to the default, as that would format the binary
+/// data as a slice of numbers `[65, 66, 67]`. This instead shows the length of the Vec.
+///
+/// For example: `Some([u8; 493])`
+pub(crate) struct DebugAppIcon<'a>(&'a Option<Vec<u8>>);
+
+impl std::fmt::Debug for DebugAppIcon<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.0 {
+      Option::None => f.write_str("None"),
+      Option::Some(icon) => f
+        .debug_tuple("Some")
+        .field(&format_args!("[u8; {}]", icon.len()))
+        .finish(),
+    }
+  }
+}
+
 impl<R: Runtime> fmt::Debug for Context<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
-      .field("app_icon", &self.app_icon)
+      .field("app_icon", &DebugAppIcon(&self.app_icon))
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern)
       .field("plugin_global_api_scripts", &self.plugin_global_api_scripts);

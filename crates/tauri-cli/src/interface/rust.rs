@@ -1183,7 +1183,7 @@ pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
     std::env::current_dir()?.join(target)
   } else {
     get_cargo_metadata()
-      .with_context(|| "failed to get cargo metadata")?
+      .with_context(|| "failed to run 'cargo metadata' command to get target directory")?
       .target_directory
   };
 
@@ -1221,7 +1221,7 @@ fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> 
 pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   Ok(
     get_cargo_metadata()
-      .context("failed to get cargo metadata")?
+      .context("failed to run 'cargo metadata' command to get workspace directory")?
       .workspace_root,
   )
 }

@@ -257,3 +257,14 @@ pub fn try_sign<P: AsRef<Path>>(file_path: P, settings: &Settings) -> crate::Res
   }
   Ok(())
 }
+
+/// If the file is signable (is a binary file) and not signed already
+pub fn should_sign(file_path: &Path) -> crate::Result<bool> {
+  Ok(
+    file_path
+      .extension()
+      .and_then(|extension| extension.to_str())
+      .is_some_and(|extension| matches!(extension, "exe" | "dll"))
+      && !verify(file_path)?,
+  )
+}

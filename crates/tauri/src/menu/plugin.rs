@@ -859,22 +859,27 @@ fn set_checked<R: Runtime>(
 fn set_icon<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
+  kind: ItemKind,
   icon: Option<Icon>,
 ) -> crate::Result<()> {
   let resources_table = webview.resources_table();
-  let icon_item = resources_table.get::<IconMenuItem<R>>(rid)?;
-
-  match icon {
-    Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
-    Some(Icon::Icon(icon)) => {
-      icon_item.set_icon(Some(icon.into_img(&resources_table)?.as_ref().clone()))
-    }
-    None => {
-      icon_item.set_icon(None)?;
-      icon_item.set_native_icon(None)?;
-      Ok(())
-    }
-  }
+  do_menu_item!(
+    resources_table,
+    rid,
+    kind,
+    |icon_item| match icon {
+      Some(Icon::Native(icon)) => icon_item.set_native_icon(Some(icon)),
+      Some(Icon::Icon(icon)) => {
+        icon_item.set_icon(Some(icon.into_img(&resources_table)?.as_ref().clone()))
+      }
+      None => {
+        icon_item.set_icon(None)?;
+        icon_item.set_native_icon(None)?;
+        Ok(())
+      }
+    },
+    Icon | Submenu
+  )
 }
 
 struct MenuChannels(Mutex<HashMap<MenuId, Channel<MenuId>>>);

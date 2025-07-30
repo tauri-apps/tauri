@@ -200,6 +200,7 @@ export class IconMenuItem extends MenuItemBase {
   async setIcon(icon: MenuIcon | null): Promise<void> {
     return invoke('plugin:menu|set_icon', {
       rid: this.rid,
+      kind: this.kind,
       icon: transformImage(icon)
     })
   }

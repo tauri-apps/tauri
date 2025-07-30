@@ -259,12 +259,24 @@ pub fn try_sign<P: AsRef<Path>>(file_path: P, settings: &Settings) -> crate::Res
 }
 
 /// If the file is signable (is a binary file) and not signed already
+/// (will skip the verification if not on Windows since we can't verify it)
 pub fn should_sign(file_path: &Path) -> crate::Result<bool> {
-  Ok(
-    file_path
-      .extension()
-      .and_then(|extension| extension.to_str())
-      .is_some_and(|extension| matches!(extension, "exe" | "dll"))
-      && !verify(file_path)?,
-  )
+  let is_binary = file_path
+    .extension()
+    .and_then(|extension| extension.to_str())
+    .is_some_and(|extension| matches!(extension, "exe" | "dll"));
+  if !is_binary {
+    return Ok(false);
+  }
+
+  #[cfg(windows)]
+  {
+    let already_signed = verify(file_path)?;
+    Ok(!already_signed)
+  }
+  // Skip verification if not on Windows since we can't verify it
+  #[cfg(not(windows))]
+  {
+    Ok(true)
+  }
 }

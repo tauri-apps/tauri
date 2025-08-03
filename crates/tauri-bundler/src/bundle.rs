@@ -53,7 +53,11 @@ pub use self::{
 use anyhow::Context;
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
-use std::{fmt::Write, path::PathBuf, io::{Seek, SeekFrom}};
+use std::{
+  fmt::Write,
+  io::{Seek, SeekFrom},
+  path::PathBuf,
+};
 
 /// Generated bundle metadata.
 #[derive(Debug)]

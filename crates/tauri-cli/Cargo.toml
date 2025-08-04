@@ -53,7 +53,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 json5 = "0.4"
 notify = "8"
-notify-debouncer-full = "0.5"
+notify-debouncer-full = "0.6"
 shared_child = "1"
 duct = "1.0"
 toml_edit = { version = "0.23", features = ["serde"] }

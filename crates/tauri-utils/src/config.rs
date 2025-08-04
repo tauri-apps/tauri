@@ -2468,7 +2468,8 @@ pub struct SecurityConfig {
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
   ///
-  /// If the list is empty, all capabilities are included.
+  /// By default (leftout or empty list), all capability files from `./capabilities/` (relative to your `build.rs`) are included,
+  /// by setting values in this entry, you fine grain the control over which one to include
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
   /// The headers, which are added to every http response from tauri to the web view

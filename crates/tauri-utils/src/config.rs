@@ -2470,6 +2470,24 @@ pub struct SecurityConfig {
   ///
   /// By default (leftout or empty list), all capability files from `./capabilities/` (relative to your `build.rs`) are included,
   /// by setting values in this entry, you fine grain the control over which one to include
+  ///
+  /// You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]
+  ///
+  /// ### Example
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "capabilities": [
+  ///       "main-window",
+  ///       {
+  ///         "identifier": "drag-window",
+  ///         "permissions": ["core:window:allow-start-dragging"]
+  ///       }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
   /// The headers, which are added to every http response from tauri to the web view

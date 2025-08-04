@@ -214,9 +214,7 @@ pub fn sign_custom<P: AsRef<Path>>(
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  for line in stdout.lines() {
-    log::info!("{line}");
-  }
+  log::info!("{stdout}");
 
   Ok(())
 }
@@ -235,9 +233,7 @@ pub fn sign_default<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  for line in stdout.lines() {
-    log::info!("{line}");
-  }
+  log::info!("{stdout}");
 
   Ok(())
 }

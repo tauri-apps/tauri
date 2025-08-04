@@ -2468,7 +2468,7 @@ pub struct SecurityConfig {
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
   ///
-  /// By default (not set or empty list), all capability files from `./capabilities/` (relative to your `Cargo.toml`) are included,
+  /// By default (not set or empty list), all capability files from `./capabilities/` are included,
   /// by setting values in this entry, you have fine grained control over which capabilities are included
   ///
   /// You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]

@@ -239,6 +239,16 @@ where
   let init_res = builder
     .format_indent(Some(12))
     .filter(None, verbosity_level(verbosity_number).to_level_filter())
+    // golbin spams an insane amount of really technical logs on the debug level so we're reducing one level
+    .filter(
+      Some("goblin"),
+      verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
+    )
+    // handlebars is not that spammy but its debug logs are typically far from being helpful
+    .filter(
+      Some("handlebars"),
+      verbosity_level(verbosity_number.saturating_sub(1)).to_level_filter(),
+    )
     .format(|f, record| {
       let mut is_command_output = false;
       if let Some(action) = record.key_values().get("action".into()) {

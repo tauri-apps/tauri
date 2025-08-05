@@ -1085,7 +1085,7 @@ dependencies = [
  "thiserror 2.0.12",
  "toml 0.9.4",
  "ureq",
- "which 8.0.0",
+ "which",
  "windows 0.61.1",
  "x509-certificate 0.24.0",
 ]
@@ -8562,7 +8562,7 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
- "which 7.0.1",
+ "which",
  "windows-registry 0.5.0",
  "windows-sys 0.60.2",
  "zip 4.0.0",
@@ -8699,7 +8699,7 @@ dependencies = [
  "signal-hook",
  "signal-hook-tokio",
  "tokio",
- "which 7.0.1",
+ "which",
  "win32job",
 ]
 
@@ -10214,18 +10214,6 @@ name = "weezl"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53a85b86a771b1c87058196170769dd264f66c0782acf1ae6cc51bfd64b39082"
-
-[[package]]
-name = "which"
-version = "7.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb4a9e33648339dc1642b0e36e21b3385e6148e289226f657c809dee59df5028"
-dependencies = [
- "either",
- "env_home",
- "rustix 0.38.43",
- "winsafe",
-]
 
 [[package]]
 name = "which"

@@ -1150,7 +1150,7 @@
           ]
         },
         "capabilities": {
-          "description": "List of capabilities that are enabled on the application.\n\n If the list is empty, all capabilities are included.",
+          "description": "List of capabilities that are enabled on the application.\n\n By default (not set or empty list), all capability files from `./capabilities/` are included,\n by setting values in this entry, you have fine grained control over which capabilities are included\n\n You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]\n\n ### Example\n\n ```json\n {\n   \"app\": {\n     \"capabilities\": [\n       \"main-window\",\n       {\n         \"identifier\": \"drag-window\",\n         \"permissions\": [\"core:window:allow-start-dragging\"]\n       }\n     ]\n   }\n }\n ```",
           "default": [],
           "type": "array",
           "items": {

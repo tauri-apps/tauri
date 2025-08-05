@@ -85,8 +85,7 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
 }
 
 pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) -> crate::Result<()> {
-  let file_data = std::fs::read(binary_path)?;
-  let mut file_data = file_data; // make mutable
+  let mut file_data = std::fs::read(binary_path)?;
 
   let pe = match goblin::Object::parse(&file_data)? {
     goblin::Object::PE(pe) => pe,
@@ -132,6 +131,8 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) ->
     )
   })?;
 
+  // see "Relative virtual address (RVA)" for explanation of offset arithmetic here:
+  // https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts
   let file_offset = rdata_section.pointer_to_raw_data as usize
     + (rva as usize).saturating_sub(rdata_section.virtual_address as usize);
 

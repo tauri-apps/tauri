@@ -482,13 +482,10 @@ pub struct WixConfig {
   pub banner_path: Option<PathBuf>,
   /// Path to a bitmap file to use on the installation user interface dialogs.
   /// It is used on the welcome and completion dialogs.
-
+  ///
   /// The required dimensions are 493px × 312px.
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
-  /// Enables FIPS compliant algorithms.
-  #[serde(default, alias = "fips-compliant")]
-  pub fips_compliant: Option<bool>,
 }
 
 /// Compression algorithms used in the NSIS installer.

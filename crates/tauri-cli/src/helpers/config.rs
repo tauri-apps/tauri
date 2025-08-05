@@ -71,10 +71,9 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     version: config.version,
     upgrade_code: config.upgrade_code,
     fips_compliant: std::env::var("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
-    .ok()
-    .map(|v| v == "true")
-    .or(config.fips_compliant)
-    .unwrap_or_default(),
+      .ok()
+      .map(|v| v == "true")
+      .unwrap_or(config.fips_compliant),
     language: tauri_bundler::WixLanguage(match config.language {
       WixLanguage::One(lang) => vec![(lang, Default::default())],
       WixLanguage::List(languages) => languages

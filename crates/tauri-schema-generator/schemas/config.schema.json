@@ -1071,14 +1071,14 @@
           ]
         },
         {
-          "description": "A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.",
+          "description": "A policy where a web view that's not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.",
           "type": "string",
           "enum": [
             "suspend"
           ]
         },
         {
-          "description": "A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.",
+          "description": "A policy where a web view that's not in a window limits processing, but does not fully suspend tasks.",
           "type": "string",
           "enum": [
             "throttle"
@@ -2789,12 +2789,9 @@
           ]
         },
         "fipsCompliant": {
-          "description": "Enables FIPS compliant algorithms.",
-          "default": null,
-          "type": [
-            "boolean",
-            "null"
-          ]
+          "description": "Enables FIPS compliant algorithms.\n Can also be enabled via the `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` env var.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

@@ -789,8 +789,9 @@ pub struct WixConfig {
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
   /// Enables FIPS compliant algorithms.
+  /// Can also be enabled via the `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` env var.
   #[serde(default, alias = "fips-compliant")]
-  pub fips_compliant: Option<bool>,
+  pub fips_compliant: bool,
 }
 
 /// Compression algorithms used in the NSIS installer.
@@ -1495,9 +1496,9 @@ impl schemars::JsonSchema for Color {
 pub enum BackgroundThrottlingPolicy {
   /// A policy where background throttling is disabled
   Disabled,
-  /// A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
+  /// A policy where a web view that's not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
   Suspend,
-  /// A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.
+  /// A policy where a web view that's not in a window limits processing, but does not fully suspend tasks.
   Throttle,
 }
 

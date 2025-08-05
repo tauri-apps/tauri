@@ -1,5 +1,5 @@
 ---
-"@tauri-apps/tauri-utils": patch:enhance
+tauri-utils": minor:enhance
 ---
 
-Added optional `fips_compliant` field to `WixConfig`
+Added `fips_compliant` field to `WixConfig` so that it can be configured via `tauri.conf.json` as well.

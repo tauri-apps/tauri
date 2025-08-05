@@ -25,6 +25,7 @@
     "core:app:allow-app-show",
     "core:app:allow-set-app-theme",
     "core:app:allow-set-dock-visibility",
+    "core:app:allow-default-window-icon",
     "core:window:allow-set-theme",
     "core:window:allow-center",
     "core:window:allow-request-user-attention",

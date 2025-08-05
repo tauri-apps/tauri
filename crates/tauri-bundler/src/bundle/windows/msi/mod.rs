@@ -7,7 +7,7 @@ use crate::{
   bundle::{
     settings::{Arch, Settings},
     windows::{
-      sign::try_sign,
+      sign::{should_sign, try_sign},
       util::{
         download_webview2_bootstrapper, download_webview2_offline_installer,
         WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
@@ -988,7 +988,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() {
+    if settings.can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 

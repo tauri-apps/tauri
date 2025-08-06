@@ -572,6 +572,15 @@ tauri::Builder::default()
           false
         }
       }));
+    } else {
+      // If no download handler was provided we provide a default that behaves like a browser would by saving the file into the Downloads dir.
+      pending.download_handler.replace(Arc::new(move |event| {
+        if let tauri_runtime::webview::DownloadEvent::Requested { url, destination } = event {
+          dbg!(url);
+          dbg!(destination);
+        }
+        true
+      }));
     }
 
     let label_ = pending.label.clone();

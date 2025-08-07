@@ -603,6 +603,11 @@ impl<R: Runtime> TrayIcon<R> {
       })
     })
   }
+
+  /// Get the inner tray icon.
+  pub fn inner(&self) -> &tray_icon::TrayIcon {
+    &self.inner
+  }
 }
 
 impl<R: Runtime> Resource for TrayIcon<R> {

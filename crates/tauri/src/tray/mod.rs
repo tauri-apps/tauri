@@ -605,8 +605,15 @@ impl<R: Runtime> TrayIcon<R> {
   }
 
   /// Get the inner tray icon.
-  pub fn inner(&self) -> &tray_icon::TrayIcon {
-    &self.inner
+  ///
+  /// Note that `tray-icon` crate may be updated in minor releases of Tauri.
+  /// Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_tray_icon`.
+  pub fn with_inner_tray_icon<F, T>(&self, f: F) -> crate::Result<T>
+  where
+    F: FnOnce(tray_icon::TrayIcon) -> T + Send + 'static,
+    T: Send + 'static,
+  {
+    run_item_main_thread!(self, |self_: Self| { f(self_.inner.clone()) })
   }
 }
 
@@ -628,7 +635,6 @@ mod tests {
   fn tray_event_json_serialization() {
     // NOTE: if this test is ever changed, you probably need to change `TrayIconEvent` in JS as well
 
-    use super::*;
     let event = TrayIconEvent::Click {
       button: MouseButton::Left,
       button_state: MouseButtonState::Down,

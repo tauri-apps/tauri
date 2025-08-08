@@ -2563,7 +2563,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
     self.context.main_thread.window_target.display_handle()
   }
 

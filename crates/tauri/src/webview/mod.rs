@@ -1351,48 +1351,46 @@ impl<R: Runtime> Webview<R> {
 ```rust,no_run
 use tauri::Manager;
 
-fn main() {
-  tauri::Builder::default()
-    .setup(|app| {
-      let main_webview = app.get_webview("main").unwrap();
-      main_webview.with_webview(|webview| {
-        #[cfg(target_os = "linux")]
-        {
-          // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
-          // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
-          use webkit2gtk::WebViewExt;
-          webview.inner().set_zoom_level(4.);
-        }
+tauri::Builder::default()
+  .setup(|app| {
+    let main_webview = app.get_webview("main").unwrap();
+    main_webview.with_webview(|webview| {
+      #[cfg(target_os = "linux")]
+      {
+        // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
+        // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>
+        use webkit2gtk::WebViewExt;
+        webview.inner().set_zoom_level(4.);
+      }
 
-        #[cfg(windows)]
-        unsafe {
-          // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
-          webview.controller().SetZoomFactor(4.).unwrap();
-        }
+      #[cfg(windows)]
+      unsafe {
+        // see https://docs.rs/webview2-com/0.19.1/webview2_com/Microsoft/Web/WebView2/Win32/struct.ICoreWebView2Controller.html
+        webview.controller().SetZoomFactor(4.).unwrap();
+      }
 
-        #[cfg(target_os = "macos")]
-        unsafe {
-          let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
-          let controller: &objc2_web_kit::WKUserContentController = &*webview.controller().cast();
-          let window: &objc2_app_kit::NSWindow = &*webview.ns_window().cast();
+      #[cfg(target_os = "macos")]
+      unsafe {
+        let view: &objc2_web_kit::WKWebView = &*webview.inner().cast();
+        let controller: &objc2_web_kit::WKUserContentController = &*webview.controller().cast();
+        let window: &objc2_app_kit::NSWindow = &*webview.ns_window().cast();
 
-          view.setPageZoom(4.);
-          controller.removeAllUserScripts();
-          let bg_color = objc2_app_kit::NSColor::colorWithDeviceRed_green_blue_alpha(0.5, 0.2, 0.4, 1.);
-          window.setBackgroundColor(Some(&bg_color));
-        }
+        view.setPageZoom(4.);
+        controller.removeAllUserScripts();
+        let bg_color = objc2_app_kit::NSColor::colorWithDeviceRed_green_blue_alpha(0.5, 0.2, 0.4, 1.);
+        window.setBackgroundColor(Some(&bg_color));
+      }
 
-        #[cfg(target_os = "android")]
-        {
-          use jni::objects::JValue;
-          webview.jni_handle().exec(|env, _, webview| {
-            env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
-          })
-        }
-      });
-      Ok(())
-  });
-}
+      #[cfg(target_os = "android")]
+      {
+        use jni::objects::JValue;
+        webview.jni_handle().exec(|env, _, webview| {
+          env.call_method(webview, "zoomBy", "(F)V", &[JValue::Float(4.)]).unwrap();
+        })
+      }
+    });
+    Ok(())
+});
 ```
   "####
   )]

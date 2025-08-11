@@ -66,7 +66,14 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default());
+      let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+        .on_new_window(|url| {
+          println!("new window requested: {url:?}");
+          true
+        })
+        .on_document_title_changed(|title| {
+          println!("document title changed: {title}");
+        });
 
       #[cfg(all(desktop, not(test)))]
       {

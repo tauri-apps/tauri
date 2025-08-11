@@ -270,6 +270,23 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
+  /// Defines a closure to be executed when runs when content inside the webview requests to open a new window,
+  /// such as through `window.open`.
+  ///
+  /// Returning `false` prevents the new window from being created, which is the default behavior.
+  pub fn on_new_window<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+    self.webview_builder = self.webview_builder.on_new_window(f);
+    self
+  }
+
+  /// Defines a closure to be executed when the document title changes.
+  ///
+  /// Note that it may run before or after the navigation event.
+  pub fn on_document_title_changed<F: Fn(String) + Send + 'static>(mut self, f: F) -> Self {
+    self.webview_builder = self.webview_builder.on_document_title_changed(f);
+    self
+  }
+
   /// Set a download event handler to be notified when a download is requested or finished.
   ///
   /// Returning `false` prevents the download from happening on a [`DownloadEvent::Requested`] event.

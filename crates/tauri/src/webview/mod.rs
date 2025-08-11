@@ -459,6 +459,10 @@ tauri::Builder::default()
   /// Defines a closure to be executed when a new window is created.
   ///
   /// Returning `false` prevents the new window from being created.
+  ///
+  /// # Platform-specific
+  ///
+  /// - **Android**: Not supported.
   pub fn on_new_window<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.new_window_handler.replace(Box::new(f));
     self

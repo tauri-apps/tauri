@@ -57,7 +57,8 @@ pub enum AppleNotarizationCredentials {
 #[derive(Deserialize)]
 struct NotarytoolSubmitOutput {
   id: String,
-  status: String,
+  #[serde(default)]
+  status: Option<String>,
   message: String,
 }
 
@@ -148,11 +149,12 @@ fn notarize_inner(
     let log_message = format!(
       "{} with status {} for id {} ({})",
       if wait { "Finished" } else { "Submitted" },
-      submit_output.status,
+      submit_output.status.as_deref().unwrap_or("Pending"),
       submit_output.id,
       submit_output.message
     );
-    if submit_output.status == "Accepted" {
+    // status is empty when not waiting for the notarization to finish
+    if submit_output.status.map_or(!wait, |s| s == "Accepted") {
       println!("Notarizing {log_message}");
 
       if wait {

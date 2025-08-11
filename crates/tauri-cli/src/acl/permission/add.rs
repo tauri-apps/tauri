@@ -77,6 +77,26 @@ impl TomlOrJson {
     };
   }
 
+  fn has_permission(&self, identifier: &str) -> bool {
+    (|| {
+      Some(match self {
+        TomlOrJson::Toml(t) => t
+          .get("permissions")?
+          .as_array()?
+          .iter()
+          .any(|value| value.as_str() == Some(identifier)),
+
+        TomlOrJson::Json(j) => j
+          .as_object()?
+          .get("permissions")?
+          .as_array()?
+          .iter()
+          .any(|value| value.as_str() == Some(identifier)),
+      })
+    })()
+    .unwrap_or_default()
+  }
+
   fn to_string(&self) -> Result<String> {
     Ok(match self {
       TomlOrJson::Toml(t) => t.to_string(),
@@ -236,9 +256,18 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   for (capability, path) in &mut capabilities {
-    capability.insert_permission(options.identifier.clone());
-    std::fs::write(&*path, capability.to_string()?)?;
-    log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
+    if capability.has_permission(&options.identifier) {
+      log::info!(
+        "Permission `{}` already found in `{}` at {}",
+        options.identifier,
+        capability.identifier(),
+        dunce::simplified(path).display()
+      );
+    } else {
+      capability.insert_permission(options.identifier.clone());
+      std::fs::write(&*path, capability.to_string()?)?;
+      log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
+    }
   }
 
   Ok(())

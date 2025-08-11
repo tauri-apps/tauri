@@ -14,7 +14,8 @@ use crate::{
 };
 use anyhow::Context;
 use clap::{ArgAction, Parser};
-use std::{env::set_current_dir, fs};
+use std::env::set_current_dir;
+use tauri_utils::config::RunnerConfig;
 use tauri_utils::platform::Target;
 
 #[derive(Debug, Clone, Parser)]
@@ -25,7 +26,7 @@ use tauri_utils::platform::Target;
 pub struct Options {
   /// Binary to use to build the application, defaults to `cargo`
   #[clap(short, long)]
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// Builds with the debug flag
   #[clap(short, long)]
   pub debug: bool,
@@ -59,6 +60,16 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  #[clap(long)]
+  pub skip_stapling: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -150,6 +161,14 @@ pub fn setup(
     std::process::exit(1);
   }
 
+  if config_.identifier.ends_with(".app") {
+    log::warn!(
+      "The bundle identifier \"{}\" set in `{} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
+      config_.identifier,
+      bundle_identifier_source
+    );
+  }
+
   if let Some(before_build) = config_.build.before_build_command.clone() {
     helpers::run_hook("beforeBuildCommand", before_build, interface, options.debug)?;
   }
@@ -174,9 +193,9 @@ pub fn setup(
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
     // https://github.com/tauri-apps/tauri/issues/13287
-    let target_path = fs::canonicalize(get_cargo_target_dir(&options.args)?)?;
+    let target_path = get_cargo_target_dir(&options.args)?;
     let mut out_folders = Vec::new();
-    if let Ok(web_asset_canonical) = web_asset_path.canonicalize() {
+    if let Ok(web_asset_canonical) = dunce::canonicalize(web_asset_path) {
       if let Ok(relative_path) = target_path.strip_prefix(&web_asset_canonical) {
         let relative_str = relative_path.to_string_lossy();
         if !relative_str.is_empty() {
@@ -202,7 +221,7 @@ pub fn setup(
   }
 
   if options.runner.is_none() {
-    options.runner.clone_from(&config_.build.runner);
+    options.runner = config_.build.runner.clone();
   }
 
   options

@@ -156,7 +156,7 @@ pub fn command(mut options: Options) -> Result<()> {
     let plugin_id = if options.android || options.mobile {
       let plugin_id = prompts::input(
         "What should be the Android Package ID for your plugin?",
-        Some(format!("com.plugin.{}", plugin_name)),
+        Some(format!("com.plugin.{plugin_name}")),
         false,
         false,
       )?

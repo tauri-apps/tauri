@@ -72,7 +72,7 @@ fn migrate_npm_dependencies(frontend_dir: &Path) -> Result<()> {
       .unwrap_or_default()
       .unwrap_or_default();
     if version.starts_with('1') {
-      install_deps.push(format!("{pkg}@^2.0.0-rc.0"));
+      install_deps.push(format!("{pkg}@^2.0.0"));
     }
   }
 
@@ -111,7 +111,7 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
 }
 
 fn migrate_manifest(manifest: &mut DocumentMut) -> Result<()> {
-  let version = "2.0.0-rc.0";
+  let version = "2.0.0";
 
   let dependencies = manifest
     .as_table_mut()

@@ -12,6 +12,7 @@
 //!
 //! - **wry** *(enabled by default)*: Enables the [wry](https://github.com/tauri-apps/wry) runtime. Only disable it if you want a custom runtime.
 //! - **common-controls-v6** *(enabled by default)*: Enables [Common Controls v6](https://learn.microsoft.com/en-us/windows/win32/controls/common-control-versions) support on Windows, mainly for the predefined `about` menu item.
+//! - **x11** *(enabled by default)*: Enables X11 support. Disable this if you only target Wayland.
 //! - **unstable**: Enables unstable features. Be careful, it might introduce breaking changes in future minor releases.
 //! - **tracing**: Enables [`tracing`](https://docs.rs/tracing/latest/tracing) for window startup, plugins, `Window::eval`, events, IPC, updater and custom protocol request handlers.
 //! - **test**: Enables the [`mod@test`] module exposing unit test helpers.
@@ -35,6 +36,7 @@
 //! - **image-png**: Adds support to parse `.png` image, see [`Image`].
 //! - **macos-proxy**: Adds support for [`WebviewBuilder::proxy_url`] on macOS. Requires macOS 14+.
 //! - **specta**: Add support for [`specta::specta`](https://docs.rs/specta/%5E2.0.0-rc.9/specta/attr.specta.html) with Tauri arguments such as [`State`](crate::State), [`Window`](crate::Window) and [`AppHandle`](crate::AppHandle)
+//! - **dynamic-acl** *(enabled by default)*: Enables you to add ACLs at runtime, notably it enables the [`Manager::add_capability`] function.
 //!
 //! ## Cargo allowlist features
 //!
@@ -64,7 +66,9 @@ macro_rules! ios_plugin_binding {
 #[doc(hidden)]
 pub use embed_plist;
 pub use error::{Error, Result};
-use ipc::{RuntimeAuthority, RuntimeCapability};
+use ipc::RuntimeAuthority;
+#[cfg(feature = "dynamic-acl")]
+use ipc::RuntimeCapability;
 pub use resources::{Resource, ResourceId, ResourceTable};
 #[cfg(target_os = "ios")]
 #[doc(hidden)]
@@ -393,12 +397,32 @@ pub struct Context<R: Runtime> {
   pub(crate) plugin_global_api_scripts: Option<&'static [&'static str]>,
 }
 
+/// Temporary struct that overrides the Debug formatting for the `app_icon` field.
+///
+/// It reduces the output size compared to the default, as that would format the binary
+/// data as a slice of numbers `[65, 66, 67]`. This instead shows the length of the Vec.
+///
+/// For example: `Some([u8; 493])`
+pub(crate) struct DebugAppIcon<'a>(&'a Option<Vec<u8>>);
+
+impl std::fmt::Debug for DebugAppIcon<'_> {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self.0 {
+      Option::None => f.write_str("None"),
+      Option::Some(icon) => f
+        .debug_tuple("Some")
+        .field(&format_args!("[u8; {}]", icon.len()))
+        .finish(),
+    }
+  }
+}
+
 impl<R: Runtime> fmt::Debug for Context<R> {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut d = f.debug_struct("Context");
     d.field("config", &self.config)
       .field("default_window_icon", &self.default_window_icon)
-      .field("app_icon", &self.app_icon)
+      .field("app_icon", &DebugAppIcon(&self.app_icon))
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern)
       .field("plugin_global_api_scripts", &self.plugin_global_api_scripts);
@@ -820,6 +844,7 @@ pub trait Manager<R: Runtime>: sealed::ManagerBase<R> {
   ///
   /// [`tauri.conf.json > app > security > capabilities`]: https://tauri.app/reference/config/#capabilities
   /// [tauri_build::Attributes::capabilities_path_pattern]: https://docs.rs/tauri-build/2/tauri_build/struct.Attributes.html#method.capabilities_path_pattern
+  #[cfg(feature = "dynamic-acl")]
   fn add_capability(&self, capability: impl RuntimeCapability) -> Result<()> {
     self
       .manager()
@@ -1255,6 +1280,6 @@ mod z85 {
 /// [Z85]: https://rfc.zeromq.org/spec/32/
 pub(crate) fn generate_invoke_key() -> Result<String> {
   let mut bytes = [0u8; 16];
-  getrandom::getrandom(&mut bytes)?;
+  getrandom::fill(&mut bytes)?;
   Ok(z85::encode(&bytes))
 }

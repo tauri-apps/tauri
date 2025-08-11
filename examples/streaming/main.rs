@@ -152,7 +152,7 @@ fn get_stream_response(
 
 fn random_boundary() -> String {
   let mut x = [0_u8; 30];
-  getrandom::getrandom(&mut x).expect("failed to get random bytes");
+  getrandom::fill(&mut x).expect("failed to get random bytes");
   (x[..])
     .iter()
     .map(|&x| format!("{x:x}"))

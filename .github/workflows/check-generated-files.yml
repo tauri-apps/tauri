@@ -8,6 +8,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/check-generated-files.yml'
+      - 'pnpm-lock.yaml'
       - 'packages/api/src/**'
       - 'crates/tauri/scripts/bundle.global.js'
       - 'crates/tauri-utils/src/config.rs'
@@ -31,6 +32,7 @@ jobs:
         with:
           filters: |
             api:
+              - 'pnpm-lock.yaml'
               - 'packages/api/src/**'
               - 'crates/tauri/scripts/bundle.global.js'
             schema:

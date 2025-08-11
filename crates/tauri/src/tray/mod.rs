@@ -10,10 +10,10 @@ use crate::app::{GlobalMenuEventListener, GlobalTrayIconEventListener};
 use crate::menu::ContextMenu;
 use crate::menu::MenuEvent;
 use crate::resources::Resource;
-use crate::UnsafeSend;
 use crate::{
   image::Image, menu::run_item_main_thread, AppHandle, Manager, PhysicalPosition, Rect, Runtime,
 };
+use crate::{ResourceId, UnsafeSend};
 use serde::Serialize;
 use std::path::Path;
 pub use tray_icon::TrayIconId;
@@ -358,8 +358,10 @@ impl<R: Runtime> TrayIconBuilder<R> {
     self.inner.id()
   }
 
-  /// Builds and adds a new [`TrayIcon`] to the system tray.
-  pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<TrayIcon<R>> {
+  pub(crate) fn build_inner(
+    self,
+    app_handle: &AppHandle<R>,
+  ) -> crate::Result<(TrayIcon<R>, ResourceId)> {
     let id = self.id().clone();
 
     // SAFETY:
@@ -368,8 +370,7 @@ impl<R: Runtime> TrayIconBuilder<R> {
     let unsafe_builder = UnsafeSend(self.inner);
 
     let (tx, rx) = std::sync::mpsc::channel();
-    let unsafe_tray = manager
-      .app_handle()
+    let unsafe_tray = app_handle
       .run_on_main_thread(move || {
         // SAFETY: will only be accessed on main thread
         let _ = tx.send(unsafe_builder.take().build().map(UnsafeSend));
@@ -379,15 +380,21 @@ impl<R: Runtime> TrayIconBuilder<R> {
     let icon = TrayIcon {
       id,
       inner: unsafe_tray.take(),
-      app_handle: manager.app_handle().clone(),
+      app_handle: app_handle.clone(),
     };
 
-    icon.register(
+    let rid = icon.register(
       &icon.app_handle,
       self.on_menu_event,
       self.on_tray_icon_event,
     );
 
+    Ok((icon, rid))
+  }
+
+  /// Builds and adds a new [`TrayIcon`] to the system tray.
+  pub fn build<M: Manager<R>>(self, manager: &M) -> crate::Result<TrayIcon<R>> {
+    let (icon, _rid) = self.build_inner(manager.app_handle())?;
     Ok(icon)
   }
 }
@@ -426,7 +433,7 @@ impl<R: Runtime> TrayIcon<R> {
     app_handle: &AppHandle<R>,
     on_menu_event: Option<GlobalMenuEventListener<AppHandle<R>>>,
     on_tray_icon_event: Option<GlobalTrayIconEventListener<TrayIcon<R>>>,
-  ) {
+  ) -> ResourceId {
     if let Some(handler) = on_menu_event {
       app_handle
         .manager
@@ -447,13 +454,15 @@ impl<R: Runtime> TrayIcon<R> {
         .insert(self.id.clone(), handler);
     }
 
+    let rid = app_handle.resources_table().add(self.clone());
     app_handle
       .manager
       .tray
       .icons
       .lock()
       .unwrap()
-      .push(self.clone());
+      .push((self.id().clone(), rid));
+    rid
   }
 
   /// The application handle associated with this type.
@@ -598,14 +607,13 @@ impl<R: Runtime> TrayIcon<R> {
 
 impl<R: Runtime> Resource for TrayIcon<R> {
   fn close(self: std::sync::Arc<Self>) {
-    self
-      .app_handle
-      .state::<plugin::TrayIcons>()
-      .icons
-      .lock()
-      .unwrap()
-      .remove(&self.id.0);
-    self.app_handle.remove_tray_by_id(&self.id);
+    let mut icons = self.app_handle.manager.tray.icons.lock().unwrap();
+    for (i, (tray_icon_id, _rid)) in icons.iter_mut().enumerate() {
+      if tray_icon_id == &self.id {
+        icons.swap_remove(i);
+        return;
+      }
+    }
   }
 }
 

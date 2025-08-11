@@ -45,16 +45,16 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   if app_bundle_path.exists() {
     fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {}", app_product_name))?;
+      .with_context(|| format!("Failed to remove old {app_product_name}"))?;
   }
   fs::create_dir_all(&app_bundle_path)
-    .with_context(|| format!("Failed to create bundle directory at {:?}", app_bundle_path))?;
+    .with_context(|| format!("Failed to create bundle directory at {app_bundle_path:?}"))?;
 
   for src in settings.resource_files() {
     let src = src?;
     let dest = app_bundle_path.join(tauri_utils::resources::resource_relpath(&src));
     fs_utils::copy_file(&src, &dest)
-      .with_context(|| format!("Failed to copy resource file {:?}", src))?;
+      .with_context(|| format!("Failed to copy resource file {src:?}"))?;
   }
 
   let icon_filenames = generate_icon_files(&app_bundle_path, settings)
@@ -65,7 +65,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   for bin in settings.binaries() {
     let bin_path = settings.binary_path(bin);
     fs_utils::copy_file(&bin_path, &app_bundle_path.join(bin.name()))
-      .with_context(|| format!("Failed to copy binary from {:?}", bin_path))?;
+      .with_context(|| format!("Failed to copy binary from {bin_path:?}"))?;
   }
 
   Ok(vec![app_bundle_path])
@@ -197,7 +197,7 @@ fn generate_info_plist(
   if !icon_filenames.is_empty() {
     writeln!(file, "  <key>CFBundleIconFiles</key>\n  <array>")?;
     for filename in icon_filenames {
-      writeln!(file, "    <string>{}</string>", filename)?;
+      writeln!(file, "    <string>{filename}</string>")?;
     }
     writeln!(file, "  </array>")?;
   }

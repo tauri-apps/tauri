@@ -7,7 +7,7 @@ use crate::{
   bundle::{
     settings::{Arch, Settings},
     windows::{
-      sign::try_sign,
+      sign::{should_sign, try_sign},
       util::{
         download_webview2_bootstrapper, download_webview2_offline_installer,
         WIX_OUTPUT_FOLDER_NAME, WIX_UPDATER_OUTPUT_FOLDER_NAME,
@@ -177,7 +177,7 @@ impl ResourceDirectory {
       directories.push_str(wix_string.as_str());
     }
     let wix_string = if self.name.is_empty() {
-      format!("{}{}", files, directories)
+      format!("{files}{directories}")
     } else {
       format!(
         r#"<Directory Id="I{id}" Name="{name}">{files}{directories}</Directory>"#,
@@ -221,8 +221,7 @@ fn app_installer_output_path(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {:?}",
-        target
+        "Unsupported architecture: {target:?}"
       )))
     }
   };
@@ -352,8 +351,7 @@ fn run_candle(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };
@@ -443,8 +441,7 @@ pub fn build_wix_app_installer(
     Arch::AArch64 => "arm64",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "unsupported architecture: {:?}",
-        target
+        "unsupported architecture: {target:?}"
       )))
     }
   };
@@ -845,7 +842,7 @@ pub fn build_wix_app_installer(
 
     let locale_contents = locale_contents.replace(
       "</WixLocalization>",
-      &format!("{}</WixLocalization>", unset_locale_strings),
+      &format!("{unset_locale_strings}</WixLocalization>"),
     );
     let locale_path = output_path.join("locale.wxl");
     {
@@ -991,7 +988,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() {
+    if settings.can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 

@@ -200,8 +200,10 @@ class Webview {
     if (!options?.skip) {
       invoke('plugin:webview|create_webview', {
         windowLabel: window.label,
-        label,
-        options
+        options: {
+          ...options,
+          label
+        }
       })
         .then(async () => this.emit('tauri://created'))
         .catch(async (e: string) => this.emit('tauri://error', e))
@@ -495,7 +497,7 @@ class Webview {
    * @example
    * ```typescript
    * import { getCurrentWebview } from '@tauri-apps/api/webview';
-   * await getCurrentWebview().setAutoReisze(true);
+   * await getCurrentWebview().setAutoResize(true);
    * ```
    *
    * @returns A promise indicating the success or failure of the operation.

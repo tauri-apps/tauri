@@ -12,84 +12,14 @@ use crate::{
 #[cfg(desktop)]
 mod desktop_commands {
 
-  use serde::{Deserialize, Serialize};
+  use serde::Serialize;
   use tauri_runtime::dpi::{Position, Size};
-  use tauri_utils::config::{BackgroundThrottlingPolicy, WebviewUrl, WindowConfig};
-  use url::Url;
+  use tauri_utils::config::WindowConfig;
 
   use super::*;
   use crate::{
-    command, sealed::ManagerBase, utils::config::WindowEffectsConfig, webview::Color, AppHandle,
-    Webview, WebviewWindowBuilder,
+    command, sealed::ManagerBase, webview::Color, AppHandle, Webview, WebviewWindowBuilder,
   };
-
-  fn default_true() -> bool {
-    true
-  }
-
-  #[derive(Debug, PartialEq, Clone, Deserialize)]
-  #[serde(rename_all = "camelCase")]
-  pub struct WebviewConfig {
-    #[serde(default)]
-    url: WebviewUrl,
-    user_agent: Option<String>,
-    drag_drop_enabled: Option<bool>,
-    x: f64,
-    y: f64,
-    width: f64,
-    height: f64,
-    #[serde(default)]
-    transparent: bool,
-    #[serde(default = "default_true")]
-    focus: bool,
-    #[serde(default)]
-    accept_first_mouse: bool,
-    window_effects: Option<WindowEffectsConfig>,
-    #[serde(default)]
-    incognito: bool,
-    #[serde(alias = "proxy-url")]
-    pub proxy_url: Option<Url>,
-    #[serde(default)]
-    zoom_hotkeys_enabled: bool,
-    #[serde(default)]
-    background_throttling: Option<BackgroundThrottlingPolicy>,
-    #[serde(default)]
-    javascript_disabled: bool,
-    #[serde(default = "default_true")]
-    allow_link_preview: bool,
-    #[serde(default)]
-    pub disable_input_accessory_view: bool,
-  }
-
-  #[cfg(feature = "unstable")]
-  impl<R: Runtime> crate::webview::WebviewBuilder<R> {
-    fn from_webview_config(label: String, config: WebviewConfig) -> Self {
-      let mut builder = Self::new(label, config.url);
-      builder.webview_attributes.user_agent = config.user_agent;
-      builder.webview_attributes.drag_drop_handler_enabled =
-        config.drag_drop_enabled.unwrap_or(true);
-      builder.webview_attributes.transparent = config.transparent;
-      builder.webview_attributes.focus = config.focus;
-      builder.webview_attributes.accept_first_mouse = config.accept_first_mouse;
-      builder.webview_attributes.window_effects = config.window_effects;
-      builder.webview_attributes.incognito = config.incognito;
-      builder.webview_attributes.proxy_url = config.proxy_url;
-      builder.webview_attributes.zoom_hotkeys_enabled = config.zoom_hotkeys_enabled;
-      builder.webview_attributes.background_throttling = config.background_throttling;
-      builder.webview_attributes.javascript_disabled = config.javascript_disabled;
-      builder.webview_attributes.allow_link_preview = config.allow_link_preview;
-      #[cfg(target_os = "ios")]
-      if config.disable_input_accessory_view {
-        builder
-          .webview_attributes
-          .input_accessory_view_builder
-          .replace(tauri_runtime::InputAccessoryViewBuilder::new(Box::new(
-            |_webview| None,
-          )));
-      }
-      builder
-    }
-  }
 
   #[derive(Serialize)]
   pub struct WebviewRef {
@@ -118,6 +48,7 @@ mod desktop_commands {
     WebviewWindowBuilder::from_config(&app, &options)?.build()?;
     Ok(())
   }
+
   #[cfg(not(feature = "unstable"))]
   #[command(root = "crate")]
   pub async fn create_webview() -> crate::Result<()> {
@@ -128,21 +59,22 @@ mod desktop_commands {
   #[command(root = "crate")]
   pub async fn create_webview<R: Runtime>(
     app: AppHandle<R>,
-    label: String,
     window_label: String,
-    options: WebviewConfig,
+    options: WindowConfig,
   ) -> crate::Result<()> {
+    use anyhow::Context;
+
     let window = app
       .manager()
       .get_window(&window_label)
       .ok_or(crate::Error::WindowNotFound)?;
 
-    let x = options.x;
-    let y = options.y;
+    let x = options.x.context("missing parameter `options.x`")?;
+    let y = options.y.context("missing parameter `options.y`")?;
     let width = options.width;
     let height = options.height;
 
-    let builder = crate::webview::WebviewBuilder::from_webview_config(label, options);
+    let builder = crate::webview::WebviewBuilder::from_config(&options);
 
     window.add_child(
       builder,

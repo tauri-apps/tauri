@@ -31,6 +31,7 @@ pub trait AppSettings {
   fn get_package_settings(&self) -> tauri_bundler::PackageSettings;
   fn get_bundle_settings(
     &self,
+    options: &Options,
     config: &Config,
     features: &[String],
   ) -> crate::Result<tauri_bundler::BundleSettings>;
@@ -52,7 +53,7 @@ pub trait AppSettings {
       enabled_features.push("default".into());
     }
 
-    let target: String = if let Some(target) = options.target {
+    let target: String = if let Some(target) = options.target.clone() {
       target
     } else {
       tauri_utils::platform::target_triple()?
@@ -66,7 +67,7 @@ pub trait AppSettings {
 
     let mut settings_builder = SettingsBuilder::new()
       .package_settings(self.get_package_settings())
-      .bundle_settings(self.get_bundle_settings(config, &enabled_features)?)
+      .bundle_settings(self.get_bundle_settings(&options, config, &enabled_features)?)
       .binaries(bins)
       .project_out_directory(out_dir)
       .target(target)

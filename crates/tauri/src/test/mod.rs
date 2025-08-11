@@ -59,7 +59,7 @@ use serialize_to_javascript::DefaultTemplate;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug};
 
 use crate::{
-  ipc::{InvokeError, InvokeResponse, InvokeResponseBody, RuntimeAuthority},
+  ipc::{InvokeError, InvokeResponse, InvokeResponseBody},
   webview::InvokeRequest,
   App, Assets, Builder, Context, Pattern, Runtime, Webview,
 };
@@ -139,7 +139,7 @@ pub fn mock_context<R: Runtime, A: Assets<R>>(assets: A) -> crate::Context<R> {
       crate_name: "test",
     },
     pattern: Pattern::Brownfield,
-    runtime_authority: RuntimeAuthority::new(Default::default(), Resolved::default()),
+    runtime_authority: crate::runtime_authority!(Default::default(), Resolved::default()),
     plugin_global_api_scripts: None,
 
     #[cfg(dev)]

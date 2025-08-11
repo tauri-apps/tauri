@@ -90,7 +90,7 @@ impl<'de> Deserialize<'de> for PermissionEntry {
 /// ```json
 /// {
 ///   "identifier": "main-user-files-write",
-///   "description": "This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programatic access to files selected by the user.",
+///   "description": "This capability allows the `main` window on macOS and Windows access to `filesystem` write related commands and `dialog` commands to enable programmatic access to files selected by the user.",
 ///   "windows": [
 ///     "main"
 ///   ],
@@ -122,7 +122,7 @@ pub struct Capability {
   /// ## Example
   ///
   /// This capability allows the `main` window access to `filesystem` write related
-  /// commands and `dialog` commands to enable programatic access to files selected by the user.
+  /// commands and `dialog` commands to enable programmatic access to files selected by the user.
   #[serde(default)]
   pub description: String,
   /// Configure remote URLs that can use the capability permissions.

@@ -10,6 +10,7 @@ use crate::platform::Target;
 
 use super::{
   capability::{Capability, PermissionEntry},
+  has_app_manifest,
   manifest::Manifest,
   Commands, Error, ExecutionContext, Identifier, Permission, PermissionSet, Scopes, Value,
   APP_ACL_KEY,
@@ -67,6 +68,8 @@ pub struct ResolvedScope {
 /// Resolved access control list.
 #[derive(Debug, Default)]
 pub struct Resolved {
+  /// If we should check the ACL for the app commands
+  pub has_app_acl: bool,
   /// The commands that are allowed. Map each command with its context to a [`ResolvedCommand`].
   pub allowed_commands: BTreeMap<String, Vec<ResolvedCommand>>,
   /// The commands that are denied. Map each command with its context to a [`ResolvedCommand`].
@@ -182,6 +185,7 @@ impl Resolved {
       .collect();
 
     let resolved = Self {
+      has_app_acl: has_app_manifest(acl),
       allowed_commands,
       denied_commands,
       command_scope,
@@ -513,6 +517,8 @@ mod build {
 
   impl ToTokens for Resolved {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+      let has_app_acl = self.has_app_acl;
+
       let allowed_commands = map_lit(
         quote! { ::std::collections::BTreeMap },
         &self.allowed_commands,
@@ -544,6 +550,7 @@ mod build {
       literal_struct!(
         tokens,
         ::tauri::utils::acl::resolved::Resolved,
+        has_app_acl,
         allowed_commands,
         denied_commands,
         command_scope,

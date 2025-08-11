@@ -14,12 +14,10 @@ use url::Url;
 
 use tauri_macros::default_runtime;
 use tauri_utils::{
-  assets::{AssetKey, CspHash},
+  assets::{AssetKey, CspHash, SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
   config::{Csp, CspDirectiveSources},
-  html::{SCRIPT_NONCE_TOKEN, STYLE_NONCE_TOKEN},
 };
 
-use crate::resources::ResourceTable;
 use crate::{
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
@@ -28,8 +26,9 @@ use crate::{
   event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
+  resources::ResourceTable,
   utils::{config::Config, PackageInfo},
-  Assets, Context, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
 
 #[cfg(desktop)]
@@ -136,7 +135,7 @@ fn replace_csp_nonce(
     let mut raw = [0u8; 4];
     #[cfg(target_pointer_width = "16")]
     let mut raw = [0u8; 2];
-    getrandom::getrandom(&mut raw).expect("failed to get random bytes");
+    getrandom::fill(&mut raw).expect("failed to get random bytes");
     let nonce = usize::from_ne_bytes(raw);
     nonces.push(nonce);
     nonce.to_string()
@@ -234,7 +233,7 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
       .field("plugins", &self.plugins)
       .field("state", &self.state)
       .field("config", &self.config)
-      .field("app_icon", &self.app_icon)
+      .field("app_icon", &DebugAppIcon(&self.app_icon))
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
 
@@ -277,7 +276,7 @@ impl<R: Runtime> AppManager<R> {
   ) -> Self {
     // generate a random isolation key at runtime
     #[cfg(feature = "isolation")]
-    if let Pattern::Isolation { ref mut key, .. } = &mut context.pattern {
+    if let Pattern::Isolation { key, .. } = &mut context.pattern {
       *key = uuid::Uuid::new_v4().to_string();
     }
 

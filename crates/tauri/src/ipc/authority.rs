@@ -7,19 +7,15 @@ use std::fmt::{Debug, Display};
 use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 
-use tauri_utils::acl::has_app_manifest;
-use tauri_utils::acl::{
-  capability::{Capability, CapabilityFile, PermissionEntry},
-  manifest::Manifest,
-  Value, APP_ACL_KEY,
-};
+#[cfg(feature = "dynamic-acl")]
+use tauri_utils::acl::capability::CapabilityFile;
+#[cfg(any(feature = "dynamic-acl", debug_assertions))]
+use tauri_utils::acl::manifest::Manifest;
 use tauri_utils::acl::{
   resolved::{Resolved, ResolvedCommand, ResolvedScope, ScopeKey},
-  ExecutionContext, Scopes,
+  ExecutionContext, Value, APP_ACL_KEY,
 };
-use tauri_utils::platform::Target;
 
 use url::Url;
 
@@ -30,7 +26,9 @@ use super::{CommandArg, CommandItem};
 
 /// The runtime authority used to authorize IPC execution based on the Access Control List.
 pub struct RuntimeAuthority {
-  acl: BTreeMap<String, crate::utils::acl::manifest::Manifest>,
+  #[cfg(any(feature = "dynamic-acl", debug_assertions))]
+  acl: BTreeMap<String, Manifest>,
+  has_app_acl: bool,
   allowed_commands: BTreeMap<String, Vec<ResolvedCommand>>,
   denied_commands: BTreeMap<String, Vec<ResolvedCommand>>,
   pub(crate) scope_manager: ScopeManager,
@@ -68,174 +66,58 @@ impl Origin {
   }
 }
 
-/// A capability that can be added at runtime.
-pub trait RuntimeCapability {
-  /// Creates the capability file.
-  fn build(self) -> CapabilityFile;
+/// This is used internally by [`crate::generate_handler!`] for constructing [`RuntimeAuthority`]
+/// to only include the raw ACL when it's needed
+///
+/// ## Stability
+///
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
+#[cfg(any(feature = "dynamic-acl", debug_assertions))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! runtime_authority {
+  ($acl:expr, $resolved_acl:expr) => {
+    $crate::ipc::RuntimeAuthority::new($acl, $resolved_acl)
+  };
 }
 
-impl<T: AsRef<str>> RuntimeCapability for T {
-  fn build(self) -> CapabilityFile {
-    self.as_ref().parse().expect("invalid capability")
-  }
-}
-
-/// A builder for a [`Capability`].
-pub struct CapabilityBuilder(Capability);
-
-impl CapabilityBuilder {
-  /// Creates a new capability builder with a unique identifier.
-  pub fn new(identifier: impl Into<String>) -> Self {
-    Self(Capability {
-      identifier: identifier.into(),
-      description: "".into(),
-      remote: None,
-      local: true,
-      windows: Vec::new(),
-      webviews: Vec::new(),
-      permissions: Vec::new(),
-      platforms: None,
-    })
-  }
-
-  /// Allows this capability to be used by a remote URL.
-  pub fn remote(mut self, url: String) -> Self {
-    self
-      .0
-      .remote
-      .get_or_insert_with(Default::default)
-      .urls
-      .push(url);
-    self
-  }
-
-  /// Whether this capability is applied on local app URLs or not. Defaults to `true`.
-  pub fn local(mut self, local: bool) -> Self {
-    self.0.local = local;
-    self
-  }
-
-  /// Link this capability to the given window label.
-  pub fn window(mut self, window: impl Into<String>) -> Self {
-    self.0.windows.push(window.into());
-    self
-  }
-
-  /// Link this capability to the a list of window labels.
-  pub fn windows(mut self, windows: impl IntoIterator<Item = impl Into<String>>) -> Self {
-    self.0.windows.extend(windows.into_iter().map(|w| w.into()));
-    self
-  }
-
-  /// Link this capability to the given webview label.
-  pub fn webview(mut self, webview: impl Into<String>) -> Self {
-    self.0.webviews.push(webview.into());
-    self
-  }
-
-  /// Link this capability to the a list of window labels.
-  pub fn webviews(mut self, webviews: impl IntoIterator<Item = impl Into<String>>) -> Self {
-    self
-      .0
-      .webviews
-      .extend(webviews.into_iter().map(|w| w.into()));
-    self
-  }
-
-  /// Add a new permission to this capability.
-  pub fn permission(mut self, permission: impl Into<String>) -> Self {
-    let permission = permission.into();
-    self.0.permissions.push(PermissionEntry::PermissionRef(
-      permission
-        .clone()
-        .try_into()
-        .unwrap_or_else(|_| panic!("invalid permission identifier '{permission}'")),
-    ));
-    self
-  }
-
-  /// Add a new scoped permission to this capability.
-  pub fn permission_scoped<T: Serialize>(
-    mut self,
-    permission: impl Into<String>,
-    allowed: Vec<T>,
-    denied: Vec<T>,
-  ) -> Self {
-    let permission = permission.into();
-    let identifier = permission
-      .clone()
-      .try_into()
-      .unwrap_or_else(|_| panic!("invalid permission identifier '{permission}'"));
-
-    let allowed_scope = allowed
-      .into_iter()
-      .map(|a| {
-        serde_json::to_value(a)
-          .expect("failed to serialize scope")
-          .into()
-      })
-      .collect();
-    let denied_scope = denied
-      .into_iter()
-      .map(|a| {
-        serde_json::to_value(a)
-          .expect("failed to serialize scope")
-          .into()
-      })
-      .collect();
-    let scope = Scopes {
-      allow: Some(allowed_scope),
-      deny: Some(denied_scope),
-    };
-
-    self
-      .0
-      .permissions
-      .push(PermissionEntry::ExtendedPermission { identifier, scope });
-    self
-  }
-
-  /// Adds a target platform for this capability.
-  ///
-  /// By default all platforms are applied.
-  pub fn platform(mut self, platform: Target) -> Self {
-    self
-      .0
-      .platforms
-      .get_or_insert_with(Default::default)
-      .push(platform);
-    self
-  }
-
-  /// Adds target platforms for this capability.
-  ///
-  /// By default all platforms are applied.
-  pub fn platforms(mut self, platforms: impl IntoIterator<Item = Target>) -> Self {
-    self
-      .0
-      .platforms
-      .get_or_insert_with(Default::default)
-      .extend(platforms);
-    self
-  }
-}
-
-impl RuntimeCapability for CapabilityBuilder {
-  fn build(self) -> CapabilityFile {
-    CapabilityFile::Capability(self.0)
-  }
+/// This is used internally by [`crate::generate_handler!`] for constructing [`RuntimeAuthority`]
+/// to only include the raw ACL when it's needed
+///
+/// ## Stability
+///
+/// The output of this macro is managed internally by Tauri,
+/// and should not be accessed directly on normal applications.
+/// It may have breaking changes in the future.
+#[cfg(not(any(feature = "dynamic-acl", debug_assertions)))]
+#[doc(hidden)]
+#[macro_export]
+macro_rules! runtime_authority {
+  ($_acl:expr, $resolved_acl:expr) => {
+    $crate::ipc::RuntimeAuthority::new($resolved_acl)
+  };
 }
 
 impl RuntimeAuthority {
+  /// Contruct a new [`RuntimeAuthority`] from the ACL
+  ///
+  /// **Please prefer using the [`runtime_authority`] macro instead of calling this directly**
   #[doc(hidden)]
-  pub fn new(acl: BTreeMap<String, Manifest>, resolved_acl: Resolved) -> Self {
+  pub fn new(
+    #[cfg(any(feature = "dynamic-acl", debug_assertions))] acl: BTreeMap<String, Manifest>,
+    resolved_acl: Resolved,
+  ) -> Self {
     let command_cache = resolved_acl
       .command_scope
       .keys()
       .map(|key| (*key, StateManager::new()))
       .collect();
     Self {
+      #[cfg(any(feature = "dynamic-acl", debug_assertions))]
       acl,
+      has_app_acl: resolved_acl.has_app_acl,
       allowed_commands: resolved_acl.allowed_commands,
       denied_commands: resolved_acl.denied_commands,
       scope_manager: ScopeManager {
@@ -248,7 +130,7 @@ impl RuntimeAuthority {
   }
 
   pub(crate) fn has_app_manifest(&self) -> bool {
-    has_app_manifest(&self.acl)
+    self.has_app_acl
   }
 
   #[doc(hidden)]
@@ -264,9 +146,15 @@ impl RuntimeAuthority {
   }
 
   /// Adds the given capability to the runtime authority.
-  pub fn add_capability(&mut self, capability: impl RuntimeCapability) -> crate::Result<()> {
+  #[cfg(feature = "dynamic-acl")]
+  pub fn add_capability(&mut self, capability: impl super::RuntimeCapability) -> crate::Result<()> {
+    self.add_capability_inner(capability.build())
+  }
+
+  #[cfg(feature = "dynamic-acl")]
+  fn add_capability_inner(&mut self, capability: CapabilityFile) -> crate::Result<()> {
     let mut capabilities = BTreeMap::new();
-    match capability.build() {
+    match capability {
       CapabilityFile::Capability(c) => {
         capabilities.insert(c.identifier.clone(), c);
       }
@@ -407,7 +295,7 @@ impl RuntimeAuthority {
     }
 
     fn has_permissions_allowing_command(
-      manifest: &crate::utils::acl::manifest::Manifest,
+      manifest: &Manifest,
       set: &crate::utils::acl::PermissionSet,
       command: &str,
     ) -> bool {

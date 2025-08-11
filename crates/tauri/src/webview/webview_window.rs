@@ -110,7 +110,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
 
   /// Initializes a webview window builder from a [`WindowConfig`] from tauri.conf.json.
   /// Keep in mind that you can't create 2 windows with the same `label` so make sure
-  /// that the initial window was closed or change the label of the new [`WebviewWindowBuilder`].
+  /// that the initial window was closed or change the label of the cloned [`WindowConfig`].
   ///
   /// # Known issues
   ///
@@ -124,7 +124,24 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// ```
   /// #[tauri::command]
   /// async fn reopen_window(app: tauri::AppHandle) {
-  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap().clone())
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &app.config().app.windows.get(0).unwrap())
+  ///     .unwrap()
+  ///     .build()
+  ///     .unwrap();
+  /// }
+  /// ```
+  ///
+  /// - Create a window in a command from a config with a specific label, and change its label so multiple instances can exist:
+  ///
+  /// ```
+  /// #[tauri::command]
+  /// async fn open_window_multiple(app: tauri::AppHandle) {
+  ///   let mut conf = app.config().app.windows.iter().find(|c| c.label == "template-for-multiwindow").unwrap().clone();
+  ///   // This should be a unique label for all windows. For example, we can use a random suffix:
+  ///   let mut buf = [0u8; 1];
+  ///   assert_eq!(getrandom::fill(&mut buf), Ok(()));
+  ///   conf.label = format!("my-multiwindow-{}", buf[0]);
+  ///   let webview_window = tauri::WebviewWindowBuilder::from_config(&app, &conf)
   ///     .unwrap()
   ///     .build()
   ///     .unwrap();
@@ -1963,7 +1980,12 @@ impl<R: Runtime> WebviewWindow<R> {
     self.window.set_title_bar_style(style)
   }
 
-  /// Set the window theme.
+  /// Sets the theme for this window.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Linux / macOS**: Theme is app-wide and not specific to this window.
+  /// - **iOS / Android:** Unsupported.
   pub fn set_theme(&self, theme: Option<tauri_utils::Theme>) -> crate::Result<()> {
     self.window.set_theme(theme)
   }

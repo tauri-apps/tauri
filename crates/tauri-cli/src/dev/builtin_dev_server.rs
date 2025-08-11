@@ -116,7 +116,7 @@ async fn ws_handler(ws: WebSocketUpgrade, state: State<ServerState>) -> Response
         _ = ws.recv() => return,
         fs_reload_event = rx.recv() => fs_reload_event.is_ok(),
     } {
-      let msg = ws::Message::Text(r#"{"reload": true}"#.to_owned());
+      let msg = ws::Message::Text(r#"{"reload": true}"#.into());
       if ws.send(msg).await.is_err() {
         break;
       }
@@ -138,7 +138,9 @@ fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
     }
   }
 
-  let mut document = kuchiki::parse_html().one(String::from_utf8_lossy(&html_bytes).into_owned());
+  let mut document = kuchiki::parse_html()
+    .one(String::from_utf8_lossy(&html_bytes).into_owned())
+    .document_node;
   with_html_head(&mut document, |head| {
     let script = RELOAD_SCRIPT.replace("{{reload_url}}", &format!("ws://{address}/__tauri_cli"));
     let script_el = NodeRef::new_element(QualName::new(None, ns!(html), "script".into()), None);

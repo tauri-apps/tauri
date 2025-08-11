@@ -17,6 +17,7 @@ use std::{
     Arc, Mutex,
   },
 };
+use tauri_utils::platform::Target as TargetPlatform;
 
 pub struct DevChild {
   manually_killed_app: Arc<AtomicBool>,
@@ -188,16 +189,16 @@ pub fn build(
 
     let lipo_status = lipo_cmd.output_ok()?.status;
     if !lipo_status.success() {
-      return Err(anyhow::anyhow!(format!(
+      return Err(anyhow::anyhow!(
         "Result of `lipo` command was unsuccessful: {lipo_status}. (Is `lipo` installed?)"
-      )));
+      ));
     }
   } else {
     build_production_app(options, available_targets, config_features)
       .with_context(|| "failed to build app")?;
   }
 
-  rename_app(bin_path, main_binary_name)
+  rename_app(bin_path, main_binary_name, &app_settings.target_platform)
 }
 
 fn build_production_app(
@@ -229,10 +230,20 @@ fn cargo_command(
   available_targets: &mut Option<Vec<RustupTarget>>,
   config_features: Vec<String>,
 ) -> crate::Result<Command> {
-  let runner = options.runner.unwrap_or_else(|| "cargo".into());
+  let runner_config = options.runner.unwrap_or_else(|| "cargo".into());
 
-  let mut build_cmd = Command::new(runner);
+  let mut build_cmd = Command::new(runner_config.cmd());
   build_cmd.arg(if dev { "run" } else { "build" });
+
+  // Set working directory if specified
+  if let Some(cwd) = runner_config.cwd() {
+    build_cmd.current_dir(cwd);
+  }
+
+  // Add runner-specific arguments first
+  if let Some(runner_args) = runner_config.args() {
+    build_cmd.args(runner_args);
+  }
 
   if let Some(target) = &options.target {
     if available_targets.is_none() {
@@ -305,12 +316,18 @@ fn validate_target(
   Ok(())
 }
 
-fn rename_app(bin_path: PathBuf, main_binary_name: Option<&str>) -> crate::Result<PathBuf> {
+fn rename_app(
+  bin_path: PathBuf,
+  main_binary_name: Option<&str>,
+  target_platform: &TargetPlatform,
+) -> crate::Result<PathBuf> {
   if let Some(main_binary_name) = main_binary_name {
-    let new_path = bin_path
-      .with_file_name(main_binary_name)
-      .with_extension(bin_path.extension().unwrap_or_default());
-
+    let extension = if matches!(target_platform, TargetPlatform::Windows) {
+      ".exe"
+    } else {
+      ""
+    };
+    let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
     fs::rename(&bin_path, &new_path).with_context(|| {
       format!(
         "failed to rename `{}` to `{}`",

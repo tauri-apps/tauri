@@ -6,7 +6,7 @@ use crate::{
   bundle::{
     settings::Arch,
     windows::{
-      sign::{sign_command, try_sign},
+      sign::{should_sign, sign_command, try_sign},
       util::{
         download_webview2_bootstrapper, download_webview2_offline_installer,
         NSIS_OUTPUT_FOLDER_NAME, NSIS_UPDATER_OUTPUT_FOLDER_NAME,
@@ -743,7 +743,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() {
+    if settings.can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 

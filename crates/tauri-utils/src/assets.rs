@@ -113,13 +113,42 @@ impl CspHash<'_> {
 }
 
 /// [`Assets`] implementation that only contains compile-time compressed and embedded assets.
-#[derive(Debug)]
 pub struct EmbeddedAssets {
   assets: phf::Map<&'static str, &'static [u8]>,
   // Hashes that must be injected to the CSP of every HTML file.
   global_hashes: &'static [CspHash<'static>],
   // Hashes that are associated to the CSP of the HTML file identified by the map key (the HTML asset key).
   html_hashes: phf::Map<&'static str, &'static [CspHash<'static>]>,
+}
+
+/// Temporary struct that overrides the Debug formatting for the `assets` field.
+///
+/// It reduces the output size compared to the default, as that would format the binary
+/// data as a slice of numbers like `[65, 66, 67]` for "ABC". This instead shows the length
+/// of the slice.
+///
+/// For example: `{"/index.html": [u8; 1835], "/index.js": [u8; 212]}`
+struct DebugAssetMap<'a>(&'a phf::Map<&'static str, &'static [u8]>);
+
+impl std::fmt::Debug for DebugAssetMap<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let mut map = f.debug_map();
+    for (k, v) in self.0.entries() {
+      map.key(k);
+      map.value(&format_args!("[u8; {}]", v.len()));
+    }
+    map.finish()
+  }
+}
+
+impl std::fmt::Debug for EmbeddedAssets {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("EmbeddedAssets")
+      .field("assets", &DebugAssetMap(&self.assets))
+      .field("global_hashes", &self.global_hashes)
+      .field("html_hashes", &self.html_hashes)
+      .finish()
+  }
 }
 
 impl EmbeddedAssets {

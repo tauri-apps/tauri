@@ -67,7 +67,7 @@ md5 = "0.8"
 rpm = { version = "0.16", features = ["bzip2-compression"] }
 
 [target."cfg(unix)".dependencies]
-which = "7"
+which = "8"
 
 [lib]
 name = "tauri_bundler"

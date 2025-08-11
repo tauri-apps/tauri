@@ -32,7 +32,7 @@ use cargo_mobile2::{
   opts::{NoiseLevel, Profile},
 };
 
-use std::env::set_current_dir;
+use std::{env::set_current_dir, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
@@ -73,6 +73,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Additional paths to watch for changes.
+  #[clap(long)]
+  pub additional_watch_folders: Vec<PathBuf>,
   /// Open Xcode instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -119,6 +122,7 @@ impl From<Options> for DevOptions {
       release_mode: options.release_mode,
       args: options.args,
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
       no_dev_server: options.no_dev_server,
       no_dev_server_wait: options.no_dev_server_wait,
       port: options.port,
@@ -273,6 +277,7 @@ fn run_dev(
       args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
     },
     |options| {
       let cli_options = CliOptions {

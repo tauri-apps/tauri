@@ -15,6 +15,7 @@ use std::{
 };
 
 use anyhow::Context;
+use dunce::canonicalize;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
 use notify::RecursiveMode;
@@ -54,6 +55,8 @@ pub struct Options {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub skip_stapling: bool,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 impl From<crate::build::Options> for Options {
@@ -66,6 +69,8 @@ impl From<crate::build::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: true,
+      skip_stapling: options.skip_stapling,
+      additional_watch_folders: Vec::new(),
     }
   }
 }
@@ -78,6 +83,7 @@ impl From<crate::bundle::Options> for Options {
       target: options.target,
       features: options.features,
       no_watch: true,
+      skip_stapling: options.skip_stapling,
       ..Default::default()
     }
   }
@@ -93,6 +99,8 @@ impl From<crate::dev::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: options.no_watch,
+      skip_stapling: false,
+      additional_watch_folders: options.additional_watch_folders,
     }
   }
 }
@@ -104,6 +112,7 @@ pub struct MobileOptions {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -209,7 +218,7 @@ impl Interface for Rust {
           on_exit(status, reason)
         })
       });
-      self.run_dev_watcher(&merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
     }
   }
 
@@ -233,7 +242,7 @@ impl Interface for Rust {
     } else {
       let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
       let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&merge_configs, run)
+      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
     }
   }
 
@@ -411,12 +420,30 @@ fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   Ok(res)
 }
 
-fn get_watch_folders() -> crate::Result<Vec<PathBuf>> {
+fn get_watch_folders(additional_watch_folders: &[PathBuf]) -> crate::Result<Vec<PathBuf>> {
   let tauri_path = tauri_dir();
   let workspace_path = get_workspace_dir()?;
 
   // We always want to watch the main tauri folder.
   let mut watch_folders = vec![tauri_path.to_path_buf()];
+
+  // Add the additional watch folders, resolving the path from the tauri path if it is relative
+  watch_folders.extend(additional_watch_folders.iter().filter_map(|dir| {
+    let path = if dir.is_absolute() {
+      dir.to_owned()
+    } else {
+      tauri_path.join(dir)
+    };
+
+    let canonicalized = canonicalize(&path).ok();
+    if canonicalized.is_none() {
+      log::warn!(
+        "Additional watch folder '{}' not found, ignoring",
+        path.display()
+      );
+    }
+    canonicalized
+  }));
 
   // We also try to watch workspace members, no matter if the tauri cargo project is the workspace root or a workspace member
   let cargo_settings = CargoSettings::load(&workspace_path)?;
@@ -480,6 +507,7 @@ impl Rust {
 
   fn run_dev_watcher<F: Fn(&mut Rust) -> crate::Result<Box<dyn DevProcess + Send>>>(
     &mut self,
+    additional_watch_folders: &[PathBuf],
     merge_configs: &[&serde_json::Value],
     run: Arc<F>,
   ) -> crate::Result<()> {
@@ -489,7 +517,7 @@ impl Rust {
     let (tx, rx) = sync_channel(1);
     let frontend_path = frontend_dir();
 
-    let watch_folders = get_watch_folders()?;
+    let watch_folders = get_watch_folders(additional_watch_folders)?;
 
     let common_ancestor = common_path::common_path_all(watch_folders.iter().map(Path::new))
       .expect("watch_folders should not be empty");
@@ -789,6 +817,7 @@ impl AppSettings for RustAppSettings {
 
   fn get_bundle_settings(
     &self,
+    options: &Options,
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
@@ -826,6 +855,8 @@ impl AppSettings for RustAppSettings {
       updater_settings,
       arch64bits,
     )?;
+
+    settings.macos.skip_stapling = options.skip_stapling;
 
     if let Some(plugin_config) = config
       .plugins
@@ -1159,7 +1190,7 @@ pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
     std::env::current_dir()?.join(target)
   } else {
     get_cargo_metadata()
-      .with_context(|| "failed to get cargo metadata")?
+      .with_context(|| "failed to run 'cargo metadata' command to get target directory")?
       .target_directory
   };
 
@@ -1197,7 +1228,7 @@ fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> 
 pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   Ok(
     get_cargo_metadata()
-      .context("failed to get cargo metadata")?
+      .context("failed to run 'cargo metadata' command to get workspace directory")?
       .workspace_root,
   )
 }
@@ -1442,6 +1473,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      skip_stapling: false,
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,

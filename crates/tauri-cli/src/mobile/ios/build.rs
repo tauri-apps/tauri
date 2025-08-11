@@ -132,6 +132,7 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: options.args,
       ci: options.ci,
+      skip_stapling: false,
     }
   }
 }

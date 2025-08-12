@@ -20,7 +20,7 @@ mod env_system;
 mod ios;
 mod packages_nodejs;
 mod packages_rust;
-mod plugins;
+pub mod plugins;
 
 #[derive(Deserialize)]
 struct JsCliVersionMetadata {

@@ -88,6 +88,11 @@ pub struct Options {
   /// e.g. `tauri ios build -- [runnerArgs]`.
   #[clap(last(true))]
   pub args: Vec<String>,
+  /// Do not error out if aversion incompatibility is detected on an installed plugin.
+  ///
+  /// Only use this when you are sure the mismatch is incorrectly detected as incompatible plugin versions can lead to unknown behavior.
+  #[clap(long)]
+  pub ignore_incompatible_plugins: bool,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -132,6 +137,7 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: options.args,
       ci: options.ci,
+      ignore_incompatible_plugins: options.ignore_incompatible_plugins,
     }
   }
 }

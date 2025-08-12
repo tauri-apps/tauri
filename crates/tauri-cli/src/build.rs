@@ -6,8 +6,9 @@ use crate::{
   bundle::BundleFormat,
   helpers::{
     self,
-    app_paths::tauri_dir,
+    app_paths::{frontend_dir, tauri_dir},
     config::{get as get_config, ConfigHandle, FrontendDist},
+    npm::PackageManager,
   },
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
@@ -60,6 +61,11 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Do not error out if aversion incompatibility is detected on an installed plugin.
+  ///
+  /// Only use this when you are sure the mismatch is incorrectly detected as incompatible plugin versions can lead to unknown behavior.
+  #[clap(long)]
+  pub ignore_incompatible_plugins: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -121,6 +127,32 @@ pub fn setup(
   mobile: bool,
 ) -> Result<()> {
   let tauri_path = tauri_dir();
+
+  log::info!("Looking up installed plugins to check incompatible versions...");
+  let installed_plugins = crate::info::plugins::installed_plugins(
+    frontend_dir(),
+    tauri_path,
+    PackageManager::from_project(frontend_dir()),
+  );
+  let incompatible_plugins = installed_plugins.incompatible();
+  if !incompatible_plugins.is_empty() {
+    let incompatible_text = incompatible_plugins
+      .iter()
+      .map(|p| {
+        format!(
+          "{} (v{}) : {} (v{})",
+          p.crate_name, p.crate_version, p.npm_name, p.npm_version
+        )
+      })
+      .collect::<Vec<_>>()
+      .join("\n");
+    if options.ignore_incompatible_plugins {
+      log::error!("Found incompatible Tauri plugins. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+    } else {
+      anyhow::bail!("Found incompatible Tauri plugins. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+    }
+  }
+
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   let config_guard = config.lock().unwrap();

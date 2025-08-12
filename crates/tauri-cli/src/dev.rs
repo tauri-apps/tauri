@@ -9,6 +9,7 @@ use crate::{
     config::{
       get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
     },
+    npm::PackageManager,
   },
   interface::{AppInterface, ExitReason, Interface},
   CommandExt, ConfigValue, Result,
@@ -135,6 +136,29 @@ fn command_internal(mut options: Options) -> Result<()> {
 
 pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHandle) -> Result<()> {
   let tauri_path = tauri_dir();
+
+  std::thread::spawn(|| {
+    let installed_plugins = crate::info::plugins::installed_plugins(
+      frontend_dir(),
+      tauri_path,
+      PackageManager::from_project(frontend_dir()),
+    );
+    let incompatible_plugins = installed_plugins.incompatible();
+    if !incompatible_plugins.is_empty() {
+      let incompatible_text = incompatible_plugins
+        .iter()
+        .map(|p| {
+          format!(
+            "{} (v{}) : {} (v{})",
+            p.crate_name, p.crate_version, p.npm_name, p.npm_version
+          )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+      log::warn!("Found incompatible Tauri plugins. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+    }
+  });
+
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
   if let Some(before_dev) = config

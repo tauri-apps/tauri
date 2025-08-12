@@ -16,7 +16,90 @@ use crate::{
   interface::rust::get_workspace_dir,
 };
 
+use rayon::prelude::*;
+
 use super::{packages_nodejs, packages_rust, SectionItem};
+
+#[derive(Debug)]
+pub struct InstalledPlugin {
+  pub crate_name: String,
+  pub npm_name: String,
+  pub crate_version: semver::Version,
+  pub npm_version: semver::Version,
+}
+
+#[derive(Debug)]
+pub struct InstalledPlugins(Vec<InstalledPlugin>);
+
+impl InstalledPlugins {
+  pub fn incompatible(&self) -> Vec<&InstalledPlugin> {
+    self
+      .0
+      .iter()
+      .filter(|p| {
+        p.crate_version.major != p.npm_version.major || p.crate_version.minor != p.npm_version.minor
+      })
+      .collect()
+  }
+}
+
+pub fn installed_plugins(
+  frontend_dir: &Path,
+  tauri_dir: &Path,
+  package_manager: PackageManager,
+) -> InstalledPlugins {
+  let manifest: Option<CargoManifest> =
+    if let Ok(manifest_contents) = fs::read_to_string(tauri_dir.join("Cargo.toml")) {
+      toml::from_str(&manifest_contents).ok()
+    } else {
+      None
+    };
+
+  let lock: Option<CargoLock> = get_workspace_dir()
+    .ok()
+    .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
+    .and_then(|s| toml::from_str(&s).ok());
+
+  let installed_plugins = helpers::plugins::known_plugins()
+    .into_par_iter()
+    .filter_map(|(plugin, _)| {
+      let crate_name = format!("tauri-plugin-{plugin}");
+      let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &crate_name);
+      let Some(crate_version) = crate_version.version.and_then(|v| {
+        semver::Version::parse(&v)
+          .inspect_err(|_| {
+            log::error!("Failed to parse version `{v}` for crate `{crate_name}`");
+          })
+          .ok()
+      }) else {
+        return None;
+      };
+
+      let npm_name = format!("@tauri-apps/plugin-{plugin}");
+      let npm_version = package_manager
+        .current_package_version(&npm_name, &frontend_dir)
+        .unwrap_or_default();
+      if let Some(npm_version) = npm_version.and_then(|v| {
+        semver::Version::parse(&v)
+          .inspect_err(|_| {
+            log::error!("Failed to parse version `{v}` for NPM package `{npm_name}`");
+          })
+          .ok()
+      }) {
+        return Some(InstalledPlugin {
+          crate_name,
+          npm_name,
+          crate_version,
+          npm_version,
+        });
+      }
+
+      None
+    })
+    .collect();
+
+  InstalledPlugins(installed_plugins)
+}
 
 pub fn items(
   frontend_dir: Option<&PathBuf>,

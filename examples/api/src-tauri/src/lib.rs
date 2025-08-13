@@ -83,12 +83,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
             tauri::WebviewUrl::External(url.clone()),
           )
           .with_window_features(features)
+          .on_document_title_changed(|window, title| {
+            window.set_title(&title).unwrap();
+          })
           .title(url.as_str());
 
           let window = builder.build().unwrap();
           tauri::webview::NewWindowResponse::Create { window }
         })
-        .on_document_title_changed(|title| {
+        .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         });
 

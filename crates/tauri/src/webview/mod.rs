@@ -54,7 +54,7 @@ pub(crate) type NewWindowHandler<R> = dyn Fn(Url, NewWindowFeatures) -> NewWindo
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
-pub(crate) type OnDocumentTitleChanged = dyn Fn(String) + Send + 'static;
+pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
@@ -267,7 +267,7 @@ unstable_struct!(
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
     pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
-    pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged>>,
+    pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
   }
 );
@@ -515,6 +515,9 @@ tauri::Builder::default()
           tauri::WebviewUrl::External(url.clone()),
         )
         .with_window_features(features)
+        .on_document_title_changed(|window, title| {
+          window.set_title(&title).unwrap();
+        })
         .title(url.as_str());
 
         let window = builder.build().unwrap();
@@ -542,7 +545,10 @@ tauri::Builder::default()
   }
 
   /// Defines a closure to be executed when document title change.
-  pub fn on_document_title_changed<F: Fn(String) + Send + 'static>(mut self, f: F) -> Self {
+  pub fn on_document_title_changed<F: Fn(Webview<R>, String) + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
     self.document_title_changed_handler.replace(Box::new(f));
     self
   }
@@ -671,7 +677,18 @@ tauri::Builder::default()
             + 'static,
         >
     });
-    pending.document_title_changed_handler = self.document_title_changed_handler.take();
+
+    if let Some(document_title_changed_handler) = self.document_title_changed_handler.take() {
+      let label = pending.label.clone();
+      let manager = manager.manager_owned();
+      pending
+        .document_title_changed_handler
+        .replace(Box::new(move |title| {
+          if let Some(w) = manager.get_webview(&label) {
+            document_title_changed_handler(w, title);
+          }
+        }));
+    }
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
     if let Some(download_handler) = self.download_handler.take() {

@@ -298,6 +298,9 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///           tauri::WebviewUrl::External(url.clone()),
   ///         )
   ///         .with_window_features(features)
+  ///         .on_document_title_changed(|window, title| {
+  ///           window.set_title(&title).unwrap();
+  ///         })
   ///         .title(url.as_str());
   ///
   ///         let window = builder.build().unwrap();
@@ -324,8 +327,21 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// Defines a closure to be executed when the document title changes.
   ///
   /// Note that it may run before or after the navigation event.
-  pub fn on_document_title_changed<F: Fn(String) + Send + 'static>(mut self, f: F) -> Self {
-    self.webview_builder = self.webview_builder.on_document_title_changed(f);
+  pub fn on_document_title_changed<F: Fn(WebviewWindow<R>, String) + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .on_document_title_changed(move |webview, url| {
+        f(
+          WebviewWindow {
+            window: webview.window(),
+            webview,
+          },
+          url,
+        )
+      });
     self
   }
 

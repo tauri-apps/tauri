@@ -276,12 +276,47 @@ impl PackageManager {
     }
 
     let output = match self {
-      PackageManager::Yarn => cross_command("yarn")
-        .arg("list")
-        .args(packages)
-        .args(["--json", "--depth", "0"])
-        .current_dir(frontend_dir)
-        .output()?,
+      PackageManager::Yarn => {
+        let output = cross_command("yarn")
+          .args(["list", "--pattern"])
+          .arg(packages.join("|"))
+          .args(["--json", "--depth", "0"])
+          .current_dir(frontend_dir)
+          .output()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if !output.status.success() {
+          return Ok(HashMap::new());
+        }
+        #[derive(Deserialize)]
+        struct YarnListOutput {
+          data: YarnListOutputData,
+        }
+        #[derive(Deserialize)]
+        struct YarnListOutputData {
+          trees: Vec<YarnListOutputDataTree>,
+        }
+        #[derive(Deserialize)]
+        struct YarnListOutputDataTree {
+          name: String,
+        }
+        let mut versions = HashMap::new();
+        for line in stdout.lines() {
+          if let Ok(tree) = serde_json::from_str::<YarnListOutput>(line) {
+            for tree in tree.data.trees {
+              let Some((name, version)) = tree.name.rsplit_once('@') else {
+                continue;
+              };
+              if let Ok(version) = semver::Version::parse(&version) {
+                versions.insert(name.to_owned(), version);
+              } else {
+                log::error!("Failed to parse version `{version}` for NPM package `{name}`");
+              }
+            }
+            return Ok(versions);
+          }
+        }
+        return Ok(HashMap::new());
+      }
       PackageManager::YarnBerry => cross_command("yarn")
         .arg("info")
         .args(packages)

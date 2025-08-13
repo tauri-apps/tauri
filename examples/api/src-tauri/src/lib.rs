@@ -80,9 +80,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           let builder = tauri::WebviewWindowBuilder::new(
             &app_,
             format!("new-{number}"),
-            tauri::WebviewUrl::External(url),
+            tauri::WebviewUrl::External(url.clone()),
           )
-          .with_window_features(features);
+          .with_window_features(features)
+          .title(url.as_str());
 
           let window = builder.build().unwrap();
           tauri::webview::NewWindowResponse::Create { window }

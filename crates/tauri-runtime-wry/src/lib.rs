@@ -4786,7 +4786,7 @@ You may have it installed on another user account, but it is not available for t
     target_os = "openbsd"
   ))]
   {
-    if let Some(related_view) = &webview_attributes.related_view {
+    if let Some(related_view) = webview_attributes.related_view {
       webview_builder = webview_builder.with_related_view(related_view);
     }
   }

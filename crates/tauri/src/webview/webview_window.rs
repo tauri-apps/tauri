@@ -278,6 +278,36 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///
   /// The closure take the URL to open and the window features object and returns [`NewWindowResponse`] to determine whether the window should open.
   ///
+  /// # Examples
+  /// ```rust,no_run
+  /// use tauri::{
+  ///   utils::config::WebviewUrl,
+  ///   webview::WebviewWindowBuilder,
+  /// };
+  /// use http::header::HeaderValue;
+  /// use std::collections::HashMap;
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     let app_ = app.handle().clone();
+  ///     let webview_window = WebviewWindowBuilder::new(app, "core", WebviewUrl::App("index.html".into()))
+  ///       .on_new_window(move |url, features| {
+  ///         let builder = tauri::WebviewWindowBuilder::new(
+  ///           &app_,
+  ///           // note: add an ID counter or random label generator to support multiple opened windows at the same time
+  ///           "opened-window",
+  ///           tauri::WebviewUrl::External(url.clone()),
+  ///         )
+  ///         .with_window_features(features)
+  ///         .title(url.as_str());
+  ///
+  ///         let window = builder.build().unwrap();
+  ///         tauri::webview::NewWindowResponse::Create { window }
+  ///       })
+  ///       .build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
+  ///
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
@@ -1257,6 +1287,14 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     target_os = "openbsd"
   ))]
   pub fn with_window_features(mut self, features: NewWindowFeatures) -> Self {
+    if let Some(position) = features.position() {
+      self.window_builder = self.window_builder.position(position.x, position.y);
+    }
+
+    if let Some(size) = features.size() {
+      self.window_builder = self.window_builder.inner_size(size.width, size.height);
+    }
+
     #[cfg(target_os = "macos")]
     {
       self.webview_builder = self

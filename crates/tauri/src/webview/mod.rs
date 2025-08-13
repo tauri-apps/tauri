@@ -490,6 +490,44 @@ tauri::Builder::default()
   ///
   /// The closure take the URL to open and the window features object and returns [`NewWindowResponse`] to determine whether the window should open.
   ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  window::WindowBuilder,
+  webview::WebviewBuilder,
+};
+use http::header::HeaderValue;
+use std::collections::HashMap;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+
+    let app_ = app.handle().clone();
+    let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+      .on_new_window(move |url, features| {
+        let builder = tauri::WebviewWindowBuilder::new(
+          &app_,
+          // note: add an ID counter or random label generator to support multiple opened windows at the same time
+          "opened-window",
+          tauri::WebviewUrl::External(url.clone()),
+        )
+        .with_window_features(features)
+        .title(url.as_str());
+
+        let window = builder.build().unwrap();
+        tauri::webview::NewWindowResponse::Create { window }
+      });
+
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    Ok(())
+  });
+```
+  "####
+  )]
+  ///
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.

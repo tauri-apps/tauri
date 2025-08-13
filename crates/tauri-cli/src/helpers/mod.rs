@@ -59,10 +59,15 @@ pub fn resolve_tauri_path<P: AsRef<Path>>(path: P, crate_name: &str) -> PathBuf 
 
 pub fn cross_command(bin: &str) -> Command {
   #[cfg(target_os = "windows")]
-  let cmd = Command::new(format!("{bin}.cmd"));
+  {
+    if matches!(bin, "npm" | "yarn" | "pnpm") {
+      Command::new(format!("{bin}.cmd"))
+    } else {
+      Command::new(bin)
+    }
+  }
   #[cfg(not(target_os = "windows"))]
-  let cmd = Command::new(bin);
-  cmd
+  Command::new(bin)
 }
 
 pub fn run_hook(

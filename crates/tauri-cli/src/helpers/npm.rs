@@ -317,8 +317,8 @@ fn yarn_package_versions(
   frontend_dir: &Path,
 ) -> crate::Result<HashMap<String, semver::Version>> {
   let output = cross_command("yarn")
-    .args(["list", "--pattern"])
-    .arg(packages.join("|"))
+    .arg("list")
+    .args(packages)
     .args(["--json", "--depth", "0"])
     .current_dir(frontend_dir)
     .output()?;

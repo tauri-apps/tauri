@@ -71,6 +71,15 @@ pub fn notarize(
   tauri_macos_sign::notarize(keychain, &app_bundle_path, credentials).map_err(Into::into)
 }
 
+pub fn notarize_without_stapling(
+  keychain: &tauri_macos_sign::Keychain,
+  app_bundle_path: PathBuf,
+  credentials: &tauri_macos_sign::AppleNotarizationCredentials,
+) -> crate::Result<()> {
+  tauri_macos_sign::notarize_without_stapling(keychain, &app_bundle_path, credentials)
+    .map_err(Into::into)
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum NotarizeAuthError {
   #[error(

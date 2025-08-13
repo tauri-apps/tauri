@@ -117,6 +117,19 @@ struct CrateIoGetResponse {
 pub fn crate_latest_version(name: &str) -> Option<String> {
   // Reference: https://github.com/rust-lang/crates.io/blob/98c83c8231cbcd15d6b8f06d80a00ad462f71585/src/controllers/krate/metadata.rs#L88
   let url = format!("https://crates.io/api/v1/crates/{name}?include");
+  #[cfg(feature = "platform-certs")]
+  let mut response = {
+    let agent = ureq::Agent::config_builder()
+      .tls_config(
+        ureq::tls::TlsConfig::builder()
+          .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+          .build(),
+      )
+      .build()
+      .new_agent();
+    agent.get(&url).call().ok()?
+  };
+  #[cfg(not(feature = "platform-certs"))]
   let mut response = ureq::get(&url).call().ok()?;
   let metadata: CrateIoGetResponse =
     serde_json::from_reader(response.body_mut().as_reader()).unwrap();

@@ -74,7 +74,8 @@ name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
 rustls = ["ureq/rustls"]
+platform-certs = ["ureq/platform-verifier"]

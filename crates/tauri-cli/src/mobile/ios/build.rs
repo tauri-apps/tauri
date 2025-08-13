@@ -137,6 +137,7 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: options.args,
       ci: options.ci,
+      skip_stapling: false,
       ignore_incompatible_plugins: options.ignore_incompatible_plugins,
     }
   }

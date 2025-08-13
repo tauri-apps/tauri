@@ -1406,6 +1406,22 @@ class Window {
   }
 
   /**
+   * On macOS, Toggles a fullscreen mode that doesn’t require a new macOS space. Returns a boolean indicating whether the transition was successful (this won’t work if the window was already in the native fullscreen).
+   * This is how fullscreen used to work on macOS in versions before Lion. And allows the user to have a fullscreen window without using another space or taking control over the entire monitor.
+   *
+   * On other platforms, this is the same as {@link Window.setFullscreen}.
+   *
+   * @param fullscreen Whether the window should go to simple fullscreen or not.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setSimpleFullscreen(fullscreen: boolean): Promise<void> {
+    return invoke('plugin:window|set_simple_fullscreen', {
+      label: this.label,
+      value: fullscreen
+    })
+  }
+
+  /**
    * Bring the window to front and focus.
    * @example
    * ```typescript

@@ -104,7 +104,7 @@ pub struct Options {
   /// e.g. `tauri android dev -- [runnerArgs]`.
   #[clap(last(true))]
   pub args: Vec<String>,
-  /// Path to the certificate file used by your dev server. Required when using HTTPS.
+  /// Path to the certificate file used by your dev server. Required for mobile dev when using HTTPS.
   #[clap(long, env = "TAURI_DEV_ROOT_CERTIFICATE_PATH")]
   pub root_certificate_path: Option<PathBuf>,
 }

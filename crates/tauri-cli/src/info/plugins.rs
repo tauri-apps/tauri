@@ -84,7 +84,7 @@ pub fn installed_plugins(
     .collect();
 
   let mut npm_plugins = package_manager
-    .current_package_versions(&npm_names, &frontend_dir)
+    .current_package_versions(&npm_names, frontend_dir)
     .unwrap_or_default();
 
   let installed_plugins = crate_names

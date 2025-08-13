@@ -307,7 +307,7 @@ impl PackageManager {
     if !output.status.success() {
       return Ok(HashMap::new());
     }
-    let json: ListOutput = serde_json::from_str(&stdout.to_owned())?;
+    let json: ListOutput = serde_json::from_str(&stdout)?;
     let mut versions = HashMap::new();
     for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
       let version = dependency.version;

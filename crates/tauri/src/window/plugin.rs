@@ -128,6 +128,7 @@ mod desktop_commands {
   setter!(set_max_size, Option<Size>);
   setter!(set_position, Position);
   setter!(set_fullscreen, bool);
+  setter!(set_simple_fullscreen, bool);
   setter!(set_focus);
   setter!(set_skip_taskbar, bool);
   setter!(set_cursor_grab, bool);
@@ -301,6 +302,7 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
         desktop_commands::set_size_constraints,
         desktop_commands::set_position,
         desktop_commands::set_fullscreen,
+        desktop_commands::set_simple_fullscreen,
         desktop_commands::set_focus,
         desktop_commands::set_enabled,
         desktop_commands::set_skip_taskbar,

@@ -138,7 +138,7 @@ object = { version = "0.36", default-features = false, features = [
 ar = "0.9"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = [
   "tauri-bundler/native-tls",
   "cargo-mobile2/native-tls",
@@ -146,3 +146,4 @@ native-tls = [
 ]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
+platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]

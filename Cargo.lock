@@ -8624,7 +8624,6 @@ dependencies = [
  "plist",
  "pretty_assertions",
  "rand 0.9.1",
- "rayon",
  "regex",
  "resvg",
  "semver",

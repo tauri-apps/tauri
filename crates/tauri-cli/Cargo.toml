@@ -110,7 +110,6 @@ memchr = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v5"] }
 rand = "0.9"
-rayon = "1"
 
 [dev-dependencies]
 insta = "1"

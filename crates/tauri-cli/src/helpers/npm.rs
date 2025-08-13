@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+use serde::Deserialize;
 
 use crate::helpers::cross_command;
-use std::{fmt::Display, path::Path, process::Command};
+use std::{collections::HashMap, fmt::Display, path::Path, process::Command};
 
 pub fn manager_version(package_manager: &str) -> Option<String> {
   cross_command(package_manager)
@@ -253,5 +254,69 @@ impl PackageManager {
     } else {
       Ok(None)
     }
+  }
+
+  pub fn current_package_versions(
+    &self,
+    packages: &[String],
+    frontend_dir: &Path,
+  ) -> crate::Result<HashMap<String, semver::Version>> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ListOutput {
+      #[serde(default)]
+      dependencies: HashMap<String, ListDependency>,
+      #[serde(default)]
+      dev_dependencies: HashMap<String, ListDependency>,
+    }
+
+    #[derive(Deserialize)]
+    struct ListDependency {
+      version: String,
+    }
+
+    let output = match self {
+      PackageManager::Yarn => cross_command("yarn")
+        .arg("list")
+        .args(packages)
+        .args(["--json", "--depth", "0"])
+        .current_dir(frontend_dir)
+        .output()?,
+      PackageManager::YarnBerry => cross_command("yarn")
+        .arg("info")
+        .args(packages)
+        .arg("--json")
+        .current_dir(frontend_dir)
+        .output()?,
+      PackageManager::Pnpm => cross_command("pnpm")
+        .arg("list")
+        .args(packages)
+        .args(["--json", "--depth", "0"])
+        .current_dir(frontend_dir)
+        .output()?,
+      // Bun and Deno don't support `list` command
+      PackageManager::Npm | PackageManager::Bun | PackageManager::Deno => cross_command("npm")
+        .arg("list")
+        .args(packages)
+        .args(["--json", "--depth", "0"])
+        .current_dir(frontend_dir)
+        .output()?,
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+      return Ok(HashMap::new());
+    }
+    let json: ListOutput = serde_json::from_str(&stdout.to_owned())?;
+    let mut versions = HashMap::new();
+    for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
+      let version = dependency.version;
+      if let Ok(version) = semver::Version::parse(&version) {
+        versions.insert(package, version);
+      } else {
+        log::error!("Failed to parse version `{version}` for NPM package `{package}`");
+      }
+    }
+    Ok(versions)
   }
 }

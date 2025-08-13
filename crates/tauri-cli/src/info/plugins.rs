@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use std::{
+  collections::HashMap,
   fs,
   path::{Path, PathBuf},
 };
@@ -15,8 +16,6 @@ use crate::{
   },
   interface::rust::get_workspace_dir,
 };
-
-use rayon::prelude::*;
 
 use super::{packages_nodejs, packages_rust, SectionItem};
 
@@ -60,41 +59,47 @@ pub fn installed_plugins(
     .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
     .and_then(|s| toml::from_str(&s).ok());
 
-  let installed_plugins = helpers::plugins::known_plugins()
-    .into_par_iter()
-    .filter_map(|(plugin, _)| {
-      let crate_name = format!("tauri-plugin-{plugin}");
-      let crate_version = crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), &crate_name);
-      let Some(crate_version) = crate_version.version.and_then(|v| {
-        semver::Version::parse(&v)
-          .inspect_err(|_| {
-            log::error!("Failed to parse version `{v}` for crate `{crate_name}`");
-          })
-          .ok()
-      }) else {
-        return None;
-      };
+  let know_plugins = helpers::plugins::known_plugins();
+  let (crate_names, npm_names): (Vec<String>, Vec<String>) = know_plugins
+    .keys()
+    .map(|plugin_name| {
+      (
+        format!("tauri-plugin-{plugin_name}"),
+        format!("@tauri-apps/plugin-{plugin_name}"),
+      )
+    })
+    .collect();
 
-      let npm_name = format!("@tauri-apps/plugin-{plugin}");
-      let npm_version = package_manager
-        .current_package_version(&npm_name, &frontend_dir)
-        .unwrap_or_default();
-      if let Some(npm_version) = npm_version.and_then(|v| {
-        semver::Version::parse(&v)
-          .inspect_err(|_| {
-            log::error!("Failed to parse version `{v}` for NPM package `{npm_name}`");
-          })
-          .ok()
-      }) {
-        return Some(InstalledPlugin {
-          crate_name,
-          npm_name,
-          crate_version,
-          npm_version,
-        });
-      }
+  let mut rust_plugins: HashMap<String, semver::Version> = crate_names
+    .iter()
+    .filter_map(|crate_name| {
+      let crate_version =
+        crate_version(tauri_dir, manifest.as_ref(), lock.as_ref(), crate_name).version?;
+      let crate_version = semver::Version::parse(&crate_version)
+        .inspect_err(|_| {
+          log::error!("Failed to parse version `{crate_version}` for crate `{crate_name}`");
+        })
+        .ok()?;
+      Some((crate_name.clone(), crate_version))
+    })
+    .collect();
 
-      None
+  let mut npm_plugins = package_manager
+    .current_package_versions(&npm_names, &frontend_dir)
+    .unwrap_or_default();
+
+  let installed_plugins = crate_names
+    .iter()
+    .zip(npm_names.iter())
+    .filter_map(|(crate_name, npm_name)| {
+      let (crate_name, crate_version) = rust_plugins.remove_entry(crate_name)?;
+      let (npm_name, npm_version) = npm_plugins.remove_entry(npm_name)?;
+      Some(InstalledPlugin {
+        npm_name,
+        npm_version,
+        crate_name,
+        crate_version,
+      })
     })
     .collect();
 

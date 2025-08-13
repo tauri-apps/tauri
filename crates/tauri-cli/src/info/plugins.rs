@@ -60,14 +60,13 @@ pub fn installed_plugins(
     .and_then(|s| toml::from_str(&s).ok());
 
   let know_plugins = helpers::plugins::known_plugins();
-  let (crate_names, npm_names): (Vec<String>, Vec<String>) = know_plugins
+  let crate_names: Vec<String> = know_plugins
     .keys()
-    .map(|plugin_name| {
-      (
-        format!("tauri-plugin-{plugin_name}"),
-        format!("@tauri-apps/plugin-{plugin_name}"),
-      )
-    })
+    .map(|plugin_name| format!("tauri-plugin-{plugin_name}"))
+    .collect();
+  let npm_names: Vec<String> = know_plugins
+    .keys()
+    .map(|plugin_name| format!("@tauri-apps/plugin-{plugin_name}"))
     .collect();
 
   let mut rust_plugins: HashMap<String, semver::Version> = crate_names

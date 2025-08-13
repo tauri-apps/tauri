@@ -121,6 +121,11 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
+objc2-web-kit = { version = "0.3", features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKUserContentController",
+] }
 window-vibrancy = "0.6"
 
 # windows
@@ -172,14 +177,6 @@ tauri = { path = ".", default-features = false, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
 cargo_toml = "0.22"
 http-range = "0.1.5"
-
-# macOS
-[target.'cfg(target_os = "macos")'.dev-dependencies]
-objc2-web-kit = { version = "0.3", features = [
-  "objc2-app-kit",
-  "WKWebView",
-  "WKUserContentController",
-] }
 
 [features]
 default = ["wry", "compression", "common-controls-v6", "dynamic-acl", "x11"]

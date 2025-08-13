@@ -8,6 +8,8 @@ mod menu_plugin;
 #[cfg(desktop)]
 mod tray;
 
+use std::sync::atomic::AtomicUsize;
+
 use serde::Serialize;
 use tauri::{
   ipc::Channel,
@@ -66,10 +68,24 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
+      let app_ = app.handle().clone();
+
+      let mut created_window_count = AtomicUsize::new(0);
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .on_new_window(|url| {
-          println!("new window requested: {url:?}");
-          true
+        .on_new_window(move |url, features| {
+          println!("new window requested: {url:?} {features:?}");
+
+          let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+          let builder = tauri::WebviewWindowBuilder::new(
+            &app_,
+            format!("new-{number}"),
+            tauri::WebviewUrl::External(url),
+          )
+          .with_window_features(features);
+
+          let window = builder.build().unwrap();
+          tauri::webview::NewWindowResponse::Create { window }
         })
         .on_document_title_changed(|title| {
           println!("document title changed: {title}");

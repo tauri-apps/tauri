@@ -14,6 +14,8 @@
 
 use self::monitor::MonitorExt;
 use http::Request;
+#[cfg(target_os = "macos")]
+use objc2::ClassType;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
@@ -43,6 +45,8 @@ use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEve
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "ios")]
 use wry::WebViewBuilderExtIos;
+#[cfg(target_os = "macos")]
+use wry::WebViewBuilderExtMacos;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
 #[cfg(target_vendor = "apple")]
@@ -3777,6 +3781,7 @@ fn handle_user_message<T: UserEvent>(
             {
               f(Webview {
                 controller: webview.controller(),
+                environment: webview.environment(),
               });
             }
             #[cfg(target_os = "android")]
@@ -4510,6 +4515,11 @@ You may have it installed on another user account, but it is not available for t
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
+  #[cfg(target_os = "macos")]
+  if let Some(webview_configuration) = webview_attributes.webview_configuration {
+    webview_builder = webview_builder.with_webview_configuration(webview_configuration);
+  }
+
   #[cfg(any(target_os = "windows", target_os = "android"))]
   {
     webview_builder = webview_builder.with_https_scheme(webview_attributes.use_https_scheme);
@@ -4584,11 +4594,62 @@ You may have it installed on another user account, but it is not available for t
   }
 
   if let Some(new_window_handler) = pending.new_window_handler {
-    webview_builder = webview_builder.with_new_window_req_handler(move |url| {
+    #[cfg(desktop)]
+    let context = context.clone();
+    webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
       url
         .parse()
-        .map(|url| new_window_handler(&url))
-        .unwrap_or(true)
+        .map(|url| {
+          let response = new_window_handler(
+            url,
+            tauri_runtime::webview::NewWindowFeatures::new(
+              features.size,
+              features.position,
+              tauri_runtime::webview::NewWindowOpener {
+                #[cfg(desktop)]
+                webview: features.opener.webview,
+                #[cfg(windows)]
+                environment: features.opener.environment,
+                #[cfg(target_os = "macos")]
+                target_configuration: features.opener.target_configuration,
+              },
+            ),
+          );
+          match response {
+            tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+            #[cfg(desktop)]
+            tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+              let webview = context
+                .main_thread
+                .windows
+                .0
+                .borrow()
+                .get(&window_id)
+                .unwrap()
+                .webviews
+                .first()
+                .unwrap()
+                .clone();
+              #[cfg(desktop)]
+              wry::NewWindowResponse::Create {
+                #[cfg(target_os = "macos")]
+                webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd",
+                ))]
+                webview: webview.webview(),
+                #[cfg(windows)]
+                webview: webview.webview(),
+              }
+            }
+            tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+          }
+        })
+        .unwrap_or(wry::NewWindowResponse::Deny)
     });
   }
 
@@ -4686,6 +4747,10 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
+    if let Some(environment) = webview_attributes.environment {
+      webview_builder = webview_builder.with_environment(environment);
+    }
+
     webview_builder = webview_builder.with_theme(match window.theme() {
       TaoTheme::Dark => wry::Theme::Dark,
       TaoTheme::Light => wry::Theme::Light,
@@ -4710,6 +4775,19 @@ You may have it installed on another user account, but it is not available for t
   {
     if let Some(path) = &webview_attributes.extensions_path {
       webview_builder = webview_builder.with_extensions_path(path);
+    }
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  {
+    if let Some(related_view) = &webview_attributes.related_view {
+      webview_builder = webview_builder.with_related_view(related_view);
     }
   }
 

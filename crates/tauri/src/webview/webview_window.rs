@@ -14,6 +14,7 @@ use crate::{
   event::EventTarget,
   ipc::ScopeObject,
   runtime::dpi::{PhysicalPosition, PhysicalSize},
+  webview::NewWindowResponse,
   window::Monitor,
   Emitter, EventName, Listener, ResourceTable, Window,
 };
@@ -27,6 +28,7 @@ use crate::{
     UserAttentionType,
   },
 };
+use tauri_runtime::webview::NewWindowFeatures;
 use tauri_utils::config::{BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig};
 use url::Url;
 
@@ -270,11 +272,21 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
     self
   }
 
-  /// Defines a closure to be executed when runs when content inside the webview requests to open a new window,
-  /// such as through `window.open`.
+  /// Set a new window request handler to decide if incoming url is allowed to be opened.
   ///
-  /// Returning `false` prevents the new window from being created, which is the default behavior.
-  pub fn on_new_window<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  /// A new window is requested to be opened by the [window.open] API.
+  ///
+  /// The closure take the URL to open and the window features object and returns [`NewWindowResponse`] to determine whether the window should open.
+  ///
+  /// # Platform-specific
+  ///
+  /// - **Android / iOS**: Not supported.
+  ///
+  /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
     self.webview_builder = self.webview_builder.on_new_window(f);
     self
   }
@@ -1192,6 +1204,85 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     self.webview_builder = self
       .webview_builder
       .with_input_accessory_view_builder(builder);
+    self
+  }
+
+  /// Set the environment for the webview.
+  /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
+  #[cfg(windows)]
+  pub fn with_environment(
+    mut self,
+    environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
+  ) -> Self {
+    self.webview_builder = self.webview_builder.with_environment(environment);
+    self
+  }
+
+  /// Creates a new webview sharing the same web process with the provided webview.
+  /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+    self.webview_builder = self.webview_builder.with_related_view(related_view);
+    self
+  }
+
+  /// Set the webview configuration.
+  /// Useful if you need to share the same webview configuration, for instance when using the [`Self::on_new_window`].
+  #[cfg(target_os = "macos")]
+  pub fn with_webview_configuration(
+    mut self,
+    webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
+  ) -> Self {
+    self.webview_builder = self
+      .webview_builder
+      .with_webview_configuration(webview_configuration);
+    self
+  }
+
+  /// Set the window features.
+  /// Useful if you need to share the same window features, for instance when using the [`Self::on_new_window`].
+  #[cfg(any(
+    target_os = "macos",
+    windows,
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  pub fn with_window_features(mut self, features: NewWindowFeatures) -> Self {
+    #[cfg(target_os = "macos")]
+    {
+      self.webview_builder = self
+        .webview_builder
+        .with_webview_configuration(features.opener().target_configuration.clone());
+    }
+
+    #[cfg(windows)]
+    {
+      self.webview_builder = self
+        .webview_builder
+        .with_environment(features.opener().environment.clone());
+    }
+
+    #[cfg(any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd"
+    ))]
+    {
+      self.webview_builder = self
+        .webview_builder
+        .with_related_view(features.opener().webview.clone());
+    }
     self
   }
 }

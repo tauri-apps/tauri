@@ -12,7 +12,7 @@ pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
-pub use tauri_runtime::webview::PageLoadEvent;
+pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent};
 pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
@@ -50,7 +50,7 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type NewWindowHandler = dyn Fn(&Url) -> bool + Send;
+pub(crate) type NewWindowHandler<R> = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -175,6 +175,15 @@ impl PlatformWebview {
     self.0.controller.clone()
   }
 
+  /// Returns the WebView2 environment.
+  #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
+  pub fn environment(
+    &self,
+  ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment {
+    self.0.environment.clone()
+  }
+
   /// Returns the [WKWebView] handle.
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
@@ -218,6 +227,25 @@ impl PlatformWebview {
   }
 }
 
+/// Response for the new window request handler.
+pub enum NewWindowResponse<R: Runtime> {
+  /// Allow the window to be opened with the default implementation.
+  Allow,
+  /// Allow the window to be opened, with the given window.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Linux**: The webview must be related to the caller webview. See [`WebviewBuilder::related_view`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewBuilder::environment`].
+  /// **macOS**: The webview must use the same webview configuration as the caller webview. See [`WebviewBuilder::with_webview_configuration`] and [`NewWindowFeatures::webview_configuration`].
+  Create {
+    /// Window that was created.
+    window: crate::WebviewWindow<R>,
+  },
+  /// Deny the window from being opened.
+  Deny,
+}
+
 macro_rules! unstable_struct {
     (#[doc = $doc:expr] $($tokens:tt)*) => {
       #[cfg(any(test, feature = "unstable"))]
@@ -237,7 +265,7 @@ unstable_struct!(
     pub(crate) webview_attributes: WebviewAttributes,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
-    pub(crate) new_window_handler: Option<Box<NewWindowHandler>>,
+    pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
     pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
@@ -456,14 +484,21 @@ tauri::Builder::default()
     self
   }
 
-  /// Defines a closure to be executed when a new window is created.
+  /// Set a new window request handler to decide if incoming url is allowed to be opened.
   ///
-  /// Returning `false` prevents the new window from being created.
+  /// A new window is requested to be opened by the [window.open] API.
+  ///
+  /// The closure take the URL to open and the window features object and returns [`NewWindowResponse`] to determine whether the window should open.
   ///
   /// # Platform-specific
   ///
-  /// - **Android**: Not supported.
-  pub fn on_new_window<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
+  /// - **Android / iOS**: Not supported.
+  ///
+  /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
+  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
     self.new_window_handler.replace(Box::new(f));
     self
   }
@@ -575,7 +610,29 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
-    pending.new_window_handler = self.new_window_handler.take();
+    pending.new_window_handler = self.new_window_handler.take().map(|handler| {
+      Box::new(
+        move |url, features: NewWindowFeatures| match handler(url, features) {
+          NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
+          #[cfg(mobile)]
+          NewWindowResponse::Create { window: _ } => {
+            tauri_runtime::webview::NewWindowResponse::Allow
+          }
+          #[cfg(desktop)]
+          NewWindowResponse::Create { window } => {
+            tauri_runtime::webview::NewWindowResponse::Create {
+              window_id: window.window.window.id,
+            }
+          }
+          NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
+        },
+      )
+        as Box<
+          dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
+            + Send
+            + 'static,
+        >
+    });
     pending.document_title_changed_handler = self.document_title_changed_handler.take();
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
@@ -1047,6 +1104,45 @@ fn main() {
       .replace(tauri_runtime::webview::InputAccessoryViewBuilder::new(
         Box::new(builder),
       ));
+    self
+  }
+
+  /// Set the environment for the webview.
+  /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
+  #[cfg(windows)]
+  pub fn with_environment(
+    mut self,
+    environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
+  ) -> Self {
+    self.webview_attributes.environment.replace(environment);
+    self
+  }
+
+  /// Creates a new webview sharing the same web process with the provided webview.
+  /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ))]
+  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+    self.webview_attributes.related_view.replace(related_view);
+    self
+  }
+
+  /// Set the webview configuration.
+  /// Useful if you need to share the use a predefined webview configuration, for instance when using the [`Self::on_new_window`].
+  #[cfg(target_os = "macos")]
+  pub fn with_webview_configuration(
+    mut self,
+    webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
+  ) -> Self {
+    self
+      .webview_attributes
+      .webview_configuration
+      .replace(webview_configuration);
     self
   }
 }

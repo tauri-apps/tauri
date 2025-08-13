@@ -86,7 +86,10 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
     .join("Products")
     .join(format!("{configuration}-{sdk}"));
 
-  println!("cargo::rustc-link-search=framework={}", lib_out_dir.display());
+  println!(
+    "cargo::rustc-link-search=framework={}",
+    lib_out_dir.display()
+  );
   println!("cargo:include={}", lib_out_dir.display());
   println!("cargo:rerun-if-changed={}", source.display());
   println!("cargo:rustc-link-search=native={}", lib_out_dir.display());

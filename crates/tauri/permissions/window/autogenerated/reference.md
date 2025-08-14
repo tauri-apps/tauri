@@ -1577,6 +1577,32 @@ Denies the set_shadow command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-set-simple-fullscreen`
+
+</td>
+<td>
+
+Enables the set_simple_fullscreen command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-simple-fullscreen`
+
+</td>
+<td>
+
+Denies the set_simple_fullscreen command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-size`
 
 </td>

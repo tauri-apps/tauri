@@ -8,7 +8,7 @@ use std::{
 };
 use ureq::ResponseExt;
 
-use crate::utils::http_utils::download;
+use crate::utils::http_utils::{base_ureq_agent, download};
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
@@ -23,10 +23,7 @@ pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
+  let agent = base_ureq_agent();
   let response = agent.head(url).call().map_err(Box::new)?;
   let final_url = response.get_uri().to_string();
   let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {

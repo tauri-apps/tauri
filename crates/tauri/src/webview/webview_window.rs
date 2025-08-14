@@ -295,7 +295,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///           &app_,
   ///           // note: add an ID counter or random label generator to support multiple opened windows at the same time
   ///           "opened-window",
-  ///           tauri::WebviewUrl::External(url.clone()),
+  ///           tauri::WebviewUrl::External("about:blank".parse().unwrap()),
   ///         )
   ///         .with_window_features(features)
   ///         .on_document_title_changed(|window, title| {
@@ -314,9 +314,12 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
+  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
+  pub fn on_new_window<
+    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {

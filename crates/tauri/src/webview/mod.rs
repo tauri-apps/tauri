@@ -50,7 +50,8 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
-pub(crate) type NewWindowHandler<R> = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send;
+pub(crate) type NewWindowHandler<R> =
+  dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
@@ -512,7 +513,7 @@ tauri::Builder::default()
           &app_,
           // note: add an ID counter or random label generator to support multiple opened windows at the same time
           "opened-window",
-          tauri::WebviewUrl::External(url.clone()),
+          tauri::WebviewUrl::External("about:blank".parse().unwrap()),
         )
         .with_window_features(features)
         .on_document_title_changed(|window, title| {
@@ -534,9 +535,12 @@ tauri::Builder::default()
   /// # Platform-specific
   ///
   /// - **Android / iOS**: Not supported.
+  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
   ///
   /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
-  pub fn on_new_window<F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + 'static>(
+  pub fn on_new_window<
+    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
+  >(
     mut self,
     f: F,
   ) -> Self {
@@ -674,6 +678,7 @@ tauri::Builder::default()
         as Box<
           dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
             + Send
+            + Sync
             + 'static,
         >
     });

@@ -3827,9 +3827,13 @@ fn handle_user_message<T: UserEvent>(
       }
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
-      Ok(webview) => {
-        windows.0.borrow_mut().insert(window_id, webview);
-      }
+      // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
+      Ok(webview) => loop {
+        if let Ok(mut windows) = windows.0.try_borrow_mut() {
+          windows.insert(window_id, webview);
+          break;
+        }
+      },
       Err(e) => {
         log::error!("{e}");
       }
@@ -4619,17 +4623,21 @@ You may have it installed on another user account, but it is not available for t
             tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
             #[cfg(desktop)]
             tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
-              let webview = context
-                .main_thread
-                .windows
-                .0
-                .borrow()
-                .get(&window_id)
-                .unwrap()
-                .webviews
-                .first()
-                .unwrap()
-                .clone();
+              let windows = &context.main_thread.windows.0;
+              let webview = loop {
+                if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
+                  windows
+                    .get(&window_id)
+                    .map(|window| window.webviews.first().unwrap().clone())
+                }) {
+                  break webview;
+                } else {
+                  // on Windows the window is created async so we should wait for it to be available
+                  std::thread::sleep(std::time::Duration::from_millis(50));
+                  continue;
+                };
+              };
+
               #[cfg(desktop)]
               wry::NewWindowResponse::Create {
                 #[cfg(target_os = "macos")]

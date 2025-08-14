@@ -32,7 +32,7 @@ type WebResourceRequestHandler =
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
-type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send;
+type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send + Sync;
 
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
 

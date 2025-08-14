@@ -2945,6 +2945,7 @@ where
 ///   }
 /// }
 /// ```
+#[allow(rustdoc::invalid_codeblock_attributes)]
 #[skip_serializing_none]
 #[derive(Debug, Default, PartialEq, Clone, Deserialize, Serialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

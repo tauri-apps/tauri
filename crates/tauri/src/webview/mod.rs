@@ -573,13 +573,18 @@ tauri::Builder::default()
         }
       }));
     } else {
-      // If no download handler was provided we provide a default that behaves like a browser would by saving the file into the Downloads dir.
-      pending.download_handler.replace(Arc::new(move |event| {
-        if let tauri_runtime::webview::DownloadEvent::Requested { url, destination } = event {
-          dbg!(url);
-          dbg!(destination);
+      // If no download handler was provided we provide a default handler
+      // that behaves similar to a browser by saving the file into the Downloads dir if the current url is local.
+      let label = pending.label.clone();
+      let manager = manager.manager_owned();
+      pending.download_handler.replace(Arc::new(move |_| {
+        if let Some(w) = manager.get_webview(&label) {
+          w.url()
+            .map(|url| dbg!(w.is_local_url(&url)))
+            .unwrap_or(false)
+        } else {
+          false
         }
-        true
       }));
     }
 

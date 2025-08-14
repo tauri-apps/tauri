@@ -579,9 +579,7 @@ tauri::Builder::default()
       let manager = manager.manager_owned();
       pending.download_handler.replace(Arc::new(move |_| {
         if let Some(w) = manager.get_webview(&label) {
-          w.url()
-            .map(|url| dbg!(w.is_local_url(&url)))
-            .unwrap_or(false)
+          w.url().map(|url| w.is_local_url(&url)).unwrap_or(false)
         } else {
           false
         }

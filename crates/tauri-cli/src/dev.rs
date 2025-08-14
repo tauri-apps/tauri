@@ -155,7 +155,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
         })
         .collect::<Vec<_>>()
         .join("\n");
-      log::warn!("Found incompatible Tauri plugins. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+      log::warn!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
     }
   });
 

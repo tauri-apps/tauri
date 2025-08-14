@@ -71,11 +71,11 @@ pub struct Options {
   /// On subsequent runs, it's recommended to disable this setting again.
   #[clap(long)]
   pub skip_stapling: bool,
-  /// Do not error out if aversion incompatibility is detected on an installed plugin.
+  /// Do not error out if a version mismatch is detected on a Tauri package.
   ///
-  /// Only use this when you are sure the mismatch is incorrectly detected as incompatible plugin versions can lead to unknown behavior.
+  /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
-  pub ignore_incompatible_plugins: bool,
+  pub ignore_version_mismatches: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
@@ -156,10 +156,10 @@ pub fn setup(
       })
       .collect::<Vec<_>>()
       .join("\n");
-    if options.ignore_incompatible_plugins {
-      log::error!("Found incompatible Tauri plugins. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+    if options.ignore_version_mismatches {
+      log::error!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
     } else {
-      anyhow::bail!("Found incompatible Tauri plugins. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+      anyhow::bail!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
     }
   }
 

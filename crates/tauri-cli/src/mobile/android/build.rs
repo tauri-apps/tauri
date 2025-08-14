@@ -78,11 +78,11 @@ pub struct Options {
   /// e.g. `tauri android build -- [runnerArgs]`.
   #[clap(last(true))]
   pub args: Vec<String>,
-  /// Do not error out if aversion incompatibility is detected on an installed plugin.
+  /// Do not error out if a version mismatch is detected on a Tauri package.
   ///
-  /// Only use this when you are sure the mismatch is incorrectly detected as incompatible plugin versions can lead to unknown behavior.
+  /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
-  pub ignore_incompatible_plugins: bool,
+  pub ignore_version_mismatches: bool,
 }
 
 impl From<Options> for BuildOptions {
@@ -98,7 +98,7 @@ impl From<Options> for BuildOptions {
       args: options.args,
       ci: options.ci,
       skip_stapling: false,
-      ignore_incompatible_plugins: options.ignore_incompatible_plugins,
+      ignore_version_mismatches: options.ignore_version_mismatches,
     }
   }
 }

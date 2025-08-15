@@ -1430,6 +1430,7 @@ pub enum WebviewMessage {
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
   SetTheme(Option<Theme>),
+  SetDeviceEventFilter(DeviceEventFilter),
 }
 
 pub type CreateWindowClosure<T> =
@@ -2635,6 +2636,13 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       &self.context,
       Message::Application(ApplicationMessage::Hide),
     )
+  }
+
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    let _ = send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::SetDeviceEventFilter(filter)),
+    );
   }
 
   #[cfg(target_os = "android")]
@@ -3891,6 +3899,9 @@ fn handle_user_message<T: UserEvent>(
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
+      }
+      EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
+        event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
       }
     },
   }

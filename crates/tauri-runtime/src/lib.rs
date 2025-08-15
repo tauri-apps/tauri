@@ -329,6 +329,15 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
 
+  /// Change the device event filter mode.
+  ///
+  /// See [Runtime::set_device_event_filter] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// See [Runtime::set_device_event_filter] for details.
+  fn set_device_event_filter(&self, filter: DeviceEventFilter);
+
   /// Finds an Android class in the project scope.
   #[cfg(target_os = "android")]
   fn find_class<'a>(

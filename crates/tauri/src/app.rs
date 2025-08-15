@@ -623,6 +623,17 @@ impl<R: Runtime> AppHandle<R> {
       .set_dock_visibility(visible)
       .map_err(Into::into)
   }
+
+  /// Change the device event filter mode.
+  ///
+  /// See [App::set_device_event_filter] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// See [App::set_device_event_filter] for details.
+  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    self.runtime_handle.set_device_event_filter(filter);
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {

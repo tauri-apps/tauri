@@ -223,8 +223,8 @@ pub use {
   self::manager::Asset,
   self::runtime::{
     dpi::{
-      LogicalPosition, LogicalRect, LogicalSize, PhysicalPosition, PhysicalRect, PhysicalSize,
-      Pixel, Position, Rect, Size,
+      LogicalPosition, LogicalRect, LogicalSize, LogicalUnit, PhysicalPosition, PhysicalRect,
+      PhysicalSize, PhysicalUnit, Pixel, PixelUnit, Position, Rect, Size,
     },
     window::{CursorIcon, DragDropEvent, WindowSizeConstraints},
     DeviceEventFilter, UserAttentionType,

@@ -8,8 +8,8 @@ use crate::{
     self,
     app_paths::{frontend_dir, tauri_dir},
     config::{get as get_config, ConfigHandle, FrontendDist},
-    npm::PackageManager,
   },
+  info::plugins::check_incompatible_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
 };
@@ -139,27 +139,11 @@ pub fn setup(
   let tauri_path = tauri_dir();
 
   log::info!("Looking up installed plugins to check incompatible versions...");
-  let installed_plugins = crate::info::plugins::installed_plugins(
-    frontend_dir(),
-    tauri_path,
-    PackageManager::from_project(frontend_dir()),
-  );
-  let incompatible_plugins = installed_plugins.incompatible();
-  if !incompatible_plugins.is_empty() {
-    let incompatible_text = incompatible_plugins
-      .iter()
-      .map(|p| {
-        format!(
-          "{} (v{}) : {} (v{})",
-          p.crate_name, p.crate_version, p.npm_name, p.npm_version
-        )
-      })
-      .collect::<Vec<_>>()
-      .join("\n");
+  if let Err(error) = check_incompatible_packages(frontend_dir(), tauri_path) {
     if options.ignore_version_mismatches {
-      log::error!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+      log::error!("{error}");
     } else {
-      anyhow::bail!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+      return Err(error);
     }
   }
 

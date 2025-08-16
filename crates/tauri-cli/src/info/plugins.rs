@@ -18,6 +18,7 @@ use crate::{
 };
 
 use super::{packages_nodejs, packages_rust, SectionItem};
+use anyhow::anyhow;
 
 #[derive(Debug)]
 pub struct InstalledPlugin {
@@ -153,4 +154,27 @@ pub fn items(
   }
 
   items
+}
+
+pub fn check_incompatible_packages(frontend_dir: &Path, tauri_path: &Path) -> crate::Result<()> {
+  let installed_plugins = installed_plugins(
+    frontend_dir,
+    tauri_path,
+    PackageManager::from_project(frontend_dir),
+  );
+  let incompatible_plugins = installed_plugins.incompatible();
+  if incompatible_plugins.is_empty() {
+    return Ok(());
+  }
+  let incompatible_text = incompatible_plugins
+    .iter()
+    .map(|p| {
+      format!(
+        "{} (v{}) : {} (v{})",
+        p.crate_name, p.crate_version, p.npm_name, p.npm_version
+      )
+    })
+    .collect::<Vec<_>>()
+    .join("\n");
+  Err(anyhow!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{incompatible_text}"))
 }

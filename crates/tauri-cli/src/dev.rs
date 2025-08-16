@@ -9,8 +9,8 @@ use crate::{
     config::{
       get as get_config, reload as reload_config, BeforeDevCommand, ConfigHandle, FrontendDist,
     },
-    npm::PackageManager,
   },
+  info::plugins::check_incompatible_packages,
   interface::{AppInterface, ExitReason, Interface},
   CommandExt, ConfigValue, Result,
 };
@@ -138,24 +138,8 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   let tauri_path = tauri_dir();
 
   std::thread::spawn(|| {
-    let installed_plugins = crate::info::plugins::installed_plugins(
-      frontend_dir(),
-      tauri_path,
-      PackageManager::from_project(frontend_dir()),
-    );
-    let incompatible_plugins = installed_plugins.incompatible();
-    if !incompatible_plugins.is_empty() {
-      let incompatible_text = incompatible_plugins
-        .iter()
-        .map(|p| {
-          format!(
-            "{} (v{}) : {} (v{})",
-            p.crate_name, p.crate_version, p.npm_name, p.npm_version
-          )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-      log::warn!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{}", incompatible_text);
+    if let Err(error) = check_incompatible_packages(frontend_dir(), tauri_path) {
+      log::error!("{error}");
     }
   });
 

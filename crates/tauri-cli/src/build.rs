@@ -9,7 +9,7 @@ use crate::{
     app_paths::{frontend_dir, tauri_dir},
     config::{get as get_config, ConfigHandle, FrontendDist},
   },
-  info::plugins::check_incompatible_packages,
+  info::plugins::check_mismatched_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
   ConfigValue, Result,
 };
@@ -138,8 +138,8 @@ pub fn setup(
 ) -> Result<()> {
   let tauri_path = tauri_dir();
 
-  log::info!("Looking up installed plugins to check incompatible versions...");
-  if let Err(error) = check_incompatible_packages(frontend_dir(), tauri_path) {
+  log::info!("Looking up installed plugins to check mismatched versions...");
+  if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
     if options.ignore_version_mismatches {
       log::error!("{error}");
     } else {

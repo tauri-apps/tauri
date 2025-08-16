@@ -32,7 +32,7 @@ pub struct InstalledPlugin {
 pub struct InstalledPlugins(Vec<InstalledPlugin>);
 
 impl InstalledPlugins {
-  pub fn incompatible(&self) -> Vec<&InstalledPlugin> {
+  pub fn mismatched(&self) -> Vec<&InstalledPlugin> {
     self
       .0
       .iter()
@@ -43,7 +43,7 @@ impl InstalledPlugins {
   }
 }
 
-pub fn installed_plugins(
+pub fn installed_tauri_packages(
   frontend_dir: &Path,
   tauri_dir: &Path,
   package_manager: PackageManager,
@@ -162,17 +162,17 @@ pub fn items(
   items
 }
 
-pub fn check_incompatible_packages(frontend_dir: &Path, tauri_path: &Path) -> crate::Result<()> {
-  let installed_plugins = installed_plugins(
+pub fn check_mismatched_packages(frontend_dir: &Path, tauri_path: &Path) -> crate::Result<()> {
+  let installed_packages = installed_tauri_packages(
     frontend_dir,
     tauri_path,
     PackageManager::from_project(frontend_dir),
   );
-  let incompatible_plugins = installed_plugins.incompatible();
-  if incompatible_plugins.is_empty() {
+  let mismatched_packages = installed_packages.mismatched();
+  if mismatched_packages.is_empty() {
     return Ok(());
   }
-  let incompatible_text = incompatible_plugins
+  let mismatched_text = mismatched_packages
     .iter()
     .map(
       |InstalledPlugin {
@@ -184,5 +184,5 @@ pub fn check_incompatible_packages(frontend_dir: &Path, tauri_path: &Path) -> cr
     )
     .collect::<Vec<_>>()
     .join("\n");
-  Err(anyhow!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{incompatible_text}"))
+  Err(anyhow!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{mismatched_text}"))
 }

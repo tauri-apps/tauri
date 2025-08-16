@@ -21,7 +21,7 @@ use super::{packages_nodejs, packages_rust, SectionItem};
 use anyhow::anyhow;
 
 #[derive(Debug)]
-pub struct InstalledPlugin {
+pub struct InstalledPackage {
   pub crate_name: String,
   pub npm_name: String,
   pub crate_version: semver::Version,
@@ -29,10 +29,10 @@ pub struct InstalledPlugin {
 }
 
 #[derive(Debug)]
-pub struct InstalledPlugins(Vec<InstalledPlugin>);
+pub struct InstalledPackages(Vec<InstalledPackage>);
 
-impl InstalledPlugins {
-  pub fn mismatched(&self) -> Vec<&InstalledPlugin> {
+impl InstalledPackages {
+  pub fn mismatched(&self) -> Vec<&InstalledPackage> {
     self
       .0
       .iter()
@@ -47,7 +47,7 @@ pub fn installed_tauri_packages(
   frontend_dir: &Path,
   tauri_dir: &Path,
   package_manager: PackageManager,
-) -> InstalledPlugins {
+) -> InstalledPackages {
   let manifest: Option<CargoManifest> =
     if let Ok(manifest_contents) = fs::read_to_string(tauri_dir.join("Cargo.toml")) {
       toml::from_str(&manifest_contents).ok()
@@ -100,7 +100,7 @@ pub fn installed_tauri_packages(
     .filter_map(|(crate_name, npm_name)| {
       let (crate_name, crate_version) = rust_plugins.remove_entry(crate_name)?;
       let (npm_name, npm_version) = npm_plugins.remove_entry(npm_name)?;
-      Some(InstalledPlugin {
+      Some(InstalledPackage {
         npm_name,
         npm_version,
         crate_name,
@@ -109,7 +109,7 @@ pub fn installed_tauri_packages(
     })
     .collect();
 
-  InstalledPlugins(installed_plugins)
+  InstalledPackages(installed_plugins)
 }
 
 pub fn items(
@@ -175,7 +175,7 @@ pub fn check_mismatched_packages(frontend_dir: &Path, tauri_path: &Path) -> crat
   let mismatched_text = mismatched_packages
     .iter()
     .map(
-      |InstalledPlugin {
+      |InstalledPackage {
          crate_name,
          crate_version,
          npm_name,

@@ -635,6 +635,7 @@ mod tests {
   fn tray_event_json_serialization() {
     // NOTE: if this test is ever changed, you probably need to change `TrayIconEvent` in JS as well
 
+    use super::*;
     let event = TrayIconEvent::Click {
       button: MouseButton::Left,
       button_state: MouseButtonState::Down,

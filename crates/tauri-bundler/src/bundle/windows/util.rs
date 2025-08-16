@@ -8,7 +8,7 @@ use std::{
 };
 use ureq::ResponseExt;
 
-use crate::utils::http_utils::download;
+use crate::utils::http_utils::{base_ureq_agent, download};
 
 pub const WEBVIEW2_BOOTSTRAPPER_URL: &str = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
 pub const WEBVIEW2_OFFLINE_INSTALLER_X86_URL: &str =
@@ -23,10 +23,7 @@ pub const WIX_OUTPUT_FOLDER_NAME: &str = "msi";
 pub const WIX_UPDATER_OUTPUT_FOLDER_NAME: &str = "msi-updater";
 
 pub fn webview2_guid_path(url: &str) -> crate::Result<(String, String)> {
-  let agent: ureq::Agent = ureq::Agent::config_builder()
-    .proxy(ureq::Proxy::try_from_env())
-    .build()
-    .into();
+  let agent = base_ureq_agent();
   let response = agent.head(url).call().map_err(Box::new)?;
   let final_url = response.get_uri().to_string();
   let remaining_url = final_url.strip_prefix(WEBVIEW2_URL_PREFIX).ok_or_else(|| {
@@ -85,8 +82,7 @@ pub fn os_bitness<'a>() -> Option<&'a str> {
 }
 
 pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) -> crate::Result<()> {
-  let file_data = std::fs::read(binary_path)?;
-  let mut file_data = file_data; // make mutable
+  let mut file_data = std::fs::read(binary_path)?;
 
   let pe = match goblin::Object::parse(&file_data)? {
     goblin::Object::PE(pe) => pe,
@@ -132,6 +128,8 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) ->
     )
   })?;
 
+  // see "Relative virtual address (RVA)" for explanation of offset arithmetic here:
+  // https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#general-concepts
   let file_offset = rdata_section.pointer_to_raw_data as usize
     + (rva as usize).saturating_sub(rdata_section.virtual_address as usize);
 

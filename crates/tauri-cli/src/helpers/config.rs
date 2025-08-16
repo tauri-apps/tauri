@@ -1,4 +1,4 @@
-// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2025 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,7 +11,7 @@ pub use tauri_utils::{config::*, platform::Target};
 
 use std::{
   collections::HashMap,
-  env::{current_dir, set_current_dir, set_var, var_os},
+  env::{current_dir, set_current_dir, set_var},
   ffi::OsStr,
   process::exit,
   sync::{Arc, Mutex, OnceLock},
@@ -70,6 +70,10 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
     version: config.version,
     upgrade_code: config.upgrade_code,
+    fips_compliant: std::env::var("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
+      .ok()
+      .map(|v| v == "true")
+      .unwrap_or(config.fips_compliant),
     language: tauri_bundler::WixLanguage(match config.language {
       WixLanguage::One(lang) => vec![(lang, Default::default())],
       WixLanguage::List(languages) => languages
@@ -98,7 +102,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
-    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").is_some_and(|v| v == "true"),
   }
 }
 

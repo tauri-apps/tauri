@@ -114,7 +114,42 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
-    let mut proxy_builder = reqwest::ClientBuilder::new()
+    let mut client = reqwest::ClientBuilder::new();
+
+    if url.starts_with("https://") {
+      // we can't load env vars at runtime, gotta embed them in the lib
+      if let Some(cert_pem) = option_env!("TAURI_DEV_ROOT_CERTIFICATE") {
+        #[cfg(any(
+          feature = "native-tls",
+          feature = "native-tls-vendored",
+          feature = "rustls-tls"
+        ))]
+        {
+          log::info!("adding dev server root certificate");
+          client = client.add_root_certificate(
+            reqwest::Certificate::from_pem(cert_pem.as_bytes())
+              .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE"),
+          );
+        }
+
+        #[cfg(not(any(
+          feature = "native-tls",
+          feature = "native-tls-vendored",
+          feature = "rustls-tls"
+        )))]
+        {
+          log::warn!(
+            "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+          );
+        }
+      } else {
+        log::warn!(
+          "loading HTTPS URL; you might need to provide a certificate via the `dev --root-certificate-path` option. You must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+        );
+      }
+    }
+
+    let mut proxy_builder = client
       .build()
       .unwrap()
       .request(request.method().clone(), &url);

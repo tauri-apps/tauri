@@ -53,10 +53,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 json5 = "0.4"
 notify = "8"
-notify-debouncer-full = "0.5"
+notify-debouncer-full = "0.6"
 shared_child = "1"
 duct = "1.0"
-toml_edit = { version = "0.22", features = ["serde"] }
+toml_edit = { version = "0.23", features = ["serde"] }
 json-patch = "3"
 tauri-utils = { version = "2.6.0", path = "../tauri-utils", features = [
   "isolation",
@@ -65,8 +65,8 @@ tauri-utils = { version = "2.6.0", path = "../tauri-utils", features = [
   "config-toml",
   "html-manipulation",
 ] }
-toml = "0.8"
-jsonschema = "0.30"
+toml = "0.9"
+jsonschema = "0.32"
 handlebars = "6"
 include_dir = "0.7"
 minisign = "=0.7.3"
@@ -138,7 +138,7 @@ object = { version = "0.36", default-features = false, features = [
 ar = "0.9"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = [
   "tauri-bundler/native-tls",
   "cargo-mobile2/native-tls",
@@ -146,3 +146,4 @@ native-tls = [
 ]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
+platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]

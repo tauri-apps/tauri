@@ -526,7 +526,7 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn remove_plugin(&self, plugin: &'static str) -> bool {
+  pub fn remove_plugin(&self, plugin: &str) -> bool {
     self.manager().plugins.lock().unwrap().unregister(plugin)
   }
 
@@ -622,6 +622,17 @@ impl<R: Runtime> AppHandle<R> {
       .runtime_handle
       .set_dock_visibility(visible)
       .map_err(Into::into)
+  }
+
+  /// Change the device event filter mode.
+  ///
+  /// See [App::set_device_event_filter] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// See [App::set_device_event_filter] for details.
+  pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    self.runtime_handle.set_device_event_filter(filter);
   }
 }
 

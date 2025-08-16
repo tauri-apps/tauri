@@ -126,6 +126,7 @@ pub enum Error {
   /// Failed to create webview.
   #[error("failed to create webview: {0}")]
   CreateWebview(Box<dyn std::error::Error + Send + Sync>),
+  // TODO: Make it take an error like `CreateWebview` in v3
   /// Failed to create window.
   #[error("failed to create window")]
   CreateWindow,
@@ -297,7 +298,9 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   fn run_on_main_thread<F: FnOnce() + Send + 'static>(&self, f: F) -> Result<()>;
 
   /// Get a handle to the display controller of the windowing system.
-  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError>;
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError>;
 
   /// Returns the primary monitor of the system.
   ///
@@ -325,6 +328,15 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg(target_os = "macos")]
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
+
+  /// Change the device event filter mode.
+  ///
+  /// See [Runtime::set_device_event_filter] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// See [Runtime::set_device_event_filter] for details.
+  fn set_device_event_filter(&self, filter: DeviceEventFilter);
 
   /// Finds an Android class in the project scope.
   #[cfg(target_os = "android")]
@@ -840,6 +852,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
 
   /// Updates the window fullscreen state.
   fn set_fullscreen(&self, fullscreen: bool) -> Result<()>;
+
+  #[cfg(target_os = "macos")]
+  fn set_simple_fullscreen(&self, enable: bool) -> Result<()>;
 
   /// Bring the window to front and focus.
   fn set_focus(&self) -> Result<()>;

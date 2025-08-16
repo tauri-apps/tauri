@@ -690,7 +690,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "13.0".into()
+  "14.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -788,6 +788,10 @@ pub struct WixConfig {
   /// The required dimensions are 493px × 312px.
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
+  /// Enables FIPS compliant algorithms.
+  /// Can also be enabled via the `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` env var.
+  #[serde(default, alias = "fips-compliant")]
+  pub fips_compliant: bool,
 }
 
 /// Compression algorithms used in the NSIS installer.
@@ -1492,9 +1496,9 @@ impl schemars::JsonSchema for Color {
 pub enum BackgroundThrottlingPolicy {
   /// A policy where background throttling is disabled
   Disabled,
-  /// A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
+  /// A policy where a web view that's not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
   Suspend,
-  /// A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.
+  /// A policy where a web view that's not in a window limits processing, but does not fully suspend tasks.
   Throttle,
 }
 
@@ -2468,7 +2472,26 @@ pub struct SecurityConfig {
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
   ///
-  /// If the list is empty, all capabilities are included.
+  /// By default (not set or empty list), all capability files from `./capabilities/` are included,
+  /// by setting values in this entry, you have fine grained control over which capabilities are included
+  ///
+  /// You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]
+  ///
+  /// ### Example
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "capabilities": [
+  ///       "main-window",
+  ///       {
+  ///         "identifier": "drag-window",
+  ///         "permissions": ["core:window:allow-start-dragging"]
+  ///       }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
   /// The headers, which are added to every http response from tauri to the web view

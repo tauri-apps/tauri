@@ -35,7 +35,7 @@ tauri-utils = { version = "2.6.0", default-features = false, features = [
 ], path = "../tauri-utils" }
 serde_json = { version = "1", optional = true }
 glob = { version = "0.3", optional = true }
-toml = { version = "0.8", optional = true }
+toml = { version = "0.9", optional = true }
 # Our code requires at least 0.8.21 so don't simplify this to 0.8
 schemars = { version = "0.8.21", features = ["preserve_order"] }
 walkdir = { version = "2", optional = true }

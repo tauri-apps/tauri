@@ -24,7 +24,7 @@
 
 use super::{
   icon::create_icns_file,
-  sign::{notarize, notarize_auth, sign, NotarizeAuthError, SignTarget},
+  sign::{notarize, notarize_auth, notarize_without_stapling, sign, NotarizeAuthError, SignTarget},
 };
 use crate::{
   utils::{fs_utils, CommandExt},
@@ -121,7 +121,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     // notarization is required for distribution
     match notarize_auth() {
       Ok(auth) => {
-        notarize(&keychain, app_bundle_path.clone(), &auth)?;
+        if settings.macos().skip_stapling {
+          notarize_without_stapling(&keychain, app_bundle_path.clone(), &auth)?;
+        } else {
+          notarize(&keychain, app_bundle_path.clone(), &auth)?;
+        }
       }
       Err(e) => {
         if matches!(e, NotarizeAuthError::MissingTeamId) {

@@ -55,6 +55,7 @@ pub struct Options {
   pub args: Vec<String>,
   pub config: Vec<ConfigValue>,
   pub no_watch: bool,
+  pub skip_stapling: bool,
   pub additional_watch_folders: Vec<PathBuf>,
 }
 
@@ -68,6 +69,7 @@ impl From<crate::build::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: true,
+      skip_stapling: options.skip_stapling,
       additional_watch_folders: Vec::new(),
     }
   }
@@ -81,6 +83,7 @@ impl From<crate::bundle::Options> for Options {
       target: options.target,
       features: options.features,
       no_watch: true,
+      skip_stapling: options.skip_stapling,
       ..Default::default()
     }
   }
@@ -96,6 +99,7 @@ impl From<crate::dev::Options> for Options {
       args: options.args,
       config: options.config,
       no_watch: options.no_watch,
+      skip_stapling: false,
       additional_watch_folders: options.additional_watch_folders,
     }
   }
@@ -813,6 +817,7 @@ impl AppSettings for RustAppSettings {
 
   fn get_bundle_settings(
     &self,
+    options: &Options,
     config: &Config,
     features: &[String],
   ) -> crate::Result<BundleSettings> {
@@ -850,6 +855,8 @@ impl AppSettings for RustAppSettings {
       updater_settings,
       arch64bits,
     )?;
+
+    settings.macos.skip_stapling = options.skip_stapling;
 
     if let Some(plugin_config) = config
       .plugins
@@ -1183,7 +1190,7 @@ pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
     std::env::current_dir()?.join(target)
   } else {
     get_cargo_metadata()
-      .with_context(|| "failed to get cargo metadata")?
+      .with_context(|| "failed to run 'cargo metadata' command to get target directory")?
       .target_directory
   };
 
@@ -1221,7 +1228,7 @@ fn get_cargo_option<'a>(args: &'a [String], option: &'a str) -> Option<&'a str> 
 pub fn get_workspace_dir() -> crate::Result<PathBuf> {
   Ok(
     get_cargo_metadata()
-      .context("failed to get cargo metadata")?
+      .context("failed to run 'cargo metadata' command to get workspace directory")?
       .workspace_root,
   )
 }
@@ -1466,6 +1473,7 @@ fn tauri_config_to_bundle_settings(
       minimum_system_version: config.macos.minimum_system_version,
       exception_domain: config.macos.exception_domain,
       signing_identity,
+      skip_stapling: false,
       hardened_runtime: config.macos.hardened_runtime,
       provider_short_name,
       entitlements: config.macos.entitlements,

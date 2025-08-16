@@ -88,7 +88,7 @@
         },
         "createUpdaterArtifacts": false,
         "iOS": {
-          "minimumSystemVersion": "13.0"
+          "minimumSystemVersion": "14.0"
         },
         "icon": [],
         "linux": {
@@ -1071,14 +1071,14 @@
           ]
         },
         {
-          "description": "A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.",
+          "description": "A policy where a web view that's not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.",
           "type": "string",
           "enum": [
             "suspend"
           ]
         },
         {
-          "description": "A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.",
+          "description": "A policy where a web view that's not in a window limits processing, but does not fully suspend tasks.",
           "type": "string",
           "enum": [
             "throttle"
@@ -1150,7 +1150,7 @@
           ]
         },
         "capabilities": {
-          "description": "List of capabilities that are enabled on the application.\n\n If the list is empty, all capabilities are included.",
+          "description": "List of capabilities that are enabled on the application.\n\n By default (not set or empty list), all capability files from `./capabilities/` are included,\n by setting values in this entry, you have fine grained control over which capabilities are included\n\n You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]\n\n ### Example\n\n ```json\n {\n   \"app\": {\n     \"capabilities\": [\n       \"main-window\",\n       {\n         \"identifier\": \"drag-window\",\n         \"permissions\": [\"core:window:allow-start-dragging\"]\n       }\n     ]\n   }\n }\n ```",
           "default": [],
           "type": "array",
           "items": {
@@ -2217,7 +2217,7 @@
         "iOS": {
           "description": "iOS configuration.",
           "default": {
-            "minimumSystemVersion": "13.0"
+            "minimumSystemVersion": "14.0"
           },
           "allOf": [
             {
@@ -2787,6 +2787,11 @@
             "string",
             "null"
           ]
+        },
+        "fipsCompliant": {
+          "description": "Enables FIPS compliant algorithms.\n Can also be enabled via the `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` env var.",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -3682,7 +3687,7 @@
         },
         "minimumSystemVersion": {
           "description": "A version string indicating the minimum iOS version that the bundled application supports. Defaults to `13.0`.\n\n Maps to the IPHONEOS_DEPLOYMENT_TARGET value.",
-          "default": "13.0",
+          "default": "14.0",
           "type": "string"
         }
       },

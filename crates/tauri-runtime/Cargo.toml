@@ -41,8 +41,12 @@ cookie = "0.18"
 version = "0.61"
 features = ["Win32_Foundation", "Win32_System_WinRT"]
 
+[target."cfg(windows)".dependencies]
+webview2-com = "0.38"
+
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
+webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
@@ -56,6 +60,8 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 
 [target."cfg(target_os = \"macos\")".dependencies]
 url = "2"
+objc2 = "0.6"
+objc2-web-kit = { version = "0.3", features = ["objc2-app-kit", "WKWebView"] }
 
 [features]
 devtools = []

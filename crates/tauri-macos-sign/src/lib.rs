@@ -57,7 +57,8 @@ pub enum AppleNotarizationCredentials {
 #[derive(Deserialize)]
 struct NotarytoolSubmitOutput {
   id: String,
-  status: String,
+  #[serde(default)]
+  status: Option<String>,
   message: String,
 }
 
@@ -65,6 +66,23 @@ pub fn notarize(
   keychain: &Keychain,
   app_bundle_path: &Path,
   auth: &AppleNotarizationCredentials,
+) -> Result<()> {
+  notarize_inner(keychain, app_bundle_path, auth, true)
+}
+
+pub fn notarize_without_stapling(
+  keychain: &Keychain,
+  app_bundle_path: &Path,
+  auth: &AppleNotarizationCredentials,
+) -> Result<()> {
+  notarize_inner(keychain, app_bundle_path, auth, false)
+}
+
+fn notarize_inner(
+  keychain: &Keychain,
+  app_bundle_path: &Path,
+  auth: &AppleNotarizationCredentials,
+  wait: bool,
 ) -> Result<()> {
   let bundle_stem = app_bundle_path
     .file_stem()
@@ -97,16 +115,19 @@ pub fn notarize(
   // sign the zip file
   keychain.sign(&zip_path, None, false)?;
 
-  let notarize_args = vec![
+  let mut notarize_args = vec![
     "notarytool",
     "submit",
     zip_path
       .to_str()
       .expect("failed to convert zip_path to string"),
-    "--wait",
     "--output-format",
     "json",
   ];
+  if wait {
+    notarize_args.push("--wait");
+  }
+  let notarize_args = notarize_args;
 
   println!("Notarizing {}", app_bundle_path.display());
 
@@ -126,12 +147,28 @@ pub fn notarize(
   let output_str = String::from_utf8_lossy(&output.stdout);
   if let Ok(submit_output) = serde_json::from_str::<NotarytoolSubmitOutput>(&output_str) {
     let log_message = format!(
-      "Finished with status {} for id {} ({})",
-      submit_output.status, submit_output.id, submit_output.message
+      "{} with status {} for id {} ({})",
+      if wait { "Finished" } else { "Submitted" },
+      submit_output.status.as_deref().unwrap_or("Pending"),
+      submit_output.id,
+      submit_output.message
     );
-    if submit_output.status == "Accepted" {
+    // status is empty when not waiting for the notarization to finish
+    if submit_output.status.map_or(!wait, |s| s == "Accepted") {
       println!("Notarizing {log_message}");
-      staple_app(app_bundle_path.to_path_buf())?;
+
+      if wait {
+        println!("Stapling app...");
+        staple_app(app_bundle_path.to_path_buf())?;
+      } else {
+        println!("Not waiting for notarization to finish.");
+        println!("You can use `xcrun notarytool log` to check the notarization progress.");
+        println!(
+          "When it's done you can optionally staple your app via `xcrun stapler staple {}`",
+          app_bundle_path.display()
+        );
+      }
+
       Ok(())
     } else if let Ok(output) = Command::new("xcrun")
       .args(["notarytool", "log"])

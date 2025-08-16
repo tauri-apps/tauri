@@ -22,7 +22,7 @@
     "pretest": "pnpm build"
   },
   "dependencies": {
-    "@tauri-apps/api": ">=2.0.0-beta.6"
+    "@tauri-apps/api": "^2.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-typescript": "^12.0.0",

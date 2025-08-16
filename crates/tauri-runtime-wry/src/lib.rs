@@ -14,6 +14,8 @@
 
 use self::monitor::MonitorExt;
 use http::Request;
+#[cfg(target_os = "macos")]
+use objc2::ClassType;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
 use tauri_runtime::{
@@ -43,6 +45,8 @@ use webview2_com::{ContainsFullScreenElementChangedEventHandler, FocusChangedEve
 use windows::Win32::Foundation::HWND;
 #[cfg(target_os = "ios")]
 use wry::WebViewBuilderExtIos;
+#[cfg(target_os = "macos")]
+use wry::WebViewBuilderExtMacos;
 #[cfg(windows)]
 use wry::WebViewBuilderExtWindows;
 #[cfg(target_vendor = "apple")]
@@ -173,7 +177,7 @@ impl WindowIdStore {
     self.0.lock().unwrap().insert(w, id);
   }
 
-  fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
+  pub fn get(&self, w: &TaoWindowId) -> Option<WindowId> {
     self.0.lock().unwrap().get(w).copied()
   }
 }
@@ -412,7 +416,7 @@ pub enum ActiveTracingSpan {
 }
 
 #[derive(Debug)]
-pub struct WindowsStore(RefCell<BTreeMap<WindowId, WindowWrapper>>);
+pub struct WindowsStore(pub RefCell<BTreeMap<WindowId, WindowWrapper>>);
 
 // SAFETY: we ensure this type is only used on the main thread.
 #[allow(clippy::non_send_fields_in_send_ty)]
@@ -1348,6 +1352,8 @@ pub enum WindowMessage {
   SetSizeConstraints(WindowSizeConstraints),
   SetPosition(Position),
   SetFullscreen(bool),
+  #[cfg(target_os = "macos")]
+  SetSimpleFullscreen(bool),
   SetFocus,
   SetIcon(TaoWindowIcon),
   SetSkipTaskbar(bool),
@@ -1430,6 +1436,7 @@ pub enum WebviewMessage {
 pub enum EventLoopWindowTargetMessage {
   CursorPosition(Sender<Result<PhysicalPosition<f64>>>),
   SetTheme(Option<Theme>),
+  SetDeviceEventFilter(DeviceEventFilter),
 }
 
 pub type CreateWindowClosure<T> =
@@ -1684,32 +1691,24 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
   }
 
   fn set_cookie(&self, cookie: &Cookie<'_>) -> Result<()> {
-    // TODO, FIXME: Because [Message] requires `T: 'static`,
-    // we currently need to clone the cookie.
-    let cookie = cookie.clone().into_owned();
-    let current_window_id = self.window_id.lock().unwrap();
     send_user_message(
       &self.context,
       Message::Webview(
-        *current_window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
-        WebviewMessage::SetCookie(cookie),
+        WebviewMessage::SetCookie(cookie.clone().into_owned()),
       ),
     )?;
     Ok(())
   }
 
   fn delete_cookie(&self, cookie: &Cookie<'_>) -> Result<()> {
-    // TODO, FIXME: Because [Message] requires `T: 'static`,
-    // we currently need to clone the cookie.
-    let cookie = cookie.clone().into_owned();
-    let current_window_id = self.window_id.lock().unwrap();
     send_user_message(
       &self.context,
       Message::Webview(
-        *current_window_id,
+        *self.window_id.lock().unwrap(),
         self.webview_id,
-        WebviewMessage::DeleteCookie(cookie),
+        WebviewMessage::DeleteCookie(cookie.clone().into_owned()),
       ),
     )?;
     Ok(())
@@ -2224,6 +2223,14 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     )
   }
 
+  #[cfg(target_os = "macos")]
+  fn set_simple_fullscreen(&self, enable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetSimpleFullscreen(enable)),
+    )
+  }
+
   fn set_focus(&self) -> Result<()> {
     send_user_message(
       &self.context,
@@ -2422,6 +2429,12 @@ pub struct WindowWrapper {
   focused_webview: Arc<Mutex<Option<String>>>,
 }
 
+impl WindowWrapper {
+  pub fn label(&self) -> &str {
+    &self.label
+  }
+}
+
 impl fmt::Debug for WindowWrapper {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     f.debug_struct("WindowWrapper")
@@ -2591,7 +2604,9 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
     send_user_message(&self.context, Message::Task(Box::new(f)))
   }
 
-  fn display_handle(&self) -> std::result::Result<DisplayHandle, raw_window_handle::HandleError> {
+  fn display_handle(
+    &self,
+  ) -> std::result::Result<DisplayHandle<'_>, raw_window_handle::HandleError> {
     self.context.main_thread.window_target.display_handle()
   }
 
@@ -2651,6 +2666,13 @@ impl<T: UserEvent> RuntimeHandle<T> for WryHandle<T> {
       &self.context,
       Message::Application(ApplicationMessage::Hide),
     )
+  }
+
+  fn set_device_event_filter(&self, filter: DeviceEventFilter) {
+    let _ = send_user_message(
+      &self.context,
+      Message::EventLoopWindowTarget(EventLoopWindowTargetMessage::SetDeviceEventFilter(filter)),
+    );
   }
 
   #[cfg(target_os = "android")]
@@ -3348,6 +3370,12 @@ fn handle_user_message<T: UserEvent>(
               window.set_fullscreen(None)
             }
           }
+
+          #[cfg(target_os = "macos")]
+          WindowMessage::SetSimpleFullscreen(enable) => {
+            window.set_simple_fullscreen(enable);
+          }
+
           WindowMessage::SetFocus => {
             window.set_focus();
           }
@@ -3547,14 +3575,14 @@ fn handle_user_message<T: UserEvent>(
           WebviewMessage::EvaluateScript(script, tx, span) => {
             let _span = span.entered();
             if let Err(e) = webview.evaluate_script(&script) {
-              log::error!("{}", e);
+              log::error!("{e}");
             }
             tx.send(()).unwrap();
           }
           #[cfg(not(all(feature = "tracing", not(target_os = "android"))))]
           WebviewMessage::EvaluateScript(script) => {
             if let Err(e) = webview.evaluate_script(&script) {
-              log::error!("{}", e);
+              log::error!("{e}");
             }
           }
           WebviewMessage::Navigate(url) => {
@@ -3799,6 +3827,7 @@ fn handle_user_message<T: UserEvent>(
             {
               f(Webview {
                 controller: webview.controller(),
+                environment: webview.environment(),
               });
             }
             #[cfg(target_os = "android")]
@@ -3838,17 +3867,21 @@ fn handle_user_message<T: UserEvent>(
             });
           }
           Err(e) => {
-            log::error!("{}", e);
+            log::error!("{e}");
           }
         }
       }
     }
     Message::CreateWindow(window_id, handler) => match handler(event_loop) {
-      Ok(webview) => {
-        windows.0.borrow_mut().insert(window_id, webview);
-      }
+      // wait for borrow_mut to be available - on Windows we might poll for the window to be inserted
+      Ok(webview) => loop {
+        if let Ok(mut windows) = windows.0.try_borrow_mut() {
+          windows.insert(window_id, webview);
+          break;
+        }
+      },
       Err(e) => {
-        log::error!("{}", e);
+        log::error!("{e}");
       }
     },
     Message::CreateRawWindow(window_id, handler, sender) => {
@@ -3913,6 +3946,9 @@ fn handle_user_message<T: UserEvent>(
       }
       EventLoopWindowTargetMessage::SetTheme(theme) => {
         event_loop.set_theme(to_tao_theme(theme));
+      }
+      EventLoopWindowTargetMessage::SetDeviceEventFilter(filter) => {
+        event_loop.set_device_event_filter(DeviceEventFilterWrapper::from(filter).0);
       }
     },
   }
@@ -4341,7 +4377,10 @@ fn create_window<T: UserEvent, F: Fn(RawWindow) + Send + 'static>(
     }
   };
 
-  let window = window_builder.inner.build(event_loop).unwrap();
+  let window = window_builder
+    .inner
+    .build(event_loop)
+    .map_err(|_| Error::CreateWindow)?;
 
   #[cfg(feature = "tracing")]
   {
@@ -4529,6 +4568,11 @@ You may have it installed on another user account, but it is not available for t
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
 
+  #[cfg(target_os = "macos")]
+  if let Some(webview_configuration) = webview_attributes.webview_configuration {
+    webview_builder = webview_builder.with_webview_configuration(webview_configuration);
+  }
+
   #[cfg(any(target_os = "windows", target_os = "android"))]
   {
     webview_builder = webview_builder.with_https_scheme(webview_attributes.use_https_scheme);
@@ -4600,6 +4644,75 @@ You may have it installed on another user account, but it is not available for t
         .map(|url| navigation_handler(&url))
         .unwrap_or(true)
     });
+  }
+
+  if let Some(new_window_handler) = pending.new_window_handler {
+    #[cfg(desktop)]
+    let context = context.clone();
+    webview_builder = webview_builder.with_new_window_req_handler(move |url, features| {
+      url
+        .parse()
+        .map(|url| {
+          let response = new_window_handler(
+            url,
+            tauri_runtime::webview::NewWindowFeatures::new(
+              features.size,
+              features.position,
+              tauri_runtime::webview::NewWindowOpener {
+                #[cfg(desktop)]
+                webview: features.opener.webview,
+                #[cfg(windows)]
+                environment: features.opener.environment,
+                #[cfg(target_os = "macos")]
+                target_configuration: features.opener.target_configuration,
+              },
+            ),
+          );
+          match response {
+            tauri_runtime::webview::NewWindowResponse::Allow => wry::NewWindowResponse::Allow,
+            #[cfg(desktop)]
+            tauri_runtime::webview::NewWindowResponse::Create { window_id } => {
+              let windows = &context.main_thread.windows.0;
+              let webview = loop {
+                if let Some(webview) = windows.try_borrow().ok().and_then(|windows| {
+                  windows
+                    .get(&window_id)
+                    .map(|window| window.webviews.first().unwrap().clone())
+                }) {
+                  break webview;
+                } else {
+                  // on Windows the window is created async so we should wait for it to be available
+                  std::thread::sleep(std::time::Duration::from_millis(50));
+                  continue;
+                };
+              };
+
+              #[cfg(desktop)]
+              wry::NewWindowResponse::Create {
+                #[cfg(target_os = "macos")]
+                webview: wry::WebViewExtMacOS::webview(&*webview).as_super().into(),
+                #[cfg(any(
+                  target_os = "linux",
+                  target_os = "dragonfly",
+                  target_os = "freebsd",
+                  target_os = "netbsd",
+                  target_os = "openbsd",
+                ))]
+                webview: webview.webview(),
+                #[cfg(windows)]
+                webview: webview.webview(),
+              }
+            }
+            tauri_runtime::webview::NewWindowResponse::Deny => wry::NewWindowResponse::Deny,
+          }
+        })
+        .unwrap_or(wry::NewWindowResponse::Deny)
+    });
+  }
+
+  if let Some(document_title_changed_handler) = pending.document_title_changed_handler {
+    webview_builder =
+      webview_builder.with_document_title_changed_handler(document_title_changed_handler)
   }
 
   let webview_bounds = if let Some(bounds) = webview_attributes.bounds {
@@ -4691,6 +4804,10 @@ You may have it installed on another user account, but it is not available for t
       webview_builder = webview_builder.with_additional_browser_args(&additional_browser_args);
     }
 
+    if let Some(environment) = webview_attributes.environment {
+      webview_builder = webview_builder.with_environment(environment);
+    }
+
     webview_builder = webview_builder.with_theme(match window.theme() {
       TaoTheme::Dark => wry::Theme::Dark,
       TaoTheme::Light => wry::Theme::Light,
@@ -4715,6 +4832,19 @@ You may have it installed on another user account, but it is not available for t
   {
     if let Some(path) = &webview_attributes.extensions_path {
       webview_builder = webview_builder.with_extensions_path(path);
+    }
+  }
+
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd"
+  ))]
+  {
+    if let Some(related_view) = webview_attributes.related_view {
+      webview_builder = webview_builder.with_related_view(related_view);
     }
   }
 

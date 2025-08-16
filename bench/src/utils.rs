@@ -96,8 +96,8 @@ pub fn run_collect(cmd: &[&str]) -> (String, String) {
   let stdout = String::from_utf8_lossy(&stdout).to_string();
   let stderr = String::from_utf8_lossy(&stderr).to_string();
   if !status.success() {
-    eprintln!("stdout: <<<{}>>>", stdout);
-    eprintln!("stderr: <<<{}>>>", stderr);
+    eprintln!("stdout: <<<{stdout}>>>");
+    eprintln!("stderr: <<<{stderr}>>>");
     panic!("Unexpected exit code: {:?}", status.code());
   }
   (stdout, stderr)
@@ -230,7 +230,7 @@ pub fn download_file(url: &str, filename: PathBuf) {
 
   // Downloading with curl this saves us from adding
   // a Rust HTTP client dependency.
-  println!("Downloading {}", url);
+  println!("Downloading {url}");
   let status = Command::new("curl")
     .arg("-L")
     .arg("-s")

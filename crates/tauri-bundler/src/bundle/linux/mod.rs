@@ -7,3 +7,8 @@ pub mod appimage;
 pub mod debian;
 pub mod freedesktop;
 pub mod rpm;
+
+mod util;
+
+#[cfg(target_os = "linux")]
+pub use util::patch_binary;

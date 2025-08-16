@@ -30,7 +30,7 @@ use cargo_mobile2::{
   opts::{NoiseLevel, Profile},
   target::{call_for_targets_with_fallback, TargetInvalid, TargetTrait},
 };
-use rand::distributions::{Alphanumeric, DistString};
+use rand::distr::{Alphanumeric, SampleString};
 
 use std::{
   env::{set_current_dir, var, var_os},
@@ -83,6 +83,11 @@ pub struct Options {
   /// Use this to create a package ready for the App Store (app-store-connect option) or TestFlight (release-testing option).
   #[clap(long, value_enum)]
   pub export_method: Option<ExportMethod>,
+  /// Command line arguments passed to the runner.
+  /// Use `--` to explicitly mark the start of the arguments.
+  /// e.g. `tauri ios build -- [runnerArgs]`.
+  #[clap(last(true))]
+  pub args: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -125,8 +130,9 @@ impl From<Options> for BuildOptions {
       bundles: None,
       no_bundle: false,
       config: options.config,
-      args: Vec::new(),
+      args: options.args,
       ci: options.ci,
+      skip_stapling: false,
     }
   }
 }
@@ -282,6 +288,7 @@ fn run_build(
   let out_dir = app_settings.out_dir(&InterfaceOptions {
     debug: build_options.debug,
     target: build_options.target.clone(),
+    args: build_options.args.clone(),
     ..Default::default()
   })?;
   let _lock = flock::open_rw(out_dir.join("lock").with_extension("ios"), "iOS")?;
@@ -361,7 +368,7 @@ fn run_build(
         // we must force sign the app binary with a dummy certificate just to preserve the entitlements
         // target.export() will sign it with an actual certificate for us
         if skip_signing {
-          let password = Alphanumeric.sample_string(&mut rand::thread_rng(), 16);
+          let password = Alphanumeric.sample_string(&mut rand::rng(), 16);
           let certificate = tauri_macos_sign::certificate::generate_self_signed(
             tauri_macos_sign::certificate::SelfSignedCertificateRequest {
               algorithm: "rsa".to_string(),

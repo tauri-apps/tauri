@@ -98,7 +98,7 @@ pub fn command(options: Options) -> Result<()> {
         PermissionEntry::PermissionRef(
           p.clone()
             .try_into()
-            .unwrap_or_else(|_| panic!("invalid permission {}", p)),
+            .unwrap_or_else(|_| panic!("invalid permission {p}")),
         )
       })
       .collect(),

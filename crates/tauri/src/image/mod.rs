@@ -12,11 +12,35 @@ use std::sync::Arc;
 use crate::{Resource, ResourceId, ResourceTable};
 
 /// An RGBA Image in row-major order from top to bottom.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Image<'a> {
   rgba: Cow<'a, [u8]>,
   width: u32,
   height: u32,
+}
+
+impl std::fmt::Debug for Image<'_> {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    f.debug_struct("Image")
+      .field(
+        "rgba",
+        // Reduces the debug size compared to the derived default, as the default
+        // would format the raw bytes as numbers `[0, 0, 0, 0]` for 1 pixel.
+        // The custom format doesn't grow as much with larger images:
+        // `Image { rgba: Cow::Borrowed([u8; 4096]), width: 32, height: 32 }`
+        &format_args!(
+          "Cow::{}([u8; {}])",
+          match &self.rgba {
+            Cow::Borrowed(_) => "Borrowed",
+            Cow::Owned(_) => "Owned",
+          },
+          self.rgba.len()
+        ),
+      )
+      .field("width", &self.width)
+      .field("height", &self.height)
+      .finish()
+  }
 }
 
 impl Resource for Image<'static> {}

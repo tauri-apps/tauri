@@ -15,6 +15,32 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+/// Patch a binary with bundle type information
+fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
+  match package_type {
+    #[cfg(target_os = "linux")]
+    PackageType::AppImage | PackageType::Deb | PackageType::Rpm => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      linux::patch_binary(binary, package_type)?;
+    }
+    PackageType::Nsis | PackageType::WindowsMsi => {
+      log::info!(
+        "Patching binary {:?} for type {}",
+        binary,
+        package_type.short_name()
+      );
+      windows::patch_binary(binary, package_type)?;
+    }
+    _ => (),
+  }
+
+  Ok(())
+}
+
 pub use self::{
   category::AppCategory,
   settings::{
@@ -27,7 +53,11 @@ pub use self::{
 use anyhow::Context;
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
-use std::{fmt::Write, path::PathBuf};
+use std::{
+  fmt::Write,
+  io::{Seek, SeekFrom},
+  path::PathBuf,
+};
 
 /// Generated bundle metadata.
 #[derive(Debug)]
@@ -58,6 +88,10 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   if matches!(target_os, TargetPlatform::Windows) {
     if settings.can_sign() {
       for bin in settings.binaries() {
+        if bin.main() {
+          // we will sign the main binary after patching per "package type"
+          continue;
+        }
         let bin_path = settings.binary_path(bin);
         windows::sign::try_sign(&bin_path, settings)?;
       }
@@ -87,11 +121,51 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
   }
 
+  let main_binary = settings
+    .binaries()
+    .iter()
+    .find(|b| b.main())
+    .expect("Main binary missing in settings");
+  let main_binary_path = settings.binary_path(main_binary);
+
+  // When packaging multiple binary types, we make a copy of the unsigned main_binary so that we can
+  // restore it after each package_type step. This avoids two issues:
+  //  - modifying a signed binary without updating its PE checksum can break signature verification
+  //    - codesigning tools should handle calculating+updating this, we just need to ensure
+  //      (re)signing is performed after every `patch_binary()` operation
+  //  - signing an already-signed binary can result in multiple signatures, causing verification errors
+  let main_binary_reset_required =
+    matches!(target_os, TargetPlatform::Windows) && settings.can_sign() && package_types.len() > 1;
+  let mut unsigned_main_binary_copy = tempfile::tempfile()?;
+  if main_binary_reset_required {
+    let mut unsigned_main_binary = std::fs::File::open(&main_binary_path)?;
+    std::io::copy(&mut unsigned_main_binary, &mut unsigned_main_binary_copy)?;
+  }
+
+  let mut main_binary_signed = false;
   let mut bundles = Vec::<Bundle>::new();
   for package_type in &package_types {
     // bundle was already built! e.g. DMG already built .app
     if bundles.iter().any(|b| b.package_type == *package_type) {
       continue;
+    }
+
+    if let Err(e) = patch_binary(&main_binary_path, package_type) {
+      log::warn!("Failed to add bundler type to the binary: {e}. Updater plugin may not be able to update this package. This shouldn't normally happen, please report it to https://github.com/tauri-apps/tauri/issues");
+    }
+
+    // sign main binary for every package type after patch
+    if matches!(target_os, TargetPlatform::Windows) && settings.can_sign() {
+      if main_binary_signed && main_binary_reset_required {
+        let mut signed_main_binary = std::fs::OpenOptions::new()
+          .write(true)
+          .truncate(true)
+          .open(&main_binary_path)?;
+        unsigned_main_binary_copy.seek(SeekFrom::Start(0))?;
+        std::io::copy(&mut unsigned_main_binary_copy, &mut signed_main_binary)?;
+      }
+      windows::sign::try_sign(&main_binary_path, settings)?;
+      main_binary_signed = true;
     }
 
     let bundle_paths = match package_type {
@@ -114,6 +188,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
 
       #[cfg(target_os = "windows")]
       PackageType::WindowsMsi => windows::msi::bundle_project(settings, false)?,
+      // note: don't restrict to windows as NSIS installers can be built in linux using cargo-xwin
       PackageType::Nsis => windows::nsis::bundle_project(settings, false)?,
 
       #[cfg(target_os = "linux")]

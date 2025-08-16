@@ -52,7 +52,7 @@ fn main() {
       .expect("Something wrong with tauri_data"),
     &serde_json::to_value(all_data).expect("Unable to build final json (all)"),
   )
-  .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_data));
+  .unwrap_or_else(|_| panic!("Unable to write {tauri_data:?}"));
 
   utils::write_json(
     tauri_recent
@@ -60,5 +60,5 @@ fn main() {
       .expect("Something wrong with tauri_recent"),
     &serde_json::to_value(recent).expect("Unable to build final json (recent)"),
   )
-  .unwrap_or_else(|_| panic!("Unable to write {:?}", tauri_recent));
+  .unwrap_or_else(|_| panic!("Unable to write {tauri_recent:?}"));
 }

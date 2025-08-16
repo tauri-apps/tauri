@@ -71,5 +71,3 @@ opt-level = "s"
 schemars_derive = { git = 'https://github.com/tauri-apps/schemars.git', branch = 'feat/preserve-description-newlines' }
 tauri = { path = "./crates/tauri" }
 tauri-plugin = { path = "./crates/tauri-plugin" }
-
-wry = { git = "https://github.com/WSH032/wry.git", branch = "feat/set-cookies" }

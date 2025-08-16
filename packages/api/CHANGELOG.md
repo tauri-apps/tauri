@@ -1,5 +1,36 @@
 # Changelog
 
+## \[2.7.0]
+
+### New Features
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Added `getBundleType` to the app module.
+
+### Enhancements
+
+- [`96391467e`](https://www.github.com/tauri-apps/tauri/commit/96391467e967c1e3c6475ce75166c58a326116a3) ([#13783](https://www.github.com/tauri-apps/tauri/pull/13783) by [@JosephBrooksbank](https://www.github.com/tauri-apps/tauri/../../JosephBrooksbank)) Allow events emitted with `emit` to be handled correctly by `listen` callbacks when in a mocked environment
+
+### Bug Fixes
+
+- [`152d971bc`](https://www.github.com/tauri-apps/tauri/commit/152d971bcd6c1fdc5716f7d5417dd4df5ce7479f) ([#13744](https://www.github.com/tauri-apps/tauri/pull/13744) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Expose `unregisterCallback`, `runCallback`, `callbacks` in `mockIPC`
+- [`b821796ad`](https://www.github.com/tauri-apps/tauri/commit/b821796add33cca4de72f48882684af487936d02) ([#13810](https://www.github.com/tauri-apps/tauri/pull/13810) by [@asdolo](https://www.github.com/tauri-apps/tauri/../../asdolo)) Add missing `trafficLightPosition` TypeScript type definition
+
+## \[2.6.0]
+
+### New Features
+
+- [`50ebddaa2`](https://www.github.com/tauri-apps/tauri/commit/50ebddaa2d83033a393a176ba07ef28352b98210) ([#13319](https://www.github.com/tauri-apps/tauri/pull/13319) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Expose the `setAutoResize` API for webviews in `@tauri-apps/api`.
+- [`267368fd4`](https://www.github.com/tauri-apps/tauri/commit/267368fd4f83e0a71dfb1b72a66d56592a2066bc) ([#13276](https://www.github.com/tauri-apps/tauri/pull/13276) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Add `Monitor.workArea` field.
+
+### Bug Fixes
+
+- [`23b9da75b`](https://www.github.com/tauri-apps/tauri/commit/23b9da75b91379cca9520bc53b10fdf39ebae241) ([#13324](https://www.github.com/tauri-apps/tauri/pull/13324) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) Fixed path joining behavior where `path.join('', 'a')` incorrectly returns "/a" instead of "a".
+- [`b985eaf0a`](https://www.github.com/tauri-apps/tauri/commit/b985eaf0a231ea570e36d686c665cddbc76ab4f6) ([#13306](https://www.github.com/tauri-apps/tauri/pull/13306) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Immediately unregister event listener when the unlisten function is called.
+
+### What's Changed
+
+- [`b5c549d18`](https://www.github.com/tauri-apps/tauri/commit/b5c549d1898ecdb712822c02dc665cc6771fbd07) ([#13325](https://www.github.com/tauri-apps/tauri/pull/13325) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) `transformCallback` now registers the callbacks inside `window.__TAURI_INTERNALS__.callbacks` instead of directly on `window['_{id}']`
+
 ## \[2.5.0]
 
 ### New Features

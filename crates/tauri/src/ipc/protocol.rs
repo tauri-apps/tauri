@@ -658,7 +658,7 @@ mod tests {
     };
 
     let mut nonce = [0u8; 12];
-    getrandom::getrandom(&mut nonce).unwrap();
+    getrandom::fill(&mut nonce).unwrap();
 
     let body_raw = vec![1, 41, 65, 12, 78];
     let body_bytes = crypto_keys.aes_gcm().encrypt(&nonce, &body_raw).unwrap();

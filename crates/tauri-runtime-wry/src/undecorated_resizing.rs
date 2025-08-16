@@ -249,7 +249,7 @@ mod windows {
         data.has_undecorated_shadows = wparam.0 != 0;
       }
 
-      WM_DESTROY => {
+      WM_NCDESTROY => {
         let data = data as *mut UndecoratedResizingData;
         drop(Box::from_raw(data));
       }
@@ -388,7 +388,7 @@ mod windows {
         data.has_undecorated_shadows = wparam.0 != 0;
       }
 
-      WM_DESTROY => {
+      WM_NCDESTROY => {
         let data = GetWindowLongPtrW(child, GWLP_USERDATA);
         let data = data as *mut UndecoratedResizingData;
         drop(Box::from_raw(data));

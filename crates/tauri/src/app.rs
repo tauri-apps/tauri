@@ -526,7 +526,7 @@ impl<R: Runtime> AppHandle<R> {
   ///     Ok(())
   ///   });
   /// ```
-  pub fn remove_plugin(&self, plugin: &'static str) -> bool {
+  pub fn remove_plugin(&self, plugin: &str) -> bool {
     self.manager().plugins.lock().unwrap().unregister(plugin)
   }
 

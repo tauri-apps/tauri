@@ -52,6 +52,7 @@
     "core:window:allow-set-max-size",
     "core:window:allow-set-position",
     "core:window:allow-set-fullscreen",
+    "core:window:allow-set-simple-fullscreen",
     "core:window:allow-set-focus",
     "core:window:allow-set-skip-taskbar",
     "core:window:allow-set-cursor-grab",

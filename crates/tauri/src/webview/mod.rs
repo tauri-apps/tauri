@@ -1121,7 +1121,7 @@ impl<R: Runtime> Webview<R> {
     self.use_https_scheme
   }
 
-  /// Registers a window event listener.
+  /// Registers a webview event listener.
   pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
     self
       .webview

@@ -34,7 +34,7 @@ use crate::{
   ipc::{CommandArg, CommandItem, InvokeError, OwnedInvokeResponder},
   manager::AppManager,
   sealed::{ManagerBase, RuntimeOrDispatch},
-  webview::{Cookie, PageLoadPayload, WebviewBuilder},
+  webview::{Cookie, PageLoadPayload, WebviewBuilder, WebviewEvent},
   window::WindowBuilder,
   AppHandle, Event, EventId, Manager, Runtime, Webview, WindowEvent,
 };
@@ -1193,6 +1193,12 @@ impl<R: Runtime> AsRef<Webview<R>> for WebviewWindow<R> {
   }
 }
 
+impl<R: Runtime> AsRef<Window<R>> for WebviewWindow<R> {
+  fn as_ref(&self) -> &Window<R> {
+    &self.window
+  }
+}
+
 impl<R: Runtime> Clone for WebviewWindow<R> {
   fn clone(&self) -> Self {
     Self {
@@ -1204,7 +1210,7 @@ impl<R: Runtime> Clone for WebviewWindow<R> {
 
 impl<R: Runtime> Eq for WebviewWindow<R> {}
 impl<R: Runtime> PartialEq for WebviewWindow<R> {
-  /// Only use the [`Window`]'s label to compare equality.
+  /// Only use the [`Webview`]'s label to compare equality.
   fn eq(&self, other: &Self) -> bool {
     self.webview.eq(&other.webview)
   }
@@ -1267,6 +1273,11 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Registers a window event listener.
   pub fn on_window_event<F: Fn(&WindowEvent) + Send + 'static>(&self, f: F) {
     self.window.on_window_event(f);
+  }
+
+  /// Registers a webview event listener.
+  pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
+    self.webview.on_webview_event(f);
   }
 
   /// Resolves the given command scope for this webview on the currently loaded URL.

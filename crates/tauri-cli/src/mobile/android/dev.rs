@@ -104,6 +104,9 @@ pub struct Options {
   /// e.g. `tauri android dev -- [runnerArgs]`.
   #[clap(last(true))]
   pub args: Vec<String>,
+  /// Path to the certificate file used by your dev server. Required for mobile dev when using HTTPS.
+  #[clap(long, env = "TAURI_DEV_ROOT_CERTIFICATE_PATH")]
+  pub root_certificate_path: Option<PathBuf>,
 }
 
 impl From<Options> for DevOptions {
@@ -138,6 +141,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
+  // setup env additions before calling env()
+  if let Some(root_certificate_path) = &options.root_certificate_path {
+    std::env::set_var(
+      "TAURI_DEV_ROOT_CERTIFICATE",
+      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+    );
+  }
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,

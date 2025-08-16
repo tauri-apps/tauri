@@ -198,6 +198,7 @@ impl PackageManager {
     Ok(())
   }
 
+  // TODO: Use `current_package_versions` as much as possible for better speed
   pub fn current_package_version<P: AsRef<Path>>(
     &self,
     name: &str,

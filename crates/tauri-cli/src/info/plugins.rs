@@ -4,7 +4,7 @@
 
 use std::{
   collections::HashMap,
-  fs,
+  fs, iter,
   path::{Path, PathBuf},
 };
 
@@ -61,13 +61,19 @@ pub fn installed_plugins(
     .and_then(|s| toml::from_str(&s).ok());
 
   let know_plugins = helpers::plugins::known_plugins();
-  let crate_names: Vec<String> = know_plugins
-    .keys()
-    .map(|plugin_name| format!("tauri-plugin-{plugin_name}"))
+  let crate_names: Vec<String> = iter::once("tauri".to_owned())
+    .chain(
+      know_plugins
+        .keys()
+        .map(|plugin_name| format!("tauri-plugin-{plugin_name}")),
+    )
     .collect();
-  let npm_names: Vec<String> = know_plugins
-    .keys()
-    .map(|plugin_name| format!("@tauri-apps/plugin-{plugin_name}"))
+  let npm_names: Vec<String> = iter::once("@tauri-apps/api".to_owned())
+    .chain(
+      know_plugins
+        .keys()
+        .map(|plugin_name| format!("@tauri-apps/plugin-{plugin_name}")),
+    )
     .collect();
 
   let mut rust_plugins: HashMap<String, semver::Version> = crate_names
@@ -168,12 +174,14 @@ pub fn check_incompatible_packages(frontend_dir: &Path, tauri_path: &Path) -> cr
   }
   let incompatible_text = incompatible_plugins
     .iter()
-    .map(|p| {
-      format!(
-        "{} (v{}) : {} (v{})",
-        p.crate_name, p.crate_version, p.npm_name, p.npm_version
-      )
-    })
+    .map(
+      |InstalledPlugin {
+         crate_name,
+         crate_version,
+         npm_name,
+         npm_version,
+       }| format!("{crate_name} (v{crate_version}) : {npm_name} (v{npm_version})"),
+    )
     .collect::<Vec<_>>()
     .join("\n");
   Err(anyhow!("Found version mismatched Tauri packages. Make sure the NPM and crate versions are on the same major/minor releases:\n{incompatible_text}"))

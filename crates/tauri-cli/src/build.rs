@@ -138,14 +138,15 @@ pub fn setup(
 ) -> Result<()> {
   let tauri_path = tauri_dir();
 
-  log::info!("Looking up installed plugins to check mismatched versions...");
-  if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
-    if options.ignore_version_mismatches {
+  let ignore_version_mismatches = options.ignore_version_mismatches;
+  std::thread::spawn(move || {
+    if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
       log::error!("{error}");
-    } else {
-      return Err(error);
+      if !ignore_version_mismatches {
+        std::process::exit(1);
+      }
     }
-  }
+  });
 
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 

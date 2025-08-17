@@ -270,6 +270,10 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
     Ok(())
   }
 
+  fn set_device_event_filter(&self, _: DeviceEventFilter) {
+    // no-op
+  }
+
   #[cfg(target_os = "android")]
   fn find_class<'a>(
     &self,
@@ -632,6 +636,14 @@ impl<T: UserEvent> WebviewDispatch<T> for MockWebviewDispatcher {
 
   fn cookies_for_url(&self, url: Url) -> Result<Vec<tauri_runtime::Cookie<'static>>> {
     Ok(Vec::new())
+  }
+
+  fn set_cookie(&self, cookie: tauri_runtime::Cookie<'_>) -> Result<()> {
+    Ok(())
+  }
+
+  fn delete_cookie(&self, cookie: tauri_runtime::Cookie<'_>) -> Result<()> {
+    Ok(())
   }
 
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()> {

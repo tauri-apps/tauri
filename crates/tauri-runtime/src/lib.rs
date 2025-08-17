@@ -329,6 +329,15 @@ pub trait RuntimeHandle<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 'st
   #[cfg_attr(docsrs, doc(cfg(target_os = "macos")))]
   fn hide(&self) -> Result<()>;
 
+  /// Change the device event filter mode.
+  ///
+  /// See [Runtime::set_device_event_filter] for details.
+  ///
+  /// ## Platform-specific
+  ///
+  /// See [Runtime::set_device_event_filter] for details.
+  fn set_device_event_filter(&self, filter: DeviceEventFilter);
+
   /// Finds an Android class in the project scope.
   #[cfg(target_os = "android")]
   fn find_class<'a>(
@@ -562,8 +571,7 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   ///
   /// # Stability
   ///
-  /// The return value of this function leverages [`cookie::Cookie`] which re-exports the cookie crate.
-  /// This dependency might receive updates in minor Tauri releases.
+  /// See [WebviewDispatch::cookies].
   fn cookies_for_url(&self, url: Url) -> Result<Vec<Cookie<'static>>>;
 
   /// Return all cookies in the cookie store.
@@ -573,6 +581,20 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// The return value of this function leverages [`cookie::Cookie`] which re-exports the cookie crate.
   /// This dependency might receive updates in minor Tauri releases.
   fn cookies(&self) -> Result<Vec<Cookie<'static>>>;
+
+  /// Set a cookie for the webview.
+  ///
+  /// # Stability
+  ///
+  /// See [WebviewDispatch::cookies].
+  fn set_cookie(&self, cookie: cookie::Cookie<'_>) -> Result<()>;
+
+  /// Delete a cookie for the webview.
+  ///
+  /// # Stability
+  ///
+  /// See [WebviewDispatch::cookies].
+  fn delete_cookie(&self, cookie: cookie::Cookie<'_>) -> Result<()>;
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;

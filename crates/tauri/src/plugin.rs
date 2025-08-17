@@ -886,7 +886,7 @@ impl<R: Runtime> PluginStore<R> {
   }
 
   /// Removes the plugin with the given name from the store.
-  pub fn unregister(&mut self, plugin: &'static str) -> bool {
+  pub fn unregister(&mut self, plugin: &str) -> bool {
     let len = self.store.len();
     self.store.retain(|p| p.name() != plugin);
     len != self.store.len()

@@ -83,6 +83,8 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
   "function",
   "derive",
 ] }
+# WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
+cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
@@ -120,6 +122,11 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSView",
   "NSWindow",
   "NSImage",
+] }
+objc2-web-kit = { version = "0.3", features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKUserContentController",
 ] }
 window-vibrancy = "0.6"
 
@@ -172,14 +179,6 @@ tauri = { path = ".", default-features = false, features = ["wry"] }
 tokio = { version = "1", features = ["full"] }
 cargo_toml = "0.22"
 http-range = "0.1.5"
-
-# macOS
-[target.'cfg(target_os = "macos")'.dev-dependencies]
-objc2-web-kit = { version = "0.3", features = [
-  "objc2-app-kit",
-  "WKWebView",
-  "WKUserContentController",
-] }
 
 [features]
 default = ["wry", "compression", "common-controls-v6", "dynamic-acl", "x11"]

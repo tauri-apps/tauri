@@ -7,13 +7,19 @@
 pub(crate) mod plugin;
 mod webview_window;
 
+use cookie::Cookie;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
+/// Cookie crate used for [`Webview::set_cookie`] and [`Webview::delete_cookie`].
+///
+/// # Stability
+///
+/// This re-exported crate is still on an alpha release and might receive updates in minor Tauri releases.
+pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
-pub use tauri_runtime::webview::PageLoadEvent;
-pub use tauri_runtime::Cookie;
+pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent};
 #[cfg(desktop)]
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -50,10 +56,12 @@ use std::{
 pub(crate) type WebResourceRequestHandler =
   dyn Fn(http::Request<Vec<u8>>, &mut http::Response<Cow<'static, [u8]>>) + Send + Sync;
 pub(crate) type NavigationHandler = dyn Fn(&Url) -> bool + Send;
+pub(crate) type NewWindowHandler<R> =
+  dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync;
 pub(crate) type UriSchemeProtocolHandler =
   Box<dyn Fn(&str, http::Request<Vec<u8>>, UriSchemeResponder) + Send + Sync>;
 pub(crate) type OnPageLoad<R> = dyn Fn(Webview<R>, PageLoadPayload<'_>) + Send + Sync + 'static;
-
+pub(crate) type OnDocumentTitleChanged<R> = dyn Fn(Webview<R>, String) + Send + 'static;
 pub(crate) type DownloadHandler<R> = dyn Fn(Webview<R>, DownloadEvent<'_>) -> bool + Send + Sync;
 
 #[derive(Clone, Serialize)]
@@ -174,6 +182,15 @@ impl PlatformWebview {
     self.0.controller.clone()
   }
 
+  /// Returns the WebView2 environment.
+  #[cfg(windows)]
+  #[cfg_attr(docsrs, doc(cfg(windows)))]
+  pub fn environment(
+    &self,
+  ) -> webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment {
+    self.0.environment.clone()
+  }
+
   /// Returns the [WKWebView] handle.
   ///
   /// [WKWebView]: https://developer.apple.com/documentation/webkit/wkwebview
@@ -217,6 +234,25 @@ impl PlatformWebview {
   }
 }
 
+/// Response for the new window request handler.
+pub enum NewWindowResponse<R: Runtime> {
+  /// Allow the window to be opened with the default implementation.
+  Allow,
+  /// Allow the window to be opened, with the given window.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Linux**: The webview must be related to the caller webview. See [`WebviewBuilder::related_view`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewBuilder::environment`].
+  /// **macOS**: The webview must use the same webview configuration as the caller webview. See [`WebviewBuilder::with_webview_configuration`] and [`NewWindowFeatures::webview_configuration`].
+  Create {
+    /// Window that was created.
+    window: crate::WebviewWindow<R>,
+  },
+  /// Deny the window from being opened.
+  Deny,
+}
+
 macro_rules! unstable_struct {
     (#[doc = $doc:expr] $($tokens:tt)*) => {
       #[cfg(any(test, feature = "unstable"))]
@@ -236,7 +272,9 @@ unstable_struct!(
     pub(crate) webview_attributes: WebviewAttributes,
     pub(crate) web_resource_request_handler: Option<Box<WebResourceRequestHandler>>,
     pub(crate) navigation_handler: Option<Box<NavigationHandler>>,
+    pub(crate) new_window_handler: Option<Box<NewWindowHandler<R>>>,
     pub(crate) on_page_load_handler: Option<Box<OnPageLoad<R>>>,
+    pub(crate) document_title_changed_handler: Option<Box<OnDocumentTitleChanged<R>>>,
     pub(crate) download_handler: Option<Arc<DownloadHandler<R>>>,
   }
 );
@@ -312,7 +350,9 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::new(url),
       web_resource_request_handler: None,
       navigation_handler: None,
+      new_window_handler: None,
       on_page_load_handler: None,
+      document_title_changed_handler: None,
       download_handler: None,
     }
   }
@@ -351,7 +391,9 @@ async fn create_window(app: tauri::AppHandle) {
       webview_attributes: WebviewAttributes::from(config),
       web_resource_request_handler: None,
       navigation_handler: None,
+      new_window_handler: None,
       on_page_load_handler: None,
+      document_title_changed_handler: None,
       download_handler: None,
     }
   }
@@ -446,6 +488,78 @@ tauri::Builder::default()
   )]
   pub fn on_navigation<F: Fn(&Url) -> bool + Send + 'static>(mut self, f: F) -> Self {
     self.navigation_handler.replace(Box::new(f));
+    self
+  }
+
+  /// Set a new window request handler to decide if incoming url is allowed to be opened.
+  ///
+  /// A new window is requested to be opened by the [window.open] API.
+  ///
+  /// The closure take the URL to open and the window features object and returns [`NewWindowResponse`] to determine whether the window should open.
+  ///
+  #[cfg_attr(
+    feature = "unstable",
+    doc = r####"
+```rust,no_run
+use tauri::{
+  utils::config::{Csp, CspDirectiveSources, WebviewUrl},
+  window::WindowBuilder,
+  webview::WebviewBuilder,
+};
+use http::header::HeaderValue;
+use std::collections::HashMap;
+tauri::Builder::default()
+  .setup(|app| {
+    let window = tauri::window::WindowBuilder::new(app, "label").build()?;
+
+    let app_ = app.handle().clone();
+    let webview_builder = WebviewBuilder::new("core", WebviewUrl::App("index.html".into()))
+      .on_new_window(move |url, features| {
+        let builder = tauri::WebviewWindowBuilder::new(
+          &app_,
+          // note: add an ID counter or random label generator to support multiple opened windows at the same time
+          "opened-window",
+          tauri::WebviewUrl::External("about:blank".parse().unwrap()),
+        )
+        .with_window_features(features)
+        .on_document_title_changed(|window, title| {
+          window.set_title(&title).unwrap();
+        })
+        .title(url.as_str());
+
+        let window = builder.build().unwrap();
+        tauri::webview::NewWindowResponse::Create { window }
+      });
+
+    let webview = window.add_child(webview_builder, tauri::LogicalPosition::new(0, 0), window.inner_size().unwrap())?;
+    Ok(())
+  });
+```
+  "####
+  )]
+  ///
+  /// # Platform-specific
+  ///
+  /// - **Android / iOS**: Not supported.
+  /// - **Windows**: The closure is executed on a separate thread to prevent a deadlock.
+  ///
+  /// [window.open]: https://developer.mozilla.org/en-US/docs/Web/API/Window/open
+  pub fn on_new_window<
+    F: Fn(Url, NewWindowFeatures) -> NewWindowResponse<R> + Send + Sync + 'static,
+  >(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.new_window_handler.replace(Box::new(f));
+    self
+  }
+
+  /// Defines a closure to be executed when document title change.
+  pub fn on_document_title_changed<F: Fn(Webview<R>, String) + Send + 'static>(
+    mut self,
+    f: F,
+  ) -> Self {
+    self.document_title_changed_handler.replace(Box::new(f));
     self
   }
 
@@ -550,6 +664,42 @@ tauri::Builder::default()
   ) -> crate::Result<PendingWebview<EventLoopMessage, R>> {
     let mut pending = PendingWebview::new(self.webview_attributes, self.label.clone())?;
     pending.navigation_handler = self.navigation_handler.take();
+    pending.new_window_handler = self.new_window_handler.take().map(|handler| {
+      Box::new(
+        move |url, features: NewWindowFeatures| match handler(url, features) {
+          NewWindowResponse::Allow => tauri_runtime::webview::NewWindowResponse::Allow,
+          #[cfg(mobile)]
+          NewWindowResponse::Create { window: _ } => {
+            tauri_runtime::webview::NewWindowResponse::Allow
+          }
+          #[cfg(desktop)]
+          NewWindowResponse::Create { window } => {
+            tauri_runtime::webview::NewWindowResponse::Create {
+              window_id: window.window.window.id,
+            }
+          }
+          NewWindowResponse::Deny => tauri_runtime::webview::NewWindowResponse::Deny,
+        },
+      )
+        as Box<
+          dyn Fn(Url, NewWindowFeatures) -> tauri_runtime::webview::NewWindowResponse
+            + Send
+            + Sync
+            + 'static,
+        >
+    });
+
+    if let Some(document_title_changed_handler) = self.document_title_changed_handler.take() {
+      let label = pending.label.clone();
+      let manager = manager.manager_owned();
+      pending
+        .document_title_changed_handler
+        .replace(Box::new(move |title| {
+          if let Some(w) = manager.get_webview(&label) {
+            document_title_changed_handler(w, title);
+          }
+        }));
+    }
     pending.web_resource_request_handler = self.web_resource_request_handler.take();
 
     if let Some(download_handler) = self.download_handler.take() {
@@ -1022,6 +1172,45 @@ fn main() {
       ));
     self
   }
+
+  /// Set the environment for the webview.
+  /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
+  #[cfg(windows)]
+  pub fn with_environment(
+    mut self,
+    environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
+  ) -> Self {
+    self.webview_attributes.environment.replace(environment);
+    self
+  }
+
+  /// Creates a new webview sharing the same web process with the provided webview.
+  /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ))]
+  pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
+    self.webview_attributes.related_view.replace(related_view);
+    self
+  }
+
+  /// Set the webview configuration.
+  /// Useful if you need to share the use a predefined webview configuration, for instance when using the [`Self::on_new_window`].
+  #[cfg(target_os = "macos")]
+  pub fn with_webview_configuration(
+    mut self,
+    webview_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
+  ) -> Self {
+    self
+      .webview_attributes
+      .webview_configuration
+      .replace(webview_configuration);
+    self
+  }
 }
 
 /// Webview.
@@ -1121,7 +1310,7 @@ impl<R: Runtime> Webview<R> {
     self.use_https_scheme
   }
 
-  /// Registers a window event listener.
+  /// Registers a webview event listener.
   pub fn on_webview_event<F: Fn(&WebviewEvent) + Send + 'static>(&self, f: F) {
     self
       .webview
@@ -1848,15 +2037,11 @@ tauri::Builder::default()
   ///
   /// # Stability
   ///
-  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
-  /// This dependency might receive updates in minor Tauri releases.
+  /// See [Self::cookies].
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
-  /// You should use `async` commands and separate threads when reading cookies.
-  ///
-  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  /// See [Self::cookies].
   pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
     self
       .webview
@@ -1888,6 +2073,32 @@ tauri::Builder::default()
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
     self.webview.dispatcher.cookies().map_err(Into::into)
+  }
+
+  /// Set a cookie for the webview.
+  ///
+  /// # Stability
+  ///
+  /// See [Self::cookies].
+  pub fn set_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_cookie(cookie)
+      .map_err(Into::into)
+  }
+
+  /// Delete a cookie for the webview.
+  ///
+  /// # Stability
+  ///
+  /// See [Self::cookies].
+  pub fn delete_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .delete_cookie(cookie)
+      .map_err(Into::into)
   }
 }
 

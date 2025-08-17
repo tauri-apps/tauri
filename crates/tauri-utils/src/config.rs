@@ -690,7 +690,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "13.0".into()
+  "14.0".into()
 }
 
 /// Configuration for a target language for the WiX build.

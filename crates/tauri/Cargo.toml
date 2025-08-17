@@ -83,6 +83,8 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
   "function",
   "derive",
 ] }
+# WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
+cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]

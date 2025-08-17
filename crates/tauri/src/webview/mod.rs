@@ -7,13 +7,19 @@
 pub(crate) mod plugin;
 mod webview_window;
 
+use cookie::Cookie;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
+/// Cookie crate used for [`Webview::set_cookie`] and [`Webview::delete_cookie`].
+///
+/// # Stability
+///
+/// This re-exported crate is still on an alpha release and might receive updates in minor Tauri releases.
+pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent};
-pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -2031,15 +2037,11 @@ tauri::Builder::default()
   ///
   /// # Stability
   ///
-  /// The return value of this function leverages [`tauri_runtime::Cookie`] which re-exports the cookie crate.
-  /// This dependency might receive updates in minor Tauri releases.
+  /// See [Self::cookies].
   ///
   /// # Known issues
   ///
-  /// On Windows, this function deadlocks when used in a synchronous command or event handlers, see [the Webview2 issue].
-  /// You should use `async` commands and separate threads when reading cookies.
-  ///
-  /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
+  /// See [Self::cookies].
   pub fn cookies_for_url(&self, url: Url) -> crate::Result<Vec<Cookie<'static>>> {
     self
       .webview
@@ -2071,6 +2073,32 @@ tauri::Builder::default()
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn cookies(&self) -> crate::Result<Vec<Cookie<'static>>> {
     self.webview.dispatcher.cookies().map_err(Into::into)
+  }
+
+  /// Set a cookie for the webview.
+  ///
+  /// # Stability
+  ///
+  /// See [Self::cookies].
+  pub fn set_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .set_cookie(cookie)
+      .map_err(Into::into)
+  }
+
+  /// Delete a cookie for the webview.
+  ///
+  /// # Stability
+  ///
+  /// See [Self::cookies].
+  pub fn delete_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
+    self
+      .webview
+      .dispatcher
+      .delete_cookie(cookie)
+      .map_err(Into::into)
   }
 }
 

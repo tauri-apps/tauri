@@ -4,17 +4,14 @@
 
 use std::{
   collections::HashMap,
-  fs, iter,
+  iter,
   path::{Path, PathBuf},
 };
 
-use crate::{
-  helpers::{
-    self,
-    cargo_manifest::{crate_version, CargoLock, CargoManifest},
-    npm::PackageManager,
-  },
-  interface::rust::get_workspace_dir,
+use crate::helpers::{
+  self,
+  cargo_manifest::{cargo_manifest_and_lock, crate_version},
+  npm::PackageManager,
 };
 
 use super::{packages_nodejs, packages_rust, SectionItem};
@@ -48,18 +45,6 @@ pub fn installed_tauri_packages(
   tauri_dir: &Path,
   package_manager: PackageManager,
 ) -> InstalledPackages {
-  let manifest: Option<CargoManifest> =
-    if let Ok(manifest_contents) = fs::read_to_string(tauri_dir.join("Cargo.toml")) {
-      toml::from_str(&manifest_contents).ok()
-    } else {
-      None
-    };
-
-  let lock: Option<CargoLock> = get_workspace_dir()
-    .ok()
-    .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
-    .and_then(|s| toml::from_str(&s).ok());
-
   let know_plugins = helpers::plugins::known_plugins();
   let crate_names: Vec<String> = iter::once("tauri".to_owned())
     .chain(
@@ -75,6 +60,8 @@ pub fn installed_tauri_packages(
         .map(|plugin_name| format!("@tauri-apps/plugin-{plugin_name}")),
     )
     .collect();
+
+  let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
 
   let mut rust_plugins: HashMap<String, semver::Version> = crate_names
     .iter()
@@ -121,17 +108,7 @@ pub fn items(
 
   if tauri_dir.is_some() || frontend_dir.is_some() {
     if let Some(tauri_dir) = tauri_dir {
-      let manifest: Option<CargoManifest> =
-        if let Ok(manifest_contents) = fs::read_to_string(tauri_dir.join("Cargo.toml")) {
-          toml::from_str(&manifest_contents).ok()
-        } else {
-          None
-        };
-
-      let lock: Option<CargoLock> = get_workspace_dir()
-        .ok()
-        .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
-        .and_then(|s| toml::from_str(&s).ok());
+      let (manifest, lock) = cargo_manifest_and_lock(tauri_dir);
 
       for p in helpers::plugins::known_plugins().keys() {
         let dep = format!("tauri-plugin-{p}");

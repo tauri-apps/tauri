@@ -10,6 +10,8 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use crate::interface::rust::get_workspace_dir;
+
 #[derive(Clone, Deserialize)]
 pub struct CargoLockPackage {
   pub name: String,
@@ -49,6 +51,18 @@ pub struct CargoManifest {
   pub dependencies: HashMap<String, CargoManifestDependency>,
 }
 
+pub fn cargo_manifest_and_lock(tauri_dir: &Path) -> (Option<CargoManifest>, Option<CargoLock>) {
+  let manifest: Option<CargoManifest> = fs::read_to_string(tauri_dir.join("Cargo.toml"))
+    .ok()
+    .and_then(|manifest_contents| toml::from_str(&manifest_contents).ok());
+
+  let lock: Option<CargoLock> = get_workspace_dir()
+    .ok()
+    .and_then(|p| fs::read_to_string(p.join("Cargo.lock")).ok())
+    .and_then(|s| toml::from_str(&s).ok());
+
+  (manifest, lock)
+}
 #[derive(Default)]
 pub struct CrateVersion {
   pub version: Option<String>,

@@ -7,13 +7,19 @@
 pub(crate) mod plugin;
 mod webview_window;
 
+use cookie::Cookie;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
+/// Cookie crate used for [`Webview::set_cookie`] and [`Webview::delete_cookie`].
+///
+/// # Stability
+///
+/// This re-exported crate is still on an alpha release and might receive updates in minor Tauri releases.
+pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent};
-pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -2074,7 +2080,7 @@ tauri::Builder::default()
   /// # Stability
   ///
   /// See [Self::cookies].
-  pub fn set_cookie(&self, cookie: &Cookie<'_>) -> crate::Result<()> {
+  pub fn set_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
     self
       .webview
       .dispatcher
@@ -2087,7 +2093,7 @@ tauri::Builder::default()
   /// # Stability
   ///
   /// See [Self::cookies].
-  pub fn delete_cookie(&self, cookie: &Cookie<'_>) -> crate::Result<()> {
+  pub fn delete_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
     self
       .webview
       .dispatcher

@@ -1690,19 +1690,19 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
     webview_getter!(self, WebviewMessage::Cookies)?
   }
 
-  fn set_cookie(&self, cookie: &Cookie<'_>) -> Result<()> {
+  fn set_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Webview(
         *self.window_id.lock().unwrap(),
         self.webview_id,
-        WebviewMessage::SetCookie(cookie.clone().into_owned()),
+        WebviewMessage::SetCookie(cookie.into_owned()),
       ),
     )?;
     Ok(())
   }
 
-  fn delete_cookie(&self, cookie: &Cookie<'_>) -> Result<()> {
+  fn delete_cookie(&self, cookie: Cookie<'_>) -> Result<()> {
     send_user_message(
       &self.context,
       Message::Webview(

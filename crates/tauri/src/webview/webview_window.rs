@@ -2426,7 +2426,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// # Stability
   ///
   /// See [Self::cookies].
-  pub fn set_cookie(&self, cookie: &Cookie<'_>) -> crate::Result<()> {
+  pub fn set_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
     self.webview.set_cookie(cookie)
   }
 
@@ -2435,7 +2435,7 @@ impl<R: Runtime> WebviewWindow<R> {
   /// # Stability
   ///
   /// See [Self::cookies].
-  pub fn delete_cookie(&self, cookie: &Cookie<'_>) -> crate::Result<()> {
+  pub fn delete_cookie(&self, cookie: Cookie<'_>) -> crate::Result<()> {
     self.webview.delete_cookie(cookie)
   }
 }

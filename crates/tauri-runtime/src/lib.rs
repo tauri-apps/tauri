@@ -587,14 +587,14 @@ pub trait WebviewDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + '
   /// # Stability
   ///
   /// See [WebviewDispatch::cookies].
-  fn set_cookie(&self, cookie: &cookie::Cookie<'_>) -> Result<()>;
+  fn set_cookie(&self, cookie: cookie::Cookie<'_>) -> Result<()>;
 
   /// Delete a cookie for the webview.
   ///
   /// # Stability
   ///
   /// See [WebviewDispatch::cookies].
-  fn delete_cookie(&self, cookie: &cookie::Cookie<'_>) -> Result<()>;
+  fn delete_cookie(&self, cookie: cookie::Cookie<'_>) -> Result<()>;
 
   /// Sets whether the webview should automatically grow and shrink its size and position when the parent window resizes.
   fn set_auto_resize(&self, auto_resize: bool) -> Result<()>;

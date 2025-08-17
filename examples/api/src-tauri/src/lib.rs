@@ -74,7 +74,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
       #[cfg(all(desktop, not(test)))]
       {
         let app_ = app.handle().clone();
-
         let mut created_window_count = std::sync::atomic::AtomicUsize::new(0);
 
         window_builder = window_builder
@@ -92,7 +91,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
               format!("new-{number}"),
               tauri::WebviewUrl::External("about:blank".parse().unwrap()),
             )
-            .with_window_features(features)
+            .window_features(features)
             .on_document_title_changed(|window, title| {
               window.set_title(&title).unwrap();
             })

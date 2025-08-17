@@ -297,7 +297,7 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   ///           "opened-window",
   ///           tauri::WebviewUrl::External("about:blank".parse().unwrap()),
   ///         )
-  ///         .with_window_features(features)
+  ///         .window_features(features)
   ///         .on_document_title_changed(|window, title| {
   ///           window.set_title(&title).unwrap();
   ///         })
@@ -599,6 +599,13 @@ impl<'a, R: Runtime, M: Manager<R>> WebviewWindowBuilder<'a, R, M> {
   pub fn focus(mut self) -> Self {
     self.window_builder = self.window_builder.focused(true);
     self.webview_builder = self.webview_builder.focused(true);
+    self
+  }
+
+  /// Whether the window will be focusable or not.
+  #[must_use]
+  pub fn focusable(mut self, focusable: bool) -> Self {
+    self.window_builder = self.window_builder.focusable(focusable);
     self
   }
 
@@ -1305,7 +1312,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
     target_os = "netbsd",
     target_os = "openbsd"
   ))]
-  pub fn with_window_features(mut self, features: NewWindowFeatures) -> Self {
+  pub fn window_features(mut self, features: NewWindowFeatures) -> Self {
     if let Some(position) = features.position() {
       self.window_builder = self.window_builder.position(position.x, position.y);
     }
@@ -2034,6 +2041,16 @@ impl<R: Runtime> WebviewWindow<R> {
   /// Bring the window to front and focus.
   pub fn set_focus(&self) -> crate::Result<()> {
     self.window.set_focus()
+  }
+
+  /// Sets whether the window can be focused.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
+  pub fn set_focusable(&self, focusable: bool) -> crate::Result<()> {
+    self.window.set_focusable(focusable)
   }
 
   /// Sets this window' icon.

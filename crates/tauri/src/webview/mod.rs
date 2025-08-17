@@ -7,7 +7,6 @@
 pub(crate) mod plugin;
 mod webview_window;
 
-use cookie::Cookie;
 pub use webview_window::{WebviewWindow, WebviewWindowBuilder};
 
 /// Cookie crate used for [`Webview::set_cookie`] and [`Webview::delete_cookie`].
@@ -20,6 +19,8 @@ use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
 pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent};
+// Remove this re-export in v3
+pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
 use tauri_runtime::{
   dpi::{PhysicalPosition, PhysicalSize, Position, Size},
@@ -521,7 +522,7 @@ tauri::Builder::default()
           "opened-window",
           tauri::WebviewUrl::External("about:blank".parse().unwrap()),
         )
-        .with_window_features(features)
+        .window_features(features)
         .on_document_title_changed(|window, title| {
           window.set_title(&title).unwrap();
         })

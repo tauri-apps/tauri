@@ -68,8 +68,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let app_ = app.handle().clone();
-
       let mut created_window_count = AtomicUsize::new(0);
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .on_document_title_changed(|_window, title| {

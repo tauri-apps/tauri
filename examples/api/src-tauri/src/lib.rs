@@ -8,8 +8,6 @@ mod menu_plugin;
 #[cfg(desktop)]
 mod tray;
 
-use std::sync::atomic::AtomicUsize;
-
 use serde::Serialize;
 use tauri::{
   ipc::Channel,
@@ -68,7 +66,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .build()?,
       ));
 
-      let mut created_window_count = AtomicUsize::new(0);
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
@@ -76,6 +73,10 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       #[cfg(all(desktop, not(test)))]
       {
+        let app_ = app.handle().clone();
+
+        let mut created_window_count = std::sync::atomic::AtomicUsize::new(0);
+
         window_builder = window_builder
           .title("Tauri API Validation")
           .inner_size(1000., 800.)

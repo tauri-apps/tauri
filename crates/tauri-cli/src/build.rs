@@ -138,15 +138,16 @@ pub fn setup(
 ) -> Result<()> {
   let tauri_path = tauri_dir();
 
-  let ignore_version_mismatches = options.ignore_version_mismatches;
-  std::thread::spawn(move || {
-    if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
+  // TODO: Maybe optimize this to run in parallel in the future
+  // see https://github.com/tauri-apps/tauri/pull/13993#discussion_r2280697117
+  log::info!("Looking up installed tauri packages to check mismatched versions...");
+  if let Err(error) = check_mismatched_packages(frontend_dir(), tauri_path) {
+    if options.ignore_version_mismatches {
       log::error!("{error}");
-      if !ignore_version_mismatches {
-        std::process::exit(1);
-      }
+    } else {
+      return Err(error);
     }
-  });
+  }
 
   set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
 
@@ -158,11 +159,9 @@ pub fn setup(
     .unwrap_or_else(|| "tauri.conf.json".into());
 
   if config_.identifier == "com.tauri.dev" {
-    log::error!(
-      "You must change the bundle identifier in `{} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
-      bundle_identifier_source
+    anyhow::bail!(
+      "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
     );
-    std::process::exit(1);
   }
 
   if config_
@@ -170,12 +169,11 @@ pub fn setup(
     .chars()
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
-    log::error!(
+    anyhow::bail!(
       "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
       config_.identifier,
       bundle_identifier_source
     );
-    std::process::exit(1);
   }
 
   if config_.identifier.ends_with(".app") {

@@ -411,6 +411,10 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
+  fn focusable(self, focusable: bool) -> Self {
+    self
+  }
+
   fn maximized(self, maximized: bool) -> Self {
     self
   }
@@ -999,6 +1003,10 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   }
 
   fn set_focus(&self) -> Result<()> {
+    Ok(())
+  }
+
+  fn set_focusable(&self, focusable: bool) -> Result<()> {
     Ok(())
   }
 

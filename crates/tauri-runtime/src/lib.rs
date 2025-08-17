@@ -872,6 +872,9 @@ pub trait WindowDispatch<T: UserEvent>: Debug + Clone + Send + Sync + Sized + 's
   /// Bring the window to front and focus.
   fn set_focus(&self) -> Result<()>;
 
+  /// Sets whether the window can be focused.
+  fn set_focusable(&self, focusable: bool) -> Result<()>;
+
   /// Updates the window icon.
   fn set_icon(&self, icon: Icon) -> Result<()>;
 

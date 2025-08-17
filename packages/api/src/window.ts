@@ -1438,6 +1438,30 @@ class Window {
   }
 
   /**
+   * Sets whether the window can be focused.
+   *
+   * #### Platform-specific
+   *
+   * - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+   *   In this case, you might consider calling {@link Window.setFocus} but it will move the window to the back i.e. at the bottom in terms of z-order.
+   *
+   * @example
+   * ```typescript
+   * import { getCurrentWindow } from '@tauri-apps/api/window';
+   * await getCurrentWindow().setFocusable(true);
+   * ```
+   *
+   * @param focusable Whether the window can be focused.
+   * @returns A promise indicating the success or failure of the operation.
+   */
+  async setFocusable(focusable: boolean): Promise<void> {
+    return invoke('plugin:window|set_focusable', {
+      label: this.label,
+      value: focusable
+    })
+  }
+
+  /**
    * Sets the window icon.
    * @example
    * ```typescript
@@ -2297,6 +2321,8 @@ interface WindowOptions {
   fullscreen?: boolean
   /** Whether the window will be initially focused or not. */
   focus?: boolean
+  /** Whether the window can be focused or not. */
+  focusable?: boolean
   /**
    * Whether the window is transparent or not.
    * Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri.conf.json > app > macOSPrivateApi`.

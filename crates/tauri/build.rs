@@ -101,6 +101,7 @@ const PLUGINS: &[(&str, &[(&str, bool)])] = &[
       ("set_fullscreen", false),
       ("set_simple_fullscreen", false),
       ("set_focus", false),
+      ("set_focusable", false),
       ("set_skip_taskbar", false),
       ("set_cursor_grab", false),
       ("set_cursor_visible", false),

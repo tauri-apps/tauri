@@ -72,25 +72,6 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
 
       let mut created_window_count = AtomicUsize::new(0);
       let mut window_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-        .on_new_window(move |url, features| {
-          println!("new window requested: {url:?} {features:?}");
-
-          let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-
-          let builder = tauri::WebviewWindowBuilder::new(
-            &app_,
-            format!("new-{number}"),
-            tauri::WebviewUrl::External("about:blank".parse().unwrap()),
-          )
-          .with_window_features(features)
-          .on_document_title_changed(|window, title| {
-            window.set_title(&title).unwrap();
-          })
-          .title(url.as_str());
-
-          let window = builder.build().unwrap();
-          tauri::webview::NewWindowResponse::Create { window }
-        })
         .on_document_title_changed(|_window, title| {
           println!("document title changed: {title}");
         });
@@ -101,7 +82,26 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
           .title("Tauri API Validation")
           .inner_size(1000., 800.)
           .min_inner_size(600., 400.)
-          .menu(tauri::menu::Menu::default(app.handle())?);
+          .menu(tauri::menu::Menu::default(app.handle())?)
+          .on_new_window(move |url, features| {
+            println!("new window requested: {url:?} {features:?}");
+
+            let number = created_window_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
+            let builder = tauri::WebviewWindowBuilder::new(
+              &app_,
+              format!("new-{number}"),
+              tauri::WebviewUrl::External("about:blank".parse().unwrap()),
+            )
+            .with_window_features(features)
+            .on_document_title_changed(|window, title| {
+              window.set_title(&title).unwrap();
+            })
+            .title(url.as_str());
+
+            let window = builder.build().unwrap();
+            tauri::webview::NewWindowResponse::Create { window }
+          });
       }
 
       let webview = window_builder.build()?;

@@ -1708,7 +1708,7 @@ impl<T: UserEvent> WebviewDispatch<T> for WryWebviewDispatcher<T> {
       Message::Webview(
         *self.window_id.lock().unwrap(),
         self.webview_id,
-        WebviewMessage::DeleteCookie(cookie.clone().into_owned()),
+        WebviewMessage::DeleteCookie(cookie.into_owned()),
       ),
     )?;
     Ok(())

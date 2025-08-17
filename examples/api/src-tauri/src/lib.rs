@@ -93,7 +93,7 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
               format!("new-{number}"),
               tauri::WebviewUrl::External("about:blank".parse().unwrap()),
             )
-            .with_window_features(features)
+            .window_features(features)
             .on_document_title_changed(|window, title| {
               window.set_title(&title).unwrap();
             })

@@ -522,7 +522,7 @@ tauri::Builder::default()
           "opened-window",
           tauri::WebviewUrl::External("about:blank".parse().unwrap()),
         )
-        .with_window_features(features)
+        .window_features(features)
         .on_document_title_changed(|window, title| {
           window.set_title(&title).unwrap();
         })

@@ -289,13 +289,15 @@ impl<R: Runtime> PluginHandle<R> {
     payload: impl Serialize,
   ) -> Result<T, PluginInvokeError> {
     let (tx, rx) = oneshot::channel();
+    // the closure is an FnOnce but on Android we need to clone it (error handling)
+    let tx = std::sync::Arc::new(std::sync::Mutex::new(Some(tx)));
     run_command(
       self.name,
       &self.handle,
       command,
       serde_json::to_value(payload).map_err(PluginInvokeError::CannotSerializePayload)?,
       move |response| {
-        tx.send(response).unwrap();
+        tx.lock().unwrap().take().unwrap().send(response).unwrap();
       },
     )?;
 

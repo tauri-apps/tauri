@@ -1994,6 +1994,20 @@ tauri::Builder::default()
     self.window.dispatcher.set_focus().map_err(Into::into)
   }
 
+  /// Sets whether the window can be focused.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **macOS**: If the window is already focused, it is not possible to unfocus it after calling `set_focusable(false)`.
+  ///   In this case, you might consider calling [`Window::set_focus`] but it will move the window to the back i.e. at the bottom in terms of z-order.
+  pub fn set_focusable(&self, focusable: bool) -> crate::Result<()> {
+    self
+      .window
+      .dispatcher
+      .set_focusable(focusable)
+      .map_err(Into::into)
+  }
+
   /// Sets this window' icon.
   pub fn set_icon(&self, icon: Image<'_>) -> crate::Result<()> {
     self

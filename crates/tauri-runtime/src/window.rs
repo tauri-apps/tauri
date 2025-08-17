@@ -329,7 +329,7 @@ pub trait WindowBuilder: WindowBuilderBase {
   #[must_use]
   fn focused(self, focused: bool) -> Self;
 
-   /// Whether the window will be focusable or not.
+  /// Whether the window will be focusable or not.
   #[must_use]
   fn focusable(self, focusable: bool) -> Self;
 

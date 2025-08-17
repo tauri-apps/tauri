@@ -1641,7 +1641,7 @@ pub struct WindowConfig {
   /// Whether the window will be initially focused or not.
   #[serde(default = "default_true")]
   pub focus: bool,
-   /// Whether the window will be focusable or not.
+  /// Whether the window will be focusable or not.
   #[serde(default = "default_true")]
   pub focusable: bool,
   /// Whether the window is transparent or not.

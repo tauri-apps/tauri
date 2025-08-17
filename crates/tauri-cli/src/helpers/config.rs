@@ -1,4 +1,4 @@
-// Copyright 2019-2024 Tauri Programme within The Commons Conservancy
+// Copyright 2019-2025 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
@@ -11,7 +11,7 @@ pub use tauri_utils::{config::*, platform::Target};
 
 use std::{
   collections::HashMap,
-  env::{current_dir, set_current_dir, set_var, var_os},
+  env::{current_dir, set_current_dir, set_var},
   ffi::OsStr,
   process::exit,
   sync::{Arc, Mutex, OnceLock},
@@ -22,6 +22,8 @@ pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 pub struct ConfigMetadata {
   /// The current target.
   target: Target,
+
+  original_identifier: Option<String>,
   /// The actual configuration, merged with any extension.
   inner: Config,
   /// The config extensions (platform-specific config files or the config CLI argument).
@@ -39,15 +41,17 @@ impl std::ops::Deref for ConfigMetadata {
 }
 
 impl ConfigMetadata {
+  /// The original bundle identifier from the config file.
+  /// This does not take any extensions into account.
+  pub fn original_identifier(&self) -> Option<&str> {
+    self.original_identifier.as_deref()
+  }
+
   /// Checks which config is overwriting the bundle identifier.
   pub fn find_bundle_identifier_overwriter(&self) -> Option<String> {
     for (ext, config) in &self.extensions {
       if let Some(identifier) = config
         .as_object()
-        .and_then(|config| config.get("tauri"))
-        .and_then(|tauri_config| tauri_config.as_object())
-        .and_then(|tauri_config| tauri_config.get("bundle"))
-        .and_then(|bundle_config| bundle_config.as_object())
         .and_then(|bundle_config| bundle_config.get("identifier"))
         .and_then(|id| id.as_str())
       {
@@ -66,6 +70,10 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
   tauri_bundler::WixSettings {
     version: config.version,
     upgrade_code: config.upgrade_code,
+    fips_compliant: std::env::var("TAURI_BUNDLER_WIX_FIPS_COMPLIANT")
+      .ok()
+      .map(|v| v == "true")
+      .unwrap_or(config.fips_compliant),
     language: tauri_bundler::WixLanguage(match config.language {
       WixLanguage::One(lang) => vec![(lang, Default::default())],
       WixLanguage::List(languages) => languages
@@ -94,7 +102,6 @@ pub fn wix_settings(config: WixConfig) -> tauri_bundler::WixSettings {
     enable_elevated_update_task: config.enable_elevated_update_task,
     banner_path: config.banner_path,
     dialog_image_path: config.dialog_image_path,
-    fips_compliant: var_os("TAURI_BUNDLER_WIX_FIPS_COMPLIANT").is_some_and(|v| v == "true"),
   }
 }
 
@@ -152,6 +159,12 @@ fn get_internal(
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))?;
   let config_file_name = config_path.file_name().unwrap().to_string_lossy();
   let mut extensions = HashMap::new();
+
+  let original_identifier = config
+    .as_object()
+    .and_then(|config| config.get("identifier"))
+    .and_then(|id| id.as_str())
+    .map(ToString::to_string);
 
   if let Some((platform_config, config_path)) =
     tauri_utils::config::parse::read_platform(target, tauri_dir)?
@@ -220,6 +233,7 @@ fn get_internal(
 
   *config_handle().lock().unwrap() = Some(ConfigMetadata {
     target,
+    original_identifier,
     inner: config,
     extensions,
   });

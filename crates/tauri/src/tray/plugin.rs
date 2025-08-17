@@ -110,13 +110,15 @@ fn remove_by_id<R: Runtime>(app: AppHandle<R>, id: &str) -> crate::Result<()> {
 #[command(root = "crate")]
 fn set_icon<R: Runtime>(
   app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   icon: Option<JsImage>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
+  let webview_resources_table = webview.resources_table();
   let icon = match icon {
-    Some(i) => Some(i.into_img(&resources_table)?.as_ref().clone()),
+    Some(i) => Some(i.into_img(&webview_resources_table)?.as_ref().clone()),
     None => None,
   };
   tray.set_icon(icon)
@@ -125,19 +127,21 @@ fn set_icon<R: Runtime>(
 #[command(root = "crate")]
 fn set_menu<R: Runtime>(
   app: AppHandle<R>,
+  webview: Webview<R>,
   rid: ResourceId,
   menu: Option<(ResourceId, ItemKind)>,
 ) -> crate::Result<()> {
   let resources_table = app.resources_table();
   let tray = resources_table.get::<TrayIcon<R>>(rid)?;
   if let Some((rid, kind)) = menu {
+    let webview_resources_table = webview.resources_table();
     match kind {
       ItemKind::Menu => {
-        let menu = resources_table.get::<Menu<R>>(rid)?;
+        let menu = webview_resources_table.get::<Menu<R>>(rid)?;
         tray.set_menu(Some((*menu).clone()))?;
       }
       ItemKind::Submenu => {
-        let submenu = resources_table.get::<Submenu<R>>(rid)?;
+        let submenu = webview_resources_table.get::<Submenu<R>>(rid)?;
         tray.set_menu(Some((*submenu).clone()))?;
       }
       _ => return Err(anyhow::anyhow!("unexpected menu item kind").into()),

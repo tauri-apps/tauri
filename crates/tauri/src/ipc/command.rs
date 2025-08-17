@@ -186,7 +186,6 @@ pub mod private {
     ipc::{InvokeError, InvokeResolver, InvokeResponseBody, IpcResponse},
     Runtime,
   };
-  use futures_util::{FutureExt, TryFutureExt};
   use std::future::Future;
   #[cfg(feature = "tracing")]
   pub use tracing;
@@ -220,14 +219,11 @@ pub mod private {
     }
 
     #[inline(always)]
-    pub fn future<T>(
-      self,
-      value: T,
-    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
+    pub async fn future<T>(self, value: T) -> Result<InvokeResponseBody, InvokeError>
     where
       T: IpcResponse,
     {
-      std::future::ready(value.body().map_err(InvokeError::from_error))
+      Ok(value.body()?)
     }
   }
 
@@ -261,19 +257,12 @@ pub mod private {
     }
 
     #[inline(always)]
-    pub fn future<T, E>(
-      self,
-      value: Result<T, E>,
-    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
+    pub async fn future<T, E>(self, value: Result<T, E>) -> Result<InvokeResponseBody, InvokeError>
     where
       T: IpcResponse,
       E: Into<InvokeError>,
     {
-      std::future::ready(
-        value
-          .map_err(Into::into)
-          .and_then(|value| value.body().map_err(InvokeError::from_error)),
-      )
+      Ok(value.map_err(Into::into)?.body()?)
     }
   }
 
@@ -291,15 +280,12 @@ pub mod private {
 
   impl FutureTag {
     #[inline(always)]
-    pub fn future<T, F>(
-      self,
-      value: F,
-    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
+    pub async fn future<T, F>(self, value: F) -> Result<InvokeResponseBody, InvokeError>
     where
       T: IpcResponse,
       F: Future<Output = T> + Send + 'static,
     {
-      value.map(|value| value.body().map_err(InvokeError::from_error))
+      Ok(value.await.body()?)
     }
   }
 
@@ -321,18 +307,14 @@ pub mod private {
 
   impl ResultFutureTag {
     #[inline(always)]
-    pub fn future<T, E, F>(
-      self,
-      value: F,
-    ) -> impl Future<Output = Result<InvokeResponseBody, InvokeError>>
+    pub async fn future<T, E, F>(self, value: F) -> Result<InvokeResponseBody, InvokeError>
     where
       T: IpcResponse,
       E: Into<InvokeError>,
       F: Future<Output = Result<T, E>> + Send,
     {
-      value
-        .err_into()
-        .map(|result| result.and_then(|value| value.body().map_err(InvokeError::from_error)))
+      let response = value.await.map_err(Into::into)?;
+      Ok(response.body()?)
     }
   }
 }

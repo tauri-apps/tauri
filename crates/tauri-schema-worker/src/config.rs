@@ -45,7 +45,7 @@ pub fn router() -> Router {
     .route("/config/latest", get(stable_schema))
     .route("/config/stable", get(stable_schema))
     .route("/config/next", get(next_schema)) // pre-releases versions, (rc, alpha and beta)
-    .route("/config/:version", get(schema_for_version))
+    .route("/config/{version}", get(schema_for_version))
 }
 
 async fn schema_for_version(Path(version): Path<String>) -> Result<String> {
@@ -146,7 +146,7 @@ async fn stable_version(crate_: &str) -> anyhow::Result<Version> {
 }
 
 fn fetch_req(url: &str) -> anyhow::Result<worker::Request> {
-  let mut headers = Headers::new();
+  let headers = Headers::new();
   headers.append(header::USER_AGENT.as_str(), USERAGENT)?;
 
   worker::Request::new_with_init(

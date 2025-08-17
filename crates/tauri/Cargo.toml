@@ -1,6 +1,6 @@
 [package]
 name = "tauri"
-version = "2.5.1"
+version = "2.7.0"
 description = "Make tiny, secure apps for all desktop platforms with Tauri"
 exclude = ["/test", "/.scripts", "CHANGELOG.md", "/target"]
 readme = "README.md"
@@ -52,18 +52,17 @@ tokio = { version = "1", features = [
   "fs",
   "io-util",
 ] }
-futures-util = "0.3"
 uuid = { version = "1", features = ["v4"], optional = true }
 url = "2"
 anyhow = "1"
 thiserror = "2"
-tauri-runtime = { version = "2.6.0", path = "../tauri-runtime" }
-tauri-macros = { version = "2.2.0", path = "../tauri-macros" }
-tauri-utils = { version = "2.4.0", features = [
+tauri-runtime = { version = "2.7.1", path = "../tauri-runtime" }
+tauri-macros = { version = "2.3.2", path = "../tauri-macros" }
+tauri-utils = { version = "2.6.0", features = [
   "resources",
 ], path = "../tauri-utils" }
-tauri-runtime-wry = { version = "2.6.0", path = "../tauri-runtime-wry", optional = true }
-getrandom = "0.2"
+tauri-runtime-wry = { version = "2.7.2", path = "../tauri-runtime-wry", default-features = false, optional = true }
+getrandom = "0.3"
 serde_repr = "0.1"
 http = "1"
 dirs = "6"
@@ -73,7 +72,7 @@ glob = "0.3"
 urlpattern = "0.3"
 mime = "0.3"
 data-url = { version = "0.3", optional = true }
-serialize-to-javascript = "=0.1.1"
+serialize-to-javascript = "0.1.2"
 image = { version = "0.25", default-features = false, optional = true }
 http-range = { version = "0.1", optional = true }
 tracing = { version = "0.1", optional = true }
@@ -84,11 +83,16 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
   "function",
   "derive",
 ] }
+# WARNING: cookie::Cookie is re-exported so bumping this is a breaking change, documented to be done as a minor bump
+cookie = "0.18"
 
 # desktop
 [target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
-muda = { version = "0.16", default-features = false, features = ["serde"] }
-tray-icon = { version = "0.20", default-features = false, features = [
+muda = { version = "0.17", default-features = false, features = [
+  "serde",
+  "gtk",
+] }
+tray-icon = { version = "0.21", default-features = false, features = [
   "serde",
 ], optional = true }
 
@@ -119,11 +123,16 @@ objc2-app-kit = { version = "0.3", default-features = false, features = [
   "NSWindow",
   "NSImage",
 ] }
+objc2-web-kit = { version = "0.3", features = [
+  "objc2-app-kit",
+  "WKWebView",
+  "WKUserContentController",
+] }
 window-vibrancy = "0.6"
 
 # windows
 [target."cfg(windows)".dependencies]
-webview2-com = { version = "0.37", optional = true }
+webview2-com = { version = "0.38", optional = true }
 window-vibrancy = "0.6"
 windows = { version = "0.61", features = [
   "Win32_Foundation",
@@ -155,8 +164,8 @@ objc2-ui-kit = { version = "0.3.0", default-features = false, features = [
 [build-dependencies]
 glob = "0.3"
 heck = "0.5"
-tauri-build = { path = "../tauri-build/", default-features = false, version = "2.2.0" }
-tauri-utils = { path = "../tauri-utils/", version = "2.4.0", features = [
+tauri-build = { path = "../tauri-build/", default-features = false, version = "2.3.1" }
+tauri-utils = { path = "../tauri-utils/", version = "2.6.0", features = [
   "build",
 ] }
 
@@ -171,17 +180,10 @@ tokio = { version = "1", features = ["full"] }
 cargo_toml = "0.22"
 http-range = "0.1.5"
 
-# macOS
-[target.'cfg(target_os = "macos")'.dev-dependencies]
-objc2-web-kit = { version = "0.3", features = [
-  "objc2-app-kit",
-  "WKWebView",
-  "WKUserContentController",
-] }
-
 [features]
-default = ["wry", "compression", "common-controls-v6", "dynamic-acl"]
+default = ["wry", "compression", "common-controls-v6", "dynamic-acl", "x11"]
 unstable = ["tauri-runtime-wry?/unstable"]
+x11 = ["tauri-runtime-wry?/x11"]
 common-controls-v6 = [
   "tray-icon?/common-controls-v6",
   "muda/common-controls-v6",

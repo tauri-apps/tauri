@@ -1,5 +1,71 @@
 # Changelog
 
+## \[2.7.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.7.1`
+
+## \[2.7.0]
+
+### New Features
+
+- [`33d079392`](https://www.github.com/tauri-apps/tauri/commit/33d079392ac4a5a153b7d8a6d82fefd6f54a2bdf) ([#13811](https://www.github.com/tauri-apps/tauri/pull/13811) by [@mhbagheri-99](https://www.github.com/tauri-apps/tauri/../../mhbagheri-99)) Allow runner configuration to be an object with cmd, cwd, and args properties. The runner can now be configured as `{ "cmd": "my_runner", "cwd": "/path", "args": ["--quiet"] }` while maintaining backwards compatibility with the existing string format.
+
+### Enhancements
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Binaries are patched before bundling to add the type of a bundle they will placed in. This information will be used during update process to select the correct target.
+
+### Bug Fixes
+
+- [`916aeaa48`](https://www.github.com/tauri-apps/tauri/commit/916aeaa48646a483a78e51cfe1633800ee62c37c) ([#13781](https://www.github.com/tauri-apps/tauri/pull/13781) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes Android dev and build commands reading `tauri.ios.conf.json` instead of `tauri.android.conf.json` to merge platform-specific configuration.
+- [`0f248b111`](https://www.github.com/tauri-apps/tauri/commit/0f248b111ffb8af934eaf64bd8f4591e628da786) ([#13799](https://www.github.com/tauri-apps/tauri/pull/13799) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Install iOS dependencies when needed.
+- [`7a6fd5b75`](https://www.github.com/tauri-apps/tauri/commit/7a6fd5b75d61071e2771f6277c0376ec206d302a) ([#13863](https://www.github.com/tauri-apps/tauri/pull/13863) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The AppImage bundler now pulls the AppRun binaries from our GitHub mirror, fixing 404 errors.
+- [`bda830410`](https://www.github.com/tauri-apps/tauri/commit/bda8304107da7ca60caaba5674faa793491898c6) ([#13833](https://www.github.com/tauri-apps/tauri/pull/13833) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fail with an error when trying to migrate from v2 alpha
+- [`bda830410`](https://www.github.com/tauri-apps/tauri/commit/bda8304107da7ca60caaba5674faa793491898c6) ([#13833](https://www.github.com/tauri-apps/tauri/pull/13833) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Use v2 stable instead of v2-rc when migrating from v2-beta
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.7.0`
+
+## \[2.6.2]
+
+### Bug Fixes
+
+- [`cbd962972`](https://www.github.com/tauri-apps/tauri/commit/cbd9629729ed6eb208ba2234d014c11c4e9f1c8c) ([#13730](https://www.github.com/tauri-apps/tauri/pull/13730) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Load `--config` arguments when running the Xcode and Android Studio build scripts.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.6.2`
+
+## \[2.6.1]
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.6.1`
+
+## \[2.6.0]
+
+### New Features
+
+- [`414619c36`](https://www.github.com/tauri-apps/tauri/commit/414619c36e94e21939534dd72c0438b93da75546) ([#13536](https://www.github.com/tauri-apps/tauri/pull/13536) by [@Tunglies](https://www.github.com/tauri-apps/tauri/../../Tunglies)) Added support for the `bundleName` property in the macOS bundler configuration. This allows specifying the `CFBundleName` value for generated macOS bundles.
+- [`3242e1c94`](https://www.github.com/tauri-apps/tauri/commit/3242e1c946c441b58665ba5d612f3a3f1eafe0b6) ([#13659](https://www.github.com/tauri-apps/tauri/pull/13659) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow passing Cargo arguments to mobile dev and build commands.
+- [`d1ce9af62`](https://www.github.com/tauri-apps/tauri/commit/d1ce9af62881e3f7d86a495c9c40df5b7f9d1c04) ([#13660](https://www.github.com/tauri-apps/tauri/pull/13660) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Allow passing `--config` arguments to the `ios init` and `android init` commands to tweak the configuration used to initialize the mobile projects.
+- [`7322f0579`](https://www.github.com/tauri-apps/tauri/commit/7322f057923aaec88960ad5556776774b745762f) ([#13502](https://www.github.com/tauri-apps/tauri/pull/13502) by [@amrbashir](https://www.github.com/tauri-apps/tauri/../../amrbashir)) Allow using `CheckIfAppIsRunning` macro inside NSIS hooks, for example `!insertmacro CheckIfAppIsRunning "another-executable.exe" "Another Executable"`.
+- [`4a880ca69`](https://www.github.com/tauri-apps/tauri/commit/4a880ca697bab6d63a2a51ea94e1988cc8c4ea4a) ([#13658](https://www.github.com/tauri-apps/tauri/pull/13658) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Synchronize Tauri config productName changes with the iOS Xcode project.
+- [`8ee14a864`](https://www.github.com/tauri-apps/tauri/commit/8ee14a86480510c15823586cf28084e615cb7a9c) ([#13618](https://www.github.com/tauri-apps/tauri/pull/13618) by [@Sky-walkerX](https://www.github.com/tauri-apps/tauri/../../Sky-walkerX)) Warn the user that the app id shouldn't end in `.app` because it conflicts with the application bundle extension on macOS
+
+### Bug Fixes
+
+- [`35aa7e121`](https://www.github.com/tauri-apps/tauri/commit/35aa7e1218f34d0805e280e3ec32529d0cb0d733) ([#13294](https://www.github.com/tauri-apps/tauri/pull/13294) by [@kingsword09](https://www.github.com/tauri-apps/tauri/../../kingsword09)) fix: allow the target directory to be inside frontendDir as long as it is not the Rust target directory inside frontendDir.
+- [`ec6065fa4`](https://www.github.com/tauri-apps/tauri/commit/ec6065fa4a6427266ecfb0c0f62f008574bb7880) ([#13625](https://www.github.com/tauri-apps/tauri/pull/13625) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes Android and iOS dev/build commands not working when the app identifier is being modified by the `--config` option.
+- [`5a5291d66`](https://www.github.com/tauri-apps/tauri/commit/5a5291d66cb8a955c9d4f8e975782646ac0cc6e7) ([#13483](https://www.github.com/tauri-apps/tauri/pull/13483) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix simulator build detection on Xcode.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.6.0`
+- [`9c16eefa3`](https://www.github.com/tauri-apps/tauri/commit/9c16eefa319b4697bac1d1019bbb5f93eca63173) ([#13629](https://www.github.com/tauri-apps/tauri/pull/13629) by [@sftse](https://www.github.com/tauri-apps/tauri/../../sftse)) Update html5ever to 0.29 and kuchikiki to version 0.8.8-speedreader.
+
 ## \[2.5.0]
 
 ### New Features

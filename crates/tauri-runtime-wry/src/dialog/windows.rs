@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use windows::core::{w, HSTRING, PCWSTR};
+use windows::core::{w, HSTRING};
 
 enum Level {
   Error,
@@ -33,7 +33,7 @@ fn dialog_inner(err: &str, level: Level) {
     unsafe {
       MessageBoxW(
         None,
-        err,
+        &err,
         title,
         match level {
           Level::Warning => MB_ICONWARNING,
@@ -46,7 +46,7 @@ fn dialog_inner(err: &str, level: Level) {
 
   #[cfg(feature = "common-controls-v6")]
   {
-    use windows::core::HRESULT;
+    use windows::core::{HRESULT, PCWSTR};
     use windows::Win32::Foundation::*;
     use windows::Win32::UI::Controls::*;
     use windows::Win32::UI::Shell::*;

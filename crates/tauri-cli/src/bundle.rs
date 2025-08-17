@@ -82,6 +82,16 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  #[clap(long)]
+  pub skip_stapling: bool,
 }
 
 impl From<crate::build::Options> for Options {
@@ -93,6 +103,7 @@ impl From<crate::build::Options> for Options {
       debug: value.debug,
       ci: value.ci,
       config: value.config,
+      skip_stapling: value.skip_stapling,
     }
   }
 }

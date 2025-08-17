@@ -1,10 +1,8 @@
 // Copyright 2019-2024 Tauri Programme within The Commons Conservancy
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
-use serde::{Deserialize, Deserializer};
 use serde_json::Value as JsonValue;
 use serialize_to_javascript::{default_template, DefaultTemplate, Template};
-use tauri_runtime::window::is_label_valid;
 
 use crate::plugin::{Builder, TauriPlugin};
 use crate::{command, ipc::CallbackFn, EventId, Result, Runtime};
@@ -12,30 +10,6 @@ use crate::{AppHandle, Emitter, Manager, Webview};
 
 use super::EventName;
 use super::EventTarget;
-
-pub struct WebviewLabel(String);
-
-impl AsRef<str> for WebviewLabel {
-  fn as_ref(&self) -> &str {
-    &self.0
-  }
-}
-
-impl<'de> Deserialize<'de> for WebviewLabel {
-  fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-  where
-    D: Deserializer<'de>,
-  {
-    let event_id = String::deserialize(deserializer)?;
-    if is_label_valid(&event_id) {
-      Ok(WebviewLabel(event_id))
-    } else {
-      Err(serde::de::Error::custom(
-        "Webview label must include only alphanumeric characters, `-`, `/`, `:` and `_`.",
-      ))
-    }
-  }
-}
 
 #[command(root = "crate")]
 async fn listen<R: Runtime>(

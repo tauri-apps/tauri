@@ -3,6 +3,7 @@ source: crates/tests/acl/src/lib.rs
 expression: resolved
 ---
 Resolved {
+    has_app_acl: false,
     allowed_commands: {
         "plugin:os|spawn": [
             ResolvedCommand {
@@ -88,10 +89,5 @@ Resolved {
             deny: [],
         },
     },
-    global_scope: {
-        "os": ResolvedScope {
-            allow: [],
-            deny: [],
-        },
-    },
+    global_scope: {},
 }

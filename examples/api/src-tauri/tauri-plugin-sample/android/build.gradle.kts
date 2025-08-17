@@ -5,7 +5,7 @@ plugins {
 
 android {
     namespace = "com.plugin.sample"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 21

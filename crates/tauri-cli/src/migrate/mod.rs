@@ -13,7 +13,7 @@ use crate::{
 
 use std::{fs::read_to_string, str::FromStr};
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 
 mod migrations;
 
@@ -47,9 +47,22 @@ pub fn command() -> Result<()> {
     migrations::v1::run().context("failed to migrate from v1")?;
   } else if tauri_version.major == 2 {
     if let Some((pre, _number)) = tauri_version.pre.as_str().split_once('.') {
-      if pre == "beta" {
-        migrations::v2_rc::run().context("failed to migrate from v2 beta to rc")?;
+      match pre {
+        "beta" => {
+          migrations::v2_beta::run().context("failed to migrate from v2 beta")?;
+        }
+        "alpha" => {
+          bail!(
+            "Migrating from v2 alpha ({tauri_version}) to v2 stable is not supported yet, \
+             if your project started early, try downgrading to v1 and then try again"
+          )
+        }
+        _ => {
+          bail!("Migrating from {tauri_version} to v2 stable is not supported yet")
+        }
       }
+    } else {
+      log::info!("Nothing to do, the tauri version is already at v2 stable");
     }
   }
 

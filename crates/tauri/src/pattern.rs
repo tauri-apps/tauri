@@ -9,6 +9,7 @@ use serde::Serialize;
 use serialize_to_javascript::{default_template, Template};
 
 /// The domain of the isolation iframe source.
+#[cfg(feature = "isolation")]
 pub const ISOLATION_IFRAME_SRC_DOMAIN: &str = "localhost";
 
 /// An application pattern.
@@ -62,6 +63,7 @@ impl From<&Pattern> for PatternObject {
 }
 
 /// Where the JavaScript is injected to
+#[cfg(feature = "isolation")]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub(crate) enum IsolationSide {
@@ -72,6 +74,7 @@ pub(crate) enum IsolationSide {
   Secure,
 }
 
+#[cfg(feature = "isolation")]
 impl Default for IsolationSide {
   fn default() -> Self {
     Self::Original
@@ -84,12 +87,12 @@ pub(crate) struct PatternJavascript {
   pub(crate) pattern: PatternObject,
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "isolation")]
 pub(crate) fn format_real_schema(schema: &str, https: bool) -> String {
   if cfg!(windows) || cfg!(target_os = "android") {
     let scheme = if https { "https" } else { "http" };
-    format!("{scheme}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}")
+    format!("{scheme}://{schema}.{ISOLATION_IFRAME_SRC_DOMAIN}/")
   } else {
-    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}")
+    format!("{schema}://{ISOLATION_IFRAME_SRC_DOMAIN}/")
   }
 }

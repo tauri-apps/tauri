@@ -130,6 +130,8 @@ pub fn run(options: Options) -> Result<()> {
     "Builder::new(|pass| todo!()).build()"
   } else if plugin == "localhost" {
     "Builder::new(todo!()).build()"
+  } else if plugin == "single-instance" {
+    "init(|app, args, cwd| {})"
   } else if metadata.builder {
     "Builder::new().build()"
   } else {

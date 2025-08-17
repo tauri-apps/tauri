@@ -611,40 +611,6 @@ mod tests {
       assert!(scope.is_allowed("\\\\?\\anyfile"));
       assert!(!scope.is_allowed("\\\\?\\otherfile"));
     }
-
-    let cwd = std::env::current_dir().unwrap();
-    let disk = {
-      let std::path::Component::Prefix(prefix) = cwd.components().next().unwrap() else {
-        panic!("Expected current dir to start with a prefix");
-      };
-      assert!(
-        matches!(prefix.kind(), std::path::Prefix::Disk(_)),
-        "Expected current dir to be on a disk drive"
-      );
-      prefix.as_os_str().to_string_lossy()
-    };
-
-    let scope = new_scope();
-    {
-      // Disk
-      scope.allow_directory(&*disk, true).unwrap();
-      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
-      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
-      assert!(!scope.is_allowed("C:\\Windows"));
-      assert!(!scope.is_allowed("Q:Cargo.toml"));
-    }
-
-    let scope = new_scope();
-    {
-      // Verbatim disk
-      scope
-        .allow_directory(format!("\\\\?\\{}", disk), true)
-        .unwrap();
-      assert!(scope.is_allowed(format!("{}Cargo.toml", disk)));
-      assert!(scope.is_allowed(cwd.join("Cargo.toml")));
-      assert!(!scope.is_allowed("C:\\Windows"));
-      assert!(!scope.is_allowed("Q:Cargo.toml"));
-    }
   }
 
   #[test]

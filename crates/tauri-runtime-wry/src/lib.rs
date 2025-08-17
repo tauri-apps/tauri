@@ -870,6 +870,7 @@ impl WindowBuilder for WindowBuilderWrapper {
         .title(config.title.to_string())
         .inner_size(config.width, config.height)
         .focused(config.focus)
+        .focusable(config.focusable)
         .visible(config.visible)
         .resizable(config.resizable)
         .fullscreen(config.fullscreen)
@@ -1032,6 +1033,11 @@ impl WindowBuilder for WindowBuilderWrapper {
 
   fn focused(mut self, focused: bool) -> Self {
     self.inner = self.inner.with_focused(focused);
+    self
+  }
+
+  fn focusable(mut self, focusable: bool) -> Self {
+    self.inner = self.inner.with_focusable(focusable);
     self
   }
 
@@ -1355,6 +1361,7 @@ pub enum WindowMessage {
   #[cfg(target_os = "macos")]
   SetSimpleFullscreen(bool),
   SetFocus,
+  SetFocusable(bool),
   SetIcon(TaoWindowIcon),
   SetSkipTaskbar(bool),
   SetCursorGrab(bool),
@@ -2235,6 +2242,13 @@ impl<T: UserEvent> WindowDispatch<T> for WryWindowDispatcher<T> {
     send_user_message(
       &self.context,
       Message::Window(self.window_id, WindowMessage::SetFocus),
+    )
+  }
+
+  fn set_focusable(&self, focusable: bool) -> Result<()> {
+    send_user_message(
+      &self.context,
+      Message::Window(self.window_id, WindowMessage::SetFocusable(focusable)),
     )
   }
 
@@ -3378,6 +3392,9 @@ fn handle_user_message<T: UserEvent>(
 
           WindowMessage::SetFocus => {
             window.set_focus();
+          }
+          WindowMessage::SetFocusable(focusable) => {
+            window.set_focusable(focusable);
           }
           WindowMessage::SetIcon(icon) => {
             window.set_window_icon(Some(icon));

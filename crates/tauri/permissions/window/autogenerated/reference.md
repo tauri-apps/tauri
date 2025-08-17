@@ -1265,6 +1265,32 @@ Denies the set_focus command without any pre-configured scope.
 <tr>
 <td>
 
+`core:window:allow-set-focusable`
+
+</td>
+<td>
+
+Enables the set_focusable command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:window:deny-set-focusable`
+
+</td>
+<td>
+
+Denies the set_focusable command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
 `core:window:allow-set-fullscreen`
 
 </td>

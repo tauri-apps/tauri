@@ -8545,7 +8545,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.3.2"
+version = "2.4.0"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8703,7 +8703,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-codegen"
-version = "2.3.2"
+version = "2.4.0"
 dependencies = [
  "base64 0.22.1",
  "brotli",
@@ -8789,7 +8789,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-macros"
-version = "2.3.3"
+version = "2.4.0"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2",

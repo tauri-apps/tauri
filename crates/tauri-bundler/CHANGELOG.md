@@ -1,5 +1,26 @@
 # Changelog
 
+## \[2.6.0]
+
+### New Features
+
+- [`a9ec12843`](https://www.github.com/tauri-apps/tauri/commit/a9ec12843aa7d0eb774bd3a53e2e63da12cfa77b) ([#13521](https://www.github.com/tauri-apps/tauri/pull/13521) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added a `--skip-stapling` option to make `tauri build|bundle` *not* wait for notarization to finish on macOS.
+
+### Enhancements
+
+- [`8b465a12b`](https://www.github.com/tauri-apps/tauri/commit/8b465a12ba73e94d7a3995defd9cc362d15eeebe) ([#13913](https://www.github.com/tauri-apps/tauri/pull/13913) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The bundler now pulls the latest AppImage linuxdeploy plugin instead of using the built-in one. This should remove the libfuse requirement.
+- [`4475e93e1`](https://www.github.com/tauri-apps/tauri/commit/4475e93e136e9e2bd5f3c7817fa2040924f630f6) ([#13824](https://www.github.com/tauri-apps/tauri/pull/13824) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The bundler and cli will now read TLS Certificates installed on the system when downloading tools and checking versions.
+
+### Bug Fixes
+
+- [`a8f1569b0`](https://www.github.com/tauri-apps/tauri/commit/a8f1569b04edf7b54a19e19ad37b421b0808f512) ([#13921](https://www.github.com/tauri-apps/tauri/pull/13921) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) The bundler will no longer try to sign non-binary and already signed binary files on Windows
+- [`bc6b125b2`](https://www.github.com/tauri-apps/tauri/commit/bc6b125b24589ffc412a4f17d899a387a0fc0bb2) ([#13909](https://www.github.com/tauri-apps/tauri/pull/13909) by [@Andrew15-5](https://www.github.com/tauri-apps/tauri/../../Andrew15-5)) The bundler now falls back to `1` for the release in case an empty string was provided instead of using `-.` in the file name.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.7.0`
+- Upgraded to `tauri-macos-sign@2.2.0`
+
 ## \[2.5.2]
 
 ### Bug Fixes

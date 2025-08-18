@@ -850,7 +850,7 @@ impl AppSettings for RustAppSettings {
     let mut settings = tauri_config_to_bundle_settings(
       self,
       features,
-      &config,
+      config,
       config.bundle.clone(),
       updater_settings,
       arch64bits,
@@ -1385,9 +1385,7 @@ fn tauri_config_to_bundle_settings(
     let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config)?;
     let domains = match protocols {
       DesktopDeepLinks::One(protocol) => protocol.domains,
-      DesktopDeepLinks::List(protocols) => {
-        protocols.into_iter().map(|p| p.domains).flatten().collect()
-      }
+      DesktopDeepLinks::List(protocols) => protocols.into_iter().flat_map(|p| p.domains).collect(),
     };
 
     if domains.is_empty() {
@@ -1402,7 +1400,7 @@ fn tauri_config_to_bundle_settings(
         "com.apple.developer.associated-domains".to_string(),
         domains
           .into_iter()
-          .map(|d| format!("applinks:{}", d).into())
+          .map(|domain| format!("applinks:{domain}").into())
           .collect::<Vec<_>>()
           .into(),
       );

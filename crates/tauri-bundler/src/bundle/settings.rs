@@ -361,10 +361,19 @@ pub struct MacOsSettings {
   pub hardened_runtime: bool,
   /// Provider short name for notarization.
   pub provider_short_name: Option<String>,
-  /// Path to the entitlements.plist file.
-  pub entitlements: Option<String>,
+  /// Path or contents of the entitlements.plist file.
+  pub entitlements: Option<Entitlements>,
   /// Path to the Info.plist file for the bundle.
   pub info_plist_path: Option<PathBuf>,
+}
+
+/// Entitlements for macOS code signing.
+#[derive(Debug, Clone)]
+pub enum Entitlements {
+  /// Path to the entitlements.plist file.
+  Path(PathBuf),
+  /// Raw plist::Value.
+  Plist(plist::Value),
 }
 
 /// Configuration for a target language for the WiX build.

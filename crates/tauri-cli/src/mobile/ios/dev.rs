@@ -4,7 +4,7 @@
 
 use super::{
   device_prompt, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  merge_plist, open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
+  open_and_wait, synchronize_project_config, MobileTarget, ProjectConfig,
 };
 use crate::{
   dev::Options as DevOptions,
@@ -12,6 +12,7 @@ use crate::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
     flock,
+    plist::merge as merge_plist,
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{

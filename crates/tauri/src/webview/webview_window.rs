@@ -1365,12 +1365,6 @@ impl<R: Runtime> AsRef<Webview<R>> for WebviewWindow<R> {
   }
 }
 
-impl<R: Runtime> AsRef<Window<R>> for WebviewWindow<R> {
-  fn as_ref(&self) -> &Window<R> {
-    &self.window
-  }
-}
-
 impl<R: Runtime> Clone for WebviewWindow<R> {
   fn clone(&self) -> Self {
     Self {

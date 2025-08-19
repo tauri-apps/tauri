@@ -301,7 +301,7 @@ fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
 
 fn open_and_wait(config: &OpenHarmonyConfig, env: &Env) -> ! {
   log::info!("Opening DevEco Studio");
-  if let Err(e) = os::open_file_with("DevEco Studio", config.project_dir(), &env.base) {
+  if let Err(e) = os::open_file_with("DevEco-Studio", config.project_dir(), &env.base) {
     log::error!("{e}");
   }
   loop {

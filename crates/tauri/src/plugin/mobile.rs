@@ -342,6 +342,17 @@ impl<R: Runtime> PluginHandle<R> {
   }
 }
 
+#[cfg(target_env = "ohos")]
+pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) + Send + 'static>(
+  _name: &str,
+  _handle: &AppHandle<R>,
+  _command: C,
+  _payload: serde_json::Value,
+  _handler: F,
+) -> Result<(), PluginInvokeError> {
+  unimplemented!()
+}
+
 #[cfg(target_os = "ios")]
 pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) + Send + 'static>(
   name: &str,

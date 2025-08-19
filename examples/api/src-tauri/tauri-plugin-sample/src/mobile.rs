@@ -25,6 +25,8 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
   let handle = api.register_android_plugin(PLUGIN_IDENTIFIER, "ExamplePlugin")?;
   #[cfg(target_os = "ios")]
   let handle = api.register_ios_plugin(init_plugin_sample)?;
+  #[cfg(target_env = "ohos")]
+  let handle = unimplemented!();
   Ok(Sample(handle))
 }
 

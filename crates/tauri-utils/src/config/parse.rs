@@ -56,6 +56,7 @@ impl ConfigFormat {
         Target::Linux => "tauri.linux.conf.json",
         Target::Android => "tauri.android.conf.json",
         Target::Ios => "tauri.ios.conf.json",
+        Target::OpenHarmony => "tauri.ohos.conf.json",
       },
       Self::Json5 => match target {
         Target::MacOS => "tauri.macos.conf.json5",
@@ -63,6 +64,7 @@ impl ConfigFormat {
         Target::Linux => "tauri.linux.conf.json5",
         Target::Android => "tauri.android.conf.json5",
         Target::Ios => "tauri.ios.conf.json5",
+        Target::OpenHarmony => "tauri.ohos.conf.json5",
       },
       Self::Toml => match target {
         Target::MacOS => "Tauri.macos.toml",
@@ -70,6 +72,7 @@ impl ConfigFormat {
         Target::Linux => "Tauri.linux.toml",
         Target::Android => "Tauri.android.toml",
         Target::Ios => "Tauri.ios.toml",
+        Target::OpenHarmony => "Tauri.ohos.toml",
       },
     }
   }
@@ -172,6 +175,7 @@ pub fn is_configuration_file(target: Target, path: &Path) -> bool {
 /// - `tauri.windows.conf.json[5]` or `Tauri.windows.toml` on Windows
 /// - `tauri.android.conf.json[5]` or `Tauri.android.toml` on Android
 /// - `tauri.ios.conf.json[5]` or `Tauri.ios.toml` on iOS
+/// - `tauri.ohos.conf.json[5]` or `Tauri.ohos.toml` on OpenHarmony
 ///   Merging the configurations using [JSON Merge Patch (RFC 7396)].
 ///
 /// Returns the raw configuration and used config paths.

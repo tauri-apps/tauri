@@ -11,8 +11,24 @@ import { Theme } from './window'
  *
  * Represents a 128-bit identifier, commonly expressed as a 16-byte UUID.
  */
-export type DataStoreIdentifier = [number, number, number, number, number, number, number, number,
-                                   number, number, number, number, number, number, number, number]
+export type DataStoreIdentifier = [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number
+]
 
 /**
  * Bundle type of the current application.

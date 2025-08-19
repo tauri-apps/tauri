@@ -220,7 +220,7 @@ impl<T: UserEvent> RuntimeHandle<T> for MockRuntimeHandle {
   fn display_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
     return Ok(unsafe {
       raw_window_handle::DisplayHandle::borrow_raw(raw_window_handle::RawDisplayHandle::Xlib(
         raw_window_handle::XlibDisplayHandle::new(None, 0),
@@ -483,12 +483,15 @@ impl WindowBuilder for MockWindowBuilder {
     self
   }
 
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+  #[cfg(all(
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    ),
+    not(target_env = "ohos")
   ))]
   fn transient_for(self, parent: &impl gtk::glib::IsA<gtk::Window>) -> Self {
     self
@@ -802,23 +805,29 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
     Ok(Theme::Light)
   }
 
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+  #[cfg(all(
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    ),
+    not(target_env = "ohos")
   ))]
   fn gtk_window(&self) -> Result<gtk::ApplicationWindow> {
     unimplemented!()
   }
 
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+  #[cfg(all(
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    ),
+    not(target_env = "ohos")
   ))]
   fn default_vbox(&self) -> Result<gtk::Box> {
     unimplemented!()
@@ -837,7 +846,7 @@ impl<T: UserEvent> WindowDispatch<T> for MockWindowDispatcher {
   fn window_handle(
     &self,
   ) -> std::result::Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
     return unsafe {
       Ok(raw_window_handle::WindowHandle::borrow_raw(
         raw_window_handle::RawWindowHandle::Xlib(raw_window_handle::XlibWindowHandle::new(0)),

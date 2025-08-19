@@ -56,10 +56,11 @@ pub(crate) fn setup(
   android_path: Option<PathBuf>,
   #[allow(unused_variables)] ios_path: Option<PathBuf>,
 ) -> Result<()> {
-  let target_os = build_var("CARGO_CFG_TARGET_OS")?;
-  let mobile = target_os == "android" || target_os == "ios";
-  cfg_alias("mobile", mobile);
+  let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap();
+  let target_env = std::env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+  let mobile = target_os == "ios" || target_os == "android" || target_env == "ohos";
   cfg_alias("desktop", !mobile);
+  cfg_alias("mobile", mobile);
 
   match target_os.as_str() {
     "android" => {

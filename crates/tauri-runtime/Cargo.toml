@@ -42,12 +42,15 @@ features = ["Win32_Foundation", "Win32_System_WinRT"]
 [target."cfg(windows)".dependencies]
 webview2-com = "0.38"
 
-[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+[target.'cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"), not(target_env = "ohos")))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 webkit2gtk = { version = "=2.0", features = ["v2_40"] }
 
 [target."cfg(target_os = \"android\")".dependencies]
 jni = "0.21"
+
+[target.'cfg(target_env = "ohos")'.dependencies]
+openharmony-ability = { version = "0.2" }
 
 [target.'cfg(all(target_vendor = "apple", not(target_os = "macos")))'.dependencies]
 objc2 = "0.6"

@@ -4,7 +4,7 @@
 
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
+#[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
 use crate::window::WindowId;
 use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
@@ -94,12 +94,15 @@ pub struct NewWindowOpener {
   /// The instance of the webview that initiated the new window request.
   ///
   /// This must be set as the related view of the new webview. See [`WebviewAttributes::related_view`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
+  #[cfg(all(
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    ),
+    not(target_env = "ohos")
   ))]
   pub webview: webkit2gtk::WebView,
   /// The instance of the webview that initiated the new window request.
@@ -168,7 +171,7 @@ pub enum NewWindowResponse {
   ///
   /// **Linux**: The webview must be related to the caller webview. See [`WebviewAttributes::related_view`].
   /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::environment`].
-  #[cfg(not(any(target_os = "android", target_os = "ios")))]
+  #[cfg(not(any(target_os = "android", target_os = "ios", target_env = "ohos")))]
   Create { window_id: WindowId },
   /// Deny the window from being opened.
   Deny,
@@ -410,12 +413,15 @@ pub struct WebviewAttributes {
 
   /// Creates a new webview sharing the same web process with the provided webview.
   /// Useful if you need to link a webview to another, for instance when using the [`PendingWebview::new_window_handler`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
+  #[cfg(all(
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    ),
+    not(target_env = "ohos")
   ))]
   pub related_view: Option<webkit2gtk::WebView>,
 
@@ -540,12 +546,15 @@ impl WebviewAttributes {
       input_accessory_view_builder: None,
       #[cfg(windows)]
       environment: None,
-      #[cfg(any(
-        target_os = "linux",
-        target_os = "dragonfly",
-        target_os = "freebsd",
-        target_os = "netbsd",
-        target_os = "openbsd",
+      #[cfg(all(
+        any(
+          target_os = "linux",
+          target_os = "dragonfly",
+          target_os = "freebsd",
+          target_os = "netbsd",
+          target_os = "openbsd",
+        ),
+        not(target_env = "ohos")
       ))]
       related_view: None,
       #[cfg(target_os = "macos")]

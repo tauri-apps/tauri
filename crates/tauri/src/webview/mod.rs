@@ -153,12 +153,15 @@ pub struct PlatformWebview(tauri_runtime_wry::Webview);
 #[cfg(feature = "wry")]
 impl PlatformWebview {
   /// Returns [`webkit2gtk::WebView`] handle.
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+  #[cfg(all(
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    ),
+    not(target_env = "ohos")
   ))]
   #[cfg_attr(
     docsrs,
@@ -1271,7 +1274,8 @@ fn main() {
       target_os = "freebsd",
       target_os = "netbsd",
       target_os = "openbsd",
-    )
+    ),
+    not(target_env = "ohos")
   ))]
   pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
     self.webview_attributes.related_view.replace(related_view);
@@ -1624,7 +1628,7 @@ tauri::Builder::default()
   .setup(|app| {
     let main_webview = app.get_webview("main").unwrap();
     main_webview.with_webview(|webview| {
-      #[cfg(target_os = "linux")]
+      #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
       {
         // see <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/struct.WebView.html>
         // and <https://docs.rs/webkit2gtk/2.0.0/webkit2gtk/trait.WebViewExt.html>

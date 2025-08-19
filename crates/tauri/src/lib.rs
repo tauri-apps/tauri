@@ -84,6 +84,9 @@ pub use url::Url;
 
 pub(crate) mod app;
 pub mod async_runtime;
+#[doc(hidden)]
+#[cfg(target_env = "ohos")]
+pub mod ohos;
 mod error;
 mod event;
 pub mod ipc;

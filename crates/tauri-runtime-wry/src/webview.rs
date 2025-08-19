@@ -2,15 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-#[cfg(any(
-  target_os = "linux",
-  target_os = "dragonfly",
-  target_os = "freebsd",
-  target_os = "netbsd",
-  target_os = "openbsd"
+#[cfg(all(
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ),
+  not(target_env = "ohos")
 ))]
 mod imp {
   pub type Webview = webkit2gtk::WebView;
+}
+
+#[cfg(target_env = "ohos")]
+mod imp {
+  pub type Webview = ();
 }
 
 #[cfg(target_vendor = "apple")]

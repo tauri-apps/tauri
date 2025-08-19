@@ -38,13 +38,15 @@ pub fn run_app<R: Runtime, F: FnOnce(&App<R>) + Send + 'static>(
   builder: tauri::Builder<R>,
   setup: F,
 ) {
+  #[cfg(not(target_env = "ohos"))]
+  let builder = builder.plugin(
+    tauri_plugin_log::Builder::default()
+      .level(log::LevelFilter::Info)
+      .build(),
+  );
+
   #[allow(unused_mut)]
   let mut builder = builder
-    .plugin(
-      tauri_plugin_log::Builder::default()
-        .level(log::LevelFilter::Info)
-        .build(),
-    )
     .plugin(tauri_plugin_sample::init())
     .setup(move |app| {
       #[cfg(all(desktop, not(test)))]

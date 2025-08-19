@@ -267,10 +267,10 @@ impl Display for Theme {
 #[non_exhaustive]
 pub struct Env {
   /// The APPIMAGE environment variable.
-  #[cfg(target_os = "linux")]
+  #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
   pub appimage: Option<std::ffi::OsString>,
   /// The APPDIR environment variable.
-  #[cfg(target_os = "linux")]
+  #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
   pub appdir: Option<std::ffi::OsString>,
   /// The command line arguments of the current process.
   pub args_os: Vec<OsString>,
@@ -280,12 +280,12 @@ pub struct Env {
 impl Default for Env {
   fn default() -> Self {
     let args_os = std::env::args_os().collect();
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
     {
       let env = Self {
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
         appimage: std::env::var_os("APPIMAGE"),
-        #[cfg(target_os = "linux")]
+        #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
         appdir: std::env::var_os("APPDIR"),
         args_os,
       };
@@ -308,7 +308,7 @@ impl Default for Env {
       }
       env
     }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(any(target_env = "ohos", not(target_os = "linux")))]
     {
       Self { args_os }
     }

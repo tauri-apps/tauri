@@ -1655,6 +1655,13 @@
           "enum": [
             "iOS"
           ]
+        },
+        {
+          "description": "OpenHarmony.",
+          "type": "string",
+          "enum": [
+            "openHarmony"
+          ]
         }
       ]
     },

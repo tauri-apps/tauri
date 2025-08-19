@@ -472,7 +472,8 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
   let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();
-  let mobile = target_os == "ios" || target_os == "android";
+  let target_env = env::var_os("CARGO_CFG_TARGET_ENV").unwrap_or_default();
+  let mobile = target_os == "ios" || target_os == "android" || target_env == "ohos";
   cfg_alias("desktop", !mobile);
   cfg_alias("mobile", mobile);
 

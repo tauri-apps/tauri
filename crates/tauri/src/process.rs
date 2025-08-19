@@ -47,7 +47,7 @@ use std::path::PathBuf;
 /// [AppImage]: https://appimage.org/
 pub fn current_binary(_env: &Env) -> std::io::Result<PathBuf> {
   // if we are running from an AppImage, we ONLY want the set AppImage path
-  #[cfg(target_os = "linux")]
+  #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
   if let Some(app_image_path) = &_env.appimage {
     return Ok(PathBuf::from(app_image_path));
   }

@@ -85,7 +85,7 @@ specta = { version = "^2.0.0-rc.16", optional = true, default-features = false, 
 cookie = "0.18"
 
 # desktop
-[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"))'.dependencies]
+[target.'cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd", target_os = "windows", target_os = "macos"), not(target_env = "ohos")))'.dependencies]
 muda = { version = "0.17", default-features = false, features = [
   "serde",
   "gtk",
@@ -95,7 +95,7 @@ tray-icon = { version = "0.22", default-features = false, features = [
 ], optional = true }
 
 # linux
-[target.'cfg(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"))'.dependencies]
+[target.'cfg(all(any(target_os = "linux", target_os = "dragonfly", target_os = "freebsd", target_os = "openbsd", target_os = "netbsd"), not(target_env = "ohos")))'.dependencies]
 gtk = { version = "0.18", features = ["v3_24"] }
 webkit2gtk = { version = "2", features = ["v2_40"], optional = true }
 
@@ -140,7 +140,7 @@ windows = { version = "0.61", features = [
 ] }
 
 # mobile
-[target.'cfg(any(target_os = "android", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
+[target.'cfg(any(target_os = "android", target_env = "ohos", all(target_vendor = "apple", not(target_os = "macos"))))'.dependencies]
 bytes = { version = "1", features = ["serde"] }
 reqwest = { version = "0.13", default-features = false, features = [
   "json",
@@ -149,6 +149,11 @@ reqwest = { version = "0.13", default-features = false, features = [
 rustls = { version = "0.23", default-features = false, features = [
   "ring",
 ], optional = true }
+
+[target.'cfg(target_env = "ohos")'.dependencies]
+openharmony-ability = { version = "0.2" }
+openharmony-ability-derive = { version = "0.2" }
+
 
 # android
 [target.'cfg(target_os = "android")'.dependencies]

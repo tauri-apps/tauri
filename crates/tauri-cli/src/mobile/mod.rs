@@ -47,6 +47,7 @@ pub mod android;
 mod init;
 #[cfg(target_os = "macos")]
 pub mod ios;
+pub mod open_harmony;
 
 const MIN_DEVICE_MATCH_SCORE: isize = 0;
 
@@ -86,6 +87,7 @@ pub enum Target {
   Android,
   #[cfg(target_os = "macos")]
   Ios,
+  OpenHarmony,
 }
 
 impl Target {
@@ -94,6 +96,7 @@ impl Target {
       Self::Android => "Android Studio",
       #[cfg(target_os = "macos")]
       Self::Ios => "Xcode",
+      Self::OpenHarmony => "Dev-Eco Studio",
     }
   }
 
@@ -102,6 +105,7 @@ impl Target {
       Self::Android => "android",
       #[cfg(target_os = "macos")]
       Self::Ios => "ios",
+      Self::OpenHarmony => "open-harmony",
     }
   }
 
@@ -110,6 +114,7 @@ impl Target {
       Self::Android => "android-studio-script",
       #[cfg(target_os = "macos")]
       Self::Ios => "xcode-script",
+      Self::OpenHarmony => "dev-eco-studio-script",
     }
   }
 
@@ -118,6 +123,7 @@ impl Target {
       Self::Android => tauri_utils::platform::Target::Android,
       #[cfg(target_os = "macos")]
       Self::Ios => tauri_utils::platform::Target::Ios,
+      Self::OpenHarmony => tauri_utils::platform::Target::OpenHarmony,
     }
   }
 }
@@ -418,6 +424,7 @@ pub fn get_app(
     Target::Android => config.identifier.replace('-', "_"),
     #[cfg(target_os = "macos")]
     Target::Ios => config.identifier.replace('_', "-"),
+    Target::OpenHarmony => config.identifier.replace('-', "_"),
   };
 
   if identifier.is_empty() {
@@ -569,6 +576,16 @@ fn ensure_init(
       }
 
       // note: pbxproj is synchronied by the dev/build commands
+    }
+    Target::OpenHarmony => {
+      let app_json = json5::from_str::<open_harmony::AppConfig>(
+        &read_to_string(project_dir.join("AppScope").join("app.json5"))
+          .context("missing app.json5 file in the OpenHarmony project directory")?,
+      )?;
+      if app_json.app.bundle_name != tauri_config_.identifier.replace('-', "_") {
+        project_outdated_reasons
+          .push("you have modified your \"identifier\" in the Tauri configuration");
+      }
     }
   }
 

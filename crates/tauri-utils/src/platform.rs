@@ -37,6 +37,8 @@ pub enum Target {
   /// iOS.
   #[serde(rename = "iOS")]
   Ios,
+  /// OpenHarmony.
+  OpenHarmony,
 }
 
 impl Display for Target {
@@ -50,6 +52,7 @@ impl Display for Target {
         Self::Linux => "linux",
         Self::Android => "android",
         Self::Ios => "iOS",
+        Self::OpenHarmony => "open-harmony",
       }
     )
   }
@@ -304,7 +307,7 @@ fn resource_dir_from<P: AsRef<std::path::Path>>(
   #[allow(unused_mut, unused_assignments)]
   let mut res = Err(crate::Error::UnsupportedPlatform);
 
-  #[cfg(target_os = "linux")]
+  #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
   {
     // (canonicalize checks for existence, so there's no need for an extra check)
     res = if let Ok(bundle_dir) = exe_dir
@@ -386,6 +389,7 @@ mod build {
         Self::Windows => quote! { #prefix::Windows },
         Self::Android => quote! { #prefix::Android },
         Self::Ios => quote! { #prefix::Ios },
+        Self::OpenHarmony => quote! { #prefix::OpenHarmony },
       });
     }
   }
@@ -426,7 +430,7 @@ mod tests {
     let resource_dir = super::resource_dir_from(&path, &package_info, &env);
     #[cfg(target_os = "macos")]
     assert!(resource_dir.is_err());
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", not(target_env = "ohos")))]
     assert_eq!(resource_dir.unwrap(), PathBuf::from("/usr/lib/MyApp"));
     #[cfg(windows)]
     assert_eq!(resource_dir.unwrap(), path.parent().unwrap());

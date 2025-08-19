@@ -469,6 +469,9 @@ pub fn build() {
 pub fn try_build(attributes: Attributes) -> Result<()> {
   use anyhow::anyhow;
 
+  #[cfg(target_env = "ohos")]
+  napi_build_ohos::setup();
+
   println!("cargo:rerun-if-env-changed=TAURI_CONFIG");
 
   let target_os = env::var_os("CARGO_CFG_TARGET_OS").unwrap();

@@ -9088,6 +9088,7 @@ dependencies = [
  "glob",
  "heck 0.5.0",
  "json-patch",
+ "napi-build-ohos",
  "quote",
  "schemars",
  "semver",

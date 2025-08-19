@@ -2174,7 +2174,7 @@ tauri::Builder::default()
       app: crate::ohos::APP
         .lock()
         .unwrap()
-        .clone()
+        .take()
         .expect("OpenHarmony app instance not initialized"),
     };
 

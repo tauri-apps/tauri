@@ -184,7 +184,7 @@ fn delete_codegen_vars() {
   }
 }
 
-fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
+fn hdc_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   let device_list = hdc::device_list(env)
     .map_err(|cause| anyhow::anyhow!("Failed to detect connected OpenHarmony devices: {cause}"))?;
   if !device_list.is_empty() {
@@ -273,7 +273,7 @@ fn emulator_prompt(_env: &'_ Env, target: Option<&str>) -> Result<emulator::Emul
 }
 
 fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  if let Ok(device) = adb_device_prompt(env, target) {
+  if let Ok(device) = hdc_device_prompt(env, target) {
     Ok(device)
   } else {
     let emulator = emulator_prompt(env, target)?;
@@ -282,11 +282,11 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
-      if let Ok(device) = adb_device_prompt(env, Some(emulator.name())) {
+      if let Ok(device) = hdc_device_prompt(env, Some(emulator.name())) {
         return Ok(device);
       }
       if tries >= 3 {
-        log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `adb devices` to check)");
+        log::info!("Waiting for emulator to start... (maybe the emulator is unauthorized or offline, run `hdc list targets` to check)");
       } else {
         log::info!("Waiting for emulator to start...");
       }

@@ -5,7 +5,7 @@ import window from '@ohos.window';
 
 export default class EntryAbility extends RustAbility {
   // change to dynamic library name
-  public moduleName: string = "{{app.name}}"
+  public moduleName: string = "{{app.lib-name}}"
   public defaultPage: boolean = true;
   public mode: 'xcomponent' | 'webview' = 'webview'
 

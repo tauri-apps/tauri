@@ -23,7 +23,7 @@ pub fn gen(
   map.insert(
     "root-dir-rel",
     Path::new(&os::replace_path_separator(
-      util::relativize_path(app.root_dir(), dest.join(app.name_snake())).into_os_string(),
+      util::relativize_path(app.root_dir(), &dest).into_os_string(),
     )),
   );
   map.insert("root-dir", app.root_dir());

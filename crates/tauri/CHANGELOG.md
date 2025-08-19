@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.8.2]
+
+### Bug Fixes
+
+- [`5075b67d3`](https://www.github.com/tauri-apps/tauri/commit/5075b67d368e63e07df5bac5e43c24396460692d) ([#14039](https://www.github.com/tauri-apps/tauri/pull/14039) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix compilation when the `wry` Cargo feature is disabled.
+
 ## \[2.8.1]
 
 ### Bug Fixes

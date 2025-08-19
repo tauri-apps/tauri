@@ -70,7 +70,7 @@ jobs:
               command: 'build'
             }
         features:
-          - { args: --no-default-features, key: no-default }
+          - { args: --no-default-features -p tauri, key: no-default }
           - { args: --all-features, key: all }
 
     steps:

@@ -363,7 +363,7 @@ impl<R: Runtime> AppManager<R> {
   /// Get the base URL to use for webview requests.
   ///
   /// In dev mode, this will be based on the `devUrl` configuration value.
-  pub(crate) fn get_url(&self, https: bool) -> Cow<'_, Url> {
+  pub fn get_url(&self, https: bool) -> Cow<'_, Url> {
     match self.base_path() {
       Some(url) => Cow::Borrowed(url),
       _ => self.protocol_url(https),

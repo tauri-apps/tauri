@@ -83,7 +83,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       }
 
       // be careful when renaming this, the `start_app` symbol is checked by the CLI
-      #[cfg(not(target_os = "android"))]
+      #[cfg(target_os = "ios")]
       #[no_mangle]
       #[inline(never)]
       pub extern "C" fn start_app() {

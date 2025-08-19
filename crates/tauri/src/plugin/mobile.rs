@@ -350,7 +350,8 @@ pub(crate) fn run_command<R: Runtime, C: AsRef<str>, F: FnOnce(PluginResponse) +
   _payload: serde_json::Value,
   _handler: F,
 ) -> Result<(), PluginInvokeError> {
-  unimplemented!()
+  // TODO
+  Ok(())
 }
 
 #[cfg(target_os = "ios")]

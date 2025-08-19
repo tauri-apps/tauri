@@ -1265,7 +1265,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
-  #[cfg(windows)]
+  #[cfg(all(feature = "wry", windows))]
   pub fn with_environment(
     mut self,
     environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
@@ -1331,7 +1331,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
         .with_webview_configuration(features.opener().target_configuration.clone());
     }
 
-    #[cfg(windows)]
+    #[cfg(all(feature = "wry", windows))]
     {
       self.webview_builder = self
         .webview_builder

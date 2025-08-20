@@ -69,6 +69,8 @@ impl Target {
       Self::Android
     } else if target.contains("ios") {
       Self::Ios
+    } else if target.contains("ohos") {
+      Self::OpenHarmony
     } else {
       Self::Linux
     }
@@ -84,6 +86,8 @@ impl Target {
       Self::Ios
     } else if cfg!(target_os = "android") {
       Self::Android
+    } else if cfg!(target_env = "ohos") {
+      Self::OpenHarmony
     } else {
       Self::Linux
     }
@@ -91,7 +95,7 @@ impl Target {
 
   /// Whether the target is mobile or not.
   pub fn is_mobile(&self) -> bool {
-    matches!(self, Target::Android | Target::Ios)
+    matches!(self, Target::Android | Target::Ios | Target::OpenHarmony)
   }
 
   /// Whether the target is desktop or not.

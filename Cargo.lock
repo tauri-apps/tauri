@@ -1058,7 +1058,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile2"
 version = "0.20.4"
-source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=feat/ohos#c0e0c20ce4064dcebc0f49cf4c3c5386063295ad"
+source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=feat/ohos#2c9372ed600b49f81ab1af4b23cd048c84282f1c"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -6086,7 +6086,7 @@ dependencies = [
  "aes-gcm",
  "aes-kw",
  "argon2",
- "base64 0.22.1",
+ "base64 0.21.7",
  "bitfield",
  "block-padding",
  "blowfish",

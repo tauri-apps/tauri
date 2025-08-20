@@ -295,11 +295,19 @@ fn handle_ipc_message<R: Runtime>(request: Request<String>, manager: &AppManager
       Ok(message) => {
         let options = message.options.unwrap_or_default();
 
+        let uri = request.uri().to_string();
+        let url = if uri == "/" {
+          webview
+            .url()
+            .unwrap_or_else(|_| "about:blank".parse().unwrap())
+        } else {
+          Url::parse(&uri).expect("invalid IPC request URL")
+        };
         let request = InvokeRequest {
           cmd: message.cmd,
           callback: message.callback,
           error: message.error,
-          url: Url::parse(&request.uri().to_string()).expect("invalid IPC request URL"),
+          url,
           body: message.payload.into(),
           headers: options.headers.0,
           invoke_key: message.invoke_key,

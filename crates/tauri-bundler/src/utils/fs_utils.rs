@@ -142,15 +142,15 @@ pub fn copy_dir(from: &Path, to: &Path) -> crate::Result<()> {
 /// Expects a HashMap of PathBuf entries, representing destination and source paths,
 /// and also a path of a directory. The files will be stored with respect to this directory.
 #[cfg(all(
-        any(
-          target_os = "linux",
-          target_os = "dragonfly",
-          target_os = "freebsd",
-          target_os = "netbsd",
-          target_os = "openbsd",
-        ),
-        not(target_env = "ohos")
-      ))]
+  any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ),
+  not(target_env = "ohos")
+))]
 pub fn copy_custom_files(
   files_map: &std::collections::HashMap<std::path::PathBuf, std::path::PathBuf>,
   data_dir: &Path,

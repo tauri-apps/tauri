@@ -153,7 +153,6 @@ reqwest = { version = "0.12", default-features = false, features = [
 openharmony-ability = { version = "0.2" }
 openharmony-ability-derive = { version = "0.2" }
 
-
 # android
 [target.'cfg(target_os = "android")'.dependencies]
 jni = "0.21"

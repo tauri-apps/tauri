@@ -118,7 +118,7 @@ impl Target {
       Self::Android => "android",
       #[cfg(target_os = "macos")]
       Self::Ios => "ios",
-      Self::OpenHarmony => "open-harmony",
+      Self::OpenHarmony => "ohos",
     }
   }
 

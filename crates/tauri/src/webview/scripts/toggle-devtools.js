@@ -28,4 +28,4 @@
   } else {
     window.addEventListener('DOMContentLoaded', toggleDevtoolsHotkey, true)
   }
-})()
+})();

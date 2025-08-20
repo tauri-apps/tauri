@@ -18,4 +18,4 @@
   Object.defineProperty(window.__TAURI_INTERNALS__, '__TAURI_PATTERN__', {
     value: __tauriDeepFreeze(__TEMPLATE_pattern__)
   })
-})()
+})();

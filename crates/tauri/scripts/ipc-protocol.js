@@ -88,4 +88,4 @@
   Object.defineProperty(window.__TAURI_INTERNALS__, 'postMessage', {
     value: sendIpcMessage
   })
-})()
+})();

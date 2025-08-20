@@ -12,4 +12,4 @@
   __RAW_core_script__
 
   __RAW_event_initialization_script__
-})()
+})();

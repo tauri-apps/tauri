@@ -94,7 +94,7 @@ pub fn entry_point(_attributes: TokenStream, item: TokenStream) -> TokenStream {
       use ::tauri::ohos::*;
 
       #[cfg(target_env = "ohos")]
-      #[::tauri::ohos::openharmony_ability_derive::ability(webview)]
+      #[::tauri::ohos::openharmony_ability_derive::ability(webview, protocol = "tauri,ipc,asset")]
       pub fn openharmony(app: ::tauri::ohos::openharmony_ability::OpenHarmonyApp) {
         ::tauri::ohos::APP.lock().unwrap().replace(app);
         _start_app()

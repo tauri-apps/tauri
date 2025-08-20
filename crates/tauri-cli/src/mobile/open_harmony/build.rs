@@ -58,9 +58,6 @@ pub struct Options {
   /// but you can use this for more specific use cases such as different build flavors.
   #[clap(short, long)]
   pub config: Vec<ConfigValue>,
-  /// Whether to split the HAPs per ABIs.
-  #[clap(long)]
-  pub split_per_abi: bool,
   /// Open DevEco Studio
   #[clap(short, long)]
   pub open: bool,
@@ -185,7 +182,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 #[allow(clippy::too_many_arguments)]
 fn run_build(
   interface: AppInterface,
-  options: Options,
+  _options: Options,
   build_options: BuildOptions,
   tauri_config: ConfigHandle,
   profile: Profile,
@@ -217,42 +214,9 @@ fn run_build(
 
   inject_resources(config, tauri_config.lock().unwrap().as_ref().unwrap())?;
 
-  let hap_outputs = hap::build(
-    config,
-    env,
-    noise_level,
-    profile,
-    get_targets_or_all(options.targets.clone().unwrap_or_default())?,
-    options.split_per_abi,
-  )?;
+  let hap_outputs = hap::build(config, env, noise_level, profile)?;
 
   log_finished(hap_outputs, "HAP");
 
   Ok(handle)
-}
-
-fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
-  if targets.is_empty() {
-    Ok(Target::all().iter().map(|t| t.1).collect())
-  } else {
-    let mut outs = Vec::new();
-
-    let possible_targets = Target::all()
-      .keys()
-      .map(|key| key.to_string())
-      .collect::<Vec<String>>()
-      .join(",");
-
-    for t in targets {
-      let target = Target::for_name(&t).ok_or_else(|| {
-        anyhow::anyhow!(
-          "Target {} is invalid; the possible targets are {}",
-          t,
-          possible_targets
-        )
-      })?;
-      outs.push(target);
-    }
-    Ok(outs)
-  }
 }

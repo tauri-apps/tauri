@@ -11,7 +11,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
@@ -24,17 +23,16 @@ jobs:
           profile: minimal
           override: true
 
-      - name: Cache cargo registry
+      - name: Cache cargo
         uses: actions/cache@v3
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Cache cargo build
-        uses: actions/cache@v3
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Build the bundler crate
         run: cargo build --manifest-path crates/tauri-bundler/Cargo.toml --verbose
@@ -42,7 +40,6 @@ jobs:
       - name: Run tests for bundler crate
         run: cargo test --manifest-path crates/tauri-bundler/Cargo.toml --verbose
   
-  # New job to test the --no-sign feature on multiple operating systems
   test-no-sign-feature:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -67,24 +64,21 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Install system dependencies (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libudev-dev
+          # Corrected package name for Ubuntu 24.04
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libudev-dev
           
       - name: Build with --no-sign flag
-        # We build the Tauri CLI and then use it to build a dummy Tauri project.
-        # This is the most realistic way to test the CLI flag.
         run: |
           cargo build --release --manifest-path crates/tauri-cli/Cargo.toml
-          
-          # The full command needs to be run inside a dummy Tauri project.
-          # We'll use a placeholder path here.
-          # The output is piped to a file to check for the log message.
-          # The target is specified explicitly to ensure the correct bundler logic is used.
+
           if [ "${{ runner.os }}" == "macOS" ]; then
             TARGET_TRIPLE="x86_64-apple-darwin"
           elif [ "${{ runner.os }}" == "Windows" ]; then
@@ -93,17 +87,11 @@ jobs:
             TARGET_TRIPLE="x86_64-unknown-linux-gnu"
           fi
           
+          # Use a real path to a dummy project
           cargo run --release --package tauri-cli -- build --no-sign --target $TARGET_TRIPLE > build_output.log 2>&1
-        working-directory: path/to/your/dummy/project/
+        working-directory: test-project/
 
       - name: Verify that signing was skipped
-        # This step checks for the log message confirming that signing was skipped.
-        # This is a robust way to verify the feature without needing to inspect the binary file itself.
         run: |
-          if grep -q "Skipping signing" build_output.log; then
-            echo "Successfully found 'Skipping signing' message. Test passed."
-            exit 0
-          else
-            echo "Did not find 'Skipping signing' message. Test failed."
-            exit 1
-          fi
+          # Use grep on all platforms
+          grep -q "Skipping signing" build_output.log

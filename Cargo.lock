@@ -1058,7 +1058,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile2"
 version = "0.20.4"
-source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=feat/ohos#2c9372ed600b49f81ab1af4b23cd048c84282f1c"
+source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=feat/ohos#171b93ee1f7104e071348750fc8df435092ed08a"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -2018,7 +2018,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.0",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

@@ -867,8 +867,8 @@ impl SettingsBuilder {
   /// Sets whether to skip code signing.
   #[must_use]
   pub fn no_sign(mut self, no_sign: bool) -> Self {
-      self.no_sign = no_sign;
-      self
+    self.no_sign = no_sign;
+    self
   }
 
   /// Builds a Settings from the CLI args.

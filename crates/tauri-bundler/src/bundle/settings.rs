@@ -778,8 +778,6 @@ pub struct Settings {
   target_platform: TargetPlatform,
   /// The target triple.
   target: String,
-  // ADDED FIELD
-  /// Whether to skip signing.
   pub no_sign: bool,
 }
 

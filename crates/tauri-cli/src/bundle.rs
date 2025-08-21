@@ -92,7 +92,7 @@ pub struct Options {
   /// On subsequent runs, it's recommended to disable this setting again.
   #[clap(long)]
   pub skip_stapling: bool,
-  /// Skip code signing when bundling the app
+  
   #[clap(long)]
   pub no_sign: bool,
 }
@@ -107,7 +107,7 @@ impl From<crate::build::Options> for Options {
       ci: value.ci,
       config: value.config,
       skip_stapling: value.skip_stapling,
-      no_sign: value.no_sign, // <-- ADDED THIS LINE
+      no_sign: value.no_sign,   
     }
   }
 }

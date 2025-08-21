@@ -778,6 +778,9 @@ pub struct Settings {
   target_platform: TargetPlatform,
   /// The target triple.
   target: String,
+  // ADDED FIELD
+  /// Whether to skip signing.
+  pub no_sign: bool,
 }
 
 /// A builder for [`Settings`].
@@ -791,6 +794,7 @@ pub struct SettingsBuilder {
   binaries: Vec<BundleBinary>,
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
+  no_sign: bool,
 }
 
 impl SettingsBuilder {
@@ -860,6 +864,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to skip code signing.
+  #[must_use]
+  pub fn no_sign(mut self, no_sign: bool) -> Self {
+      self.no_sign = no_sign;
+      self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -894,6 +905,7 @@ impl SettingsBuilder {
       },
       target_platform,
       target,
+      no_sign: self.no_sign,
     })
   }
 }

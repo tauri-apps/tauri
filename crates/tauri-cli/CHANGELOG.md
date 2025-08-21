@@ -1,5 +1,34 @@
 # Changelog
 
+## \[2.8.0]
+
+### New Features
+
+- [`91508c0b8`](https://www.github.com/tauri-apps/tauri/commit/91508c0b8d16ec61c7706e93b711c5a85aaffb4a) ([#13881](https://www.github.com/tauri-apps/tauri/pull/13881) by [@pepperoni505](https://www.github.com/tauri-apps/tauri/../../pepperoni505)) Introduces a new configuration option that allows you to specify custom folders to watch for changes when running `tauri dev`.
+- [`bc4afe7dd`](https://www.github.com/tauri-apps/tauri/commit/bc4afe7dd4780f02c2d4b1f07d97185fbc5d2bba) ([#13993](https://www.github.com/tauri-apps/tauri/pull/13993) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Check installed plugin NPM/crate versions for incompatible releases.
+- [`a9ec12843`](https://www.github.com/tauri-apps/tauri/commit/a9ec12843aa7d0eb774bd3a53e2e63da12cfa77b) ([#13521](https://www.github.com/tauri-apps/tauri/pull/13521) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added a `--skip-stapling` option to make `tauri build|bundle` *not* wait for notarization to finish on macOS.
+- [`0c402bfb6`](https://www.github.com/tauri-apps/tauri/commit/0c402bfb6bd0bec24d928fcabe2ffef1f5cff19a) ([#13997](https://www.github.com/tauri-apps/tauri/pull/13997) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Increase default iOS deployment target iOS to 14.0.
+- [`d6d5f3707`](https://www.github.com/tauri-apps/tauri/commit/d6d5f3707768a094ff7e961ae75ba0398d772655) ([#13358](https://www.github.com/tauri-apps/tauri/pull/13358) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `--root-certificate-path` option to `android dev` and `ios dev` to be able to connect to HTTPS dev servers.
+
+### Enhancements
+
+- [`8b465a12b`](https://www.github.com/tauri-apps/tauri/commit/8b465a12ba73e94d7a3995defd9cc362d15eeebe) ([#13913](https://www.github.com/tauri-apps/tauri/pull/13913) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The bundler now pulls the latest AppImage linuxdeploy plugin instead of using the built-in one. This should remove the libfuse requirement.
+- [`390cb9c36`](https://www.github.com/tauri-apps/tauri/commit/390cb9c36a4e2416891b64514e7ad5fc0a85ccf2) ([#13953](https://www.github.com/tauri-apps/tauri/pull/13953) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Reduced the log level of the binary patcher crate `goblin` to only show its debug logs in `-vv` and above.
+- [`4475e93e1`](https://www.github.com/tauri-apps/tauri/commit/4475e93e136e9e2bd5f3c7817fa2040924f630f6) ([#13824](https://www.github.com/tauri-apps/tauri/pull/13824) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) The bundler and cli will now read TLS Certificates installed on the system when downloading tools and checking versions.
+
+### Bug Fixes
+
+- [`f0dcf9637`](https://www.github.com/tauri-apps/tauri/commit/f0dcf9637cc0d42eda05fed7dd6c5ff98bbf19ae) ([#13980](https://www.github.com/tauri-apps/tauri/pull/13980) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix the generated plugin init code of `tauri add` for `tauri-plugin-autostart` and `tauri-plugin-single-instance`
+- [`4d270a96a`](https://www.github.com/tauri-apps/tauri/commit/4d270a96a891ae83f7df751abcbe12b7072212d5) ([#13943](https://www.github.com/tauri-apps/tauri/pull/13943) by [@acx0](https://www.github.com/tauri-apps/tauri/../../acx0)) Fix codesigning verification failures caused by binary-patching during bundling
+- [`b21d86a8a`](https://www.github.com/tauri-apps/tauri/commit/b21d86a8a3ef29f16628b7d4de17ce1214e9bf49) ([#13981](https://www.github.com/tauri-apps/tauri/pull/13981) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix `tauri permission add` could add duplicated permissions to the capability files
+- [`9c938be45`](https://www.github.com/tauri-apps/tauri/commit/9c938be4520fce9204361f3b59439844bc5c91e8) ([#13912](https://www.github.com/tauri-apps/tauri/pull/13912) by [@takecchi](https://www.github.com/tauri-apps/tauri/../../takecchi)) Properly migrate svelte to v5 in the plugin example template
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.7.0`
+- Upgraded to `tauri-bundler@2.6.0`
+- Upgraded to `tauri-macos-sign@2.2.0`
+
 ## \[2.7.1]
 
 ### Dependencies

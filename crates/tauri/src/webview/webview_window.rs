@@ -1265,7 +1265,7 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
-  #[cfg(windows)]
+  #[cfg(all(feature = "wry", windows))]
   pub fn with_environment(
     mut self,
     environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
@@ -1276,12 +1276,15 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
 
   /// Creates a new webview sharing the same web process with the provided webview.
   /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd"
+  #[cfg(all(
+    feature = "wry",
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    )
   ))]
   pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
     self.webview_builder = self.webview_builder.with_related_view(related_view);
@@ -1328,19 +1331,22 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
         .with_webview_configuration(features.opener().target_configuration.clone());
     }
 
-    #[cfg(windows)]
+    #[cfg(all(feature = "wry", windows))]
     {
       self.webview_builder = self
         .webview_builder
         .with_environment(features.opener().environment.clone());
     }
 
-    #[cfg(any(
-      target_os = "linux",
-      target_os = "dragonfly",
-      target_os = "freebsd",
-      target_os = "netbsd",
-      target_os = "openbsd"
+    #[cfg(all(
+      feature = "wry",
+      any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+      )
     ))]
     {
       self.webview_builder = self

@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.4.0]
+
+### New Features
+
+- [`a0113a8c6`](https://www.github.com/tauri-apps/tauri/commit/a0113a8c6471eccc43b3202cc009901a04e41baa) ([#13888](https://www.github.com/tauri-apps/tauri/pull/13888) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Added `build::mobile::update_info_plist` to allow a plugin to update the iOS project Info.plist file.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.7.0`
+
 ## \[2.3.1]
 
 ### Dependencies

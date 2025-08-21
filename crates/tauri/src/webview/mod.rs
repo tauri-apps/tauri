@@ -1176,7 +1176,7 @@ fn main() {
 
   /// Set the environment for the webview.
   /// Useful if you need to share the same environment, for instance when using the [`Self::on_new_window`].
-  #[cfg(windows)]
+  #[cfg(all(feature = "wry", windows))]
   pub fn with_environment(
     mut self,
     environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
@@ -1187,12 +1187,15 @@ fn main() {
 
   /// Creates a new webview sharing the same web process with the provided webview.
   /// Useful if you need to link a webview to another, for instance when using the [`Self::on_new_window`].
-  #[cfg(any(
-    target_os = "linux",
-    target_os = "dragonfly",
-    target_os = "freebsd",
-    target_os = "netbsd",
-    target_os = "openbsd",
+  #[cfg(all(
+    feature = "wry",
+    any(
+      target_os = "linux",
+      target_os = "dragonfly",
+      target_os = "freebsd",
+      target_os = "netbsd",
+      target_os = "openbsd",
+    )
   ))]
   pub fn with_related_view(mut self, related_view: webkit2gtk::WebView) -> Self {
     self.webview_attributes.related_view.replace(related_view);

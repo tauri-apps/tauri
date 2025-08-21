@@ -6,6 +6,11 @@ import { invoke } from './core'
 import { Image } from './image'
 import { Theme } from './window'
 
+/**
+ * Identifier type used for data stores on macOS and iOS.
+ *
+ * Represents a 128-bit identifier, commonly expressed as a 16-byte UUID.
+ */
 export type DataStoreIdentifier = [
   number,
   number,
@@ -78,7 +83,7 @@ async function getName(): Promise<string> {
 }
 
 /**
- * Gets the Tauri version.
+ * Gets the Tauri framework version used by this application.
  *
  * @example
  * ```typescript
@@ -109,7 +114,8 @@ async function getIdentifier(): Promise<string> {
 }
 
 /**
- * Shows the application on macOS. This function does not automatically focus any specific app window.
+ * Shows the application on macOS. This function does not automatically
+ * focus any specific app window.
  *
  * @example
  * ```typescript
@@ -166,29 +172,28 @@ async function fetchDataStoreIdentifiers(): Promise<DataStoreIdentifier[]> {
  * ```typescript
  * import { fetchDataStoreIdentifiers, removeDataStore } from '@tauri-apps/api/app';
  * for (const id of (await fetchDataStoreIdentifiers())) {
- *  await removeDataStore(id);
+ *   await removeDataStore(id);
  * }
  * ```
  *
  * @since 2.4.0
  */
-async function removeDataStore(
-  uuid: DataStoreIdentifier
-): Promise<DataStoreIdentifier[]> {
+async function removeDataStore(uuid: DataStoreIdentifier): Promise<void> {
   return invoke('plugin:app|remove_data_store', { uuid })
 }
 
 /**
- * Get the default window icon.
+ * Gets the default window icon.
  *
  * @example
  * ```typescript
  * import { defaultWindowIcon } from '@tauri-apps/api/app';
- * await defaultWindowIcon();
+ * const icon = await defaultWindowIcon();
  * ```
  *
  * @since 2.0.0
  */
+
 async function defaultWindowIcon(): Promise<Image | null> {
   return invoke<number | null>('plugin:app|default_window_icon').then((rid) =>
     rid ? new Image(rid) : null
@@ -196,7 +201,8 @@ async function defaultWindowIcon(): Promise<Image | null> {
 }
 
 /**
- * Set app's theme, pass in `null` or `undefined` to follow system theme
+ * Sets the application's theme. Pass in `null` or `undefined` to follow
+ * the system theme.
  *
  * @example
  * ```typescript
@@ -217,13 +223,31 @@ async function setTheme(theme?: Theme | null): Promise<void> {
 /**
  * Sets the dock visibility for the application on macOS.
  *
- * @param visible whether the dock should be visible or not
+ * @param visible - Whether the dock should be visible or not.
+ *
+ * @example
+ * ```typescript
+ * import { setDockVisibility } from '@tauri-apps/api/app';
+ * await setDockVisibility(false);
+ * ```
+ *
  * @since 2.5.0
  */
 async function setDockVisibility(visible: boolean): Promise<void> {
   return invoke('plugin:app|set_dock_visibility', { visible })
 }
 
+/**
+ * Gets the application bundle type.
+ *
+ * @example
+ * ```typescript
+ * import { getBundleType } from '@tauri-apps/api/app';
+ * const type = await getBundleType();
+ * ```
+ *
+ * @since 2.5.0
+ */
 async function getBundleType(): Promise<BundleType> {
   return invoke('plugin:app|bundle_type')
 }

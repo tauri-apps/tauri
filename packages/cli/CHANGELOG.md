@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`f0172a454`](https://www.github.com/tauri-apps/tauri/commit/f0172a454aea101cb699233be3d73dbf86e64a31) ([#14038](https://www.github.com/tauri-apps/tauri/pull/14038) by [@KushalMeghani1644](https://www.github.com/tauri-apps/tauri/../../KushalMeghani1644)) Fixes `removeDataStore` return type.
+
 ## \[2.8.0]
 
 ### New Features

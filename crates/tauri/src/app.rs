@@ -2171,7 +2171,7 @@ tauri::Builder::default()
       if let crate::utils::config::WebviewInstallMode::FixedRuntime { path } =
         &manager.config.bundle.windows.webview_install_mode
       {
-        if let Some(exe_dir) = std::env::current_exe()
+        if let Some(exe_dir) = crate::utils::platform::current_exe()
           .ok()
           .and_then(|p| p.parent().map(|p| p.to_path_buf()))
         {

@@ -170,7 +170,7 @@ fn exec(
     Target::OpenHarmony => {
       let (config, _metadata) =
         super::open_harmony::get_config(&app, tauri_config_, None, &Default::default());
-      super::open_harmony::project::gen(&app, &config, (handlebars, map))?;
+      super::open_harmony::project::gen(&app, &config, (handlebars, map), skip_targets_install)?;
       app
     }
   };

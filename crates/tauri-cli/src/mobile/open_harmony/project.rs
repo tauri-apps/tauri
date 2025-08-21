@@ -4,7 +4,13 @@
 
 use crate::{helpers::template, Result};
 use anyhow::Context;
-use cargo_mobile2::{config::app::App, open_harmony::config::Config, os, util};
+use cargo_mobile2::{
+  config::app::App,
+  open_harmony::{config::Config, target::Target},
+  os,
+  target::TargetTrait,
+  util,
+};
 use handlebars::Handlebars;
 use include_dir::{include_dir, Dir};
 
@@ -16,7 +22,26 @@ pub fn gen(
   app: &App,
   config: &Config,
   (handlebars, mut map): (Handlebars, template::JsonMap),
+  skip_targets_install: bool,
 ) -> Result<()> {
+  if !skip_targets_install {
+    let installed_targets =
+      crate::interface::rust::installation::installed_targets().unwrap_or_default();
+    let missing_targets = Target::all()
+      .values()
+      .filter(|t| !installed_targets.contains(&t.triple().into()))
+      .collect::<Vec<&Target>>();
+
+    if !missing_targets.is_empty() {
+      println!("Installing OpenHarmony Rust toolchains...");
+      for target in missing_targets {
+        target
+          .install()
+          .context("failed to install target with rustup")?;
+      }
+    }
+  }
+
   println!("Generating DevEco Studio project...");
   let dest = config.project_dir();
 

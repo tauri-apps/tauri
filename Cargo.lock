@@ -5662,9 +5662,9 @@ checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
 
 [[package]]
 name = "openharmony-ability"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ef188801ee7d2356067f4d4d54eb1d1eaab58e9acce9a8f9cc9695f8327bc52"
+checksum = "093954c2aac0c1d403d321aa76db7943539a461a78aab91954bd0cbd0449b4a8"
 dependencies = [
  "http 1.3.1",
  "napi-derive-ohos",
@@ -5679,9 +5679,9 @@ dependencies = [
 
 [[package]]
 name = "openharmony-ability-derive"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ba6d923f6fc667cb9db25ff570deece3cdffb3fc4b58b8bc04f0419ca5de1d3"
+checksum = "b1a491cb7715f066faf375cb66156961466611824ddfa11556a384b1383d77d5"
 dependencies = [
  "darling 0.21.2",
  "proc-macro2",

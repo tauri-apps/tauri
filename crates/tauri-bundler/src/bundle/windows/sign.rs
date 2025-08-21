@@ -47,7 +47,6 @@ impl Settings {
 pub struct SignParams {
     pub product_name: String,
     pub digest_algorithm: String,
-    pub digest_algorithm: String,
     pub certificate_thumbprint: String,
     pub timestamp_url: Option<String>,
     pub tsp: bool,

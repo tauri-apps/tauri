@@ -1559,6 +1559,16 @@ pub struct WindowConfig {
   ///
   /// When this is set to `false` you must manually grab the config object via `app.config().app.windows`
   /// and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).
+  ///
+  /// ## Example:
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[serde(default = "default_true")]
   pub create: bool,
   /// The window webview URL.
@@ -2557,6 +2567,59 @@ impl Default for PatternKind {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppConfig {
   /// The app windows configuration.
+  ///
+  /// ## Example:
+  ///
+  /// To create a window at app startup
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// If not specified, the window's label (its identifier) defaults to "main",
+  /// you can use this label to get the window through
+  /// `app.get_webview_window` in Rust or `WebviewWindow.getByLabel` in JavaScript
+  ///
+  /// When working with multiple windows, each window will need an unique label
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "label": "main", "width": 800, "height": 600 },
+  ///       { "label": "secondary", "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// You can also set `create` to false and use this config through the Rust APIs
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "create": false, "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// and use it like this
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// Security configuration.

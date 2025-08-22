@@ -2,7 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Result;
+//! Utility functions for benchmarking tasks in the Tauri project.
+//!
+//! This module provides helpers for:
+//! - Paths to project directories and targets
+//! - Running and collecting process outputs
+//! - Parsing memory profiler (`mprof`) and syscall profiler (`strace`) outputs
+//! - JSON read/write utilities
+//! - File download utilities (via `curl` or file copy)
+
+use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
@@ -13,6 +22,7 @@ use std::{
   process::{Command, Output, Stdio},
 };
 
+/// Holds the results of a benchmark run.
 #[derive(Default, Clone, Serialize, Deserialize, Debug)]
 pub struct BenchResult {
   pub created_at: String,
@@ -25,7 +35,7 @@ pub struct BenchResult {
   pub cargo_deps: HashMap<String, usize>,
 }
 
-#[allow(dead_code)]
+/// Represents a single line of parsed `strace` output.
 #[derive(Debug, Clone, Serialize)]
 pub struct StraceOutput {
   pub percent_time: f64,
@@ -35,6 +45,7 @@ pub struct StraceOutput {
   pub errors: u64,
 }
 
+/// Get the compilation target triple for the current platform.
 pub fn get_target() -> &'static str {
   #[cfg(target_os = "macos")]
   return if cfg!(target_arch = "aarch64") {
@@ -42,18 +53,22 @@ pub fn get_target() -> &'static str {
   } else {
     "x86_64-apple-darwin"
   };
+
   #[cfg(target_os = "ios")]
   return if cfg!(target_arch = "aarch64") {
     "aarch64-apple-ios"
   } else {
     "x86_64-apple-ios"
   };
+
   #[cfg(target_os = "linux")]
   return "x86_64-unknown-linux-gnu";
+
   #[cfg(target_os = "windows")]
-  unimplemented!();
+  unimplemented!("Windows target not implemented yet");
 }
 
+/// Get the `target/release` directory path for benchmarks.
 pub fn target_dir() -> PathBuf {
   bench_root_path()
     .join("..")
@@ -62,83 +77,91 @@ pub fn target_dir() -> PathBuf {
     .join("release")
 }
 
+/// Get the root path of the current benchmark crate.
 pub fn bench_root_path() -> PathBuf {
   PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
 
-#[allow(dead_code)]
+/// Get the home directory of the current user.
 pub fn home_path() -> PathBuf {
   #[cfg(any(target_os = "macos", target_os = "ios", target_os = "linux"))]
-  return PathBuf::from(env!("HOME"));
+  {
+    PathBuf::from(std::env::var("HOME").unwrap_or_default())
+  }
+
   #[cfg(target_os = "windows")]
-  return PathBuf::from(env!("HOMEPATH"));
+  {
+    PathBuf::from(std::env::var("USERPROFILE").unwrap_or_default())
+  }
 }
 
-#[allow(dead_code)]
-pub fn tauri_root_path() -> PathBuf {
-  bench_root_path().parent().unwrap().to_path_buf()
+/// Get the root path of the Tauri repository.
+/// Returns `None` if the parent path cannot be determined.
+pub fn tauri_root_path() -> Option<PathBuf> {
+  bench_root_path().parent().map(|p| p.to_path_buf())
 }
 
-#[allow(dead_code)]
-pub fn run_collect(cmd: &[&str]) -> (String, String) {
-  let mut process_builder = Command::new(cmd[0]);
-  process_builder
+/// Run a command and collect its stdout and stderr as strings.
+/// Returns an error if the command fails or exits with a non-zero status.
+pub fn run_collect(cmd: &[&str]) -> Result<(String, String)> {
+  let output: Output = Command::new(cmd[0])
     .args(&cmd[1..])
     .stdin(Stdio::piped())
     .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
-  let prog = process_builder.spawn().expect("failed to spawn script");
-  let Output {
-    stdout,
-    stderr,
-    status,
-  } = prog.wait_with_output().expect("failed to wait on child");
-  let stdout = String::from_utf8_lossy(&stdout).to_string();
-  let stderr = String::from_utf8_lossy(&stderr).to_string();
-  if !status.success() {
-    eprintln!("stdout: <<<{stdout}>>>");
-    eprintln!("stderr: <<<{stderr}>>>");
-    panic!("Unexpected exit code: {:?}", status.code());
+    .stderr(Stdio::piped())
+    .output()
+    .with_context(|| format!("failed to execute command: {:?}", cmd))?;
+
+  if !output.status.success() {
+    bail!(
+      "Command {:?} exited with {:?}\nstdout:\n{}\nstderr:\n{}",
+      cmd,
+      output.status.code(),
+      String::from_utf8_lossy(&output.stdout),
+      String::from_utf8_lossy(&output.stderr)
+    );
   }
-  (stdout, stderr)
+
+  Ok((
+    String::from_utf8_lossy(&output.stdout).to_string(),
+    String::from_utf8_lossy(&output.stderr).to_string(),
+  ))
 }
 
-#[allow(dead_code)]
-pub fn parse_max_mem(file_path: &str) -> Option<u64> {
-  let file = fs::File::open(file_path).unwrap();
+/// Parse a memory profiler (`mprof`) output file and return the maximum
+/// memory usage in bytes. Returns `None` if no values are found.
+pub fn parse_max_mem(file_path: &str) -> Result<Option<u64>> {
+  let file = fs::File::open(file_path)
+    .with_context(|| format!("failed to open mprof output file {file_path}"))?;
   let output = BufReader::new(file);
+
   let mut highest: u64 = 0;
-  // MEM 203.437500 1621617192.4123
+
   for line in output.lines().map_while(Result::ok) {
-    // split line by space
-    let split = line.split(' ').collect::<Vec<_>>();
+    let split: Vec<&str> = line.split(' ').collect();
     if split.len() == 3 {
-      // mprof generate result in MB
-      let current_bytes = str::parse::<f64>(split[1]).unwrap() as u64 * 1024 * 1024;
-      if current_bytes > highest {
-        highest = current_bytes;
+      if let Ok(mb) = split[1].parse::<f64>() {
+        let current_bytes = (mb * 1024.0 * 1024.0) as u64;
+        highest = highest.max(current_bytes);
       }
     }
   }
 
-  fs::remove_file(file_path).unwrap();
+  // Best-effort cleanup
+  let _ = fs::remove_file(file_path);
 
-  if highest > 0 {
-    return Some(highest);
-  }
-
-  None
+  Ok(if highest > 0 { Some(highest) } else { None })
 }
 
-#[allow(dead_code)]
+/// Parse the output of `strace -c` and return a summary of syscalls.
 pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   let mut summary = HashMap::new();
 
   let mut lines = output
     .lines()
     .filter(|line| !line.is_empty() && !line.contains("detached ..."));
-  let count = lines.clone().count();
 
+  let count = lines.clone().count();
   if count < 4 {
     return summary;
   }
@@ -148,88 +171,90 @@ pub fn parse_strace_output(output: &str) -> HashMap<String, StraceOutput> {
   let data_lines = lines.skip(2);
 
   for line in data_lines {
-    let syscall_fields = line.split_whitespace().collect::<Vec<_>>();
+    let syscall_fields: Vec<&str> = line.split_whitespace().collect();
     let len = syscall_fields.len();
-    let syscall_name = syscall_fields.last().unwrap();
 
-    if (5..=6).contains(&len) {
-      summary.insert(
-        syscall_name.to_string(),
-        StraceOutput {
-          percent_time: str::parse::<f64>(syscall_fields[0]).unwrap(),
-          seconds: str::parse::<f64>(syscall_fields[1]).unwrap(),
-          usecs_per_call: Some(str::parse::<u64>(syscall_fields[2]).unwrap()),
-          calls: str::parse::<u64>(syscall_fields[3]).unwrap(),
-          errors: if syscall_fields.len() < 6 {
+    if let Some(&syscall_name) = syscall_fields.last() {
+      if (5..=6).contains(&len) {
+        let output = StraceOutput {
+          percent_time: syscall_fields[0].parse().unwrap_or(0.0),
+          seconds: syscall_fields[1].parse().unwrap_or(0.0),
+          usecs_per_call: syscall_fields[2].parse().ok(),
+          calls: syscall_fields[3].parse().unwrap_or(0),
+          errors: if len < 6 {
             0
           } else {
-            str::parse::<u64>(syscall_fields[4]).unwrap()
+            syscall_fields[4].parse().unwrap_or(0)
           },
-        },
-      );
+        };
+        summary.insert(syscall_name.to_string(), output);
+      }
     }
   }
 
-  let total_fields = total_line.split_whitespace().collect::<Vec<_>>();
-
-  summary.insert(
-    "total".to_string(),
-    match total_fields.len() {
-      // Old format, has no usecs/call
-      5 => StraceOutput {
-        percent_time: str::parse::<f64>(total_fields[0]).unwrap(),
-        seconds: str::parse::<f64>(total_fields[1]).unwrap(),
-        usecs_per_call: None,
-        calls: str::parse::<u64>(total_fields[2]).unwrap(),
-        errors: str::parse::<u64>(total_fields[3]).unwrap(),
-      },
-      6 => StraceOutput {
-        percent_time: str::parse::<f64>(total_fields[0]).unwrap(),
-        seconds: str::parse::<f64>(total_fields[1]).unwrap(),
-        usecs_per_call: Some(str::parse::<u64>(total_fields[2]).unwrap()),
-        calls: str::parse::<u64>(total_fields[3]).unwrap(),
-        errors: str::parse::<u64>(total_fields[4]).unwrap(),
-      },
-      _ => panic!("Unexpected total field count: {}", total_fields.len()),
+  let total_fields: Vec<&str> = total_line.split_whitespace().collect();
+  let total = match total_fields.len() {
+    5 => StraceOutput {
+      percent_time: total_fields[0].parse().unwrap_or(0.0),
+      seconds: total_fields[1].parse().unwrap_or(0.0),
+      usecs_per_call: None,
+      calls: total_fields[2].parse().unwrap_or(0),
+      errors: total_fields[3].parse().unwrap_or(0),
     },
-  );
+    6 => StraceOutput {
+      percent_time: total_fields[0].parse().unwrap_or(0.0),
+      seconds: total_fields[1].parse().unwrap_or(0.0),
+      usecs_per_call: total_fields[2].parse().ok(),
+      calls: total_fields[3].parse().unwrap_or(0),
+      errors: total_fields[4].parse().unwrap_or(0),
+    },
+    _ => {
+      panic!("Unexpected total field count: {}", total_fields.len());
+    }
+  };
 
+  summary.insert("total".to_string(), total);
   summary
 }
 
-#[allow(dead_code)]
-pub fn run(cmd: &[&str]) {
-  let mut process_builder = Command::new(cmd[0]);
-  process_builder.args(&cmd[1..]).stdin(Stdio::piped());
-  let mut prog = process_builder.spawn().expect("failed to spawn script");
-  let status = prog.wait().expect("failed to wait on child");
+/// Run a command and wait for completion.
+/// Returns an error if the command fails.
+pub fn run(cmd: &[&str]) -> Result<()> {
+  let status = Command::new(cmd[0])
+    .args(&cmd[1..])
+    .stdin(Stdio::piped())
+    .status()
+    .with_context(|| format!("failed to execute command: {:?}", cmd))?;
+
   if !status.success() {
-    panic!("Unexpected exit code: {:?}", status.code());
+    bail!("Command {:?} exited with {:?}", cmd, status.code());
   }
+  Ok(())
 }
 
-#[allow(dead_code)]
+/// Read a JSON file into a [`serde_json::Value`].
 pub fn read_json(filename: &str) -> Result<Value> {
-  let f = fs::File::open(filename)?;
+  let f =
+    fs::File::open(filename).with_context(|| format!("failed to open JSON file {filename}"))?;
   Ok(serde_json::from_reader(f)?)
 }
 
-#[allow(dead_code)]
+/// Write a [`serde_json::Value`] into a JSON file.
 pub fn write_json(filename: &str, value: &Value) -> Result<()> {
-  let f = fs::File::create(filename)?;
+  let f =
+    fs::File::create(filename).with_context(|| format!("failed to create JSON file {filename}"))?;
   serde_json::to_writer(f, value)?;
   Ok(())
 }
 
-#[allow(dead_code)]
-pub fn download_file(url: &str, filename: PathBuf) {
+/// Download a file from either a local path or an HTTP/HTTPS URL.
+/// Falls back to copying the file if the URL does not start with http/https.
+pub fn download_file(url: &str, filename: PathBuf) -> Result<()> {
   if !url.starts_with("http:") && !url.starts_with("https:") {
-    fs::copy(url, filename).unwrap();
-    return;
+    fs::copy(url, &filename).with_context(|| format!("failed to copy from {url}"))?;
+    return Ok(());
   }
 
-  // Downloading with curl this saves us from adding
-  // a Rust HTTP client dependency.
   println!("Downloading {url}");
   let status = Command::new("curl")
     .arg("-L")
@@ -238,8 +263,14 @@ pub fn download_file(url: &str, filename: PathBuf) {
     .arg(&filename)
     .arg(url)
     .status()
-    .unwrap();
+    .with_context(|| format!("failed to execute curl for {url}"))?;
 
-  assert!(status.success());
-  assert!(filename.exists());
+  if !status.success() {
+    bail!("curl failed with exit code {:?}", status.code());
+  }
+  if !filename.exists() {
+    bail!("expected file {:?} to exist after download", filename);
+  }
+
+  Ok(())
 }

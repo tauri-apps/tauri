@@ -132,12 +132,10 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) ->
   let file_offset = rdata_section.pointer_to_raw_data as usize
     + (rva as usize).saturating_sub(rdata_section.virtual_address as usize);
 
-  if file_offset + 3 > file_data.len() {
-    return Err(crate::Error::BinaryOffsetOutOfRange);
-  }
-
   // Overwrite the string at that offset
-  let string_bytes = &mut file_data[file_offset..file_offset + 3];
+  let string_bytes = file_data
+    .get_mut(file_offset..file_offset + 3)
+    .ok_or(crate::Error::BinaryOffsetOutOfRange)?;
   match package_type {
     crate::PackageType::Nsis => string_bytes.copy_from_slice(b"NSS"),
     crate::PackageType::WindowsMsi => string_bytes.copy_from_slice(b"MSI"),

@@ -100,17 +100,16 @@ pub fn patch_binary(binary_path: &PathBuf, package_type: &crate::PackageType) ->
     .ok_or(crate::Error::MissingBundleTypeVar)?;
 
   let data_offset = tauri_bundle_section.pointer_to_raw_data as usize;
-
-  if data_offset + 8 > file_data.len() {
-    return Err(crate::Error::BinaryOffsetOutOfRange);
-  }
-
-  let ptr_bytes = &file_data[data_offset..data_offset + 8];
-  let ptr_value = u64::from_le_bytes(ptr_bytes.try_into().map_err(|_| {
-    crate::Error::BinaryParseError(
-      std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid pointer bytes").into(),
-    )
-  })?);
+  let pointer_size = if pe.is_64 { 8 } else { 4 };
+  let ptr_bytes = file_data
+    .get(data_offset..data_offset + pointer_size)
+    .ok_or(crate::Error::BinaryOffsetOutOfRange)?;
+  // `try_into` is safe to `unwrap` here because we have already checked the slice's size through `get`
+  let ptr_value = if pe.is_64 {
+    u64::from_le_bytes(ptr_bytes.try_into().unwrap())
+  } else {
+    u32::from_le_bytes(ptr_bytes.try_into().unwrap()).into()
+  };
 
   let rdata_section = pe
     .sections

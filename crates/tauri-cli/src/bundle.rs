@@ -93,6 +93,11 @@ pub struct Options {
   #[clap(long)]
   pub skip_stapling: bool,
   
+  /// Skip code signing during the build or bundling process.
+  /// 
+  /// Useful for local development and CI environments
+  /// where signing certificates or environment variables
+  /// are not available or not needed.
   #[clap(long)]
   pub no_sign: bool,
 }

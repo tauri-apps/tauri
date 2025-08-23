@@ -36,6 +36,26 @@ pub enum Pattern {
   },
 }
 
+impl Pattern {
+  /// Returns the isolation schema if using the isolation pattern.
+  #[cfg(feature = "isolation")]
+  pub fn isolation_schema(&self) -> Option<&str> {
+    match self {
+      Pattern::Isolation { schema, .. } => Some(schema.as_str()),
+      _ => None,
+    }
+  }
+
+  /// Returns a formatted isolation frame source URL for CSP configuration.
+  ///
+  /// This returns URL that should be used in the Content-Security-Policy frame-src directive.
+  #[cfg(feature = "isolation")]
+  pub fn isolation_frame_src(&self, use_https_scheme: bool) -> Option<String> {
+    self.isolation_schema()
+      .map(|schema| format_real_schema(schema, use_https_scheme))
+  }
+}
+
 /// The shape of the JavaScript Pattern config
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase", tag = "pattern")]

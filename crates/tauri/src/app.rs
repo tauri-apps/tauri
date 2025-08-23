@@ -634,6 +634,51 @@ impl<R: Runtime> AppHandle<R> {
   pub fn set_device_event_filter(&self, filter: DeviceEventFilter) {
     self.runtime_handle.set_device_event_filter(filter);
   }
+
+  /// Returns the isolation pattern UUID if the app is using the isolation pattern.
+  ///
+  /// This can be used to configure Content-Security-Policy frame-src directives
+  /// when dynamically creating WebViews with custom content.
+  ///
+  /// # Examples
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     if let Some(isolation_uuid) = app.handle().isolation_uuid() {
+  ///       // Use the UUID in your CSP configuration
+  ///       let frame_src = format!("frame-src isolation-{}:", isolation_uuid);
+  ///     }
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(feature = "isolation")]
+  pub fn isolation_uuid(&self) -> Option<&str> {
+    match &*self.manager.pattern {
+      crate::Pattern::Isolation { schema, .. } => Some(schema.as_str()),
+      _ => None,
+    }
+  }
+
+  /// Returns the isolation frame source URL for CSP configuration.
+  ///
+  /// This returns the URL that should be used in the Content-Security-Policy frame-src
+  /// directive when using the isolation pattern. The format depends on the platform
+  /// and whether HTTPS is being used.
+  /// # Examples
+  ///
+  /// ```
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     if let Some(frame_src) = app.handle().isolation_frame_src(true) {
+  ///       let csp = format!("default-src 'self'; frame-src {}", frame_src);
+  ///     }
+  ///     Ok(())
+  ///   });
+  /// ```
+  #[cfg(feature = "isolation")]
+  pub fn isolation_frame_src(&self, use_https_scheme: bool) -> Option<String> {
+    self.manager.pattern.isolation_frame_src(use_https_scheme)
+  }
 }
 
 impl<R: Runtime> Manager<R> for AppHandle<R> {

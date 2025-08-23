@@ -21,7 +21,7 @@ use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 use tauri_runtime::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
-  webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
+  webview::{DetachedWebview, DownloadEvent, PendingWebview, ScrollBarStyle, WebviewIpcHandler},
   window::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
@@ -80,8 +80,8 @@ use tauri_utils::{
 };
 use url::Url;
 use wry::{
-  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
-  WebView, WebViewBuilder,
+  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, ScrollBarStyle as WryScrollBarStyle,
+  WebContext as WryWebContext, WebView, WebViewBuilder,
 };
 
 pub use tao;
@@ -4832,6 +4832,12 @@ You may have it installed on another user account, but it is not available for t
       TaoTheme::Dark => wry::Theme::Dark,
       TaoTheme::Light => wry::Theme::Light,
       _ => wry::Theme::Light,
+    });
+
+    webview_builder = webview_builder.with_scroll_bar_style(match webview_attributes.scroll_bar_style {
+      ScrollBarStyle::Default => WryScrollBarStyle::Default,
+      ScrollBarStyle::FluentOverlay => WryScrollBarStyle::FluentOverlay,
+      _ => unreachable!(),
     });
   }
 

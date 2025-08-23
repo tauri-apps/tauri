@@ -170,6 +170,22 @@ pub enum NewWindowResponse {
   Deny,
 }
 
+/// The scrollbar style to use in the webview.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, Default)]
+pub enum ScrollBarStyle {
+  #[default]
+  /// The default scrollbar style for the webview.
+  Default,
+
+  #[cfg(windows)]
+  /// Fluent UI style overlay scrollbars. **Windows Only**
+  /// 
+  /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  FluentOverlay,
+}
+
 /// A webview that has yet to be built.
 pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// The label that the webview will be named.
@@ -340,6 +356,7 @@ pub struct WebviewAttributes {
   /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   pub allow_link_preview: bool,
+  pub scroll_bar_style: ScrollBarStyle,
   /// Allows overriding the the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
@@ -478,6 +495,7 @@ impl WebviewAttributes {
       background_throttling: None,
       javascript_disabled: false,
       allow_link_preview: true,
+      scroll_bar_style: ScrollBarStyle::Default,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
       #[cfg(windows)]
@@ -748,6 +766,22 @@ impl WebviewAttributes {
   #[must_use]
   pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
     self.background_throttling = policy;
+    self
+  }
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  /// 
+  /// Defaults to [`ScrollBarStyle::Default`], which is the browser default.
+  /// 
+  /// ## Platform-specific
+  /// 
+  /// - **Windows**: [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///   and does nothing on older versions.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[must_use]
+  pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
+    self.scroll_bar_style = style;
     self
   }
 }

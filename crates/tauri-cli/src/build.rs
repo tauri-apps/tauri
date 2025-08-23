@@ -167,8 +167,8 @@ pub fn setup(
 
   if config_.identifier == "com.tauri.dev" {
     anyhow::bail!(
-            "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
-        );
+      "You must change the bundle identifier in `{bundle_identifier_source} identifier`. The default value `com.tauri.dev` is not allowed as it must be unique across applications.",
+    );
   }
 
   if config_
@@ -177,18 +177,18 @@ pub fn setup(
     .any(|ch| !(ch.is_alphanumeric() || ch == '-' || ch == '.'))
   {
     anyhow::bail!(
-            "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
-            config_.identifier,
-            bundle_identifier_source
-        );
+      "The bundle identifier \"{}\" set in `{} identifier`. The bundle identifier string must contain only alphanumeric characters (A-Z, a-z, and 0-9), hyphens (-), and periods (.).",
+      config_.identifier,
+      bundle_identifier_source
+    );
   }
 
   if config_.identifier.ends_with(".app") {
     log::warn!(
-            "The bundle identifier \"{}\" set in `{} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
-            config_.identifier,
-            bundle_identifier_source
-        );
+      "The bundle identifier \"{}\" set in `{} identifier` ends with `.app`. This is not recommended because it conflicts with the application bundle extension on macOS.",
+      config_.identifier,
+      bundle_identifier_source
+    );
   }
 
   if let Some(before_build) = config_.build.before_build_command.clone() {
@@ -203,14 +203,14 @@ pub fn setup(
         .map(|p| p.join(web_asset_path.file_name().unwrap()))
         .unwrap_or_else(|| std::env::current_dir().unwrap().join(web_asset_path));
       return Err(anyhow::anyhow!(
-                "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
-                web_asset_path.display(), absolute_path.display(),
-            ));
+          "Unable to find your web assets, did you forget to build your web app? Your frontendDist is set to \"{}\" (which is `{}`).",
+          web_asset_path.display(), absolute_path.display(),
+        ));
     }
     if web_asset_path.canonicalize()?.file_name() == Some(std::ffi::OsStr::new("src-tauri")) {
       return Err(anyhow::anyhow!(
-                "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-            ));
+          "The configured frontendDist is the `src-tauri` folder. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+        ));
     }
 
     // Issue #13287 - Allow the use of target dir inside frontendDist/distDir
@@ -235,10 +235,10 @@ pub fn setup(
 
     if !out_folders.is_empty() {
       return Err(anyhow::anyhow!(
-                "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
-                out_folders,
-                if out_folders.len() == 1 { "folder" } else { "folders" }
-            ));
+        "The configured frontendDist includes the `{:?}` {}. Please isolate your web assets on a separate folder and update `tauri.conf.json > build > frontendDist`.",
+        out_folders,
+        if out_folders.len() == 1 { "folder" } else { "folders" }
+      ));
     }
   }
 

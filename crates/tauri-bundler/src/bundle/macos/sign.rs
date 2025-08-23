@@ -83,8 +83,8 @@ pub fn notarize_without_stapling(
 #[derive(Debug, thiserror::Error)]
 pub enum NotarizeAuthError {
   #[error(
-        "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
-    )]
+    "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
+  )]
   MissingTeamId,
   #[error(transparent)]
   Anyhow(#[from] anyhow::Error),
@@ -107,37 +107,37 @@ pub fn notarize_auth() -> Result<tauri_macos_sign::AppleNotarizationCredentials,
     (Some(_apple_id), Some(_password), None) => Err(NotarizeAuthError::MissingTeamId),
     _ => {
       match (var_os("APPLE_API_KEY"), var_os("APPLE_API_ISSUER"), var("APPLE_API_KEY_PATH")) {
-                (Some(key_id), Some(issuer), Ok(key_path)) => {
-                    Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey { key_id, key: tauri_macos_sign::ApiKey::Path( key_path.into()), issuer })
-                },
-                (Some(key_id), Some(issuer), Err(_)) => {
-                    let mut api_key_file_name = OsString::from("AuthKey_");
-                    api_key_file_name.push(&key_id);
-                    api_key_file_name.push(".p8");
-                    let mut key_path = None;
+        (Some(key_id), Some(issuer), Ok(key_path)) => {
+          Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey { key_id, key: tauri_macos_sign::ApiKey::Path( key_path.into()), issuer })
+        },
+        (Some(key_id), Some(issuer), Err(_)) => {
+          let mut api_key_file_name = OsString::from("AuthKey_");
+          api_key_file_name.push(&key_id);
+          api_key_file_name.push(".p8");
+          let mut key_path = None;
 
-                    let mut search_paths = vec!["./private_keys".into()];
-                    if let Some(home_dir) = dirs::home_dir() {
-                        search_paths.push(home_dir.join("private_keys"));
-                        search_paths.push(home_dir.join(".private_keys"));
-                        search_paths.push(home_dir.join(".appstoreconnect").join("private_keys"));
-                    }
+          let mut search_paths = vec!["./private_keys".into()];
+          if let Some(home_dir) = dirs::home_dir() {
+            search_paths.push(home_dir.join("private_keys"));
+            search_paths.push(home_dir.join(".private_keys"));
+            search_paths.push(home_dir.join(".appstoreconnect").join("private_keys"));
+          }
 
-                    for folder in search_paths {
-                        if let Some(path) = find_api_key(folder, &api_key_file_name) {
-                            key_path = Some(path);
-                            break;
-                        }
-                    }
-
-                    if let Some(key_path) = key_path {
-                        Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey { key_id, key: tauri_macos_sign::ApiKey::Path(key_path), issuer })
-                    } else {
-                        Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name:?} file").into())
-                    }
-                }
-                _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
+          for folder in search_paths {
+            if let Some(path) = find_api_key(folder, &api_key_file_name) {
+              key_path = Some(path);
+              break;
             }
+          }
+
+          if let Some(key_path) = key_path {
+          Ok(tauri_macos_sign::AppleNotarizationCredentials::ApiKey { key_id, key: tauri_macos_sign::ApiKey::Path(key_path), issuer })
+          } else {
+            Err(anyhow::anyhow!("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {api_key_file_name:?} file").into())
+          }
+        }
+        _ => Err(anyhow::anyhow!("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found").into())
+      }
     }
   }
 }

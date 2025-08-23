@@ -39,12 +39,12 @@ pub struct Options {
   pub debug: bool,
   /// Which targets to build (all by default).
   #[clap(
-        short,
-        long = "target",
-        action = ArgAction::Append,
-        num_args(0..),
-        value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
-    )]
+    short,
+    long = "target",
+    action = ArgAction::Append,
+    num_args(0..),
+    value_parser(clap::builder::PossibleValuesParser::new(Target::name_list()))
+  )]
   pub targets: Option<Vec<String>>,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]

@@ -988,7 +988,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() && should_sign(&resource_path)? {
+    if settings.windows().can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 

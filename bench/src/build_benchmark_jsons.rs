@@ -29,7 +29,7 @@ fn main() {
 
   // all data's
   let all_data_buffer =
-    BufReader::new(File::open(tauri_data).expect("Unable to read all data file"));
+    BufReader::new(File::open(&tauri_data).expect("Unable to read all data file"));
   let mut all_data: Vec<utils::BenchResult> =
     serde_json::from_reader(all_data_buffer).expect("Unable to read all data buffer");
 

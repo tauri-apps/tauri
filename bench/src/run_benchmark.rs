@@ -106,10 +106,9 @@ fn run_max_mem_benchmark() -> Result<HashMap<String, u64>> {
 
     let proc_result = proc.wait_with_output()?;
     println!("{proc_result:?}");
-    results.insert(
-      name.to_string(),
-      utils::parse_max_mem(benchmark_file).unwrap(),
-    );
+    if let Some(max_mem) = utils::parse_max_mem(benchmark_file)? {
+      results.insert(name.to_string(), max_mem);
+    }
   }
 
   Ok(results)
@@ -229,7 +228,7 @@ fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f6
     );
   }
 
-  utils::run(&command.iter().map(|s| s.as_ref()).collect::<Vec<_>>());
+  utils::run(&command.iter().map(|s| s.as_ref()).collect::<Vec<_>>())?;
 
   let mut results = HashMap::<String, HashMap<String, f64>>::new();
   let hyperfine_results = utils::read_json(benchmark_file)?;
@@ -264,7 +263,7 @@ fn main() -> Result<()> {
     utils::download_file(
       "https://github.com/lemarier/tauri-test/releases/download/v2.0.0/json_3mb.json",
       json_3mb,
-    );
+    )?;
   }
 
   println!("Starting tauri benchmark");
@@ -278,7 +277,7 @@ fn main() -> Result<()> {
   let now = time::OffsetDateTime::now_utc();
   let mut new_data = utils::BenchResult {
     created_at: now.format(&format).unwrap(),
-    sha1: utils::run_collect(&["git", "rev-parse", "HEAD"])
+    sha1: utils::run_collect(&["git", "rev-parse", "HEAD"])?
       .0
       .trim()
       .to_string(),

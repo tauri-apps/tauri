@@ -96,9 +96,8 @@ pub fn home_path() -> PathBuf {
 }
 
 /// Get the root path of the Tauri repository.
-/// Returns `None` if the parent path cannot be determined.
-pub fn tauri_root_path() -> Option<PathBuf> {
-  bench_root_path().parent().map(|p| p.to_path_buf())
+pub fn tauri_root_path() -> PathBuf {
+  bench_root_path().parent().map(|p| p.to_path_buf()).unwrap()
 }
 
 /// Run a command and collect its stdout and stderr as strings.

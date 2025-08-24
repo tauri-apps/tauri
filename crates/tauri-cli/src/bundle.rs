@@ -92,9 +92,9 @@ pub struct Options {
   /// On subsequent runs, it's recommended to disable this setting again.
   #[clap(long)]
   pub skip_stapling: bool,
-  
+
   /// Skip code signing during the build or bundling process.
-  /// 
+  ///
   /// Useful for local development and CI environments
   /// where signing certificates or environment variables
   /// are not available or not needed.
@@ -112,7 +112,7 @@ impl From<crate::build::Options> for Options {
       ci: value.ci,
       config: value.config,
       skip_stapling: value.skip_stapling,
-      no_sign: value.no_sign,   
+      no_sign: value.no_sign,
     }
   }
 }

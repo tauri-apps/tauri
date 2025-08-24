@@ -779,7 +779,7 @@ pub struct Settings {
   /// The target triple.
   target: String,
   /// Whether to disable code signing during the bundling process.
-  pub no_sign: bool,
+  no_sign: bool,
 }
 
 /// A builder for [`Settings`].
@@ -794,6 +794,13 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
+}
+
+impl Settings {
+    /// Returns whether code signing is disabled.
+    pub fn no_sign(&self) -> bool {
+        self.no_sign
+    }
 }
 
 impl SettingsBuilder {

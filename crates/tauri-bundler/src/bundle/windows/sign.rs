@@ -251,7 +251,7 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 }
 
 pub fn try_sign<P: AsRef<Path>>(file_path: P, settings: &Settings) -> crate::Result<()> {
-  if settings.no_sign {
+  if settings.no_sign() {
     log::info!(
       "Skipping signing for {} due to --no-sign flag.",
       tauri_utils::display_path(file_path.as_ref())

@@ -15,10 +15,12 @@ use std::{fs::File, io::BufReader};
 mod utils;
 
 fn main() {
-  let tauri_root = utils::tauri_root_path().expect("Failed to get Tauri root path");
-
-  let tauri_data = tauri_root.join("gh-pages").join("tauri-data.json");
-  let tauri_recent = tauri_root.join("gh-pages").join("tauri-recent.json");
+  let tauri_data = &utils::tauri_root_path()
+    .join("gh-pages")
+    .join("tauri-data.json");
+  let tauri_recent = &utils::tauri_root_path()
+    .join("gh-pages")
+    .join("tauri-recent.json");
 
   // current data
   let current_data_buffer = BufReader::new(
@@ -29,7 +31,7 @@ fn main() {
 
   // all data's
   let all_data_buffer =
-    BufReader::new(File::open(&tauri_data).expect("Unable to read all data file"));
+    BufReader::new(File::open(tauri_data).expect("Unable to read all data file"));
   let mut all_data: Vec<utils::BenchResult> =
     serde_json::from_reader(all_data_buffer).expect("Unable to read all data buffer");
 

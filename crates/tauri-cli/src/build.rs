@@ -85,7 +85,7 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   crate::helpers::app_paths::resolve();
 
   if options.no_sign {
-    log::info!("--no-sign flag detected: Signing will be skipped.");
+    log::warn!("--no-sign flag detected: Signing will be skipped.");
   }
 
   let ci = options.ci;

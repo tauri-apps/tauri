@@ -202,6 +202,7 @@ pub fn bundle<A: AppSettings>(
   let mut settings = app_settings
     .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
     .with_context(|| "failed to build bundler settings")?;
+  settings.set_no_sign(options.no_sign);
 
   settings.set_log_level(match verbosity {
     0 => log::Level::Error,

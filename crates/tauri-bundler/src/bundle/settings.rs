@@ -572,6 +572,12 @@ pub struct WindowsSettings {
   pub sign_command: Option<CustomSignCommandSettings>,
 }
 
+impl WindowsSettings {
+  pub(crate) fn can_sign(&self) -> bool {
+    self.sign_command.is_some() || self.certificate_thumbprint.is_some()
+  }
+}
+
 #[allow(deprecated)]
 mod _default {
   use super::*;
@@ -794,13 +800,6 @@ pub struct SettingsBuilder {
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
   no_sign: bool,
-}
-
-impl Settings {
-    /// Returns whether code signing is disabled.
-    pub fn no_sign(&self) -> bool {
-        self.no_sign
-    }
 }
 
 impl SettingsBuilder {
@@ -1259,5 +1258,15 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
+  }
+
+  /// Whether to skip signing.
+  pub fn no_sign(&self) -> bool {
+    self.no_sign
+  }
+
+  /// Set whether to skip signing.
+  pub fn set_no_sign(&mut self, no_sign: bool) {
+    self.no_sign = no_sign;
   }
 }

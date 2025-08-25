@@ -21,7 +21,7 @@ use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 use tauri_runtime::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
-  webview::{DetachedWebview, DownloadEvent, PendingWebview, ScrollBarStyle, WebviewIpcHandler},
+  webview::{DetachedWebview, DownloadEvent, PendingWebview, WebviewIpcHandler},
   window::{
     CursorIcon, DetachedWindow, DetachedWindowWebview, DragDropEvent, PendingWindow, RawWindow,
     WebviewEvent, WindowBuilder, WindowBuilderBase, WindowEvent, WindowId, WindowSizeConstraints,
@@ -30,6 +30,8 @@ use tauri_runtime::{
   ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
   UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
+#[cfg(windows)]
+use tauri_runtime::webview::ScrollBarStyle;
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
@@ -80,9 +82,11 @@ use tauri_utils::{
 };
 use url::Url;
 use wry::{
-  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, ScrollBarStyle as WryScrollBarStyle,
-  WebContext as WryWebContext, WebView, WebViewBuilder,
+  DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
+  WebView, WebViewBuilder,
 };
+#[cfg(windows)]
+use wry::ScrollBarStyle as WryScrollBarStyle;
 
 pub use tao;
 pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};

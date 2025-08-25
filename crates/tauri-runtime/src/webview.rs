@@ -10,7 +10,8 @@ use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
 use tauri_utils::config::{
-  BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig, WindowEffectsConfig,
+  BackgroundThrottlingPolicy, Color, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
+  WindowConfig, WindowEffectsConfig
 };
 use url::Url;
 
@@ -421,7 +422,13 @@ impl From<&WindowConfig> for WebviewAttributes {
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
       .background_throttling(config.background_throttling.clone())
-      .devtools(config.devtools);
+      .devtools(config.devtools)
+      .scroll_bar_style(match config.scroll_bar_style {
+        ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
+        #[cfg(windows)]
+        ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
+        _ => ScrollBarStyle::Default,
+      });
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {

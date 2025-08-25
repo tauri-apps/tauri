@@ -640,6 +640,8 @@ pub struct MacConfig {
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
   /// and the `MACOSX_DEPLOYMENT_TARGET` environment variable.
   ///
+  /// Ignored in `tauri dev`.
+  ///
   /// An empty string is considered an invalid value so the default value is used.
   #[serde(
     deserialize_with = "de_macos_minimum_system_version",

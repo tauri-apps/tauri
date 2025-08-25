@@ -1,5 +1,15 @@
 # Changelog
 
+## \[2.8.3]
+
+### Bug Fixes
+
+- [`0ac89d3b6`](https://www.github.com/tauri-apps/tauri/commit/0ac89d3b6c8c4a4826a4c42726e4f4a8941b3fde) ([#14078](https://www.github.com/tauri-apps/tauri/pull/14078) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Updated `cargo-mobile2` to allow running on iOS simulators that have a higher version than the XCode SDK. This fixes compatiblity issues with Apple's recent "iOS 18.5 + iOS 18.6 Simulator" platform support component.
+
+### Dependencies
+
+- Upgraded to `tauri-cli@2.8.2`
+
 ## \[2.8.2]
 
 ### Dependencies

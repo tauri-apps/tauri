@@ -1544,6 +1544,23 @@ pub enum PreventOverflowConfig {
   Margin(PreventOverflowMargin),
 }
 
+/// The scrollbar style to use in the webview.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[non_exhaustive]
+pub enum ScrollBarStyle {
+  #[default]
+  /// The scrollbar style to use in the webview.
+  Default,
+
+  /// Fluent UI style overlay scrollbars. **Windows Only**
+  ///
+  /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  FluentOverlay,
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1852,6 +1869,19 @@ pub struct WindowConfig {
     alias = "disable_input_accessory_view"
   )]
   pub disable_input_accessory_view: bool,
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  ///
+  /// Defaults to `default`, which is the browser default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**: `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///   and does nothing on older versions.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[serde(default, alias = "scroll-bar-style")]
+  pub scroll_bar_style: ScrollBarStyle,
 }
 
 impl Default for WindowConfig {
@@ -1911,6 +1941,7 @@ impl Default for WindowConfig {
       javascript_disabled: false,
       allow_link_preview: true,
       disable_input_accessory_view: false,
+      scroll_bar_style: ScrollBarStyle::Default,
     }
   }
 }
@@ -3361,6 +3392,17 @@ mod build {
     }
   }
 
+  impl ToTokens for ScrollBarStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let prefix = quote! { ::tauri::utils::config::ScrollBarStyle };
+
+        tokens.append_all(match self {
+          Self::Default => quote! { #prefix::Default },
+          Self::FluentOverlay => quote! { #prefix::FluentOverlay },
+        })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3417,6 +3459,7 @@ mod build {
       let javascript_disabled = self.javascript_disabled;
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
+      let scroll_bar_style = &self.scroll_bar_style;
 
       literal_struct!(
         tokens,
@@ -3474,7 +3517,8 @@ mod build {
         background_throttling,
         javascript_disabled,
         allow_link_preview,
-        disable_input_accessory_view
+        disable_input_accessory_view,
+        scroll_bar_style
       );
     }
   }

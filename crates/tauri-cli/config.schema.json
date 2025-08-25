@@ -572,6 +572,15 @@
           "description": "Allows disabling the input accessory view on iOS.\n\n The accessory view is the view that appears above the keyboard when a text input element is focused.\n It usually displays a view with \"Done\", \"Next\" buttons.",
           "default": false,
           "type": "boolean"
+        },
+        "scrollBarStyle": {
+          "description": "Specifies the native scrollbar style to use with the webview.\n CSS styles that modify the scrollbar are applied on top of the native appearance configured here.\n\n Defaults to `default`, which is the browser default.\n\n ## Platform-specific\n\n - **Windows**: `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,\n   and does nothing on older versions.\n - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.",
+          "default": "default",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ScrollBarStyle"
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -1087,6 +1096,25 @@
           "type": "string",
           "enum": [
             "throttle"
+          ]
+        }
+      ]
+    },
+    "ScrollBarStyle": {
+      "description": "The scrollbar style to use in the webview.",
+      "oneOf": [
+        {
+          "description": "The scrollbar style to use in the webview.",
+          "type": "string",
+          "enum": [
+            "default"
+          ]
+        },
+        {
+          "description": "Fluent UI style overlay scrollbars. **Windows Only**\n\n Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,\n see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541",
+          "type": "string",
+          "enum": [
+            "fluentOverlay"
           ]
         }
       ]

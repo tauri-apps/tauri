@@ -181,7 +181,7 @@ pub enum ScrollBarStyle {
 
   #[cfg(windows)]
   /// Fluent UI style overlay scrollbars. **Windows Only**
-  /// 
+  ///
   /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
   /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
   FluentOverlay,
@@ -778,11 +778,11 @@ impl WebviewAttributes {
 
   /// Specifies the native scrollbar style to use with the webview.
   /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
-  /// 
+  ///
   /// Defaults to [`ScrollBarStyle::Default`], which is the browser default.
-  /// 
+  ///
   /// ## Platform-specific
-  /// 
+  ///
   /// - **Windows**: [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher,
   ///   and does nothing on older versions.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.

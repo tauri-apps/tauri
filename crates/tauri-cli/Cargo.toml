@@ -112,6 +112,7 @@ tempfile = "3"
 uuid = { version = "1", features = ["v5"] }
 rand = "0.9"
 zip = { version = "4", default-features = false, features = ["deflate"] }
+which = "8"
 
 [dev-dependencies]
 insta = "1"

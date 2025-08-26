@@ -219,8 +219,31 @@ fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
 }
 
 fn ensure_env() -> Result<()> {
+  ensure_java()?;
   ensure_sdk()?;
   ensure_ndk()?;
+  Ok(())
+}
+
+fn ensure_java() -> Result<()> {
+  if std::env::var_os("JAVA_HOME").is_none() {
+    #[cfg(windows)]
+    let default_java_home = "C:\\Program Files\\Android\\Android Studio\\jbr";
+    #[cfg(target_os = "macos")]
+    let default_java_home = "/Applications/Android Studio.app/Contents/jbr/Contents/Home";
+    #[cfg(target_os = "linux")]
+    let default_java_home = "/opt/android-studio/jbr";
+
+    if Path::new(default_java_home).exists() {
+      log::info!("Using installed Java: {}", default_java_home);
+      std::env::set_var("JAVA_HOME", default_java_home);
+    } else {
+      if which::which("java").is_err() {
+        anyhow::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
+      }
+    }
+  }
+
   Ok(())
 }
 
@@ -263,13 +286,17 @@ fn ensure_sdk() -> Result<()> {
       download_cmdline_tools(&extract_path)?;
 
       log::info!("Running sdkmanager...");
-      let status = Command::new(extract_path.join("cmdline-tools/bin/sdkmanager"))
-        .arg(format!("--sdk_root={}", default_android_home.display()))
-        .arg("--install")
-        .arg("platform-tools")
-        .arg("platforms;android-36")
-        .arg(format!("ndk;{NDK_VERSION}"))
-        .status()?;
+      let status = Command::new(
+        extract_path
+          .join("cmdline-tools/bin/sdkmanager")
+          .with_extension(if cfg!(windows) { "bat" } else { "" }),
+      )
+      .arg(format!("--sdk_root={}", default_android_home.display()))
+      .arg("--install")
+      .arg("platform-tools")
+      .arg("platforms;android-36")
+      .arg(format!("ndk;{NDK_VERSION}"))
+      .status()?;
 
       if !status.success() {
         anyhow::bail!("Failed to install Android SDK");
@@ -287,10 +314,14 @@ fn ensure_ndk() -> Result<()> {
   let android_home = std::env::var_os("ANDROID_HOME")
     .map(PathBuf::from)
     .ok_or_else(|| anyhow::anyhow!("Failed to locate Android SDK"))?;
-  let mut installed_ndks = read_dir(&android_home.join("ndk"))?
-    .into_iter()
-    .flat_map(|e| e.ok().map(|e| e.path()))
-    .collect::<Vec<_>>();
+  let mut installed_ndks = read_dir(&android_home.join("ndk"))
+    .map(|dir| {
+      dir
+        .into_iter()
+        .flat_map(|e| e.ok().map(|e| e.path()))
+        .collect::<Vec<_>>()
+    })
+    .unwrap_or_default();
   installed_ndks.sort();
 
   if let Some(ndk) = installed_ndks.last() {
@@ -303,11 +334,15 @@ fn ensure_ndk() -> Result<()> {
     }
 
     log::info!("Installing NDK...");
-    let status = Command::new(android_home.join("cmdline-tools/bin/sdkmanager"))
-      .arg(format!("--sdk_root={}", android_home.display()))
-      .arg("--install")
-      .arg(format!("ndk;{NDK_VERSION}"))
-      .status()?;
+    let status = Command::new(
+      android_home
+        .join("cmdline-tools/bin/sdkmanager")
+        .with_extension(if cfg!(windows) { "bat" } else { "" }),
+    )
+    .arg(format!("--sdk_root={}", android_home.display()))
+    .arg("--install")
+    .arg(format!("ndk;{NDK_VERSION}"))
+    .status()?;
 
     if !status.success() {
       anyhow::bail!("Failed to install Android NDK");

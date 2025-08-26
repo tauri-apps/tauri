@@ -8688,6 +8688,7 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+ "which",
  "windows-sys 0.60.2",
  "zip 4.0.0",
 ]

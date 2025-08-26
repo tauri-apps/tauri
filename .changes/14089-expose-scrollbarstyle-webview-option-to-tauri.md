@@ -1,7 +1,7 @@
 ---
-"tauri-runtime-wry": minor
-"tauri-runtime": minor
-"tauri": minor
+"tauri-runtime-wry": minor:feat
+"tauri-runtime": minor:feat
+"tauri": minor:feat
 ---
 
 Adds the `scroll_bar_style` option to the Webview and WebviewWindow builders.

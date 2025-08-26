@@ -213,7 +213,7 @@ fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
     "Extracting Android command line tools to {}",
     extract_path.display()
   );
-  zip.extract(&extract_path)?;
+  zip.extract(extract_path)?;
 
   Ok(())
 }
@@ -237,10 +237,8 @@ fn ensure_java() -> Result<()> {
     if Path::new(default_java_home).exists() {
       log::info!("Using installed Java: {}", default_java_home);
       std::env::set_var("JAVA_HOME", default_java_home);
-    } else {
-      if which::which("java").is_err() {
-        anyhow::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
-      }
+    } else if which::which("java").is_err() {
+      anyhow::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");
     }
   }
 
@@ -314,7 +312,7 @@ fn ensure_ndk() -> Result<()> {
   let android_home = std::env::var_os("ANDROID_HOME")
     .map(PathBuf::from)
     .ok_or_else(|| anyhow::anyhow!("Failed to locate Android SDK"))?;
-  let mut installed_ndks = read_dir(&android_home.join("ndk"))
+  let mut installed_ndks = read_dir(android_home.join("ndk"))
     .map(|dir| {
       dir
         .into_iter()

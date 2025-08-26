@@ -8627,6 +8627,7 @@ dependencies = [
  "css-color",
  "ctrlc",
  "dialoguer",
+ "dirs 6.0.0",
  "duct",
  "dunce",
  "elf",
@@ -8688,6 +8689,7 @@ dependencies = [
  "uuid",
  "walkdir",
  "windows-sys 0.60.2",
+ "zip 4.0.0",
 ]
 
 [[package]]

@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.8.1]
+
+### Bug Fixes
+
+- [`03e7c1193`](https://www.github.com/tauri-apps/tauri/commit/03e7c1193208716170f120a1d4a39cea0bc21064) ([#14080](https://www.github.com/tauri-apps/tauri/pull/14080) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ignore initial navigation to `about:blank` so `on_new_window` does not give a warning on first navigation on macOS.
+
 ## \[2.8.0]
 
 ### New Features

@@ -4578,12 +4578,15 @@ You may have it installed on another user account, but it is not available for t
   let mut webview_builder = WebViewBuilder::new_with_web_context(&mut web_context.inner)
     .with_id(&label)
     .with_focused(webview_attributes.focus)
-    .with_url(&url)
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+
+  if url != "about:blank" {
+    webview_builder = webview_builder.with_url(&url);
+  }
 
   #[cfg(target_os = "macos")]
   if let Some(webview_configuration) = webview_attributes.webview_configuration {

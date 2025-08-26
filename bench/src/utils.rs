@@ -96,9 +96,8 @@ pub fn home_path() -> PathBuf {
 }
 
 /// Get the root path of the Tauri repository.
-/// Returns `None` if the parent path cannot be determined.
-pub fn tauri_root_path() -> Option<PathBuf> {
-  bench_root_path().parent().map(|p| p.to_path_buf())
+pub fn tauri_root_path() -> PathBuf {
+  bench_root_path().parent().map(|p| p.to_path_buf()).unwrap()
 }
 
 /// Run a command and collect its stdout and stderr as strings.
@@ -110,7 +109,7 @@ pub fn run_collect(cmd: &[&str]) -> Result<(String, String)> {
     .stdout(Stdio::piped())
     .stderr(Stdio::piped())
     .output()
-    .with_context(|| format!("failed to execute command: {:?}", cmd))?;
+    .with_context(|| format!("failed to execute command: {cmd:?}"))?;
 
   if !output.status.success() {
     bail!(
@@ -224,7 +223,7 @@ pub fn run(cmd: &[&str]) -> Result<()> {
     .args(&cmd[1..])
     .stdin(Stdio::piped())
     .status()
-    .with_context(|| format!("failed to execute command: {:?}", cmd))?;
+    .with_context(|| format!("failed to execute command: {cmd:?}"))?;
 
   if !status.success() {
     bail!("Command {:?} exited with {:?}", cmd, status.code());

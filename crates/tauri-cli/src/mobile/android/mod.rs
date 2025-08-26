@@ -235,7 +235,7 @@ fn ensure_java() -> Result<()> {
     let default_java_home = "/opt/android-studio/jbr";
 
     if Path::new(default_java_home).exists() {
-      log::info!("Using installed Java: {}", default_java_home);
+      log::info!("Using Android Studio's default Java installation: {default_java_home}");
       std::env::set_var("JAVA_HOME", default_java_home);
     } else if which::which("java").is_err() {
       anyhow::bail!("Java not found in PATH, default Android Studio Java installation not found at {default_java_home} and JAVA_HOME environment variable not set. Please install Java before proceeding");

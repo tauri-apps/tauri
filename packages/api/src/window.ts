@@ -2113,7 +2113,7 @@ enum ScrollBarStyle {
    * Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
    * see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
    */
-  FluentOverlay = 'fluentOverlay',
+  FluentOverlay = 'fluentOverlay'
 }
 
 /**

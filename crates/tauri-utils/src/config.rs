@@ -3400,12 +3400,12 @@ mod build {
 
   impl ToTokens for ScrollBarStyle {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let prefix = quote! { ::tauri::utils::config::ScrollBarStyle };
+      let prefix = quote! { ::tauri::utils::config::ScrollBarStyle };
 
-        tokens.append_all(match self {
-          Self::Default => quote! { #prefix::Default },
-          Self::FluentOverlay => quote! { #prefix::FluentOverlay },
-        })
+      tokens.append_all(match self {
+        Self::Default => quote! { #prefix::Default },
+        Self::FluentOverlay => quote! { #prefix::FluentOverlay },
+      })
     }
   }
 

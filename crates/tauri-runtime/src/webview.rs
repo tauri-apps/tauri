@@ -11,7 +11,7 @@ use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 use http::Request;
 use tauri_utils::config::{
   BackgroundThrottlingPolicy, Color, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
-  WindowConfig, WindowEffectsConfig
+  WindowConfig, WindowEffectsConfig,
 };
 use url::Url;
 

@@ -18,6 +18,8 @@ use http::Request;
 use objc2::ClassType;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
+#[cfg(windows)]
+use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
@@ -30,8 +32,6 @@ use tauri_runtime::{
   ProgressBarState, ProgressBarStatus, Result, RunEvent, Runtime, RuntimeHandle, RuntimeInitArgs,
   UserAttentionType, UserEvent, WebviewDispatch, WebviewEventId, WindowDispatch, WindowEventId,
 };
-#[cfg(windows)]
-use tauri_runtime::webview::ScrollBarStyle;
 
 #[cfg(target_vendor = "apple")]
 use objc2::rc::Retained;
@@ -81,12 +81,12 @@ use tauri_utils::{
   Theme,
 };
 use url::Url;
+#[cfg(windows)]
+use wry::ScrollBarStyle as WryScrollBarStyle;
 use wry::{
   DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
   WebView, WebViewBuilder,
 };
-#[cfg(windows)]
-use wry::ScrollBarStyle as WryScrollBarStyle;
 
 pub use tao;
 pub use tao::window::{Window, WindowBuilder as TaoWindowBuilder, WindowId as TaoWindowId};
@@ -4838,11 +4838,12 @@ You may have it installed on another user account, but it is not available for t
       _ => wry::Theme::Light,
     });
 
-    webview_builder = webview_builder.with_scroll_bar_style(match webview_attributes.scroll_bar_style {
-      ScrollBarStyle::Default => WryScrollBarStyle::Default,
-      ScrollBarStyle::FluentOverlay => WryScrollBarStyle::FluentOverlay,
-      _ => unreachable!(),
-    });
+    webview_builder =
+      webview_builder.with_scroll_bar_style(match webview_attributes.scroll_bar_style {
+        ScrollBarStyle::Default => WryScrollBarStyle::Default,
+        ScrollBarStyle::FluentOverlay => WryScrollBarStyle::FluentOverlay,
+        _ => unreachable!(),
+      });
   }
 
   #[cfg(windows)]

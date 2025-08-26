@@ -32,6 +32,7 @@ import {
 import { invoke } from './core'
 import {
   BackgroundThrottlingPolicy,
+  ScrollBarStyle,
   Color,
   Window,
   getCurrentWindow
@@ -854,6 +855,19 @@ interface WebviewOptions {
    * It usually displays a view with "Done", "Next" buttons.
    */
   disableInputAccessoryView?: boolean
+  /**
+   * Specifies the native scrollbar style to use with the webview.
+   * CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+   *
+   * Defaults to `default`, which is the browser default.
+   *
+   * ## Platform-specific
+   *
+   * - **Windows**: `fluentOverlay` requires WebView2 Runtime
+   *   version 125.0.2535.41 or higher, and does nothing on older versions.
+   * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+   */
+  scrollBarStyle?: ScrollBarStyle
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

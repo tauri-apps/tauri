@@ -1,6 +1,5 @@
 ---
 "tauri-cli": "minor"
-"tauri-schema-generator": "minor"
 "tauri-utils": "minor"
 ---
 

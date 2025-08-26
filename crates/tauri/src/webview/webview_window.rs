@@ -1218,7 +1218,11 @@ impl<R: Runtime, M: Manager<R>> WebviewWindowBuilder<'_, R, M> {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows**: [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher, and does nothing on older versions.
+  /// - **Windows**:
+  ///   - [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory. Use
+  ///     [`WebviewWindowBuilder::data_directory`] to change data directories if needed.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[must_use]
   pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {

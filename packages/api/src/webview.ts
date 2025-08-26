@@ -863,8 +863,10 @@ interface WebviewOptions {
    *
    * ## Platform-specific
    *
-   * - **Windows**: `fluentOverlay` requires WebView2 Runtime
-   *   version 125.0.2535.41 or higher, and does nothing on older versions.
+   * - **Windows**:
+   *   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher, and does nothing
+   *     on older versions.
+   *   - This option must be given the same value for all webviews.
    * - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
    */
   scrollBarStyle?: ScrollBarStyle

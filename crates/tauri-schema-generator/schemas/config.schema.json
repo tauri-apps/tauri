@@ -574,7 +574,7 @@
           "type": "boolean"
         },
         "scrollBarStyle": {
-          "description": "Specifies the native scrollbar style to use with the webview.\n CSS styles that modify the scrollbar are applied on top of the native appearance configured here.\n\n Defaults to `default`, which is the browser default.\n\n ## Platform-specific\n\n - **Windows**: `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,\n   and does nothing on older versions.\n - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.",
+          "description": "Specifies the native scrollbar style to use with the webview.\n CSS styles that modify the scrollbar are applied on top of the native appearance configured here.\n\n Defaults to `default`, which is the browser default.\n\n ## Platform-specific\n\n - **Windows**:\n   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,\n     and does nothing on older versions.\n   - This option must be given the same value for all webviews that target the same data directory.\n - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.",
           "default": "default",
           "allOf": [
             {
@@ -1101,7 +1101,7 @@
       ]
     },
     "ScrollBarStyle": {
-      "description": "The scrollbar style to use in the webview.",
+      "description": "The scrollbar style to use in the webview.\n\n ## Platform-specific\n\n - **Windows**: This option must be given the same value for all webviews that target the same data directory.",
       "oneOf": [
         {
           "description": "The scrollbar style to use in the webview.",

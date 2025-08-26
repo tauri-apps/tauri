@@ -1545,6 +1545,10 @@ pub enum PreventOverflowConfig {
 }
 
 /// The scrollbar style to use in the webview.
+///
+/// ## Platform-specific
+///
+/// - **Windows**: This option must be given the same value for all webviews that target the same data directory.
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "schema", derive(JsonSchema))]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -1877,8 +1881,10 @@ pub struct WindowConfig {
   ///
   /// ## Platform-specific
   ///
-  /// - **Windows**: `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,
-  ///   and does nothing on older versions.
+  /// - **Windows**:
+  ///   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory.
   /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
   #[serde(default, alias = "scroll-bar-style")]
   pub scroll_bar_style: ScrollBarStyle,

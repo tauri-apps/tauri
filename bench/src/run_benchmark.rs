@@ -117,21 +117,21 @@ fn run_max_mem_benchmark(target: &str) -> Result<HashMap<String, u64>> {
       .with_context(|| format!("failed to wait for mprof {name}"))?;
 
     if !proc_result.status.success() {
-      eprintln!("mprof failed for {name}: {}", String::from_utf8_lossy(&proc_result.stderr));
+      eprintln!(
+        "mprof failed for {name}: {}",
+        String::from_utf8_lossy(&proc_result.stderr)
+      );
     }
 
-    let mem = utils::parse_max_mem(benchmark_file_str)
-      .with_context(|| format!("failed to parse mprof data for {name}"))?;
-    results.insert(name, mem);
+    if let Some(mem) = utils::parse_max_mem(benchmark_file_str)
+      .with_context(|| format!("failed to parse mprof data for {name}"))?
+    {
+      results.insert(name, mem);
+    }
 
     // Clean up the temporary file
     if let Err(e) = std::fs::remove_file(&benchmark_file) {
       eprintln!("Warning: failed to remove temporary file {benchmark_file_str}: {e}");
-    }
-    let proc_result = proc.wait_with_output()?;
-    println!("{proc_result:?}");
-    if let Some(max_mem) = utils::parse_max_mem(benchmark_file)? {
-      results.insert(name.to_string(), max_mem);
     }
   }
 
@@ -143,9 +143,12 @@ fn rlib_size(target_dir: &Path, prefix: &str) -> Result<u64> {
   let mut seen = HashSet::new();
 
   let deps_dir = target_dir.join("deps");
-  for entry in std::fs::read_dir(&deps_dir)
-    .with_context(|| format!("failed to read target deps directory: {}", deps_dir.display()))?
-  {
+  for entry in std::fs::read_dir(&deps_dir).with_context(|| {
+    format!(
+      "failed to read target deps directory: {}",
+      deps_dir.display()
+    )
+  })? {
     let entry = entry.context("failed to read directory entry")?;
     let name = entry.file_name().to_string_lossy().to_string();
 
@@ -162,7 +165,10 @@ fn rlib_size(target_dir: &Path, prefix: &str) -> Result<u64> {
   }
 
   if size == 0 {
-    anyhow::bail!("no rlib files found for prefix {prefix} in {}", deps_dir.display());
+    anyhow::bail!(
+      "no rlib files found for prefix {prefix} in {}",
+      deps_dir.display()
+    );
   }
 
   Ok(size)
@@ -184,101 +190,6 @@ fn get_binary_sizes(target_dir: &Path, target: &str) -> Result<HashMap<String, u
   Ok(sizes)
 }
 
-fn run_exec_time(target_dir: &Path, target: &str) -> Result<HashMap<String, u64>> {
-  let mut exec_times = HashMap::<String, u64>::new();
-
-  for (name, example_exe) in get_all_benchmarks(target) {
-    let exe_path = utils::bench_root_path().join(&example_exe);
-
-    // Verify the executable exists
-    if !exe_path.exists() {
-      anyhow::bail!("Executable not found: {}", exe_path.display());
-    }
-
-    let exe_path_str = exe_path
-      .to_str()
-      .context("executable path contains invalid UTF-8")?;
-
-    // Run the benchmark multiple times and take the average
-    let mut total_time = 0u64;
-    let runs = 3;
-
-    for _ in 0..runs {
-      let start = Instant::now();
-
-      let status = Command::new(exe_path_str)
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .status()
-        .with_context(|| format!("failed to run benchmark {name}"))?;
-
-      let elapsed = start.elapsed();
-
-      if !status.success() {
-        anyhow::bail!("Benchmark {name} failed with exit code: {}",
-          status.code().unwrap_or(-1));
-      }
-
-      total_time += elapsed.as_millis() as u64;
-    }
-
-    let avg_time = total_time / runs as u64;
-    exec_times.insert(name, avg_time);
-  }
-
-  Ok(exec_times)
-}
-
-fn cargo_deps() -> HashMap<String, String> {
-  let mut deps = HashMap::<String, String>::new();
-
-  // Get cargo metadata
-  match Command::new("cargo")
-    .args(["metadata", "--format-version", "1", "--no-deps"])
-    .output()
-  {
-    Ok(output) if output.status.success() => {
-      let metadata_str = String::from_utf8_lossy(&output.stdout);
-
-      // Parse the JSON output
-      if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(&metadata_str) {
-        if let Some(packages) = metadata["packages"].as_array() {
-          for package in packages {
-            if let (Some(name), Some(version)) = (
-              package["name"].as_str(),
-              package["version"].as_str()
-            ) {
-              deps.insert(name.to_string(), version.to_string());
-            }
-          }
-        }
-      }
-    }
-    Ok(output) => {
-      eprintln!("cargo metadata failed: {}", String::from_utf8_lossy(&output.stderr));
-    }
-    Err(e) => {
-      eprintln!("Failed to run cargo metadata: {}", e);
-    }
-  }
-
-  // If cargo metadata failed, try to parse Cargo.lock
-  if deps.is_empty() {
-    if let Ok(lock_content) = std::fs::read_to_string("Cargo.lock") {
-      for line in lock_content.lines() {
-        if line.starts_with("name = ") {
-          if let Some(name) = line.strip_prefix("name = \"").and_then(|s| s.strip_suffix("\"")) {
-            // This is a simple parser - in reality you'd want a proper TOML parser
-            deps.insert(name.to_string(), "unknown".to_string());
-          }
-        }
-      }
-    }
-  }
-
-  deps
-}
-// ... (cargo_deps and run_exec_time stay mostly the same, just add error contexts)
 /// (target OS, target triple)
 const TARGETS: &[(&str, &[&str])] = &[
   (
@@ -313,14 +224,33 @@ fn cargo_deps() -> HashMap<String, usize> {
       cmd.args(["--target", target]);
       cmd.current_dir(utils::tauri_root_path());
 
-      let full_deps = cmd.output().expect("failed to run cargo tree").stdout;
-      let full_deps = String::from_utf8(full_deps).expect("cargo tree output not utf-8");
-      let count = full_deps.lines().collect::<HashSet<_>>().len() - 1; // output includes wry itself
+      match cmd.output() {
+        Ok(output) if output.status.success() => {
+          let full_deps = String::from_utf8_lossy(&output.stdout);
+          let count = full_deps
+            .lines()
+            .collect::<HashSet<_>>()
+            .len()
+            .saturating_sub(1); // output includes wry itself
 
-      // set the count to the highest count seen for this OS
-      let existing = results.entry(os.to_string()).or_default();
-      *existing = count.max(*existing);
-      assert!(count > 10); // sanity check
+          // set the count to the highest count seen for this OS
+          let existing = results.entry(os.to_string()).or_default();
+          *existing = count.max(*existing);
+
+          if count <= 10 {
+            eprintln!("Warning: dependency count for {target} seems low: {count}");
+          }
+        }
+        Ok(output) => {
+          eprintln!(
+            "cargo tree failed for {target}: {}",
+            String::from_utf8_lossy(&output.stderr)
+          );
+        }
+        Err(e) => {
+          eprintln!("Failed to run cargo tree for {target}: {e}");
+        }
+      }
     }
   }
   results
@@ -328,54 +258,58 @@ fn cargo_deps() -> HashMap<String, usize> {
 
 const RESULT_KEYS: &[&str] = &["mean", "stddev", "user", "system", "min", "max"];
 
-fn run_exec_time(target_dir: &Path) -> Result<HashMap<String, HashMap<String, f64>>> {
+fn run_exec_time(target: &str) -> Result<HashMap<String, HashMap<String, f64>>> {
+  let target_dir = utils::target_dir();
   let benchmark_file = target_dir.join("hyperfine_results.json");
-  let benchmark_file = benchmark_file.to_str().unwrap();
+  let benchmark_file_str = benchmark_file
+    .to_str()
+    .context("benchmark file path contains invalid UTF-8")?;
 
-  let mut command = [
+  let mut command = vec![
     "hyperfine",
     "--export-json",
-    benchmark_file,
+    benchmark_file_str,
     "--show-output",
     "--warmup",
     "3",
-  ]
-  .iter()
-  .map(|s| s.to_string())
-  .collect::<Vec<_>>();
+  ];
 
-  for (_, example_exe) in get_all_benchmarks() {
-    command.push(
-      utils::bench_root_path()
-        .join(example_exe)
-        .to_str()
-        .unwrap()
-        .to_string(),
-    );
+  let benchmarks = get_all_benchmarks(target);
+  let mut benchmark_paths = Vec::new();
+
+  for (_, example_exe) in &benchmarks {
+    let exe_path = utils::bench_root_path().join(example_exe);
+    let exe_path_str = exe_path
+      .to_str()
+      .context("executable path contains invalid UTF-8")?;
+    benchmark_paths.push(exe_path_str.to_string());
   }
 
-  utils::run(&command.iter().map(|s| s.as_ref()).collect::<Vec<_>>())?;
+  for path in &benchmark_paths {
+    command.push(path.as_str());
+  }
+
+  utils::run(&command)?;
 
   let mut results = HashMap::<String, HashMap<String, f64>>::new();
-  let hyperfine_results = utils::read_json(benchmark_file)?;
-  for ((name, _), data) in get_all_benchmarks().iter().zip(
-    hyperfine_results
-      .as_object()
-      .unwrap()
-      .get("results")
-      .unwrap()
-      .as_array()
-      .unwrap(),
-  ) {
-    let data = data.as_object().unwrap().clone();
-    results.insert(
-      name.to_string(),
-      data
-        .into_iter()
-        .filter(|(key, _)| RESULT_KEYS.contains(&key.as_str()))
-        .map(|(key, val)| (key, val.as_f64().unwrap()))
-        .collect(),
-    );
+  let hyperfine_results = utils::read_json(benchmark_file_str)?;
+
+  if let Some(results_array) = hyperfine_results
+    .as_object()
+    .and_then(|obj| obj.get("results"))
+    .and_then(|val| val.as_array())
+  {
+    for ((name, _), data) in benchmarks.iter().zip(results_array.iter()) {
+      if let Some(data_obj) = data.as_object() {
+        let filtered_data: HashMap<String, f64> = data_obj
+          .iter()
+          .filter(|(key, _)| RESULT_KEYS.contains(&key.as_str()))
+          .filter_map(|(key, val)| val.as_f64().map(|v| (key.clone(), v)))
+          .collect();
+
+        results.insert(name.clone(), filtered_data);
+      }
+    }
   }
 
   Ok(results)
@@ -389,8 +323,8 @@ fn main() -> Result<()> {
     utils::download_file(
       "https://github.com/lemarier/tauri-test/releases/download/v2.0.0/json_3mb.json",
       json_3mb,
-    ).context("failed to download test data")?;
-    )?;
+    )
+    .context("failed to download test data")?;
   }
 
   println!("Starting tauri benchmark");
@@ -401,12 +335,13 @@ fn main() -> Result<()> {
   env::set_current_dir(utils::bench_root_path())
     .context("failed to set working directory to bench root")?;
 
-  let format = time::format_description::parse("[year]-[month]-[day]T[hour]:[minute]:[second]Z")
-    .context("failed to parse time format")?;
-  let now = time::OffsetDateTime::now_utc();
+  let now = std::time::SystemTime::now()
+    .duration_since(std::time::UNIX_EPOCH)
+    .context("failed to get current time")?;
+  let timestamp = format!("{}", now.as_secs());
 
   println!("Running execution time benchmarks...");
-  let exec_time = run_exec_time(&target_dir, &target)?;
+  let exec_time = run_exec_time(&target)?;
 
   println!("Getting binary sizes...");
   let binary_size = get_binary_sizes(&target_dir, &target)?;
@@ -415,13 +350,11 @@ fn main() -> Result<()> {
   let cargo_deps = cargo_deps();
 
   let mut new_data = utils::BenchResult {
-    created_at: now.format(&format).context("failed to format timestamp")?,
-    sha1: utils::run_collect(&["git", "rev-parse", "HEAD"])
-    created_at: now.format(&format).unwrap(),
-    sha1: utils::run_collect(&["git", "rev-parse", "HEAD"])?
-      .0
-      .trim()
-      .to_string(),
+    created_at: timestamp,
+    sha1: {
+      let output = utils::run_collect(&["git", "rev-parse", "HEAD"])?;
+      output.0.trim().to_string()
+    },
     exec_time,
     binary_size,
     cargo_deps,

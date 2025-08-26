@@ -1852,6 +1852,31 @@ pub struct WindowConfig {
     alias = "disable_input_accessory_view"
   )]
   pub disable_input_accessory_view: bool,
+  ///
+  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]**.
+  ///
+  /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
+  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **Android**: Unsupported.
+  #[serde(default, alias = "data-directory")]
+  pub data_directory: Option<PathBuf>,
+  ///
+  /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
+  /// See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  /// - **Windows / Linux / Android**: Unsupported.
+  #[serde(default, alias = "data-store-identifier")]
+  pub data_store_identifier: Option<[u8; 16]>,
 }
 
 impl Default for WindowConfig {
@@ -1911,6 +1936,8 @@ impl Default for WindowConfig {
       javascript_disabled: false,
       allow_link_preview: true,
       disable_input_accessory_view: false,
+      data_directory: None,
+      data_store_identifier: None,
     }
   }
 }
@@ -3417,6 +3444,8 @@ mod build {
       let javascript_disabled = self.javascript_disabled;
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
+      let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
 
       literal_struct!(
         tokens,
@@ -3474,7 +3503,9 @@ mod build {
         background_throttling,
         javascript_disabled,
         allow_link_preview,
-        disable_input_accessory_view
+        disable_input_accessory_view,
+        data_directory,
+        data_store_identifier
       );
     }
   }

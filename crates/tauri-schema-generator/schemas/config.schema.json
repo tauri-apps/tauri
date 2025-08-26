@@ -572,6 +572,27 @@
           "description": "Allows disabling the input accessory view on iOS.\n\n The accessory view is the view that appears above the keyboard when a text input element is focused.\n It usually displays a view with \"Done\", \"Next\" buttons.",
           "default": false,
           "type": "boolean"
+        },
+        "dataDirectory": {
+          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dataStoreIdentifier": {
+          "description": "Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.\n See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc\n\n The array must contain 16 u8 numbers.\n\n #### Platform-specific:\n\n - **iOS**: Supported since version 17.0+.\n - **macOS**: Supported since version 14.0+.\n - **Windows / Linux / Android**: Unsupported.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
+          },
+          "maxItems": 16,
+          "minItems": 16
         }
       },
       "additionalProperties": false

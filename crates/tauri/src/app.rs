@@ -1632,7 +1632,7 @@ impl<R: Runtime> Builder<R> {
 use tauri::Manager;
 tauri::Builder::default()
   .setup(|app| {
-    let main_window = app.get_window("main").unwrap();
+    let main_window = app.get_webview_window("main").unwrap();
     main_window.set_title("Tauri!")?;
     Ok(())
   });

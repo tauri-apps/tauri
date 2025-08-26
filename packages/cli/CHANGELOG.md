@@ -8,7 +8,7 @@
 
 ### Dependencies
 
-- Upgraded to `tauri-cli@2.8.2`
+- Upgraded to `tauri-cli@2.8.3`
 
 ## \[2.8.2]
 

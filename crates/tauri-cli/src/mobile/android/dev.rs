@@ -158,7 +158,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .collect::<Vec<_>>(),
   )?;
 
-  let env = env()?;
+  let env = env(false)?;
   let device = if options.open {
     None
   } else {

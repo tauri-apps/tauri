@@ -123,7 +123,7 @@ pub fn exec(
   let app = match target {
     // Generate Android Studio project
     Target::Android => {
-      let _env = super::android::env()?;
+      let _env = super::android::env(non_interactive)?;
       let (config, metadata) =
         super::android::get_config(&app, tauri_config_, None, &Default::default());
       map.insert("android", &config);

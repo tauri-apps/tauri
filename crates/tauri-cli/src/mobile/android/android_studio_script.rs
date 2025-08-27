@@ -103,7 +103,7 @@ pub fn command(options: Options) -> Result<()> {
     )?;
   }
 
-  let env = env()?;
+  let env = env(std::env::var("CI").is_ok())?;
 
   if cli_options.dev {
     let dev_url = tauri_config

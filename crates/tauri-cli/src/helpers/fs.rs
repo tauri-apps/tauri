@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   let from = from.as_ref();
@@ -18,4 +18,19 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   std::fs::create_dir_all(dest_dir)?;
   std::fs::copy(from, to)?;
   Ok(())
+}
+
+pub fn find_in_directory(path: &Path, glob_pattern: &str) -> Result<PathBuf> {
+  let pattern = glob::Pattern::new(glob_pattern)?;
+  for entry in std::fs::read_dir(path)? {
+    let entry = entry?;
+    if pattern.matches_path(&entry.path()) {
+      return Ok(entry.path());
+    }
+  }
+  Err(anyhow::anyhow!(
+    "No file found in {} matching {}",
+    path.display(),
+    glob_pattern
+  ))
 }

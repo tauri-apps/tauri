@@ -20,6 +20,10 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> Result<()> {
   Ok(())
 }
 
+/// Find an entry in a directory matching a glob pattern.
+/// Currently does not traverse subdirectories.
+// currently only used on macOS
+#[allow(dead_code)]
 pub fn find_in_directory(path: &Path, glob_pattern: &str) -> Result<PathBuf> {
   let pattern = glob::Pattern::new(glob_pattern)?;
   for entry in std::fs::read_dir(path)? {

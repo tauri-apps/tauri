@@ -1853,7 +1853,7 @@ pub struct WindowConfig {
   )]
   pub disable_input_accessory_view: bool,
   ///
-  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]**.
+  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
   ///
   /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
   ///

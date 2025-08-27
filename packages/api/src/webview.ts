@@ -855,7 +855,7 @@ interface WebviewOptions {
    */
   disableInputAccessoryView?: boolean
   /**
-   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]**.
+   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
    * For security reasons, paths outside of that location can only be configured on the Rust side.
    *
    * #### Platform-specific:

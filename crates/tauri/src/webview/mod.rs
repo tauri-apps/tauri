@@ -391,30 +391,38 @@ async fn create_window(app: tauri::AppHandle) {
     let mut config = config.to_owned();
 
     if let Some(data_directory) = &config.data_directory {
-      if let Some(mut local_dir) = dirs::data_local_dir() {
-        local_dir.push(&config.label);
-
-        match SafePathBuf::new(data_directory.clone()) {
-          Ok(data_directory) => {
-            if data_directory.as_ref().is_relative() {
-              config.data_directory =
-                Some(local_dir.join(&config.label).join(data_directory.as_ref()));
+      let resolve_data_dir_res = dirs::data_local_dir()
+        .or({
+          #[cfg(feature = "tracing")]
+          tracing::error!("failed to resolve data directory");
+          None
+        })
+        .and_then(|local_dir| {
+          SafePathBuf::new(data_directory.clone())
+            .inspect_err(|_err| {
+              #[cfg(feature = "tracing")]
+              tracing::error!(
+                "data_directory `{}` is not a safe path, ignoring config. Validation error was: {_err}",
+                data_directory.display()
+              );
+            })
+            .map(|p| (local_dir, p))
+            .ok()
+        })
+        .and_then(|(local_dir, data_directory)| {
+          if data_directory.as_ref().is_relative() {
+            Some(local_dir.join(&config.label).join(data_directory.as_ref()))
             } else {
               #[cfg(feature = "tracing")]
               tracing::error!(
                 "data_directory `{}` is not a relative path, ignoring config.",
                 data_directory.display()
               );
+              None
             }
-          }
-          Err(_err) => {
-            #[cfg(feature = "tracing")]
-            tracing::error!(
-              "data_directory `{}` is not a safe path, ignoring config. Validation error was: {_err}",
-              data_directory.display()
-            );
-          }
-        }
+        });
+      if let Some(resolved_data_directory) = resolve_data_dir_res {
+        config.data_directory = Some(resolved_data_directory);
       }
     }
 

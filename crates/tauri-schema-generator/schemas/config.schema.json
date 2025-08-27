@@ -574,7 +574,7 @@
           "type": "boolean"
         },
         "dataDirectory": {
-          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
+          "description": "Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.\n\n To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)\n\n #### Platform-specific:\n\n - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.\n - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.\n - **Android**: Unsupported.",
           "type": [
             "string",
             "null"

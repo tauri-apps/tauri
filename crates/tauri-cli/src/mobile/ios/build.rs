@@ -102,6 +102,17 @@ pub enum ExportMethod {
   Debugging,
 }
 
+impl ExportMethod {
+  /// Xcode 15.4 deprecated these names (in this case we should use the Display impl).
+  pub fn pre_xcode_15_4_name(&self) -> String {
+    match self {
+      Self::AppStoreConnect => "app-store".to_string(),
+      Self::ReleaseTesting => "ad-hoc".to_string(),
+      Self::Debugging => "development".to_string(),
+    }
+  }
+}
+
 impl std::fmt::Display for ExportMethod {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     match self {
@@ -215,7 +226,27 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let mut export_options_plist = plist::Dictionary::new();
   if let Some(method) = options.export_method {
-    export_options_plist.insert("method".to_string(), method.to_string().into());
+    let xcode_version =
+      crate::info::env_system::xcode_version().context("failed to determine Xcode version")?;
+    let mut iter = xcode_version.split('.');
+    let major = iter.next().context(format!(
+      "failed to parse Xcode version `{xcode_version}` as semver"
+    ))?;
+    let minor = iter.next().context(format!(
+      "failed to parse Xcode version `{xcode_version}` as semver"
+    ))?;
+    let major = major.parse::<u64>().context(format!(
+      "failed to parse Xcode version `{xcode_version}` as semver: major is not a number"
+    ))?;
+    let minor = minor.parse::<u64>().context(format!(
+      "failed to parse Xcode version `{xcode_version}` as semver: minor is not a number"
+    ))?;
+
+    if major < 15 || (major == 15 && minor < 4) {
+      export_options_plist.insert("method".to_string(), method.pre_xcode_15_4_name().into());
+    } else {
+      export_options_plist.insert("method".to_string(), method.to_string().into());
+    }
   }
 
   let (keychain, provisioning_profile) = super::signing_from_env()?;

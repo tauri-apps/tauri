@@ -175,6 +175,22 @@ fn is_xcode_command_line_tools_installed() -> bool {
     .map(|o| o.status.success())
     .unwrap_or(false)
 }
+
+#[cfg(target_os = "macos")]
+pub fn xcode_version() -> Option<String> {
+  Command::new("xcodebuild")
+    .arg("-version")
+    .output()
+    .ok()
+    .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+    .and_then(|s| {
+      s.split('\n')
+        .filter_map(|line| line.strip_prefix("Xcode "))
+        .next()
+        .map(ToString::to_string)
+    })
+}
+
 fn de_and_session() -> String {
   #[cfg(any(
     target_os = "linux",
@@ -319,5 +335,11 @@ pub fn items() -> Vec<SectionItem> {
         }.into()
       },
     ),
+    #[cfg(target_os = "macos")]
+    SectionItem::new().action(|| {
+      xcode_version().map(|v| (format!("Xcode: {v}"), Status::Success)).unwrap_or_else(|| {
+          (format!("Xcode: {}", "not installed!".red()), Status::Error)
+      }).into()
+    }),
   ]
 }

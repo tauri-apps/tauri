@@ -12,6 +12,8 @@ pub mod fs;
 pub mod npm;
 #[cfg(target_os = "macos")]
 pub mod pbxproj;
+#[cfg(target_os = "macos")]
+pub mod plist;
 pub mod plugins;
 pub mod prompts;
 pub mod template;

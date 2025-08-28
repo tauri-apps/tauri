@@ -45,8 +45,8 @@ pub use self::{
   category::AppCategory,
   settings::{
     AppImageSettings, BundleBinary, BundleSettings, CustomSignCommandSettings, DebianSettings,
-    DmgSettings, IosSettings, MacOsSettings, PackageSettings, PackageType, Position, RpmSettings,
-    Settings, SettingsBuilder, Size, UpdaterSettings,
+    DmgSettings, IosSettings, MacOsSettings, PackageSettings, PackageType, PlistKind, Position,
+    RpmSettings, Settings, SettingsBuilder, Size, UpdaterSettings,
   },
 };
 #[cfg(target_os = "macos")]

@@ -4,8 +4,8 @@
 
 use super::{
   detect_target_ok, ensure_init, env, get_app, get_config, inject_resources, load_pbxproj,
-  log_finished, merge_plist, open_and_wait, project_config, synchronize_project_config,
-  MobileTarget, OptionsHandle,
+  log_finished, open_and_wait, project_config, synchronize_project_config, MobileTarget,
+  OptionsHandle,
 };
 use crate::{
   build::Options as BuildOptions,
@@ -13,6 +13,7 @@ use crate::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
     flock,
+    plist::merge_plist,
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
@@ -203,12 +204,26 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .project_dir()
     .join(config.scheme())
     .join("Info.plist");
-  let merged_info_plist = merge_plist(vec![
-    info_plist_path.clone().into(),
-    tauri_path.join("Info.plist").into(),
-    tauri_path.join("Info.ios.plist").into(),
-    plist::Value::Dictionary(plist).into(),
-  ])?;
+  let mut src_plists = vec![info_plist_path.clone().into()];
+  src_plists.push(plist::Value::Dictionary(plist).into());
+  if tauri_path.join("Info.plist").exists() {
+    src_plists.push(tauri_path.join("Info.plist").into());
+  }
+  if tauri_path.join("Info.ios.plist").exists() {
+    src_plists.push(tauri_path.join("Info.ios.plist").into());
+  }
+  if let Some(info_plist) = &tauri_config
+    .lock()
+    .unwrap()
+    .as_ref()
+    .unwrap()
+    .bundle
+    .ios
+    .info_plist
+  {
+    src_plists.push(info_plist.clone().into());
+  }
+  let merged_info_plist = merge_plist(src_plists)?;
   merged_info_plist.to_file_xml(&info_plist_path)?;
 
   let mut env = env()?;
@@ -241,7 +256,6 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     let export_options = tempfile::NamedTempFile::new()?;
 
     let merged_plist = merge_plist(vec![
-      export_options.path().to_owned().into(),
       export_options_plist_path.clone().into(),
       plist::Value::from(export_options_plist).into(),
     ])?;

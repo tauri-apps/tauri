@@ -129,7 +129,13 @@ fn exec(
     binary.pop();
   }
 
-  map.insert("tauri-binary", binary);
+  // TODO: temp `\ -> /` conversion for ohos
+  map.insert(
+    "tauri-binary",
+    dunce::simplified(std::path::Path::new(&binary))
+      
+      .replace('\\', "/"),
+  );
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 

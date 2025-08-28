@@ -117,7 +117,13 @@ pub fn exec(
   build_args.push(target.command_name());
   build_args.push(target.ide_build_script_name());
 
-  map.insert("tauri-binary", binary.to_string_lossy());
+  // TODO: temp `\ -> /` conversion for ohos
+  map.insert(
+    "tauri-binary",
+    dunce::simplified(std::path::Path::new(&binary))
+      .to_string_lossy()
+      .replace('\\', "/"),
+  );
   map.insert("tauri-binary-args", &build_args);
   map.insert("tauri-binary-args-str", build_args.join(" "));
 

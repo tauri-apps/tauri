@@ -269,9 +269,7 @@ fn use_network_address_for_dev_url(
   let ip = if let Some(url) = &mut dev_url {
     let localhost = match url.host() {
       Some(url::Host::Domain(d)) => d == "localhost",
-      Some(url::Host::Ipv4(i)) => {
-        i == std::net::Ipv4Addr::LOCALHOST || i == std::net::Ipv4Addr::UNSPECIFIED
-      }
+      Some(url::Host::Ipv4(i)) => i == Ipv4Addr::LOCALHOST || i == Ipv4Addr::UNSPECIFIED,
       _ => false,
     };
 

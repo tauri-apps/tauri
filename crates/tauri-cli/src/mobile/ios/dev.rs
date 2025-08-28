@@ -31,8 +31,9 @@ use cargo_mobile2::{
   env::Env,
   opts::{NoiseLevel, Profile},
 };
+use url::Host;
 
-use std::{env::set_current_dir, path::PathBuf};
+use std::{env::set_current_dir, net::Ipv4Addr, path::PathBuf};
 
 const PHYSICAL_IPHONE_DEV_WARNING: &str = "To develop on physical phones you need the `--host` option (not required for Simulators). See the documentation for more information: https://v2.tauri.app/develop/#development-server";
 
@@ -258,12 +259,26 @@ fn run_dev(
   config: &AppleConfig,
   noise_level: NoiseLevel,
 ) -> Result<()> {
-  // when running on an actual device we must use the network IP
+  // when --host is provided or running on a physical device or resolving 0.0.0.0 we must use the network IP
   if options.host.0.is_some()
     || device
       .as_ref()
       .map(|device| !matches!(device.kind(), DeviceKind::Simulator))
       .unwrap_or(false)
+    || tauri_config
+      .lock()
+      .unwrap()
+      .as_ref()
+      .unwrap()
+      .build
+      .dev_url
+      .as_ref()
+      .is_some_and(|url| {
+        matches!(
+          url.host(),
+          Some(Host::Ipv4(i)) if i == Ipv4Addr::UNSPECIFIED
+        )
+      })
   {
     use_network_address_for_dev_url(&tauri_config, &mut dev_options, options.force_ip_prompt)?;
   }

@@ -347,6 +347,7 @@ fn env_vars() -> HashMap<String, OsString> {
       && k != "TAURI_SIGNING_PRIVATE_KEY_PASSWORD")
       || k.starts_with("WRY")
       || k.starts_with("CARGO_")
+      || k.starts_with("RUST_")
       || k == "TMPDIR"
       || k == "PATH"
     {

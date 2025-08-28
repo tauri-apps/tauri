@@ -4583,8 +4583,11 @@ You may have it installed on another user account, but it is not available for t
 
       #[cfg(windows)]
       if cfg!(debug_assertions) && occupied.environment_options != environment_options {
-        let message =
-          format!("environment options {environment_options:?} for {web_context_key:?} do not match previously defined options for the same data directory on webviews {:?}, expected {:?}. Since this results in a crash, we are going to force the previously defined environment options", occupied.referenced_by_webviews, occupied.environment_options);
+        let message = format!(
+          "environment options {environment_options:?} for {} do not match previously defined options for the same data directory on webviews {:?}, expected {:?}. Since this results in a crash, we are going to force the previously defined environment options",
+          web_context_key.as_ref().map(|p| p.to_string_lossy()).unwrap_or_else(|| "".into()), 
+          occupied.referenced_by_webviews, occupied.environment_options
+        );
         #[cfg(feature = "tracing")]
         tracing::warn!("{message}");
         #[cfg(not(feature = "tracing"))]

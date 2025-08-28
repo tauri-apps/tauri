@@ -11,7 +11,7 @@ use crate::{
 };
 
 use anyhow::Context;
-use cargo_mobile2::{apple::target::Target, opts::Profile};
+use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
 use clap::{ArgAction, Parser};
 use object::{Object, ObjectSymbol};
 
@@ -209,6 +209,10 @@ pub fn command(options: Options) -> Result<()> {
   } else {
     options.arches
   };
+
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
   for arch in arches {
     // Set target-specific flags
     let (env_triple, rust_triple) = match arch.as_str() {
@@ -251,6 +255,14 @@ pub fn command(options: Options) -> Result<()> {
         )
       })?
     };
+
+    if !installed_targets.contains(&rust_triple.into()) {
+      log::info!("Installing target {}", target.triple());
+      target
+        .install()
+        .context("failed to install target with rustup")?;
+    }
+
     target.compile_lib(
       &config,
       &metadata,

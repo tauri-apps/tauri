@@ -252,12 +252,22 @@ fn run_dev(
 
   configure_cargo(&mut env, config)?;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
   // run an initial build to initialize plugins
   let target_triple = dev_options.target.as_ref().unwrap();
   let target = Target::all()
     .values()
     .find(|t| t.triple == target_triple)
     .unwrap_or_else(|| Target::all().values().next().unwrap());
+  if !installed_targets.contains(&target.triple().into()) {
+    log::info!("Installing target {}", target.triple());
+    target
+      .install()
+      .context("failed to install target with rustup")?;
+  }
+
   target.build(
     config,
     metadata,

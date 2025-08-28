@@ -167,6 +167,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
+  if !installed_targets.contains(&first_target.triple().into()) {
+    log::info!("Installing target {}", first_target.triple());
+    first_target
+      .install()
+      .context("failed to install target with rustup")?;
+  }
   // run an initial build to initialize plugins
   first_target.build(&config, &metadata, &env, noise_level, true, profile)?;
 

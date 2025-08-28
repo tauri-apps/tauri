@@ -4580,7 +4580,6 @@ You may have it installed on another user account, but it is not available for t
   let web_context = match entry {
     Occupied(occupied) => {
       let occupied = occupied.into_mut();
-      occupied.referenced_by_webviews.insert(label.clone());
 
       #[cfg(windows)]
       if cfg!(debug_assertions) && occupied.environment_options != environment_options {
@@ -4591,6 +4590,8 @@ You may have it installed on another user account, but it is not available for t
         #[cfg(not(feature = "tracing"))]
         eprintln!("{message}");
       }
+
+      occupied.referenced_by_webviews.insert(label.clone());
 
       occupied
     }

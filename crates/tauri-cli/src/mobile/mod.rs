@@ -453,6 +453,12 @@ pub fn get_app(target: Target, config: &TauriConfig, interface: &AppInterface) -
     .lib_name()
     .unwrap_or_else(|| app_name.to_snek_case());
 
+  if config.product_name.is_none() {
+    log::warn!(
+      "`productName` is not set in the Tauri configuration. Using `{app_name}` as the app name."
+    );
+  }
+
   let raw = RawAppConfig {
     name: app_name,
     lib_name: Some(lib_name),

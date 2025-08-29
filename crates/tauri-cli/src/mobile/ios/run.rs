@@ -21,9 +21,9 @@ use crate::{
   long_about = "Run your app in production mode on iOS. It makes use of the `build.frontendDist` property from your `tauri.conf.json` file. It also runs your `build.beforeBuildCommand` which usually builds your frontend into `build.frontendDist`."
 )]
 pub struct Options {
-  /// Builds with the debug flag
+  /// Run the app in release mode
   #[clap(short, long)]
-  pub debug: bool,
+  pub release: bool,
   /// List of cargo features to activate
   #[clap(short, long, action = ArgAction::Append, num_args(0..))]
   pub features: Option<Vec<String>>,
@@ -69,7 +69,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let built_application = super::build::command(
     super::build::Options {
-      debug: options.debug,
+      debug: !options.release,
       targets: device.as_ref().map(|d| {
         vec![Target::all()
           .iter()
@@ -102,7 +102,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
         &env,
         noise_level,
         false, // do not quit on app exit
-        if options.debug {
+        if !options.release {
           Profile::Debug
         } else {
           Profile::Release

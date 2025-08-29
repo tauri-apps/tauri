@@ -47,6 +47,7 @@ use std::{
 mod build;
 mod dev;
 pub(crate) mod project;
+mod run;
 mod xcode_script;
 
 pub const APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME: &str = "APPLE_DEVELOPMENT_TEAM";
@@ -93,6 +94,7 @@ enum Commands {
   Init(InitOptions),
   Dev(dev::Options),
   Build(build::Options),
+  Run(run::Options),
   #[clap(hide(true))]
   XcodeScript(xcode_script::Options),
 }
@@ -111,7 +113,8 @@ pub fn command(cli: Cli, verbosity: u8) -> Result<()> {
       )?
     }
     Commands::Dev(options) => dev::command(options, noise_level)?,
-    Commands::Build(options) => build::command(options, noise_level)?,
+    Commands::Build(options) => build::command(options, noise_level).map(|_| ())?,
+    Commands::Run(options) => run::command(options, noise_level)?,
     Commands::XcodeScript(options) => xcode_script::command(options)?,
   }
 

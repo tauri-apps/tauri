@@ -15,7 +15,7 @@ use std::fmt::{self, Display, Formatter};
 mod app;
 mod env_nodejs;
 mod env_rust;
-mod env_system;
+pub mod env_system;
 #[cfg(target_os = "macos")]
 mod ios;
 mod packages_nodejs;

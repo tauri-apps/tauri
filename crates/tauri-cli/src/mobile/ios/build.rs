@@ -159,6 +159,7 @@ impl From<Options> for BuildOptions {
 
 pub struct BuiltApplication {
   pub config: AppleConfig,
+  pub interface: AppInterface,
   // prevent drop
   #[allow(dead_code)]
   options_handle: OptionsHandle,
@@ -299,7 +300,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
 
   let open = options.open;
   let options_handle = run_build(
-    interface,
+    &interface,
     options,
     build_options,
     tauri_config,
@@ -314,13 +315,14 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
 
   Ok(BuiltApplication {
     config,
+    interface,
     options_handle,
   })
 }
 
 #[allow(clippy::too_many_arguments)]
 fn run_build(
-  interface: AppInterface,
+  interface: &AppInterface,
   options: Options,
   mut build_options: BuildOptions,
   tauri_config: ConfigHandle,

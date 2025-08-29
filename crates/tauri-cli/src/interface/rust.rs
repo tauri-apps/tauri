@@ -115,6 +115,12 @@ pub struct MobileOptions {
   pub additional_watch_folders: Vec<PathBuf>,
 }
 
+#[derive(Debug, Clone)]
+pub struct WatcherOptions {
+  pub config: Vec<ConfigValue>,
+  pub additional_watch_folders: Vec<PathBuf>,
+}
+
 #[derive(Debug)]
 pub struct RustupTarget {
   name: String,
@@ -238,10 +244,24 @@ impl Interface for Rust {
       runner(options)?;
       Ok(())
     } else {
-      let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
-      let run = Arc::new(|_rust: &mut Rust| runner(options.clone()));
-      self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
+      self.watch(
+        WatcherOptions {
+          config: options.config.clone(),
+          additional_watch_folders: options.additional_watch_folders.clone(),
+        },
+        move || runner(options.clone()),
+      )
     }
+  }
+
+  fn watch<R: Fn() -> crate::Result<Box<dyn DevProcess + Send>>>(
+    &mut self,
+    options: WatcherOptions,
+    runner: R,
+  ) -> crate::Result<()> {
+    let merge_configs = options.config.iter().map(|c| &c.0).collect::<Vec<_>>();
+    let run = Arc::new(|_rust: &mut Rust| runner());
+    self.run_dev_watcher(&options.additional_watch_folders, &merge_configs, run)
   }
 
   fn env(&self) -> HashMap<&str, String> {

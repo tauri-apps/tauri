@@ -8,9 +8,11 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 use clap::{ArgAction, Parser};
+use std::path::PathBuf;
 
 use super::{configure_cargo, device_prompt, env};
 use crate::{
+  interface::{DevProcess, Interface, WatcherOptions},
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
 };
@@ -36,6 +38,12 @@ pub struct Options {
   /// but you can use this for more specific use cases such as different build flavors.
   #[clap(short, long)]
   pub config: Vec<ConfigValue>,
+  /// Disable the file watcher
+  #[clap(long)]
+  pub no_watch: bool,
+  /// Additional paths to watch for changes.
+  #[clap(long)]
+  pub additional_watch_folders: Vec<PathBuf>,
   /// Open Android Studio
   #[clap(short, long)]
   pub open: bool,
@@ -68,7 +76,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     }
   };
 
-  let built_application = super::build::command(
+  let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,
       targets: device.as_ref().map(|d| {
@@ -79,7 +87,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
           .expect("Target not found")]
       }),
       features: options.features,
-      config: options.config,
+      config: options.config.clone(),
       split_per_abi: true,
       apk: Some(false),
       aab: Some(false),
@@ -97,29 +105,46 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   configure_cargo(&mut env, &built_application.config)?;
 
+  // options.open is handled by the build command
+  // so all we need to do here is run the app on the selected device
   if let Some(device) = device {
-    // options.open is handled by the build command
-    // so all we need to do here is run the app on the selected device
-    device
-      .run(
-        &built_application.config,
-        &env,
-        noise_level,
-        if !options.release {
-          Profile::Debug
-        } else {
-          Profile::Release
+    let config = built_application.config.clone();
+    let release = options.release;
+    let runner = move || {
+      device
+        .run(
+          &config,
+          &env,
+          noise_level,
+          if !release {
+            Profile::Debug
+          } else {
+            Profile::Release
+          },
+          Some(match noise_level {
+            NoiseLevel::Polite => FilterLevel::Info,
+            NoiseLevel::LoudAndProud => FilterLevel::Debug,
+            NoiseLevel::FranklyQuitePedantic => FilterLevel::Verbose,
+          }),
+          false,
+          false,
+          ".MainActivity".into(),
+        )
+        .map(|c| Box::new(DevChild::new(c)) as Box<dyn DevProcess + Send>)
+        .map_err(Into::into)
+    };
+
+    if options.no_watch {
+      runner()?;
+    } else {
+      built_application.interface.watch(
+        WatcherOptions {
+          config: options.config,
+          additional_watch_folders: options.additional_watch_folders,
         },
-        Some(match noise_level {
-          NoiseLevel::Polite => FilterLevel::Info,
-          NoiseLevel::LoudAndProud => FilterLevel::Debug,
-          NoiseLevel::FranklyQuitePedantic => FilterLevel::Verbose,
-        }),
-        false,
-        false,
-        ".MainActivity".into(),
-      )
-      .map(DevChild::new)?;
+        runner,
+      )?;
+    }
   }
 
   Ok(())

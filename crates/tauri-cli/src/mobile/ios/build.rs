@@ -175,8 +175,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<BuiltApplica
         options
           .targets
           .as_ref()
-          .map(|t| t.first())
-          .flatten()
+          .and_then(|t| t.first())
           .map(|t| t.as_str())
           .unwrap_or(Target::DEFAULT_KEY),
       )
@@ -336,7 +335,7 @@ fn run_build(
     Profile::Release
   };
 
-  crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
+  crate::build::setup(interface, &mut build_options, tauri_config.clone(), true)?;
 
   let app_settings = interface.app_settings();
   let out_dir = app_settings.out_dir(&InterfaceOptions {

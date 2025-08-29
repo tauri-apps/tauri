@@ -9,7 +9,7 @@ use cargo_mobile2::{
 };
 use clap::{ArgAction, Parser};
 
-use super::{device_prompt, env};
+use super::{configure_cargo, device_prompt, env};
 use crate::{
   mobile::{DevChild, TargetDevice},
   ConfigValue, Result,
@@ -54,7 +54,8 @@ pub struct Options {
 }
 
 pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
-  let env = env()?;
+  let mut env = env()?;
+
   let device = if options.open {
     None
   } else {
@@ -93,6 +94,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     },
     noise_level,
   )?;
+
+  configure_cargo(&mut env, &built_application.config)?;
 
   if let Some(device) = device {
     // options.open is handled by the build command

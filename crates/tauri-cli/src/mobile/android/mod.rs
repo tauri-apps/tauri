@@ -246,7 +246,9 @@ fn ensure_java() -> Result<()> {
 }
 
 fn ensure_sdk(non_interactive: bool) -> Result<()> {
-  let android_home = std::env::var_os("ANDROID_HOME").map(PathBuf::from);
+  let android_home = std::env::var_os("ANDROID_HOME")
+    .map(PathBuf::from)
+    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from));
   if !android_home.as_ref().is_some_and(|v| v.exists()) {
     log::info!(
       "ANDROID_HOME {}, trying to locate Android SDK...",
@@ -339,6 +341,7 @@ fn ensure_ndk(non_interactive: bool) -> Result<()> {
   // re-evaluate ANDROID_HOME
   let android_home = std::env::var_os("ANDROID_HOME")
     .map(PathBuf::from)
+    .or_else(|| std::env::var_os("ANDROID_SDK_ROOT").map(PathBuf::from))
     .ok_or_else(|| anyhow::anyhow!("Failed to locate Android SDK"))?;
   let mut installed_ndks = read_dir(android_home.join("ndk"))
     .map(|dir| {

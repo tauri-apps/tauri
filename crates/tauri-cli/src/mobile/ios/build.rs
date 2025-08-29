@@ -47,7 +47,7 @@ pub struct Options {
   /// Builds with the debug flag
   #[clap(short, long)]
   pub debug: bool,
-  /// Which targets to build (all by default).
+  /// Which targets to build.
   #[clap(
     short,
     long = "target",
@@ -363,9 +363,15 @@ fn run_build(
 
   let mut out_files = Vec::new();
 
+  let force_skip_target_fallback = options.targets.as_ref().is_some_and(|t| t.is_empty());
+
   call_for_targets_with_fallback(
     options.targets.unwrap_or_default().iter(),
-    &detect_target_ok,
+    if force_skip_target_fallback {
+      &|_| None
+    } else {
+      &detect_target_ok
+    },
     env,
     |target: &Target| -> Result<()> {
       let mut app_version = config.bundle_version().to_string();
@@ -477,7 +483,9 @@ fn run_build(
   )
   .map_err(|e: TargetInvalid| anyhow::anyhow!(e.to_string()))??;
 
-  log_finished(out_files, "iOS Bundle");
+  if !out_files.is_empty() {
+    log_finished(out_files, "iOS Bundle");
+  }
 
   Ok(handle)
 }

@@ -4,11 +4,7 @@
 
 use std::path::PathBuf;
 
-use cargo_mobile2::{
-  apple::target::Target,
-  opts::{NoiseLevel, Profile},
-  target::TargetTrait,
-};
+use cargo_mobile2::opts::{NoiseLevel, Profile};
 use clap::{ArgAction, Parser};
 
 use super::{device_prompt, env};
@@ -79,13 +75,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   let mut built_application = super::build::command(
     super::build::Options {
       debug: !options.release,
-      targets: device.as_ref().map(|d| {
-        vec![Target::all()
-          .iter()
-          .find(|(_key, t)| t.arch == d.target().arch)
-          .map(|(key, _t)| key.to_string())
-          .expect("Target not found")]
-      }),
+      targets: Some(vec![]), /* skips IPA build since there's no target */
       features: None,
       config: options.config.clone(),
       build_number: None,

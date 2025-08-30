@@ -133,7 +133,7 @@ pub fn run(options: Options) -> Result<()> {
   } else if plugin == "single-instance" {
     "init(|app, args, cwd| {})"
   } else if plugin == "log" {
-    "Builder::new().level(tauri_plugin_log::log::LevelFilter::Debug).build()"
+    "Builder::new().level(tauri_plugin_log::log::LevelFilter::Info).build()"
   } else if metadata.builder {
     "Builder::new().build()"
   } else {

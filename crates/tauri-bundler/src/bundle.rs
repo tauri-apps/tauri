@@ -15,6 +15,8 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
+use crate::Error;
+
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   match package_type {
@@ -49,8 +51,6 @@ pub use self::{
     Settings, SettingsBuilder, Size, UpdaterSettings,
   },
 };
-#[cfg(target_os = "macos")]
-use anyhow::Context;
 pub use settings::{NsisSettings, WindowsSettings, WixLanguage, WixLanguageConfig, WixSettings};
 
 use std::{
@@ -258,14 +258,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         for app_bundle_path in &app_bundle_paths {
           log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
-            true => std::fs::remove_dir_all(app_bundle_path),
-            false => std::fs::remove_file(app_bundle_path),
+            true => std::fs::remove_dir_all(&app_bundle_path),
+            false => std::fs::remove_file(&app_bundle_path),
           }
-          .with_context(|| {
-            format!(
-              "Failed to clean the app bundle at {}",
-              app_bundle_path.display()
-            )
+          .map_err(|error| Error::Fs {
+            context: "failed to clean the app bundle",
+            path: app_bundle_path.to_path_buf(),
+            error,
           })?
         }
       }
@@ -273,7 +272,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   }
 
   if bundles.is_empty() {
-    return Err(anyhow::anyhow!("No bundles were built").into());
+    return Ok(bundles);
   }
 
   let bundles_wo_updater = bundles

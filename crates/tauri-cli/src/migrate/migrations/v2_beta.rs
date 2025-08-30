@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::{Context, Error},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     npm::PackageManager,
@@ -13,7 +14,6 @@ use crate::{
 
 use std::{fs::read_to_string, path::Path};
 
-use anyhow::Context;
 use toml_edit::{DocumentMut, Item, Table, TableLike, Value};
 
 pub fn run() -> Result<()> {
@@ -28,8 +28,11 @@ pub fn run() -> Result<()> {
 
   migrate_npm_dependencies(frontend_dir)?;
 
-  std::fs::write(&manifest_path, serialize_manifest(&manifest))
-    .context("failed to rewrite Cargo manifest")?;
+  std::fs::write(&manifest_path, serialize_manifest(&manifest)).map_err(|error| Error::Fs {
+    context: "failed to rewrite Cargo manifest",
+    path: manifest_path.to_path_buf(),
+    error,
+  })?;
 
   Ok(())
 }
@@ -97,14 +100,26 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
   ];
 
   for entry in walkdir::WalkDir::new(tauri_dir.join("capabilities")) {
-    let entry = entry?;
+    let entry = entry.map_err(|error| Error::Fs {
+      context: "failed to walk capabilities directory".into(),
+      path: tauri_dir.join("capabilities"),
+      error: std::io::Error::other(error),
+    })?;
     let path = entry.path();
     if path.extension().is_some_and(|ext| ext == "json") {
-      let mut capability = read_to_string(path).context("failed to read capability")?;
+      let mut capability = read_to_string(path).map_err(|error| Error::Fs {
+        context: "failed to read capability",
+        path: path.to_path_buf(),
+        error,
+      })?;
       for plugin in core_plugins {
         capability = capability.replace(&format!("\"{plugin}:"), &format!("\"core:{plugin}:"));
       }
-      std::fs::write(path, capability).context("failed to rewrite capability")?;
+      std::fs::write(path, capability).map_err(|error| Error::Fs {
+        context: "failed to rewrite capability",
+        path: path.to_path_buf(),
+        error,
+      })?;
     }
   }
   Ok(())

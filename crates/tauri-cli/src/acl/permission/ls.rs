@@ -4,7 +4,7 @@
 
 use clap::Parser;
 
-use crate::{helpers::app_paths::tauri_dir, Result};
+use crate::{helpers::app_paths::tauri_dir, Error, Result};
 use colored::Colorize;
 use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
 
@@ -29,8 +29,17 @@ pub fn command(options: Options) -> Result<()> {
     .join("acl-manifests.json");
 
   if acl_manifests_path.exists() {
-    let plugin_manifest_json = read_to_string(&acl_manifests_path)?;
-    let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json)?;
+    let plugin_manifest_json = read_to_string(&acl_manifests_path).map_err(|error| Error::Fs {
+      context: "failed to read plugin manifest".into(),
+      path: acl_manifests_path.clone(),
+      error,
+    })?;
+    let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json).map_err(
+      |error| Error::Json {
+        context: "failed to parse plugin manifest as JSON".into(),
+        error,
+      },
+    )?;
 
     for (key, manifest) in acl {
       if options
@@ -147,6 +156,6 @@ pub fn command(options: Options) -> Result<()> {
 
     Ok(())
   } else {
-    anyhow::bail!("permission file not found, please build your application once first")
+    crate::error::bail!("permission file not found, please build your application once first")
   }
 }

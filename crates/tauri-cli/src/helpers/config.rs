@@ -17,6 +17,8 @@ use std::{
   sync::{Arc, Mutex, OnceLock},
 };
 
+use crate::Error;
+
 pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 
 pub struct ConfigMetadata {
@@ -156,7 +158,12 @@ fn get_internal(
 
   let tauri_dir = super::app_paths::tauri_dir();
   let (mut config, config_path) =
-    tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))?;
+    tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json")).map_err(
+      |error| Error::ParseConfig {
+        context: "failed to parse config".into(),
+        error,
+      },
+    )?;
   let config_file_name = config_path.file_name().unwrap().to_string_lossy();
   let mut extensions = HashMap::new();
 
@@ -167,7 +174,12 @@ fn get_internal(
     .map(ToString::to_string);
 
   if let Some((platform_config, config_path)) =
-    tauri_utils::config::parse::read_platform(target, tauri_dir)?
+    tauri_utils::config::parse::read_platform(target, tauri_dir).map_err(|error| {
+      Error::ParseConfig {
+        context: "failed to parse platform config".into(),
+        error,
+      }
+    })?
   {
     merge(&mut config, &platform_config);
     extensions.insert(
@@ -191,7 +203,11 @@ fn get_internal(
   if config_path.extension() == Some(OsStr::new("json"))
     || config_path.extension() == Some(OsStr::new("json5"))
   {
-    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))?;
+    let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
+      .map_err(|error| Error::Json {
+        context: "failed to parse config schema".into(),
+        error,
+      })?;
     let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
     let mut errors = validator.iter_errors(&config).peekable();
     if errors.peek().is_some() {
@@ -211,11 +227,14 @@ fn get_internal(
 
   // the `Config` deserializer for `package > version` can resolve the version from a path relative to the config path
   // so we actually need to change the current working directory here
-  let current_dir = current_dir()?;
-  set_current_dir(config_path.parent().unwrap())?;
-  let config: Config = serde_json::from_value(config)?;
+  let current_dir = current_dir().map_err(Error::ResolveCwd)?;
+  set_current_dir(config_path.parent().unwrap()).map_err(Error::SetCwd)?;
+  let config: Config = serde_json::from_value(config).map_err(|error| Error::Json {
+    context: "failed to parse config".into(),
+    error,
+  })?;
   // revert to previous working directory
-  set_current_dir(current_dir)?;
+  set_current_dir(current_dir).map_err(Error::SetCwd)?;
 
   for (plugin, conf) in &config.plugins.0 {
     set_var(
@@ -223,7 +242,10 @@ fn get_internal(
         "TAURI_{}_PLUGIN_CONFIG",
         plugin.to_uppercase().replace('-', "_")
       ),
-      serde_json::to_string(&conf)?,
+      serde_json::to_string(&conf).map_err(|error| Error::Json {
+        context: "failed to serialize config".into(),
+        error,
+      })?,
     );
   }
 
@@ -254,7 +276,7 @@ pub fn reload(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigHandl
   if let Some(target) = target {
     get_internal(merge_configs, true, target)
   } else {
-    Err(anyhow::anyhow!("config not loaded"))
+    crate::error::bail!("config not loaded");
   }
 }
 
@@ -275,13 +297,20 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
     let merge_config_str = serde_json::to_string(&merge_config).unwrap();
     set_var("TAURI_CONFIG", merge_config_str);
 
-    let mut value = serde_json::to_value(config_metadata.inner.clone())?;
+    let mut value =
+      serde_json::to_value(config_metadata.inner.clone()).map_err(|error| Error::Json {
+        context: "failed to serialize config".into(),
+        error,
+      })?;
     merge(&mut value, &merge_config);
-    config_metadata.inner = serde_json::from_value(value)?;
+    config_metadata.inner = serde_json::from_value(value).map_err(|error| Error::Json {
+      context: "failed to parse config".into(),
+      error,
+    })?;
 
     Ok(handle.clone())
   } else {
-    Err(anyhow::anyhow!("config not loaded"))
+    crate::error::bail!("config not loaded");
   }
 }
 

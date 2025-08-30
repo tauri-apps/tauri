@@ -3,19 +3,41 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use std::{io, num, path};
+use std::{
+  fmt::Display,
+  io, num,
+  path::{self, PathBuf},
+};
 use thiserror::Error as DeriveError;
 
 /// Errors returned by the bundler.
 #[derive(Debug, DeriveError)]
 #[non_exhaustive]
 pub enum Error {
+  /// Error with context. Created by the [`Context`] trait.
+  #[error("{0}: {1}")]
+  Context(String, Box<Self>),
+  /// File system error.
+  #[error("{context} {path}: {error}")]
+  Fs {
+    /// Context of the error.
+    context: &'static str,
+    /// Path that was accessed.
+    path: PathBuf,
+    /// Error that occurred.
+    error: io::Error,
+  },
+  /// Child process error.
+  #[error("failed to run command {command}: {error}")]
+  CommandFailed {
+    /// Command that failed.
+    command: String,
+    /// Error that occurred.
+    error: io::Error,
+  },
   /// Error running tauri_utils API.
   #[error("{0}")]
   Resource(#[from] tauri_utils::Error),
-  /// Bundler error.
-  #[error("{0:#}")]
-  BundlerError(#[from] anyhow::Error),
   /// I/O error.
   #[error("`{0}`")]
   IoError(#[from] io::Error),
@@ -133,7 +155,73 @@ pub enum Error {
   #[cfg(target_os = "linux")]
   #[error("{0}")]
   RpmError(#[from] rpm::Error),
+  /// Failed to notarize application.
+  #[cfg(target_os = "macos")]
+  #[error("failed to notarize app: {0}")]
+  AppleNotarization(#[from] NotarizeAuthError),
+  /// Failed to codesign application.
+  #[cfg(target_os = "macos")]
+  #[error("failed codesign application: {0}")]
+  AppleCodesign(#[from] tauri_macos_sign::Error),
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Debug, thiserror::Error)]
+pub enum NotarizeAuthError {
+  #[error(
+    "The team ID is now required for notarization with app-specific password as authentication. Please set the `APPLE_TEAM_ID` environment variable. You can find the team ID in https://developer.apple.com/account#MembershipDetailsCard."
+  )]
+  MissingTeamId,
+  #[error("could not find API key file. Please set the APPLE_API_KEY_PATH environment variables to the path to the {file_name} file")]
+  MissingApiKey { file_name: String },
+  #[error("no APPLE_ID & APPLE_PASSWORD & APPLE_TEAM_ID or APPLE_API_KEY & APPLE_API_ISSUER & APPLE_API_KEY_PATH environment variables found")]
+  MissingCredentials,
 }
 
 /// Convenient type alias of Result type.
 pub type Result<T> = std::result::Result<T, Error>;
+
+pub trait Context<T> {
+  // Required methods
+  fn context<C>(self, context: C) -> Result<T>
+  where
+    C: Display + Send + Sync + 'static;
+  fn with_context<C, F>(self, f: F) -> Result<T>
+  where
+    C: Display + Send + Sync + 'static,
+    F: FnOnce() -> C;
+}
+
+impl<T> Context<T> for Result<T> {
+  fn context<C>(self, context: C) -> Result<T>
+  where
+    C: Display + Send + Sync + 'static,
+  {
+    self.map_err(|e| Error::Context(context.to_string(), Box::new(e)))
+  }
+
+  fn with_context<C, F>(self, f: F) -> Result<T>
+  where
+    C: Display + Send + Sync + 'static,
+    F: FnOnce() -> C,
+  {
+    self.map_err(|e| Error::Context(f().to_string(), Box::new(e)))
+  }
+}
+
+impl<T> Context<T> for Option<T> {
+  fn context<C>(self, context: C) -> Result<T>
+  where
+    C: Display + Send + Sync + 'static,
+  {
+    self.ok_or_else(|| Error::GenericError(context.to_string()))
+  }
+
+  fn with_context<C, F>(self, f: F) -> Result<T>
+  where
+    C: Display + Send + Sync + 'static,
+    F: FnOnce() -> C,
+  {
+    self.ok_or_else(|| Error::GenericError(f().to_string()))
+  }
+}

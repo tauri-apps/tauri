@@ -13,7 +13,7 @@ use crate::{
     cargo,
     npm::PackageManager,
   },
-  Result,
+  Error, Result,
 };
 
 use std::process::Command;
@@ -64,7 +64,7 @@ pub fn run(options: Options) -> Result<()> {
   };
 
   if !is_known && (options.tag.is_some() || options.rev.is_some() || options.branch.is_some()) {
-    anyhow::bail!(
+    crate::error::bail!(
       "Git options --tag, --rev and --branch can only be used with official Tauri plugins"
     );
   }
@@ -114,7 +114,7 @@ pub fn run(options: Options) -> Result<()> {
           format!("tauri-apps/tauri-plugin-{plugin}#{branch}")
         }
         (None, None, None, None) => npm_name,
-        _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
+        _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
       };
       manager.install(&[npm_spec], tauri_dir)?;
     }
@@ -139,9 +139,13 @@ pub fn run(options: Options) -> Result<()> {
   };
   let plugin_init = format!(".plugin(tauri_plugin_{plugin_snake_case}::{plugin_init_fn})");
 
-  let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)")?;
+  let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)").unwrap();
   for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
-    let contents = std::fs::read_to_string(&file)?;
+    let contents = std::fs::read_to_string(&file).map_err(|error| Error::Fs {
+      context: "failed to read Rust entry point".into(),
+      path: file.clone(),
+      error,
+    })?;
 
     if contents.contains(&plugin_init) {
       log::info!(
@@ -155,7 +159,11 @@ pub fn run(options: Options) -> Result<()> {
       let out = re.replace(&contents, format!("$1$2{plugin_init}$2"));
 
       log::info!("Adding plugin to {}", file.display());
-      std::fs::write(file, out.as_bytes())?;
+      std::fs::write(&file, out.as_bytes()).map_err(|error| Error::Fs {
+        context: "failed to write plugin init code".into(),
+        path: file,
+        error,
+      })?;
 
       if !options.no_fmt {
         // reformat code with rustfmt

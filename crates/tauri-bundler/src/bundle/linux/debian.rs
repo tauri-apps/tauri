@@ -24,8 +24,7 @@
 // generate postinst or prerm files.
 
 use super::freedesktop;
-use crate::{bundle::settings::Arch, utils::fs_utils, Settings};
-use anyhow::Context;
+use crate::{bundle::settings::Arch, error::Context, utils::fs_utils, Settings};
 use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
 use walkdir::WalkDir;

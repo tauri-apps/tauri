@@ -4,13 +4,13 @@
 
 use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
+  error::Context,
   helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
-  Result,
+  Error, Result,
 };
 
-use anyhow::Context;
 use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
 use clap::{ArgAction, Parser};
 use object::{Object, ObjectSymbol};
@@ -78,7 +78,15 @@ pub fn command(options: Options) -> Result<()> {
     || var("npm_config_user_agent")
       .is_ok_and(|agent| agent.starts_with("bun/1.0") || agent.starts_with("bun/1.1"))
   {
-    set_current_dir(current_dir()?.parent().unwrap().parent().unwrap()).unwrap();
+    set_current_dir(
+      current_dir()
+        .map_err(Error::ResolveCwd)?
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap(),
+    )
+    .unwrap();
   }
 
   crate::helpers::app_paths::resolve();
@@ -145,17 +153,17 @@ pub fn command(options: Options) -> Result<()> {
   let env = env()?.explicit_env_vars(cli_options.vars);
 
   if !options.sdk_root.is_dir() {
-    return Err(anyhow::anyhow!(
+    crate::error::bail!(
       "SDK root provided by Xcode was invalid. {} doesn't exist or isn't a directory",
       options.sdk_root.display(),
-    ));
+    );
   }
   let include_dir = options.sdk_root.join("usr/include");
   if !include_dir.is_dir() {
-    return Err(anyhow::anyhow!(
+    crate::error::bail!(
       "Include dir was invalid. {} doesn't exist or isn't a directory",
       include_dir.display()
-    ));
+    );
   }
 
   // Host flags that are used by build scripts
@@ -164,10 +172,7 @@ pub fn command(options: Options) -> Result<()> {
       .sdk_root
       .join("../../../../MacOSX.platform/Developer/SDKs/MacOSX.sdk");
     if !macos_sdk_root.is_dir() {
-      return Err(anyhow::anyhow!(
-        "Invalid SDK root {}",
-        macos_sdk_root.display()
-      ));
+      crate::error::bail!("Invalid SDK root {}", macos_sdk_root.display());
     }
     format!("-isysroot {}", macos_sdk_root.display())
   };
@@ -224,10 +229,7 @@ pub fn command(options: Options) -> Result<()> {
       "arm64" if simulator => ("aarch64_apple_ios_sim", "aarch64-apple-ios-sim"),
       "x86_64" => ("x86_64_apple_ios", "x86_64-apple-ios"),
       _ => {
-        return Err(anyhow::anyhow!(
-          "Arch specified by Xcode was invalid. {} isn't a known arch",
-          arch
-        ))
+        crate::error::bail!("Arch specified by Xcode was invalid. {arch} isn't a known arch")
       }
     };
 
@@ -252,19 +254,15 @@ pub fn command(options: Options) -> Result<()> {
       } else {
         &arch
       })
-      .ok_or_else(|| {
-        anyhow::anyhow!(
-          "Arch specified by Xcode was invalid. {} isn't a known arch",
-          arch
-        )
-      })?
+      .with_context(|| format!("Arch specified by Xcode was invalid. {arch} isn't a known arch"))?
     };
 
     if !installed_targets.contains(&rust_triple.into()) {
       log::info!("Installing target {}", target.triple());
-      target
-        .install()
-        .context("failed to install target with rustup")?;
+      target.install().map_err(|error| Error::CommandFailed {
+        command: "rustup target add".to_string(),
+        error,
+      })?;
     }
 
     target.compile_lib(
@@ -285,23 +283,29 @@ pub fn command(options: Options) -> Result<()> {
 
     let lib_path = out_dir.join(format!("lib{}.a", config.app().lib_name()));
     if !lib_path.exists() {
-      return Err(anyhow::anyhow!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display()));
+      crate::error::bail!("Library not found at {}. Make sure your Cargo.toml file has a [lib] block with `crate-type = [\"staticlib\", \"cdylib\", \"lib\"]`", lib_path.display());
     }
 
     validate_lib(&lib_path)?;
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
-    std::fs::create_dir_all(&externals_lib_dir)?;
+    std::fs::create_dir_all(&externals_lib_dir).map_err(|error| Error::Fs {
+      context: "failed to create externals lib directory",
+      path: externals_lib_dir.clone(),
+      error,
+    })?;
 
     // backwards compatible lib output file name
     let uses_new_lib_output_file_name = {
-      let pbxproj_contents = read_to_string(
-        project_dir
-          .join(format!("{}.xcodeproj", config.app().name()))
-          .join("project.pbxproj"),
-      )
-      .context("missing project.pbxproj file in the Xcode project")?;
+      let pbxproj_path = project_dir
+        .join(format!("{}.xcodeproj", config.app().name()))
+        .join("project.pbxproj");
+      let pbxproj_contents = read_to_string(&pbxproj_path).map_err(|error| Error::Fs {
+        context: "failed to read project.pbxproj file",
+        path: pbxproj_path,
+        error,
+      })?;
 
       pbxproj_contents.contains(LIB_OUTPUT_FILE_NAME)
     };
@@ -312,22 +316,42 @@ pub fn command(options: Options) -> Result<()> {
       format!("lib{}.a", config.app().lib_name())
     };
 
-    std::fs::copy(lib_path, externals_lib_dir.join(lib_output_file_name))?;
+    std::fs::copy(&lib_path, externals_lib_dir.join(lib_output_file_name)).map_err(|error| {
+      Error::Fs {
+        context: "failed to copy mobile lib file to Externals directory",
+        path: lib_path.to_path_buf(),
+        error,
+      }
+    })?;
   }
   Ok(())
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  let mut archive = ar::Archive::new(std::fs::File::open(path)?);
+  let mut archive = ar::Archive::new(std::fs::File::open(path).map_err(|error| Error::Fs {
+    context: "failed to open mobile lib file",
+    path: path.to_path_buf(),
+    error,
+  })?);
   // Iterate over all entries in the archive:
   while let Some(entry) = archive.next_entry() {
     let Ok(mut entry) = entry else {
       continue;
     };
     let mut obj_bytes = Vec::new();
-    entry.read_to_end(&mut obj_bytes)?;
+    entry
+      .read_to_end(&mut obj_bytes)
+      .map_err(|error| Error::Fs {
+        context: "failed to read mobile lib entry",
+        path: path.to_path_buf(),
+        error,
+      })?;
 
-    let file = object::File::parse(&*obj_bytes)?;
+    let file = object::File::parse(&*obj_bytes).map_err(|error| Error::Fs {
+      context: "failed to parse mobile lib entry",
+      path: path.to_path_buf(),
+      error: std::io::Error::other(error),
+    })?;
     for symbol in file.symbols() {
       let Ok(name) = symbol.name() else {
         continue;
@@ -338,7 +362,7 @@ fn validate_lib(path: &Path) -> Result<()> {
     }
   }
 
-  anyhow::bail!(
+  crate::error::bail!(
     "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
     path.display()
   )

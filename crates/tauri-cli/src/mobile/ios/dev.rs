@@ -17,11 +17,10 @@ use crate::{
   mobile::{
     use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
   },
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
@@ -149,7 +148,11 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+      std::fs::read_to_string(root_certificate_path).map_err(|error| Error::Fs {
+        context: "failed to read root certificate file",
+        path: root_certificate_path.clone(),
+        error,
+      })?,
     );
   }
 
@@ -195,7 +198,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
 
   ensure_init(
     &tauri_config,
@@ -214,7 +217,13 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_path.join("Info.plist").into(),
     tauri_path.join("Info.ios.plist").into(),
   ])?;
-  merged_info_plist.to_file_xml(&info_plist_path)?;
+  merged_info_plist
+    .to_file_xml(&info_plist_path)
+    .map_err(|error| Error::Fs {
+      context: "failed to save merged Info.plist file",
+      path: info_plist_path,
+      error: std::io::Error::other(error),
+    })?;
 
   let mut pbxproj = load_pbxproj(&config)?;
 
@@ -232,7 +241,11 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     !options.release_mode,
   )?;
   if pbxproj.has_changes() {
-    pbxproj.save()?;
+    pbxproj.save().map_err(|error| Error::Fs {
+      context: "failed to save pbxproj file",
+      path: pbxproj.path,
+      error,
+    })?;
   }
 
   run_dev(

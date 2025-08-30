@@ -3,17 +3,16 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::{bail, Context},
   helpers::{
     app_paths::tauri_dir,
     cargo_manifest::{crate_version, CargoLock, CargoManifest},
   },
   interface::rust::get_workspace_dir,
-  Result,
+  Error, Result,
 };
 
 use std::{fs::read_to_string, str::FromStr};
-
-use anyhow::{bail, Context};
 
 mod migrations;
 
@@ -23,16 +22,31 @@ pub fn command() -> Result<()> {
   let tauri_dir = tauri_dir();
 
   let manifest_contents =
-    read_to_string(tauri_dir.join("Cargo.toml")).context("failed to read Cargo manifest")?;
-  let manifest = toml::from_str::<CargoManifest>(&manifest_contents)
-    .context("failed to parse Cargo manifest")?;
+    read_to_string(tauri_dir.join("Cargo.toml")).map_err(|error| Error::Fs {
+      context: "failed to read Cargo manifest".into(),
+      path: tauri_dir.join("Cargo.toml"),
+      error,
+    })?;
+  let manifest = toml::from_str::<CargoManifest>(&manifest_contents).map_err(|error| {
+    Error::DeserializeToml {
+      context: "failed to parse Cargo manifest".into(),
+      error,
+    }
+  })?;
 
   let workspace_dir = get_workspace_dir()?;
   let lock_path = workspace_dir.join("Cargo.lock");
   let lock = if lock_path.exists() {
-    let lockfile_contents = read_to_string(lock_path).context("failed to read Cargo lockfile")?;
+    let lockfile_contents = read_to_string(&lock_path).map_err(|error| Error::Fs {
+      context: "failed to read Cargo lockfile".into(),
+      path: lock_path,
+      error,
+    })?;
     let lock =
-      toml::from_str::<CargoLock>(&lockfile_contents).context("failed to parse Cargo lockfile")?;
+      toml::from_str::<CargoLock>(&lockfile_contents).map_err(|error| Error::DeserializeToml {
+        context: "failed to parse Cargo lockfile".into(),
+        error,
+      })?;
     Some(lock)
   } else {
     None
@@ -41,7 +55,11 @@ pub fn command() -> Result<()> {
   let tauri_version = crate_version(tauri_dir, Some(&manifest), lock.as_ref(), "tauri")
     .version
     .context("failed to get tauri version")?;
-  let tauri_version = semver::Version::from_str(&tauri_version)?;
+  let tauri_version =
+    semver::Version::from_str(&tauri_version).map_err(|error| Error::ParseSemver {
+      version: tauri_version,
+      error,
+    })?;
 
   if tauri_version.major == 1 {
     migrations::v1::run().context("failed to migrate from v1")?;

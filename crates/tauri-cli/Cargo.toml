@@ -46,7 +46,7 @@ jsonrpsee-ws-client = { version = "0.24", default-features = false }
 sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
-anyhow = "1"
+thiserror = "2"
 tauri-bundler = { version = "2.6.1", default-features = false, path = "../tauri-bundler" }
 colored = "2"
 serde = { version = "1", features = ["derive"] }

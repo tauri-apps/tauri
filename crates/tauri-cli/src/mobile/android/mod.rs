@@ -33,8 +33,9 @@ use super::{
   OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
+  error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 
 mod android_studio_script;
@@ -190,8 +191,11 @@ fn delete_codegen_vars() {
 }
 
 fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = adb::device_list(env)
-    .map_err(|cause| anyhow::anyhow!("Failed to detect connected Android devices: {cause}"))?;
+  let device_list = adb::device_list(env).map_err(|cause| {
+    Error::GenericError(format!(
+      "Failed to detect connected Android devices: {cause}"
+    ))
+  })?;
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
       let (device, score) = device_list
@@ -207,7 +211,7 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an Android device matching {t}")
+        crate::error::bail!("Could not find an Android device matching {t}")
       }
     } else if device_list.len() > 1 {
       let index = prompt::list(
@@ -217,7 +221,7 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
         None,
         "Device",
       )
-      .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android device: {cause}"))?;
+      .map_err(Error::PromptDevice)?;
       device_list.into_iter().nth(index).unwrap()
     } else {
       device_list.into_iter().next().unwrap()
@@ -230,7 +234,9 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
     );
     Ok(device)
   } else {
-    Err(anyhow::anyhow!("No connected Android devices detected"))
+    Err(Error::GenericError(
+      "No connected Android devices detected".to_string(),
+    ))
   }
 }
 
@@ -251,7 +257,7 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an Android Emulator matching {t}")
+        crate::error::bail!("Could not find an Android Emulator matching {t}")
       }
     } else if emulator_list.len() > 1 {
       let index = prompt::list(
@@ -261,7 +267,7 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
         None,
         "Emulator",
       )
-      .map_err(|cause| anyhow::anyhow!("Failed to prompt for Android Emulator device: {cause}"))?;
+      .map_err(Error::PromptSimulator)?;
       emulator_list.into_iter().nth(index).unwrap()
     } else {
       emulator_list.into_iter().next().unwrap()
@@ -269,7 +275,9 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
 
     Ok(emulator)
   } else {
-    Err(anyhow::anyhow!("No available Android Emulator detected"))
+    Err(Error::GenericError(
+      "No available Android Emulator detected".to_string(),
+    ))
   }
 }
 
@@ -279,7 +287,9 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   } else {
     let emulator = emulator_prompt(env, target)?;
     log::info!("Starting emulator {}", emulator.name());
-    emulator.start_detached(env)?;
+    emulator
+      .start_detached(env)
+      .map_err(Error::StartSimulator)?;
     let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
@@ -315,12 +325,24 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
     .project_dir()
     .join("app/src/main")
     .join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir)?;
+  create_dir_all(&asset_dir).map_err(|error| Error::Fs {
+    context: "failed to create asset directory",
+    path: asset_dir.clone(),
+    error,
+  })?;
 
   write(
     asset_dir.join("tauri.conf.json"),
-    serde_json::to_string(&tauri_config)?,
-  )?;
+    serde_json::to_string(&tauri_config).map_err(|error| Error::Json {
+      context: "failed to serialize tauri config".into(),
+      error,
+    })?,
+  )
+  .map_err(|error| Error::Fs {
+    context: "failed to write tauri config".into(),
+    path: asset_dir.join("tauri.conf.json"),
+    error,
+  })?;
 
   let resources = match &tauri_config.bundle.resources {
     Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),
@@ -329,9 +351,9 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
   };
   if let Some(resources) = resources {
     for resource in resources.iter() {
-      let resource = resource?;
+      let resource = resource.map_err(Error::Resource)?;
       let dest = asset_dir.join(resource.target());
-      crate::helpers::fs::copy_file(resource.path(), dest)?;
+      crate::helpers::fs::copy_file(resource.path(), dest).context("failed to copy resource")?;
     }
   }
 

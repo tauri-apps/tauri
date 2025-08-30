@@ -8,8 +8,9 @@ use clap::Parser;
 
 use crate::{
   acl::FileFormat,
+  error::Context,
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Result,
+  Error, Result,
 };
 
 use tauri_utils::acl::{manifest::PermissionFile, Commands, Permission};
@@ -67,11 +68,15 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o.canonicalize()?,
+    Some(o) => o.canonicalize().map_err(|error| Error::Fs {
+      context: "failed to canonicalize permission file path".into(),
+      path: o.clone(),
+      error,
+    })?,
     None => {
       let dir = match resolve_tauri_dir() {
         Some(t) => t,
-        None => std::env::current_dir()?,
+        None => std::env::current_dir().map_err(Error::ResolveCwd)?,
       };
       let permissions_dir = dir.join("permissions");
       permissions_dir.join(format!(
@@ -89,24 +94,40 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path)?;
+      std::fs::remove_file(&path).map_err(|error| Error::Fs {
+        context: "failed to remove permission file".into(),
+        path: path.clone(),
+        error,
+      })?;
     } else {
-      anyhow::bail!(msg);
+      crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent)?;
+    std::fs::create_dir_all(parent).map_err(|error| Error::Fs {
+      context: "failed to create permission directory".into(),
+      path: parent.to_path_buf(),
+      error,
+    })?;
   }
 
   std::fs::write(
     &path,
-    options.format.serialize(&PermissionFile {
-      default: None,
-      set: Vec::new(),
-      permission: vec![permission],
-    })?,
-  )?;
+    options
+      .format
+      .serialize(&PermissionFile {
+        default: None,
+        set: Vec::new(),
+        permission: vec![permission],
+      })
+      .context("failed to serialize permission")?,
+  )
+  .map_err(|error| Error::Fs {
+    context: "failed to write permission file".into(),
+    path: path.clone(),
+    error,
+  })?;
 
   log::info!(action = "Created"; "permission at {}", dunce::simplified(&path).display());
 

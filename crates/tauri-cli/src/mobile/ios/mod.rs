@@ -32,7 +32,7 @@ use crate::{
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
     pbxproj, strip_semver_prerelease_tag,
   },
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 
 use std::{
@@ -233,7 +233,7 @@ pub fn get_config(
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
-  let config = AppleConfig::from_raw(app.clone(), Some(raw))?;
+  let config = AppleConfig::from_raw(app.clone(), Some(raw)).map_err(Error::AppleConfig)?;
 
   let tauri_dir = tauri_dir();
 
@@ -286,8 +286,9 @@ pub fn get_config(
 }
 
 fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = device::list_devices(env)
-    .map_err(|cause| anyhow::anyhow!("Failed to detect connected iOS devices: {cause}"))?;
+  let device_list = device::list_devices(env).map_err(|cause| {
+    Error::GenericError(format!("Failed to detect connected iOS devices: {cause}"))
+  })?;
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
       let (device, score) = device_list
@@ -303,7 +304,7 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an iOS device matching {t}")
+        crate::error::bail!("Could not find an iOS device matching {t}")
       }
     } else {
       let index = if device_list.len() > 1 {
@@ -314,7 +315,7 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
           None,
           "Device",
         )
-        .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS device: {cause}"))?
+        .map_err(Error::PromptDevice)?
       } else {
         0
       };
@@ -327,13 +328,15 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
     );
     Ok(device)
   } else {
-    Err(anyhow::anyhow!("No connected iOS devices detected"))
+    crate::error::bail!("No connected iOS devices detected")
   }
 }
 
 fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simulator> {
   let simulator_list = device::list_simulators(env).map_err(|cause| {
-    anyhow::anyhow!("Failed to detect connected iOS Simulator devices: {cause}")
+    Error::GenericError(format!(
+      "Failed to detect connected iOS Simulator devices: {cause}"
+    ))
   })?;
   if !simulator_list.is_empty() {
     let device = if let Some(t) = target {
@@ -350,7 +353,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
       if score > MIN_DEVICE_MATCH_SCORE {
         device
       } else {
-        anyhow::bail!("Could not find an iOS Simulator matching {t}")
+        crate::error::bail!("Could not find an iOS Simulator matching {t}")
       }
     } else if simulator_list.len() > 1 {
       let index = prompt::list(
@@ -360,14 +363,14 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
         None,
         "Simulator",
       )
-      .map_err(|cause| anyhow::anyhow!("Failed to prompt for iOS Simulator device: {cause}"))?;
+      .map_err(Error::PromptSimulator)?;
       simulator_list.into_iter().nth(index).unwrap()
     } else {
       simulator_list.into_iter().next().unwrap()
     };
     Ok(device)
   } else {
-    Err(anyhow::anyhow!("No available iOS Simulator detected"))
+    crate::error::bail!("No available iOS Simulator detected")
   }
 }
 
@@ -377,7 +380,9 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   } else {
     let simulator = simulator_prompt(env, target)?;
     log::info!("Starting simulator {}", simulator.name());
-    simulator.start_detached(env)?;
+    simulator
+      .start_detached(env)
+      .map_err(Error::StartSimulator)?;
     Ok(simulator.into())
   }
 }
@@ -398,7 +403,11 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
 
 fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir)?;
+  create_dir_all(&asset_dir).map_err(|error| Error::Fs {
+    context: "failed to create asset directory".into(),
+    path: asset_dir.clone(),
+    error,
+  })?;
 
   let resources = match &tauri_config.bundle.resources {
     Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),
@@ -407,7 +416,7 @@ fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<
   };
   if let Some(resources) = resources {
     for resource in resources.iter() {
-      let resource = resource?;
+      let resource = resource.map_err(Error::Resource)?;
       let dest = asset_dir.join(resource.target());
       crate::helpers::fs::copy_file(resource.path(), dest)?;
     }

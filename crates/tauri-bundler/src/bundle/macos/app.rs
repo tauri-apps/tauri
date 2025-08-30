@@ -24,14 +24,13 @@
 
 use super::{
   icon::create_icns_file,
-  sign::{notarize, notarize_auth, notarize_without_stapling, sign, NotarizeAuthError, SignTarget},
+  sign::{notarize, notarize_auth, notarize_without_stapling, sign, SignTarget},
 };
 use crate::{
+  error::{Context, NotarizeAuthError},
   utils::{fs_utils, CommandExt},
-  Settings,
+  Error, Settings,
 };
-
-use anyhow::Context;
 
 use std::{
   ffi::OsStr,
@@ -64,12 +63,18 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
-    fs::remove_dir_all(&app_bundle_path)
-      .with_context(|| format!("Failed to remove old {app_product_name}"))?;
+    fs::remove_dir_all(&app_bundle_path).map_err(|e| Error::Fs {
+      context: "failed to remove old app bundle",
+      path: app_bundle_path.to_path_buf(),
+      error: e,
+    })?;
   }
   let bundle_directory = app_bundle_path.join("Contents");
-  fs::create_dir_all(&bundle_directory)
-    .with_context(|| format!("Failed to create bundle directory at {bundle_directory:?}"))?;
+  fs::create_dir_all(&bundle_directory).map_err(|e| Error::Fs {
+    context: "failed to create bundle directory",
+    path: bundle_directory.to_path_buf(),
+    error: e,
+  })?;
 
   let resources_dir = bundle_directory.join("Resources");
   let bin_dir = bundle_directory.join("MacOS");
@@ -129,7 +134,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
       }
       Err(e) => {
         if matches!(e, NotarizeAuthError::MissingTeamId) {
-          return Err(anyhow::anyhow!("{e}").into());
+          return Err(e.into());
         } else {
           log::warn!("skipping app notarization, {}", e.to_string());
         }
@@ -386,8 +391,11 @@ fn copy_frameworks_to_bundle(
     return Ok(paths);
   }
   let dest_dir = bundle_directory.join("Frameworks");
-  fs::create_dir_all(bundle_directory)
-    .with_context(|| format!("Failed to create Frameworks directory at {dest_dir:?}"))?;
+  fs::create_dir_all(&dest_dir).map_err(|e| Error::Fs {
+    context: "failed to create Frameworks directory",
+    path: dest_dir.to_path_buf(),
+    error: e,
+  })?;
   for framework in frameworks.iter() {
     if framework.ends_with(".framework") {
       let src_path = PathBuf::from(framework);

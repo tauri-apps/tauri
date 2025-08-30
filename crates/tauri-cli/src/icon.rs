@@ -2,7 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{helpers::app_paths::tauri_dir, Result};
+use crate::{
+  error::{Context, Error},
+  helpers::app_paths::tauri_dir,
+  Result,
+};
 
 use std::{
   collections::HashMap,
@@ -13,7 +17,6 @@ use std::{
   sync::Arc,
 };
 
-use anyhow::Context;
 use clap::Parser;
 use icns::{IconFamily, IconType};
 use image::{
@@ -115,9 +118,13 @@ pub fn command(options: Options) -> Result<()> {
         (color.alpha * 255.) as u8,
       ])
     })
-    .map_err(|_| anyhow::anyhow!("failed to parse iOS color"))?;
+    .map_err(|_| Error::GenericError("failed to parse iOS color".into()))?;
 
-  create_dir_all(&out_dir).context("Can't create output directory")?;
+  create_dir_all(&out_dir).map_err(|error| Error::Fs {
+    context: "failed to create output directory".into(),
+    path: out_dir.clone(),
+    error,
+  })?;
 
   let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
@@ -142,16 +149,19 @@ pub fn command(options: Options) -> Result<()> {
     } else {
       Source::DynamicImage(DynamicImage::ImageRgba8(
         open(&input)
-          .context("Can't read and decode source image")?
+          .map_err(|error| Error::Image {
+            context: format!("failed to read and decode source image {}", input.display()).into(),
+            error,
+          })?
           .into_rgba8(),
       ))
     }
   } else {
-    anyhow::bail!("Error loading image");
+    crate::error::bail!("Error loading image");
   };
 
   if source.height() != source.width() {
-    anyhow::bail!("Source image must be square");
+    crate::error::bail!("Source image must be square");
   }
 
   if png_icon_sizes.is_empty() {
@@ -204,27 +214,51 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
 
   let mut family = IconFamily::new();
 
-  for (name, entry) in entries {
+  for (_name, entry) in entries {
     let size = entry.size;
     let mut buf = Vec::new();
 
     let image = source.resize_exact(size)?;
 
-    write_png(image.as_bytes(), &mut buf, size)?;
+    write_png(image.as_bytes(), &mut buf, size).map_err(|error| Error::Image {
+      context: "failed to write output file".into(),
+      error,
+    })?;
 
-    let image = icns::Image::read_png(&buf[..])?;
+    let image = icns::Image::read_png(&buf[..]).map_err(|error| Error::Image {
+      context: "failed to read output file".into(),
+      error: image::ImageError::IoError(error),
+    })?;
 
     family
       .add_icon_with_type(
         &image,
         IconType::from_ostype(entry.ostype.parse().unwrap()).unwrap(),
       )
-      .with_context(|| format!("Can't add {name} to Icns Family"))?;
+      .map_err(|error| Error::Image {
+        context: "failed to add icon to Icns Family".into(),
+        error: image::ImageError::IoError(error),
+      })?;
   }
 
-  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.icns"))?);
-  family.write(&mut out_file)?;
-  out_file.flush()?;
+  let mut out_file =
+    BufWriter::new(
+      File::create(out_dir.join("icon.icns")).map_err(|error| Error::Fs {
+        context: "failed to create output file".into(),
+        path: out_dir.join("icon.icns"),
+        error,
+      })?,
+    );
+  family.write(&mut out_file).map_err(|error| Error::Fs {
+    context: "failed to write output file".into(),
+    path: out_dir.join("icon.icns"),
+    error,
+  })?;
+  out_file.flush().map_err(|error| Error::Fs {
+    context: "failed to flush output file".into(),
+    path: out_dir.join("icon.icns"),
+    error,
+  })?;
 
   Ok(())
 }
@@ -242,28 +276,51 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
     if size == 256 {
       let mut buf = Vec::new();
 
-      write_png(image.as_bytes(), &mut buf, size)?;
+      write_png(image.as_bytes(), &mut buf, size).map_err(|error| Error::Image {
+        context: "failed to write output file".into(),
+        error,
+      })?;
 
-      frames.push(IcoFrame::with_encoded(
-        buf,
-        size,
-        size,
-        ExtendedColorType::Rgba8,
-      )?)
+      frames.push(
+        IcoFrame::with_encoded(buf, size, size, ExtendedColorType::Rgba8).map_err(|error| {
+          Error::Image {
+            context: "failed to create ico frame".into(),
+            error,
+          }
+        })?,
+      )
     } else {
-      frames.push(IcoFrame::as_png(
-        image.as_bytes(),
-        size,
-        size,
-        ExtendedColorType::Rgba8,
-      )?);
+      frames.push(
+        IcoFrame::as_png(image.as_bytes(), size, size, ExtendedColorType::Rgba8).map_err(
+          |error| Error::Image {
+            context: "failed to create PNG frame".into(),
+            error,
+          },
+        )?,
+      );
     }
   }
 
-  let mut out_file = BufWriter::new(File::create(out_dir.join("icon.ico"))?);
+  let mut out_file =
+    BufWriter::new(
+      File::create(out_dir.join("icon.ico")).map_err(|error| Error::Fs {
+        context: "failed to create output file".into(),
+        path: out_dir.join("icon.ico"),
+        error,
+      })?,
+    );
   let encoder = IcoEncoder::new(&mut out_file);
-  encoder.encode_images(&frames)?;
-  out_file.flush()?;
+  encoder
+    .encode_images(&frames)
+    .map_err(|error| Error::Image {
+      context: "failed to encode images".into(),
+      error,
+    })?;
+  out_file.flush().map_err(|error| Error::Fs {
+    context: "failed to flush output file".into(),
+    path: out_dir.join("icon.ico"),
+    error,
+  })?;
 
   Ok(())
 }
@@ -332,7 +389,11 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
       let folder_name = format!("mipmap-{}", target.name);
       let out_folder = out_dir.join(&folder_name);
 
-      create_dir_all(&out_folder).context("Can't create Android mipmap output directory")?;
+      create_dir_all(&out_folder).map_err(|error| Error::Fs {
+        context: "failed to create Android mipmap output directory".into(),
+        path: out_folder.clone(),
+        error,
+      })?;
 
       entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher_foreground.png"),
@@ -438,7 +499,11 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
     android_out
   } else {
     let out = out_dir.join("android");
-    create_dir_all(&out).context("Can't create Android output directory")?;
+    create_dir_all(&out).map_err(|error| Error::Fs {
+      context: "failed to create Android output directory".into(),
+      path: out.clone(),
+      error,
+    })?;
     out
   };
   entries.extend(android_entries(&out)?);
@@ -451,7 +516,11 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
     ios_out
   } else {
     let out = out_dir.join("ios");
-    create_dir_all(&out).context("Can't create iOS output directory")?;
+    create_dir_all(&out).map_err(|error| Error::Fs {
+      context: "failed to create iOS output directory".into(),
+      path: out.clone(),
+      error,
+    })?;
     out
   };
 
@@ -483,13 +552,24 @@ fn resize_and_save_png(
     image = bg_img.into();
   }
 
-  let mut out_file = BufWriter::new(File::create(file_path)?);
-  write_png(image.as_bytes(), &mut out_file, size)?;
-  Ok(out_file.flush()?)
+  let mut out_file = BufWriter::new(File::create(file_path).map_err(|error| Error::Fs {
+    context: "failed to create output file".into(),
+    path: file_path.to_path_buf(),
+    error,
+  })?);
+  write_png(image.as_bytes(), &mut out_file, size).map_err(|error| Error::Image {
+    context: "failed to write output file".into(),
+    error,
+  })?;
+  Ok(out_file.flush().map_err(|error| Error::Fs {
+    context: "failed to flush output file".into(),
+    path: file_path.to_path_buf(),
+    error,
+  })?)
 }
 
 // Encode image data as png with compression.
-fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> Result<()> {
+fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> image::ImageResult<()> {
   let encoder = PngEncoder::new_with_quality(w, CompressionType::Best, PngFilterType::Adaptive);
   encoder.write_image(image_data, size, size, ExtendedColorType::Rgba8)?;
   Ok(())

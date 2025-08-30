@@ -6,10 +6,10 @@
 use super::debian;
 use crate::{
   bundle::settings::Arch,
+  error::Context,
   utils::{fs_utils, http_utils::download, CommandExt},
   Settings,
 };
-use anyhow::Context;
 use std::{
   fs,
   path::{Path, PathBuf},

@@ -11,8 +11,9 @@ use crate::{
     },
     Bundle,
   },
+  error::Context,
   utils::fs_utils,
-  Settings,
+  Error, Settings,
 };
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
@@ -22,7 +23,6 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use anyhow::Context;
 use zip::write::SimpleFileOptions;
 
 // Build update
@@ -216,7 +216,11 @@ pub fn create_zip(src_file: &Path, dst_file: &Path) -> crate::Result<PathBuf> {
     .unix_permissions(0o755);
 
   zip.start_file(file_name.to_string_lossy(), options)?;
-  let mut f = File::open(src_file)?;
+  let mut f = File::open(src_file).map_err(|error| Error::Fs {
+    context: "failed to open updater ZIP file",
+    path: src_file.to_path_buf(),
+    error,
+  })?;
   let mut buffer = Vec::new();
   f.read_to_end(&mut buffer)?;
   zip.write_all(&buffer)?;

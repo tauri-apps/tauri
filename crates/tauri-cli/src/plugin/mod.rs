@@ -6,7 +6,7 @@ use std::{fmt::Display, path::Path};
 
 use clap::{Parser, Subcommand, ValueEnum};
 
-use crate::Result;
+use crate::{Error, Result};
 
 mod android;
 mod init;
@@ -67,8 +67,16 @@ fn infer_plugin_name<P: AsRef<Path>>(directory: P) -> Result<String> {
   let dir = directory.as_ref();
   let cargo_toml_path = dir.join("Cargo.toml");
   let name = if cargo_toml_path.exists() {
-    let contents = std::fs::read_to_string(cargo_toml_path)?;
-    let cargo_toml: toml::Value = toml::from_str(&contents)?;
+    let contents = std::fs::read_to_string(&cargo_toml_path).map_err(|error| Error::Fs {
+      context: "failed to read Cargo manifest".into(),
+      path: cargo_toml_path,
+      error,
+    })?;
+    let cargo_toml: toml::Value =
+      toml::from_str(&contents).map_err(|error| Error::DeserializeToml {
+        context: "failed to parse Cargo.toml".into(),
+        error,
+      })?;
     cargo_toml
       .get("package")
       .and_then(|v| v.get("name"))

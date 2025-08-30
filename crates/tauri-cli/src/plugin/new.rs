@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::Result;
+use crate::{Error, Result};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -70,12 +70,20 @@ impl From<Options> for super::init::Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let cwd = std::env::current_dir()?;
+  let cwd = std::env::current_dir().map_err(Error::ResolveCwd)?;
   if let Some(dir) = &options.directory {
-    std::fs::create_dir_all(cwd.join(dir))?;
+    std::fs::create_dir_all(cwd.join(dir)).map_err(|error| Error::Fs {
+      context: "failed to create crate directory".into(),
+      path: cwd.join(dir),
+      error,
+    })?;
   } else {
     let target = cwd.join(format!("tauri-plugin-{}", options.plugin_name));
-    std::fs::create_dir_all(&target)?;
+    std::fs::create_dir_all(&target).map_err(|error| Error::Fs {
+      context: "failed to create crate directory".into(),
+      path: target.clone(),
+      error,
+    })?;
     options.directory.replace(target.display().to_string());
   }
 

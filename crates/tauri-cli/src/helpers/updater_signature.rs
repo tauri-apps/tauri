@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use base64::Engine;
 use minisign::{
   sign, KeyPair as KP, PublicKey, PublicKeyBox, SecretKey, SecretKeyBox, SignatureBox,
@@ -15,6 +14,8 @@ use std::{
   time::{SystemTime, UNIX_EPOCH},
 };
 
+use crate::{error::Context, Error};
+
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]
 pub struct KeyPair {
@@ -24,9 +25,17 @@ pub struct KeyPair {
 
 fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(parent)?;
+    fs::create_dir_all(parent).map_err(|error| Error::Fs {
+      context: "failed to create directory".into(),
+      path: parent.to_path_buf(),
+      error,
+    })?;
   }
-  let file = File::create(path)?;
+  let file = File::create(path).map_err(|error| Error::Fs {
+    context: "failed to create file".into(),
+    path: path.to_path_buf(),
+    error,
+  })?;
   Ok(BufWriter::new(file))
 }
 
@@ -48,8 +57,15 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
 
 /// Transform a base64 String to readable string for the main signer
 pub fn decode_key<S: AsRef<[u8]>>(base64_key: S) -> crate::Result<String> {
-  let decoded_str = &base64::engine::general_purpose::STANDARD.decode(base64_key)?[..];
-  Ok(String::from(str::from_utf8(decoded_str)?))
+  let decoded_str = &base64::engine::general_purpose::STANDARD
+    .decode(base64_key)
+    .map_err(|error| Error::Base64Decode {
+      context: "failed to decode base64 key".into(),
+      error,
+    })?[..];
+  Ok(String::from(
+    str::from_utf8(decoded_str).map_err(Error::Base64NotUtf8)?,
+  ))
 }
 
 /// Save KeyPair to disk
@@ -69,28 +85,57 @@ where
 
   if sk_path.exists() {
     if !force {
-      return Err(anyhow::anyhow!(
+      crate::error::bail!(
         "Key generation aborted:\n{} already exists\nIf you really want to overwrite the existing key pair, add the --force switch to force this operation.",
         sk_path.display()
-      ));
+      );
     } else {
-      std::fs::remove_file(sk_path)?;
+      std::fs::remove_file(sk_path).map_err(|error| Error::Fs {
+        context: "failed to remove secret key file".into(),
+        path: sk_path.to_path_buf(),
+        error,
+      })?;
     }
   }
 
   if pk_path.exists() {
-    std::fs::remove_file(pk_path)?;
+    std::fs::remove_file(pk_path).map_err(|error| Error::Fs {
+      context: "failed to remove public key file".into(),
+      path: pk_path.to_path_buf(),
+      error,
+    })?;
   }
 
-  let mut sk_writer = create_file(sk_path)?;
-  write!(sk_writer, "{key:}")?;
-  sk_writer.flush()?;
+  let write_file = |mut writer: BufWriter<File>, contents: &str| -> std::io::Result<()> {
+    write!(writer, "{contents:}")?;
+    writer.flush()?;
+    Ok(())
+  };
 
-  let mut pk_writer = create_file(pk_path)?;
-  write!(pk_writer, "{pubkey:}")?;
-  pk_writer.flush()?;
+  write_file(create_file(sk_path)?, key).map_err(|error| Error::Fs {
+    context: "failed to write secret key".into(),
+    path: sk_path.to_path_buf(),
+    error,
+  })?;
 
-  Ok((fs::canonicalize(sk_path)?, fs::canonicalize(pk_path)?))
+  write_file(create_file(pk_path)?, pubkey).map_err(|error| Error::Fs {
+    context: "failed to write public key".into(),
+    path: pk_path.to_path_buf(),
+    error,
+  })?;
+
+  Ok((
+    fs::canonicalize(sk_path).map_err(|error| Error::Fs {
+      context: "failed to canonicalize secret key path".into(),
+      path: sk_path.to_path_buf(),
+      error,
+    })?,
+    fs::canonicalize(pk_path).map_err(|error| Error::Fs {
+      context: "failed to canonicalize public key path".into(),
+      path: pk_path.to_path_buf(),
+      error,
+    })?,
+  ))
 }
 
 /// Sign files
@@ -103,8 +148,6 @@ where
   let mut extension = bin_path.extension().unwrap().to_os_string();
   extension.push(".sig");
   let signature_path = bin_path.with_extension(extension);
-
-  let mut signature_box_writer = create_file(&signature_path)?;
 
   let trusted_comment = format!(
     "timestamp:{}\tfile:{}",
@@ -124,9 +167,19 @@ where
 
   let encoded_signature =
     base64::engine::general_purpose::STANDARD.encode(signature_box.to_string());
-  signature_box_writer.write_all(encoded_signature.as_bytes())?;
-  signature_box_writer.flush()?;
-  Ok((fs::canonicalize(&signature_path)?, signature_box))
+  std::fs::write(&signature_path, encoded_signature.as_bytes()).map_err(|error| Error::Fs {
+    context: "failed to write signature file".into(),
+    path: signature_path.clone(),
+    error,
+  })?;
+  Ok((
+    fs::canonicalize(&signature_path).map_err(|error| Error::Fs {
+      context: "failed to canonicalize signature file".into(),
+      path: signature_path.clone(),
+      error,
+    })?,
+    signature_box,
+  ))
 }
 
 /// Gets the updater secret key from the given private key and password.
@@ -135,10 +188,12 @@ pub fn secret_key<S: AsRef<[u8]>>(
   password: Option<String>,
 ) -> crate::Result<SecretKey> {
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
-  let sk_box =
-    SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
+  let sk_box = SecretKeyBox::from_string(&decoded_secret)
+    .map_err(Into::into)
+    .context("failed to load updater private key")?;
   let sk = sk_box
     .into_secret_key(password)
+    .map_err(Into::into)
     .context("incorrect updater private key password")?;
   Ok(sk)
 }
@@ -146,8 +201,9 @@ pub fn secret_key<S: AsRef<[u8]>>(
 /// Gets the updater secret key from the given private key and password.
 pub fn pub_key<S: AsRef<[u8]>>(public_key: S) -> crate::Result<PublicKey> {
   let decoded_publick = decode_key(public_key).context("failed to decode base64 pubkey")?;
-  let pk_box =
-    PublicKeyBox::from_string(&decoded_publick).context("failed to load updater pubkey")?;
+  let pk_box = PublicKeyBox::from_string(&decoded_publick)
+    .map_err(Into::into)
+    .context("failed to load updater pubkey")?;
   let pk = pk_box.into_public_key()?;
   Ok(pk)
 }
@@ -168,7 +224,11 @@ where
   let file = OpenOptions::new()
     .read(true)
     .open(data_path)
-    .map_err(|e| minisign::PError::new(minisign::ErrorKind::Io, e))?;
+    .map_err(|error| Error::Fs {
+      context: "failed to open data file".into(),
+      path: data_path.to_path_buf(),
+      error,
+    })?;
   Ok(BufReader::new(file))
 }
 

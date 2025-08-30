@@ -21,12 +21,12 @@ use std::fs::{read_to_string, File};
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
-use anyhow::Context;
 use handlebars::Handlebars;
 use image::{self, codecs::png::PngDecoder, ImageDecoder};
 use serde::Serialize;
 
 use crate::{
+  error::Context,
   utils::{self, fs_utils},
   Settings,
 };

@@ -39,8 +39,7 @@ pub fn command(
     reinstall_deps,
     skip_targets_install,
     config,
-  )
-  .map_err(|e| anyhow::anyhow!("{:#}", e))?;
+  )?;
   Ok(())
 }
 
@@ -325,7 +324,7 @@ fn escape_kotlin_keyword(
   out.write(&escaped_result).map_err(Into::into)
 }
 
-fn app_root(ctx: &Context) -> Result<&str, RenderError> {
+fn app_root(ctx: &Context) -> std::result::Result<&str, RenderError> {
   let app_root = ctx
     .data()
     .get("app")

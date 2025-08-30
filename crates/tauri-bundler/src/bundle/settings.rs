@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::category::AppCategory;
-use crate::{bundle::platform::target_triple, utils::fs_utils};
-use anyhow::Context;
+use crate::{bundle::platform::target_triple, error::Context, utils::fs_utils};
 pub use tauri_utils::config::WebviewInstallMode;
 use tauri_utils::{
   config::{

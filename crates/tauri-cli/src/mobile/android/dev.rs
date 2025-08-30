@@ -18,11 +18,10 @@ use crate::{
     use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
     TargetDevice,
   },
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   android::{
     config::{Config as AndroidConfig, Metadata as AndroidMetadata},
@@ -145,7 +144,11 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+      std::fs::read_to_string(root_certificate_path).map_err(|error| Error::Fs {
+        context: "failed to read certificate file",
+        path: root_certificate_path.clone(),
+        error,
+      })?,
     );
   }
 
@@ -195,7 +198,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
 
   ensure_init(
     &tauri_config,
@@ -263,9 +266,10 @@ fn run_dev(
     .unwrap_or_else(|| Target::all().values().next().unwrap());
   if !installed_targets.contains(&target.triple().into()) {
     log::info!("Installing target {}", target.triple());
-    target
-      .install()
-      .context("failed to install target with rustup")?;
+    target.install().map_err(|error| Error::CommandFailed {
+      command: "rustup target add".to_string(),
+      error,
+    })?;
   }
 
   target.build(

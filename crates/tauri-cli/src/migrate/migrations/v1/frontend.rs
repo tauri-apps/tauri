@@ -3,10 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::{app_paths::walk_builder, npm::PackageManager},
-  Result,
+  Error, Result,
 };
-use anyhow::Context;
 use itertools::Itertools;
 use magic_string::MagicString;
 use oxc_allocator::Allocator;
@@ -101,7 +101,11 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
       let path = entry.path();
       let ext = path.extension().unwrap_or_default();
       if JS_EXTENSIONS.iter().any(|e| e == &ext) {
-        let js_contents = std::fs::read_to_string(path)?;
+        let js_contents = std::fs::read_to_string(&path).map_err(|error| Error::Fs {
+          context: "failed to read JS file".into(),
+          path: path.to_path_buf(),
+          error,
+        })?;
         let new_contents = migrate_imports(
           path,
           &js_contents,
@@ -109,8 +113,11 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
           &mut npm_packages_to_remove,
         )?;
         if new_contents != js_contents {
-          fs::write(path, new_contents)
-            .with_context(|| format!("Error writing {}", path.display()))?;
+          fs::write(path, new_contents).map_err(|error| Error::Fs {
+            context: "failed to write JS file".into(),
+            path: path.to_path_buf(),
+            error,
+          })?;
         }
       }
     }
@@ -166,7 +173,7 @@ fn migrate_imports<'a>(
     let allocator = Allocator::default();
     let ret = Parser::new(&allocator, js_source, source_type).parse();
     if !ret.errors.is_empty() {
-      anyhow::bail!(
+      crate::error::bail!(
         "failed to parse {} as valid Javascript/Typescript file",
         path.display()
       )
@@ -193,8 +200,10 @@ fn migrate_imports<'a>(
               new_module,
               Default::default(),
             )
-            .map_err(|e| anyhow::anyhow!("{e}"))
-            .context("failed to replace import source")?;
+            .map_err(|error| Error::MagicString {
+              context: "failed to replace import source".into(),
+              error,
+            })?;
 
           // if module was pluginified, add to packages
           if let Some(plugin_name) = new_module.strip_prefix("@tauri-apps/plugin-") {
@@ -279,8 +288,10 @@ fn migrate_imports<'a>(
                   new_identifier,
                   Default::default(),
                 )
-                .map_err(|e| anyhow::anyhow!("{e}"))
-                .context("failed to rename identifier")?;
+                .map_err(|error| Error::MagicString {
+                  context: "failed to rename identifier".into(),
+                  error,
+                })?;
             } else {
               // if None, we need to remove this specifier,
               // it will also be replaced with an import from its new plugin below
@@ -297,8 +308,10 @@ fn migrate_imports<'a>(
 
               magic_js_source
                 .remove(script_start + start as i64, script_start + end as i64)
-                .map_err(|e| anyhow::anyhow!("{e}"))
-                .context("failed to remove identifier")?;
+                .map_err(|error| Error::MagicString {
+                  context: "failed to remove identifier".into(),
+                  error,
+                })?;
             }
           }
         }
@@ -322,8 +335,10 @@ fn migrate_imports<'a>(
       for import in imports_to_add {
         magic_js_source
           .append_right(script_start as u32 + start, &import)
-          .map_err(|e| anyhow::anyhow!("{e}"))
-          .context("failed to add import")?;
+          .map_err(|error| Error::MagicString {
+            context: "failed to add import".into(),
+            error,
+          })?;
       }
     }
 
@@ -331,8 +346,10 @@ fn migrate_imports<'a>(
       for stmt in stmts_to_add {
         magic_js_source
           .append_right(script_start as u32 + start, stmt)
-          .map_err(|e| anyhow::anyhow!("{e}"))
-          .context("failed to add statement")?;
+          .map_err(|error| Error::MagicString {
+            context: "failed to add statement".into(),
+            error,
+          })?;
       }
     }
   }

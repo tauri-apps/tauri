@@ -8,12 +8,12 @@ use std::{
   sync::OnceLock,
 };
 
-use anyhow::Context;
 use clap::{builder::PossibleValue, ArgAction, Parser, ValueEnum};
 use tauri_bundler::PackageType;
 use tauri_utils::platform::Target;
 
 use crate::{
+  error::Context,
   helpers::{
     self,
     app_paths::tauri_dir,
@@ -21,18 +21,18 @@ use crate::{
     updater_signature,
   },
   interface::{AppInterface, AppSettings, Interface},
-  ConfigValue,
+  ConfigValue, Error,
 };
 
 #[derive(Debug, Clone)]
 pub struct BundleFormat(PackageType);
 
 impl FromStr for BundleFormat {
-  type Err = anyhow::Error;
+  type Err = crate::Error;
   fn from_str(s: &str) -> crate::Result<Self> {
     PackageType::from_short_name(s)
       .map(Self)
-      .ok_or_else(|| anyhow::anyhow!("unknown bundle format {s}"))
+      .with_context(|| format!("unknown bundle format {s}"))
   }
 }
 
@@ -130,8 +130,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   )?;
 
   let tauri_path = tauri_dir();
-  std::env::set_current_dir(tauri_path)
-    .with_context(|| "failed to change current working directory")?;
+  std::env::set_current_dir(tauri_path).map_err(Error::SetCwd)?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
@@ -204,12 +203,7 @@ pub fn bundle<A: AppSettings>(
     _ => log::Level::Trace,
   });
 
-  let bundles = tauri_bundler::bundle_project(&settings)
-    .map_err(|e| match e {
-      tauri_bundler::Error::BundlerError(e) => e,
-      e => anyhow::anyhow!("{e:#}"),
-    })
-    .with_context(|| "failed to bundle project")?;
+  let bundles = tauri_bundler::bundle_project(&settings)?;
 
   sign_updaters(settings, bundles, ci)?;
 
@@ -250,7 +244,11 @@ fn sign_updaters(
   // check if pubkey points to a file...
   let maybe_path = Path::new(pubkey);
   let pubkey = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)?
+    std::fs::read_to_string(maybe_path).map_err(|error| Error::Fs {
+      context: "failed to read pubkey from file",
+      path: maybe_path.to_path_buf(),
+      error,
+    })?
   } else {
     pubkey.to_string()
   };
@@ -262,12 +260,16 @@ fn sign_updaters(
 
   // get the private key
   let private_key = std::env::var("TAURI_SIGNING_PRIVATE_KEY")
-    .map_err(|_| anyhow::anyhow!("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable."))?;
+    .ok()
+    .context("A public key has been found, but no private key. Make sure to set `TAURI_SIGNING_PRIVATE_KEY` environment variable.")?;
   // check if private_key points to a file...
   let maybe_path = Path::new(&private_key);
   let private_key = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path)
-      .with_context(|| format!("faild to read {}", maybe_path.display()))?
+    std::fs::read_to_string(maybe_path).map_err(|error| Error::Fs {
+      context: "failed to read private key from file",
+      path: maybe_path.to_path_buf(),
+      error,
+    })?
   } else {
     private_key
   };
@@ -305,11 +307,11 @@ fn print_signed_updater_archive(output_paths: &[PathBuf]) -> crate::Result<()> {
     };
     let mut printable_paths = String::new();
     for path in output_paths {
-      writeln!(
+      let _ = writeln!(
         printable_paths,
         "        {}",
         tauri_utils::display_path(path)
-      )?;
+      );
     }
     log::info!( action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
   }

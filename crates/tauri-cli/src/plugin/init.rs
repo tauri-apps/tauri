@@ -3,13 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::helpers::prompts;
-use crate::Result;
 use crate::{
-  helpers::{resolve_tauri_path, template},
+  error::Context,
+  helpers::{prompts, resolve_tauri_path, template},
   VersionMetadata,
 };
-use anyhow::Context;
+use crate::{Error, Result};
 use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
@@ -90,7 +89,15 @@ pub fn command(mut options: Options) -> Result<()> {
 
   let template_target_path = PathBuf::from(options.directory);
   let metadata = crates_metadata()?;
-  if std::fs::read_dir(&template_target_path)?.count() > 0 {
+  if std::fs::read_dir(&template_target_path)
+    .map_err(|error| Error::Fs {
+      context: "failed to read target directory".into(),
+      path: template_target_path.clone(),
+      error,
+    })?
+    .count()
+    > 0
+  {
     log::warn!("Plugin dir ({:?}) not empty.", template_target_path);
   } else {
     let (tauri_dep, tauri_example_dep, tauri_build_dep, tauri_plugin_dep) =
@@ -247,15 +254,23 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   let permissions_dir = template_target_path.join("permissions");
-  std::fs::create_dir(&permissions_dir)
-    .with_context(|| "failed to create `permissions` directory")?;
+  std::fs::create_dir(&permissions_dir).map_err(|error| Error::Fs {
+    context: "failed to create `permissions` directory".into(),
+    path: permissions_dir.clone(),
+    error,
+  })?;
 
   let default_permissions = r#"[default]
 description = "Default permissions for the plugin"
 permissions = ["allow-ping"]
 "#;
-  std::fs::write(permissions_dir.join("default.toml"), default_permissions)
-    .with_context(|| "failed to write `permissions/default.toml`")?;
+  std::fs::write(permissions_dir.join("default.toml"), default_permissions).map_err(|error| {
+    Error::Fs {
+      context: "failed to write default permissions file".into(),
+      path: permissions_dir.join("default.toml"),
+      error,
+    }
+  })?;
 
   Ok(())
 }
@@ -274,8 +289,12 @@ pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, pl
 }
 
 pub fn crates_metadata() -> Result<VersionMetadata> {
-  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
-    .map_err(Into::into)
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json")).map_err(|error| {
+    Error::Json {
+      context: "failed to parse Tauri version metadata".into(),
+      error,
+    }
+  })
 }
 
 pub fn generate_android_out_file(

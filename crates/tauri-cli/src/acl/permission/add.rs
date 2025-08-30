@@ -8,7 +8,7 @@ use clap::Parser;
 
 use crate::{
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Result,
+  Error, Result,
 };
 
 #[derive(Clone)]
@@ -100,7 +100,10 @@ impl TomlOrJson {
   fn to_string(&self) -> Result<String> {
     Ok(match self {
       TomlOrJson::Toml(t) => t.to_string(),
-      TomlOrJson::Json(j) => serde_json::to_string_pretty(&j)?,
+      TomlOrJson::Json(j) => serde_json::to_string_pretty(&j).map_err(|error| Error::Json {
+        context: "failed to serialize JSON".into(),
+        error,
+      })?,
     })
   }
 }
@@ -131,12 +134,12 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let dir = match resolve_tauri_dir() {
     Some(t) => t,
-    None => std::env::current_dir()?,
+    None => std::env::current_dir().map_err(Error::ResolveCwd)?,
   };
 
   let capabilities_dir = dir.join("capabilities");
   if !capabilities_dir.exists() {
-    anyhow::bail!(
+    crate::error::bail!(
       "Couldn't find capabilities directory at {}",
       dunce::simplified(&capabilities_dir).display()
     );
@@ -148,7 +151,12 @@ pub fn command(options: Options) -> Result<()> {
     .split_once(':')
     .and_then(|(plugin, _permission)| known_plugins.get(&plugin));
 
-  let capabilities_iter = std::fs::read_dir(&capabilities_dir)?
+  let capabilities_iter = std::fs::read_dir(&capabilities_dir)
+    .map_err(|error| Error::Fs {
+      context: "failed to read capabilities directory".into(),
+      path: capabilities_dir.clone(),
+      error,
+    })?
     .flatten()
     .filter(|e| e.file_type().map(|e| e.is_file()).unwrap_or_default())
     .filter_map(|e| {
@@ -240,7 +248,7 @@ pub fn command(options: Options) -> Result<()> {
     )?;
 
     if selections.is_empty() {
-      anyhow::bail!("You did not select any capabilities to update");
+      crate::error::bail!("You did not select any capabilities to update");
     }
 
     selections
@@ -252,7 +260,7 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   if capabilities.is_empty() {
-    anyhow::bail!("Could not find a capability to update");
+    crate::error::bail!("Could not find a capability to update");
   }
 
   for (capability, path) in &mut capabilities {
@@ -265,7 +273,11 @@ pub fn command(options: Options) -> Result<()> {
       );
     } else {
       capability.insert_permission(options.identifier.clone());
-      std::fs::write(&*path, capability.to_string()?)?;
+      std::fs::write(&*path, capability.to_string()?).map_err(|error| Error::Fs {
+        context: "failed to write capability file".into(),
+        path: path.clone(),
+        error,
+      })?;
       log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
     }
   }

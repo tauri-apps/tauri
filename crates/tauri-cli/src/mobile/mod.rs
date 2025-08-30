@@ -3,15 +3,14 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::{
     app_paths::tauri_dir,
     config::{reload as reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
   },
   interface::{AppInterface, AppSettings, DevProcess, Interface, Options as InterfaceOptions},
-  ConfigValue,
+  ConfigValue, Error, Result,
 };
-use anyhow::Context;
-use anyhow::{bail, Result};
 use heck::ToSnekCase;
 use jsonrpsee::core::client::{Client, ClientBuilder, ClientT};
 use jsonrpsee::server::{RpcModule, ServerBuilder, ServerHandle};
@@ -284,12 +283,16 @@ fn use_network_address_for_dev_url(
         "If your frontend is not listening on that address, try configuring your development server to use the `TAURI_DEV_HOST` environment variable or 0.0.0.0 as host"
       );
 
-      *url = url::Url::parse(&format!(
+      let url_str = format!(
         "{}://{}{}",
         url.scheme(),
         SocketAddr::new(ip, url.port_or_known_default().unwrap()),
         url.path()
-      ))?;
+      );
+      *url = url::Url::parse(&url_str).map_err(|error| Error::ParseUrl {
+        url: url_str,
+        error,
+      })?;
 
       dev_options
         .config
@@ -357,7 +360,7 @@ fn env_vars() -> HashMap<String, OsString> {
   vars
 }
 
-fn env() -> Result<Env, EnvError> {
+fn env() -> std::result::Result<Env, EnvError> {
   let env = Env::new()?.explicit_env_vars(env_vars());
   Ok(env)
 }
@@ -372,9 +375,12 @@ pub fn write_options(
   options.vars.extend(env_vars());
 
   let runtime = Runtime::new().unwrap();
-  let r: anyhow::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
-    let server = ServerBuilder::default().build("127.0.0.1:0").await?;
-    let addr = server.local_addr()?;
+  let r: crate::Result<(ServerHandle, SocketAddr)> = runtime.block_on(async move {
+    let server = ServerBuilder::default()
+      .build("127.0.0.1:0")
+      .await
+      .map_err(Error::SetupWsServer)?;
+    let addr = server.local_addr().map_err(Error::SetupWsServer)?;
 
     let mut module = RpcModule::new(());
     module.register_method("options", move |_, _, _| Some(options.clone()))?;
@@ -385,15 +391,18 @@ pub fn write_options(
   });
   let (handle, addr) = r?;
 
-  write(
-    temp_dir().join(format!(
-      "{}-server-addr",
-      config
-        .original_identifier()
-        .context("app configuration is missing an identifier")?
-    )),
-    addr.to_string(),
-  )?;
+  let server_addr_path = temp_dir().join(format!(
+    "{}-server-addr",
+    config
+      .original_identifier()
+      .context("app configuration is missing an identifier")?
+  ));
+
+  write(&server_addr_path, addr.to_string()).map_err(|error| Error::Fs {
+    context: "failed to write server address file".into(),
+    path: server_addr_path,
+    error,
+  })?;
 
   Ok(OptionsHandle(runtime, handle))
 }
@@ -423,7 +432,7 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
         .await?;
       let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
       let options: CliOptions = client.request("options", rpc_params![]).await?;
-      Ok::<CliOptions, anyhow::Error>(options)
+      Ok::<CliOptions, Error>(options)
     })
     .expect("failed to read CLI options");
 
@@ -485,7 +494,7 @@ fn ensure_init(
   target: Target,
 ) -> Result<()> {
   if !project_dir.exists() {
-    bail!(
+    crate::error::bail!(
       "{} project directory {} doesn't exist. Please run `tauri {} init` and try again.",
       target.ide_name(),
       project_dir.display(),
@@ -518,7 +527,13 @@ fn ensure_init(
           .join(format!("{}.xcodeproj", app.name()))
           .join("project.pbxproj"),
       )
-      .context("missing project.yml file in the Xcode project directory")?;
+      .map_err(|error| Error::Fs {
+        context: "missing project.pbxproj file in the Xcode project directory".into(),
+        path: project_dir
+          .join(format!("{}.xcodeproj", app.name()))
+          .join("project.pbxproj"),
+        error,
+      })?;
 
       if !(pbxproj_contents.contains(ios::LIB_OUTPUT_FILE_NAME)
         || pbxproj_contents.contains(&format!("lib{}.a", app.lib_name())))
@@ -531,7 +546,7 @@ fn ensure_init(
 
   if !project_outdated_reasons.is_empty() {
     let reason = project_outdated_reasons.join(" and ");
-    bail!(
+    crate::error::bail!(
         "{} project directory is outdated because {reason}. Please run `tauri {} init` and try again.",
         target.ide_name(),
         target.command_name(),
@@ -551,16 +566,27 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
     let is_executable = permissions.mode() & 0o111 != 0;
     if !is_executable {
       permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions)
-        .context("failed to mark gradlew as executable")?;
+      std::fs::set_permissions(&gradlew_path, permissions).map_err(|error| Error::Fs {
+        context: "failed to mark gradlew as executable".into(),
+        path: gradlew_path.clone(),
+        error,
+      })?;
     }
     std::fs::write(
       &gradlew_path,
       std::fs::read_to_string(&gradlew_path)
-        .context("failed to read gradlew")?
+        .map_err(|error| Error::Fs {
+          context: "failed to read gradlew".into(),
+          path: gradlew_path.clone(),
+          error,
+        })?
         .replace("\r\n", "\n"),
     )
-    .context("failed to replace gradlew CRLF with LF")?;
+    .map_err(|error| Error::Fs {
+      context: "failed to replace gradlew CRLF with LF".into(),
+      path: gradlew_path,
+      error,
+    })?;
   }
 
   Ok(())

@@ -11,8 +11,10 @@ use std::{
   sync::Arc,
 };
 
-use crate::helpers::config::Config;
-use anyhow::Context;
+use crate::{
+  error::{Context, Error},
+  helpers::config::Config,
+};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface};
@@ -20,7 +22,6 @@ pub use rust::{MobileOptions, Options, Rust as AppInterface};
 pub trait DevProcess {
   fn kill(&self) -> std::io::Result<()>;
   fn try_wait(&self) -> std::io::Result<Option<ExitStatus>>;
-  // TODO:
   #[allow(unused)]
   fn wait(&self) -> std::io::Result<ExitStatus>;
   #[allow(unused)]
@@ -56,7 +57,7 @@ pub trait AppSettings {
     let target: String = if let Some(target) = options.target.clone() {
       target
     } else {
-      tauri_utils::platform::target_triple()?
+      tauri_utils::platform::target_triple().map_err(Error::TargetTriple)?
     };
 
     let mut bins = self.get_binaries()?;

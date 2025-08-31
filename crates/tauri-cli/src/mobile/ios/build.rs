@@ -15,7 +15,7 @@ use crate::{
     flock,
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
-  mobile::{write_options, CliOptions},
+  mobile::{ios::ensure_ios_runtime_installed, write_options, CliOptions},
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser, ValueEnum};
@@ -223,6 +223,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   merged_info_plist.to_file_xml(&info_plist_path)?;
 
   let mut env = env()?;
+
+  ensure_ios_runtime_installed()?;
 
   let mut export_options_plist = plist::Dictionary::new();
   if let Some(method) = options.export_method {

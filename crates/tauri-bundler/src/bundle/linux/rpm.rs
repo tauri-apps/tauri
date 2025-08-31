@@ -3,7 +3,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{bundle::settings::Arch, error::Context, Settings};
+use crate::{
+  bundle::settings::Arch,
+  error::{Context, ErrorExt},
+  Settings,
+};
 
 use rpm::{self, signature::pgp, Dependency, FileMode, FileOptions};
 use std::{
@@ -47,10 +51,13 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let base_dir = settings.project_out_directory().join("bundle/rpm");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
+    fs::remove_dir_all(&package_dir).fs_context(
+      "Failed to remove old package directory",
+      package_dir.clone(),
+    )?;
   }
-  fs::create_dir_all(&package_dir)?;
+  fs::create_dir_all(&package_dir)
+    .fs_context("Failed to create package directory", package_dir.clone())?;
   let package_path = base_dir.join(&package_name);
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());

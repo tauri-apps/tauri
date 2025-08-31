@@ -114,11 +114,13 @@ pub fn generate_desktop_file(
   if let Some(template) = custom_template_path {
     handlebars
       .register_template_string("main.desktop", read_to_string(template)?)
-      .with_context(|| "Failed to setup custom handlebar template")?;
+      .map_err(Into::into)
+      .context("Failed to setup custom handlebar template")?;
   } else {
     handlebars
       .register_template_string("main.desktop", include_str!("./main.desktop"))
-      .with_context(|| "Failed to setup default handlebar template")?;
+      .map_err(Into::into)
+      .context("Failed to setup default handlebar template")?;
   }
 
   #[derive(Serialize)]

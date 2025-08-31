@@ -163,6 +163,9 @@ pub enum Error {
   #[cfg(target_os = "macos")]
   #[error("failed codesign application: {0}")]
   AppleCodesign(#[from] tauri_macos_sign::Error),
+  /// Handlebars template error.
+  #[error(transparent)]
+  Template(#[from] handlebars::TemplateError),
 }
 
 #[cfg(target_os = "macos")]
@@ -233,7 +236,7 @@ pub trait ErrorExt<T> {
 impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
   fn fs_context(self, context: &'static str, path: impl Into<PathBuf>) -> Result<T> {
     self.map_err(|error| Error::Fs {
-      context: context.into(),
+      context: context,
       path: path.into(),
       error,
     })

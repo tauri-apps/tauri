@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-import { invoke } from './core'
+import { addPluginListener, invoke, PluginListener } from './core'
 import { Image } from './image'
 import { Theme } from './window'
 
@@ -252,6 +252,28 @@ async function getBundleType(): Promise<BundleType> {
   return invoke('plugin:app|bundle_type')
 }
 
+/**
+ * Payload for the onBackButtonPress event.
+ */
+type OnBackButtonPressPayload = {
+  /** Whether the webview canGoBack property is true. */
+  canGoBack: boolean
+}
+
+/**
+ * Listens to the backButton event on Android.
+ * @param handler
+ */
+async function onBackButtonPress(
+  handler: (payload: OnBackButtonPressPayload) => void
+): Promise<PluginListener> {
+  return addPluginListener<OnBackButtonPressPayload>(
+    'app',
+    'back-button',
+    handler
+  )
+}
+
 export {
   getName,
   getVersion,
@@ -264,5 +286,7 @@ export {
   fetchDataStoreIdentifiers,
   removeDataStore,
   setDockVisibility,
-  getBundleType
+  getBundleType,
+  type OnBackButtonPressPayload,
+  onBackButtonPress
 }

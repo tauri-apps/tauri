@@ -9,6 +9,7 @@ Default permissions for the plugin.
 - `allow-tauri-version`
 - `allow-identifier`
 - `allow-bundle-type`
+- `allow-register-listener`
 
 ## Permission Table
 
@@ -197,6 +198,32 @@ Enables the name command without any pre-configured scope.
 <td>
 
 Denies the name command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:allow-register-listener`
+
+</td>
+<td>
+
+Enables the register_listener command without any pre-configured scope.
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+`core:app:deny-register-listener`
+
+</td>
+<td>
+
+Denies the register_listener command without any pre-configured scope.
 
 </td>
 </tr>

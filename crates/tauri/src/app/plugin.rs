@@ -132,5 +132,23 @@ pub fn init<R: Runtime>() -> TauriPlugin<R> {
       set_dock_visibility,
       bundle_type,
     ])
+    .setup(|_app, _api| {
+      #[cfg(target_os = "android")]
+      {
+        let handle = _api.register_android_plugin("app.tauri", "AppPlugin")?;
+        _app.manage(AppPlugin(handle));
+      }
+      Ok(())
+    })
     .build()
+}
+
+#[cfg(target_os = "android")]
+pub(crate) struct AppPlugin<R: Runtime>(pub crate::plugin::PluginHandle<R>);
+
+#[cfg(target_os = "android")]
+impl<R: Runtime> AppPlugin<R> {
+  pub fn exit(&self) {
+    let _ = self.0.run_mobile_plugin::<()>("exit", ());
+  }
 }

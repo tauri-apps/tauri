@@ -412,7 +412,11 @@ fn ensure_ios_runtime_installed() -> Result<()> {
     duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"]).read()?;
   let installed_platforms: InstalledRuntimesList =
     serde_json::from_str(&installed_platforms_json).unwrap_or_default();
-  if !installed_platforms.runtimes.iter().any(|r| r.name == "iOS") {
+  if !installed_platforms
+    .runtimes
+    .iter()
+    .any(|r| r.name.starts_with("iOS"))
+  {
     log::warn!("iOS platform not installed");
     let install_ios = crate::helpers::prompts::confirm(
       "Would you like to install the latest iOS runtime?",

@@ -58,7 +58,8 @@ impl Config {
     let mut config = Self::default();
 
     let get_config = |path: PathBuf| -> Result<ConfigSchema> {
-      let contents = fs::read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
+      let contents =
+        fs::read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
       toml::from_str(&contents).map_err(|error| Error::DeserializeToml {
         context: format!(
           "could not parse TOML configuration in `{}`",

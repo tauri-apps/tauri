@@ -23,7 +23,8 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
     })?;
   }
   let dest_dir = to.parent().expect("No data in parent");
-  std::fs::create_dir_all(dest_dir).fs_context("failed to create directory", dest_dir.to_path_buf())?;
+  std::fs::create_dir_all(dest_dir)
+    .fs_context("failed to create directory", dest_dir.to_path_buf())?;
   std::fs::copy(from, to).fs_context("failed to copy file", from.to_path_buf())?;
   Ok(())
 }

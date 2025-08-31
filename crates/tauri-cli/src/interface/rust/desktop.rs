@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
-use crate::{error::{Context, ErrorExt}, CommandExt, Error};
+use crate::{
+  error::{Context, ErrorExt},
+  CommandExt, Error,
+};
 
 use shared_child::SharedChild;
 use std::{
@@ -164,7 +167,8 @@ pub fn build(
   }
 
   if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(&out_dir).fs_context("failed to create project out directory", out_dir.clone())?;
+    std::fs::create_dir_all(&out_dir)
+      .fs_context("failed to create project out directory", out_dir.clone())?;
 
     let bin_name = bin_path.file_stem().unwrap();
 

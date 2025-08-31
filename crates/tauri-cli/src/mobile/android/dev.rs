@@ -145,7 +145,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).fs_context("failed to read certificate file", root_certificate_path.clone())?,
+      std::fs::read_to_string(root_certificate_path).fs_context(
+        "failed to read certificate file",
+        root_certificate_path.clone(),
+      )?,
     );
   }
 

@@ -72,10 +72,12 @@ impl From<Options> for super::init::Options {
 pub fn command(mut options: Options) -> Result<()> {
   let cwd = std::env::current_dir().map_err(Error::ResolveCwd)?;
   if let Some(dir) = &options.directory {
-    std::fs::create_dir_all(cwd.join(dir)).fs_context("failed to create crate directory", cwd.join(dir))?;
+    std::fs::create_dir_all(cwd.join(dir))
+      .fs_context("failed to create crate directory", cwd.join(dir))?;
   } else {
     let target = cwd.join(format!("tauri-plugin-{}", options.plugin_name));
-    std::fs::create_dir_all(&target).fs_context("failed to create crate directory", target.clone())?;
+    std::fs::create_dir_all(&target)
+      .fs_context("failed to create crate directory", target.clone())?;
     options.directory.replace(target.display().to_string());
   }
 

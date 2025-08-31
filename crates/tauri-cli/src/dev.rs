@@ -278,7 +278,9 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
-        let path = path.canonicalize().fs_context("failed to canonicalize path", path.to_path_buf())?;
+        let path = path
+          .canonicalize()
+          .fs_context("failed to canonicalize path", path.to_path_buf())?;
 
         let ip = options
           .host

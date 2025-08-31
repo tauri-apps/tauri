@@ -14,13 +14,13 @@ use crate::{
       },
     },
   },
+  error::{bail, Context, ErrorExt},
   utils::{
     fs_utils::copy_file,
     http_utils::{download_and_verify, extract_zip, HashAlgorithm},
     CommandExt,
   },
 };
-use anyhow::{bail, Context};
 use handlebars::{html_escape, to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -279,16 +279,15 @@ fn clear_env_for_wix(cmd: &mut Command) {
   }
 }
 
-fn validate_wix_version(version_str: &str) -> anyhow::Result<()> {
+fn validate_wix_version(version_str: &str) -> crate::Result<()> {
   let components = version_str
     .split('.')
     .flat_map(|c| c.parse::<u64>().ok())
     .collect::<Vec<_>>();
 
-  anyhow::ensure!(
-    components.len() >= 3,
-    "app wix version should be in the format major.minor.patch.build (build is optional)"
-  );
+  if components.len() < 3 {
+    bail!("app wix version should be in the format major.minor.patch.build (build is optional)");
+  }
 
   if components[0] > 255 {
     bail!("app version major number cannot be greater than 255");
@@ -308,8 +307,10 @@ fn validate_wix_version(version_str: &str) -> anyhow::Result<()> {
 }
 
 // WiX requires versions to be numeric only in a `major.minor.patch.build` format
-fn convert_version(version_str: &str) -> anyhow::Result<String> {
-  let version = semver::Version::parse(version_str).context("invalid app version")?;
+fn convert_version(version_str: &str) -> crate::Result<String> {
+  let version = semver::Version::parse(version_str)
+    .map_err(Into::into)
+    .context("invalid app version")?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
     if build.map(|b| b <= 65535).unwrap_or_default() {
@@ -391,7 +392,10 @@ fn run_candle(
     .args(&args)
     .current_dir(cwd)
     .output_ok()
-    .context("error running candle.exe")?;
+    .map_err(|error| crate::Error::CommandFailed {
+      command: candle_exe.to_string_lossy().to_string(),
+      error,
+    })?;
 
   Ok(())
 }
@@ -420,7 +424,10 @@ fn run_light(
     .args(&args)
     .current_dir(build_path)
     .output_ok()
-    .context("error running light.exe")?;
+    .map_err(|error| crate::Error::CommandFailed {
+      command: light_exe.to_string_lossy().to_string(),
+      error,
+    })?;
 
   Ok(())
 }
@@ -473,7 +480,7 @@ pub fn build_wix_app_installer(
   let wix_toolset_path = if settings.can_sign() {
     let wix_path = output_path.join("wix");
     crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
-      .context("failed to copy wix directory")?;
+      .fs_context("failed to copy wix directory", wix_toolset_path.clone())?;
     wix_path
   } else {
     wix_toolset_path.to_path_buf()

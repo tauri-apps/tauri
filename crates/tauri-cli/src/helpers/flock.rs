@@ -130,8 +130,15 @@ fn open(path: &Path, opts: &OpenOptions, state: State, msg: &str) -> Result<File
   // create the directory and then continue.
   let f = opts.open(path).or_else(|e| {
     if e.kind() == io::ErrorKind::NotFound && state == State::Exclusive {
-      create_dir_all(path.parent().unwrap()).fs_context("failed to create directory", path.parent().unwrap().to_path_buf())?;
-      Ok(opts.open(path).fs_context("failed to open file", path.to_path_buf())?)
+      create_dir_all(path.parent().unwrap()).fs_context(
+        "failed to create directory",
+        path.parent().unwrap().to_path_buf(),
+      )?;
+      Ok(
+        opts
+          .open(path)
+          .fs_context("failed to open file", path.to_path_buf())?,
+      )
     } else {
       Err(Error::Fs {
         context: "failed to open file",

@@ -1197,16 +1197,14 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   if !output.status.success() {
     return Err(Error::CommandFailed {
       command: "cargo metadata".to_string(),
-      error: std::io::Error::other(
-        String::from_utf8_lossy(&output.stderr),
-      ),
+      error: std::io::Error::other(String::from_utf8_lossy(&output.stderr)),
     });
   }
 
   serde_json::from_slice(&output.stdout).map_err(|error| Error::Json {
-      context: "failed to parse cargo metadata".into(),
-      error,
-    })
+    context: "failed to parse cargo metadata".into(),
+    error,
+  })
 }
 
 /// Get the cargo target directory based on the provided arguments.

@@ -398,7 +398,8 @@ pub fn write_options(
       .context("app configuration is missing an identifier")?
   ));
 
-  write(&server_addr_path, addr.to_string()).fs_context("failed to write server address file", server_addr_path)?;
+  write(&server_addr_path, addr.to_string())
+    .fs_context("failed to write server address file", server_addr_path)?;
 
   Ok(OptionsHandle(runtime, handle))
 }
@@ -523,9 +524,12 @@ fn ensure_init(
           .join(format!("{}.xcodeproj", app.name()))
           .join("project.pbxproj"),
       )
-      .fs_context("missing project.pbxproj file in the Xcode project directory", project_dir
-        .join(format!("{}.xcodeproj", app.name()))
-        .join("project.pbxproj"))?;
+      .fs_context(
+        "missing project.pbxproj file in the Xcode project directory",
+        project_dir
+          .join(format!("{}.xcodeproj", app.name()))
+          .join("project.pbxproj"),
+      )?;
 
       if !(pbxproj_contents.contains(ios::LIB_OUTPUT_FILE_NAME)
         || pbxproj_contents.contains(&format!("lib{}.a", app.lib_name())))
@@ -558,7 +562,8 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
     let is_executable = permissions.mode() & 0o111 != 0;
     if !is_executable {
       permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions).fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
+      std::fs::set_permissions(&gradlew_path, permissions)
+        .fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
     }
     std::fs::write(
       &gradlew_path,

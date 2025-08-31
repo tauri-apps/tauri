@@ -166,6 +166,9 @@ pub enum Error {
   /// Handlebars template error.
   #[error(transparent)]
   Template(#[from] handlebars::TemplateError),
+  /// Semver error.
+  #[error("`{0}`")]
+  SemverError(#[from] semver::Error),
 }
 
 #[cfg(target_os = "macos")]

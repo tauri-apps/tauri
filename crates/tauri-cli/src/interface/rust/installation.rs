@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{error::{Error, ErrorExt}, Result};
+use crate::{
+  error::{Error, ErrorExt},
+  Result,
+};
 
 use std::{fs::read_dir, path::PathBuf, process::Command};
 
@@ -18,7 +21,10 @@ pub fn installed_targets() -> Result<Vec<String>> {
 
   let mut targets = Vec::new();
   for entry in read_dir(sysroot_path.join("lib").join("rustlib"))
-    .fs_context("failed to read Rust sysroot", sysroot_path.join("lib").join("rustlib"))?
+    .fs_context(
+      "failed to read Rust sysroot",
+      sysroot_path.join("lib").join("rustlib"),
+    )?
     .flatten()
   {
     if entry.file_type().map(|t| t.is_dir()).unwrap_or_default() {

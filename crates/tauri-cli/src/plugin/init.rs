@@ -90,7 +90,10 @@ pub fn command(mut options: Options) -> Result<()> {
   let template_target_path = PathBuf::from(options.directory);
   let metadata = crates_metadata()?;
   if std::fs::read_dir(&template_target_path)
-    .fs_context("failed to read target directory", template_target_path.clone())?
+    .fs_context(
+      "failed to read target directory",
+      template_target_path.clone(),
+    )?
     .count()
     > 0
   {
@@ -250,13 +253,19 @@ pub fn command(mut options: Options) -> Result<()> {
   }
 
   let permissions_dir = template_target_path.join("permissions");
-  std::fs::create_dir(&permissions_dir).fs_context("failed to create `permissions` directory", permissions_dir.clone())?;
+  std::fs::create_dir(&permissions_dir).fs_context(
+    "failed to create `permissions` directory",
+    permissions_dir.clone(),
+  )?;
 
   let default_permissions = r#"[default]
 description = "Default permissions for the plugin"
 permissions = ["allow-ping"]
 "#;
-  std::fs::write(permissions_dir.join("default.toml"), default_permissions).fs_context("failed to write default permissions file", permissions_dir.join("default.toml"))?;
+  std::fs::write(permissions_dir.join("default.toml"), default_permissions).fs_context(
+    "failed to write default permissions file",
+    permissions_dir.join("default.toml"),
+  )?;
 
   Ok(())
 }

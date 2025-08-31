@@ -8,12 +8,13 @@ use regex::Regex;
 
 use crate::{
   acl,
+  error::ErrorExt,
   helpers::{
     app_paths::{resolve_frontend_dir, tauri_dir},
     cargo,
     npm::PackageManager,
   },
-  Error, Result,
+  Result,
 };
 
 use std::process::Command;
@@ -141,11 +142,8 @@ pub fn run(options: Options) -> Result<()> {
 
   let re = Regex::new(r"(tauri\s*::\s*Builder\s*::\s*default\(\))(\s*)").unwrap();
   for file in [tauri_dir.join("src/main.rs"), tauri_dir.join("src/lib.rs")] {
-    let contents = std::fs::read_to_string(&file).map_err(|error| Error::Fs {
-      context: "failed to read Rust entry point".into(),
-      path: file.clone(),
-      error,
-    })?;
+    let contents =
+      std::fs::read_to_string(&file).fs_context("failed to read Rust entry point", file.clone())?;
 
     if contents.contains(&plugin_init) {
       log::info!(
@@ -159,11 +157,7 @@ pub fn run(options: Options) -> Result<()> {
       let out = re.replace(&contents, format!("$1$2{plugin_init}$2"));
 
       log::info!("Adding plugin to {}", file.display());
-      std::fs::write(&file, out.as_bytes()).map_err(|error| Error::Fs {
-        context: "failed to write plugin init code".into(),
-        path: file,
-        error,
-      })?;
+      std::fs::write(&file, out.as_bytes()).fs_context("failed to write plugin init code", file)?;
 
       if !options.no_fmt {
         // reformat code with rustfmt

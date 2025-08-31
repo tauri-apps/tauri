@@ -18,7 +18,7 @@ use std::{
 };
 
 use crate::{
-  error::{Context, Error},
+  error::{Context, Error, ErrorExt},
   Result,
 };
 use clap::Parser;
@@ -78,11 +78,7 @@ impl Options {
     let package_json_path = PathBuf::from(&self.directory).join("package.json");
 
     let init_defaults = if package_json_path.exists() {
-      let package_json_text = read_to_string(&package_json_path).map_err(|error| Error::Fs {
-        context: "failed to read",
-        path: package_json_path.clone(),
-        error,
-      })?;
+      let package_json_text = read_to_string(&package_json_path).fs_context("failed to read", package_json_path.clone())?;
       let package_json: crate::PackageJson =
         serde_json::from_str(&package_json_text).map_err(|error| Error::Json {
           context: "failed to parse JSON".into(),

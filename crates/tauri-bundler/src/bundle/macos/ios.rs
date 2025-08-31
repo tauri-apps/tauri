@@ -14,9 +14,9 @@
 // explanation.
 
 use crate::{
-  error::Context,
+  error::{Context, ErrorExt},
   utils::{self, fs_utils},
-  Error, Settings,
+  Settings,
 };
 
 use image::{codecs::png::PngDecoder, GenericImageView, ImageDecoder};
@@ -44,17 +44,15 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   log::info!(action = "Bundling"; "{} ({})", app_product_name, app_bundle_path.display());
 
   if app_bundle_path.exists() {
-    fs::remove_dir_all(&app_bundle_path).map_err(|e| Error::Fs {
-      context: "failed to remove old app bundle",
-      path: app_bundle_path.to_path_buf(),
-      error: e,
-    })?;
+    fs::remove_dir_all(&app_bundle_path).fs_context(
+      "failed to remove old app bundle",
+      app_bundle_path.to_path_buf(),
+    )?;
   }
-  fs::create_dir_all(&app_bundle_path).map_err(|e| Error::Fs {
-    context: "failed to create bundle directory",
-    path: app_bundle_path.to_path_buf(),
-    error: e,
-  })?;
+  fs::create_dir_all(&app_bundle_path).fs_context(
+    "failed to create bundle directory",
+    app_bundle_path.to_path_buf(),
+  )?;
 
   for src in settings.resource_files() {
     let src = src?;

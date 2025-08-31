@@ -10,8 +10,7 @@ use std::io;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use crate::Error;
-use crate::Result;
+use crate::{error::ErrorExt, Error, Result};
 use sys::*;
 
 #[derive(Debug)]
@@ -131,16 +130,8 @@ fn open(path: &Path, opts: &OpenOptions, state: State, msg: &str) -> Result<File
   // create the directory and then continue.
   let f = opts.open(path).or_else(|e| {
     if e.kind() == io::ErrorKind::NotFound && state == State::Exclusive {
-      create_dir_all(path.parent().unwrap()).map_err(|error| Error::Fs {
-        context: "failed to create directory".into(),
-        path: path.parent().unwrap().to_path_buf(),
-        error,
-      })?;
-      Ok(opts.open(path).map_err(|error| Error::Fs {
-        context: "failed to open file".into(),
-        path: path.to_path_buf(),
-        error,
-      })?)
+      create_dir_all(path.parent().unwrap()).fs_context("failed to create directory", path.parent().unwrap().to_path_buf())?;
+      Ok(opts.open(path).fs_context("failed to open file", path.to_path_buf())?)
     } else {
       Err(Error::Fs {
         context: "failed to open file".into(),
@@ -223,11 +214,7 @@ fn acquire(
   let msg = format!("waiting for file lock on {msg}");
   log::info!(action = "Blocking"; "{}", &msg);
 
-  lock_block().map_err(|error| Error::Fs {
-    context: "failed to lock file".into(),
-    path: path.to_path_buf(),
-    error,
-  })?;
+  lock_block().fs_context("failed to lock file", path.to_path_buf())?;
   return Ok(());
 
   #[cfg(all(target_os = "linux", not(target_env = "musl")))]

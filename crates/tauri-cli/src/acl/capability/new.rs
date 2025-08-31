@@ -9,7 +9,7 @@ use tauri_utils::acl::capability::{Capability, PermissionEntry};
 
 use crate::{
   acl::FileFormat,
-  error::Error,
+  error::ErrorExt,
   helpers::{app_paths::tauri_dir, prompts},
   Result,
 };
@@ -107,11 +107,9 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o.canonicalize().map_err(|error| Error::Fs {
-      context: "failed to canonicalize capability file path".into(),
-      path: o.clone(),
-      error,
-    })?,
+    Some(o) => o
+      .canonicalize()
+      .fs_context("failed to canonicalize capability file path", o.clone())?,
     None => {
       let dir = tauri_dir();
       let capabilities_dir = dir.join("capabilities");
@@ -130,29 +128,21 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path).map_err(|error| Error::Fs {
-        context: "failed to remove capability file".into(),
-        path: path.clone(),
-        error,
-      })?;
+      std::fs::remove_file(&path).fs_context("failed to remove capability file", path.clone())?;
     } else {
       crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent).map_err(|error| Error::Fs {
-      context: "failed to create capability directory".into(),
-      path: parent.to_path_buf(),
-      error,
-    })?;
+    std::fs::create_dir_all(parent).fs_context(
+      "failed to create capability directory",
+      parent.to_path_buf(),
+    )?;
   }
 
-  std::fs::write(&path, options.format.serialize(&capability)?).map_err(|error| Error::Fs {
-    context: "failed to write capability file".into(),
-    path: path.clone(),
-    error,
-  })?;
+  std::fs::write(&path, options.format.serialize(&capability)?)
+    .fs_context("failed to write capability file", path.clone())?;
 
   log::info!(action = "Created"; "capability at {}", dunce::simplified(&path).display());
 

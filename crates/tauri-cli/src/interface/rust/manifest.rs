@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::Error,
+  error::{Error, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{Config, PatternKind},
@@ -83,11 +83,7 @@ fn get_enabled_features(list: &HashMap<String, Vec<String>>, feature: &str) -> V
 }
 
 pub fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String)> {
-  let manifest_str = std::fs::read_to_string(manifest_path).map_err(|error| Error::Fs {
-    context: "failed to read Cargo.toml".into(),
-    path: manifest_path.to_path_buf(),
-    error,
-  })?;
+  let manifest_str = std::fs::read_to_string(manifest_path).fs_context("failed to read Cargo.toml", manifest_path.to_path_buf())?;
 
   let manifest: DocumentMut =
     manifest_str
@@ -320,11 +316,7 @@ pub fn rewrite_manifest(config: &Config) -> crate::Result<(Manifest, bool)> {
   let new_manifest_str = serialize_manifest(&manifest);
 
   if persist && original_manifest_str != new_manifest_str {
-    std::fs::write(&manifest_path, new_manifest_str).map_err(|error| Error::Fs {
-      context: "failed to rewrite Cargo manifest".into(),
-      path: manifest_path.clone(),
-      error,
-    })?;
+    std::fs::write(&manifest_path, new_manifest_str).fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
     Ok((
       Manifest {
         inner: manifest,

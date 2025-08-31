@@ -5,7 +5,7 @@
 use crate::{
   error::Context,
   helpers::{app_paths::walk_builder, npm::PackageManager},
-  Error, Result,
+  Error, Result, ErrorExt,
 };
 use itertools::Itertools;
 use magic_string::MagicString;
@@ -101,11 +101,7 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
       let path = entry.path();
       let ext = path.extension().unwrap_or_default();
       if JS_EXTENSIONS.iter().any(|e| e == &ext) {
-        let js_contents = std::fs::read_to_string(&path).map_err(|error| Error::Fs {
-          context: "failed to read JS file".into(),
-          path: path.to_path_buf(),
-          error,
-        })?;
+        let js_contents = std::fs::read_to_string(&path).fs_context("failed to read JS file", path.to_path_buf())?;
         let new_contents = migrate_imports(
           path,
           &js_contents,
@@ -113,11 +109,7 @@ pub fn migrate(frontend_dir: &Path) -> Result<Vec<String>> {
           &mut npm_packages_to_remove,
         )?;
         if new_contents != js_contents {
-          fs::write(path, new_contents).map_err(|error| Error::Fs {
-            context: "failed to write JS file".into(),
-            path: path.to_path_buf(),
-            error,
-          })?;
+          fs::write(path, new_contents).fs_context("failed to write JS file", path.to_path_buf())?;
         }
       }
     }

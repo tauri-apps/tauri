@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{Context, Error},
+  error::{Context, Error, ErrorExt},
   helpers::app_paths::tauri_dir,
   Result,
 };
@@ -120,11 +120,7 @@ pub fn command(options: Options) -> Result<()> {
     })
     .map_err(|_| Error::GenericError("failed to parse iOS color".into()))?;
 
-  create_dir_all(&out_dir).map_err(|error| Error::Fs {
-    context: "failed to create output directory".into(),
-    path: out_dir.clone(),
-    error,
-  })?;
+  create_dir_all(&out_dir).fs_context("failed to create output directory", out_dir.clone())?;
 
   let source = if let Some(extension) = input.extension() {
     if extension == "svg" {
@@ -241,24 +237,16 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
       })?;
   }
 
-  let mut out_file =
-    BufWriter::new(
-      File::create(out_dir.join("icon.icns")).map_err(|error| Error::Fs {
-        context: "failed to create output file".into(),
-        path: out_dir.join("icon.icns"),
-        error,
-      })?,
-    );
-  family.write(&mut out_file).map_err(|error| Error::Fs {
-    context: "failed to write output file".into(),
-    path: out_dir.join("icon.icns"),
-    error,
-  })?;
-  out_file.flush().map_err(|error| Error::Fs {
-    context: "failed to flush output file".into(),
-    path: out_dir.join("icon.icns"),
-    error,
-  })?;
+  let mut out_file = BufWriter::new(
+    File::create(out_dir.join("icon.icns"))
+      .fs_context("failed to create output file", out_dir.join("icon.icns"))?,
+  );
+  family
+    .write(&mut out_file)
+    .fs_context("failed to write output file", out_dir.join("icon.icns"))?;
+  out_file
+    .flush()
+    .fs_context("failed to flush output file", out_dir.join("icon.icns"))?;
 
   Ok(())
 }
@@ -301,14 +289,10 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
     }
   }
 
-  let mut out_file =
-    BufWriter::new(
-      File::create(out_dir.join("icon.ico")).map_err(|error| Error::Fs {
-        context: "failed to create output file".into(),
-        path: out_dir.join("icon.ico"),
-        error,
-      })?,
-    );
+  let mut out_file = BufWriter::new(
+    File::create(out_dir.join("icon.ico"))
+      .fs_context("failed to create output file", out_dir.join("icon.ico"))?,
+  );
   let encoder = IcoEncoder::new(&mut out_file);
   encoder
     .encode_images(&frames)
@@ -316,11 +300,9 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
       context: "failed to encode images".into(),
       error,
     })?;
-  out_file.flush().map_err(|error| Error::Fs {
-    context: "failed to flush output file".into(),
-    path: out_dir.join("icon.ico"),
-    error,
-  })?;
+  out_file
+    .flush()
+    .fs_context("failed to flush output file", out_dir.join("icon.ico"))?;
 
   Ok(())
 }
@@ -389,11 +371,10 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
       let folder_name = format!("mipmap-{}", target.name);
       let out_folder = out_dir.join(&folder_name);
 
-      create_dir_all(&out_folder).map_err(|error| Error::Fs {
-        context: "failed to create Android mipmap output directory".into(),
-        path: out_folder.clone(),
-        error,
-      })?;
+      create_dir_all(&out_folder).fs_context(
+        "failed to create Android mipmap output directory",
+        out_folder.clone(),
+      )?;
 
       entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher_foreground.png"),
@@ -499,11 +480,7 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
     android_out
   } else {
     let out = out_dir.join("android");
-    create_dir_all(&out).map_err(|error| Error::Fs {
-      context: "failed to create Android output directory".into(),
-      path: out.clone(),
-      error,
-    })?;
+    create_dir_all(&out).fs_context("failed to create Android output directory", out.clone())?;
     out
   };
   entries.extend(android_entries(&out)?);
@@ -516,11 +493,7 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
     ios_out
   } else {
     let out = out_dir.join("ios");
-    create_dir_all(&out).map_err(|error| Error::Fs {
-      context: "failed to create iOS output directory".into(),
-      path: out.clone(),
-      error,
-    })?;
+    create_dir_all(&out).fs_context("failed to create iOS output directory", out.clone())?;
     out
   };
 
@@ -552,20 +525,18 @@ fn resize_and_save_png(
     image = bg_img.into();
   }
 
-  let mut out_file = BufWriter::new(File::create(file_path).map_err(|error| Error::Fs {
-    context: "failed to create output file".into(),
-    path: file_path.to_path_buf(),
-    error,
-  })?);
+  let mut out_file = BufWriter::new(
+    File::create(file_path).fs_context("failed to create output file", file_path.to_path_buf())?,
+  );
   write_png(image.as_bytes(), &mut out_file, size).map_err(|error| Error::Image {
     context: "failed to write output file".into(),
     error,
   })?;
-  Ok(out_file.flush().map_err(|error| Error::Fs {
-    context: "failed to flush output file".into(),
-    path: file_path.to_path_buf(),
-    error,
-  })?)
+  Ok(
+    out_file
+      .flush()
+      .fs_context("failed to flush output file", file_path.to_path_buf())?,
+  )
 }
 
 // Encode image data as png with compression.

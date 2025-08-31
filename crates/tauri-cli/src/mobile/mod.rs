@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{reload as reload_config, Config as TauriConfig, ConfigHandle, ConfigMetadata},
@@ -398,11 +398,7 @@ pub fn write_options(
       .context("app configuration is missing an identifier")?
   ));
 
-  write(&server_addr_path, addr.to_string()).map_err(|error| Error::Fs {
-    context: "failed to write server address file".into(),
-    path: server_addr_path,
-    error,
-  })?;
+  write(&server_addr_path, addr.to_string()).fs_context("failed to write server address file", server_addr_path)?;
 
   Ok(OptionsHandle(runtime, handle))
 }
@@ -527,13 +523,9 @@ fn ensure_init(
           .join(format!("{}.xcodeproj", app.name()))
           .join("project.pbxproj"),
       )
-      .map_err(|error| Error::Fs {
-        context: "missing project.pbxproj file in the Xcode project directory".into(),
-        path: project_dir
-          .join(format!("{}.xcodeproj", app.name()))
-          .join("project.pbxproj"),
-        error,
-      })?;
+      .fs_context("missing project.pbxproj file in the Xcode project directory", project_dir
+        .join(format!("{}.xcodeproj", app.name()))
+        .join("project.pbxproj"))?;
 
       if !(pbxproj_contents.contains(ios::LIB_OUTPUT_FILE_NAME)
         || pbxproj_contents.contains(&format!("lib{}.a", app.lib_name())))
@@ -566,27 +558,15 @@ fn ensure_gradlew(project_dir: &std::path::Path) -> Result<()> {
     let is_executable = permissions.mode() & 0o111 != 0;
     if !is_executable {
       permissions.set_mode(permissions.mode() | 0o111);
-      std::fs::set_permissions(&gradlew_path, permissions).map_err(|error| Error::Fs {
-        context: "failed to mark gradlew as executable".into(),
-        path: gradlew_path.clone(),
-        error,
-      })?;
+      std::fs::set_permissions(&gradlew_path, permissions).fs_context("failed to mark gradlew as executable", gradlew_path.clone())?;
     }
     std::fs::write(
       &gradlew_path,
       std::fs::read_to_string(&gradlew_path)
-        .map_err(|error| Error::Fs {
-          context: "failed to read gradlew".into(),
-          path: gradlew_path.clone(),
-          error,
-        })?
+        .fs_context("failed to read gradlew", gradlew_path.clone())?
         .replace("\r\n", "\n"),
     )
-    .map_err(|error| Error::Fs {
-      context: "failed to replace gradlew CRLF with LF".into(),
-      path: gradlew_path,
-      error,
-    })?;
+    .fs_context("failed to replace gradlew CRLF with LF", gradlew_path)?;
   }
 
   Ok(())

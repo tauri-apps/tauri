@@ -15,8 +15,6 @@ mod windows;
 
 use tauri_utils::{display_path, platform::Target as TargetPlatform};
 
-use crate::Error;
-
 /// Patch a binary with bundle type information
 fn patch_binary(binary: &PathBuf, package_type: &PackageType) -> crate::Result<()> {
   match package_type {
@@ -256,16 +254,17 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
         .map(|b| b.bundle_paths)
       {
         for app_bundle_path in &app_bundle_paths {
+          use crate::error::ErrorExt;
+
           log::info!(action = "Cleaning"; "{}", app_bundle_path.display());
           match app_bundle_path.is_dir() {
             true => std::fs::remove_dir_all(&app_bundle_path),
             false => std::fs::remove_file(&app_bundle_path),
           }
-          .map_err(|error| Error::Fs {
-            context: "failed to clean the app bundle",
-            path: app_bundle_path.to_path_buf(),
-            error,
-          })?
+          .fs_context(
+            "failed to clean the app bundle",
+            app_bundle_path.to_path_buf(),
+          )?;
         }
       }
     }

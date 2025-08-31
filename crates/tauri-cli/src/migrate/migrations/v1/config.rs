@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Error, Result};
+use crate::{Error, ErrorExt, Result};
 
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
@@ -29,11 +29,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
           error,
         })?,
       )
-      .map_err(|error| Error::Fs {
-        context: "failed to write config".into(),
-        path: config_path.clone(),
-        error,
-      })?;
+      .fs_context("failed to write config", config_path.clone())?;
     } else {
       fs::write(
         &config_path,
@@ -42,11 +38,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
           error,
         })?,
       )
-      .map_err(|error| Error::Fs {
-        context: "failed to write config".into(),
-        path: config_path.clone(),
-        error,
-      })?;
+      .fs_context("failed to write config", config_path.clone())?;
     }
 
     let mut permissions: Vec<PermissionEntry> = vec!["core:default"]
@@ -56,11 +48,10 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
-    fs::create_dir_all(&capabilities_path).map_err(|error| Error::Fs {
-      context: "failed to create capabilities directory".into(),
-      path: capabilities_path.clone(),
-      error,
-    })?;
+    fs::create_dir_all(&capabilities_path).fs_context(
+      "failed to create capabilities directory",
+      capabilities_path.clone(),
+    )?;
     fs::write(
       capabilities_path.join("migrated.json"),
       serde_json::to_string_pretty(&Capability {
@@ -78,11 +69,10 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         error,
       })?,
     )
-    .map_err(|error| Error::Fs {
-      context: "failed to write capabilities".into(),
-      path: capabilities_path.join("migrated.json"),
-      error,
-    })?;
+    .fs_context(
+      "failed to write capabilities",
+      capabilities_path.join("migrated.json"),
+    )?;
 
     return Ok(migrated);
   }

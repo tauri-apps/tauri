@@ -6,9 +6,9 @@
 use super::{app, icon::create_icns_file};
 use crate::{
   bundle::{settings::Arch, Bundle},
-  error::Context,
+  error::{Context, ErrorExt},
   utils::CommandExt,
-  Error, PackageType, Settings,
+  PackageType, Settings,
 };
 
 use std::{
@@ -67,17 +67,9 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
 
   for path in &[&support_directory_path, &output_path] {
     if path.exists() {
-      fs::remove_dir_all(path).map_err(|e| Error::Fs {
-        context: "failed to remove old dmg",
-        path: path.to_path_buf(),
-        error: e,
-      })?;
+      fs::remove_dir_all(path).fs_context("failed to remove old dmg", path.to_path_buf())?;
     }
-    fs::create_dir_all(path).map_err(|e| Error::Fs {
-      context: "failed to create output directory",
-      path: path.to_path_buf(),
-      error: e,
-    })?;
+    fs::create_dir_all(path).fs_context("failed to create output directory", path.to_path_buf())?;
   }
 
   // create paths for script

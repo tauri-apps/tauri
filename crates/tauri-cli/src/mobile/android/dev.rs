@@ -8,6 +8,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
+  error::ErrorExt,
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -144,11 +145,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).map_err(|error| Error::Fs {
-        context: "failed to read certificate file",
-        path: root_certificate_path.clone(),
-        error,
-      })?,
+      std::fs::read_to_string(root_certificate_path).fs_context("failed to read certificate file", root_certificate_path.clone())?,
     );
   }
 

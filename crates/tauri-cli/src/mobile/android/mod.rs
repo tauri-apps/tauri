@@ -35,7 +35,7 @@ use super::{
 use crate::{
   error::Context,
   helpers::config::{BundleResources, Config as TauriConfig},
-  ConfigValue, Error, Result,
+  ConfigValue, Error, ErrorExt, Result,
 };
 
 mod android_studio_script;
@@ -325,11 +325,7 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
     .project_dir()
     .join("app/src/main")
     .join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir).map_err(|error| Error::Fs {
-    context: "failed to create asset directory",
-    path: asset_dir.clone(),
-    error,
-  })?;
+  create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
 
   write(
     asset_dir.join("tauri.conf.json"),
@@ -338,11 +334,10 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
       error,
     })?,
   )
-  .map_err(|error| Error::Fs {
-    context: "failed to write tauri config".into(),
-    path: asset_dir.join("tauri.conf.json"),
-    error,
-  })?;
+  .fs_context(
+    "failed to write tauri config",
+    asset_dir.join("tauri.conf.json"),
+  )?;
 
   let resources = match &tauri_config.bundle.resources {
     Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),

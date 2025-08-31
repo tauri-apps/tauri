@@ -32,7 +32,7 @@ mod signer;
 use clap::{ArgAction, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use env_logger::fmt::style::{AnsiColor, Style};
 use env_logger::Builder;
-pub use error::{Error, Result};
+pub use error::{Error, ErrorExt, Result};
 use log::Level;
 use serde::{Deserialize, Serialize};
 use std::io::{BufReader, Write};
@@ -64,11 +64,7 @@ impl FromStr for ConfigValue {
       })?))
     } else {
       let path = PathBuf::from(config);
-      let raw = read_to_string(&path).map_err(|error| Error::Fs {
-        context: "failed to read configuration file",
-        path: path.clone(),
-        error,
-      })?;
+      let raw = read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
       match path.extension() {
         Some(ext) if ext == "toml" => Ok(Self(::toml::from_str(&raw).map_err(|error| {
           Error::DeserializeToml {

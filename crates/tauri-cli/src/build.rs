@@ -4,6 +4,7 @@
 
 use crate::{
   bundle::BundleFormat,
+  error::ErrorExt,
   helpers::{
     self,
     app_paths::{frontend_dir, tauri_dir},
@@ -205,11 +206,7 @@ pub fn setup(
     }
     if web_asset_path
       .canonicalize()
-      .map_err(|error| Error::Fs {
-        context: "failed to canonicalize path".into(),
-        path: web_asset_path.to_path_buf(),
-        error,
-      })?
+      .fs_context("failed to canonicalize path", web_asset_path.to_path_buf())?
       .file_name()
       == Some(std::ffi::OsStr::new("src-tauri"))
     {

@@ -9,7 +9,7 @@ use super::{
 };
 use crate::{
   build::Options as BuildOptions,
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -222,11 +222,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   ])?;
   merged_info_plist
     .to_file_xml(&info_plist_path)
-    .map_err(|error| Error::Fs {
-      context: "failed to save merged Info.plist file",
-      path: info_plist_path,
-      error: std::io::Error::other(error),
-    })?;
+    .map_err(std::io::Error::other)
+    .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
   let mut env = env()?;
 
@@ -269,11 +266,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     options.debug,
   )?;
   if pbxproj.has_changes() {
-    pbxproj.save().map_err(|error| Error::Fs {
-      context: "failed to save pbxproj file",
-      path: pbxproj.path,
-      error,
-    })?;
+    pbxproj
+      .save()
+      .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
   // merge export options and write to temp file
@@ -288,11 +283,11 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     ])?;
     merged_plist
       .to_file_xml(export_options.path())
-      .map_err(|error| Error::Fs {
-        context: "failed to save export options plist file",
-        path: export_options.path().to_path_buf(),
-        error: std::io::Error::other(error),
-      })?;
+      .map_err(std::io::Error::other)
+      .fs_context(
+        "failed to save export options plist file",
+        export_options.path().to_path_buf(),
+      )?;
 
     config.set_export_options_plist_path(export_options.path());
 
@@ -403,11 +398,8 @@ fn run_build(
       let out_dir = config.export_dir().join(target.arch);
 
       if target.sdk == "iphonesimulator" {
-        fs::create_dir_all(&out_dir).map_err(|error| Error::Fs {
-          context: "failed to create Xcode output directory",
-          path: out_dir.clone(),
-          error,
-        })?;
+        fs::create_dir_all(&out_dir)
+          .fs_context("failed to create Xcode output directory", out_dir.clone())?;
 
         let app_path = config
           .archive_dir()
@@ -418,11 +410,7 @@ fn run_build(
           .with_extension("app");
 
         let path = out_dir.join(app_path.file_name().unwrap());
-        fs::rename(&app_path, &path).map_err(|error| Error::Fs {
-          context: "failed to rename app",
-          path: app_path,
-          error,
-        })?;
+        fs::rename(&app_path, &path).fs_context("failed to rename app", app_path)?;
         out_files.push(path);
       } else {
         // if we skipped code signing, we do not have the entitlements applied to our exported IPA
@@ -443,11 +431,8 @@ fn run_build(
           )?;
           let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
           let cert_path = tmp_dir.path().join("cert.p12");
-          std::fs::write(&cert_path, certificate).map_err(|error| Error::Fs {
-            context: "failed to write certificate",
-            path: cert_path.clone(),
-            error,
-          })?;
+          std::fs::write(&cert_path, certificate)
+            .fs_context("failed to write certificate", cert_path.clone())?;
           let self_signed_cert_keychain =
             tauri_macos_sign::Keychain::with_certificate_file(&cert_path, &password.into())?;
 
@@ -477,17 +462,10 @@ fn run_build(
         target.export(config, env, noise_level, export_config)?;
 
         if let Ok(ipa_path) = config.ipa_path() {
-          fs::create_dir_all(&out_dir).map_err(|error| Error::Fs {
-            context: "failed to create Xcode output directory",
-            path: out_dir.clone(),
-            error,
-          })?;
+          fs::create_dir_all(&out_dir)
+            .fs_context("failed to create Xcode output directory", out_dir.clone())?;
           let path = out_dir.join(ipa_path.file_name().unwrap());
-          fs::rename(&ipa_path, &path).map_err(|error| Error::Fs {
-            context: "failed to rename IPA",
-            path: ipa_path,
-            error,
-          })?;
+          fs::rename(&ipa_path, &path).fs_context("failed to rename IPA", ipa_path)?;
           out_files.push(path);
         }
       }

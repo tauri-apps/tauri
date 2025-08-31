@@ -13,6 +13,7 @@ use crate::{
       },
     },
   },
+  error::ErrorExt,
   utils::{
     http_utils::{download_and_verify, verify_file_hash, HashAlgorithm},
     CommandExt,
@@ -104,21 +105,10 @@ pub fn bundle_project(settings: &Settings, updater: bool) -> crate::Result<Vec<P
       for (path, url, hash, hash_algorithm) in mismatched {
         let data = download_and_verify(url, hash, *hash_algorithm)?;
         let out_path = nsis_toolset_path.join(path);
-        std::fs::create_dir_all(
-          out_path
-            .parent()
-            .ok_or_else(|| Error::GenericError("output path has no parent".to_string()))?,
-        )
-        .map_err(|error| Error::Fs {
-          context: "failed to create file output directory",
-          path: out_path.clone(),
-          error,
-        })?;
-        fs::write(&out_path, data).map_err(|error| Error::Fs {
-          context: "failed to save NSIS downloaded file",
-          path: out_path.clone(),
-          error,
-        })?;
+        std::fs::create_dir_all(out_path.parent().context("output path has no parent")?)
+          .fs_context("failed to create file output directory", out_path.clone())?;
+        fs::write(&out_path, data)
+          .fs_context("failed to save NSIS downloaded file", out_path.clone())?;
       }
     }
   }
@@ -214,7 +204,7 @@ fn build_nsis_app_installer(
     #[cfg(target_os = "macos")]
     let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
       .map(PathBuf::from)
-      .ok_or_else(|| Error::GenericError("failed to resolve NSIS path".to_string()))
+      .context("failed to resolve NSIS path")
       .or_else(|_| {
         let mut makensis_path = which::which("makensis").map_err(|error| Error::CommandFailed {
           command: "makensis".to_string(),
@@ -225,32 +215,24 @@ fn build_nsis_app_installer(
           // read_link might return a path relative to makensis_path so we must use join() and canonicalize
           makensis_path = makensis_path
             .parent()
-            .ok_or_else(|| Error::GenericError("missing makensis parent".to_string()))?
+            .context("missing makensis parent")?
             .join(
-              std::fs::read_link(&makensis_path).map_err(|error| Error::Fs {
-                context: "failed to resolve makensis symlink",
-                path: makensis_path.clone(),
-                error,
-              })?,
+              std::fs::read_link(&makensis_path)
+                .fs_context("failed to resolve makensis symlink", makensis_path.clone())?,
             )
             .canonicalize()
-            .map_err(|error| Error::Fs {
-              context: "failed to canonicalize makensis path",
-              path: makensis_path.clone(),
-              error,
-            })?;
+            .fs_context(
+              "failed to canonicalize makensis path",
+              makensis_path.clone(),
+            )?;
         }
         // file structure:
         // ├── bin
         // │   ├── makensis
         // ├── share
         // │   ├── nsis
-        let bin_folder = makensis_path
-          .parent()
-          .ok_or_else(|| Error::GenericError("missing makensis parent".to_string()))?;
-        let root_folder = bin_folder
-          .parent()
-          .ok_or_else(|| Error::GenericError("missing makensis root".to_string()))?;
+        let bin_folder = makensis_path.parent().context("missing makensis parent")?;
+        let root_folder = bin_folder.parent().context("missing makensis root")?;
         crate::Result::Ok(root_folder.join("share").join("nsis"))
       })?;
     #[cfg(windows)]

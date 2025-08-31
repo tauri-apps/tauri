@@ -225,3 +225,17 @@ impl<T> Context<T> for Option<T> {
     self.ok_or_else(|| Error::GenericError(f().to_string()))
   }
 }
+
+pub trait ErrorExt<T> {
+  fn fs_context(self, context: &'static str, path: impl Into<PathBuf>) -> Result<T>;
+}
+
+impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
+  fn fs_context(self, context: &'static str, path: impl Into<PathBuf>) -> Result<T> {
+    self.map_err(|error| Error::Fs {
+      context: context.into(),
+      path: path.into(),
+      error,
+    })
+  }
+}

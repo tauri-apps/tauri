@@ -7,6 +7,7 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
+  error::ErrorExt,
   helpers::{app_paths::resolve_tauri_dir, prompts},
   Error, Result,
 };
@@ -152,11 +153,10 @@ pub fn command(options: Options) -> Result<()> {
     .and_then(|(plugin, _permission)| known_plugins.get(&plugin));
 
   let capabilities_iter = std::fs::read_dir(&capabilities_dir)
-    .map_err(|error| Error::Fs {
-      context: "failed to read capabilities directory".into(),
-      path: capabilities_dir.clone(),
-      error,
-    })?
+    .fs_context(
+      "failed to read capabilities directory",
+      capabilities_dir.clone(),
+    )?
     .flatten()
     .filter(|e| e.file_type().map(|e| e.is_file()).unwrap_or_default())
     .filter_map(|e| {
@@ -273,11 +273,8 @@ pub fn command(options: Options) -> Result<()> {
       );
     } else {
       capability.insert_permission(options.identifier.clone());
-      std::fs::write(&*path, capability.to_string()?).map_err(|error| Error::Fs {
-        context: "failed to write capability file".into(),
-        path: path.clone(),
-        error,
-      })?;
+      std::fs::write(&*path, capability.to_string()?)
+        .fs_context("failed to write capability file", path.clone())?;
       log::info!(action = "Added"; "permission `{}` to `{}` at {}", options.identifier, capability.identifier(), dunce::simplified(path).display());
     }
   }

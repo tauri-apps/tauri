@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::Context,
+  error::Context, ErrorExt,
   helpers::{config::Config as TauriConfig, template},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
   Error, Result,
@@ -177,17 +177,9 @@ pub fn gen(
   .with_context(|| "failed to process template")?;
 
   if let Some(template_path) = tauri_config.bundle.ios.template.as_ref() {
-    let template = std::fs::read_to_string(template_path).map_err(|error| Error::Fs {
-      context: "failed to read custom Xcode project template",
-      path: template_path.to_path_buf(),
-      error,
-    })?;
+    let template = std::fs::read_to_string(template_path).fs_context("failed to read custom Xcode project template", template_path.to_path_buf())?;
     let mut output_file =
-      std::fs::File::create(dest.join("project.yml")).map_err(|error| Error::Fs {
-        context: "failed to create project.yml file",
-        path: dest.join("project.yml"),
-        error,
-      })?;
+      std::fs::File::create(dest.join("project.yml")).fs_context("failed to create project.yml file", dest.join("project.yml"))?;
     handlebars
       .render_template_to_write(&template, map.inner(), &mut output_file)
       .expect("Failed to render template");
@@ -200,11 +192,7 @@ pub fn gen(
 
   // Create all required project directories if they don't already exist
   for dir in &dirs_to_create {
-    std::fs::create_dir_all(dir).map_err(|cause| Error::Fs {
-      context: "failed to create directory",
-      path: dir.to_path_buf(),
-      error: cause,
-    })?;
+    std::fs::create_dir_all(dir).fs_context("failed to create directory", dir.to_path_buf())?;
   }
 
   // Note that Xcode doesn't always reload the project nicely; reopening is

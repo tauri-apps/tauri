@@ -8,6 +8,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
+  error::ErrorExt,
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -148,11 +149,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).map_err(|error| Error::Fs {
-        context: "failed to read root certificate file",
-        path: root_certificate_path.clone(),
-        error,
-      })?,
+      std::fs::read_to_string(root_certificate_path).fs_context(
+        "failed to read root certificate file",
+        root_certificate_path.clone(),
+      )?,
     );
   }
 
@@ -219,11 +219,8 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   ])?;
   merged_info_plist
     .to_file_xml(&info_plist_path)
-    .map_err(|error| Error::Fs {
-      context: "failed to save merged Info.plist file",
-      path: info_plist_path,
-      error: std::io::Error::other(error),
-    })?;
+    .map_err(std::io::Error::other)
+    .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
   let mut pbxproj = load_pbxproj(&config)?;
 
@@ -241,11 +238,9 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     !options.release_mode,
   )?;
   if pbxproj.has_changes() {
-    pbxproj.save().map_err(|error| Error::Fs {
-      context: "failed to save pbxproj file",
-      path: pbxproj.path,
-      error,
-    })?;
+    pbxproj
+      .save()
+      .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
   run_dev(

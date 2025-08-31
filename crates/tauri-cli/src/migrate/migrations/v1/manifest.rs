@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::Error,
+  error::ErrorExt,
   interface::rust::manifest::{read_manifest, serialize_manifest},
   Result,
 };
@@ -20,11 +20,8 @@ pub fn migrate(tauri_dir: &Path) -> Result<()> {
   let (mut manifest, _) = read_manifest(&manifest_path)?;
   migrate_manifest(&mut manifest)?;
 
-  std::fs::write(&manifest_path, serialize_manifest(&manifest)).map_err(|error| Error::Fs {
-    context: "failed to rewrite Cargo manifest".into(),
-    path: manifest_path.clone(),
-    error,
-  })?;
+  std::fs::write(&manifest_path, serialize_manifest(&manifest))
+    .fs_context("failed to rewrite Cargo manifest", manifest_path.clone())?;
 
   Ok(())
 }

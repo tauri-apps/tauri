@@ -29,7 +29,7 @@ use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Runner
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
-  error::{Context, Error},
+  error::{Context, Error, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
@@ -735,11 +735,7 @@ impl CargoSettings {
   /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
-    let toml_str = std::fs::read_to_string(&toml_path).map_err(|error| crate::Error::Fs {
-      context: "Failed to read Cargo manifest",
-      path: toml_path.clone(),
-      error,
-    })?;
+    let toml_str = std::fs::read_to_string(&toml_path).fs_context("Failed to read Cargo manifest", toml_path.clone())?;
     toml::from_str(&toml_str).map_err(|error| crate::Error::DeserializeToml {
       context: format!("failed to parse Cargo manifest at {}", toml_path.display()).into(),
       error: error,

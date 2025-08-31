@@ -8,15 +8,12 @@ use std::{
   path::{Path, PathBuf},
 };
 
-use crate::Error;
+use crate::error::ErrorExt;
 
 pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
   let path = path.as_ref();
-  let pbxproj = std::fs::read_to_string(path).map_err(|error| Error::Fs {
-    context: "failed to read pbxproj file".into(),
-    path: path.to_path_buf(),
-    error,
-  })?;
+  let pbxproj =
+    std::fs::read_to_string(path).fs_context("failed to read pbxproj file", path.to_path_buf())?;
 
   let mut proj = Pbxproj {
     path: path.to_owned(),

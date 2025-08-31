@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{Context, Error},
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     npm::PackageManager,
@@ -28,11 +28,10 @@ pub fn run() -> Result<()> {
 
   migrate_npm_dependencies(frontend_dir)?;
 
-  std::fs::write(&manifest_path, serialize_manifest(&manifest)).map_err(|error| Error::Fs {
-    context: "failed to rewrite Cargo manifest",
-    path: manifest_path.to_path_buf(),
-    error,
-  })?;
+  std::fs::write(&manifest_path, serialize_manifest(&manifest)).fs_context(
+    "failed to rewrite Cargo manifest",
+    manifest_path.to_path_buf(),
+  )?;
 
   Ok(())
 }
@@ -100,26 +99,19 @@ fn migrate_permissions(tauri_dir: &Path) -> Result<()> {
   ];
 
   for entry in walkdir::WalkDir::new(tauri_dir.join("capabilities")) {
-    let entry = entry.map_err(|error| Error::Fs {
-      context: "failed to walk capabilities directory".into(),
-      path: tauri_dir.join("capabilities"),
-      error: std::io::Error::other(error),
-    })?;
+    let entry = entry.map_err(std::io::Error::other).fs_context(
+      "failed to walk capabilities directory",
+      tauri_dir.join("capabilities"),
+    )?;
     let path = entry.path();
     if path.extension().is_some_and(|ext| ext == "json") {
-      let mut capability = read_to_string(path).map_err(|error| Error::Fs {
-        context: "failed to read capability",
-        path: path.to_path_buf(),
-        error,
-      })?;
+      let mut capability =
+        read_to_string(path).fs_context("failed to read capability", path.to_path_buf())?;
       for plugin in core_plugins {
         capability = capability.replace(&format!("\"{plugin}:"), &format!("\"core:{plugin}:"));
       }
-      std::fs::write(path, capability).map_err(|error| Error::Fs {
-        context: "failed to rewrite capability",
-        path: path.to_path_buf(),
-        error,
-      })?;
+      std::fs::write(path, capability)
+        .fs_context("failed to rewrite capability", path.to_path_buf())?;
     }
   }
   Ok(())

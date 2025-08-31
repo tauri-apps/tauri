@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Error;
+use crate::{error::ErrorExt, Error};
 use std::path::Path;
 
 pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<()> {
@@ -23,15 +23,7 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
     })?;
   }
   let dest_dir = to.parent().expect("No data in parent");
-  std::fs::create_dir_all(dest_dir).map_err(|error| Error::Fs {
-    context: "failed to create directory".into(),
-    path: dest_dir.to_path_buf(),
-    error,
-  })?;
-  std::fs::copy(from, to).map_err(|error| Error::Fs {
-    context: "failed to copy file".into(),
-    path: from.to_path_buf(),
-    error,
-  })?;
+  std::fs::create_dir_all(dest_dir).fs_context("failed to create directory", dest_dir.to_path_buf())?;
+  std::fs::copy(from, to).fs_context("failed to copy file", from.to_path_buf())?;
   Ok(())
 }

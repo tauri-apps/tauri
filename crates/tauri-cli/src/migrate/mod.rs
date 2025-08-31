@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{bail, Context},
+  error::{bail, Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     cargo_manifest::{crate_version, CargoLock, CargoManifest},
@@ -22,11 +22,7 @@ pub fn command() -> Result<()> {
   let tauri_dir = tauri_dir();
 
   let manifest_contents =
-    read_to_string(tauri_dir.join("Cargo.toml")).map_err(|error| Error::Fs {
-      context: "failed to read Cargo manifest".into(),
-      path: tauri_dir.join("Cargo.toml"),
-      error,
-    })?;
+    read_to_string(tauri_dir.join("Cargo.toml")).fs_context("failed to read Cargo manifest", tauri_dir.join("Cargo.toml"))?;
   let manifest = toml::from_str::<CargoManifest>(&manifest_contents).map_err(|error| {
     Error::DeserializeToml {
       context: "failed to parse Cargo manifest".into(),
@@ -37,11 +33,7 @@ pub fn command() -> Result<()> {
   let workspace_dir = get_workspace_dir()?;
   let lock_path = workspace_dir.join("Cargo.lock");
   let lock = if lock_path.exists() {
-    let lockfile_contents = read_to_string(&lock_path).map_err(|error| Error::Fs {
-      context: "failed to read Cargo lockfile".into(),
-      path: lock_path,
-      error,
-    })?;
+    let lockfile_contents = read_to_string(&lock_path).fs_context("failed to read Cargo lockfile", lock_path)?;
     let lock =
       toml::from_str::<CargoLock>(&lockfile_contents).map_err(|error| Error::DeserializeToml {
         context: "failed to parse Cargo lockfile".into(),

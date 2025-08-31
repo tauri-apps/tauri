@@ -8,7 +8,7 @@ use clap::Parser;
 
 use crate::{
   acl::FileFormat,
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
   Error, Result,
 };
@@ -68,11 +68,9 @@ pub fn command(options: Options) -> Result<()> {
   };
 
   let path = match options.out {
-    Some(o) => o.canonicalize().map_err(|error| Error::Fs {
-      context: "failed to canonicalize permission file path".into(),
-      path: o.clone(),
-      error,
-    })?,
+    Some(o) => o
+      .canonicalize()
+      .fs_context("failed to canonicalize permission file path", o.clone())?,
     None => {
       let dir = match resolve_tauri_dir() {
         Some(t) => t,
@@ -94,22 +92,17 @@ pub fn command(options: Options) -> Result<()> {
     );
     let overwrite = prompts::confirm(&format!("{msg}, overwrite?"), Some(false))?;
     if overwrite {
-      std::fs::remove_file(&path).map_err(|error| Error::Fs {
-        context: "failed to remove permission file".into(),
-        path: path.clone(),
-        error,
-      })?;
+      std::fs::remove_file(&path).fs_context("failed to remove permission file", path.clone())?;
     } else {
       crate::error::bail!(msg);
     }
   }
 
   if let Some(parent) = path.parent() {
-    std::fs::create_dir_all(parent).map_err(|error| Error::Fs {
-      context: "failed to create permission directory".into(),
-      path: parent.to_path_buf(),
-      error,
-    })?;
+    std::fs::create_dir_all(parent).fs_context(
+      "failed to create permission directory",
+      parent.to_path_buf(),
+    )?;
   }
 
   std::fs::write(
@@ -123,11 +116,7 @@ pub fn command(options: Options) -> Result<()> {
       })
       .context("failed to serialize permission")?,
   )
-  .map_err(|error| Error::Fs {
-    context: "failed to write permission file".into(),
-    path: path.clone(),
-    error,
-  })?;
+  .fs_context("failed to write permission file", path.clone())?;
 
   log::info!(action = "Created"; "permission at {}", dunce::simplified(&path).display());
 

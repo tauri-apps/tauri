@@ -4,7 +4,7 @@
 
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
   interface::{AppInterface, Interface},
   mobile::CliOptions,
@@ -175,11 +175,7 @@ pub fn command(options: Options) -> Result<()> {
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  let so_bytes = std::fs::read(path).map_err(|error| Error::Fs {
-    context: "failed to read library",
-    path: path.to_path_buf(),
-    error,
-  })?;
+  let so_bytes = std::fs::read(path).fs_context("failed to read library", path.to_path_buf())?;
   let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&so_bytes)
     .map_err(Into::into)
     .context("failed to parse ELF")?;

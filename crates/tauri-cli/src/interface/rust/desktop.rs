@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{AppSettings, DevProcess, ExitReason, Options, RustAppSettings, RustupTarget};
-use crate::{error::Context, CommandExt, Error};
+use crate::{error::{Context, ErrorExt}, CommandExt, Error};
 
 use shared_child::SharedChild;
 use std::{
@@ -164,11 +164,7 @@ pub fn build(
   }
 
   if options.target == Some("universal-apple-darwin".into()) {
-    std::fs::create_dir_all(&out_dir).map_err(|error| Error::Fs {
-      context: "failed to create project out directory",
-      path: out_dir.clone(),
-      error,
-    })?;
+    std::fs::create_dir_all(&out_dir).fs_context("failed to create project out directory", out_dir.clone())?;
 
     let bin_name = bin_path.file_stem().unwrap();
 
@@ -335,11 +331,7 @@ fn rename_app(
       ""
     };
     let new_path = bin_path.with_file_name(format!("{main_binary_name}{extension}"));
-    fs::rename(&bin_path, &new_path).map_err(|error| Error::Fs {
-      context: "failed to rename app binary".into(),
-      path: bin_path.clone(),
-      error,
-    })?;
+    fs::rename(&bin_path, &new_path).fs_context("failed to rename app binary", bin_path.clone())?;
     Ok(new_path)
   } else {
     Ok(bin_path)

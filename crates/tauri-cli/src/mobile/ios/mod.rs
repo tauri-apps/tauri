@@ -27,6 +27,7 @@ use super::{
   OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
+  error::ErrorExt,
   helpers::{
     app_paths::tauri_dir,
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
@@ -403,11 +404,7 @@ fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
 
 fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<()> {
   let asset_dir = config.project_dir().join(DEFAULT_ASSET_DIR);
-  create_dir_all(&asset_dir).map_err(|error| Error::Fs {
-    context: "failed to create asset directory".into(),
-    path: asset_dir.clone(),
-    error,
-  })?;
+  create_dir_all(&asset_dir).fs_context("failed to create asset directory", asset_dir.clone())?;
 
   let resources = match &tauri_config.bundle.resources {
     Some(BundleResources::List(paths)) => Some(ResourcePaths::new(paths.as_slice(), true)),

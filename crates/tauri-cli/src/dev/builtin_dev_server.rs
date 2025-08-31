@@ -18,7 +18,7 @@ use std::{
 use tauri_utils::mime_type::MimeType;
 use tokio::sync::broadcast::{channel, Sender};
 
-use crate::Error;
+use crate::error::ErrorExt;
 
 const RELOAD_SCRIPT: &str = include_str!("./auto-reload.js");
 
@@ -31,11 +31,8 @@ struct ServerState {
 
 pub fn start<P: AsRef<Path>>(dir: P, ip: IpAddr, port: Option<u16>) -> crate::Result<SocketAddr> {
   let dir = dir.as_ref();
-  let dir = dunce::canonicalize(dir).map_err(|error| Error::Fs {
-    context: "failed to canonicalize path".into(),
-    path: dir.to_path_buf(),
-    error,
-  })?;
+  let dir =
+    dunce::canonicalize(dir).fs_context("failed to canonicalize path", dir.to_path_buf())?;
 
   // bind port and tcp listener
   let auto_port = port.is_none();
@@ -158,17 +155,9 @@ fn inject_address(html_bytes: Vec<u8>, address: &SocketAddr) -> Vec<u8> {
 }
 
 fn fs_read_scoped(path: PathBuf, scope: &Path) -> crate::Result<Vec<u8>> {
-  let path = dunce::canonicalize(&path).map_err(|error| Error::Fs {
-    context: "failed to canonicalize path".into(),
-    path: path.clone(),
-    error,
-  })?;
+  let path = dunce::canonicalize(&path).fs_context("failed to canonicalize path", path.clone())?;
   if path.starts_with(scope) {
-    std::fs::read(&path).map_err(|error| Error::Fs {
-      context: "failed to read file".into(),
-      path: path.clone(),
-      error,
-    })
+    std::fs::read(&path).fs_context("failed to read file", path.clone())
   } else {
     crate::error::bail!("forbidden path")
   }

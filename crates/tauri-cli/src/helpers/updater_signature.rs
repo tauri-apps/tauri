@@ -14,7 +14,10 @@ use std::{
   time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{error::Context, Error};
+use crate::{
+  error::{Context, ErrorExt},
+  Error,
+};
 
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]
@@ -25,17 +28,9 @@ pub struct KeyPair {
 
 fn create_file(path: &Path) -> crate::Result<BufWriter<File>> {
   if let Some(parent) = path.parent() {
-    fs::create_dir_all(parent).map_err(|error| Error::Fs {
-      context: "failed to create directory".into(),
-      path: parent.to_path_buf(),
-      error,
-    })?;
+    fs::create_dir_all(parent).fs_context("failed to create directory", parent.to_path_buf())?;
   }
-  let file = File::create(path).map_err(|error| Error::Fs {
-    context: "failed to create file".into(),
-    path: path.to_path_buf(),
-    error,
-  })?;
+  let file = File::create(path).fs_context("failed to create file", path.to_path_buf())?;
   Ok(BufWriter::new(file))
 }
 
@@ -90,20 +85,14 @@ where
         sk_path.display()
       );
     } else {
-      std::fs::remove_file(sk_path).map_err(|error| Error::Fs {
-        context: "failed to remove secret key file".into(),
-        path: sk_path.to_path_buf(),
-        error,
-      })?;
+      std::fs::remove_file(sk_path)
+        .fs_context("failed to remove secret key file", sk_path.to_path_buf())?;
     }
   }
 
   if pk_path.exists() {
-    std::fs::remove_file(pk_path).map_err(|error| Error::Fs {
-      context: "failed to remove public key file".into(),
-      path: pk_path.to_path_buf(),
-      error,
-    })?;
+    std::fs::remove_file(pk_path)
+      .fs_context("failed to remove public key file", pk_path.to_path_buf())?;
   }
 
   let write_file = |mut writer: BufWriter<File>, contents: &str| -> std::io::Result<()> {
@@ -112,29 +101,21 @@ where
     Ok(())
   };
 
-  write_file(create_file(sk_path)?, key).map_err(|error| Error::Fs {
-    context: "failed to write secret key".into(),
-    path: sk_path.to_path_buf(),
-    error,
-  })?;
+  write_file(create_file(sk_path)?, key)
+    .fs_context("failed to write secret key", sk_path.to_path_buf())?;
 
-  write_file(create_file(pk_path)?, pubkey).map_err(|error| Error::Fs {
-    context: "failed to write public key".into(),
-    path: pk_path.to_path_buf(),
-    error,
-  })?;
+  write_file(create_file(pk_path)?, pubkey)
+    .fs_context("failed to write public key", pk_path.to_path_buf())?;
 
   Ok((
-    fs::canonicalize(sk_path).map_err(|error| Error::Fs {
-      context: "failed to canonicalize secret key path".into(),
-      path: sk_path.to_path_buf(),
-      error,
-    })?,
-    fs::canonicalize(pk_path).map_err(|error| Error::Fs {
-      context: "failed to canonicalize public key path".into(),
-      path: pk_path.to_path_buf(),
-      error,
-    })?,
+    fs::canonicalize(sk_path).fs_context(
+      "failed to canonicalize secret key path",
+      sk_path.to_path_buf(),
+    )?,
+    fs::canonicalize(pk_path).fs_context(
+      "failed to canonicalize public key path",
+      pk_path.to_path_buf(),
+    )?,
   ))
 }
 
@@ -167,17 +148,13 @@ where
 
   let encoded_signature =
     base64::engine::general_purpose::STANDARD.encode(signature_box.to_string());
-  std::fs::write(&signature_path, encoded_signature.as_bytes()).map_err(|error| Error::Fs {
-    context: "failed to write signature file".into(),
-    path: signature_path.clone(),
-    error,
-  })?;
+  std::fs::write(&signature_path, encoded_signature.as_bytes())
+    .fs_context("failed to write signature file", signature_path.clone())?;
   Ok((
-    fs::canonicalize(&signature_path).map_err(|error| Error::Fs {
-      context: "failed to canonicalize signature file".into(),
-      path: signature_path.clone(),
-      error,
-    })?,
+    fs::canonicalize(&signature_path).fs_context(
+      "failed to canonicalize signature file",
+      signature_path.clone(),
+    )?,
     signature_box,
   ))
 }
@@ -224,11 +201,7 @@ where
   let file = OpenOptions::new()
     .read(true)
     .open(data_path)
-    .map_err(|error| Error::Fs {
-      context: "failed to open data file".into(),
-      path: data_path.to_path_buf(),
-      error,
-    })?;
+    .fs_context("failed to open data file", data_path.to_path_buf())?;
   Ok(BufReader::new(file))
 }
 

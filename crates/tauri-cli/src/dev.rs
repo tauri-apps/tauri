@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     command_env,
@@ -278,11 +278,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
   if !options.no_dev_server && dev_url.is_none() {
     if let Some(FrontendDist::Directory(path)) = &frontend_dist {
       if path.exists() {
-        let path = path.canonicalize().map_err(|error| Error::Fs {
-          context: "failed to canonicalize path".into(),
-          path: path.to_path_buf(),
-          error,
-        })?;
+        let path = path.canonicalize().fs_context("failed to canonicalize path", path.to_path_buf())?;
 
         let ip = options
           .host

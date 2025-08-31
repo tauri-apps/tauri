@@ -8,23 +8,20 @@ use clap::Parser;
 use tauri_utils::acl::{manifest::PermissionFile, PERMISSION_SCHEMA_FILE_NAME};
 
 use crate::{
-  acl::FileFormat, error::Context, helpers::app_paths::resolve_tauri_dir, Error, Result,
+  acl::FileFormat,
+  error::{Context, ErrorExt},
+  helpers::app_paths::resolve_tauri_dir,
+  Error, Result,
 };
 
 fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
   for entry in std::fs::read_dir(dir)
-    .map_err(|error| Error::Fs {
-      context: "failed to read permissions directory".into(),
-      path: dir.to_path_buf(),
-      error,
-    })?
+    .fs_context("failed to read permissions directory", dir.to_path_buf())?
     .flatten()
   {
-    let file_type = entry.file_type().map_err(|error| Error::Fs {
-      context: "failed to get permission file type".into(),
-      path: entry.path(),
-      error,
-    })?;
+    let file_type = entry
+      .file_type()
+      .fs_context("failed to get permission file type", entry.path())?;
     let path = entry.path();
     if file_type.is_dir() {
       rm_permission_files(identifier, &path)?;
@@ -40,11 +37,8 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
       let (mut permission_file, format): (PermissionFile, FileFormat) =
         match path.extension().and_then(|o| o.to_str()) {
           Some("toml") => {
-            let content = std::fs::read_to_string(&path).map_err(|error| Error::Fs {
-              context: "failed to read permission file".into(),
-              path: path.clone(),
-              error,
-            })?;
+            let content = std::fs::read_to_string(&path)
+              .fs_context("failed to read permission file", path.clone())?;
             (
               toml::from_str(&content).map_err(|error| Error::DeserializeToml {
                 context: "failed to deserialize permission file".into(),
@@ -54,11 +48,8 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
             )
           }
           Some("json") => {
-            let content = std::fs::read(&path).map_err(|error| Error::Fs {
-              context: "failed to read permission file".into(),
-              path: path.clone(),
-              error,
-            })?;
+            let content =
+              std::fs::read(&path).fs_context("failed to read permission file", path.clone())?;
             (
               serde_json::from_slice(&content).map_err(|error| Error::Json {
                 context: "failed to parse permission file as JSON".into(),
@@ -96,11 +87,7 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
         && permission_file.set.is_empty()
         && permission_file.permission.is_empty()
       {
-        std::fs::remove_file(&path).map_err(|error| Error::Fs {
-          context: "failed to remove permission file".into(),
-          path: path.clone(),
-          error,
-        })?;
+        std::fs::remove_file(&path).fs_context("failed to remove permission file", path.clone())?;
         log::info!(action = "Removed"; "file {}", dunce::simplified(&path).display());
       } else if updated {
         std::fs::write(
@@ -109,11 +96,7 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
             .serialize(&permission_file)
             .context("failed to serialize permission")?,
         )
-        .map_err(|error| Error::Fs {
-          context: "failed to write permission file".into(),
-          path: path.clone(),
-          error,
-        })?;
+        .fs_context("failed to write permission file", path.clone())?;
         log::info!(action = "Removed"; "permission {identifier} from {}", dunce::simplified(&path).display());
       }
     }
@@ -124,27 +107,18 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
 
 fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
   for entry in std::fs::read_dir(dir)
-    .map_err(|error| Error::Fs {
-      context: "failed to read capabilities directory".into(),
-      path: dir.to_path_buf(),
-      error,
-    })?
+    .fs_context("failed to read capabilities directory", dir.to_path_buf())?
     .flatten()
   {
-    let file_type = entry.file_type().map_err(|error| Error::Fs {
-      context: "failed to get capability file type".into(),
-      path: entry.path(),
-      error,
-    })?;
+    let file_type = entry
+      .file_type()
+      .fs_context("failed to get capability file type", entry.path())?;
     if file_type.is_file() {
       let path = entry.path();
       match path.extension().and_then(|o| o.to_str()) {
         Some("toml") => {
-          let content = std::fs::read_to_string(&path).map_err(|error| Error::Fs {
-            context: "failed to read capability file".into(),
-            path: path.clone(),
-            error,
-          })?;
+          let content = std::fs::read_to_string(&path)
+            .fs_context("failed to read capability file", path.clone())?;
           if let Ok(mut value) = content.parse::<toml_edit::DocumentMut>() {
             if let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut()) {
               let prev_len = permissions.len();
@@ -160,22 +134,16 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
                 _ => false,
               });
               if prev_len != permissions.len() {
-                std::fs::write(&path, value.to_string()).map_err(|error| Error::Fs {
-                  context: "failed to write capability file".into(),
-                  path: path.clone(),
-                  error,
-                })?;
+                std::fs::write(&path, value.to_string())
+                  .fs_context("failed to write capability file", path.clone())?;
                 log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
               }
             }
           }
         }
         Some("json") => {
-          let content = std::fs::read(&path).map_err(|error| Error::Fs {
-            context: "failed to read capability file".into(),
-            path: path.clone(),
-            error,
-          })?;
+          let content =
+            std::fs::read(&path).fs_context("failed to read capability file", path.clone())?;
           if let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(&content) {
             if let Some(permissions) = value.get_mut("permissions").and_then(|p| p.as_array_mut()) {
               let prev_len = permissions.len();
@@ -198,11 +166,7 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
                     error,
                   })?,
                 )
-                .map_err(|error| Error::Fs {
-                  context: "failed to write capability file".into(),
-                  path: path.clone(),
-                  error,
-                })?;
+                .fs_context("failed to write capability file", path.clone())?;
                 log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
               }
             }

@@ -13,7 +13,7 @@ use tauri_bundler::PackageType;
 use tauri_utils::platform::Target;
 
 use crate::{
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::tauri_dir,
@@ -244,11 +244,8 @@ fn sign_updaters(
   // check if pubkey points to a file...
   let maybe_path = Path::new(pubkey);
   let pubkey = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path).map_err(|error| Error::Fs {
-      context: "failed to read pubkey from file",
-      path: maybe_path.to_path_buf(),
-      error,
-    })?
+    std::fs::read_to_string(maybe_path)
+      .fs_context("failed to read pubkey from file", maybe_path.to_path_buf())?
   } else {
     pubkey.to_string()
   };
@@ -265,11 +262,10 @@ fn sign_updaters(
   // check if private_key points to a file...
   let maybe_path = Path::new(&private_key);
   let private_key = if maybe_path.exists() {
-    std::fs::read_to_string(maybe_path).map_err(|error| Error::Fs {
-      context: "failed to read private key from file",
-      path: maybe_path.to_path_buf(),
-      error,
-    })?
+    std::fs::read_to_string(maybe_path).fs_context(
+      "failed to read private key from file",
+      maybe_path.to_path_buf(),
+    )?
   } else {
     private_key
   };

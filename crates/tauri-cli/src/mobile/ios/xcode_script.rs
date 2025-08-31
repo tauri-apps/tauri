@@ -4,7 +4,7 @@
 
 use super::{ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
-  error::Context,
+  error::{Context, ErrorExt},
   helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::ios::LIB_OUTPUT_FILE_NAME,
@@ -290,22 +290,18 @@ pub fn command(options: Options) -> Result<()> {
 
     let project_dir = config.project_dir();
     let externals_lib_dir = project_dir.join(format!("Externals/{arch}/{}", profile.as_str()));
-    std::fs::create_dir_all(&externals_lib_dir).map_err(|error| Error::Fs {
-      context: "failed to create externals lib directory",
-      path: externals_lib_dir.clone(),
-      error,
-    })?;
+    std::fs::create_dir_all(&externals_lib_dir).fs_context(
+      "failed to create externals lib directory",
+      externals_lib_dir.clone(),
+    )?;
 
     // backwards compatible lib output file name
     let uses_new_lib_output_file_name = {
       let pbxproj_path = project_dir
         .join(format!("{}.xcodeproj", config.app().name()))
         .join("project.pbxproj");
-      let pbxproj_contents = read_to_string(&pbxproj_path).map_err(|error| Error::Fs {
-        context: "failed to read project.pbxproj file",
-        path: pbxproj_path,
-        error,
-      })?;
+      let pbxproj_contents = read_to_string(&pbxproj_path)
+        .fs_context("failed to read project.pbxproj file", pbxproj_path)?;
 
       pbxproj_contents.contains(LIB_OUTPUT_FILE_NAME)
     };
@@ -316,23 +312,18 @@ pub fn command(options: Options) -> Result<()> {
       format!("lib{}.a", config.app().lib_name())
     };
 
-    std::fs::copy(&lib_path, externals_lib_dir.join(lib_output_file_name)).map_err(|error| {
-      Error::Fs {
-        context: "failed to copy mobile lib file to Externals directory",
-        path: lib_path.to_path_buf(),
-        error,
-      }
-    })?;
+    std::fs::copy(&lib_path, externals_lib_dir.join(lib_output_file_name)).fs_context(
+      "failed to copy mobile lib file to Externals directory",
+      lib_path.to_path_buf(),
+    )?;
   }
   Ok(())
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  let mut archive = ar::Archive::new(std::fs::File::open(path).map_err(|error| Error::Fs {
-    context: "failed to open mobile lib file",
-    path: path.to_path_buf(),
-    error,
-  })?);
+  let mut archive = ar::Archive::new(
+    std::fs::File::open(path).fs_context("failed to open mobile lib file", path.to_path_buf())?,
+  );
   // Iterate over all entries in the archive:
   while let Some(entry) = archive.next_entry() {
     let Ok(mut entry) = entry else {
@@ -341,17 +332,11 @@ fn validate_lib(path: &Path) -> Result<()> {
     let mut obj_bytes = Vec::new();
     entry
       .read_to_end(&mut obj_bytes)
-      .map_err(|error| Error::Fs {
-        context: "failed to read mobile lib entry",
-        path: path.to_path_buf(),
-        error,
-      })?;
+      .fs_context("failed to read mobile lib entry", path.to_path_buf())?;
 
-    let file = object::File::parse(&*obj_bytes).map_err(|error| Error::Fs {
-      context: "failed to parse mobile lib entry",
-      path: path.to_path_buf(),
-      error: std::io::Error::other(error),
-    })?;
+    let file = object::File::parse(&*obj_bytes)
+      .map_err(std::io::Error::other)
+      .fs_context("failed to parse mobile lib entry", path.to_path_buf())?;
     for symbol in file.symbols() {
       let Ok(name) = symbol.name() else {
         continue;

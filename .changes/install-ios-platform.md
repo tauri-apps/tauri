@@ -3,4 +3,4 @@
 "tauri-cli": minor:enhance
 ---
 
-Prompt to install the iOS platform if it isn't installed yet (no simulator found).
+Prompt to install the iOS platform if it isn't installed yet.

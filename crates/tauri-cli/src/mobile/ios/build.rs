@@ -224,7 +224,9 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   let mut env = env()?;
 
-  ensure_ios_runtime_installed()?;
+  if !options.open {
+    ensure_ios_runtime_installed()?;
+  }
 
   let mut export_options_plist = plist::Dictionary::new();
   if let Some(method) = options.export_method {

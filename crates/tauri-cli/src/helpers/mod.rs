@@ -28,7 +28,6 @@ use tauri_utils::config::HookCommand;
 #[cfg(not(target_os = "windows"))]
 use crate::Error;
 use crate::{
-  error::Context,
   interface::{AppInterface, Interface},
   CommandExt,
 };
@@ -99,7 +98,7 @@ pub fn run_hook(
       .current_dir(cwd)
       .envs(env)
       .piped()
-      .map_err(|error| Error::CommandFailed {
+      .map_err(|error| crate::error::Error::CommandFailed {
         command: script.clone(),
         error,
       })?;
@@ -130,6 +129,7 @@ pub fn run_hook(
 
 #[cfg(target_os = "macos")]
 pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Result<()> {
+  use crate::error::Context;
   if !version.pre.is_empty() {
     if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
       use crate::Error;

@@ -14,7 +14,7 @@ use crate::{
       },
     },
   },
-  error::{bail, Context, ErrorExt},
+  error::Context,
   utils::{
     fs_utils::copy_file,
     http_utils::{download_and_verify, extract_zip, HashAlgorithm},
@@ -286,21 +286,23 @@ fn validate_wix_version(version_str: &str) -> crate::Result<()> {
     .collect::<Vec<_>>();
 
   if components.len() < 3 {
-    bail!("app wix version should be in the format major.minor.patch.build (build is optional)");
+    crate::error::bail!(
+      "app wix version should be in the format major.minor.patch.build (build is optional)"
+    );
   }
 
   if components[0] > 255 {
-    bail!("app version major number cannot be greater than 255");
+    crate::error::bail!("app version major number cannot be greater than 255");
   }
   if components[1] > 255 {
-    bail!("app version minor number cannot be greater than 255");
+    crate::error::bail!("app version minor number cannot be greater than 255");
   }
   if components[2] > 65535 {
-    bail!("app version patch number cannot be greater than 65535");
+    crate::error::bail!("app version patch number cannot be greater than 65535");
   }
 
   if components.len() == 4 && components[3] > 65535 {
-    bail!("app version build number cannot be greater than 65535");
+    crate::error::bail!("app version build number cannot be greater than 65535");
   }
 
   Ok(())
@@ -319,7 +321,7 @@ fn convert_version(version_str: &str) -> crate::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
@@ -331,7 +333,7 @@ fn convert_version(version_str: &str) -> crate::Result<String> {
         version.major, version.minor, version.patch, version.pre
       ));
     } else {
-      bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
@@ -388,14 +390,7 @@ fn run_candle(
     cmd.arg(ext);
   }
   clear_env_for_wix(&mut cmd);
-  cmd
-    .args(&args)
-    .current_dir(cwd)
-    .output_ok()
-    .map_err(|error| crate::Error::CommandFailed {
-      command: candle_exe.to_string_lossy().to_string(),
-      error,
-    })?;
+  cmd.args(&args).current_dir(cwd).output_ok()?;
 
   Ok(())
 }
@@ -420,14 +415,7 @@ fn run_light(
     cmd.arg(ext);
   }
   clear_env_for_wix(&mut cmd);
-  cmd
-    .args(&args)
-    .current_dir(build_path)
-    .output_ok()
-    .map_err(|error| crate::Error::CommandFailed {
-      command: light_exe.to_string_lossy().to_string(),
-      error,
-    })?;
+  cmd.args(&args).current_dir(build_path).output_ok()?;
 
   Ok(())
 }
@@ -479,8 +467,7 @@ pub fn build_wix_app_installer(
   // when we're performing code signing, we'll sign some WiX DLLs, so we make a local copy
   let wix_toolset_path = if settings.can_sign() {
     let wix_path = output_path.join("wix");
-    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
-      .fs_context("failed to copy wix directory", wix_toolset_path.clone())?;
+    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)?;
     wix_path
   } else {
     wix_toolset_path.to_path_buf()

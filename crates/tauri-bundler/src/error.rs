@@ -246,3 +246,19 @@ impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
     })
   }
 }
+
+#[allow(unused)]
+macro_rules! bail {
+   ($msg:literal $(,)?) => {
+      return Err(crate::Error::GenericError($msg.into()))
+   };
+    ($err:expr $(,)?) => {
+       return Err(crate::Error::GenericError($err))
+    };
+   ($fmt:expr, $($arg:tt)*) => {
+     return Err(crate::Error::GenericError(format!($fmt, $($arg)*)))
+   };
+}
+
+#[allow(unused)]
+pub(crate) use bail;

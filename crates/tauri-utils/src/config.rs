@@ -620,6 +620,9 @@ pub struct MacConfig {
   ///
   /// If a name is used, ".framework" must be omitted and it will look for standard install locations. You may also use a path to a specific framework.
   pub frameworks: Option<Vec<String>>,
+  /// If we need to fix linking of the dylibs deployed above
+  #[serde(default)]
+  pub fix_dylib_linking: Option<bool>,
   /// The files to include in the application relative to the Contents directory.
   #[serde(default)]
   pub files: HashMap<PathBuf, PathBuf>,
@@ -673,6 +676,7 @@ impl Default for MacConfig {
   fn default() -> Self {
     Self {
       frameworks: None,
+      fix_dylib_linking: None,
       files: HashMap::new(),
       bundle_version: None,
       bundle_name: None,

@@ -103,6 +103,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
+  update_dylib_path(&app_bundle_path, &bundle_directory, settings)?;
+
   if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
@@ -367,6 +369,159 @@ fn copy_framework_from(dest_dir: &Path, framework: &str, src_dir: &Path) -> crat
   } else {
     Ok(false)
   }
+}
+
+fn update_dylib_path(
+  app_bundle_path: &Path,
+  bundle_directory: &Path,
+  settings: &Settings,
+) -> crate::Result<()> {
+  let frameworks = settings
+    .macos()
+    .frameworks
+    .as_ref()
+    .cloned()
+    .unwrap_or_default();
+  if frameworks.is_empty() {
+    return Ok(());
+  }
+
+  let should_fix_dylib = settings
+    .macos()
+    .fix_dylib_linking
+    .as_ref()
+    .cloned()
+    .unwrap_or(false);
+
+  if !should_fix_dylib {
+    return Ok(());
+  }
+
+  let framework_dir = bundle_directory.join("Frameworks");
+
+  if !framework_dir.exists() {
+    log::error!(
+      "failed to find the Frameworks folder {}",
+      &framework_dir.display()
+    );
+    return Err(crate::Error::GenericError(format!(
+      "The Frameworks folder hasn't been created by the previous step."
+    )));
+  }
+
+  let dest_bin_dir = bundle_directory.join("MacOS");
+
+  let mut all_bin_names: Vec<&str> = settings.binaries().iter().map(|bin| bin.name()).collect();
+
+  all_bin_names.push(settings.product_name());
+
+  for bin_name in all_bin_names {
+    let dest_bin_path = dest_bin_dir.join(bin_name);
+
+    let dylib_dependency_output = Command::new("otool")
+      .args(["-L", &dest_bin_path.to_string_lossy()])
+      .output()
+      .expect("Failed to execute otool");
+
+    let dylib_dependency_output_str =
+      std::str::from_utf8(&dylib_dependency_output.stdout).expect("Invalid UTF-8 in otool output");
+    let mut has_dylib_changes = false;
+
+    log::info!("Fix linking for {}", dest_bin_path.display());
+
+    for framework in frameworks.iter() {
+      if framework.ends_with(".dylib") {
+        let dylib_src_path = PathBuf::from(framework);
+        let dylib_name = dylib_src_path
+          .file_name()
+          .expect("Couldn't get library filename");
+        let dylib_framework_path = framework_dir.join(dylib_name);
+
+        let new_name = format!("@rpath/{}", dylib_name.to_string_lossy());
+
+        // Check if the output contains the name of the dylib
+        let depends_on_dylib = dylib_dependency_output_str
+          .lines()
+          .any(|line| line.contains(dylib_name.to_string_lossy().as_ref()));
+        log::info!(
+          "Fix linking for {} depends on {:?} {}",
+          dest_bin_path.display(),
+          dylib_name,
+          depends_on_dylib
+        );
+        if depends_on_dylib {
+          // Set the install_name for the dylib itself
+          let status = Command::new("install_name_tool")
+            .args(["-id", &new_name, &dylib_framework_path.to_string_lossy()])
+            .status()
+            .expect("Failed to execute install_name_tool -id");
+
+          if !status.success() {
+            log::error!("Failed to update linking for {}", dest_bin_path.display());
+            return Err(crate::Error::GenericError(format!(
+              "Failed to update linking for {}",
+              dest_bin_path.display()
+            )));
+          }
+
+          let status = Command::new("install_name_tool")
+            .args([
+              "-change",
+              &framework,
+              &new_name,
+              &dest_bin_path.to_string_lossy(),
+            ])
+            .status()
+            .expect("Failed to execute install_name_tool -change");
+
+          if !status.success() {
+            log::error!("Failed to update linking for {}", dest_bin_path.display());
+            return Err(crate::Error::GenericError(format!(
+              "Failed to update linking for {}",
+              dest_bin_path.display()
+            )));
+          }
+          has_dylib_changes = true;
+        }
+      }
+    }
+
+    if has_dylib_changes {
+      let status = Command::new("otool")
+        .args(["-L", &dest_bin_path.to_string_lossy()])
+        .status()
+        .expect("Failed to execute otool");
+
+      if !status.success() {
+        log::error!("Failed to check linking for {}", dest_bin_path.display());
+        return Err(crate::Error::GenericError(format!(
+          "Failed to check linking for {}",
+          dest_bin_path.display()
+        )));
+      }
+    }
+  }
+
+  let status = Command::new("codesign")
+    .args([
+      "--force",
+      "--deep",
+      "--sign",
+      "-",
+      &app_bundle_path.to_string_lossy(),
+    ])
+    .status()
+    .expect("Failed to fix code signature");
+
+  if !status.success() {
+    log::error!("Failed to code signature for {}", app_bundle_path.display());
+    return Err(crate::Error::GenericError(format!(
+      "Failed to code signature for {}",
+      app_bundle_path.display()
+    )));
+  }
+
+  Ok(())
 }
 
 // Copies the macOS application bundle frameworks to the .app

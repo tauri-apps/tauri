@@ -328,6 +328,8 @@ pub struct MacOsSettings {
   ///
   /// - embedding the correct rpath in your binary (e.g. by running `install_name_tool -add_rpath "@executable_path/../Frameworks" path/to/binary` after compiling)
   pub frameworks: Option<Vec<String>>,
+  /// If we need to fix linking of the dylibs deployed above
+  pub fix_dylib_linking: Option<bool>,
   /// List of custom files to add to the application bundle.
   /// Maps the path in the Contents directory in the app to the path of the file to include (relative to the current working directory).
   pub files: HashMap<PathBuf, PathBuf>,

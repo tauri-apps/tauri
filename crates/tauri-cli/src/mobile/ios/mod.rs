@@ -367,6 +367,19 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
     };
     Ok(device)
   } else {
+    log::warn!("No available iOS Simulator detected");
+    let install_ios = crate::helpers::prompts::confirm(
+      "Would you like to install the latest iOS runtime?",
+      Some(false),
+    )
+    .unwrap_or_default();
+    if install_ios {
+      duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
+        .stdout_file(os_pipe::dup_stdout().unwrap())
+        .stderr_file(os_pipe::dup_stderr().unwrap())
+        .run()?;
+      return simulator_prompt(env, target);
+    }
     Err(anyhow::anyhow!("No available iOS Simulator detected"))
   }
 }

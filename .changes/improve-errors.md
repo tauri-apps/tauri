@@ -1,6 +1,7 @@
 ---
-"@tauri-apps/cli": patch:enhance
-"tauri-cli": patch:enhance
+"@tauri-apps/cli": minor:enhance
+"tauri-cli": minor:enhance
+"tauri-bundler": minor:enhance
 ---
 
 Improve error messages with more context.

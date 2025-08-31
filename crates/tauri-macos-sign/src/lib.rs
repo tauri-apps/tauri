@@ -60,7 +60,7 @@ pub enum Error {
   FailedToCreatePFX,
   #[error("failed to create self signed certificate: {error}")]
   FailedToCreateSelfSignedCertificate {
-    error: apple_codesign::AppleCodesignError,
+    error: Box<apple_codesign::AppleCodesignError>,
   },
   #[error("failed to encode DER: {error}")]
   FailedToEncodeDER { error: std::io::Error },
@@ -142,7 +142,7 @@ fn notarize_inner(
     .file_stem()
     .expect("failed to get bundle filename");
 
-  let tmp_dir = tempfile::tempdir().map_err(|error| Error::TempDir(error))?;
+  let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
   let zip_path = tmp_dir
     .path()
     .join(format!("{}.zip", bundle_stem.to_string_lossy()));
@@ -238,7 +238,7 @@ fn notarize_inner(
         String::from_utf8_lossy(&output.stdout)
       )))
     } else {
-      Err(Error::Notarize(format!("{log_message}")))
+      Err(Error::Notarize(log_message.to_string()))
     }
   } else {
     Err(Error::ParseNotarytoolOutput {
@@ -330,7 +330,7 @@ impl NotarytoolCmdExt for Command {
 }
 
 fn decode_base64(base64: &OsStr, out_path: &Path) -> Result<()> {
-  let tmp_dir = tempfile::tempdir().map_err(|error| Error::TempDir(error))?;
+  let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
 
   let src_path = tmp_dir.path().join("src");
   let base64 = base64

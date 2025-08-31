@@ -288,10 +288,7 @@ fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
 
     for t in targets {
       let target = Target::for_name(&t).with_context(|| {
-        format!(
-          "Target {} is invalid; the possible targets are {}",
-          t, possible_targets
-        )
+        format!("Target {t} is invalid; the possible targets are {possible_targets}",)
       })?;
       outs.push(target);
     }

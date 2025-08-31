@@ -162,13 +162,14 @@ pub enum Error {
   /// Failed to codesign application.
   #[cfg(target_os = "macos")]
   #[error("failed codesign application: {0}")]
-  AppleCodesign(#[from] tauri_macos_sign::Error),
+  AppleCodesign(#[from] Box<tauri_macos_sign::Error>),
   /// Handlebars template error.
   #[error(transparent)]
   Template(#[from] handlebars::TemplateError),
 }
 
 #[cfg(target_os = "macos")]
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, thiserror::Error)]
 pub enum NotarizeAuthError {
   #[error(
@@ -236,7 +237,7 @@ pub trait ErrorExt<T> {
 impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
   fn fs_context(self, context: &'static str, path: impl Into<PathBuf>) -> Result<T> {
     self.map_err(|error| Error::Fs {
-      context: context,
+      context,
       path: path.into(),
       error,
     })

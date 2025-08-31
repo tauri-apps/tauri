@@ -428,13 +428,15 @@ fn run_build(
               validity_days: 365,
               password: password.clone(),
             },
-          )?;
+          )
+          .map_err(Box::new)?;
           let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
           let cert_path = tmp_dir.path().join("cert.p12");
           std::fs::write(&cert_path, certificate)
             .fs_context("failed to write certificate", cert_path.clone())?;
           let self_signed_cert_keychain =
-            tauri_macos_sign::Keychain::with_certificate_file(&cert_path, &password.into())?;
+            tauri_macos_sign::Keychain::with_certificate_file(&cert_path, &password.into())
+              .map_err(Box::new)?;
 
           let app_dir = config
             .export_dir()
@@ -442,16 +444,18 @@ fn run_build(
             .join("Products/Applications")
             .join(format!("{}.app", config.app().stylized_name()));
 
-          self_signed_cert_keychain.sign(
-            &app_dir.join(config.app().stylized_name()),
-            Some(
-              &config
-                .project_dir()
-                .join(config.scheme())
-                .join(format!("{}.entitlements", config.scheme())),
-            ),
-            false,
-          )?;
+          self_signed_cert_keychain
+            .sign(
+              &app_dir.join(config.app().stylized_name()),
+              Some(
+                &config
+                  .project_dir()
+                  .join(config.scheme())
+                  .join(format!("{}.entitlements", config.scheme())),
+              ),
+              false,
+            )
+            .map_err(Box::new)?;
         }
 
         let mut export_config = ExportConfig::new().allow_provisioning_updates();

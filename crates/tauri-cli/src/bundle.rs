@@ -203,7 +203,7 @@ pub fn bundle<A: AppSettings>(
     _ => log::Level::Trace,
   });
 
-  let bundles = tauri_bundler::bundle_project(&settings)?;
+  let bundles = tauri_bundler::bundle_project(&settings).map_err(Box::new)?;
 
   sign_updaters(settings, bundles, ci)?;
 

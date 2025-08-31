@@ -160,7 +160,7 @@ fn get_internal(
   let (mut config, config_path) =
     tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json")).map_err(
       |error| Error::ParseConfig {
-        context: "failed to parse config".into(),
+        context: "failed to parse config",
         error,
       },
     )?;
@@ -176,7 +176,7 @@ fn get_internal(
   if let Some((platform_config, config_path)) =
     tauri_utils::config::parse::read_platform(target, tauri_dir).map_err(|error| {
       Error::ParseConfig {
-        context: "failed to parse platform config".into(),
+        context: "failed to parse platform config",
         error,
       }
     })?

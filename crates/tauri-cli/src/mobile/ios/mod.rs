@@ -468,7 +468,9 @@ pub fn signing_from_env() -> Result<(
   ) {
     (Some(certificate), Some(certificate_password)) => {
       log::info!("Reading iOS certificates from ");
-      tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password).map(Some)?
+      tauri_macos_sign::Keychain::with_certificate(&certificate, &certificate_password)
+        .map(Some)
+        .map_err(Box::new)?
     }
     (Some(_), None) => {
       log::warn!("The IOS_CERTIFICATE environment variable is set but not IOS_CERTIFICATE_PASSWORD. Ignoring the certificate...");
@@ -478,7 +480,9 @@ pub fn signing_from_env() -> Result<(
   };
 
   let provisioning_profile = if let Some(provisioning_profile) = var_os("IOS_MOBILE_PROVISION") {
-    tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile).map(Some)?
+    tauri_macos_sign::ProvisioningProfile::from_base64(&provisioning_profile)
+      .map(Some)
+      .map_err(Box::new)?
   } else {
     if keychain.is_some() {
       log::warn!("You have provided an iOS certificate via environment variables but the IOS_MOBILE_PROVISION environment variable is not set. This will fail when signing unless the profile is set in your Xcode project.");

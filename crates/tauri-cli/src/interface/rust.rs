@@ -735,10 +735,11 @@ impl CargoSettings {
   /// Try to load a set of CargoSettings from a "Cargo.toml" file in the specified directory.
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
-    let toml_str = std::fs::read_to_string(&toml_path).fs_context("Failed to read Cargo manifest", toml_path.clone())?;
+    let toml_str = std::fs::read_to_string(&toml_path)
+      .fs_context("Failed to read Cargo manifest", toml_path.clone())?;
     toml::from_str(&toml_str).map_err(|error| crate::Error::DeserializeToml {
       context: format!("failed to parse Cargo manifest at {}", toml_path.display()).into(),
-      error: error,
+      error,
     })
   }
 }
@@ -1196,19 +1197,16 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   if !output.status.success() {
     return Err(Error::CommandFailed {
       command: "cargo metadata".to_string(),
-      error: std::io::Error::new(
-        std::io::ErrorKind::Other,
+      error: std::io::Error::other(
         String::from_utf8_lossy(&output.stderr),
       ),
     });
   }
 
-  Ok(
-    serde_json::from_slice(&output.stdout).map_err(|error| Error::Json {
+  serde_json::from_slice(&output.stdout).map_err(|error| Error::Json {
       context: "failed to parse cargo metadata".into(),
       error,
-    })?,
-  )
+    })
 }
 
 /// Get the cargo target directory based on the provided arguments.
@@ -1416,7 +1414,7 @@ fn tauri_config_to_bundle_settings(
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {
-        Some(e) => Error::GenericError(format!("invalid category, did you mean `{}`?", e)),
+        Some(e) => Error::GenericError(format!("invalid category, did you mean `{e}`?")),
         None => Error::GenericError("invalid category".to_string()),
       })?),
       None => None,

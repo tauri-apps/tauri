@@ -9,15 +9,15 @@ pub fn copy_file(from: impl AsRef<Path>, to: impl AsRef<Path>) -> crate::Result<
   let from = from.as_ref();
   let to = to.as_ref();
   if !from.exists() {
-    return Err(Error::Fs {
-      context: "failed to copy file".into(),
+    Err(Error::Fs {
+      context: "failed to copy file",
       path: from.to_path_buf(),
       error: std::io::Error::new(std::io::ErrorKind::NotFound, "source does not exist"),
     })?;
   }
   if !from.is_file() {
-    return Err(Error::Fs {
-      context: "failed to copy file".into(),
+    Err(Error::Fs {
+      context: "failed to copy file",
       path: from.to_path_buf(),
       error: std::io::Error::other("not a file"),
     })?;

@@ -11,7 +11,7 @@ pub enum Error {
   #[error("{0}")]
   GenericError(String),
   #[error("failed to bundle project {0}")]
-  Bundler(#[from] tauri_bundler::Error),
+  Bundler(#[from] Box<tauri_bundler::Error>),
   #[error("failed to run command {command}: {error}")]
   CommandFailed {
     command: String,
@@ -89,7 +89,7 @@ pub enum Error {
   RegisterMethod(#[from] jsonrpsee_core::RegisterMethodError),
   #[cfg(target_os = "macos")]
   #[error(transparent)]
-  MacosSign(#[from] tauri_macos_sign::Error),
+  MacosSign(#[from] Box<tauri_macos_sign::Error>),
   #[error("resource error: {0}")]
   Resource(tauri_utils::Error),
   #[error("failed to prompt for mobile simulator: {0}")]
@@ -225,7 +225,7 @@ pub trait ErrorExt<T> {
 impl<T> ErrorExt<T> for std::result::Result<T, std::io::Error> {
   fn fs_context(self, context: &'static str, path: impl Into<PathBuf>) -> Result<T> {
     self.map_err(|error| Error::Fs {
-      context: context.into(),
+      context,
       path: path.into(),
       error,
     })

@@ -532,11 +532,9 @@ fn resize_and_save_png(
     context: "failed to write output file".into(),
     error,
   })?;
-  Ok(
-    out_file
+  out_file
       .flush()
-      .fs_context("failed to flush output file", file_path.to_path_buf())?,
-  )
+      .fs_context("failed to flush output file", file_path.to_path_buf())
 }
 
 // Encode image data as png with compression.

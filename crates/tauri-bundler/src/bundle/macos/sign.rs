@@ -23,7 +23,8 @@ pub fn keychain(identity: Option<&str>) -> crate::Result<Option<tauri_macos_sign
   ) {
     // import user certificate - useful for for CI build
     let keychain =
-      tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)?;
+      tauri_macos_sign::Keychain::with_certificate(&certificate_encoded, &certificate_password)
+        .map_err(Box::new)?;
     if let Some(identity) = identity {
       let certificate_identity = keychain.signing_identity();
       if !certificate_identity.contains(identity) {
@@ -55,11 +56,13 @@ pub fn sign(
     } else {
       None
     };
-    keychain.sign(
-      &target.path,
-      entitlements_path,
-      target.is_an_executable && settings.macos().hardened_runtime,
-    )?;
+    keychain
+      .sign(
+        &target.path,
+        entitlements_path,
+        target.is_an_executable && settings.macos().hardened_runtime,
+      )
+      .map_err(Box::new)?;
   }
 
   Ok(())
@@ -70,7 +73,9 @@ pub fn notarize(
   app_bundle_path: PathBuf,
   credentials: &tauri_macos_sign::AppleNotarizationCredentials,
 ) -> crate::Result<()> {
-  tauri_macos_sign::notarize(keychain, &app_bundle_path, credentials).map_err(Into::into)
+  tauri_macos_sign::notarize(keychain, &app_bundle_path, credentials)
+    .map_err(Box::new)
+    .map_err(Into::into)
 }
 
 pub fn notarize_without_stapling(
@@ -79,6 +84,7 @@ pub fn notarize_without_stapling(
   credentials: &tauri_macos_sign::AppleNotarizationCredentials,
 ) -> crate::Result<()> {
   tauri_macos_sign::notarize_without_stapling(keychain, &app_bundle_path, credentials)
+    .map_err(Box::new)
     .map_err(Into::into)
 }
 

@@ -134,7 +134,7 @@ fn open(path: &Path, opts: &OpenOptions, state: State, msg: &str) -> Result<File
       Ok(opts.open(path).fs_context("failed to open file", path.to_path_buf())?)
     } else {
       Err(Error::Fs {
-        context: "failed to open file".into(),
+        context: "failed to open file",
         path: path.to_path_buf(),
         error: e,
       })
@@ -204,7 +204,7 @@ fn acquire(
     Err(e) => {
       if !error_contended(&e) {
         return Err(Error::Fs {
-          context: "failed to lock file".into(),
+          context: "failed to lock file",
           path: path.to_path_buf(),
           error: e,
         });

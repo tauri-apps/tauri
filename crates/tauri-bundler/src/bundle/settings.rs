@@ -950,9 +950,7 @@ impl Settings {
       .binaries
       .iter()
       .find(|bin| bin.main)
-      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
-  }
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")}
 
   /// Returns the file name of the binary being bundled.
   pub fn main_binary_mut(&mut self) -> crate::Result<&mut BundleBinary> {
@@ -960,9 +958,7 @@ impl Settings {
       .binaries
       .iter_mut()
       .find(|bin| bin.main)
-      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map_err(Into::into)
-  }
+      .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")}
 
   /// Returns the file name of the binary being bundled.
   pub fn main_binary_name(&self) -> crate::Result<&str> {
@@ -971,9 +967,7 @@ impl Settings {
       .iter()
       .find(|bin| bin.main)
       .context("failed to find main binary, make sure you have a `package > default-run` in the Cargo.toml file")
-      .map(|b| b.name())
-      .map_err(Into::into)
-  }
+      .map(|b| b.name())}
 
   /// Returns the path to the specified binary.
   pub fn binary_path(&self, binary: &BundleBinary) -> PathBuf {

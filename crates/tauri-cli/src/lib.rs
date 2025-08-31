@@ -64,7 +64,8 @@ impl FromStr for ConfigValue {
       })?))
     } else {
       let path = PathBuf::from(config);
-      let raw = read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
+      let raw =
+        read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
       match path.extension() {
         Some(ext) if ext == "toml" => Ok(Self(::toml::from_str(&raw).map_err(|error| {
           Error::DeserializeToml {
@@ -413,13 +414,10 @@ impl CommandExt for Command {
     } else {
       Err(Error::CommandFailed {
         command: cmdline,
-        error: std::io::Error::new(
-          std::io::ErrorKind::Other,
-          format!(
-            "command exited with status code {}",
-            output.status.code().unwrap_or(-1)
-          ),
-        ),
+        error: std::io::Error::other(format!(
+          "command exited with status code {}",
+          output.status.code().unwrap_or(-1)
+        )),
       })
     }
   }

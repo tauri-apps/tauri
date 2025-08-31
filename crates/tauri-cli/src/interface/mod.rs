@@ -82,7 +82,10 @@ pub trait AppSettings {
       )
     }
 
-    settings_builder.build().map_err(Into::into)
+    settings_builder
+      .build()
+      .map_err(Box::new)
+      .map_err(Into::into)
   }
 }
 

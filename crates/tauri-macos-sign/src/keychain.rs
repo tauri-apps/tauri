@@ -56,7 +56,7 @@ impl Keychain {
     certificate_encoded: &OsString,
     certificate_password: &OsString,
   ) -> Result<Self> {
-    let tmp_dir = tempfile::tempdir().map_err(|error| Error::TempDir(error))?;
+    let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
     let cert_path = tmp_dir.path().join("cert.p12");
     super::decode_base64(certificate_encoded, &cert_path)?;
     Self::with_certificate_file(&cert_path, certificate_password)

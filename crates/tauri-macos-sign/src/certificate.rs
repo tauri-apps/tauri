@@ -51,7 +51,9 @@ pub fn generate_self_signed(request: SelfSignedCertificateRequest) -> Result<Vec
     &request.country_name,
     validity_duration,
   )
-  .map_err(|error| Error::FailedToCreateSelfSignedCertificate { error })?;
+  .map_err(|error| Error::FailedToCreateSelfSignedCertificate {
+    error: Box::new(error),
+  })?;
 
   let pfx = p12::PFX::new(
     &cert

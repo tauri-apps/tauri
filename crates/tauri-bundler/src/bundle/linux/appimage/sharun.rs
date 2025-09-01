@@ -18,7 +18,7 @@ use crate::{
 
 use super::write_and_make_executable;
 
-// TODO: Maybe bundle xdg-open and maybeee xdg-mime as a fallback
+// TODO: Test if bundling xdg-mime makes sense (eg does it even work if it's not on the host system?)
 // TODO: Monitor TLS support / certificates - seems to be working in initial tests
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   // for backwards compat we keep the amd64 and i386 rewrites in the filename
@@ -124,34 +124,6 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     app_dir_path.join(format!("{product_name}.png")),
   )?;
 
-  fs::create_dir(app_dir_path.join("bin/"))?;
-
-  // TODO: Test this outside of wsl
-  if settings.deep_link_protocols().is_some() {
-    write_and_make_executable(
-      &app_dir_path.join("bin/xdg-mime"),
-      br#"
-#!/bin/sh
-shift
-xdg-mime "$@"
-"#
-      .to_vec(),
-    )?;
-  }
-
-  // TODO: Test this outside of wsl
-  if settings.appimage().bundle_xdg_open {
-    write_and_make_executable(
-      &app_dir_path.join("bin/xdg-open"),
-      br#"
-#!/bin/sh
-shift
-xdg-open "$@"
-"#
-      .to_vec(),
-    )?;
-  }
-
   std::os::unix::fs::symlink(
     app_dir_path.join(format!("{product_name}.png")),
     app_dir_path.join(".DirIcon"),
@@ -190,7 +162,7 @@ xdg-open "$@"
     .args([
       "-c",
       &format!(
-        r#""{}" l -p {verbosity} -s -k "{}" {} \
+        r#""{}" l -p {verbosity} -e -s -k "{}" {} \
 /usr/lib/{tools_arch}-linux-gnu/libwebkit2gtk-4.1* \{gst}
 /usr/lib/{tools_arch}-linux-gnu/gdk-pixbuf-*/*/*/* \
 /usr/lib/{tools_arch}-linux-gnu/gio/modules/* \

@@ -149,6 +149,7 @@ impl<R: Runtime> PathResolver<R> {
   /// - **Linux:** Resolves to `$HOME`.
   /// - **macOS:** Resolves to `$HOME`.
   /// - **Windows:** Resolves to `{FOLDERID_Profile}`.
+  /// - **iOS**: Cannot be written to directly, use one of the app paths instead.
   pub fn home_dir(&self) -> Result<PathBuf> {
     dirs::home_dir().ok_or(Error::UnknownPath)
   }

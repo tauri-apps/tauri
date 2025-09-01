@@ -11,7 +11,7 @@ use crate::{
 };
 
 use anyhow::Context;
-use cargo_mobile2::{apple::target::Target, opts::Profile};
+use cargo_mobile2::{apple::target::Target, opts::Profile, target::TargetTrait};
 use clap::{ArgAction, Parser};
 use object::{Object, ObjectSymbol};
 
@@ -65,12 +65,16 @@ pub fn command(options: Options) -> Result<()> {
     }
   }
 
-  // `xcode-script` is ran from the `gen/apple` folder when not using NPM/yarn/pnpm.
+  let process_path = std::env::current_exe().unwrap_or_default();
+
+  // `xcode-script` is ran from the `gen/apple` folder when not using NPM/yarn/pnpm/deno.
   // so we must change working directory to the src-tauri folder to resolve the tauri dir
   // additionally, bun@<1.2 does not modify the current working directory, so it is also runs this script from `gen/apple`
   // bun@>1.2 now actually moves the CWD to the package root so we shouldn't modify CWD in that case
   // see https://bun.sh/blog/bun-v1.2#bun-run-uses-the-correct-directory
-  if (var_os("npm_lifecycle_event").is_none() && var_os("PNPM_PACKAGE_NAME").is_none())
+  if (var_os("npm_lifecycle_event").is_none()
+    && var_os("PNPM_PACKAGE_NAME").is_none()
+    && process_path.file_stem().unwrap_or_default() != "deno")
     || var("npm_config_user_agent")
       .is_ok_and(|agent| agent.starts_with("bun/1.0") || agent.starts_with("bun/1.1"))
   {
@@ -209,6 +213,10 @@ pub fn command(options: Options) -> Result<()> {
   } else {
     options.arches
   };
+
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
   for arch in arches {
     // Set target-specific flags
     let (env_triple, rust_triple) = match arch.as_str() {
@@ -251,6 +259,14 @@ pub fn command(options: Options) -> Result<()> {
         )
       })?
     };
+
+    if !installed_targets.contains(&rust_triple.into()) {
+      log::info!("Installing target {}", target.triple());
+      target
+        .install()
+        .context("failed to install target with rustup")?;
+    }
+
     target.compile_lib(
       &config,
       &metadata,

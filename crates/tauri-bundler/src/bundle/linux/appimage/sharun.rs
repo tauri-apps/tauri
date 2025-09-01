@@ -29,8 +29,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     //Arch::Armhf => "armhf",
     target => {
       return Err(crate::Error::ArchError(format!(
-        "Unsupported architecture: {:?}",
-        target
+        "Unsupported architecture: {target:?}"
       )));
     }
   };
@@ -50,7 +49,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::create_dir_all(&tools_path)?;
 
-  let (lib4bin, uruntime, uruntime_lite) =
+  let (sharun_aio, uruntime, uruntime_lite) =
     prepare_tools(&tools_path, tools_arch, settings.appimage().squashfs)?;
 
   let package_dir = settings
@@ -178,14 +177,24 @@ xdg-open "$@"
     "".to_string()
   };
 
+  let mut bins = String::new();
+
+  for bin in settings.external_binaries() {
+    if let Some(bin) = bin?.file_name().and_then(|f| f.to_str()) {
+      bins.push_str(" \"");
+      bins.push_str(bin);
+      bins.push_str("\" ");
+    }
+  }
+
+  // TODO: Optional xvfb-run (check if it exists or whatever and then use it)
   // TODO: Check if we can make parts of the opengl (incl. libvulkan) deps optional
-  // TODO(later): rustify this (finding the paths in rust instead of using bash glob patterns)
   Command::new("/bin/sh")
     .current_dir(&app_dir_path)
     .args([
       "-c",
       &format!(
-        r#""{}" -p {verbosity} -k "{}" \
+        r#""{}" l -p {verbosity} -s -k "{}" {} \
 /usr/lib/{tools_arch}-linux-gnu/libwebkit2gtk-4.1* \{gst}
 /usr/lib/{tools_arch}-linux-gnu/gdk-pixbuf-*/*/*/* \
 /usr/lib/{tools_arch}-linux-gnu/gio/modules/* \
@@ -196,10 +205,11 @@ xdg-open "$@"
 /usr/lib/{tools_arch}-linux-gnu/dri/* \
 /usr/lib/{tools_arch}-linux-gnu/gbm/*
 "#,
-        lib4bin.to_string_lossy(),
+        sharun_aio.to_string_lossy(),
         &app_dir_path
           .join(format!("usr/bin/{}", main_binary.name()))
           .to_string_lossy(),
+        bins
       ),
     ])
     .output_ok()
@@ -273,7 +283,7 @@ xdg-open "$@"
   Ok(vec![appimage_path])
 }
 
-// TODO: versions
+// TODO: versions / mirror
 fn prepare_tools(
   tools_path: &Path,
   arch: &str,
@@ -292,12 +302,19 @@ fn prepare_tools(
     write_and_make_executable(&uruntime_lite, data)?;
   }
 
-  let lib4bin = tools_path.join(format!("lib4bin-{arch}"));
-  if !lib4bin.exists() {
+  // let lib4bin = tools_path.join(format!("lib4bin-{arch}"));
+  // if !lib4bin.exists() {
+  //   let data =
+  //     download("https://raw.githubusercontent.com/VHSgunzo/sharun/refs/heads/main/lib4bin")?;
+  //   write_and_make_executable(&lib4bin, data)?;
+  // }
+
+  let sharun_aio = tools_path.join(format!("sharun-{arch}-aio"));
+  if !sharun_aio.exists() {
     let data =
-      download("https://raw.githubusercontent.com/VHSgunzo/sharun/refs/heads/main/lib4bin")?;
-    write_and_make_executable(&lib4bin, data)?;
+      download("https://github.com/VHSgunzo/sharun/releases/latest/download/sharun-{arch}-aio")?;
+    write_and_make_executable(&sharun_aio, data)?;
   }
 
-  Ok((lib4bin, uruntime, uruntime_lite))
+  Ok((sharun_aio, uruntime, uruntime_lite))
 }

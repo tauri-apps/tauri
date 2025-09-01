@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.6.1]
+
+### Bug Fixes
+
+- [`f3df96fb3`](https://www.github.com/tauri-apps/tauri/commit/f3df96fb38e2f27ce6bf232fe87f35bcfec50ce4) ([#14065](https://www.github.com/tauri-apps/tauri/pull/14065) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Fix binary patching updater type fails on 32 bit Windows builds
+
 ## \[2.6.0]
 
 ### New Features

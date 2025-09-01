@@ -85,41 +85,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   }
 
   // Sign windows binaries before the bundling step in case neither wix and nsis bundles are enabled
-  if matches!(target_os, TargetPlatform::Windows) {
-    if settings.can_sign() {
-      for bin in settings.binaries() {
-        if bin.main() {
-          // we will sign the main binary after patching per "package type"
-          continue;
-        }
-        let bin_path = settings.binary_path(bin);
-        windows::sign::try_sign(&bin_path, settings)?;
-      }
-
-      // Sign the sidecar binaries
-      for bin in settings.external_binaries() {
-        let path = bin?;
-        let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").is_ok_and(|v| v == "true");
-        if skip {
-          continue;
-        }
-
-        #[cfg(windows)]
-        if windows::sign::verify(&path)? {
-          log::info!(
-            "sidecar at \"{}\" already signed. Skipping...",
-            path.display()
-          );
-          continue;
-        }
-
-        windows::sign::try_sign(&path, settings)?;
-      }
-    } else {
-      #[cfg(not(target_os = "windows"))]
-      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
-    }
-  }
+  sign_binaries_if_needed(settings, target_os)?;
 
   let main_binary = settings
     .binaries()
@@ -134,8 +100,9 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   //    - codesigning tools should handle calculating+updating this, we just need to ensure
   //      (re)signing is performed after every `patch_binary()` operation
   //  - signing an already-signed binary can result in multiple signatures, causing verification errors
-  let main_binary_reset_required =
-    matches!(target_os, TargetPlatform::Windows) && settings.can_sign() && package_types.len() > 1;
+  let main_binary_reset_required = matches!(target_os, TargetPlatform::Windows)
+    && settings.windows().can_sign()
+    && package_types.len() > 1;
   let mut unsigned_main_binary_copy = tempfile::tempfile()?;
   if main_binary_reset_required {
     let mut unsigned_main_binary = std::fs::File::open(&main_binary_path)?;
@@ -155,7 +122,7 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
     }
 
     // sign main binary for every package type after patch
-    if matches!(target_os, TargetPlatform::Windows) && settings.can_sign() {
+    if matches!(target_os, TargetPlatform::Windows) && settings.windows().can_sign() {
       if main_binary_signed && main_binary_reset_required {
         let mut signed_main_binary = std::fs::OpenOptions::new()
           .write(true)
@@ -303,6 +270,51 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<Bundle>> {
   log::info!(action = "Finished"; "{finished_bundles} {pluralised} at:\n{printable_paths}");
 
   Ok(bundles)
+}
+
+fn sign_binaries_if_needed(settings: &Settings, target_os: &TargetPlatform) -> crate::Result<()> {
+  if matches!(target_os, TargetPlatform::Windows) {
+    if settings.windows().can_sign() {
+      if settings.no_sign() {
+        log::info!("Skipping binary signing due to --no-sign flag.");
+        return Ok(());
+      }
+
+      for bin in settings.binaries() {
+        if bin.main() {
+          // we will sign the main binary after patching per "package type"
+          continue;
+        }
+        let bin_path = settings.binary_path(bin);
+        windows::sign::try_sign(&bin_path, settings)?;
+      }
+
+      // Sign the sidecar binaries
+      for bin in settings.external_binaries() {
+        let path = bin?;
+        let skip = std::env::var("TAURI_SKIP_SIDECAR_SIGNATURE_CHECK").is_ok_and(|v| v == "true");
+        if skip {
+          continue;
+        }
+
+        #[cfg(windows)]
+        if windows::sign::verify(&path)? {
+          log::info!(
+            "sidecar at \"{}\" already signed. Skipping...",
+            path.display()
+          );
+          continue;
+        }
+
+        windows::sign::try_sign(&path, settings)?;
+      }
+    } else {
+      #[cfg(not(target_os = "windows"))]
+      log::warn!("Signing, by default, is only supported on Windows hosts, but you can specify a custom signing command in `bundler > windows > sign_command`, for now, skipping signing the installer...");
+    }
+  }
+
+  Ok(())
 }
 
 /// Check to see if there are icons in the settings struct

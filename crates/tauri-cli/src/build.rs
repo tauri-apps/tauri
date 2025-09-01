@@ -76,10 +76,17 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Skip code signing when bundling the app
+  #[clap(long)]
+  pub no_sign: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   crate::helpers::app_paths::resolve();
+
+  if options.no_sign {
+    log::warn!("--no-sign flag detected: Signing will be skipped.");
+  }
 
   let ci = options.ci;
 
@@ -103,6 +110,10 @@ pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
+
+  if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
+    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+  }
 
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();

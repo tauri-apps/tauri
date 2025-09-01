@@ -854,6 +854,33 @@ interface WebviewOptions {
    * It usually displays a view with "Done", "Next" buttons.
    */
   disableInputAccessoryView?: boolean
+  /**
+   * Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+   * For security reasons, paths outside of that location can only be configured on the Rust side.
+   *
+   * #### Platform-specific:
+   *
+   * - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
+   * - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+   * - **Android**: Unsupported.
+   *
+   * @since 2.9.0
+   */
+  dataDirectory?: string
+  /**
+   * Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
+   * See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc
+   *
+   * The array must contain 16 u8 numbers.
+   *
+   * #### Platform-specific:
+   *
+   * - **macOS / iOS**: Available on macOS >= 14 and iOS >= 17
+   * - **Windows / Linux / Android**: Unsupported.
+   *
+   * @since 2.9.0
+   */
+  dataStoreIdentifier?: number[]
 }
 
 export { Webview, getCurrentWebview, getAllWebviews }

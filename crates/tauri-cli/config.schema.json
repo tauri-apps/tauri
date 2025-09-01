@@ -495,7 +495,7 @@
           ]
         },
         "incognito": {
-          "description": "Whether or not the webview should be launched in incognito  mode.\n\n  ## Platform-specific:\n\n  - **Android**: Unsupported.",
+          "description": "Whether or not the webview should be launched in incognito  mode.\n\n ## Platform-specific:\n\n - **Android**: Unsupported.",
           "default": false,
           "type": "boolean"
         },
@@ -2071,7 +2071,7 @@
           }
         },
         "resources": {
-          "description": "App resources to bundle.\n Each resource is a path to a file or directory.\n Glob patterns are supported.",
+          "description": "App resources to bundle.\n Each resource is a path to a file or directory.\n Glob patterns are supported.\n\n ## Examples\n\n To include a list of files:\n\n ```json\n {\n   \"bundle\": {\n     \"resources\": [\n       \"./path/to/some-file.txt\",\n       \"/absolute/path/to/textfile.txt\",\n       \"../relative/path/to/jsonfile.json\",\n       \"some-folder/\",\n       \"resources/**/*.md\"\n     ]\n   }\n }\n ```\n\n The bundled files will be in `$RESOURCES/` with the original directory structure preserved,\n for example: `./path/to/some-file.txt` -> `$RESOURCE/path/to/some-file.txt`\n\n To fine control where the files will get copied to, use a map instead\n\n ```json\n {\n   \"bundle\": {\n     \"resources\": {\n       \"/absolute/path/to/textfile.txt\": \"resources/textfile.txt\",\n       \"relative/path/to/jsonfile.json\": \"resources/jsonfile.json\",\n       \"resources/\": \"\",\n       \"docs/**/*md\": \"website-docs/\"\n     }\n   }\n }\n ```\n\n Note that when using glob pattern in this case, the original directory structure is not preserved,\n everything gets copied to the target directory directly\n\n See more: <https://v2.tauri.app/develop/resources/>",
           "anyOf": [
             {
               "$ref": "#/definitions/BundleResources"
@@ -2921,7 +2921,7 @@
           ]
         },
         "installerHooks": {
-          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n\n ### Example\n\n ```nsh\n !macro NSIS_HOOK_PREINSTALL\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTINSTALL\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !macro NSIS_HOOK_PREUNINSTALL\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTUNINSTALL\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n\n ```",
+          "description": "A path to a `.nsh` file that contains special NSIS macros to be hooked into the\n main installer.nsi script.\n\n Supported hooks are:\n\n - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.\n - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.\n - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.\n - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.\n\n ### Example\n\n ```nsh\n !macro NSIS_HOOK_PREINSTALL\n   MessageBox MB_OK \"PreInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTINSTALL\n   MessageBox MB_OK \"PostInstall\"\n !macroend\n\n !macro NSIS_HOOK_PREUNINSTALL\n   MessageBox MB_OK \"PreUnInstall\"\n !macroend\n\n !macro NSIS_HOOK_POSTUNINSTALL\n   MessageBox MB_OK \"PostUninstall\"\n !macroend\n ```",
           "type": [
             "string",
             "null"

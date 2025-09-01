@@ -908,11 +908,11 @@ pub struct NsisConfig {
   /// main installer.nsi script.
   ///
   /// Supported hooks are:
+  ///
   /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
-  ///
   ///
   /// ### Example
   ///
@@ -932,7 +932,6 @@ pub struct NsisConfig {
   /// !macro NSIS_HOOK_POSTUNINSTALL
   ///   MessageBox MB_OK "PostUninstall"
   /// !macroend
-  ///
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
@@ -1286,6 +1285,47 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
+  ///
+  /// ## Examples
+  ///
+  /// To include a list of files:
+  ///
+  /// ```json
+  /// {
+  ///   "bundle": {
+  ///     "resources": [
+  ///       "./path/to/some-file.txt",
+  ///       "/absolute/path/to/textfile.txt",
+  ///       "../relative/path/to/jsonfile.json",
+  ///       "some-folder/",
+  ///       "resources/**/*.md"
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// The bundled files will be in `$RESOURCES/` with the original directory structure preserved,
+  /// for example: `./path/to/some-file.txt` -> `$RESOURCE/path/to/some-file.txt`
+  ///
+  /// To fine control where the files will get copied to, use a map instead
+  ///
+  /// ```json
+  /// {
+  ///   "bundle": {
+  ///     "resources": {
+  ///       "/absolute/path/to/textfile.txt": "resources/textfile.txt",
+  ///       "relative/path/to/jsonfile.json": "resources/jsonfile.json",
+  ///       "resources/": "",
+  ///       "docs/**/*md": "website-docs/"
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Note that when using glob pattern in this case, the original directory structure is not preserved,
+  /// everything gets copied to the target directory directly
+  ///
+  /// See more: <https://v2.tauri.app/develop/resources/>
   pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
@@ -1743,9 +1783,9 @@ pub struct WindowConfig {
   pub window_effects: Option<WindowEffectsConfig>,
   /// Whether or not the webview should be launched in incognito  mode.
   ///
-  ///  ## Platform-specific:
+  /// ## Platform-specific:
   ///
-  ///  - **Android**: Unsupported.
+  /// - **Android**: Unsupported.
   #[serde(default)]
   pub incognito: bool,
   /// Sets the window associated with this label to be the parent of the window to be created.

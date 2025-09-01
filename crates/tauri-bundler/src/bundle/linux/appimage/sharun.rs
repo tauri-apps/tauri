@@ -311,8 +311,9 @@ fn prepare_tools(
 
   let sharun_aio = tools_path.join(format!("sharun-{arch}-aio"));
   if !sharun_aio.exists() {
-    let data =
-      download("https://github.com/VHSgunzo/sharun/releases/latest/download/sharun-{arch}-aio")?;
+    let data = download(&format!(
+      "https://github.com/VHSgunzo/sharun/releases/latest/download/sharun-{arch}-aio"
+    ))?;
     write_and_make_executable(&sharun_aio, data)?;
   }
 

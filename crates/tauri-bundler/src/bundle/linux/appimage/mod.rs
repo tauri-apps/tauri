@@ -19,6 +19,8 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   {
     sharun::bundle_project(settings)
   } else {
+    // TODO: update link with whatever it will be
+    log::warn!("Using the deprecated AppImage bundler. Please visit https://v2.tauri.app/distribute/appimage/#new-version and try the new implementation.");
     linuxdeploy::bundle_project(settings)
   }
 }

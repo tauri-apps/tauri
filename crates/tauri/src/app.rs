@@ -1310,12 +1310,6 @@ impl<R: Runtime> App<R> {
         if self.manager.restart_on_exit.load(atomic::Ordering::Relaxed) {
           crate::process::restart(&self.env());
         }
-        #[cfg(target_os = "android")]
-        {
-          app_handle
-            .state::<crate::app::plugin::AppPlugin<R>>()
-            .exit();
-        }
       }
       _ => {
         let event = on_event_loop_event(&app_handle, event, &manager);

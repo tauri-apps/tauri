@@ -4,10 +4,7 @@
 
 use super::Result;
 use crate::{plugin::PluginHandle, Runtime};
-use std::{
-  ffi::OsStr,
-  path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 /// A helper class to access the mobile path APIs.
 pub struct PathResolver<R: Runtime>(pub(crate) PluginHandle<R>);

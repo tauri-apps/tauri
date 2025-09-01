@@ -1,9 +1,9 @@
 ---
 source: crates/tests/acl/src/lib.rs
 expression: resolved
-snapshot_kind: text
 ---
 Resolved {
+    has_app_acl: false,
     allowed_commands: {
         "plugin:fs|move": [
             ResolvedCommand {

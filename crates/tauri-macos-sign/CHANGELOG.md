@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.2.0]
+
+### New Features
+
+- [`a9ec12843`](https://www.github.com/tauri-apps/tauri/commit/a9ec12843aa7d0eb774bd3a53e2e63da12cfa77b) ([#13521](https://www.github.com/tauri-apps/tauri/pull/13521) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Added a `--skip-stapling` option to make `tauri build|bundle` *not* wait for notarization to finish on macOS.
+
 ## \[2.1.0]
 
 ### Enhancements

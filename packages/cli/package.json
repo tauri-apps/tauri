@@ -1,7 +1,8 @@
 {
   "name": "@tauri-apps/cli",
-  "version": "2.7.0",
+  "version": "2.8.4",
   "description": "Command line interface for building Tauri apps",
+  "type": "commonjs",
   "funding": {
     "type": "opencollective",
     "url": "https://opencollective.com/tauri"
@@ -42,7 +43,7 @@
   "devDependencies": {
     "@napi-rs/cli": "^3.0.0",
     "@types/node": "^22.15.32",
-    "cross-env": "7.0.3",
+    "cross-env": "10.0.0",
     "vitest": "^3.2.4"
   },
   "engines": {

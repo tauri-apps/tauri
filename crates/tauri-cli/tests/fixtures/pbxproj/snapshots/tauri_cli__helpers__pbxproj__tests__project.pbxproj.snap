@@ -262,7 +262,7 @@ Pbxproj {
                     identation: "\t\t\t\t",
                     line_number: 304,
                     key: "IPHONEOS_DEPLOYMENT_TARGET",
-                    value: "13.0",
+                    value: "14.0",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",
@@ -584,7 +584,7 @@ Pbxproj {
                     identation: "\t\t\t\t",
                     line_number: 366,
                     key: "IPHONEOS_DEPLOYMENT_TARGET",
-                    value: "13.0",
+                    value: "14.0",
                 },
                 BuildSettings {
                     identation: "\t\t\t\t",

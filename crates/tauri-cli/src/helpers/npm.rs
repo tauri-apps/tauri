@@ -3,9 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use anyhow::Context;
+use serde::Deserialize;
 
 use crate::helpers::cross_command;
-use std::{fmt::Display, path::Path, process::Command};
+use std::{collections::HashMap, fmt::Display, path::Path, process::Command};
 
 pub fn manager_version(package_manager: &str) -> Option<String> {
   cross_command(package_manager)
@@ -197,6 +198,7 @@ impl PackageManager {
     Ok(())
   }
 
+  // TODO: Use `current_package_versions` as much as possible for better speed
   pub fn current_package_version<P: AsRef<Path>>(
     &self,
     name: &str,
@@ -254,4 +256,157 @@ impl PackageManager {
       Ok(None)
     }
   }
+
+  pub fn current_package_versions(
+    &self,
+    packages: &[String],
+    frontend_dir: &Path,
+  ) -> crate::Result<HashMap<String, semver::Version>> {
+    let output = match self {
+      PackageManager::Yarn => return yarn_package_versions(packages, frontend_dir),
+      PackageManager::YarnBerry => return yarn_berry_package_versions(packages, frontend_dir),
+      PackageManager::Pnpm => cross_command("pnpm")
+        .arg("list")
+        .args(packages)
+        .args(["--json", "--depth", "0"])
+        .current_dir(frontend_dir)
+        .output()?,
+      // Bun and Deno don't support `list` command
+      PackageManager::Npm | PackageManager::Bun | PackageManager::Deno => cross_command("npm")
+        .arg("list")
+        .args(packages)
+        .args(["--json", "--depth", "0"])
+        .current_dir(frontend_dir)
+        .output()?,
+    };
+
+    let mut versions = HashMap::new();
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if !output.status.success() {
+      return Ok(versions);
+    }
+
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ListOutput {
+      #[serde(default)]
+      dependencies: HashMap<String, ListDependency>,
+      #[serde(default)]
+      dev_dependencies: HashMap<String, ListDependency>,
+    }
+
+    #[derive(Deserialize)]
+    struct ListDependency {
+      version: String,
+    }
+
+    let json: ListOutput = serde_json::from_str(&stdout)?;
+    for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
+      let version = dependency.version;
+      if let Ok(version) = semver::Version::parse(&version) {
+        versions.insert(package, version);
+      } else {
+        log::error!("Failed to parse version `{version}` for NPM package `{package}`");
+      }
+    }
+    Ok(versions)
+  }
+}
+
+fn yarn_package_versions(
+  packages: &[String],
+  frontend_dir: &Path,
+) -> crate::Result<HashMap<String, semver::Version>> {
+  let output = cross_command("yarn")
+    .arg("list")
+    .args(packages)
+    .args(["--json", "--depth", "0"])
+    .current_dir(frontend_dir)
+    .output()?;
+
+  let mut versions = HashMap::new();
+  let stdout = String::from_utf8_lossy(&output.stdout);
+  if !output.status.success() {
+    return Ok(versions);
+  }
+
+  #[derive(Deserialize)]
+  struct YarnListOutput {
+    data: YarnListOutputData,
+  }
+
+  #[derive(Deserialize)]
+  struct YarnListOutputData {
+    trees: Vec<YarnListOutputDataTree>,
+  }
+
+  #[derive(Deserialize)]
+  struct YarnListOutputDataTree {
+    name: String,
+  }
+
+  for line in stdout.lines() {
+    if let Ok(tree) = serde_json::from_str::<YarnListOutput>(line) {
+      for tree in tree.data.trees {
+        let Some((name, version)) = tree.name.rsplit_once('@') else {
+          continue;
+        };
+        if let Ok(version) = semver::Version::parse(version) {
+          versions.insert(name.to_owned(), version);
+        } else {
+          log::error!("Failed to parse version `{version}` for NPM package `{name}`");
+        }
+      }
+      return Ok(versions);
+    }
+  }
+
+  Ok(versions)
+}
+
+fn yarn_berry_package_versions(
+  packages: &[String],
+  frontend_dir: &Path,
+) -> crate::Result<HashMap<String, semver::Version>> {
+  let output = cross_command("yarn")
+    .args(["info", "--json"])
+    .current_dir(frontend_dir)
+    .output()?;
+
+  let mut versions = HashMap::new();
+  let stdout = String::from_utf8_lossy(&output.stdout);
+  if !output.status.success() {
+    return Ok(versions);
+  }
+
+  #[derive(Deserialize)]
+  struct YarnBerryInfoOutput {
+    value: String,
+    children: YarnBerryInfoOutputChildren,
+  }
+
+  #[derive(Deserialize)]
+  #[serde(rename_all = "PascalCase")]
+  struct YarnBerryInfoOutputChildren {
+    version: String,
+  }
+
+  for line in stdout.lines() {
+    if let Ok(info) = serde_json::from_str::<YarnBerryInfoOutput>(line) {
+      let Some((name, _)) = info.value.rsplit_once('@') else {
+        continue;
+      };
+      if !packages.iter().any(|package| package == name) {
+        continue;
+      }
+      let version = info.children.version;
+      if let Ok(version) = semver::Version::parse(&version) {
+        versions.insert(name.to_owned(), version);
+      } else {
+        log::error!("Failed to parse version `{version}` for NPM package `{name}`");
+      }
+    }
+  }
+
+  Ok(versions)
 }

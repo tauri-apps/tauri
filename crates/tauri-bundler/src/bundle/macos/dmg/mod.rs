@@ -195,7 +195,7 @@ pub fn bundle_project(settings: &Settings, bundles: &[Bundle]) -> crate::Result<
   // Sign DMG if needed
   // skipping self-signing DMGs https://github.com/tauri-apps/tauri/issues/12288
   let identity = settings.macos().signing_identity.as_deref();
-  if identity != Some("-") {
+  if !settings.no_sign() && identity != Some("-") {
     if let Some(keychain) = super::sign::keychain(identity)? {
       super::sign::sign(
         &keychain,

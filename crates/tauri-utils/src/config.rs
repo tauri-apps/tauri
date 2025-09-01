@@ -669,6 +669,8 @@ pub struct MacConfig {
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
   /// and the `MACOSX_DEPLOYMENT_TARGET` environment variable.
   ///
+  /// Ignored in `tauri dev`.
+  ///
   /// An empty string is considered an invalid value so the default value is used.
   #[serde(
     deserialize_with = "de_macos_minimum_system_version",
@@ -719,7 +721,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "13.0".into()
+  "14.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -817,6 +819,10 @@ pub struct WixConfig {
   /// The required dimensions are 493px × 312px.
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
+  /// Enables FIPS compliant algorithms.
+  /// Can also be enabled via the `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` env var.
+  #[serde(default, alias = "fips-compliant")]
+  pub fips_compliant: bool,
 }
 
 /// Compression algorithms used in the NSIS installer.
@@ -931,11 +937,11 @@ pub struct NsisConfig {
   /// main installer.nsi script.
   ///
   /// Supported hooks are:
+  ///
   /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
-  ///
   ///
   /// ### Example
   ///
@@ -955,7 +961,6 @@ pub struct NsisConfig {
   /// !macro NSIS_HOOK_POSTUNINSTALL
   ///   MessageBox MB_OK "PostUninstall"
   /// !macroend
-  ///
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
@@ -1309,6 +1314,47 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
+  ///
+  /// ## Examples
+  ///
+  /// To include a list of files:
+  ///
+  /// ```json
+  /// {
+  ///   "bundle": {
+  ///     "resources": [
+  ///       "./path/to/some-file.txt",
+  ///       "/absolute/path/to/textfile.txt",
+  ///       "../relative/path/to/jsonfile.json",
+  ///       "some-folder/",
+  ///       "resources/**/*.md"
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// The bundled files will be in `$RESOURCES/` with the original directory structure preserved,
+  /// for example: `./path/to/some-file.txt` -> `$RESOURCE/path/to/some-file.txt`
+  ///
+  /// To fine control where the files will get copied to, use a map instead
+  ///
+  /// ```json
+  /// {
+  ///   "bundle": {
+  ///     "resources": {
+  ///       "/absolute/path/to/textfile.txt": "resources/textfile.txt",
+  ///       "relative/path/to/jsonfile.json": "resources/jsonfile.json",
+  ///       "resources/": "",
+  ///       "docs/**/*md": "website-docs/"
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Note that when using glob pattern in this case, the original directory structure is not preserved,
+  /// everything gets copied to the target directory directly
+  ///
+  /// See more: <https://v2.tauri.app/develop/resources/>
   pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
@@ -1584,6 +1630,16 @@ pub struct WindowConfig {
   ///
   /// When this is set to `false` you must manually grab the config object via `app.config().app.windows`
   /// and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).
+  ///
+  /// ## Example:
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[serde(default = "default_true")]
   pub create: bool,
   /// The window webview URL.
@@ -1666,6 +1722,9 @@ pub struct WindowConfig {
   /// Whether the window will be initially focused or not.
   #[serde(default = "default_true")]
   pub focus: bool,
+  /// Whether the window will be focusable or not.
+  #[serde(default = "default_true")]
+  pub focusable: bool,
   /// Whether the window is transparent or not.
   ///
   /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
@@ -1753,9 +1812,9 @@ pub struct WindowConfig {
   pub window_effects: Option<WindowEffectsConfig>,
   /// Whether or not the webview should be launched in incognito  mode.
   ///
-  ///  ## Platform-specific:
+  /// ## Platform-specific:
   ///
-  ///  - **Android**: Unsupported.
+  /// - **Android**: Unsupported.
   #[serde(default)]
   pub incognito: bool,
   /// Sets the window associated with this label to be the parent of the window to be created.
@@ -1864,6 +1923,31 @@ pub struct WindowConfig {
     alias = "disable_input_accessory_view"
   )]
   pub disable_input_accessory_view: bool,
+  ///
+  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+  ///
+  /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
+  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **Android**: Unsupported.
+  #[serde(default, alias = "data-directory")]
+  pub data_directory: Option<PathBuf>,
+  ///
+  /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
+  /// See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  /// - **Windows / Linux / Android**: Unsupported.
+  #[serde(default, alias = "data-store-identifier")]
+  pub data_store_identifier: Option<[u8; 16]>,
 }
 
 impl Default for WindowConfig {
@@ -1891,6 +1975,7 @@ impl Default for WindowConfig {
       title: default_title(),
       fullscreen: false,
       focus: false,
+      focusable: true,
       transparent: false,
       maximized: false,
       visible: true,
@@ -1922,6 +2007,8 @@ impl Default for WindowConfig {
       javascript_disabled: false,
       allow_link_preview: true,
       disable_input_accessory_view: false,
+      data_directory: None,
+      data_store_identifier: None,
     }
   }
 }
@@ -2497,7 +2584,26 @@ pub struct SecurityConfig {
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
   ///
-  /// If the list is empty, all capabilities are included.
+  /// By default (not set or empty list), all capability files from `./capabilities/` are included,
+  /// by setting values in this entry, you have fine grained control over which capabilities are included
+  ///
+  /// You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]
+  ///
+  /// ### Example
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "capabilities": [
+  ///       "main-window",
+  ///       {
+  ///         "identifier": "drag-window",
+  ///         "permissions": ["core:window:allow-start-dragging"]
+  ///       }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
   /// The headers, which are added to every http response from tauri to the web view
@@ -2559,6 +2665,59 @@ impl Default for PatternKind {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppConfig {
   /// The app windows configuration.
+  ///
+  /// ## Example:
+  ///
+  /// To create a window at app startup
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// If not specified, the window's label (its identifier) defaults to "main",
+  /// you can use this label to get the window through
+  /// `app.get_webview_window` in Rust or `WebviewWindow.getByLabel` in JavaScript
+  ///
+  /// When working with multiple windows, each window will need an unique label
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "label": "main", "width": 800, "height": 600 },
+  ///       { "label": "secondary", "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// You can also set `create` to false and use this config through the Rust APIs
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "create": false, "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// and use it like this
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// Security configuration.
@@ -2921,6 +3080,9 @@ pub struct BuildConfig {
   ///   - This feature requires tauri-plugin 2.1 and tauri 2.4
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
+  /// Additional paths to watch for changes when running `tauri dev`.
+  #[serde(alias = "additional-watch-directories", default)]
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -3322,6 +3484,7 @@ mod build {
       let proxy_url = opt_lit(self.proxy_url.as_ref().map(url_lit).as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
+      let focusable = self.focusable;
       let transparent = self.transparent;
       let maximized = self.maximized;
       let visible = self.visible;
@@ -3352,6 +3515,8 @@ mod build {
       let javascript_disabled = self.javascript_disabled;
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
+      let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
 
       literal_struct!(
         tokens,
@@ -3379,6 +3544,7 @@ mod build {
         proxy_url,
         fullscreen,
         focus,
+        focusable,
         transparent,
         maximized,
         visible,
@@ -3408,7 +3574,9 @@ mod build {
         background_throttling,
         javascript_disabled,
         allow_link_preview,
-        disable_input_accessory_view
+        disable_input_accessory_view,
+        data_directory,
+        data_store_identifier
       );
     }
   }
@@ -3569,6 +3737,7 @@ mod build {
       let before_bundle_command = quote!(None);
       let features = quote!(None);
       let remove_unused_commands = quote!(false);
+      let additional_watch_folders = quote!(Vec::new());
 
       literal_struct!(
         tokens,
@@ -3580,7 +3749,8 @@ mod build {
         before_build_command,
         before_bundle_command,
         features,
-        remove_unused_commands
+        remove_unused_commands,
+        additional_watch_folders
       );
     }
   }
@@ -3903,6 +4073,7 @@ mod test {
       before_bundle_command: None,
       features: None,
       remove_unused_commands: false,
+      additional_watch_folders: Vec::new(),
     };
 
     // create a bundle config

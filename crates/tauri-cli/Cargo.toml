@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.7.0"
+version = "2.8.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.20.2", default-features = false }
+cargo-mobile2 = { version = "0.20.6", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.24", features = ["server"] }
@@ -47,26 +47,26 @@ sublime_fuzzy = "0.7"
 clap_complete = "4"
 clap = { version = "4", features = ["derive", "env"] }
 anyhow = "1"
-tauri-bundler = { version = "2.5.1", default-features = false, path = "../tauri-bundler" }
+tauri-bundler = { version = "2.6.1", default-features = false, path = "../tauri-bundler" }
 colored = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 json5 = "0.4"
 notify = "8"
-notify-debouncer-full = "0.5"
+notify-debouncer-full = "0.6"
 shared_child = "1"
 duct = "1.0"
-toml_edit = { version = "0.22", features = ["serde"] }
+toml_edit = { version = "0.23", features = ["serde"] }
 json-patch = "3"
-tauri-utils = { version = "2.6.0", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.7.0", path = "../tauri-utils", features = [
   "isolation",
   "schema",
   "config-json5",
   "config-toml",
   "html-manipulation",
 ] }
-toml = "0.8"
-jsonschema = "0.30"
+toml = "0.9"
+jsonschema = "0.33"
 handlebars = "6"
 include_dir = "0.7"
 minisign = "=0.7.3"
@@ -129,7 +129,7 @@ libc = "0.2"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 plist = "1"
-tauri-macos-sign = { version = "2.1.0", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.2.0", path = "../tauri-macos-sign" }
 object = { version = "0.36", default-features = false, features = [
   "macho",
   "read_core",
@@ -138,7 +138,7 @@ object = { version = "0.36", default-features = false, features = [
 ar = "0.9"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = [
   "tauri-bundler/native-tls",
   "cargo-mobile2/native-tls",
@@ -146,3 +146,4 @@ native-tls = [
 ]
 native-tls-vendored = ["native-tls", "tauri-bundler/native-tls-vendored"]
 rustls = ["tauri-bundler/rustls", "cargo-mobile2/rustls", "ureq/rustls"]
+platform-certs = ["tauri-bundler/platform-certs", "ureq/platform-verifier"]

@@ -1,5 +1,20 @@
 # Changelog
 
+## \[2.8.0]
+
+### New Features
+
+- [`68874c68c`](https://www.github.com/tauri-apps/tauri/commit/68874c68c566638b4c21a3aa67844d1bdaeb6dab) ([#13564](https://www.github.com/tauri-apps/tauri/pull/13564) by [@robertrpf](https://www.github.com/tauri-apps/tauri/../../robertrpf)) Add window focusable attribute and set_focusable API.
+- [`22d6bcacb`](https://www.github.com/tauri-apps/tauri/commit/22d6bcacbb2001eb292ebd8c5d021447700f9512) ([#14008](https://www.github.com/tauri-apps/tauri/pull/14008) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Implement `App::set_device_event_filter` for `AppHandle` also.
+- [`33d0b3f0c`](https://www.github.com/tauri-apps/tauri/commit/33d0b3f0c133edebb1c716e2f5942d70509ae347) ([#13876](https://www.github.com/tauri-apps/tauri/pull/13876) by [@thlstsul](https://www.github.com/tauri-apps/tauri/../../thlstsul)) Added `WebviewBuilder::on_document_title_changed` and `WebviewWindowBuilder::on_document_title_changed`.
+- [`33d0b3f0c`](https://www.github.com/tauri-apps/tauri/commit/33d0b3f0c133edebb1c716e2f5942d70509ae347) ([#13876](https://www.github.com/tauri-apps/tauri/pull/13876) by [@thlstsul](https://www.github.com/tauri-apps/tauri/../../thlstsul)) Added `WebviewBuilder::on_new_window` and `WebviewWindowBuilder::on_new_window`.
+- [`dfadcb764`](https://www.github.com/tauri-apps/tauri/commit/dfadcb764bdf84089a5487005a7b4f3b7cf09494) ([#13661](https://www.github.com/tauri-apps/tauri/pull/13661) by [@WSH032](https://www.github.com/tauri-apps/tauri/../../WSH032)) Added `WebviewDispatch::set_cookie()` and `WebviewDispatch::delete_cookie()`.
+- [`5110a762e`](https://www.github.com/tauri-apps/tauri/commit/5110a762e9db978a28a15400bf76e3c864da2a86) ([#13830](https://www.github.com/tauri-apps/tauri/pull/13830) by [@Sky-walkerX](https://www.github.com/tauri-apps/tauri/../../Sky-walkerX)) Added `Window::set_simple_fullscreen`.
+
+### Dependencies
+
+- Upgraded to `tauri-utils@2.7.0`
+
 ## \[2.7.1]
 
 ### Dependencies

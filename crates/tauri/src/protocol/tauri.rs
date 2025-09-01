@@ -114,7 +114,42 @@ fn get_response<R: Runtime>(
       decoded_path.trim_start_matches('/')
     );
 
-    let mut proxy_builder = reqwest::ClientBuilder::new()
+    let mut client = reqwest::ClientBuilder::new();
+
+    if url.starts_with("https://") {
+      // we can't load env vars at runtime, gotta embed them in the lib
+      if let Some(cert_pem) = option_env!("TAURI_DEV_ROOT_CERTIFICATE") {
+        #[cfg(any(
+          feature = "native-tls",
+          feature = "native-tls-vendored",
+          feature = "rustls-tls"
+        ))]
+        {
+          log::info!("adding dev server root certificate");
+          client = client.add_root_certificate(
+            reqwest::Certificate::from_pem(cert_pem.as_bytes())
+              .expect("failed to parse TAURI_DEV_ROOT_CERTIFICATE"),
+          );
+        }
+
+        #[cfg(not(any(
+          feature = "native-tls",
+          feature = "native-tls-vendored",
+          feature = "rustls-tls"
+        )))]
+        {
+          log::warn!(
+            "the dev root-certificate-path option was provided, but you must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+          );
+        }
+      } else {
+        log::warn!(
+          "loading HTTPS URL; you might need to provide a certificate via the `dev --root-certificate-path` option. You must enable one of the following Tauri features in Cargo.toml: native-tls, native-tls-vendored, rustls-tls"
+        );
+      }
+    }
+
+    let mut proxy_builder = client
       .build()
       .unwrap()
       .request(request.method().clone(), &url);
@@ -152,8 +187,20 @@ fn get_response<R: Runtime>(
           .body(response.body.to_vec().into())?
       }
       Err(e) => {
-        log::error!("Failed to request {}: {}", url.as_str(), e);
-        return Err(Box::new(e));
+        let error_message = format!(
+          "Failed to request {}: {}{}",
+          url.as_str(),
+          e,
+          if let Some(s) = e.status() {
+            format!("status code: {}", s.as_u16())
+          } else if cfg!(target_os = "ios") {
+            ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
+          } else {
+            "".to_string()
+          }
+        );
+        log::error!("{error_message}");
+        return Err(error_message.into());
       }
     }
   };

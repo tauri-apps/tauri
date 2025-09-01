@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.7.0]
+
+### New Features
+
+- [`91508c0b8`](https://www.github.com/tauri-apps/tauri/commit/91508c0b8d16ec61c7706e93b711c5a85aaffb4a) ([#13881](https://www.github.com/tauri-apps/tauri/pull/13881) by [@pepperoni505](https://www.github.com/tauri-apps/tauri/../../pepperoni505)) Introduces a new configuration option that allows you to specify custom folders to watch for changes when running `tauri dev`.
+- [`0c402bfb6`](https://www.github.com/tauri-apps/tauri/commit/0c402bfb6bd0bec24d928fcabe2ffef1f5cff19a) ([#13997](https://www.github.com/tauri-apps/tauri/pull/13997) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Increase default iOS deployment target iOS to 14.0.
+
+### Enhancements
+
+- [`9300b59f6`](https://www.github.com/tauri-apps/tauri/commit/9300b59f65156a37f7bf9a629b69da6761ae734a) ([#13787](https://www.github.com/tauri-apps/tauri/pull/13787) by [@JakenHerman](https://www.github.com/tauri-apps/tauri/../../JakenHerman)) Added `fips_compliant` field to `WixConfig` so that it can be configured via `tauri.conf.json` as well.
+- [`72b4226ee`](https://www.github.com/tauri-apps/tauri/commit/72b4226ee9932b4dafa4837a49420b2c02d14bb7) ([#13809](https://www.github.com/tauri-apps/tauri/pull/13809) by [@Beanow](https://www.github.com/tauri-apps/tauri/../../Beanow)) Reduced `Debug` format size for binary buffers.
+
+### Bug Fixes
+
+- [`1a3d1a024`](https://www.github.com/tauri-apps/tauri/commit/1a3d1a024ebb2a3dd5d15849523a55246d78fda6) ([#13995](https://www.github.com/tauri-apps/tauri/pull/13995) by [@will3942](https://www.github.com/tauri-apps/tauri/../../will3942)) Fix Tauri iOS build with binary XCFramework dependencies, allows extracting binaryTargets that are zipped and also not including XCFrameworks when linking.
+
 ## \[2.6.0]
 
 ### New Features

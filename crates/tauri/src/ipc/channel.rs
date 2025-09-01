@@ -55,6 +55,7 @@ pub struct Channel<TSend = InvokeResponseBody> {
 const _: () = {
   #[derive(specta::Type)]
   #[specta(remote = super::Channel, rename = "TAURI_CHANNEL")]
+  #[allow(dead_code)]
   struct Channel<TSend>(std::marker::PhantomData<TSend>);
 };
 

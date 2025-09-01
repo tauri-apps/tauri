@@ -78,6 +78,11 @@ pub struct Options {
   /// e.g. `tauri android build -- [runnerArgs]`.
   #[clap(last(true))]
   pub args: Vec<String>,
+  /// Do not error out if a version mismatch is detected on a Tauri package.
+  ///
+  /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
+  #[clap(long)]
+  pub ignore_version_mismatches: bool,
 }
 
 impl From<Options> for BuildOptions {
@@ -92,6 +97,9 @@ impl From<Options> for BuildOptions {
       config: options.config,
       args: options.args,
       ci: options.ci,
+      skip_stapling: false,
+      ignore_version_mismatches: options.ignore_version_mismatches,
+      no_sign: false,
     }
   }
 }
@@ -160,6 +168,15 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
+  if !installed_targets.contains(&first_target.triple().into()) {
+    log::info!("Installing target {}", first_target.triple());
+    first_target
+      .install()
+      .context("failed to install target with rustup")?;
+  }
   // run an initial build to initialize plugins
   first_target.build(&config, &metadata, &env, noise_level, true, profile)?;
 

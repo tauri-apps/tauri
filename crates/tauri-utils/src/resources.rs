@@ -137,7 +137,11 @@ pub struct ResourcePathsIter<'a> {
   allow_walk: bool,
 
   current_path: Option<PathBuf>,
+  /// The key of map when `pattern_iter` is a [`PatternIter::Map`],
+  /// used for determining [`Resource::target`]
   current_pattern: Option<String>,
+  /// The value of the map when `pattern_iter` is a [`PatternIter::Map`],
+  /// used for determining [`Resource::target`]
   current_dest: Option<PathBuf>,
 
   walk_iter: Option<walkdir::IntoIter>,
@@ -176,28 +180,27 @@ impl ResourcePathsIter<'_> {
 
     Ok(Resource {
       path: path.to_path_buf(),
-      target: self
-        .current_dest
-        .as_ref()
-        .map(|current_dest| {
-          // if processing a directory, preserve directory structure under current_dest
-          if self.walk_iter.is_some() {
-            let current_pattern = self.current_pattern.as_ref().unwrap();
-            current_dest.join(path.strip_prefix(current_pattern).unwrap_or(path))
-          } else if current_dest.components().count() == 0 {
-            // if current_dest is empty while processing a file pattern or glob
-            // we preserve the file name as it is
-            PathBuf::from(path.file_name().unwrap())
-          } else if self.glob_iter.is_some() {
-            // if processing a glob and current_dest is not empty
-            // we put all globbed paths under current_dest
-            // preserving the file name as it is
-            current_dest.join(path.file_name().unwrap())
-          } else {
-            current_dest.clone()
-          }
-        })
-        .unwrap_or_else(|| resource_relpath(path)),
+      target: if let Some(current_dest) = &self.current_dest {
+        // if processing a directory, preserve directory structure under current_dest
+        if self.walk_iter.is_some() {
+          let current_pattern = self.current_pattern.as_ref().unwrap();
+          current_dest.join(path.strip_prefix(current_pattern).unwrap_or(path))
+        } else if current_dest.components().count() == 0 {
+          // if current_dest is empty while processing a file pattern or glob
+          // we preserve the file name as it is
+          PathBuf::from(path.file_name().unwrap())
+        } else if self.glob_iter.is_some() {
+          // if processing a glob and current_dest is not empty
+          // we put all globbed paths under current_dest
+          // preserving the file name as it is
+          current_dest.join(path.file_name().unwrap())
+        } else {
+          current_dest.clone()
+        }
+      } else {
+        // If `pattern_iter` is a [`PatternIter::Slice`]
+        resource_relpath(path)
+      },
     })
   }
 
@@ -240,14 +243,12 @@ impl ResourcePathsIter<'_> {
 
     let pattern = match &mut self.pattern_iter {
       PatternIter::Slice(iter) => iter.next()?,
-      PatternIter::Map(iter) => match iter.next() {
-        Some((pattern, dest)) => {
-          self.current_pattern = Some(pattern.clone());
-          self.current_dest = Some(resource_relpath(Path::new(dest)));
-          pattern
-        }
-        None => return None,
-      },
+      PatternIter::Map(iter) => {
+        let (pattern, dest) = iter.next()?;
+        self.current_pattern = Some(pattern.clone());
+        self.current_dest = Some(resource_relpath(Path::new(dest)));
+        pattern
+      }
     };
 
     if pattern.contains('*') {
@@ -339,37 +340,45 @@ mod tests {
     std::env::set_current_dir(&temp).unwrap();
 
     let paths = [
-      Path::new("src-tauri/tauri.conf.json"),
-      Path::new("src-tauri/some-other-json.json"),
-      Path::new("src-tauri/Cargo.toml"),
-      Path::new("src-tauri/Tauri.toml"),
-      Path::new("src-tauri/build.rs"),
-      Path::new("src/assets/javascript.svg"),
-      Path::new("src/assets/tauri.svg"),
-      Path::new("src/assets/rust.svg"),
-      Path::new("src/assets/lang/en.json"),
-      Path::new("src/assets/lang/ar.json"),
-      Path::new("src/sounds/lang/es.wav"),
-      Path::new("src/sounds/lang/fr.wav"),
-      Path::new("src/textures/ground/earth.tex"),
-      Path::new("src/textures/ground/sand.tex"),
-      Path::new("src/textures/water.tex"),
-      Path::new("src/textures/fire.tex"),
-      Path::new("src/tiles/sky/grey.tile"),
-      Path::new("src/tiles/sky/yellow.tile"),
-      Path::new("src/tiles/grass.tile"),
-      Path::new("src/tiles/stones.tile"),
-      Path::new("src/index.html"),
-      Path::new("src/style.css"),
-      Path::new("src/script.js"),
-      Path::new("src/dir/another-dir/file1.txt"),
-      Path::new("src/dir/another-dir2/file2.txt"),
+      "src-tauri/tauri.conf.json",
+      "src-tauri/some-other-json.json",
+      "src-tauri/Cargo.toml",
+      "src-tauri/Tauri.toml",
+      "src-tauri/build.rs",
+      "src/assets/javascript.svg",
+      "src/assets/tauri.svg",
+      "src/assets/rust.svg",
+      "src/assets/lang/en.json",
+      "src/assets/lang/ar.json",
+      "src/sounds/lang/es.wav",
+      "src/sounds/lang/fr.wav",
+      "src/textures/ground/earth.tex",
+      "src/textures/ground/sand.tex",
+      "src/textures/water.tex",
+      "src/textures/fire.tex",
+      "src/tiles/sky/grey.tile",
+      "src/tiles/sky/yellow.tile",
+      "src/tiles/grass.tile",
+      "src/tiles/stones.tile",
+      "src/index.html",
+      "src/style.css",
+      "src/script.js",
+      "src/dir/another-dir/file1.txt",
+      "src/dir/another-dir2/file2.txt",
     ];
 
     for path in paths {
+      let path = Path::new(path);
       fs::create_dir_all(path.parent().unwrap()).unwrap();
       fs::write(path, "").unwrap();
     }
+  }
+
+  fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
+    literal
+      .iter()
+      .map(|(from, to)| (from.to_string(), to.to_string()))
+      .collect()
   }
 
   #[test]
@@ -386,6 +395,8 @@ mod tests {
         "../src/assets".into(),
         "../src/index.html".into(),
         "../src/sounds".into(),
+        // Should be the same as `../src/textures/` or `../src/textures`
+        "../src/textures/**/*".into(),
         "*.toml".into(),
         "*.conf.json".into(),
       ],
@@ -396,7 +407,9 @@ mod tests {
     .collect::<Vec<_>>();
 
     let expected = expected_resources(&[
+      // From `../src/script.js`
       ("../src/script.js", "_up_/src/script.js"),
+      // From `../src/assets`
       (
         "../src/assets/javascript.svg",
         "_up_/src/assets/javascript.svg",
@@ -405,11 +418,26 @@ mod tests {
       ("../src/assets/rust.svg", "_up_/src/assets/rust.svg"),
       ("../src/assets/lang/en.json", "_up_/src/assets/lang/en.json"),
       ("../src/assets/lang/ar.json", "_up_/src/assets/lang/ar.json"),
+      // From `../src/index.html`
       ("../src/index.html", "_up_/src/index.html"),
+      // From `../src/sounds`
       ("../src/sounds/lang/es.wav", "_up_/src/sounds/lang/es.wav"),
       ("../src/sounds/lang/fr.wav", "_up_/src/sounds/lang/fr.wav"),
+      // From `../src/textures/**/*`
+      (
+        "../src/textures/ground/earth.tex",
+        "_up_/src/textures/earth.tex",
+      ),
+      (
+        "../src/textures/ground/sand.tex",
+        "_up_/src/textures/sand.tex",
+      ),
+      ("../src/textures/water.tex", "_up_/src/textures/water.tex"),
+      ("../src/textures/fire.tex", "_up_/src/textures/fire.tex"),
+      // From `*.toml`
       ("Cargo.toml", "Cargo.toml"),
       ("Tauri.toml", "Tauri.toml"),
+      // From `*.conf.json`
       ("tauri.conf.json", "tauri.conf.json"),
     ]);
 
@@ -469,17 +497,17 @@ mod tests {
     let _ = std::env::set_current_dir(dir);
 
     let resources = ResourcePaths::from_map(
-      &std::collections::HashMap::from_iter([
-        ("../src/script.js".into(), "main.js".into()),
-        ("../src/assets".into(), "".into()),
-        ("../src/index.html".into(), "frontend/index.html".into()),
-        ("../src/sounds".into(), "voices".into()),
-        ("../src/textures/*".into(), "textures".into()),
-        ("../src/tiles/**/*".into(), "tiles".into()),
-        ("*.toml".into(), "".into()),
-        ("*.conf.json".into(), "json".into()),
-        ("../non-existent-file".into(), "asd".into()), // invalid case
-        ("../non/*".into(), "asd".into()),             // invalid case
+      &resources_map(&[
+        ("../src/script.js", "main.js"),
+        ("../src/assets", ""),
+        ("../src/index.html", "frontend/index.html"),
+        ("../src/sounds", "voices"),
+        ("../src/textures/*", "textures"),
+        ("../src/tiles/**/*", "tiles"),
+        ("*.toml", ""),
+        ("*.conf.json", "json"),
+        ("../non-existent-file", "asd"), // invalid case
+        ("../non/*", "asd"),             // invalid case
       ]),
       true,
     )
@@ -525,13 +553,13 @@ mod tests {
     let _ = std::env::set_current_dir(dir);
 
     let resources = ResourcePaths::from_map(
-      &std::collections::HashMap::from_iter([
-        ("../src/script.js".into(), "main.js".into()),
-        ("../src/assets".into(), "".into()),
-        ("../src/index.html".into(), "frontend/index.html".into()),
-        ("../src/sounds".into(), "voices".into()),
-        ("*.toml".into(), "".into()),
-        ("*.conf.json".into(), "json".into()),
+      &resources_map(&[
+        ("../src/script.js", "main.js"),
+        ("../src/assets", ""),
+        ("../src/index.html", "frontend/index.html"),
+        ("../src/sounds", "voices"),
+        ("*.toml", ""),
+        ("*.conf.json", "json"),
       ]),
       false,
     )
@@ -564,15 +592,15 @@ mod tests {
     let _ = std::env::set_current_dir(dir);
 
     let resources = ResourcePaths::from_map(
-      &std::collections::HashMap::from_iter([
-        ("../non-existent-file".into(), "file".into()),
-        ("../non-existent-dir".into(), "dir".into()),
+      &resources_map(&[
+        ("../non-existent-file", "file"),
+        ("../non-existent-dir", "dir"),
         // exists but not allowed to walk
-        ("../src".into(), "dir2".into()),
+        ("../src", "dir2"),
         // doesn't exist but it is a glob and will return an error
-        ("../non-existent-glob-dir/*".into(), "glob".into()),
+        ("../non-existent-glob-dir/*", "glob"),
         // exists but only contains directories and will not produce any values
-        ("../src/dir/*".into(), "dir3".into()),
+        ("../src/dir/*", "dir3"),
       ]),
       false,
     )

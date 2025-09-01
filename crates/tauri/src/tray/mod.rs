@@ -603,6 +603,18 @@ impl<R: Runtime> TrayIcon<R> {
       })
     })
   }
+
+  /// Do something with the inner [`tray_icon::TrayIcon`] on main thread
+  ///
+  /// Note that `tray-icon` crate may be updated in minor releases of Tauri.
+  /// Therefore, it’s recommended to pin Tauri to at least a minor version when you’re using `with_inner_tray_icon`.
+  pub fn with_inner_tray_icon<F, T>(&self, f: F) -> crate::Result<T>
+  where
+    F: FnOnce(&tray_icon::TrayIcon) -> T + Send + 'static,
+    T: Send + 'static,
+  {
+    run_item_main_thread!(self, |self_: Self| { f(&self_.inner) })
+  }
 }
 
 impl<R: Runtime> Resource for TrayIcon<R> {

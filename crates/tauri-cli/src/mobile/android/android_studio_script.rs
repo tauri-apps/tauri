@@ -132,11 +132,21 @@ pub fn command(options: Options) -> Result<()> {
 
   let mut validated_lib = false;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
   call_for_targets_with_fallback(
     options.targets.unwrap_or_default().iter(),
     &detect_target_ok,
     &env,
     |target: &Target| {
+      if !installed_targets.contains(&target.triple().into()) {
+        log::info!("Installing target {}", target.triple());
+        target
+          .install()
+          .context("failed to install target with rustup")?;
+      }
+
       target.build(
         &config,
         &metadata,

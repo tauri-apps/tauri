@@ -177,15 +177,11 @@ xdg-open "$@"
     "".to_string()
   };
 
-  let mut bins = String::new();
-
-  for bin in settings.external_binaries() {
-    if let Some(bin) = bin?.file_name().and_then(|f| f.to_str()) {
-      bins.push_str(" \"");
-      bins.push_str(bin);
-      bins.push_str("\" ");
-    }
-  }
+  let bins = settings.copy_binaries(&app_dir_path.join("usr/bin/"))?;
+  let bins = bins
+    .iter()
+    .map(|b| format!(" \"{}\"", b.to_string_lossy()))
+    .collect::<String>();
 
   // TODO: Optional xvfb-run (check if it exists or whatever and then use it)
   // TODO: Check if we can make parts of the opengl (incl. libvulkan) deps optional

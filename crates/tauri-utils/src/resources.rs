@@ -376,7 +376,7 @@ mod tests {
 
   fn resources_map(literal: &[(&str, &str)]) -> HashMap<String, String> {
     literal
-      .into_iter()
+      .iter()
       .map(|(from, to)| (from.to_string(), to.to_string()))
       .collect()
   }

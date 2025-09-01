@@ -593,6 +593,15 @@
           },
           "maxItems": 16,
           "minItems": 16
+        },
+        "scrollBarStyle": {
+          "description": "Specifies the native scrollbar style to use with the webview.\n CSS styles that modify the scrollbar are applied on top of the native appearance configured here.\n\n Defaults to `default`, which is the browser default.\n\n ## Platform-specific\n\n - **Windows**:\n   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,\n     and does nothing on older versions.\n   - This option must be given the same value for all webviews that target the same data directory.\n - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.",
+          "default": "default",
+          "allOf": [
+            {
+              "$ref": "#/definitions/ScrollBarStyle"
+            }
+          ]
         }
       },
       "additionalProperties": false

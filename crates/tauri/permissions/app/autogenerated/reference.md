@@ -204,32 +204,6 @@ Denies the name command without any pre-configured scope.
 <tr>
 <td>
 
-`core:app:allow-register-listener`
-
-</td>
-<td>
-
-Enables the register_listener command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
-`core:app:deny-register-listener`
-
-</td>
-<td>
-
-Denies the register_listener command without any pre-configured scope.
-
-</td>
-</tr>
-
-<tr>
-<td>
-
 `core:app:allow-remove-data-store`
 
 </td>

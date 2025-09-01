@@ -95,7 +95,8 @@
             "bundleMediaFramework": false,
             "files": {},
             "squashfs": false,
-            "updateInformation": null
+            "updateInformation": null,
+            "useNewFormat": false
           },
           "deb": {
             "files": {}
@@ -2165,7 +2166,8 @@
               "bundleMediaFramework": false,
               "files": {},
               "squashfs": false,
-              "updateInformation": null
+              "updateInformation": null,
+              "useNewFormat": false
             },
             "deb": {
               "files": {}
@@ -3022,7 +3024,8 @@
             "bundleMediaFramework": false,
             "files": {},
             "squashfs": false,
-            "updateInformation": null
+            "updateInformation": null,
+            "useNewFormat": false
           },
           "allOf": [
             {
@@ -3074,8 +3077,13 @@
             "type": "string"
           }
         },
+        "useNewFormat": {
+          "description": "Use the new AppImage bundler based on sharun and uruntime instead of linuxdeploy.\n\n Enabling this is strongly recommended as it will produce truly portable\n AppImages that allow you to build on newer distros while still supporting\n older distros. The produced AppImage also has fewer general issues and\n supports Wayland without forcing the use of XWayland.\n\n The drawbacks of this option is that the AppImage will be larger, only supports\n x86_64 and aarch64, and currently can only be built on Debian/Ubuntu based systems.\n For Ubuntu it requires at least 24.04 and above.",
+          "default": false,
+          "type": "boolean"
+        },
         "squashfs": {
-          "description": "Make the AppImage use squashfs instead of dwarfs.\n\n Enabling this option will improve compatibility with AppImage integration\n tools but will also increase the file size.",
+          "description": "Make the AppImage use squashfs instead of dwarfs.\n\n Enabling this option will improve compatibility with AppImage integration\n tools but will also increase the file size.\n\n Ignored if `use_new_format` is disabled.",
           "default": false,
           "type": "boolean"
         },

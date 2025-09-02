@@ -18,7 +18,7 @@ pub use cookie;
 use http::HeaderMap;
 use serde::Serialize;
 use tauri_macros::default_runtime;
-pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent};
+pub use tauri_runtime::webview::{NewWindowFeatures, PageLoadEvent, ScrollBarStyle};
 // Remove this re-export in v3
 pub use tauri_runtime::Cookie;
 #[cfg(desktop)]
@@ -1162,6 +1162,25 @@ fn main() {
   #[must_use]
   pub fn disable_javascript(mut self) -> Self {
     self.webview_attributes.javascript_disabled = true;
+    self
+  }
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  ///
+  /// Defaults to [`ScrollBarStyle::Default`], which is the browser default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   - [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory. Use
+  ///     [`WebviewBuilder::data_directory`] to change data directories if needed.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[must_use]
+  pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
+    self.webview_attributes = self.webview_attributes.scroll_bar_style(style);
     self
   }
 

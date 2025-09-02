@@ -42,6 +42,7 @@ use crate::{
     InvokeError, InvokeMessage, InvokeResolver, Origin, OwnedInvokeResponder, ScopeObject,
   },
   manager::AppManager,
+  path::SafePathBuf,
   sealed::{ManagerBase, RuntimeOrDispatch},
   AppHandle, Emitter, Event, EventId, EventLoopMessage, EventName, Listener, Manager,
   ResourceTable, Runtime, Window,
@@ -387,9 +388,47 @@ async fn create_window(app: tauri::AppHandle) {
   ///
   /// [the Webview2 issue]: https://github.com/tauri-apps/wry/issues/583
   pub fn from_config(config: &WindowConfig) -> Self {
+    let mut config = config.to_owned();
+
+    if let Some(data_directory) = &config.data_directory {
+      let resolve_data_dir_res = dirs::data_local_dir()
+        .or({
+          #[cfg(feature = "tracing")]
+          tracing::error!("failed to resolve data directory");
+          None
+        })
+        .and_then(|local_dir| {
+          SafePathBuf::new(data_directory.clone())
+            .inspect_err(|_err| {
+              #[cfg(feature = "tracing")]
+              tracing::error!(
+                "data_directory `{}` is not a safe path, ignoring config. Validation error was: {_err}",
+                data_directory.display()
+              );
+            })
+            .map(|p| (local_dir, p))
+            .ok()
+        })
+        .and_then(|(local_dir, data_directory)| {
+          if data_directory.as_ref().is_relative() {
+            Some(local_dir.join(&config.label).join(data_directory.as_ref()))
+            } else {
+              #[cfg(feature = "tracing")]
+              tracing::error!(
+                "data_directory `{}` is not a relative path, ignoring config.",
+                data_directory.display()
+              );
+              None
+            }
+        });
+      if let Some(resolved_data_directory) = resolve_data_dir_res {
+        config.data_directory = Some(resolved_data_directory);
+      }
+    }
+
     Self {
       label: config.label.clone(),
-      webview_attributes: WebviewAttributes::from(config),
+      webview_attributes: WebviewAttributes::from(&config),
       web_resource_request_handler: None,
       navigation_handler: None,
       new_window_handler: None,

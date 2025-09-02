@@ -1,6 +1,6 @@
 [package]
 name = "tauri-cli"
-version = "2.8.3"
+version = "2.8.4"
 authors = ["Tauri Programme within The Commons Conservancy"]
 edition = "2021"
 rust-version = "1.77.2"
@@ -36,7 +36,7 @@ name = "cargo-tauri"
 path = "src/main.rs"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\", target_os = \"windows\", target_os = \"macos\"))".dependencies]
-cargo-mobile2 = { version = "0.20.2", default-features = false }
+cargo-mobile2 = { version = "0.20.6", default-features = false }
 
 [dependencies]
 jsonrpsee = { version = "0.24", features = ["server"] }

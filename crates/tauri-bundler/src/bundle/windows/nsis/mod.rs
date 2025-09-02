@@ -192,7 +192,7 @@ fn build_nsis_app_installer(
 
   // we make a copy of the NSIS directory if we're going to sign its DLLs
   // because we don't want to change the DLL hashes so the cache can reuse it
-  let maybe_plugin_copy_path = if settings.can_sign() {
+  let maybe_plugin_copy_path = if settings.windows().can_sign() {
     // find nsis path
     #[cfg(target_os = "linux")]
     let system_nsis_toolset_path = std::env::var_os("NSIS_PATH")
@@ -283,7 +283,7 @@ fn build_nsis_app_installer(
   );
   data.insert("copyright", to_json(settings.copyright_string()));
 
-  if settings.can_sign() {
+  if settings.windows().can_sign() {
     let sign_cmd = format!("{:?}", sign_command("%1", &settings.sign_params())?);
     data.insert("uninstaller_sign_cmd", to_json(sign_cmd));
   }
@@ -600,7 +600,7 @@ fn build_nsis_app_installer(
   ));
   fs::create_dir_all(nsis_installer_path.parent().unwrap())?;
 
-  if settings.can_sign() {
+  if settings.windows().can_sign() {
     log::info!("Signing NSIS plugins");
     for dll in NSIS_PLUGIN_FILES {
       let path = additional_plugins_path.join(dll);
@@ -640,7 +640,7 @@ fn build_nsis_app_installer(
 
   fs::rename(nsis_output_path, &nsis_installer_path)?;
 
-  if settings.can_sign() {
+  if settings.windows().can_sign() {
     try_sign(&nsis_installer_path, settings)?;
   } else {
     #[cfg(not(target_os = "windows"))]
@@ -718,7 +718,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     let loader_path =
       dunce::simplified(&settings.project_out_directory().join("WebView2Loader.dll")).to_path_buf();
     if loader_path.exists() {
-      if settings.can_sign() {
+      if settings.windows().can_sign() {
         try_sign(&loader_path, settings)?;
       }
       added_resources.push(loader_path.clone());
@@ -743,7 +743,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourcesMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() && should_sign(&resource_path)? {
+    if settings.windows().can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 

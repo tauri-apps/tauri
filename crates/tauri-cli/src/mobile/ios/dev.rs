@@ -15,7 +15,8 @@ use crate::{
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
+    ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
+    DevChild, DevHost, DevProcess,
   },
   ConfigValue, Result,
 };
@@ -165,6 +166,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }
     }
   };
+
+  if device.is_some() {
+    ensure_ios_runtime_installed()?;
+  }
 
   let mut dev_options: DevOptions = options.clone().into();
   let target_triple = device

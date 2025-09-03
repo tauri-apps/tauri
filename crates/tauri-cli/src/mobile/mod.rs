@@ -320,6 +320,7 @@ fn env_vars() -> HashMap<String, OsString> {
       || k.starts_with("WRY")
       || k.starts_with("CARGO_")
       || k.starts_with("RUST_")
+      || k.starts_with("OHOS")
       || k == "TMPDIR"
       || k == "PATH"
     {

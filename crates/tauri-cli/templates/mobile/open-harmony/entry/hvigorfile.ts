@@ -16,13 +16,13 @@ function tauriPlugin(): HvigorPlugin {
         const properties = hvigor.getParameter().getProperties();
         const target = properties.target || "aarch64";
         execFileSync(`{{tauri-binary}}`,
-          [{{quote-and-join tauri-binary-args}}, "--target", target], {
+          [{{quote-and-join tauri-binary-args}}, "--target", target.toString()], {
             cwd: resolve(__dirname, "{{root-dir-rel}}"),
             stdio: "inherit",
           });
       }
 
-      node.getTaskByName('default@ConfigureCmake').afterRun(buildRustCode);
+      node.getTaskByName('default@ConfigureCmake')!.afterRun(buildRustCode);
     }
   }
 }

@@ -29,7 +29,7 @@ interface InternalWebviewOptions
  */
 function getCurrentWebviewWindow(): WebviewWindow {
   const webview = getCurrentWebview()
-  return new WebviewWindow(webview.label, { skip: true } as any)
+  return new WebviewWindow(webview.label, { skip: true })
 }
 
 /**
@@ -43,7 +43,7 @@ async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
       (w) =>
         new WebviewWindow(w, {
           skip: true
-        } as any)
+        })
     )
   )
 }
@@ -118,7 +118,7 @@ class WebviewWindow {
     const webview =
       (await getAllWebviewWindows()).find((w) => w.label === label) ?? null
     if (webview) {
-      return new WebviewWindow(webview.label, { skip: true } as any)
+      return new WebviewWindow(webview.label, { skip: true })
     }
     return null
   }

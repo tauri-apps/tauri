@@ -21,7 +21,24 @@ open class BuildTask : DefaultTask() {
             runTauriCli(executable)
         } catch (e: Exception) {
             if (Os.isFamily(Os.FAMILY_WINDOWS)) {
-                runTauriCli("$executable.cmd")
+                // Try different Windows-specific fallbacks
+                val fallbacks = listOf(
+                    "$executable.cmd",
+                    "$executable.bat",
+                    "cargo.exe",
+                    "cargo"
+                )
+                
+                var lastException: Exception = e
+                for (fallback in fallbacks) {
+                    try {
+                        runTauriCli(fallback)
+                        return
+                    } catch (fallbackException: Exception) {
+                        lastException = fallbackException
+                    }
+                }
+                throw lastException
             } else {
                 throw e;
             }
@@ -32,7 +49,15 @@ open class BuildTask : DefaultTask() {
         val rootDirRel = rootDirRel ?: throw GradleException("rootDirRel cannot be null")
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
-        val args = listOf({{quote-and-join tauri-binary-args}});
+        
+        val baseArgs = listOf({{quote-and-join tauri-binary-args}});
+        
+        // If we're using cargo as a fallback, we need to prepend "tauri" to the args
+        val args = if (executable.contains("cargo")) {
+            listOf("tauri") + baseArgs
+        } else {
+            baseArgs
+        }.toMutableList()
 
         project.exec {
             workingDir(File(project.projectDir, rootDirRel))

@@ -1058,7 +1058,7 @@ dependencies = [
 [[package]]
 name = "cargo-mobile2"
 version = "0.20.7"
-source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=feat/ohos#5a7802104989d125a6962c87c1cc1ef89440f6c7"
+source = "git+https://github.com/tauri-apps/cargo-mobile2?branch=feat/ohos#5e521883ec8205dc2cce8234dbfe4574a4e5819e"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",

@@ -49,7 +49,7 @@ importers:
         specifier: ^66.3.3
         version: 66.3.3(postcss@8.5.6)(vite@7.1.5(@types/node@22.15.32)(jiti@2.4.2)(terser@5.43.1))(vue@3.5.17(typescript@5.8.3))
       vite:
-        specifier: ^7.0.7
+        specifier: ^7.1.5
         version: 7.1.5(@types/node@22.15.32)(jiti@2.4.2)(terser@5.43.1)
 
   examples/file-associations: {}

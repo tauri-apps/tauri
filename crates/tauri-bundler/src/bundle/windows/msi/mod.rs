@@ -470,7 +470,7 @@ pub fn build_wix_app_installer(
   fs::create_dir_all(&output_path)?;
 
   // when we're performing code signing, we'll sign some WiX DLLs, so we make a local copy
-  let wix_toolset_path = if settings.can_sign() {
+  let wix_toolset_path = if settings.windows().can_sign() {
     let wix_path = output_path.join("wix");
     crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
       .context("failed to copy wix directory")?;
@@ -771,7 +771,7 @@ pub fn build_wix_app_installer(
     let mut extensions = Vec::new();
     for cap in extension_regex.captures_iter(&fragment) {
       let path = wix_toolset_path.join(format!("Wix{}.dll", &cap[1]));
-      if settings.can_sign() {
+      if settings.windows().can_sign() {
         try_sign(&path, settings)?;
       }
       extensions.push(path);
@@ -785,7 +785,7 @@ pub fn build_wix_app_installer(
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
 
   // sign default extensions
-  if settings.can_sign() {
+  if settings.windows().can_sign() {
     for path in &fragment_extensions {
       try_sign(path, settings)?;
     }
@@ -879,7 +879,7 @@ pub fn build_wix_app_installer(
     )?;
     fs::rename(&msi_output_path, &msi_path)?;
 
-    if settings.can_sign() {
+    if settings.windows().can_sign() {
       try_sign(&msi_path, settings)?;
     }
 
@@ -988,7 +988,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() && should_sign(&resource_path)? {
+    if settings.windows().can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 
@@ -1076,7 +1076,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .to_string_lossy()
       .into_owned();
     if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {
-      if settings.can_sign() {
+      if settings.windows().can_sign() {
         try_sign(resource_path, settings)?;
       }
 

@@ -103,7 +103,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
-  if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
+  if settings.no_sign() {
+    log::warn!("Skipping signing due to --no-sign flag.",);
+  } else if let Some(keychain) =
+    super::sign::keychain(settings.macos().signing_identity.as_deref())?
+  {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
     sign_paths.push(SignTarget {

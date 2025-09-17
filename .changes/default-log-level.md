@@ -3,4 +3,4 @@
 "tauri-cli": patch:enhance
 ---
 
-Fix iOS dev and build targeting the simulator on Intel machines.
+Set a default log level filter when running `tauri add log`.

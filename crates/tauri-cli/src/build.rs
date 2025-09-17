@@ -76,10 +76,17 @@ pub struct Options {
   /// Only use this when you are sure the mismatch is incorrectly detected as version mismatched Tauri packages can lead to unknown behavior.
   #[clap(long)]
   pub ignore_version_mismatches: bool,
+  /// Skip code signing when bundling the app
+  #[clap(long)]
+  pub no_sign: bool,
 }
 
 pub fn command(mut options: Options, verbosity: u8) -> Result<()> {
   crate::helpers::app_paths::resolve();
+
+  if options.no_sign {
+    log::warn!("--no-sign flag detected: Signing will be skipped.");
+  }
 
   let ci = options.ci;
 

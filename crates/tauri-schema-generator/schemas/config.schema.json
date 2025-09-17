@@ -84,6 +84,7 @@
       "default": {
         "active": false,
         "android": {
+          "autoIncrementVersionCode": false,
           "minSdkVersion": 24
         },
         "createUpdaterArtifacts": false,
@@ -2233,6 +2234,7 @@
         "android": {
           "description": "Android configuration.",
           "default": {
+            "autoIncrementVersionCode": false,
             "minSdkVersion": 24
           },
           "allOf": [
@@ -3718,6 +3720,11 @@
           "format": "uint32",
           "maximum": 2100000000.0,
           "minimum": 1.0
+        },
+        "autoIncrementVersionCode": {
+          "description": "Whether to automatically increment the `versionCode` on each build.\n\n - If `true`, the generator will try to read the last `versionCode` from\n   `tauri.properties` and increment it by 1 for every build.\n - If `false` or not set, it falls back to `version_code` or semver-derived logic.\n\n Default: `false`",
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false

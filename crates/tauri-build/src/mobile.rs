@@ -56,7 +56,19 @@ dependencies {"
 
   if let Some(version) = config.version.as_ref() {
     app_tauri_properties.push(format!("tauri.android.versionName={version}"));
-    if let Some(version_code) = config.bundle.android.version_code.as_ref() {
+    if config.bundle.android.auto_increment_version_code {
+      let last_version_code = std::fs::read_to_string(&app_tauri_properties_path)
+        .ok()
+        .and_then(|content| {
+          content
+            .lines()
+            .find(|line| line.starts_with("tauri.android.versionCode="))
+            .and_then(|line| line.split('=').nth(1))
+            .and_then(|s| s.trim().parse::<u32>().ok())
+        });
+      let new_version_code = last_version_code.map(|v| v.saturating_add(1)).unwrap_or(1);
+      app_tauri_properties.push(format!("tauri.android.versionCode={new_version_code}"));
+    } else if let Some(version_code) = config.bundle.android.version_code.as_ref() {
       app_tauri_properties.push(format!("tauri.android.versionCode={version_code}"));
     } else if let Ok(version) = Version::parse(version) {
       let mut version_code = version.major * 1000000 + version.minor * 1000 + version.patch;

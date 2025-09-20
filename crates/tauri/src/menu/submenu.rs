@@ -404,6 +404,9 @@ impl<R: Runtime> Submenu<R> {
     Ok(())
   }
 
+  /// ⚠️ This is currently broken. Instead, create a menu with the label "Help"
+  /// so that macOS will handle this automatically
+  ///
   /// Set this submenu as the Help menu for the application on macOS.
   ///
   /// This will cause macOS to automatically add a search box to the menu.
@@ -412,9 +415,16 @@ impl<R: Runtime> Submenu<R> {
   /// which has a title matching the localized word "Help".
   #[cfg(target_os = "macos")]
   pub fn set_as_help_menu_for_nsapp(&self) -> crate::Result<()> {
-    run_item_main_thread!(self, |self_: Self| {
-      (*self_.0).as_ref().set_as_help_menu_for_nsapp()
-    })?;
+    // Broken: https://github.com/tauri-apps/muda/issues/263
+    //
+    // Do not uncomment this code unless the issue is fixed!
+    // As of writing, `set_as_help_menu_for_nsapp` causes the help search to
+    // never show at all. By commenting it out, we let macOS handle it's usual
+    // auto-detection which is expected behaviour and works fine for most apps.
+    //
+    // run_item_main_thread!(self, |self_: Self| {
+    //   (*self_.0).as_ref().set_as_help_menu_for_nsapp()
+    // })?;
     Ok(())
   }
 

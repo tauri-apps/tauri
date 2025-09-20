@@ -177,10 +177,11 @@ impl<R: Runtime> Menu<R> {
       HELP_SUBMENU_ID,
       "Help",
       true,
-      &[
-        #[cfg(not(target_os = "macos"))]
-        &PredefinedMenuItem::about(app_handle, None, Some(about_metadata))?,
-      ],
+      &[&PredefinedMenuItem::about(
+        app_handle,
+        None,
+        Some(about_metadata.clone()),
+      )?],
     )?;
 
     let menu = Menu::with_items(

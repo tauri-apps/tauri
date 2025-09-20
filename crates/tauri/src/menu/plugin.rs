@@ -824,12 +824,13 @@ fn set_as_help_menu_for_nsapp<R: Runtime>(
   webview: Webview<R>,
   rid: ResourceId,
 ) -> crate::Result<()> {
-  #[cfg(target_os = "macos")]
-  {
-    let resources_table = webview.resources_table();
-    let submenu = resources_table.get::<Submenu<R>>(rid)?;
-    submenu.set_as_help_menu_for_nsapp()?;
-  }
+  // Broken: https://github.com/tauri-apps/muda/issues/263
+  // #[cfg(target_os = "macos")]
+  // {
+  //   let resources_table = webview.resources_table();
+  //   let submenu = resources_table.get::<Submenu<R>>(rid)?;
+  //   submenu.set_as_help_menu_for_nsapp()?;
+  // }
 
   let _ = rid;
   let _ = webview;

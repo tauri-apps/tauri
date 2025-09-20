@@ -277,6 +277,9 @@ export class Submenu extends MenuItemBase {
   }
 
   /**
+   * ⚠️ This is currently broken. Instead, create a menu with the label "Help"
+   * so that macOS will handle this automatically
+   * 
    * Set this submenu as the Help menu for the application on macOS.
    *
    * This will cause macOS to automatically add a search box to the menu.

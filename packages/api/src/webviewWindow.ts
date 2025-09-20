@@ -19,7 +19,6 @@ import type { Color, DragDropEvent } from './webview'
 interface InternalWebviewOptions
   extends Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'> {
   skip?: boolean
-  parent?: Window | WebviewWindow | string
 }
 
 /**
@@ -29,13 +28,11 @@ interface InternalWebviewOptions
  */
 function getCurrentWebviewWindow(): WebviewWindow {
   const webview = getCurrentWebview()
-  return new WebviewWindow(webview.label, { skip: true })
+  return new WebviewWindow(webview.label, { skip: true } as any)
 }
 
 /**
- * Gets a list of instances of `Webview` for all available webview windows.
- *
- * @since 2.0.0
+ * Gets a list of instances of `Webview` for all available webviews.
  */
 async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
   return invoke<string[]>('plugin:window|get_all_windows').then((windows) =>
@@ -43,7 +40,7 @@ async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
       (w) =>
         new WebviewWindow(w, {
           skip: true
-        })
+        } as any)
     )
   )
 }
@@ -79,21 +76,23 @@ class WebviewWindow {
   constructor(
     label: WebviewLabel,
     options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'>
-      & WindowOptions & { skip?: boolean } = {}
+      & WindowOptions = {}
   ) {
     this.label = label
     this.listeners = Object.create(null)
 
-    const internalOptions = options as InternalWebviewOptions
+    const internalOptions = options as InternalWebviewOptions & {
+      skip?: boolean
+    }
 
     if (!internalOptions?.skip) {
       invoke('plugin:webview|create_webview_window', {
         options: {
           ...internalOptions,
           parent:
-            typeof internalOptions.parent === 'string'
-              ? internalOptions.parent
-              : internalOptions.parent?.label,
+            typeof options.parent === 'string'
+              ? options.parent
+              : options.parent?.label,
           label
         }
       })
@@ -118,7 +117,7 @@ class WebviewWindow {
     const webview =
       (await getAllWebviewWindows()).find((w) => w.label === label) ?? null
     if (webview) {
-      return new WebviewWindow(webview.label, { skip: true })
+      return new WebviewWindow(webview.label, { skip: true } as any)
     }
     return null
   }
@@ -201,28 +200,9 @@ class WebviewWindow {
         if (idx >= 0) listeners.splice(idx, 1)
       }
     }
-    return once(
-      event,
-      handler,
-      /**
-       * Set the window and webview background color.
-       *
-       * #### Platform-specific:
-       *
-       * - **Android / iOS:** Unsupported for the window layer.
-       * - **macOS / iOS**: Not implemented for the webview layer.
-       * - **Windows**:
-       *   - alpha channel is ignored for the window layer.
-       *   - On Windows 7, alpha channel is ignored for the webview layer.
-       *   - On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
-       *
-       * @returns A promise indicating the success or failure of the operation.
-       *
-       * @since 2.1.0
-       */ {
-        target: { kind: 'WebviewWindow', label: this.label }
-      }
-    )
+    return once(event, handler, {
+      target: { kind: 'WebviewWindow', label: this.label }
+    })
   }
 
   /**
@@ -235,7 +215,9 @@ class WebviewWindow {
       await invoke('plugin:window|set_background_color', { color })
       await invoke('plugin:webview|set_webview_background_color', { color })
     } catch (err) {
-      throw new Error(`Failed to set background color: ${String(err)}`)
+      const error = new Error('Failed to set background color')
+      ;(error as any).cause = err
+      throw error
     }
   }
 }

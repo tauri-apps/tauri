@@ -88,6 +88,9 @@ importers:
       globals:
         specifier: ^16.2.0
         version: 16.2.0
+      prettier:
+        specifier: ^3.5.3
+        version: 3.5.3
       rollup:
         specifier: 4.50.1
         version: 4.50.1

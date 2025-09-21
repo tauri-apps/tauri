@@ -640,6 +640,8 @@ pub struct MacConfig {
   /// Setting it to `null` completely removes the `LSMinimumSystemVersion` field on the bundle's `Info.plist`
   /// and the `MACOSX_DEPLOYMENT_TARGET` environment variable.
   ///
+  /// Ignored in `tauri dev`.
+  ///
   /// An empty string is considered an invalid value so the default value is used.
   #[serde(
     deserialize_with = "de_macos_minimum_system_version",
@@ -690,7 +692,7 @@ fn macos_minimum_system_version() -> Option<String> {
 }
 
 fn ios_minimum_system_version() -> String {
-  "13.0".into()
+  "14.0".into()
 }
 
 /// Configuration for a target language for the WiX build.
@@ -788,6 +790,10 @@ pub struct WixConfig {
   /// The required dimensions are 493px × 312px.
   #[serde(alias = "dialog-image-path")]
   pub dialog_image_path: Option<PathBuf>,
+  /// Enables FIPS compliant algorithms.
+  /// Can also be enabled via the `TAURI_BUNDLER_WIX_FIPS_COMPLIANT` env var.
+  #[serde(default, alias = "fips-compliant")]
+  pub fips_compliant: bool,
 }
 
 /// Compression algorithms used in the NSIS installer.
@@ -902,11 +908,11 @@ pub struct NsisConfig {
   /// main installer.nsi script.
   ///
   /// Supported hooks are:
+  ///
   /// - `NSIS_HOOK_PREINSTALL`: This hook runs before copying files, setting registry key values and creating shortcuts.
   /// - `NSIS_HOOK_POSTINSTALL`: This hook runs after the installer has finished copying all files, setting the registry keys and created shortcuts.
   /// - `NSIS_HOOK_PREUNINSTALL`: This hook runs before removing any files, registry keys and shortcuts.
   /// - `NSIS_HOOK_POSTUNINSTALL`: This hook runs after files, registry keys and shortcuts have been removed.
-  ///
   ///
   /// ### Example
   ///
@@ -926,7 +932,6 @@ pub struct NsisConfig {
   /// !macro NSIS_HOOK_POSTUNINSTALL
   ///   MessageBox MB_OK "PostUninstall"
   /// !macroend
-  ///
   /// ```
   #[serde(alias = "installer-hooks")]
   pub installer_hooks: Option<PathBuf>,
@@ -1280,6 +1285,47 @@ pub struct BundleConfig {
   /// App resources to bundle.
   /// Each resource is a path to a file or directory.
   /// Glob patterns are supported.
+  ///
+  /// ## Examples
+  ///
+  /// To include a list of files:
+  ///
+  /// ```json
+  /// {
+  ///   "bundle": {
+  ///     "resources": [
+  ///       "./path/to/some-file.txt",
+  ///       "/absolute/path/to/textfile.txt",
+  ///       "../relative/path/to/jsonfile.json",
+  ///       "some-folder/",
+  ///       "resources/**/*.md"
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// The bundled files will be in `$RESOURCES/` with the original directory structure preserved,
+  /// for example: `./path/to/some-file.txt` -> `$RESOURCE/path/to/some-file.txt`
+  ///
+  /// To fine control where the files will get copied to, use a map instead
+  ///
+  /// ```json
+  /// {
+  ///   "bundle": {
+  ///     "resources": {
+  ///       "/absolute/path/to/textfile.txt": "resources/textfile.txt",
+  ///       "relative/path/to/jsonfile.json": "resources/jsonfile.json",
+  ///       "resources/": "",
+  ///       "docs/**/*md": "website-docs/"
+  ///     }
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// Note that when using glob pattern in this case, the original directory structure is not preserved,
+  /// everything gets copied to the target directory directly
+  ///
+  /// See more: <https://v2.tauri.app/develop/resources/>
   pub resources: Option<BundleResources>,
   /// A copyright string associated with your application.
   pub copyright: Option<String>,
@@ -1492,9 +1538,9 @@ impl schemars::JsonSchema for Color {
 pub enum BackgroundThrottlingPolicy {
   /// A policy where background throttling is disabled
   Disabled,
-  /// A policy where a web view that’s not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
+  /// A policy where a web view that's not in a window fully suspends tasks. This is usually the default behavior in case no policy is set.
   Suspend,
-  /// A policy where a web view that’s not in a window limits processing, but does not fully suspend tasks.
+  /// A policy where a web view that's not in a window limits processing, but does not fully suspend tasks.
   Throttle,
 }
 
@@ -1540,6 +1586,27 @@ pub enum PreventOverflowConfig {
   Margin(PreventOverflowMargin),
 }
 
+/// The scrollbar style to use in the webview.
+///
+/// ## Platform-specific
+///
+/// - **Windows**: This option must be given the same value for all webviews that target the same data directory.
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[non_exhaustive]
+pub enum ScrollBarStyle {
+  #[default]
+  /// The scrollbar style to use in the webview.
+  Default,
+
+  /// Fluent UI style overlay scrollbars. **Windows Only**
+  ///
+  /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  FluentOverlay,
+}
+
 /// The window configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#windowconfig>
@@ -1555,6 +1622,16 @@ pub struct WindowConfig {
   ///
   /// When this is set to `false` you must manually grab the config object via `app.config().app.windows`
   /// and create it with [`WebviewWindowBuilder::from_config`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.from_config).
+  ///
+  /// ## Example:
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[serde(default = "default_true")]
   pub create: bool,
   /// The window webview URL.
@@ -1637,6 +1714,9 @@ pub struct WindowConfig {
   /// Whether the window will be initially focused or not.
   #[serde(default = "default_true")]
   pub focus: bool,
+  /// Whether the window will be focusable or not.
+  #[serde(default = "default_true")]
+  pub focusable: bool,
   /// Whether the window is transparent or not.
   ///
   /// Note that on `macOS` this requires the `macos-private-api` feature flag, enabled under `tauri > macOSPrivateApi`.
@@ -1724,9 +1804,9 @@ pub struct WindowConfig {
   pub window_effects: Option<WindowEffectsConfig>,
   /// Whether or not the webview should be launched in incognito  mode.
   ///
-  ///  ## Platform-specific:
+  /// ## Platform-specific:
   ///
-  ///  - **Android**: Unsupported.
+  /// - **Android**: Unsupported.
   #[serde(default)]
   pub incognito: bool,
   /// Sets the window associated with this label to be the parent of the window to be created.
@@ -1835,6 +1915,46 @@ pub struct WindowConfig {
     alias = "disable_input_accessory_view"
   )]
   pub disable_input_accessory_view: bool,
+  ///
+  /// Set a custom path for the webview's data directory (localStorage, cache, etc.) **relative to [`appDataDir()`]/${label}**.
+  ///
+  /// To set absolute paths, use [`WebviewWindowBuilder::data_directory`](https://docs.rs/tauri/2/tauri/webview/struct.WebviewWindowBuilder.html#method.data_directory)
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **Windows**: WebViews with different values for settings like `additionalBrowserArgs`, `browserExtensionsEnabled` or `scrollBarStyle` must have different data directories.
+  /// - **macOS / iOS**: Unsupported, use `dataStoreIdentifier` instead.
+  /// - **Android**: Unsupported.
+  #[serde(default, alias = "data-directory")]
+  pub data_directory: Option<PathBuf>,
+  ///
+  /// Initialize the WebView with a custom data store identifier. This can be seen as a replacement for `dataDirectory` which is unavailable in WKWebView.
+  /// See https://developer.apple.com/documentation/webkit/wkwebsitedatastore/init(foridentifier:)?language=objc
+  ///
+  /// The array must contain 16 u8 numbers.
+  ///
+  /// #### Platform-specific:
+  ///
+  /// - **iOS**: Supported since version 17.0+.
+  /// - **macOS**: Supported since version 14.0+.
+  /// - **Windows / Linux / Android**: Unsupported.
+  #[serde(default, alias = "data-store-identifier")]
+  pub data_store_identifier: Option<[u8; 16]>,
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  ///
+  /// Defaults to `default`, which is the browser default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   - `fluentOverlay` requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[serde(default, alias = "scroll-bar-style")]
+  pub scroll_bar_style: ScrollBarStyle,
 }
 
 impl Default for WindowConfig {
@@ -1862,6 +1982,7 @@ impl Default for WindowConfig {
       title: default_title(),
       fullscreen: false,
       focus: false,
+      focusable: true,
       transparent: false,
       maximized: false,
       visible: true,
@@ -1893,6 +2014,9 @@ impl Default for WindowConfig {
       javascript_disabled: false,
       allow_link_preview: true,
       disable_input_accessory_view: false,
+      data_directory: None,
+      data_store_identifier: None,
+      scroll_bar_style: ScrollBarStyle::Default,
     }
   }
 }
@@ -2468,7 +2592,26 @@ pub struct SecurityConfig {
   pub pattern: PatternKind,
   /// List of capabilities that are enabled on the application.
   ///
-  /// If the list is empty, all capabilities are included.
+  /// By default (not set or empty list), all capability files from `./capabilities/` are included,
+  /// by setting values in this entry, you have fine grained control over which capabilities are included
+  ///
+  /// You can either reference a capability file defined in `./capabilities/` with its identifier or inline a [`Capability`]
+  ///
+  /// ### Example
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "capabilities": [
+  ///       "main-window",
+  ///       {
+  ///         "identifier": "drag-window",
+  ///         "permissions": ["core:window:allow-start-dragging"]
+  ///       }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
   #[serde(default)]
   pub capabilities: Vec<CapabilityEntry>,
   /// The headers, which are added to every http response from tauri to the web view
@@ -2530,6 +2673,59 @@ impl Default for PatternKind {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AppConfig {
   /// The app windows configuration.
+  ///
+  /// ## Example:
+  ///
+  /// To create a window at app startup
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// If not specified, the window's label (its identifier) defaults to "main",
+  /// you can use this label to get the window through
+  /// `app.get_webview_window` in Rust or `WebviewWindow.getByLabel` in JavaScript
+  ///
+  /// When working with multiple windows, each window will need an unique label
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "label": "main", "width": 800, "height": 600 },
+  ///       { "label": "secondary", "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// You can also set `create` to false and use this config through the Rust APIs
+  ///
+  /// ```json
+  /// {
+  ///   "app": {
+  ///     "windows": [
+  ///       { "create": false, "width": 800, "height": 600 }
+  ///     ]
+  ///   }
+  /// }
+  /// ```
+  ///
+  /// and use it like this
+  ///
+  /// ```rust
+  /// tauri::Builder::default()
+  ///   .setup(|app| {
+  ///     tauri::WebviewWindowBuilder::from_config(app.handle(), app.config().app.windows[0])?.build()?;
+  ///     Ok(())
+  ///   });
+  /// ```
   #[serde(default)]
   pub windows: Vec<WindowConfig>,
   /// Security configuration.
@@ -2761,6 +2957,77 @@ pub enum HookCommand {
   },
 }
 
+/// The runner configuration.
+#[skip_serializing_none]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum RunnerConfig {
+  /// A string specifying the binary to run.
+  String(String),
+  /// An object with advanced configuration options.
+  Object {
+    /// The binary to run.
+    cmd: String,
+    /// The current working directory to run the command from.
+    cwd: Option<String>,
+    /// Arguments to pass to the command.
+    args: Option<Vec<String>>,
+  },
+}
+
+impl Default for RunnerConfig {
+  fn default() -> Self {
+    RunnerConfig::String("cargo".to_string())
+  }
+}
+
+impl RunnerConfig {
+  /// Returns the command to run.
+  pub fn cmd(&self) -> &str {
+    match self {
+      RunnerConfig::String(cmd) => cmd,
+      RunnerConfig::Object { cmd, .. } => cmd,
+    }
+  }
+
+  /// Returns the working directory.
+  pub fn cwd(&self) -> Option<&str> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { cwd, .. } => cwd.as_deref(),
+    }
+  }
+
+  /// Returns the arguments.
+  pub fn args(&self) -> Option<&[String]> {
+    match self {
+      RunnerConfig::String(_) => None,
+      RunnerConfig::Object { args, .. } => args.as_deref(),
+    }
+  }
+}
+
+impl std::str::FromStr for RunnerConfig {
+  type Err = std::convert::Infallible;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    Ok(RunnerConfig::String(s.to_string()))
+  }
+}
+
+impl From<&str> for RunnerConfig {
+  fn from(s: &str) -> Self {
+    RunnerConfig::String(s.to_string())
+  }
+}
+
+impl From<String> for RunnerConfig {
+  fn from(s: String) -> Self {
+    RunnerConfig::String(s)
+  }
+}
+
 /// The Build configuration object.
 ///
 /// See more: <https://v2.tauri.app/reference/config/#buildconfig>
@@ -2770,7 +3037,7 @@ pub enum HookCommand {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct BuildConfig {
   /// The binary used to build and run the application.
-  pub runner: Option<String>,
+  pub runner: Option<RunnerConfig>,
   /// The URL to load in development.
   ///
   /// This is usually an URL to a dev server, which serves your application assets with hot-reload and HMR.
@@ -2821,6 +3088,9 @@ pub struct BuildConfig {
   ///   - This feature requires tauri-plugin 2.1 and tauri 2.4
   #[serde(alias = "remove-unused-commands", default)]
   pub remove_unused_commands: bool,
+  /// Additional paths to watch for changes when running `tauri dev`.
+  #[serde(alias = "additional-watch-directories", default)]
+  pub additional_watch_folders: Vec<PathBuf>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -3197,6 +3467,17 @@ mod build {
     }
   }
 
+  impl ToTokens for ScrollBarStyle {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::ScrollBarStyle };
+
+      tokens.append_all(match self {
+        Self::Default => quote! { #prefix::Default },
+        Self::FluentOverlay => quote! { #prefix::FluentOverlay },
+      })
+    }
+  }
+
   impl ToTokens for WindowConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let label = str_lit(&self.label);
@@ -3222,6 +3503,7 @@ mod build {
       let proxy_url = opt_lit(self.proxy_url.as_ref().map(url_lit).as_ref());
       let fullscreen = self.fullscreen;
       let focus = self.focus;
+      let focusable = self.focusable;
       let transparent = self.transparent;
       let maximized = self.maximized;
       let visible = self.visible;
@@ -3252,6 +3534,9 @@ mod build {
       let javascript_disabled = self.javascript_disabled;
       let allow_link_preview = self.allow_link_preview;
       let disable_input_accessory_view = self.disable_input_accessory_view;
+      let data_directory = opt_lit(self.data_directory.as_ref().map(path_buf_lit).as_ref());
+      let data_store_identifier = opt_vec_lit(self.data_store_identifier, identity);
+      let scroll_bar_style = &self.scroll_bar_style;
 
       literal_struct!(
         tokens,
@@ -3279,6 +3564,7 @@ mod build {
         proxy_url,
         fullscreen,
         focus,
+        focusable,
         transparent,
         maximized,
         visible,
@@ -3308,7 +3594,10 @@ mod build {
         background_throttling,
         javascript_disabled,
         allow_link_preview,
-        disable_input_accessory_view
+        disable_input_accessory_view,
+        data_directory,
+        data_store_identifier,
+        scroll_bar_style
       );
     }
   }
@@ -3436,16 +3725,40 @@ mod build {
     }
   }
 
+  impl ToTokens for RunnerConfig {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+      let prefix = quote! { ::tauri::utils::config::RunnerConfig };
+
+      tokens.append_all(match self {
+        Self::String(cmd) => {
+          let cmd = cmd.as_str();
+          quote!(#prefix::String(#cmd.into()))
+        }
+        Self::Object { cmd, cwd, args } => {
+          let cmd = cmd.as_str();
+          let cwd = opt_str_lit(cwd.as_ref());
+          let args = opt_lit(args.as_ref().map(|v| vec_lit(v, str_lit)).as_ref());
+          quote!(#prefix::Object {
+            cmd: #cmd.into(),
+            cwd: #cwd,
+            args: #args,
+          })
+        }
+      })
+    }
+  }
+
   impl ToTokens for BuildConfig {
     fn to_tokens(&self, tokens: &mut TokenStream) {
       let dev_url = opt_lit(self.dev_url.as_ref().map(url_lit).as_ref());
       let frontend_dist = opt_lit(self.frontend_dist.as_ref());
-      let runner = quote!(None);
+      let runner = opt_lit(self.runner.as_ref());
       let before_dev_command = quote!(None);
       let before_build_command = quote!(None);
       let before_bundle_command = quote!(None);
       let features = quote!(None);
       let remove_unused_commands = quote!(false);
+      let additional_watch_folders = quote!(Vec::new());
 
       literal_struct!(
         tokens,
@@ -3457,7 +3770,8 @@ mod build {
         before_build_command,
         before_bundle_command,
         features,
-        remove_unused_commands
+        remove_unused_commands,
+        additional_watch_folders
       );
     }
   }
@@ -3780,6 +4094,7 @@ mod test {
       before_bundle_command: None,
       features: None,
       remove_unused_commands: false,
+      additional_watch_folders: Vec::new(),
     };
 
     // create a bundle config
@@ -3823,5 +4138,213 @@ mod test {
     assert_eq!(Color(0, 0, 0, 255), "#000000".parse().unwrap());
     assert_eq!(Color(0, 0, 0, 255), "#000000ff".parse().unwrap());
     assert_eq!(Color(0, 255, 0, 255), "#00ff00ff".parse().unwrap());
+  }
+
+  #[test]
+  fn test_runner_config_string_format() {
+    use super::RunnerConfig;
+
+    // Test string format deserialization
+    let json = r#""cargo""#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "cargo");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+
+    // Test string format serialization
+    let serialized = serde_json::to_string(&runner).unwrap();
+    assert_eq!(serialized, r#""cargo""#);
+  }
+
+  #[test]
+  fn test_runner_config_object_format_full() {
+    use super::RunnerConfig;
+
+    // Test object format with all fields
+    let json = r#"{"cmd": "my_runner", "cwd": "/tmp/build", "args": ["--quiet", "--verbose"]}"#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "my_runner");
+    assert_eq!(runner.cwd(), Some("/tmp/build"));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
+
+    // Test object format serialization
+    let serialized = serde_json::to_string(&runner).unwrap();
+    let deserialized: RunnerConfig = serde_json::from_str(&serialized).unwrap();
+    assert_eq!(runner, deserialized);
+  }
+
+  #[test]
+  fn test_runner_config_object_format_minimal() {
+    use super::RunnerConfig;
+
+    // Test object format with only cmd field
+    let json = r#"{"cmd": "cross"}"#;
+    let runner: RunnerConfig = serde_json::from_str(json).unwrap();
+
+    assert_eq!(runner.cmd(), "cross");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_default() {
+    use super::RunnerConfig;
+
+    let default_runner = RunnerConfig::default();
+    assert_eq!(default_runner.cmd(), "cargo");
+    assert_eq!(default_runner.cwd(), None);
+    assert_eq!(default_runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_str() {
+    use super::RunnerConfig;
+
+    // Test From<&str> trait
+    let runner: RunnerConfig = "my_runner".into();
+    assert_eq!(runner.cmd(), "my_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_string() {
+    use super::RunnerConfig;
+
+    // Test From<String> trait
+    let runner: RunnerConfig = "another_runner".to_string().into();
+    assert_eq!(runner.cmd(), "another_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_from_str_parse() {
+    use super::RunnerConfig;
+    use std::str::FromStr;
+
+    // Test FromStr trait
+    let runner = RunnerConfig::from_str("parsed_runner").unwrap();
+    assert_eq!(runner.cmd(), "parsed_runner");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_in_build_config() {
+    use super::BuildConfig;
+
+    // Test string format in BuildConfig
+    let json = r#"{"runner": "cargo"}"#;
+    let build_config: BuildConfig = serde_json::from_str(json).unwrap();
+
+    let runner = build_config.runner.unwrap();
+    assert_eq!(runner.cmd(), "cargo");
+    assert_eq!(runner.cwd(), None);
+    assert_eq!(runner.args(), None);
+  }
+
+  #[test]
+  fn test_runner_config_in_build_config_object() {
+    use super::BuildConfig;
+
+    // Test object format in BuildConfig
+    let json = r#"{"runner": {"cmd": "cross", "cwd": "/workspace", "args": ["--target", "x86_64-unknown-linux-gnu"]}}"#;
+    let build_config: BuildConfig = serde_json::from_str(json).unwrap();
+
+    let runner = build_config.runner.unwrap();
+    assert_eq!(runner.cmd(), "cross");
+    assert_eq!(runner.cwd(), Some("/workspace"));
+    assert_eq!(
+      runner.args(),
+      Some(
+        &[
+          "--target".to_string(),
+          "x86_64-unknown-linux-gnu".to_string()
+        ][..]
+      )
+    );
+  }
+
+  #[test]
+  fn test_runner_config_in_full_config() {
+    use super::Config;
+
+    // Test runner config in full Tauri config
+    let json = r#"{
+      "productName": "Test App",
+      "version": "1.0.0",
+      "identifier": "com.test.app",
+      "build": {
+        "runner": {
+          "cmd": "my_custom_cargo",
+          "cwd": "/tmp/build",
+          "args": ["--quiet", "--verbose"]
+        }
+      }
+    }"#;
+
+    let config: Config = serde_json::from_str(json).unwrap();
+    let runner = config.build.runner.unwrap();
+
+    assert_eq!(runner.cmd(), "my_custom_cargo");
+    assert_eq!(runner.cwd(), Some("/tmp/build"));
+    assert_eq!(
+      runner.args(),
+      Some(&["--quiet".to_string(), "--verbose".to_string()][..])
+    );
+  }
+
+  #[test]
+  fn test_runner_config_equality() {
+    use super::RunnerConfig;
+
+    let runner1 = RunnerConfig::String("cargo".to_string());
+    let runner2 = RunnerConfig::String("cargo".to_string());
+    let runner3 = RunnerConfig::String("cross".to_string());
+
+    assert_eq!(runner1, runner2);
+    assert_ne!(runner1, runner3);
+
+    let runner4 = RunnerConfig::Object {
+      cmd: "cargo".to_string(),
+      cwd: Some("/tmp".to_string()),
+      args: Some(vec!["--quiet".to_string()]),
+    };
+    let runner5 = RunnerConfig::Object {
+      cmd: "cargo".to_string(),
+      cwd: Some("/tmp".to_string()),
+      args: Some(vec!["--quiet".to_string()]),
+    };
+
+    assert_eq!(runner4, runner5);
+    assert_ne!(runner1, runner4);
+  }
+
+  #[test]
+  fn test_runner_config_untagged_serialization() {
+    use super::RunnerConfig;
+
+    // Test that serde untagged works correctly - string should serialize as string, not object
+    let string_runner = RunnerConfig::String("cargo".to_string());
+    let string_json = serde_json::to_string(&string_runner).unwrap();
+    assert_eq!(string_json, r#""cargo""#);
+
+    // Test that object serializes as object
+    let object_runner = RunnerConfig::Object {
+      cmd: "cross".to_string(),
+      cwd: None,
+      args: None,
+    };
+    let object_json = serde_json::to_string(&object_runner).unwrap();
+    assert!(object_json.contains("\"cmd\":\"cross\""));
+    // With skip_serializing_none, null values should not be included
+    assert!(object_json.contains("\"cwd\":null") || !object_json.contains("cwd"));
+    assert!(object_json.contains("\"args\":null") || !object_json.contains("args"));
   }
 }

@@ -303,7 +303,7 @@ fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
 fn open_and_wait(config: &AndroidConfig, env: &Env) -> ! {
   log::info!("Opening Android Studio");
   if let Err(e) = os::open_file_with("Android Studio", config.project_dir(), &env.base) {
-    log::error!("{}", e);
+    log::error!("{e}");
   }
   loop {
     sleep(Duration::from_secs(24 * 60 * 60));

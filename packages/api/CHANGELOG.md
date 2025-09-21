@@ -1,5 +1,37 @@
 # Changelog
 
+## \[2.8.0]
+
+### New Features
+
+- [`68874c68c`](https://www.github.com/tauri-apps/tauri/commit/68874c68c566638b4c21a3aa67844d1bdaeb6dab) ([#13564](https://www.github.com/tauri-apps/tauri/pull/13564) by [@robertrpf](https://www.github.com/tauri-apps/tauri/../../robertrpf)) Add window focusable attribute and set_focusable API.
+- [`5110a762e`](https://www.github.com/tauri-apps/tauri/commit/5110a762e9db978a28a15400bf76e3c864da2a86) ([#13830](https://www.github.com/tauri-apps/tauri/pull/13830) by [@Sky-walkerX](https://www.github.com/tauri-apps/tauri/../../Sky-walkerX)) Added `Window::setSimpleFullscreen`.
+
+### Enhancements
+
+- [`5ba1c3faa`](https://www.github.com/tauri-apps/tauri/commit/5ba1c3faa468073512bdb5035a01f7f99720fcf0) ([#13722](https://www.github.com/tauri-apps/tauri/pull/13722) by [@s00d](https://www.github.com/tauri-apps/tauri/../../s00d)) Added icon (icon and nativeIcon) support for Submenu:
+
+  - In the Rust API (`tauri`), you can now set an icon for submenus via the builder and dedicated methods.
+  - In the JS/TS API (`@tauri-apps/api`), `SubmenuOptions` now has an `icon` field, and the `Submenu` class provides `setIcon` and `setNativeIcon` methods.
+  - Usage examples are added to the documentation and demo app.
+
+  This is a backwards-compatible feature. Submenus can now display icons just like regular menu items.
+
+## \[2.7.0]
+
+### New Features
+
+- [`232265c70`](https://www.github.com/tauri-apps/tauri/commit/232265c70e1c213bbb3f84b5541ddc07d330fce1) ([#13209](https://www.github.com/tauri-apps/tauri/pull/13209) by [@kandrelczyk](https://www.github.com/tauri-apps/tauri/../../kandrelczyk)) Added `getBundleType` to the app module.
+
+### Enhancements
+
+- [`96391467e`](https://www.github.com/tauri-apps/tauri/commit/96391467e967c1e3c6475ce75166c58a326116a3) ([#13783](https://www.github.com/tauri-apps/tauri/pull/13783) by [@JosephBrooksbank](https://www.github.com/tauri-apps/tauri/../../JosephBrooksbank)) Allow events emitted with `emit` to be handled correctly by `listen` callbacks when in a mocked environment
+
+### Bug Fixes
+
+- [`152d971bc`](https://www.github.com/tauri-apps/tauri/commit/152d971bcd6c1fdc5716f7d5417dd4df5ce7479f) ([#13744](https://www.github.com/tauri-apps/tauri/pull/13744) by [@Legend-Master](https://www.github.com/tauri-apps/tauri/../../Legend-Master)) Expose `unregisterCallback`, `runCallback`, `callbacks` in `mockIPC`
+- [`b821796ad`](https://www.github.com/tauri-apps/tauri/commit/b821796add33cca4de72f48882684af487936d02) ([#13810](https://www.github.com/tauri-apps/tauri/pull/13810) by [@asdolo](https://www.github.com/tauri-apps/tauri/../../asdolo)) Add missing `trafficLightPosition` TypeScript type definition
+
 ## \[2.6.0]
 
 ### New Features

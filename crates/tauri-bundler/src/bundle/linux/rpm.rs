@@ -21,7 +21,10 @@ use super::freedesktop;
 pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let product_name = settings.product_name();
   let version = settings.version_string();
-  let release = settings.rpm().release.as_str();
+  let release = match settings.rpm().release.as_str() {
+    "" => "1", // Considered the default. If left empty, you get file with "-.".
+    v => v,
+  };
   let epoch = settings.rpm().epoch;
   let arch = match settings.binary_arch() {
     Arch::X86_64 => "x86_64",
@@ -234,6 +237,5 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   let mut f = fs::File::create(&package_path)?;
   pkg.write(&mut f)?;
-
   Ok(vec![package_path])
 }

@@ -75,6 +75,7 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
     .arg("OTHER_SWIFT_FLAGS=-no-verify-emitted-module-interface")
     .current_dir(source)
     .env_clear()
+    .env("PATH", std::env::var_os("PATH").unwrap_or_default())
     .status()
     .unwrap();
 
@@ -85,6 +86,10 @@ fn link_xcode_library(name: &str, source: impl AsRef<std::path::Path>) {
     .join("Products")
     .join(format!("{configuration}-{sdk}"));
 
+  println!(
+    "cargo::rustc-link-search=framework={}",
+    lib_out_dir.display()
+  );
   println!("cargo:rerun-if-changed={}", source.display());
   println!("cargo:rustc-link-search=native={}", lib_out_dir.display());
   println!("cargo:rustc-link-lib=static={name}");

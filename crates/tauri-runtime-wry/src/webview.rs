@@ -29,9 +29,12 @@ mod imp {
 
 #[cfg(windows)]
 mod imp {
-  use webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Controller;
+  use webview2_com::Microsoft::Web::WebView2::Win32::{
+    ICoreWebView2Controller, ICoreWebView2Environment,
+  };
   pub struct Webview {
     pub controller: ICoreWebView2Controller,
+    pub environment: ICoreWebView2Environment,
   }
 }
 

@@ -52,7 +52,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   fs::create_dir_all(&tools_path)?;
 
-  let linuxdeploy_path = prepare_tools(&tools_path, tools_arch)?;
+  let linuxdeploy_path = prepare_tools(
+    &tools_path,
+    tools_arch,
+    settings.log_level() != log::Level::Error,
+  )?;
 
   let package_dir = settings.project_out_directory().join("bundle/appimage_deb");
 
@@ -217,11 +221,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 }
 
 // returns the linuxdeploy path to keep linuxdeploy_arch contained
-fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
+fn prepare_tools(tools_path: &Path, arch: &str, verbose: bool) -> crate::Result<PathBuf> {
   let apprun = tools_path.join(format!("AppRun-{arch}"));
   if !apprun.exists() {
     let data = download(&format!(
-      "https://github.com/AppImage/AppImageKit/releases/download/continuous/AppRun-{arch}"
+      "https://github.com/tauri-apps/binary-releases/releases/download/apprun-old/AppRun-{arch}"
     ))?;
     write_and_make_executable(&apprun, data)?;
   }
@@ -243,6 +247,21 @@ fn prepare_tools(tools_path: &Path, arch: &str) -> crate::Result<PathBuf> {
   if !gstreamer.exists() {
     let data = download("https://raw.githubusercontent.com/tauri-apps/linuxdeploy-plugin-gstreamer/master/linuxdeploy-plugin-gstreamer.sh")?;
     write_and_make_executable(&gstreamer, data)?;
+  }
+
+  let appimage = tools_path.join("linuxdeploy-plugin-appimage.AppImage");
+  if !appimage.exists() {
+    // This is optional, linuxdeploy will fall back to its built-in version if the download failed.
+    let data = download(&format!("https://github.com/linuxdeploy/linuxdeploy-plugin-appimage/releases/download/continuous/linuxdeploy-plugin-appimage-{arch}.AppImage"));
+    match data {
+      Ok(data) => write_and_make_executable(&appimage, data)?,
+      Err(err) => {
+        log::error!("Download of AppImage plugin failed. Using older built-in version instead.");
+        if verbose {
+          log::debug!("{err:?}");
+        }
+      }
+    }
   }
 
   // This should prevent linuxdeploy to be detected by appimage integration tools

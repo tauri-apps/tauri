@@ -19,6 +19,7 @@ use cargo_mobile2::{
   util::{prompt, relativize_path},
 };
 use clap::{Parser, Subcommand};
+use serde::Deserialize;
 use sublime_fuzzy::best_match;
 use tauri_utils::resources::ResourcePaths;
 
@@ -325,10 +326,21 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
       device,
       device.target().triple,
     );
+
     Ok(device)
   } else {
     Err(anyhow::anyhow!("No connected iOS devices detected"))
   }
+}
+
+#[derive(Default, Deserialize)]
+struct InstalledRuntimesList {
+  runtimes: Vec<InstalledRuntime>,
+}
+
+#[derive(Deserialize)]
+struct InstalledRuntime {
+  name: String,
 }
 
 fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simulator> {
@@ -367,6 +379,19 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
     };
     Ok(device)
   } else {
+    log::warn!("No available iOS Simulator detected");
+    let install_ios = crate::helpers::prompts::confirm(
+      "Would you like to install the latest iOS runtime?",
+      Some(false),
+    )
+    .unwrap_or_default();
+    if install_ios {
+      duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
+        .stdout_file(os_pipe::dup_stdout().unwrap())
+        .stderr_file(os_pipe::dup_stderr().unwrap())
+        .run()?;
+      return simulator_prompt(env, target);
+    }
     Err(anyhow::anyhow!("No available iOS Simulator detected"))
   }
 }
@@ -382,6 +407,34 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
   }
 }
 
+fn ensure_ios_runtime_installed() -> Result<()> {
+  let installed_platforms_json =
+    duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"]).read()?;
+  let installed_platforms: InstalledRuntimesList =
+    serde_json::from_str(&installed_platforms_json).unwrap_or_default();
+  if !installed_platforms
+    .runtimes
+    .iter()
+    .any(|r| r.name.starts_with("iOS"))
+  {
+    log::warn!("iOS platform not installed");
+    let install_ios = crate::helpers::prompts::confirm(
+      "Would you like to install the latest iOS runtime?",
+      Some(false),
+    )
+    .unwrap_or_default();
+    if install_ios {
+      duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
+        .stdout_file(os_pipe::dup_stdout().unwrap())
+        .stderr_file(os_pipe::dup_stderr().unwrap())
+        .run()?;
+    } else {
+      anyhow::bail!("iOS platform not installed");
+    }
+  }
+  Ok(())
+}
+
 fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
   device_prompt(env, None).map(|device| device.target()).ok()
 }
@@ -389,7 +442,7 @@ fn detect_target_ok<'a>(env: &Env) -> Option<&'a Target<'a>> {
 fn open_and_wait(config: &AppleConfig, env: &Env) -> ! {
   log::info!("Opening Xcode");
   if let Err(e) = os::open_file_with("Xcode", config.project_dir(), env) {
-    log::error!("{}", e);
+    log::error!("{e}");
   }
   loop {
     sleep(Duration::from_secs(24 * 60 * 60));

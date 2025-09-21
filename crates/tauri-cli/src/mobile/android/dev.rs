@@ -34,7 +34,7 @@ use cargo_mobile2::{
   target::TargetTrait,
 };
 
-use std::env::set_current_dir;
+use std::{env::set_current_dir, path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
 #[clap(
@@ -66,6 +66,9 @@ pub struct Options {
   /// Disable the file watcher
   #[clap(long)]
   pub no_watch: bool,
+  /// Additional paths to watch for changes.
+  #[clap(long)]
+  pub additional_watch_folders: Vec<PathBuf>,
   /// Open Android Studio instead of trying to run on a connected device
   #[clap(short, long)]
   pub open: bool,
@@ -101,6 +104,9 @@ pub struct Options {
   /// e.g. `tauri android dev -- [runnerArgs]`.
   #[clap(last(true))]
   pub args: Vec<String>,
+  /// Path to the certificate file used by your dev server. Required for mobile dev when using HTTPS.
+  #[clap(long, env = "TAURI_DEV_ROOT_CERTIFICATE_PATH")]
+  pub root_certificate_path: Option<PathBuf>,
 }
 
 impl From<Options> for DevOptions {
@@ -113,6 +119,7 @@ impl From<Options> for DevOptions {
       config: options.config,
       args: options.args,
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
       no_dev_server_wait: options.no_dev_server_wait,
       no_dev_server: options.no_dev_server,
       port: options.port,
@@ -134,6 +141,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
 
 fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   delete_codegen_vars();
+  // setup env additions before calling env()
+  if let Some(root_certificate_path) = &options.root_certificate_path {
+    std::env::set_var(
+      "TAURI_DEV_ROOT_CERTIFICATE",
+      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+    );
+  }
 
   let tauri_config = get_tauri_config(
     tauri_utils::platform::Target::Android,
@@ -238,12 +252,22 @@ fn run_dev(
 
   configure_cargo(&mut env, config)?;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
   // run an initial build to initialize plugins
   let target_triple = dev_options.target.as_ref().unwrap();
   let target = Target::all()
     .values()
     .find(|t| t.triple == target_triple)
     .unwrap_or_else(|| Target::all().values().next().unwrap());
+  if !installed_targets.contains(&target.triple().into()) {
+    log::info!("Installing target {}", target.triple());
+    target
+      .install()
+      .context("failed to install target with rustup")?;
+  }
+
   target.build(
     config,
     metadata,
@@ -265,6 +289,7 @@ fn run_dev(
       args: options.args,
       config: dev_options.config.clone(),
       no_watch: options.no_watch,
+      additional_watch_folders: options.additional_watch_folders,
     },
     |options| {
       let cli_options = CliOptions {

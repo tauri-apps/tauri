@@ -18,7 +18,6 @@ use tauri_utils::{
   config::{Csp, CspDirectiveSources},
 };
 
-use crate::resources::ResourceTable;
 use crate::{
   app::{
     AppHandle, ChannelInterceptor, GlobalWebviewEventListener, GlobalWindowEventListener,
@@ -27,8 +26,9 @@ use crate::{
   event::{EmitArgs, Event, EventId, EventTarget, Listeners},
   ipc::{Invoke, InvokeHandler, RuntimeAuthority},
   plugin::PluginStore,
+  resources::ResourceTable,
   utils::{config::Config, PackageInfo},
-  Assets, Context, EventName, Pattern, Runtime, StateManager, Webview, Window,
+  Assets, Context, DebugAppIcon, EventName, Pattern, Runtime, StateManager, Webview, Window,
 };
 
 #[cfg(desktop)]
@@ -233,7 +233,7 @@ impl<R: Runtime> fmt::Debug for AppManager<R> {
       .field("plugins", &self.plugins)
       .field("state", &self.state)
       .field("config", &self.config)
-      .field("app_icon", &self.app_icon)
+      .field("app_icon", &DebugAppIcon(&self.app_icon))
       .field("package_info", &self.package_info)
       .field("pattern", &self.pattern);
 

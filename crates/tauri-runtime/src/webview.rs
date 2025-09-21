@@ -4,11 +4,14 @@
 
 //! A layer between raw [`Runtime`] webviews and Tauri.
 //!
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+use crate::window::WindowId;
 use crate::{window::is_label_valid, Rect, Runtime, UserEvent};
 
 use http::Request;
 use tauri_utils::config::{
-  BackgroundThrottlingPolicy, Color, WebviewUrl, WindowConfig, WindowEffectsConfig,
+  BackgroundThrottlingPolicy, Color, ScrollBarStyle as ConfigScrollBarStyle, WebviewUrl,
+  WindowConfig, WindowEffectsConfig,
 };
 use url::Url;
 
@@ -30,7 +33,11 @@ type WebResourceRequestHandler =
 
 type NavigationHandler = dyn Fn(&Url) -> bool + Send;
 
+type NewWindowHandler = dyn Fn(Url, NewWindowFeatures) -> NewWindowResponse + Send + Sync;
+
 type OnPageLoadHandler = dyn Fn(Url, PageLoadEvent) + Send;
+
+type DocumentTitleChangedHandler = dyn Fn(String) + Send + 'static;
 
 type DownloadHandler = dyn Fn(DownloadEvent) -> bool + Send + Sync;
 
@@ -78,6 +85,112 @@ pub enum PageLoadEvent {
   Finished,
 }
 
+/// Information about the webview that initiated a new window request.
+#[derive(Debug)]
+pub struct NewWindowOpener {
+  /// The instance of the webview that initiated the new window request.
+  ///
+  /// This must be set as the related view of the new webview. See [`WebviewAttributes::related_view`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ))]
+  pub webview: webkit2gtk::WebView,
+  /// The instance of the webview that initiated the new window request.
+  ///
+  /// The target webview environment **MUST** match the environment of the opener webview. See [`WebviewAttributes::environment`].
+  #[cfg(windows)]
+  pub webview: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2,
+  #[cfg(windows)]
+  pub environment: webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment,
+  /// The instance of the webview that initiated the new window request.
+  #[cfg(target_os = "macos")]
+  pub webview: objc2::rc::Retained<objc2_web_kit::WKWebView>,
+  /// Configuration of the target webview.
+  ///
+  /// This **MUST** be used when creating the target webview. See [`WebviewAttributes::webview_configuration`].
+  #[cfg(target_os = "macos")]
+  pub target_configuration: objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>,
+}
+
+/// Window features of a window requested to open.
+#[derive(Debug)]
+pub struct NewWindowFeatures {
+  pub(crate) size: Option<crate::dpi::LogicalSize<f64>>,
+  pub(crate) position: Option<crate::dpi::LogicalPosition<f64>>,
+  pub(crate) opener: NewWindowOpener,
+}
+
+impl NewWindowFeatures {
+  pub fn new(
+    size: Option<crate::dpi::LogicalSize<f64>>,
+    position: Option<crate::dpi::LogicalPosition<f64>>,
+    opener: NewWindowOpener,
+  ) -> Self {
+    Self {
+      size,
+      position,
+      opener,
+    }
+  }
+
+  /// Specifies the size of the content area
+  /// as defined by the user's operating system where the new window will be generated.
+  pub fn size(&self) -> Option<crate::dpi::LogicalSize<f64>> {
+    self.size
+  }
+
+  /// Specifies the position of the window relative to the work area
+  /// as defined by the user's operating system where the new window will be generated.
+  pub fn position(&self) -> Option<crate::dpi::LogicalPosition<f64>> {
+    self.position
+  }
+
+  /// Returns information about the webview that initiated a new window request.
+  pub fn opener(&self) -> &NewWindowOpener {
+    &self.opener
+  }
+}
+
+/// Response for the new window request handler.
+pub enum NewWindowResponse {
+  /// Allow the window to be opened with the default implementation.
+  Allow,
+  /// Allow the window to be opened, with the given window.
+  ///
+  /// ## Platform-specific:
+  ///
+  /// **Linux**: The webview must be related to the caller webview. See [`WebviewAttributes::related_view`].
+  /// **Windows**: The webview must use the same environment as the caller webview. See [`WebviewAttributes::environment`].
+  #[cfg(not(any(target_os = "android", target_os = "ios")))]
+  Create { window_id: WindowId },
+  /// Deny the window from being opened.
+  Deny,
+}
+
+/// The scrollbar style to use in the webview.
+///
+/// ## Platform-specific
+///
+/// - **Windows**: This option must be given the same value for all webviews that target the same data directory.
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, Default)]
+pub enum ScrollBarStyle {
+  #[default]
+  /// The default scrollbar style for the webview.
+  Default,
+
+  #[cfg(windows)]
+  /// Fluent UI style overlay scrollbars. **Windows Only**
+  ///
+  /// Requires WebView2 Runtime version 125.0.2535.41 or higher, does nothing on older versions,
+  /// see https://learn.microsoft.com/en-us/microsoft-edge/webview2/release-notes/?tabs=dotnetcsharp#10253541
+  FluentOverlay,
+}
+
 /// A webview that has yet to be built.
 pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
   /// The label that the webview will be named.
@@ -93,6 +206,10 @@ pub struct PendingWebview<T: UserEvent, R: Runtime<T>> {
 
   /// A handler to decide if incoming url is allowed to navigate.
   pub navigation_handler: Option<Box<NavigationHandler>>,
+
+  pub new_window_handler: Option<Box<NewWindowHandler>>,
+
+  pub document_title_changed_handler: Option<Box<DocumentTitleChangedHandler>>,
 
   /// The resolved URL to load on the webview.
   pub url: String,
@@ -125,6 +242,8 @@ impl<T: UserEvent, R: Runtime<T>> PendingWebview<T, R> {
         label,
         ipc_handler: None,
         navigation_handler: None,
+        new_window_handler: None,
+        document_title_changed_handler: None,
         url: "tauri://localhost".to_string(),
         #[cfg(target_os = "android")]
         on_webview_created: None,
@@ -242,6 +361,7 @@ pub struct WebviewAttributes {
   /// on macOS and iOS there is a link preview on long pressing links, this is enabled by default.
   /// see https://docs.rs/objc2-web-kit/latest/objc2_web_kit/struct.WKWebView.html#method.allowsLinkPreview
   pub allow_link_preview: bool,
+  pub scroll_bar_style: ScrollBarStyle,
   /// Allows overriding the the keyboard accessory view on iOS.
   /// Returning `None` effectively removes the view.
   ///
@@ -255,7 +375,29 @@ pub struct WebviewAttributes {
   /// This relies on [`objc2_ui_kit`] which does not provide a stable API yet, so it can receive breaking changes in minor releases.
   #[cfg(target_os = "ios")]
   pub input_accessory_view_builder: Option<InputAccessoryViewBuilder>,
+
+  /// Set the environment for the webview.
+  /// Useful if you need to share the same environment, for instance when using the [`PendingWebview::new_window_handler`].
+  #[cfg(windows)]
+  pub environment: Option<webview2_com::Microsoft::Web::WebView2::Win32::ICoreWebView2Environment>,
+
+  /// Creates a new webview sharing the same web process with the provided webview.
+  /// Useful if you need to link a webview to another, for instance when using the [`PendingWebview::new_window_handler`].
+  #[cfg(any(
+    target_os = "linux",
+    target_os = "dragonfly",
+    target_os = "freebsd",
+    target_os = "netbsd",
+    target_os = "openbsd",
+  ))]
+  pub related_view: Option<webkit2gtk::WebView>,
+
+  #[cfg(target_os = "macos")]
+  pub webview_configuration: Option<objc2::rc::Retained<objc2_web_kit::WKWebViewConfiguration>>,
 }
+
+unsafe impl Send for WebviewAttributes {}
+unsafe impl Sync for WebviewAttributes {}
 
 #[cfg(target_os = "ios")]
 #[non_exhaustive]
@@ -284,7 +426,13 @@ impl From<&WindowConfig> for WebviewAttributes {
       .use_https_scheme(config.use_https_scheme)
       .browser_extensions_enabled(config.browser_extensions_enabled)
       .background_throttling(config.background_throttling.clone())
-      .devtools(config.devtools);
+      .devtools(config.devtools)
+      .scroll_bar_style(match config.scroll_bar_style {
+        ConfigScrollBarStyle::Default => ScrollBarStyle::Default,
+        #[cfg(windows)]
+        ConfigScrollBarStyle::FluentOverlay => ScrollBarStyle::FluentOverlay,
+        _ => ScrollBarStyle::Default,
+      });
 
     #[cfg(any(not(target_os = "macos"), feature = "macos-private-api"))]
     {
@@ -358,8 +506,21 @@ impl WebviewAttributes {
       background_throttling: None,
       javascript_disabled: false,
       allow_link_preview: true,
+      scroll_bar_style: ScrollBarStyle::Default,
       #[cfg(target_os = "ios")]
       input_accessory_view_builder: None,
+      #[cfg(windows)]
+      environment: None,
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd",
+      ))]
+      related_view: None,
+      #[cfg(target_os = "macos")]
+      webview_configuration: None,
     }
   }
 
@@ -376,11 +537,12 @@ impl WebviewAttributes {
   /// It is guaranteed that code is executed before `window.onload`.
   ///
   /// This is executed only on the main frame.
-  /// If you only want to run it in all frames, use [Self::initialization_script_on_all_frames] instead.
+  /// If you only want to run it in all frames, use [`Self::initialization_script_on_all_frames`] instead.
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
   ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
   ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///
@@ -401,11 +563,12 @@ impl WebviewAttributes {
   /// It is guaranteed that code is executed before `window.onload`.
   ///
   /// This is executed on all frames, main frame and also sub frames.
-  /// If you only want to run it in the main frame, use [Self::initialization_script] instead.
+  /// If you only want to run it in the main frame, use [`Self::initialization_script`] instead.
   ///
   /// ## Platform-specific
   ///
-  /// - **Android on Wry:** When [addDocumentStartJavaScript] is not supported,
+  /// - **Windows:** scripts are always added to subframes.
+  /// - **Android:** When [addDocumentStartJavaScript] is not supported,
   ///   we prepend initialization scripts to each HTML head (implementation only supported on custom protocol URLs).
   ///   For remote URLs, we use [onPageStarted] which is not guaranteed to run before other scripts.
   ///
@@ -614,6 +777,25 @@ impl WebviewAttributes {
   #[must_use]
   pub fn background_throttling(mut self, policy: Option<BackgroundThrottlingPolicy>) -> Self {
     self.background_throttling = policy;
+    self
+  }
+
+  /// Specifies the native scrollbar style to use with the webview.
+  /// CSS styles that modify the scrollbar are applied on top of the native appearance configured here.
+  ///
+  /// Defaults to [`ScrollBarStyle::Default`], which is the browser default.
+  ///
+  /// ## Platform-specific
+  ///
+  /// - **Windows**:
+  ///   - [`ScrollBarStyle::FluentOverlay`] requires WebView2 Runtime version 125.0.2535.41 or higher,
+  ///     and does nothing on older versions.
+  ///   - This option must be given the same value for all webviews that target the same data directory. Use
+  ///     [`WebviewAttributes::data_directory`] to change data directories if needed.
+  /// - **Linux / Android / iOS / macOS**: Unsupported. Only supports `Default` and performs no operation.
+  #[must_use]
+  pub fn scroll_bar_style(mut self, style: ScrollBarStyle) -> Self {
+    self.scroll_bar_style = style;
     self
   }
 }

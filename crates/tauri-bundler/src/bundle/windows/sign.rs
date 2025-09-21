@@ -14,10 +14,6 @@ use std::sync::OnceLock;
 use std::{path::Path, process::Command};
 
 impl Settings {
-  pub(crate) fn can_sign(&self) -> bool {
-    self.windows().sign_command.is_some() || self.windows().certificate_thumbprint.is_some()
-  }
-
   pub(crate) fn sign_params(&self) -> SignParams {
     SignParams {
       product_name: self.product_name().into(),
@@ -214,7 +210,7 @@ pub fn sign_custom<P: AsRef<Path>>(
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  log::info!("{:?}", stdout);
+  log::info!(action = "Signing";"Output of signing command:\n{}", stdout.trim());
 
   Ok(())
 }
@@ -233,7 +229,7 @@ pub fn sign_default<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Resu
   let output = cmd.output_ok()?;
 
   let stdout = String::from_utf8_lossy(output.stdout.as_slice()).into_owned();
-  log::info!("{:?}", stdout);
+  log::info!(action = "Signing";"Output of signing command:\n{}", stdout.trim());
 
   Ok(())
 }
@@ -251,9 +247,39 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 }
 
 pub fn try_sign<P: AsRef<Path>>(file_path: P, settings: &Settings) -> crate::Result<()> {
-  if settings.can_sign() {
+  if settings.no_sign() {
+    log::warn!(
+      "Skipping signing for {} due to --no-sign flag.",
+      tauri_utils::display_path(file_path.as_ref())
+    );
+    return Ok(());
+  }
+  if settings.windows().can_sign() {
     log::info!(action = "Signing"; "{}", tauri_utils::display_path(file_path.as_ref()));
     sign(file_path, &settings.sign_params())?;
   }
   Ok(())
+}
+
+/// If the file is signable (is a binary file) and not signed already
+/// (will skip the verification if not on Windows since we can't verify it)
+pub fn should_sign(file_path: &Path) -> crate::Result<bool> {
+  let is_binary = file_path
+    .extension()
+    .and_then(|extension| extension.to_str())
+    .is_some_and(|extension| matches!(extension, "exe" | "dll"));
+  if !is_binary {
+    return Ok(false);
+  }
+
+  #[cfg(windows)]
+  {
+    let already_signed = verify(file_path)?;
+    Ok(!already_signed)
+  }
+  // Skip verification if not on Windows since we can't verify it
+  #[cfg(not(windows))]
+  {
+    Ok(true)
+  }
 }

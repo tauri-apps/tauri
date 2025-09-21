@@ -45,8 +45,9 @@ pub fn gen(
       .collect::<Vec<&Target>>();
 
     if !missing_targets.is_empty() {
-      println!("Installing Android Rust toolchains...");
+      log::info!("Installing Android Rust targets...");
       for target in missing_targets {
+        log::info!("Installing target {}", target.triple());
         target
           .install()
           .context("failed to install target with rustup")?;

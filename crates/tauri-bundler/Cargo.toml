@@ -1,6 +1,6 @@
 [package]
 name = "tauri-bundler"
-version = "2.5.0"
+version = "2.6.1"
 authors = [
   "George Burton <burtonageo@gmail.com>",
   "Tauri Programme within The Commons Conservancy",
@@ -15,7 +15,7 @@ rust-version = "1.77.2"
 exclude = ["CHANGELOG.md", "/target", "rustfmt.toml"]
 
 [dependencies]
-tauri-utils = { version = "2.5.0", path = "../tauri-utils", features = [
+tauri-utils = { version = "2.7.0", path = "../tauri-utils", features = [
   "resources",
 ] }
 image = "0.25"
@@ -58,7 +58,7 @@ features = ["Win32_System_SystemInformation", "Win32_System_Diagnostics_Debug"]
 icns = { package = "tauri-icns", version = "0.1" }
 time = { version = "0.3", features = ["formatting"] }
 plist = "1"
-tauri-macos-sign = { version = "2.1.0", path = "../tauri-macos-sign" }
+tauri-macos-sign = { version = "2.2.0", path = "../tauri-macos-sign" }
 
 [target."cfg(target_os = \"linux\")".dependencies]
 heck = "0.5"
@@ -67,14 +67,15 @@ md5 = "0.8"
 rpm = { version = "0.16", features = ["bzip2-compression"] }
 
 [target."cfg(unix)".dependencies]
-which = "7"
+which = "8"
 
 [lib]
 name = "tauri_bundler"
 path = "src/lib.rs"
 
 [features]
-default = ["rustls"]
+default = ["rustls", "platform-certs"]
 native-tls = ["ureq/native-tls"]
 native-tls-vendored = ["native-tls", "native-tls/vendored"]
 rustls = ["ureq/rustls"]
+platform-certs = ["ureq/platform-verifier"]

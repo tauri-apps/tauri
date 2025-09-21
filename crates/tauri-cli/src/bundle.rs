@@ -82,6 +82,24 @@ pub struct Options {
   /// Skip prompting for values
   #[clap(long, env = "CI")]
   pub ci: bool,
+  /// Whether to wait for notarization to finish and `staple` the ticket onto the app.
+  ///
+  /// Gatekeeper will look for stapled tickets to tell whether your app was notarized without
+  /// reaching out to Apple's servers which is helpful in offline environments.
+  ///
+  /// Enabling this option will also result in `tauri build` not waiting for notarization to finish
+  /// which is helpful for the very first time your app is notarized as this can take multiple hours.
+  /// On subsequent runs, it's recommended to disable this setting again.
+  #[clap(long)]
+  pub skip_stapling: bool,
+
+  /// Skip code signing during the build or bundling process.
+  ///
+  /// Useful for local development and CI environments
+  /// where signing certificates or environment variables
+  /// are not available or not needed.
+  #[clap(long)]
+  pub no_sign: bool,
 }
 
 impl From<crate::build::Options> for Options {
@@ -93,6 +111,8 @@ impl From<crate::build::Options> for Options {
       debug: value.debug,
       ci: value.ci,
       config: value.config,
+      skip_stapling: value.skip_stapling,
+      no_sign: value.no_sign,
     }
   }
 }
@@ -124,6 +144,10 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();
+
+  if let Some(minimum_system_version) = &config_.bundle.macos.minimum_system_version {
+    std::env::set_var("MACOSX_DEPLOYMENT_TARGET", minimum_system_version);
+  }
 
   let app_settings = interface.app_settings();
   let interface_options = options.clone().into();
@@ -182,6 +206,7 @@ pub fn bundle<A: AppSettings>(
   let mut settings = app_settings
     .get_bundler_settings(options.clone().into(), config, out_dir, package_types)
     .with_context(|| "failed to build bundler settings")?;
+  settings.set_no_sign(options.no_sign);
 
   settings.set_log_level(match verbosity {
     0 => log::Level::Error,

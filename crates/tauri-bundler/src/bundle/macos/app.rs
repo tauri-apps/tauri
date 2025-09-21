@@ -24,7 +24,7 @@
 
 use super::{
   icon::create_icns_file,
-  sign::{notarize, notarize_auth, sign, NotarizeAuthError, SignTarget},
+  sign::{notarize, notarize_auth, notarize_without_stapling, sign, NotarizeAuthError, SignTarget},
 };
 use crate::{
   utils::{fs_utils, CommandExt},
@@ -104,7 +104,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
 
   copy_custom_files_to_bundle(&bundle_directory, settings)?;
 
-  if let Some(keychain) = super::sign::keychain(settings.macos().signing_identity.as_deref())? {
+  if settings.no_sign() {
+    log::warn!("Skipping signing due to --no-sign flag.",);
+  } else if let Some(keychain) =
+    super::sign::keychain(settings.macos().signing_identity.as_deref())?
+  {
     // Sign frameworks and sidecar binaries first, per apple, signing must be done inside out
     // https://developer.apple.com/forums/thread/701514
     sign_paths.push(SignTarget {
@@ -122,7 +126,11 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
     // notarization is required for distribution
     match notarize_auth() {
       Ok(auth) => {
-        notarize(&keychain, app_bundle_path.clone(), &auth)?;
+        if settings.macos().skip_stapling {
+          notarize_without_stapling(&keychain, app_bundle_path.clone(), &auth)?;
+        } else {
+          notarize(&keychain, app_bundle_path.clone(), &auth)?;
+        }
       }
       Err(e) => {
         if matches!(e, NotarizeAuthError::MissingTeamId) {

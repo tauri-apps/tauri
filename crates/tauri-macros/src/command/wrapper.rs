@@ -283,10 +283,9 @@ pub fn wrapper(attributes: TokenStream, item: TokenStream) -> TokenStream {
     macro_rules! #wrapper {
       // double braces because the item is expected to be a block expression
       ($path:path, $invoke:ident) => {
-        // The IIFE here is for preventing stack overflow on Windows debug build,
+        // The IIFE here is for preventing stack overflow on Windows,
         // see https://github.com/tauri-apps/tauri/issues/12488
         {
-          #[cfg_attr(not(debug_assertions), inline(always))]
           move || {
             #[allow(unused_imports)]
             use #root::ipc::private::*;

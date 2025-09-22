@@ -6,8 +6,9 @@
   "rangeStrategy": "replace",
   "packageRules": [
     {
+      "matchPackageNames": ["*"],
       "semanticCommitType": "chore",
-      "matchPackageNames": ["*"]
+      "minimumReleaseAge": "3 days"
     },
     {
       "description": "Disable node/pnpm version updates",

@@ -430,6 +430,7 @@ mod windows {
 
     CombineRgn(Some(hrgn1), Some(hrgn1), Some(hrgn2), RGN_DIFF);
 
+    DeleteObject(hrgn2.into());
     SetWindowRgn(hwnd, Some(hrgn1), true);
   }
 

@@ -28,6 +28,7 @@ use super::{
 };
 use crate::{
   utils::{fs_utils, CommandExt},
+  Error::GenericError,
   Settings,
 };
 
@@ -173,6 +174,12 @@ fn copy_binaries_to_bundle(
 /// Copies user-defined files to the app under Contents.
 fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> crate::Result<()> {
   for (contents_path, path) in settings.macos().files.iter() {
+    if !path.try_exists()? {
+      return Err(GenericError(format!(
+        "Failed to copy {path:?} to {contents_path:?}. {path:?} does not exist."
+      )));
+    }
+
     let contents_path = if contents_path.is_absolute() {
       contents_path.strip_prefix("/").unwrap()
     } else {
@@ -181,9 +188,13 @@ fn copy_custom_files_to_bundle(bundle_directory: &Path, settings: &Settings) -> 
     if path.is_file() {
       fs_utils::copy_file(path, &bundle_directory.join(contents_path))
         .with_context(|| format!("Failed to copy file {path:?} to {contents_path:?}"))?;
-    } else {
+    } else if path.is_dir() {
       fs_utils::copy_dir(path, &bundle_directory.join(contents_path))
         .with_context(|| format!("Failed to copy directory {path:?} to {contents_path:?}"))?;
+    } else {
+      return Err(GenericError(format!(
+        "{path:?} is not a file or directory."
+      )));
     }
   }
   Ok(())
@@ -405,9 +416,7 @@ fn copy_frameworks_to_bundle(
     } else if framework.ends_with(".dylib") {
       let src_path = PathBuf::from(framework);
       if !src_path.exists() {
-        return Err(crate::Error::GenericError(format!(
-          "Library not found: {framework}"
-        )));
+        return Err(GenericError(format!("Library not found: {framework}")));
       }
       let src_name = src_path.file_name().expect("Couldn't get library filename");
       let dest_path = dest_dir.join(src_name);
@@ -418,7 +427,7 @@ fn copy_frameworks_to_bundle(
       });
       continue;
     } else if framework.contains('/') {
-      return Err(crate::Error::GenericError(format!(
+      return Err(GenericError(format!(
         "Framework path should have .framework extension: {framework}"
       )));
     }
@@ -436,7 +445,7 @@ fn copy_frameworks_to_bundle(
     {
       continue;
     }
-    return Err(crate::Error::GenericError(format!(
+    return Err(GenericError(format!(
       "Could not locate framework: {framework}"
     )));
   }
@@ -527,5 +536,155 @@ fn add_nested_code_sign_path(src_path: &Path, dest_path: &Path, sign_paths: &mut
         }
       }
     }
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::bundle::{BundleSettings, MacOsSettings, PackageSettings, SettingsBuilder};
+  use std::{
+    collections::HashMap,
+    fs,
+    path::{Path, PathBuf},
+  };
+
+  /// Helper that builds a `Settings` instance and bundle directory for tests.
+  /// It receives a mapping of bundle-relative paths to source paths and
+  /// returns the generated bundle directory and settings.
+  fn create_test_bundle(
+    project_dir: &Path,
+    files: HashMap<PathBuf, PathBuf>,
+  ) -> (PathBuf, crate::bundle::Settings) {
+    let macos_settings = MacOsSettings {
+      files,
+      ..Default::default()
+    };
+
+    let settings = SettingsBuilder::new()
+      .project_out_directory(project_dir)
+      .package_settings(PackageSettings {
+        product_name: "TestApp".into(),
+        version: "0.1.0".into(),
+        description: "test".into(),
+        homepage: None,
+        authors: None,
+        default_run: None,
+      })
+      .bundle_settings(BundleSettings {
+        macos: macos_settings,
+        ..Default::default()
+      })
+      .target("x86_64-apple-darwin".into())
+      .build()
+      .expect("failed to build settings");
+
+    let bundle_dir = project_dir.join("TestApp.app/Contents");
+    fs::create_dir_all(&bundle_dir).expect("failed to create bundle dir");
+
+    (bundle_dir, settings)
+  }
+
+  #[test]
+  fn test_copy_custom_file_to_bundle_file() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    // Prepare a single file to copy.
+    let src_file = tmp_dir.path().join("sample.txt");
+    fs::write(&src_file, b"hello tauri").expect("failed to write sample file");
+
+    let files_map = HashMap::from([(PathBuf::from("Resources/sample.txt"), src_file.clone())]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    copy_custom_files_to_bundle(&bundle_dir, &settings)
+      .expect("copy_custom_files_to_bundle failed");
+
+    let dest_file = bundle_dir.join("Resources/sample.txt");
+    assert!(dest_file.exists() && dest_file.is_file());
+    assert_eq!(fs::read_to_string(dest_file).unwrap(), "hello tauri");
+  }
+
+  #[test]
+  fn test_copy_custom_file_to_bundle_dir() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    // Create a source directory with a nested file.
+    let src_dir = tmp_dir.path().join("assets");
+    fs::create_dir_all(&src_dir).expect("failed to create assets directory");
+    let nested_file = src_dir.join("nested.txt");
+    fs::write(&nested_file, b"nested").expect("failed to write nested file");
+
+    let files_map = HashMap::from([(PathBuf::from("MyAssets"), src_dir.clone())]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    copy_custom_files_to_bundle(&bundle_dir, &settings)
+      .expect("copy_custom_files_to_bundle failed");
+
+    let dest_nested_file = bundle_dir.join("MyAssets/nested.txt");
+    assert!(
+      dest_nested_file.exists(),
+      "{dest_nested_file:?} does not exist"
+    );
+    assert!(
+      dest_nested_file.is_file(),
+      "{dest_nested_file:?} is not a file"
+    );
+    assert_eq!(
+      fs::read_to_string(dest_nested_file).unwrap().trim(),
+      "nested"
+    );
+  }
+
+  #[test]
+  fn test_copy_custom_files_to_bundle_missing_source() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    // Intentionally reference a non-existent path.
+    let missing_path = tmp_dir.path().join("does_not_exist.txt");
+
+    let files_map = HashMap::from([(PathBuf::from("Missing.txt"), missing_path)]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
+
+    assert!(result.is_err());
+    assert!(result.err().unwrap().to_string().contains("does not exist"));
+  }
+
+  #[test]
+  fn test_copy_custom_files_to_bundle_invalid_source() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    let files_map = HashMap::from([(PathBuf::from("Invalid.txt"), PathBuf::from("///"))]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
+    assert!(result.is_err());
+    assert!(result
+      .err()
+      .unwrap()
+      .to_string()
+      .contains("Failed to copy directory"));
+  }
+
+  #[test]
+  fn test_copy_custom_files_to_bundle_dev_null() {
+    let tmp_dir = tempfile::tempdir().expect("failed to create temp dir");
+
+    let files_map = HashMap::from([(PathBuf::from("Invalid.txt"), PathBuf::from("/dev/null"))]);
+
+    let (bundle_dir, settings) = create_test_bundle(tmp_dir.path(), files_map);
+
+    let result = copy_custom_files_to_bundle(&bundle_dir, &settings);
+    assert!(result.is_err());
+    assert!(result
+      .err()
+      .unwrap()
+      .to_string()
+      .contains("is not a file or directory."));
   }
 }

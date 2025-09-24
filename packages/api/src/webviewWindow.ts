@@ -15,12 +15,6 @@ import type { EventName, EventCallback, UnlistenFn } from './event'
 import { invoke } from './core'
 import type { Color, DragDropEvent } from './webview'
 
-// Internal-only type to avoid @ts-expect-error everywhere
-interface InternalWebviewOptions
-  extends Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'> {
-  skip?: boolean
-}
-
 /**
  * Get an instance of `Webview` for the current webview window.
  *
@@ -28,7 +22,7 @@ interface InternalWebviewOptions
  */
 function getCurrentWebviewWindow(): WebviewWindow {
   const webview = getCurrentWebview()
-  return new WebviewWindow(webview.label, { skip: true } as any)
+  return new WebviewWindow(webview.label, { skip: true })
 }
 
 /**
@@ -40,7 +34,7 @@ async function getAllWebviewWindows(): Promise<WebviewWindow[]> {
       (w) =>
         new WebviewWindow(w, {
           skip: true
-        } as any)
+        })
     )
   )
 }
@@ -76,19 +70,15 @@ class WebviewWindow {
   constructor(
     label: WebviewLabel,
     options: Omit<WebviewOptions, 'x' | 'y' | 'width' | 'height'>
-      & WindowOptions = {}
+      & WindowOptions & { skip?: boolean } = {}
   ) {
     this.label = label
     this.listeners = Object.create(null)
 
-    const internalOptions = options as InternalWebviewOptions & {
-      skip?: boolean
-    }
-
-    if (!internalOptions?.skip) {
+    if (!(options && 'skip' in options && options.skip)) {
       invoke('plugin:webview|create_webview_window', {
         options: {
-          ...internalOptions,
+          ...options,
           parent:
             typeof options.parent === 'string'
               ? options.parent
@@ -117,7 +107,7 @@ class WebviewWindow {
     const webview =
       (await getAllWebviewWindows()).find((w) => w.label === label) ?? null
     if (webview) {
-      return new WebviewWindow(webview.label, { skip: true } as any)
+      return new WebviewWindow(webview.label, { skip: true })
     }
     return null
   }
@@ -125,7 +115,6 @@ class WebviewWindow {
   /**
    * Get an instance of `Webview` for the current webview.
    */
-
   static getCurrent(): WebviewWindow {
     return getCurrentWebviewWindow()
   }

@@ -1,4 +1,4 @@
-<img src=".github/splash.png" alt="Tauri" />
+# ![Tauri](/.github/splash.png)
 
 [![status](https://img.shields.io/badge/status-stable-blue.svg)](https://github.com/tauri-apps/tauri/tree/dev)
 [![License](https://img.shields.io/badge/License-MIT%20or%20Apache%202-green.svg)](https://opencollective.com/tauri)
@@ -65,17 +65,9 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
 
 ## Partners
 
-<table>
-  <tbody>
-    <tr>
-      <td align="center" valign="middle">
-        <a href="https://crabnebula.dev" target="_blank">
-          <img src=".github/sponsors/crabnebula.svg" alt="CrabNebula" width="283">
-        </a>
-      </td>
-    </tr>
-  </tbody>
-</table>
+| Partner |
+|:-------:|
+| [![CrabNebula](/.github/sponsors/crabnebula.svg)](https://crabnebula.dev) |
 
 For the complete list of sponsors please visit our [website](https://tauri.app#sponsors) and [Open Collective](https://opencollective.com/tauri).
 

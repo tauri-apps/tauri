@@ -65,9 +65,7 @@ Documentation in a polyglot system is a tricky proposition. To this end, we pref
 
 ## Partners
 
-| Partner |
-|:-------:|
-| [![CrabNebula](/.github/sponsors/crabnebula.svg)](https://crabnebula.dev) |
+<div align="center">[![CrabNebula](/.github/sponsors/crabnebula.svg)](https://crabnebula.dev)</div>
 
 For the complete list of sponsors please visit our [website](https://tauri.app#sponsors) and [Open Collective](https://opencollective.com/tauri).
 

@@ -427,7 +427,7 @@ mod windows {
     let y1 = border_y;
     let x2 = if only_top { width } else { width - border_x };
     let y2 = if only_top { height } else { height - border_y };
-    
+
     // Wrap hrgn2 in Owned so it is automatically freed when going out of scope
     let hrgn2 = Owned::new(CreateRectRgn(x1, y1, x2, y2));
 
@@ -435,8 +435,8 @@ mod windows {
 
     // Try to set the window region
     if SetWindowRgn(hwnd, Some(hrgn1), true) == 0 {
-        // If it fails, we must free hrgn1 manually
-        hrgn1.free();
+      // If it fails, we must free hrgn1 manually
+      hrgn1.free();
     }
   }
 

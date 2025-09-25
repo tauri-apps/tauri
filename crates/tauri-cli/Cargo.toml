@@ -76,7 +76,7 @@ os_info = "3"
 semver = "1"
 regex = "1"
 heck = "0.5"
-dialoguer = "0.11"
+dialoguer = "0.12"
 url = { version = "2", features = ["serde"] }
 os_pipe = "1"
 ignore = "0.4"

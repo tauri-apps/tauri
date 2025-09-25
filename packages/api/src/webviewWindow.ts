@@ -204,9 +204,7 @@ class WebviewWindow {
       await invoke('plugin:window|set_background_color', { color })
       await invoke('plugin:webview|set_webview_background_color', { color })
     } catch (err) {
-      const error = new Error('Failed to set background color')
-      ;(error as any).cause = err
-      throw error
+      throw new Error('Failed to set background color', { cause: err })
     }
   }
 }

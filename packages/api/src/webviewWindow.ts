@@ -193,9 +193,19 @@ class WebviewWindow {
       target: { kind: 'WebviewWindow', label: this.label }
     })
   }
-
   /**
    * Set the window and webview background color.
+   *
+   * #### Platform-specific:
+   *
+   * - **Android / iOS:** Unsupported for the window layer.
+   * - **macOS / iOS**: Not implemented for the webview layer.
+   * - **Windows**:
+   *   - alpha channel is ignored for the window layer.
+   *   - On Windows 7, alpha channel is ignored for the webview layer.
+   *   - On Windows 8 and newer, if alpha channel is not `0`, it will be ignored.
+   *
+   * @returns A promise indicating the success or failure of the operation.
    *
    * @since 2.1.0
    */
@@ -209,6 +219,8 @@ class WebviewWindow {
   }
 }
 
+
+// Order matters, we use window APIs by default
 applyMixins(WebviewWindow, [Window, Webview])
 
 /** Extends a base class by other specified classes, without overriding existing properties */

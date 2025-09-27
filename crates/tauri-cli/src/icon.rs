@@ -175,14 +175,14 @@ pub fn command(options: Options) -> Result<()> {
   let manifest: Option<Manifest> = parse_manifest(&input)?;
 
   let bg_color_string = match manifest {
-    Some(ref manifest) => &manifest
+    Some(ref manifest) => manifest
       .bg_color
       .as_ref()
       .unwrap_or(&options.ios_color)
       .clone(),
-    None => &options.ios_color,
+    None => options.ios_color,
   };
-  let bg_color = parse_bg_color(bg_color_string)?;
+  let bg_color = parse_bg_color(&bg_color_string)?;
 
   let default_icon = match manifest {
     Some(ref manifest) => input.join(manifest.default.clone()),
@@ -201,7 +201,7 @@ pub fn command(options: Options) -> Result<()> {
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
-    android(&input, manifest, bg_color_string, &out_dir)
+    android(&input, manifest, &bg_color_string, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
     for target in png_icon_sizes

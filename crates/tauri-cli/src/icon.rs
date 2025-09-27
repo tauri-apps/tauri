@@ -40,10 +40,25 @@ struct PngEntry {
   out_path: PathBuf,
 }
 
+struct AndroidEntries {
+  foreground: Vec<PngEntry>,
+  background: Vec<PngEntry>,
+  monochrome: Vec<PngEntry>,
+}
+
+#[derive(Deserialize)]
+struct Manifest {
+  default: String,
+  bg_color: Option<String>,
+  android_bg: Option<String>,
+  android_fg: Option<String>,
+  android_monochrome: Option<String>,
+}
+
 #[derive(Debug, Parser)]
 #[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
-  /// Path to the source icon (squared PNG or SVG file with transparency).
+  /// Path to the source icon (squared PNG or SVG file with transparency) or directory containing source icon files and manifest.
   #[clap(default_value = "./app-icon.png")]
   input: PathBuf,
   /// Output directory.
@@ -99,14 +114,41 @@ impl Source {
   }
 }
 
-pub fn command(options: Options) -> Result<()> {
-  let input = options.input;
-  let out_dir = options.output.unwrap_or_else(|| {
-    crate::helpers::app_paths::resolve();
-    tauri_dir().join("icons")
-  });
-  let png_icon_sizes = options.png.unwrap_or_default();
-  let ios_color = css_color::Srgb::from_str(&options.ios_color)
+fn read_source(path: PathBuf) -> Result<Source> {
+  if let Some(extension) = path.extension() {
+    if extension == "svg" {
+      let rtree = {
+        let mut fontdb = usvg::fontdb::Database::new();
+        fontdb.load_system_fonts();
+
+        let opt = usvg::Options {
+          // Get file's absolute directory.
+          resources_dir: std::fs::canonicalize(&path)
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf())),
+          fontdb: Arc::new(fontdb),
+          ..Default::default()
+        };
+
+        let svg_data = std::fs::read(&path).unwrap();
+        usvg::Tree::from_data(&svg_data, &opt).unwrap()
+      };
+
+      Ok(Source::Svg(rtree))
+    } else {
+      Ok(Source::DynamicImage(DynamicImage::ImageRgba8(
+        open(&path)
+          .context(format!("Can't read and decode source image: {:?}", path))?
+          .into_rgba8(),
+      )))
+    }
+  } else {
+    anyhow::bail!("Error loading image");
+  }
+}
+
+fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
+  let bg_color = css_color::Srgb::from_str(bg_color_string)
     .map(|color| {
       Rgba([
         (color.red * 255.) as u8,
@@ -115,40 +157,39 @@ pub fn command(options: Options) -> Result<()> {
         (color.alpha * 255.) as u8,
       ])
     })
-    .map_err(|_| anyhow::anyhow!("failed to parse iOS color"))?;
+    .map_err(|_| anyhow::anyhow!("failed to parse color {}", bg_color_string))?;
+
+  Ok(bg_color)
+}
+
+pub fn command(options: Options) -> Result<()> {
+  let input = options.input;
+  let out_dir = options.output.unwrap_or_else(|| {
+    crate::helpers::app_paths::resolve();
+    tauri_dir().join("icons")
+  });
+  let png_icon_sizes = options.png.unwrap_or_default();
 
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  let source = if let Some(extension) = input.extension() {
-    if extension == "svg" {
-      let rtree = {
-        let mut fontdb = usvg::fontdb::Database::new();
-        fontdb.load_system_fonts();
+  let manifest: Option<Manifest> = parse_manifest(&input)?;
 
-        let opt = usvg::Options {
-          // Get file's absolute directory.
-          resources_dir: std::fs::canonicalize(&input)
-            .ok()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf())),
-          fontdb: Arc::new(fontdb),
-          ..Default::default()
-        };
-
-        let svg_data = std::fs::read(&input).unwrap();
-        usvg::Tree::from_data(&svg_data, &opt).unwrap()
-      };
-
-      Source::Svg(rtree)
-    } else {
-      Source::DynamicImage(DynamicImage::ImageRgba8(
-        open(&input)
-          .context("Can't read and decode source image")?
-          .into_rgba8(),
-      ))
-    }
-  } else {
-    anyhow::bail!("Error loading image");
+  let bg_color_string = match manifest {
+    Some(ref manifest) => &manifest
+      .bg_color
+      .as_ref()
+      .unwrap_or(&options.ios_color)
+      .clone(),
+    None => &options.ios_color,
   };
+  let bg_color = parse_bg_color(bg_color_string)?;
+
+  let default_icon = match manifest {
+    Some(ref manifest) => input.join(manifest.default.clone()),
+    None => input.clone(),
+  };
+
+  let source = read_source(default_icon)?;
 
   if source.height() != source.width() {
     anyhow::bail!("Source image must be square");
@@ -159,7 +200,9 @@ pub fn command(options: Options) -> Result<()> {
     icns(&source, &out_dir).context("Failed to generate .icns file")?;
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
-    png(&source, &out_dir, ios_color).context("Failed to generate png icons")?;
+    png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
+    android(&input, manifest, bg_color_string, &out_dir)
+      .context("Failed to generate android icons")?;
   } else {
     for target in png_icon_sizes
       .into_iter()
@@ -180,6 +223,21 @@ pub fn command(options: Options) -> Result<()> {
   }
 
   Ok(())
+}
+
+fn parse_manifest(input: &Path) -> Result<Option<Manifest>> {
+  if input.is_dir() {
+    let manifest_path = input.join("manifest.json");
+    if manifest_path.exists() {
+      let manifest: Manifest = serde_json::from_str(
+        &std::fs::read_to_string(&manifest_path)
+          .expect("Cannot read manifest.json file in source directory"),
+      )?;
+      log::info!("Read manifest file from {}", manifest_path.display());
+      return Ok(Some(manifest));
+    }
+  }
+  Ok(None)
 }
 
 fn appx(source: &Source, out_dir: &Path) -> Result<()> {
@@ -268,37 +326,18 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   Ok(())
 }
 
-// Generate .png files in 32x32, 64x64, 128x128, 256x256, 512x512 (icon.png)
-// Main target: Linux
-fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
-  fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
-    let mut entries = Vec::new();
-
-    for size in [32, 64, 128, 256, 512] {
-      let file_name = match size {
-        256 => "128x128@2x.png".to_string(),
-        512 => "icon.png".to_string(),
-        _ => format!("{size}x{size}.png"),
-      };
-
-      entries.push(PngEntry {
-        out_path: out_dir.join(&file_name),
-        name: file_name,
-        size,
-      });
-    }
-
-    entries
-  }
-
-  fn android_entries(out_dir: &Path) -> Result<Vec<PngEntry>> {
+fn android(
+  input: &Path,
+  manifest: Option<Manifest>,
+  bg_color: &String,
+  out_dir: &Path,
+) -> Result<()> {
+  fn android_entries(out_dir: &Path) -> Result<AndroidEntries> {
     struct AndroidEntry {
       name: &'static str,
       size: u32,
       foreground_size: u32,
     }
-
-    let mut entries = Vec::new();
 
     let targets = vec![
       AndroidEntry {
@@ -327,6 +366,9 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
         foreground_size: 432,
       },
     ];
+    let mut fg_entries = Vec::new();
+    let mut bg_entries = Vec::new();
+    let mut monochrome_entries = Vec::new();
 
     for target in targets {
       let folder_name = format!("mipmap-{}", target.name);
@@ -334,24 +376,153 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
 
       create_dir_all(&out_folder).context("Can't create Android mipmap output directory")?;
 
-      entries.push(PngEntry {
+      fg_entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher_foreground.png"),
         out_path: out_folder.join("ic_launcher_foreground.png"),
         size: target.foreground_size,
       });
-      entries.push(PngEntry {
+      fg_entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher_round.png"),
         out_path: out_folder.join("ic_launcher_round.png"),
         size: target.size,
       });
-      entries.push(PngEntry {
+      fg_entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher.png"),
         out_path: out_folder.join("ic_launcher.png"),
         size: target.size,
       });
+
+      bg_entries.push(PngEntry {
+        name: format!("{}/{}", folder_name, "ic_launcher_background.png"),
+        out_path: out_folder.join("ic_launcher_background.png"),
+        size: target.foreground_size,
+      });
+
+      monochrome_entries.push(PngEntry {
+        name: format!("{}/{}", folder_name, "ic_launcher_monochrome.png"),
+        out_path: out_folder.join("ic_launcher_monochrome.png"),
+        size: target.foreground_size,
+      });
     }
 
-    Ok(entries)
+    Ok(AndroidEntries {
+      foreground: fg_entries,
+      background: bg_entries,
+      monochrome: monochrome_entries,
+    })
+  }
+  fn create_color_file(out_dir: &Path, color: &String) -> Result<()> {
+    let values_folder = out_dir.join("values");
+    create_dir_all(&values_folder).context("Can't create Android values output directory")?;
+    let mut color_file = File::create(values_folder.join("ic_launcher_background.xml"))?;
+    color_file.write_all(
+      format!(
+        r#"<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="ic_launcher_background">{}</color>
+</resources>"#,
+        color
+      )
+      .as_bytes(),
+    )?;
+    Ok(())
+  }
+
+  let android_out = out_dir
+    .parent()
+    .unwrap()
+    .join("gen/android/app/src/main/res/");
+  let out = if android_out.exists() {
+    android_out
+  } else {
+    let out = out_dir.join("android");
+    create_dir_all(&out).context("Can't create Android output directory")?;
+    out
+  };
+  let entries = android_entries(&out)?;
+
+  let foregrond_path = match manifest {
+    Some(ref manifest) => input.join(manifest.android_fg.as_ref().unwrap_or(&manifest.default)),
+    None => input.to_path_buf(),
+  };
+
+  let fg = read_source(foregrond_path)?;
+
+  for entry in entries.foreground {
+    log::info!(action = "Android"; "Creating {}", entry.name);
+    resize_and_save_png(&fg, entry.size, &entry.out_path, None)?;
+  }
+
+  let mut has_bg_image = false;
+  let mut has_monochrome_image = false;
+  if let Some(ref manifest) = manifest {
+    if let Some(ref background_path) = manifest.android_bg {
+      has_bg_image = true;
+      let bg = read_source(input.join(background_path))?;
+      for entry in entries.background {
+        log::info!(action = "Android"; "Creating {}", entry.name);
+        resize_and_save_png(&bg, entry.size, &entry.out_path, None)?;
+      }
+    }
+    if let Some(ref monochrome_path) = manifest.android_monochrome {
+      has_monochrome_image = true;
+      let mc = read_source(input.join(monochrome_path))?;
+      for entry in entries.monochrome {
+        log::info!(action = "Android"; "Creating {}", entry.name);
+        resize_and_save_png(&mc, entry.size, &entry.out_path, None)?;
+      }
+    }
+  }
+
+  let mut launcher_content = r#"<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+  <foreground android:drawable="@mipmap/ic_launcher_foreground"/>"#
+    .to_owned();
+
+  if has_bg_image {
+    launcher_content
+      .push_str("\n  <background android:drawable=\"@mipmap/ic_launcher_background\"/>");
+  } else {
+    create_color_file(&out, bg_color)?;
+    launcher_content
+      .push_str("\n  <background android:drawable=\"@color/ic_launcher_background\"/>");
+  }
+  if has_monochrome_image {
+    launcher_content
+      .push_str("\n  <monochrome android:drawable=\"@mipmap/ic_launcher_monochrome\"/>");
+  }
+  launcher_content.push_str("\n</adaptive-icon>");
+
+  let any_dpi_folder = out.join("mipmap-anydpi-v26");
+  create_dir_all(&any_dpi_folder)
+    .context("Can't create Android mipmap-anydpi-v26 output directory")?;
+  let mut launcher_file = File::create(any_dpi_folder.join("ic_launcher.xml"))?;
+  launcher_file.write_all(launcher_content.as_bytes())?;
+
+  Ok(())
+}
+
+// Generate .png files in 32x32, 64x64, 128x128, 256x256, 512x512 (icon.png)
+// Main target: Linux
+fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
+  fn desktop_entries(out_dir: &Path) -> Vec<PngEntry> {
+    let mut entries = Vec::new();
+
+    for size in [32, 64, 128, 256, 512] {
+      let file_name = match size {
+        256 => "128x128@2x.png".to_string(),
+        512 => "icon.png".to_string(),
+        _ => format!("{size}x{size}.png"),
+      };
+
+      entries.push(PngEntry {
+        out_path: out_dir.join(&file_name),
+        name: file_name,
+        size,
+      });
+    }
+
+    entries
   }
 
   fn ios_entries(out_dir: &Path) -> Result<Vec<PngEntry>> {
@@ -428,20 +599,7 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
     Ok(entries)
   }
 
-  let mut entries = desktop_entries(out_dir);
-
-  let android_out = out_dir
-    .parent()
-    .unwrap()
-    .join("gen/android/app/src/main/res/");
-  let out = if android_out.exists() {
-    android_out
-  } else {
-    let out = out_dir.join("android");
-    create_dir_all(&out).context("Can't create Android output directory")?;
-    out
-  };
-  entries.extend(android_entries(&out)?);
+  let entries = desktop_entries(out_dir);
 
   let ios_out = out_dir
     .parent()

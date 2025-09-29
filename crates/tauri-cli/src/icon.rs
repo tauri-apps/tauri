@@ -59,7 +59,7 @@ struct Manifest {
 #[derive(Debug, Parser)]
 #[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
-  /// Path to the source icon (squared PNG or SVG file with transparency) a manifest file.
+  /// Path to the source icon (squared PNG or SVG file with transparency) or a manifest file.
   /// 
   /// The manifest file is a JSON file with the following structure:
   /// {

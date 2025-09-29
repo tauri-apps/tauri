@@ -58,7 +58,20 @@ struct Manifest {
 #[derive(Debug, Parser)]
 #[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
-  /// Path to the source icon (squared PNG or SVG file with transparency) or directory containing source icon files and manifest.
+  /// Path to the source icon (squared PNG or SVG file with transparency) a manifest file.
+  /// 
+  /// The manifest file is a JSON file with the following structure:
+  /// {
+  ///   "default": "app-icon.png",
+  ///   "bg_color": "#fff",
+  ///   "android_bg": "app-icon-bg.png",
+  ///   "android_fg": "app-icon-fg.png",
+  ///   "android_monochrome": "app-icon-monochrome.png"
+  /// }
+  /// 
+  /// All file paths are relative to the manifest file path.
+  /// 
+  /// The `bg_color` overwrites the `--ios-color` option if set.
   #[clap(default_value = "./app-icon.png")]
   input: PathBuf,
   /// Output directory.
@@ -75,6 +88,7 @@ pub struct Options {
   ios_color: String,
 }
 
+#[derive(Clone)]
 #[allow(clippy::large_enum_variant)]
 enum Source {
   Svg(resvg::usvg::Tree),
@@ -172,7 +186,11 @@ pub fn command(options: Options) -> Result<()> {
 
   create_dir_all(&out_dir).context("Can't create output directory")?;
 
-  let manifest: Option<Manifest> = parse_manifest(&input)?;
+  let manifest = if input.extension().is_some_and(|ext| ext == "json") {
+    parse_manifest(&input).map(Some)?
+  } else {
+    None
+  };
 
   let bg_color_string = match manifest {
     Some(ref manifest) => manifest
@@ -185,7 +203,7 @@ pub fn command(options: Options) -> Result<()> {
   let bg_color = parse_bg_color(&bg_color_string)?;
 
   let default_icon = match manifest {
-    Some(ref manifest) => input.join(manifest.default.clone()),
+    Some(ref manifest) => input.parent().unwrap().join(manifest.default.clone()),
     None => input.clone(),
   };
 
@@ -201,7 +219,7 @@ pub fn command(options: Options) -> Result<()> {
     ico(&source, &out_dir).context("Failed to generate .ico file")?;
 
     png(&source, &out_dir, bg_color).context("Failed to generate png icons")?;
-    android(&input, manifest, &bg_color_string, &out_dir)
+    android(&source, &input, manifest, &bg_color_string, &out_dir)
       .context("Failed to generate android icons")?;
   } else {
     for target in png_icon_sizes
@@ -225,19 +243,13 @@ pub fn command(options: Options) -> Result<()> {
   Ok(())
 }
 
-fn parse_manifest(input: &Path) -> Result<Option<Manifest>> {
-  if input.is_dir() {
-    let manifest_path = input.join("manifest.json");
-    if manifest_path.exists() {
-      let manifest: Manifest = serde_json::from_str(
-        &std::fs::read_to_string(&manifest_path)
-          .expect("Cannot read manifest.json file in source directory"),
-      )?;
-      log::info!("Read manifest file from {}", manifest_path.display());
-      return Ok(Some(manifest));
-    }
-  }
-  Ok(None)
+fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
+  let manifest: Manifest = serde_json::from_str(
+    &std::fs::read_to_string(&manifest_path)
+      .with_context(|| format!("cannot read manifest file {}", manifest_path.display()))?,
+  ).with_context(|| format!("failed to parse manifest file {}", manifest_path.display()))?;
+  log::debug!("Read manifest file from {}", manifest_path.display());
+  Ok(manifest)
 }
 
 fn appx(source: &Source, out_dir: &Path) -> Result<()> {
@@ -327,6 +339,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
 }
 
 fn android(
+  source: &Source,
   input: &Path,
   manifest: Option<Manifest>,
   bg_color: &String,
@@ -441,12 +454,10 @@ fn android(
   };
   let entries = android_entries(&out)?;
 
-  let foregrond_path = match manifest {
-    Some(ref manifest) => input.join(manifest.android_fg.as_ref().unwrap_or(&manifest.default)),
-    None => input.to_path_buf(),
+  let fg = match manifest {
+    Some(ref manifest) => read_source(input.parent().unwrap().join(manifest.android_fg.as_ref().unwrap_or(&manifest.default)))?,
+    None => source.clone(),
   };
-
-  let fg = read_source(foregrond_path)?;
 
   for entry in entries.foreground {
     log::info!(action = "Android"; "Creating {}", entry.name);
@@ -458,7 +469,7 @@ fn android(
   if let Some(ref manifest) = manifest {
     if let Some(ref background_path) = manifest.android_bg {
       has_bg_image = true;
-      let bg = read_source(input.join(background_path))?;
+      let bg = read_source(input.parent().unwrap().join(background_path))?;
       for entry in entries.background {
         log::info!(action = "Android"; "Creating {}", entry.name);
         resize_and_save_png(&bg, entry.size, &entry.out_path, None)?;
@@ -466,7 +477,7 @@ fn android(
     }
     if let Some(ref monochrome_path) = manifest.android_monochrome {
       has_monochrome_image = true;
-      let mc = read_source(input.join(monochrome_path))?;
+      let mc = read_source(input.parent().unwrap().join(monochrome_path))?;
       for entry in entries.monochrome {
         log::info!(action = "Android"; "Creating {}", entry.name);
         resize_and_save_png(&mc, entry.size, &entry.out_path, None)?;

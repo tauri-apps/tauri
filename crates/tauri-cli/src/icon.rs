@@ -22,7 +22,7 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder, Rgba,
+  open, DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder, Rgba, GenericImageView,
 };
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
@@ -54,6 +54,7 @@ struct Manifest {
   android_bg: Option<String>,
   android_fg: Option<String>,
   android_monochrome: Option<String>,
+  android_fg_scale: Option<f32>,
 }
 
 #[derive(Debug, Parser)]
@@ -67,12 +68,15 @@ pub struct Options {
   ///   "bg_color": "#fff",
   ///   "android_bg": "app-icon-bg.png",
   ///   "android_fg": "app-icon-fg.png",
+  ///   "android_fg_scale": 85,
   ///   "android_monochrome": "app-icon-monochrome.png"
   /// }
   /// 
-  /// All file paths are relative to the manifest file path.
+  /// All file paths defined in the manifest JSON are relative to the manifest file path.
   /// 
-  /// The `bg_color` overwrites the `--ios-color` option if set.
+  /// Only the `default` manifest property is required.
+  /// 
+  /// The `bg_color` manifest value overwrites the `--ios-color` option if set.
   #[clap(default_value = "./app-icon.png")]
   input: PathBuf,
   /// Output directory.
@@ -237,7 +241,7 @@ pub fn command(options: Options) -> Result<()> {
       .collect::<Vec<PngEntry>>()
     {
       log::info!(action = "PNG"; "Creating {}", target.name);
-      resize_and_save_png(&source, target.size, &target.out_path, None)?;
+      resize_and_save_png(&source, target.size, &target.out_path, None, None)?;
     }
   }
 
@@ -255,13 +259,13 @@ fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
 
 fn appx(source: &Source, out_dir: &Path) -> Result<()> {
   log::info!(action = "Appx"; "Creating StoreLogo.png");
-  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"), None)?;
+  resize_and_save_png(source, 50, &out_dir.join("StoreLogo.png"), None, None)?;
 
   for size in [30, 44, 71, 89, 107, 142, 150, 284, 310] {
     let file_name = format!("Square{size}x{size}Logo.png");
     log::info!(action = "Appx"; "Creating {}", file_name);
 
-    resize_and_save_png(source, size, &out_dir.join(&file_name), None)?;
+    resize_and_save_png(source, size, &out_dir.join(&file_name), None, None)?;
   }
 
   Ok(())
@@ -464,7 +468,7 @@ fn android(
 
   for entry in entries.foreground {
     log::info!(action = "Android"; "Creating {}", entry.name);
-    resize_and_save_png(fg_source.as_ref().unwrap_or(&source), entry.size, &entry.out_path, None)?;
+    resize_and_save_png(fg_source.as_ref().unwrap_or(&source), entry.size, &entry.out_path, None, None)?;
   }
 
   let mut bg_source = None;
@@ -474,7 +478,7 @@ fn android(
       let bg = read_source(input.parent().unwrap().join(background_path))?;
       for entry in entries.background {
         log::info!(action = "Android"; "Creating {}", entry.name);
-        resize_and_save_png(&bg, entry.size, &entry.out_path, None)?;
+        resize_and_save_png(&bg, entry.size, &entry.out_path, None, None)?;
       }
       bg_source.replace(bg);
     }
@@ -483,7 +487,7 @@ fn android(
       let mc = read_source(input.parent().unwrap().join(monochrome_path))?;
       for entry in entries.monochrome {
         log::info!(action = "Android"; "Creating {}", entry.name);
-        resize_and_save_png(&mc, entry.size, &entry.out_path, None)?;
+        resize_and_save_png(&mc, entry.size, &entry.out_path, None, None)?;
       }
     }
   }
@@ -491,9 +495,9 @@ fn android(
   for entry in entries.icon {
     log::info!(action = "Android"; "Creating {}", entry.name);
     if let (Some(bg_source), Some(fg_source)) = (bg_source.as_ref(), fg_source.as_ref()) {
-      resize_and_save_png(fg_source, entry.size, &entry.out_path, Some(Background::Image(bg_source)))?;
+      resize_and_save_png(fg_source, entry.size, &entry.out_path, Some(Background::Image(bg_source)), manifest.as_ref().and_then(|manifest| manifest.android_fg_scale))?;
     } else {
-      resize_and_save_png(source, entry.size, &entry.out_path, None)?;
+      resize_and_save_png(source, entry.size, &entry.out_path, None, None)?;
     }
 
   }
@@ -639,12 +643,12 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
 
   for entry in entries {
     log::info!(action = "PNG"; "Creating {}", entry.name);
-    resize_and_save_png(source, entry.size, &entry.out_path, None)?;
+    resize_and_save_png(source, entry.size, &entry.out_path, None, None)?;
   }
 
   for entry in ios_entries(&out)? {
     log::info!(action = "iOS"; "Creating {}", entry.name);
-    resize_and_save_png(source, entry.size, &entry.out_path, Some(Background::Color(ios_color)))?;
+    resize_and_save_png(source, entry.size, &entry.out_path, Some(Background::Color(ios_color)), None)?;
   }
 
   Ok(())
@@ -661,18 +665,25 @@ fn resize_and_save_png(
   size: u32,
   file_path: &Path,
   bg: Option<Background>,
+  scale_percent: Option<f32>,
 ) -> Result<()> {
   let mut image = source.resize_exact(size)?;
 
   match bg {
     Some(Background::Color(bg_color)) => {
       let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
-      image::imageops::overlay(&mut bg_img, &image, 0, 0);
+
+      let fg = scale_percent.map(|scale| resize_asset(&image, size, scale)).unwrap_or(image);
+
+      image::imageops::overlay(&mut bg_img, &fg, 0, 0);
       image = bg_img.into();
     }
     Some(Background::Image(bg_source)) => {
       let mut bg = bg_source.resize_exact(size)?;
-      image::imageops::overlay(&mut bg, &image, 0, 0);
+
+      let fg = scale_percent.map(|scale| resize_asset(&image, size, scale)).unwrap_or(image);
+
+      image::imageops::overlay(&mut bg, &fg, 0, 0);
       image = bg.into();
     }
     None => {}
@@ -688,4 +699,76 @@ fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> Result<()> {
   let encoder = PngEncoder::new_with_quality(w, CompressionType::Best, PngFilterType::Adaptive);
   encoder.write_image(image_data, size, size, ExtendedColorType::Rgba8)?;
   Ok(())
+}
+
+
+// finds the bounding box of non-transparent pixels in an RGBA image.
+fn content_bounds(img: &DynamicImage) -> Option<(u32, u32, u32, u32)> {
+  let rgba = img.to_rgba8();
+  let (width, height) = img.dimensions();
+
+  let mut min_x = width;
+  let mut min_y = height;
+  let mut max_x = 0;
+  let mut max_y = 0;
+  let mut found = false;
+
+  for y in 0..height {
+      for x in 0..width {
+          let a = rgba.get_pixel(x, y)[3];
+          if a > 0 {
+              found = true;
+              if x < min_x { min_x = x; }
+              if y < min_y { min_y = y; }
+              if x > max_x { max_x = x; }
+              if y > max_y { max_y = y; }
+          }
+      }
+  }
+
+  if found {
+      Some((min_x, min_y, max_x - min_x + 1, max_y - min_y + 1))
+  } else {
+      None
+  }
+}
+
+fn resize_asset(
+  img: &DynamicImage,
+  target_size: u32,
+  scale_percent: f32,
+) -> DynamicImage {
+  let cropped = if let Some((x, y, cw, ch)) = content_bounds(img) {
+      img.crop_imm(x, y, cw, ch)
+  } else {
+      img.clone()
+  };
+
+  let (cw, ch) = cropped.dimensions();
+  let max_dim = cw.max(ch) as f32;
+  let scale = (target_size as f32 * (scale_percent / 100.0)) / max_dim;
+
+  let new_w = (cw as f32 * scale).round() as u32;
+  let new_h = (ch as f32 * scale).round() as u32;
+
+  let resized = image::imageops::resize(&cropped, new_w, new_h, image::imageops::Lanczos3);
+
+  // Place on transparent square canvas
+  let mut canvas = ImageBuffer::from_pixel(target_size, target_size, Rgba([0, 0, 0, 0]));
+  let offset_x = if new_w > target_size {
+    // Image wider than canvas → start at negative offset
+    -((new_w - target_size) as i32 / 2)
+} else {
+    (target_size - new_w) as i32 / 2
+};
+
+let offset_y = if new_h > target_size {
+    -((new_h - target_size) as i32 / 2)
+} else {
+    (target_size - new_h) as i32 / 2
+};
+
+  image::imageops::overlay(&mut canvas, &resized, offset_x.into(), offset_y.into());
+
+  DynamicImage::ImageRgba8(canvas)
 }

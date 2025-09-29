@@ -41,6 +41,7 @@ struct PngEntry {
 }
 
 struct AndroidEntries {
+  icon: Vec<PngEntry>,
   foreground: Vec<PngEntry>,
   background: Vec<PngEntry>,
   monochrome: Vec<PngEntry>,
@@ -379,6 +380,7 @@ fn android(
         foreground_size: 432,
       },
     ];
+    let mut icon_entries = Vec::new();
     let mut fg_entries = Vec::new();
     let mut bg_entries = Vec::new();
     let mut monochrome_entries = Vec::new();
@@ -394,12 +396,12 @@ fn android(
         out_path: out_folder.join("ic_launcher_foreground.png"),
         size: target.foreground_size,
       });
-      fg_entries.push(PngEntry {
+      icon_entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher_round.png"),
         out_path: out_folder.join("ic_launcher_round.png"),
         size: target.size,
       });
-      fg_entries.push(PngEntry {
+      icon_entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher.png"),
         out_path: out_folder.join("ic_launcher.png"),
         size: target.size,
@@ -419,6 +421,7 @@ fn android(
     }
 
     Ok(AndroidEntries {
+      icon: icon_entries,
       foreground: fg_entries,
       background: bg_entries,
       monochrome: monochrome_entries,
@@ -454,26 +457,26 @@ fn android(
   };
   let entries = android_entries(&out)?;
 
-  let fg = match manifest {
-    Some(ref manifest) => read_source(input.parent().unwrap().join(manifest.android_fg.as_ref().unwrap_or(&manifest.default)))?,
-    None => source.clone(),
+  let fg_source = match manifest {
+    Some(ref manifest) => Some(read_source(input.parent().unwrap().join(manifest.android_fg.as_ref().unwrap_or(&manifest.default)))?),
+    None => None,
   };
 
   for entry in entries.foreground {
     log::info!(action = "Android"; "Creating {}", entry.name);
-    resize_and_save_png(&fg, entry.size, &entry.out_path, None)?;
+    resize_and_save_png(fg_source.as_ref().unwrap_or(&source), entry.size, &entry.out_path, None)?;
   }
 
-  let mut has_bg_image = false;
+  let mut bg_source = None;
   let mut has_monochrome_image = false;
   if let Some(ref manifest) = manifest {
     if let Some(ref background_path) = manifest.android_bg {
-      has_bg_image = true;
       let bg = read_source(input.parent().unwrap().join(background_path))?;
       for entry in entries.background {
         log::info!(action = "Android"; "Creating {}", entry.name);
         resize_and_save_png(&bg, entry.size, &entry.out_path, None)?;
       }
+      bg_source.replace(bg);
     }
     if let Some(ref monochrome_path) = manifest.android_monochrome {
       has_monochrome_image = true;
@@ -485,12 +488,22 @@ fn android(
     }
   }
 
+  for entry in entries.icon {
+    log::info!(action = "Android"; "Creating {}", entry.name);
+    if let (Some(bg_source), Some(fg_source)) = (bg_source.as_ref(), fg_source.as_ref()) {
+      resize_and_save_png(fg_source, entry.size, &entry.out_path, Some(Background::Image(bg_source)))?;
+    } else {
+      resize_and_save_png(source, entry.size, &entry.out_path, None)?;
+    }
+
+  }
+
   let mut launcher_content = r#"<?xml version="1.0" encoding="utf-8"?>
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
   <foreground android:drawable="@mipmap/ic_launcher_foreground"/>"#
     .to_owned();
 
-  if has_bg_image {
+  if bg_source.is_some() {
     launcher_content
       .push_str("\n  <background android:drawable=\"@mipmap/ic_launcher_background\"/>");
   } else {
@@ -631,10 +644,15 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
 
   for entry in ios_entries(&out)? {
     log::info!(action = "iOS"; "Creating {}", entry.name);
-    resize_and_save_png(source, entry.size, &entry.out_path, Some(ios_color))?;
+    resize_and_save_png(source, entry.size, &entry.out_path, Some(Background::Color(ios_color)))?;
   }
 
   Ok(())
+}
+
+enum Background<'a> {
+  Color(Rgba<u8>),
+  Image(&'a Source),
 }
 
 // Resize image and save it to disk.
@@ -642,14 +660,22 @@ fn resize_and_save_png(
   source: &Source,
   size: u32,
   file_path: &Path,
-  bg_color: Option<Rgba<u8>>,
+  bg: Option<Background>,
 ) -> Result<()> {
   let mut image = source.resize_exact(size)?;
 
-  if let Some(bg_color) = bg_color {
-    let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
-    image::imageops::overlay(&mut bg_img, &image, 0, 0);
-    image = bg_img.into();
+  match bg {
+    Some(Background::Color(bg_color)) => {
+      let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
+      image::imageops::overlay(&mut bg_img, &image, 0, 0);
+      image = bg_img.into();
+    }
+    Some(Background::Image(bg_source)) => {
+      let mut bg = bg_source.resize_exact(size)?;
+      image::imageops::overlay(&mut bg, &image, 0, 0);
+      image = bg.into();
+    }
+    None => {}
   }
 
   let mut out_file = BufWriter::new(File::create(file_path)?);

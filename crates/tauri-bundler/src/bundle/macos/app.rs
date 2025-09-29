@@ -295,6 +295,20 @@ fn create_info_plist(
               association.role.to_string().into(),
             );
             dict.insert("LSHandlerRank".into(), association.rank.to_string().into());
+            if let Some(item_content_types) = &association.item_content_types {
+              dict.insert(
+                "LSItemContentTypes".into(),
+                plist::Value::Array(
+                  item_content_types
+                    .iter()
+                    .map(|uti| uti.to_string().into())
+                    .collect(),
+                ),
+              );
+            }
+            if let Some(icns) = &association.icon_file {
+              dict.insert("CFBundleTypeIconFile".into(), icns.to_string().into());
+            }
             plist::Value::Dictionary(dict)
           })
           .collect(),

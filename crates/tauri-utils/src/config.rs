@@ -1140,6 +1140,24 @@ impl Display for HandlerRank {
   }
 }
 
+/// Provide uniform type identifiers that describe file types for storage or transfer.
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[cfg_attr(feature = "schema", derive(JsonSchema))]
+pub struct UniformTypeIdentifiers(pub String);
+
+impl fmt::Display for UniformTypeIdentifiers {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.0)
+  }
+}
+
+impl<'d> serde::Deserialize<'d> for UniformTypeIdentifiers {
+  fn deserialize<D: Deserializer<'d>>(deserializer: D) -> Result<Self, D::Error> {
+    let uti = String::deserialize(deserializer)?;
+    Ok(UniformTypeIdentifiers(uti))
+  }
+}
+
 /// An extension for a [`FileAssociation`].
 ///
 /// A leading `.` is automatically stripped.
@@ -1184,6 +1202,11 @@ pub struct FileAssociation {
   /// The ranking of this app among apps that declare themselves as editors or viewers of the given file type.  Maps to `LSHandlerRank` on macOS.
   #[serde(default)]
   pub rank: HandlerRank,
+  /// The document file types the app supports. Maps to `LSItemContentTypes` on macOS.
+  pub item_content_types: Option<Vec<UniformTypeIdentifiers>>,
+  /// This key contains a string with the name of the icon file (.icns) to associate with this macOS document type. Maps to `CFBundleTypeIconFile` on macOS.
+  /// For more information about specifying document icons, see [Document Icons](https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-SW9).
+  pub icon_file: Option<String>,
 }
 
 /// Deep link protocol configuration.

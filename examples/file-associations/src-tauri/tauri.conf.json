@@ -23,7 +23,9 @@
       {
         "ext": ["png"],
         "mimeType": "image/png",
-        "rank": "Default"
+        "rank": "Default",
+        "itemContentTypes": ["public.png"],
+        "iconFile": ""
       },
       {
         "ext": ["jpg", "jpeg"],

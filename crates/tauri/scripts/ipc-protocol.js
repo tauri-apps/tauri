@@ -37,6 +37,7 @@
       fetch(window.__TAURI_INTERNALS__.convertFileSrc(cmd, 'ipc'), {
         method: 'POST',
         body: data,
+        keepalive: true,
         headers
       })
         .then((response) => {

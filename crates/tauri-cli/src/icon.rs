@@ -22,7 +22,7 @@ use image::{
     png::{CompressionType, FilterType as PngFilterType, PngEncoder},
   },
   imageops::FilterType,
-  open, DynamicImage, ExtendedColorType, ImageBuffer, ImageEncoder, Rgba, GenericImageView,
+  open, DynamicImage, ExtendedColorType, GenericImageView, ImageBuffer, ImageEncoder, Rgba,
 };
 use resvg::{tiny_skia, usvg};
 use serde::Deserialize;
@@ -40,8 +40,13 @@ struct PngEntry {
   out_path: PathBuf,
 }
 
+enum AndroidIconKind {
+  Regular,
+  Rounded,
+}
+
 struct AndroidEntries {
-  icon: Vec<PngEntry>,
+  icon: Vec<(PngEntry, AndroidIconKind)>,
   foreground: Vec<PngEntry>,
   background: Vec<PngEntry>,
   monochrome: Vec<PngEntry>,
@@ -61,7 +66,7 @@ struct Manifest {
 #[clap(about = "Generate various icons for all major platforms")]
 pub struct Options {
   /// Path to the source icon (squared PNG or SVG file with transparency) or a manifest file.
-  /// 
+  ///
   /// The manifest file is a JSON file with the following structure:
   /// {
   ///   "default": "app-icon.png",
@@ -71,11 +76,11 @@ pub struct Options {
   ///   "android_fg_scale": 85,
   ///   "android_monochrome": "app-icon-monochrome.png"
   /// }
-  /// 
+  ///
   /// All file paths defined in the manifest JSON are relative to the manifest file path.
-  /// 
+  ///
   /// Only the `default` manifest property is required.
-  /// 
+  ///
   /// The `bg_color` manifest value overwrites the `--ios-color` option if set.
   #[clap(default_value = "./app-icon.png")]
   input: PathBuf,
@@ -252,7 +257,8 @@ fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
   let manifest: Manifest = serde_json::from_str(
     &std::fs::read_to_string(&manifest_path)
       .with_context(|| format!("cannot read manifest file {}", manifest_path.display()))?,
-  ).with_context(|| format!("failed to parse manifest file {}", manifest_path.display()))?;
+  )
+  .with_context(|| format!("failed to parse manifest file {}", manifest_path.display()))?;
   log::debug!("Read manifest file from {}", manifest_path.display());
   Ok(manifest)
 }
@@ -400,16 +406,22 @@ fn android(
         out_path: out_folder.join("ic_launcher_foreground.png"),
         size: target.foreground_size,
       });
-      icon_entries.push(PngEntry {
-        name: format!("{}/{}", folder_name, "ic_launcher_round.png"),
-        out_path: out_folder.join("ic_launcher_round.png"),
-        size: target.size,
-      });
-      icon_entries.push(PngEntry {
-        name: format!("{}/{}", folder_name, "ic_launcher.png"),
-        out_path: out_folder.join("ic_launcher.png"),
-        size: target.size,
-      });
+      icon_entries.push((
+        PngEntry {
+          name: format!("{}/{}", folder_name, "ic_launcher_round.png"),
+          out_path: out_folder.join("ic_launcher_round.png"),
+          size: target.size,
+        },
+        AndroidIconKind::Rounded,
+      ));
+      icon_entries.push((
+        PngEntry {
+          name: format!("{}/{}", folder_name, "ic_launcher.png"),
+          out_path: out_folder.join("ic_launcher.png"),
+          size: target.size,
+        },
+        AndroidIconKind::Regular,
+      ));
 
       bg_entries.push(PngEntry {
         name: format!("{}/{}", folder_name, "ic_launcher_background.png"),
@@ -462,13 +474,23 @@ fn android(
   let entries = android_entries(&out)?;
 
   let fg_source = match manifest {
-    Some(ref manifest) => Some(read_source(input.parent().unwrap().join(manifest.android_fg.as_ref().unwrap_or(&manifest.default)))?),
+    Some(ref manifest) => {
+      Some(read_source(input.parent().unwrap().join(
+        manifest.android_fg.as_ref().unwrap_or(&manifest.default),
+      ))?)
+    }
     None => None,
   };
 
   for entry in entries.foreground {
     log::info!(action = "Android"; "Creating {}", entry.name);
-    resize_and_save_png(fg_source.as_ref().unwrap_or(&source), entry.size, &entry.out_path, None, None)?;
+    resize_and_save_png(
+      fg_source.as_ref().unwrap_or(&source),
+      entry.size,
+      &entry.out_path,
+      None,
+      None,
+    )?;
   }
 
   let mut bg_source = None;
@@ -492,14 +514,40 @@ fn android(
     }
   }
 
-  for entry in entries.icon {
+  for (entry, kind) in entries.icon {
     log::info!(action = "Android"; "Creating {}", entry.name);
-    if let (Some(bg_source), Some(fg_source)) = (bg_source.as_ref(), fg_source.as_ref()) {
-      resize_and_save_png(fg_source, entry.size, &entry.out_path, Some(Background::Image(bg_source)), manifest.as_ref().and_then(|manifest| manifest.android_fg_scale))?;
-    } else {
-      resize_and_save_png(source, entry.size, &entry.out_path, None, None)?;
-    }
 
+    let (margin, radius) = match kind {
+      AndroidIconKind::Regular => {
+        let radius = ((entry.size as f32) * 0.0833).round() as u32;
+        (radius, radius)
+      }
+      AndroidIconKind::Rounded => {
+        let margin = ((entry.size as f32) * 0.04).round() as u32;
+        let radius = ((entry.size as f32) * 0.5).round() as u32;
+        (margin, radius)
+      }
+    };
+
+    let image = if let (Some(bg_source), Some(fg_source)) = (bg_source.as_ref(), fg_source.as_ref())
+    {
+      resize_png(
+        fg_source,
+        entry.size,
+        Some(Background::Image(bg_source)),
+        manifest
+          .as_ref()
+          .and_then(|manifest| manifest.android_fg_scale),
+      )?
+    } else {
+      resize_png(source, entry.size, None, None)?
+    };
+
+    let image = apply_round_mask(&image, entry.size, margin, radius);
+
+    let mut out_file = BufWriter::new(File::create(entry.out_path)?);
+    write_png(image.as_bytes(), &mut out_file, entry.size)?;
+    out_file.flush()?;
   }
 
   let mut launcher_content = r#"<?xml version="1.0" encoding="utf-8"?>
@@ -648,7 +696,13 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
 
   for entry in ios_entries(&out)? {
     log::info!(action = "iOS"; "Creating {}", entry.name);
-    resize_and_save_png(source, entry.size, &entry.out_path, Some(Background::Color(ios_color)), None)?;
+    resize_and_save_png(
+      source,
+      entry.size,
+      &entry.out_path,
+      Some(Background::Color(ios_color)),
+      None,
+    )?;
   }
 
   Ok(())
@@ -659,6 +713,42 @@ enum Background<'a> {
   Image(&'a Source),
 }
 
+// Resize image.
+fn resize_png(
+  source: &Source,
+  size: u32,
+  bg: Option<Background>,
+  scale_percent: Option<f32>,
+) -> Result<DynamicImage> {
+  let mut image = source.resize_exact(size)?;
+
+  match bg {
+    Some(Background::Color(bg_color)) => {
+      let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
+
+      let fg = scale_percent
+        .map(|scale| resize_asset(&image, size, scale))
+        .unwrap_or(image);
+
+      image::imageops::overlay(&mut bg_img, &fg, 0, 0);
+      image = bg_img.into();
+    }
+    Some(Background::Image(bg_source)) => {
+      let mut bg = bg_source.resize_exact(size)?;
+
+      let fg = scale_percent
+        .map(|scale| resize_asset(&image, size, scale))
+        .unwrap_or(image);
+
+      image::imageops::overlay(&mut bg, &fg, 0, 0);
+      image = bg.into();
+    }
+    None => {}
+  }
+
+  Ok(image)
+}
+
 // Resize image and save it to disk.
 fn resize_and_save_png(
   source: &Source,
@@ -667,28 +757,7 @@ fn resize_and_save_png(
   bg: Option<Background>,
   scale_percent: Option<f32>,
 ) -> Result<()> {
-  let mut image = source.resize_exact(size)?;
-
-  match bg {
-    Some(Background::Color(bg_color)) => {
-      let mut bg_img = ImageBuffer::from_fn(size, size, |_, _| bg_color);
-
-      let fg = scale_percent.map(|scale| resize_asset(&image, size, scale)).unwrap_or(image);
-
-      image::imageops::overlay(&mut bg_img, &fg, 0, 0);
-      image = bg_img.into();
-    }
-    Some(Background::Image(bg_source)) => {
-      let mut bg = bg_source.resize_exact(size)?;
-
-      let fg = scale_percent.map(|scale| resize_asset(&image, size, scale)).unwrap_or(image);
-
-      image::imageops::overlay(&mut bg, &fg, 0, 0);
-      image = bg.into();
-    }
-    None => {}
-  }
-
+  let image = resize_png(source, size, bg, scale_percent)?;
   let mut out_file = BufWriter::new(File::create(file_path)?);
   write_png(image.as_bytes(), &mut out_file, size)?;
   Ok(out_file.flush()?)
@@ -700,7 +769,6 @@ fn write_png<W: Write>(image_data: &[u8], w: W, size: u32) -> Result<()> {
   encoder.write_image(image_data, size, size, ExtendedColorType::Rgba8)?;
   Ok(())
 }
-
 
 // finds the bounding box of non-transparent pixels in an RGBA image.
 fn content_bounds(img: &DynamicImage) -> Option<(u32, u32, u32, u32)> {
@@ -714,34 +782,38 @@ fn content_bounds(img: &DynamicImage) -> Option<(u32, u32, u32, u32)> {
   let mut found = false;
 
   for y in 0..height {
-      for x in 0..width {
-          let a = rgba.get_pixel(x, y)[3];
-          if a > 0 {
-              found = true;
-              if x < min_x { min_x = x; }
-              if y < min_y { min_y = y; }
-              if x > max_x { max_x = x; }
-              if y > max_y { max_y = y; }
-          }
+    for x in 0..width {
+      let a = rgba.get_pixel(x, y)[3];
+      if a > 0 {
+        found = true;
+        if x < min_x {
+          min_x = x;
+        }
+        if y < min_y {
+          min_y = y;
+        }
+        if x > max_x {
+          max_x = x;
+        }
+        if y > max_y {
+          max_y = y;
+        }
       }
+    }
   }
 
   if found {
-      Some((min_x, min_y, max_x - min_x + 1, max_y - min_y + 1))
+    Some((min_x, min_y, max_x - min_x + 1, max_y - min_y + 1))
   } else {
-      None
+    None
   }
 }
 
-fn resize_asset(
-  img: &DynamicImage,
-  target_size: u32,
-  scale_percent: f32,
-) -> DynamicImage {
+fn resize_asset(img: &DynamicImage, target_size: u32, scale_percent: f32) -> DynamicImage {
   let cropped = if let Some((x, y, cw, ch)) = content_bounds(img) {
-      img.crop_imm(x, y, cw, ch)
+    img.crop_imm(x, y, cw, ch)
   } else {
-      img.clone()
+    img.clone()
   };
 
   let (cw, ch) = cropped.dimensions();
@@ -758,17 +830,72 @@ fn resize_asset(
   let offset_x = if new_w > target_size {
     // Image wider than canvas → start at negative offset
     -((new_w - target_size) as i32 / 2)
-} else {
+  } else {
     (target_size - new_w) as i32 / 2
-};
+  };
 
-let offset_y = if new_h > target_size {
+  let offset_y = if new_h > target_size {
     -((new_h - target_size) as i32 / 2)
-} else {
+  } else {
     (target_size - new_h) as i32 / 2
-};
+  };
 
   image::imageops::overlay(&mut canvas, &resized, offset_x.into(), offset_y.into());
 
   DynamicImage::ImageRgba8(canvas)
+}
+
+fn apply_round_mask(
+  img: &DynamicImage,
+  target_size: u32,
+  margin: u32,
+  radius: u32,
+) -> DynamicImage {
+  // Clamp radius to half of inner size
+  let inner_size = target_size.saturating_sub(2 * margin);
+  let radius = radius.min(inner_size / 2);
+
+  // Resize inner image to fit inside margins
+  let resized = img.resize_exact(inner_size, inner_size, image::imageops::Lanczos3);
+
+  // Prepare output canvas
+  let mut out = ImageBuffer::from_pixel(target_size, target_size, Rgba([0, 0, 0, 0]));
+
+  // Draw the resized image at (margin, margin)
+  image::imageops::overlay(&mut out, &resized, margin as i64, margin as i64);
+
+  // Apply rounded corners
+  for y in 0..target_size {
+    for x in 0..target_size {
+      let inside = if x >= margin + radius
+        && x < target_size - margin - radius
+        && y >= margin + radius
+        && y < target_size - margin - radius
+      {
+        true // inside central rectangle
+      } else {
+        // Determine corner centers
+        let (cx, cy) = if x < margin + radius && y < margin + radius {
+          (margin + radius, margin + radius) // top-left
+        } else if x >= target_size - margin - radius && y < margin + radius {
+          (target_size - margin - radius, margin + radius) // top-right
+        } else if x < margin + radius && y >= target_size - margin - radius {
+          (margin + radius, target_size - margin - radius) // bottom-left
+        } else if x >= target_size - margin - radius && y >= target_size - margin - radius {
+          (target_size - margin - radius, target_size - margin - radius) // bottom-right
+        } else {
+          continue; // edges that are not corners are inside
+        };
+        let dx = x as i32 - cx as i32;
+        let dy = y as i32 - cy as i32;
+        dx * dx + dy * dy <= (radius as i32 * radius as i32)
+      };
+
+      if !inside {
+        out.put_pixel(x, y, Rgba([0, 0, 0, 0]));
+      }
+    }
+  }
+
+  DynamicImage::ImageRgba8(out)
 }

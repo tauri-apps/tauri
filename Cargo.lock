@@ -8569,6 +8569,7 @@ dependencies = [
 name = "tauri-bundler"
 version = "2.6.1"
 dependencies = [
+ "anyhow",
  "ar",
  "bitness",
  "dirs 6.0.0",

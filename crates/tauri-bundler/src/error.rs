@@ -38,6 +38,12 @@ pub enum Error {
   /// Error running tauri_utils API.
   #[error("{0}")]
   Resource(#[from] tauri_utils::Error),
+  /// Bundler error.
+  /// 
+  /// This variant is no longer used as this crate no longer uses anyhow.
+  // TODO(v3): remove this variant
+  #[error("{0:#}")]
+  BundlerError(#[from] anyhow::Error),
   /// I/O error.
   #[error("`{0}`")]
   IoError(#[from] io::Error),

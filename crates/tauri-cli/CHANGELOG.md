@@ -1,5 +1,21 @@
 # Changelog
 
+## \[2.8.4]
+
+### Enhancements
+
+- [`f70b28529`](https://www.github.com/tauri-apps/tauri/commit/f70b28529d226a2dec2f41709d8934f8f5adab25) ([#14093](https://www.github.com/tauri-apps/tauri/pull/14093) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ensure Rust targets for mobile are installed when running the dev and build commands (previously only checked on init).
+- [`a9b342125`](https://www.github.com/tauri-apps/tauri/commit/a9b342125d5ac1bc9a4b2e8b5f73e8ca3cbcb8b2) ([#14114](https://www.github.com/tauri-apps/tauri/pull/14114) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix iOS dev and build targeting the simulator on Intel machines.
+- [`61b9b681e`](https://www.github.com/tauri-apps/tauri/commit/61b9b681e88067a53b79d2318ae005dc25addcd6) ([#14111](https://www.github.com/tauri-apps/tauri/pull/14111) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Retain `RUST_*` environment variables when running the mobile commands.
+- [`c23bec62d`](https://www.github.com/tauri-apps/tauri/commit/c23bec62d6d5724798869681aa1534423aae28e2) ([#14083](https://www.github.com/tauri-apps/tauri/pull/14083) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Tauri now ignores `macOS.minimumSystemVersion` in `tauri dev` to prevent forced rebuilds of macOS specific dependencies when using something like `rust-analyzer` at the same time as `tauri dev`.
+
+### Bug Fixes
+
+- [`c37a29833`](https://www.github.com/tauri-apps/tauri/commit/c37a298331d6d744b15d32d55a2db83c884a3d6a) ([#14112](https://www.github.com/tauri-apps/tauri/pull/14112) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fix usage with Deno failing with `ReferenceError: require is not defined`.
+- [`bcf000c0a`](https://www.github.com/tauri-apps/tauri/commit/bcf000c0a8607eedf488fb949b982f519abda43d) ([#14110](https://www.github.com/tauri-apps/tauri/pull/14110) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes running `ios` commands with `deno` crashing due to incorrect current working directory resolution.
+- [`7db7142f9`](https://www.github.com/tauri-apps/tauri/commit/7db7142f9ff7dc2f5719602e199b77129ceb19d3) ([#14119](https://www.github.com/tauri-apps/tauri/pull/14119) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Fixes empty device name when using an Android emulator causing the emulator to never be detected as running.
+- [`956b4fd6f`](https://www.github.com/tauri-apps/tauri/commit/956b4fd6ffbb4312123b107ca96c87a001359b9d) ([#14106](https://www.github.com/tauri-apps/tauri/pull/14106) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Use the correct export method on Xcode < 15.4.
+
 ## \[2.8.3]
 
 ### Bug Fixes

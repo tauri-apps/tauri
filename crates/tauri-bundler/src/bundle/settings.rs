@@ -571,6 +571,12 @@ pub struct WindowsSettings {
   pub sign_command: Option<CustomSignCommandSettings>,
 }
 
+impl WindowsSettings {
+  pub(crate) fn can_sign(&self) -> bool {
+    self.sign_command.is_some() || self.certificate_thumbprint.is_some()
+  }
+}
+
 #[allow(deprecated)]
 mod _default {
   use super::*;
@@ -777,6 +783,8 @@ pub struct Settings {
   target_platform: TargetPlatform,
   /// The target triple.
   target: String,
+  /// Whether to disable code signing during the bundling process.
+  no_sign: bool,
 }
 
 /// A builder for [`Settings`].
@@ -790,6 +798,7 @@ pub struct SettingsBuilder {
   binaries: Vec<BundleBinary>,
   target: Option<String>,
   local_tools_directory: Option<PathBuf>,
+  no_sign: bool,
 }
 
 impl SettingsBuilder {
@@ -859,6 +868,13 @@ impl SettingsBuilder {
     self
   }
 
+  /// Sets whether to skip code signing.
+  #[must_use]
+  pub fn no_sign(mut self, no_sign: bool) -> Self {
+    self.no_sign = no_sign;
+    self
+  }
+
   /// Builds a Settings from the CLI args.
   ///
   /// Package settings will be read from Cargo.toml.
@@ -893,6 +909,7 @@ impl SettingsBuilder {
       },
       target_platform,
       target,
+      no_sign: self.no_sign,
     })
   }
 }
@@ -1237,5 +1254,15 @@ impl Settings {
   /// Returns the Updater settings.
   pub fn updater(&self) -> Option<&UpdaterSettings> {
     self.bundle_settings.updater.as_ref()
+  }
+
+  /// Whether to skip signing.
+  pub fn no_sign(&self) -> bool {
+    self.no_sign
+  }
+
+  /// Set whether to skip signing.
+  pub fn set_no_sign(&mut self, no_sign: bool) {
+    self.no_sign = no_sign;
   }
 }

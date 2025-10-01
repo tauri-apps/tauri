@@ -255,7 +255,7 @@ pub fn command(options: Options) -> Result<()> {
 
 fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
   let manifest: Manifest = serde_json::from_str(
-    &std::fs::read_to_string(&manifest_path)
+    &std::fs::read_to_string(manifest_path)
       .with_context(|| format!("cannot read manifest file {}", manifest_path.display()))?,
   )
   .with_context(|| format!("failed to parse manifest file {}", manifest_path.display()))?;
@@ -485,7 +485,7 @@ fn android(
   for entry in entries.foreground {
     log::info!(action = "Android"; "Creating {}", entry.name);
     resize_and_save_png(
-      fg_source.as_ref().unwrap_or(&source),
+      fg_source.as_ref().unwrap_or(source),
       entry.size,
       &entry.out_path,
       None,
@@ -741,7 +741,7 @@ fn resize_png(
         .unwrap_or(image);
 
       image::imageops::overlay(&mut bg, &fg, 0, 0);
-      image = bg.into();
+      image = bg;
     }
     None => {}
   }

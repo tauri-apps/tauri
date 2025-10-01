@@ -168,6 +168,16 @@ pub enum Error {
   Base64NotUtf8(std::str::Utf8Error),
   #[error("prompt error: {0}")]
   Prompt(#[from] dialoguer::Error),
+  #[error("{context}: {error}")]
+  Http {
+    context: Cow<'static, str>,
+    error: ureq::Error,
+  },
+  #[error("{context}: {error}")]
+  Zip {
+    context: Cow<'static, str>,
+    error: zip::result::ZipError,
+  },
 }
 
 /// Convenient type alias of Result type.

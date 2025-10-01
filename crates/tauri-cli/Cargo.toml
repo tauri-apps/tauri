@@ -69,6 +69,7 @@ toml = "0.9"
 jsonschema = "0.33"
 handlebars = "6"
 include_dir = "0.7"
+dirs = "6"
 minisign = "=0.7.3"
 base64 = "0.22"
 ureq = { version = "3", default-features = false, features = ["gzip"] }
@@ -110,6 +111,8 @@ memchr = "2"
 tempfile = "3"
 uuid = { version = "1", features = ["v5"] }
 rand = "0.9"
+zip = { version = "4", default-features = false, features = ["deflate"] }
+which = "8"
 
 [dev-dependencies]
 insta = "1"

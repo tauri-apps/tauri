@@ -163,7 +163,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     MobileTarget::Android,
   )?;
 
-  let mut env = env()?;
+  let mut env = env(options.ci)?;
   configure_cargo(&mut env, &config)?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;

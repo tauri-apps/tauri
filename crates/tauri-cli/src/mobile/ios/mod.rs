@@ -28,7 +28,7 @@ use super::{
   OptionsHandle, Target as MobileTarget, MIN_DEVICE_MATCH_SCORE,
 };
 use crate::{
-  error::ErrorExt,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{BundleResources, Config as TauriConfig, ConfigHandle},
@@ -224,7 +224,7 @@ pub fn get_config(
             }
             1 => None,
             _ => {
-              log::warn!("You must set the code signing certificate development team ID on  the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
+              log::warn!("You must set the code signing certificate development team ID on the `bundle > iOS > developmentTeam` config value or the `{APPLE_DEVELOPMENT_TEAM_ENV_VAR_NAME}` environment variable. Available certificates: {}", teams.iter().map(|t| format!("{} (ID: {})", t.name, t.id)).collect::<Vec<String>>().join(", "));
               None
             }
           }
@@ -235,7 +235,8 @@ pub fn get_config(
     ios_version: Some(tauri_config.bundle.ios.minimum_system_version.clone()),
     ..Default::default()
   };
-  let config = AppleConfig::from_raw(app.clone(), Some(raw)).map_err(Error::AppleConfig)?;
+  let config = AppleConfig::from_raw(app.clone(), Some(raw))
+    .context("failed to create Apple configuration")?;
 
   let tauri_dir = tauri_dir();
 
@@ -317,7 +318,7 @@ fn connected_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Dev
           None,
           "Device",
         )
-        .map_err(Error::PromptDevice)?
+        .context("failed to prompt for device")?
       } else {
         0
       };
@@ -376,7 +377,7 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
         None,
         "Simulator",
       )
-      .map_err(Error::PromptSimulator)?;
+      .context("failed to prompt for simulator")?;
       simulator_list.into_iter().nth(index).unwrap()
     } else {
       simulator_list.into_iter().next().unwrap()
@@ -412,7 +413,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     log::info!("Starting simulator {}", simulator.name());
     simulator
       .start_detached(env)
-      .map_err(Error::StartSimulator)?;
+      .context("failed to start simulator")?;
     Ok(simulator.into())
   }
 }
@@ -478,7 +479,7 @@ fn inject_resources(config: &AppleConfig, tauri_config: &TauriConfig) -> Result<
   };
   if let Some(resources) = resources {
     for resource in resources.iter() {
-      let resource = resource.map_err(Error::Resource)?;
+      let resource = resource.context("failed to get resource")?;
       let dest = asset_dir.join(resource.target());
       crate::helpers::fs::copy_file(resource.path(), dest)?;
     }
@@ -508,7 +509,7 @@ fn merge_plist(src: Vec<PlistKind>) -> Result<plist::Value> {
 
   for plist_kind in src {
     let plist = match plist_kind {
-      PlistKind::Path(p) => plist::Value::from_file(p),
+      PlistKind::Path(p) => plist::Value::from_file(p).context("failed to read plist file"),
       PlistKind::Plist(v) => Ok(v),
     };
     if let Ok(src_plist) = plist {

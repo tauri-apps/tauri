@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
-  error::ErrorExt,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -19,7 +19,7 @@ use crate::{
     ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
     DevChild, DevHost, DevProcess,
   },
-  ConfigValue, Error, Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
@@ -157,7 +157,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     );
   }
 
-  let env = env()?;
+  let env = env().context("failed to load iOS environment")?;
   let device = if options.open {
     None
   } else {
@@ -333,7 +333,7 @@ fn run_dev(
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();
-            Err(e.into())
+            crate::error::bail!("failed to run iOS app: {}", e)
           }
         }
       } else {

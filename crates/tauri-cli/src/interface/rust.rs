@@ -418,9 +418,9 @@ fn dev_options(
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   let path = path.to_str().context("path is not UTF-8 compatible")?;
-  let res = glob(path).with_context(|| format!("failed to expand glob pattern for {}", path))?;
+  let res = glob(path).with_context(|| format!("failed to expand glob pattern for {path}"))?;
   let res = res
-    .map(|p| p.with_context(|| format!("failed to expand glob pattern for {}", path)))
+    .map(|p| p.with_context(|| format!("failed to expand glob pattern for {path}")))
     .collect::<Result<Vec<_>, _>>()?;
   Ok(res)
 }

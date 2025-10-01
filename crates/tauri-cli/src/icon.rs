@@ -189,7 +189,7 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
     })
     .map_err(|_e| {
       Error::Context(
-        format!("failed to parse color {}", bg_color_string),
+        format!("failed to parse color {bg_color_string}"),
         "invalid RGBA color".into(),
       )
     })?;
@@ -485,9 +485,8 @@ fn android(
         format!(
           r#"<?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <color name="ic_launcher_background">{}</color>
+  <color name="ic_launcher_background">{color}</color>
 </resources>"#,
-          color
         )
         .as_bytes(),
       )

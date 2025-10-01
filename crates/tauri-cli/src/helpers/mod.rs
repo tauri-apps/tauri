@@ -133,8 +133,6 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
   use crate::error::Context;
   if !version.pre.is_empty() {
     if let Some((_prerelease_tag, number)) = version.pre.as_str().to_string().split_once('.') {
-      use crate::Error;
-
       version.pre = semver::Prerelease::EMPTY;
       version.build = semver::BuildMetadata::new(&format!(
         "{prefix}{number}",
@@ -144,11 +142,11 @@ pub fn strip_semver_prerelease_tag(version: &mut semver::Version) -> crate::Resu
           format!(".{}", version.build.as_str())
         }
       ))
-      .map_err(|error| Error::ParseSemver {
-        version: version.to_string(),
-        error,
-      })
-      .with_context(|| format!("bundle version {number:?} prerelease is invalid"))?;
+      .with_context(|| {
+        format!(
+          "failed to parse {version} as semver: bundle version {number:?} prerelease is invalid"
+        )
+      })?;
     }
   }
 

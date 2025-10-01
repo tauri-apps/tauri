@@ -80,7 +80,7 @@ pub fn command(options: Options) -> Result<()> {
   {
     set_current_dir(
       current_dir()
-        .map_err(Error::ResolveCwd)?
+        .context("failed to resolve current directory")?
         .parent()
         .unwrap()
         .parent()
@@ -150,7 +150,9 @@ pub fn command(options: Options) -> Result<()> {
     )?;
   }
 
-  let env = env()?.explicit_env_vars(cli_options.vars);
+  let env = env()
+    .context("failed to load iOS environment")?
+    .explicit_env_vars(cli_options.vars);
 
   if !options.sdk_root.is_dir() {
     crate::error::bail!(
@@ -265,15 +267,17 @@ pub fn command(options: Options) -> Result<()> {
       })?;
     }
 
-    target.compile_lib(
-      &config,
-      &metadata,
-      cli_options.noise_level,
-      true,
-      profile,
-      &env,
-      target_env,
-    )?;
+    target
+      .compile_lib(
+        &config,
+        &metadata,
+        cli_options.noise_level,
+        true,
+        profile,
+        &env,
+        target_env,
+      )
+      .context("failed to compile iOS app")?;
 
     let out_dir = interface.app_settings().out_dir(&InterfaceOptions {
       debug: matches!(profile, Profile::Debug),

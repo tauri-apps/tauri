@@ -195,7 +195,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
   ensure_init(
     &tauri_config,
@@ -226,7 +226,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     .map_err(std::io::Error::other)
     .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
-  let mut env = env()?;
+  let mut env = env().context("failed to load iOS environment")?;
 
   if !options.open {
     ensure_ios_runtime_installed()?;
@@ -279,7 +279,8 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   // merge export options and write to temp file
   let _export_options_tmp = if !export_options_plist.is_empty() {
     let export_options_plist_path = config.project_dir().join("ExportOptions.plist");
-    let export_options = tempfile::NamedTempFile::new().map_err(Error::TempFile)?;
+    let export_options =
+      tempfile::NamedTempFile::new().context("failed to create temporary file")?;
 
     let merged_plist = merge_plist(vec![
       export_options.path().to_owned().into(),
@@ -439,7 +440,7 @@ fn run_build(
             },
           )
           .map_err(Box::new)?;
-          let tmp_dir = tempfile::tempdir().map_err(Error::TempDir)?;
+          let tmp_dir = tempfile::tempdir().context("failed to create temporary directory")?;
           let cert_path = tmp_dir.path().join("cert.p12");
           std::fs::write(&cert_path, certificate)
             .fs_context("failed to write certificate", cert_path.clone())?;

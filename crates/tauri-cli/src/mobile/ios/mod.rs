@@ -393,7 +393,11 @@ fn simulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<device::Simula
       duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
         .stdout_file(os_pipe::dup_stdout().unwrap())
         .stderr_file(os_pipe::dup_stderr().unwrap())
-        .run()?;
+        .run()
+        .map_err(|e| Error::CommandFailed {
+          command: "xcodebuild -downloadPlatform iOS".to_string(),
+          error: e,
+        })?;
       return simulator_prompt(env, target);
     }
     crate::error::bail!("No available iOS Simulator detected")
@@ -414,8 +418,12 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
 }
 
 fn ensure_ios_runtime_installed() -> Result<()> {
-  let installed_platforms_json =
-    duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"]).read()?;
+  let installed_platforms_json = duct::cmd("xcrun", ["simctl", "list", "runtimes", "--json"])
+    .read()
+    .map_err(|e| Error::CommandFailed {
+      command: "xcrun simctl list runtimes --json".to_string(),
+      error: e,
+    })?;
   let installed_platforms: InstalledRuntimesList =
     serde_json::from_str(&installed_platforms_json).unwrap_or_default();
   if !installed_platforms
@@ -433,9 +441,13 @@ fn ensure_ios_runtime_installed() -> Result<()> {
       duct::cmd("xcodebuild", ["-downloadPlatform", "iOS"])
         .stdout_file(os_pipe::dup_stdout().unwrap())
         .stderr_file(os_pipe::dup_stderr().unwrap())
-        .run()?;
+        .run()
+        .map_err(|e| Error::CommandFailed {
+          command: "xcodebuild -downloadPlatform iOS".to_string(),
+          error: e,
+        })?;
     } else {
-      anyhow::bail!("iOS platform not installed");
+      crate::error::bail!("iOS platform not installed");
     }
   }
   Ok(())

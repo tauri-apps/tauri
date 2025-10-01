@@ -39,7 +39,7 @@ pub enum Error {
   #[error("{0}")]
   Resource(#[from] tauri_utils::Error),
   /// Bundler error.
-  /// 
+  ///
   /// This variant is no longer used as this crate no longer uses anyhow.
   // TODO(v3): remove this variant
   #[error("{0:#}")]

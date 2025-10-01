@@ -323,14 +323,14 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
 
   let icns_path = out_dir.join("icon.icns");
   let mut out_file = BufWriter::new(
-    File::create(&icns_path).fs_context("failed to create output file", icns_path.clone())?,
+    File::create(&icns_path).fs_context("failed to create output file", &icns_path)?,
   );
   family
     .write(&mut out_file)
-    .fs_context("failed to write output file", icns_path.clone())?;
+    .fs_context("failed to write output file", &icns_path)?;
   out_file
     .flush()
-    .fs_context("failed to flush output file", icns_path.clone())?;
+    .fs_context("failed to flush output file", &icns_path)?;
 
   Ok(())
 }
@@ -374,9 +374,8 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   }
 
   let ico_path = out_dir.join("icon.ico");
-  let mut out_file = BufWriter::new(
-    File::create(&ico_path).fs_context("failed to create output file", ico_path.clone())?,
-  );
+  let mut out_file =
+    BufWriter::new(File::create(&ico_path).fs_context("failed to create output file", &ico_path)?);
   let encoder = IcoEncoder::new(&mut out_file);
   encoder
     .encode_images(&frames)
@@ -386,7 +385,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
     })?;
   out_file
     .flush()
-    .fs_context("failed to flush output file", ico_path.clone())?;
+    .fs_context("failed to flush output file", &ico_path)?;
 
   Ok(())
 }
@@ -443,7 +442,7 @@ fn android(
 
       create_dir_all(&out_folder).fs_context(
         "failed to create Android mipmap output directory",
-        out_folder.clone(),
+        &out_folder,
       )?;
 
       fg_entries.push(PngEntry {
@@ -756,7 +755,7 @@ fn png(source: &Source, out_dir: &Path, ios_color: Rgba<u8>) -> Result<()> {
     ios_out
   } else {
     let out = out_dir.join("ios");
-    create_dir_all(&out).fs_context("failed to create iOS output directory", out.clone())?;
+    create_dir_all(&out).fs_context("failed to create iOS output directory", &out)?;
     out
   };
 

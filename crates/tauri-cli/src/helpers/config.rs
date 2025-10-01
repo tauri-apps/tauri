@@ -17,7 +17,7 @@ use std::{
   sync::{Arc, Mutex, OnceLock},
 };
 
-use crate::Error;
+use crate::error::Context;
 
 pub const MERGE_CONFIG_EXTENSION_NAME: &str = "--config";
 
@@ -158,12 +158,8 @@ fn get_internal(
 
   let tauri_dir = super::app_paths::tauri_dir();
   let (mut config, config_path) =
-    tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json")).map_err(
-      |error| Error::ParseConfig {
-        context: "failed to parse config",
-        error,
-      },
-    )?;
+    tauri_utils::config::parse::parse_value(target, tauri_dir.join("tauri.conf.json"))
+      .context("failed to parse config")?;
   let config_file_name = config_path.file_name().unwrap().to_string_lossy();
   let mut extensions = HashMap::new();
 
@@ -174,12 +170,8 @@ fn get_internal(
     .map(ToString::to_string);
 
   if let Some((platform_config, config_path)) =
-    tauri_utils::config::parse::read_platform(target, tauri_dir).map_err(|error| {
-      Error::ParseConfig {
-        context: "failed to parse platform config",
-        error,
-      }
-    })?
+    tauri_utils::config::parse::read_platform(target, tauri_dir)
+      .context("failed to parse platform config")?
   {
     merge(&mut config, &platform_config);
     extensions.insert(
@@ -204,10 +196,7 @@ fn get_internal(
     || config_path.extension() == Some(OsStr::new("json5"))
   {
     let schema: JsonValue = serde_json::from_str(include_str!("../../config.schema.json"))
-      .map_err(|error| Error::Json {
-        context: "failed to parse config schema".into(),
-        error,
-      })?;
+      .context("failed to parse config schema")?;
     let validator = jsonschema::validator_for(&schema).expect("Invalid schema");
     let mut errors = validator.iter_errors(&config).peekable();
     if errors.peek().is_some() {
@@ -227,14 +216,11 @@ fn get_internal(
 
   // the `Config` deserializer for `package > version` can resolve the version from a path relative to the config path
   // so we actually need to change the current working directory here
-  let current_dir = current_dir().map_err(Error::ResolveCwd)?;
-  set_current_dir(config_path.parent().unwrap()).map_err(Error::SetCwd)?;
-  let config: Config = serde_json::from_value(config).map_err(|error| Error::Json {
-    context: "failed to parse config".into(),
-    error,
-  })?;
+  let current_dir = current_dir().context("failed to resolve current directory")?;
+  set_current_dir(config_path.parent().unwrap()).context("failed to set current directory")?;
+  let config: Config = serde_json::from_value(config).context("failed to parse config")?;
   // revert to previous working directory
-  set_current_dir(current_dir).map_err(Error::SetCwd)?;
+  set_current_dir(current_dir).context("failed to set current directory")?;
 
   for (plugin, conf) in &config.plugins.0 {
     set_var(
@@ -242,10 +228,7 @@ fn get_internal(
         "TAURI_{}_PLUGIN_CONFIG",
         plugin.to_uppercase().replace('-', "_")
       ),
-      serde_json::to_string(&conf).map_err(|error| Error::Json {
-        context: "failed to serialize config".into(),
-        error,
-      })?,
+      serde_json::to_string(&conf).context("failed to serialize config")?,
     );
   }
 
@@ -298,15 +281,9 @@ pub fn merge_with(merge_configs: &[&serde_json::Value]) -> crate::Result<ConfigH
     set_var("TAURI_CONFIG", merge_config_str);
 
     let mut value =
-      serde_json::to_value(config_metadata.inner.clone()).map_err(|error| Error::Json {
-        context: "failed to serialize config".into(),
-        error,
-      })?;
+      serde_json::to_value(config_metadata.inner.clone()).context("failed to serialize config")?;
     merge(&mut value, &merge_config);
-    config_metadata.inner = serde_json::from_value(value).map_err(|error| Error::Json {
-      context: "failed to parse config".into(),
-      error,
-    })?;
+    config_metadata.inner = serde_json::from_value(value).context("failed to parse config")?;
 
     Ok(handle.clone())
   } else {

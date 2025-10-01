@@ -3,8 +3,9 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::{prompts, template},
-  Error, Result,
+  Result,
 };
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
@@ -50,7 +51,9 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
       let plugin_name = match options.plugin_name {
-        None => super::infer_plugin_name(std::env::current_dir().map_err(Error::ResolveCwd)?)?,
+        None => super::infer_plugin_name(
+          std::env::current_dir().context("failed to get current directory")?,
+        )?,
         Some(name) => name,
       };
 

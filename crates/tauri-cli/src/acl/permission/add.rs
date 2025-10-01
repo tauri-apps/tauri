@@ -7,9 +7,9 @@ use std::path::Path;
 use clap::Parser;
 
 use crate::{
-  error::ErrorExt,
+  error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Error, Result,
+  Result,
 };
 
 #[derive(Clone)]
@@ -101,10 +101,9 @@ impl TomlOrJson {
   fn to_string(&self) -> Result<String> {
     Ok(match self {
       TomlOrJson::Toml(t) => t.to_string(),
-      TomlOrJson::Json(j) => serde_json::to_string_pretty(&j).map_err(|error| Error::Json {
-        context: "failed to serialize JSON".into(),
-        error,
-      })?,
+      TomlOrJson::Json(j) => {
+        serde_json::to_string_pretty(&j).context("failed to serialize JSON")?
+      }
     })
   }
 }
@@ -135,7 +134,7 @@ pub struct Options {
 pub fn command(options: Options) -> Result<()> {
   let dir = match resolve_tauri_dir() {
     Some(t) => t,
-    None => std::env::current_dir().map_err(Error::ResolveCwd)?,
+    None => std::env::current_dir().context("failed to resolve current directory")?,
   };
 
   let capabilities_dir = dir.join("capabilities");

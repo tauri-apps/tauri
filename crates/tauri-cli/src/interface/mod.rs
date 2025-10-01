@@ -11,10 +11,7 @@ use std::{
   sync::Arc,
 };
 
-use crate::{
-  error::{Context, Error},
-  helpers::config::Config,
-};
+use crate::{error::Context, helpers::config::Config};
 use tauri_bundler::bundle::{PackageType, Settings, SettingsBuilder};
 
 pub use rust::{MobileOptions, Options, Rust as AppInterface};
@@ -57,7 +54,7 @@ pub trait AppSettings {
     let target: String = if let Some(target) = options.target.clone() {
       target
     } else {
-      tauri_utils::platform::target_triple().map_err(Error::TargetTriple)?
+      tauri_utils::platform::target_triple().context("failed to get target triple")?
     };
 
     let mut bins = self.get_binaries()?;

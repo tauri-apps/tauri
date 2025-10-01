@@ -4,7 +4,10 @@
 
 use serde::Deserialize;
 
-use crate::{error::Error, helpers::cross_command};
+use crate::{
+  error::{Context, Error},
+  helpers::cross_command,
+};
 use std::{collections::HashMap, fmt::Display, path::Path, process::Command};
 
 pub fn manager_version(package_manager: &str) -> Option<String> {
@@ -329,10 +332,7 @@ impl PackageManager {
       version: String,
     }
 
-    let json: ListOutput = serde_json::from_str(&stdout).map_err(|error| Error::Json {
-      context: "failed to parse npm list".into(),
-      error,
-    })?;
+    let json: ListOutput = serde_json::from_str(&stdout).context("failed to parse npm list")?;
     for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
       let version = dependency.version;
       if let Ok(version) = semver::Version::parse(&version) {

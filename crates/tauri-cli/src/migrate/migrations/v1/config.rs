@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::{Error, ErrorExt, Result};
+use crate::{error::Context, ErrorExt, Result};
 
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
@@ -24,19 +24,13 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     if config_path.extension().is_some_and(|ext| ext == "toml") {
       fs::write(
         &config_path,
-        toml::to_string_pretty(&config).map_err(|error| Error::SerializeToml {
-          context: "failed to serialize config".into(),
-          error,
-        })?,
+        toml::to_string_pretty(&config).context("failed to serialize config")?,
       )
       .fs_context("failed to write config", config_path.clone())?;
     } else {
       fs::write(
         &config_path,
-        serde_json::to_string_pretty(&config).map_err(|error| Error::Json {
-          context: "failed to serialize config".into(),
-          error,
-        })?,
+        serde_json::to_string_pretty(&config).context("failed to serialize config")?,
       )
       .fs_context("failed to write config", config_path.clone())?;
     }
@@ -64,10 +58,7 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         permissions,
         platforms: None,
       })
-      .map_err(|error| Error::Json {
-        context: "failed to serialize capabilities".into(),
-        error,
-      })?,
+      .context("failed to serialize capabilities")?,
     )
     .fs_context(
       "failed to write capabilities",
@@ -401,10 +392,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
       csp_value
     } else {
       let mut csp: tauri_utils::config_v1::Csp =
-        serde_json::from_value(csp_value).map_err(|error| Error::Json {
-          context: "failed to deserialize CSP".into(),
-          error,
-        })?;
+        serde_json::from_value(csp_value).context("failed to deserialize CSP")?;
       match &mut csp {
         tauri_utils::config_v1::Csp::Policy(csp) => {
           if csp.contains("connect-src") {
@@ -428,10 +416,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
           }
         }
       }
-      serde_json::to_value(csp).map_err(|error| Error::Json {
-        context: "failed to serialize CSP".into(),
-        error,
-      })?
+      serde_json::to_value(csp).context("failed to serialize CSP")?
     };
 
     security.insert("csp".into(), csp);
@@ -455,11 +440,8 @@ fn process_allowlist(
   tauri_config: &mut Map<String, Value>,
   allowlist: Value,
 ) -> Result<tauri_utils::config_v1::AllowlistConfig> {
-  let allowlist: tauri_utils::config_v1::AllowlistConfig = serde_json::from_value(allowlist)
-    .map_err(|error| Error::Json {
-      context: "failed to deserialize allowlist".into(),
-      error,
-    })?;
+  let allowlist: tauri_utils::config_v1::AllowlistConfig =
+    serde_json::from_value(allowlist).context("failed to deserialize allowlist")?;
 
   if allowlist.protocol.asset_scope != Default::default() {
     let security = tauri_config
@@ -471,12 +453,8 @@ fn process_allowlist(
     let mut asset_protocol = Map::new();
     asset_protocol.insert(
       "scope".into(),
-      serde_json::to_value(allowlist.protocol.asset_scope.clone()).map_err(|error| {
-        Error::Json {
-          context: "failed to serialize asset scope".into(),
-          error,
-        }
-      })?,
+      serde_json::to_value(allowlist.protocol.asset_scope.clone())
+        .context("failed to serialize asset scope")?,
     );
     if allowlist.protocol.asset {
       asset_protocol.insert("enable".into(), true.into());
@@ -682,10 +660,7 @@ fn process_cli(plugins: &mut Map<String, Value>, cli: Value) -> Result<()> {
   if let Some(cli) = cli.as_object() {
     plugins.insert(
       "cli".into(),
-      serde_json::to_value(cli).map_err(|error| Error::Json {
-        context: "failed to serialize CLI".into(),
-        error,
-      })?,
+      serde_json::to_value(cli).context("failed to serialize CLI")?,
     );
   }
   Ok(())
@@ -712,10 +687,7 @@ fn process_updater(
       {
         plugins.insert(
           "updater".into(),
-          serde_json::to_value(updater).map_err(|error| Error::Json {
-            context: "failed to serialize updater".into(),
-            error,
-          })?,
+          serde_json::to_value(updater).context("failed to serialize updater")?,
         );
         migrated.plugins.insert("updater".to_string());
       }

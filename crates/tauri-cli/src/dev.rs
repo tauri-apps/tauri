@@ -143,7 +143,7 @@ pub fn setup(interface: &AppInterface, options: &mut Options, config: ConfigHand
     }
   });
 
-  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
   if let Some(before_dev) = config
     .lock()

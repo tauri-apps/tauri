@@ -3,12 +3,12 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
+use crate::Result;
 use crate::{
   error::{Context, ErrorExt},
   helpers::{prompts, resolve_tauri_path, template},
   VersionMetadata,
 };
-use crate::{Error, Result};
 use clap::Parser;
 use handlebars::{to_json, Handlebars};
 use heck::{ToKebabCase, ToPascalCase, ToSnakeCase};
@@ -284,12 +284,8 @@ pub fn plugin_name_data(data: &mut BTreeMap<&'static str, serde_json::Value>, pl
 }
 
 pub fn crates_metadata() -> Result<VersionMetadata> {
-  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json")).map_err(|error| {
-    Error::Json {
-      context: "failed to parse Tauri version metadata".into(),
-      error,
-    }
-  })
+  serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
+    .context("failed to parse Tauri version metadata")
 }
 
 pub fn generate_android_out_file(

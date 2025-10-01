@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
-  error::ErrorExt,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -198,7 +198,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -272,18 +272,20 @@ fn run_dev(
     })?;
   }
 
-  target.build(
-    config,
-    metadata,
-    &env,
-    noise_level,
-    true,
-    if options.release_mode {
-      Profile::Release
-    } else {
-      Profile::Debug
-    },
-  )?;
+  target
+    .build(
+      config,
+      metadata,
+      &env,
+      noise_level,
+      true,
+      if options.release_mode {
+        Profile::Release
+      } else {
+        Profile::Debug
+      },
+    )
+    .context("failed to build Android app")?;
 
   let open = options.open;
   interface.mobile_dev(
@@ -362,5 +364,5 @@ fn run(
       ".MainActivity".into(),
     )
     .map(DevChild::new)
-    .map_err(Into::into)
+    .context("failed to run Android app")
 }

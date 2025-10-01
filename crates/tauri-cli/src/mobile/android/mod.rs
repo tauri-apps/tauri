@@ -193,42 +193,33 @@ pub fn get_config(
 }
 
 pub fn env(non_interactive: bool) -> Result<Env> {
-  let env = super::env()?;
-  ensure_env(non_interactive)?;
-  cargo_mobile2::android::env::Env::from_env(env).map_err(Into::into)
+  let env = super::env().context("failed to setup Android environment")?;
+  ensure_env(non_interactive).context("failed to ensure Android environment")?;
+  cargo_mobile2::android::env::Env::from_env(env).context("failed to load Android environment")
 }
 
 fn download_cmdline_tools(extract_path: &Path) -> Result<()> {
   log::info!("Downloading Android command line tools...");
 
-  let mut response = crate::helpers::http::get(CMDLINE_TOOLS_URL).map_err(|error| Error::Http {
-    context: "failed to download Android command line tools".into(),
-    error,
-  })?;
+  let mut response = crate::helpers::http::get(CMDLINE_TOOLS_URL)
+    .context("failed to download Android command line tools")?;
   let body = response
     .body_mut()
     .with_config()
     .limit(200 * 1024 * 1024 /* 200MB */)
     .read_to_vec()
-    .map_err(|error| Error::Http {
-      context: "failed to read Android command line tools download response".into(),
-      error,
-    })?;
+    .context("failed to read Android command line tools download response")?;
 
-  let mut zip = zip::ZipArchive::new(Cursor::new(body)).map_err(|error| Error::Zip {
-    context: "failed to create zip archive from Android command line tools download response"
-      .into(),
-    error,
-  })?;
+  let mut zip = zip::ZipArchive::new(Cursor::new(body))
+    .context("failed to create zip archive from Android command line tools download response")?;
 
   log::info!(
     "Extracting Android command line tools to {}",
     extract_path.display()
   );
-  zip.extract(extract_path).map_err(|error| Error::Zip {
-    context: "failed to extract Android command line tools".into(),
-    error,
-  })?;
+  zip
+    .extract(extract_path)
+    .context("failed to extract Android command line tools")?;
 
   Ok(())
 }
@@ -297,7 +288,7 @@ fn ensure_sdk(non_interactive: bool) -> Result<()> {
       let extract_path = if create_dir_all(&default_android_home).is_ok() {
         default_android_home.clone()
       } else {
-        std::env::current_dir().map_err(Error::ResolveCwd)?
+        std::env::current_dir().context("failed to get current directory")?
       };
 
       let sdk_manager_path = extract_path
@@ -449,11 +440,7 @@ fn delete_codegen_vars() {
 }
 
 fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
-  let device_list = adb::device_list(env).map_err(|cause| {
-    Error::GenericError(format!(
-      "Failed to detect connected Android devices: {cause}"
-    ))
-  })?;
+  let device_list = adb::device_list(env).context("failed to detect connected Android devices")?;
   if !device_list.is_empty() {
     let device = if let Some(t) = target {
       let (device, score) = device_list
@@ -479,7 +466,7 @@ fn adb_device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a
         None,
         "Device",
       )
-      .map_err(Error::PromptDevice)?;
+      .context("failed to prompt for device")?;
       device_list.into_iter().nth(index).unwrap()
     } else {
       device_list.into_iter().next().unwrap()
@@ -525,7 +512,7 @@ fn emulator_prompt(env: &'_ Env, target: Option<&str>) -> Result<emulator::Emula
         None,
         "Emulator",
       )
-      .map_err(Error::PromptSimulator)?;
+      .context("failed to prompt for emulator")?;
       emulator_list.into_iter().nth(index).unwrap()
     } else {
       emulator_list.into_iter().next().unwrap()
@@ -547,7 +534,7 @@ fn device_prompt<'a>(env: &'_ Env, target: Option<&str>) -> Result<Device<'a>> {
     log::info!("Starting emulator {}", emulator.name());
     emulator
       .start_detached(env)
-      .map_err(Error::StartSimulator)?;
+      .context("failed to start emulator")?;
     let mut tries = 0;
     loop {
       sleep(Duration::from_secs(2));
@@ -587,10 +574,7 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
 
   write(
     asset_dir.join("tauri.conf.json"),
-    serde_json::to_string(&tauri_config).map_err(|error| Error::Json {
-      context: "failed to serialize tauri config".into(),
-      error,
-    })?,
+    serde_json::to_string(&tauri_config).with_context(|| "failed to serialize tauri config")?,
   )
   .fs_context(
     "failed to write tauri config",
@@ -604,7 +588,7 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
   };
   if let Some(resources) = resources {
     for resource in resources.iter() {
-      let resource = resource.map_err(Error::Resource)?;
+      let resource = resource.context("failed to get resource")?;
       let dest = asset_dir.join(resource.target());
       crate::helpers::fs::copy_file(resource.path(), dest).context("failed to copy resource")?;
     }
@@ -615,7 +599,9 @@ fn inject_resources(config: &AndroidConfig, tauri_config: &TauriConfig) -> Resul
 
 fn configure_cargo(env: &mut Env, config: &AndroidConfig) -> Result<()> {
   for target in Target::all().values() {
-    let config = target.generate_cargo_config(config, env)?;
+    let config = target
+      .generate_cargo_config(config, env)
+      .context("failed to find Android tool")?;
     let target_var_name = target.triple.replace('-', "_").to_uppercase();
     if let Some(linker) = config.linker {
       env.base.insert_env_var(

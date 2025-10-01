@@ -21,7 +21,7 @@ use crate::{
     updater_signature,
   },
   interface::{AppInterface, AppSettings, Interface},
-  ConfigValue, Error,
+  ConfigValue,
 };
 
 #[derive(Debug, Clone)]
@@ -139,7 +139,7 @@ pub fn command(options: Options, verbosity: u8) -> crate::Result<()> {
   )?;
 
   let tauri_path = tauri_dir();
-  std::env::set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  std::env::set_current_dir(tauri_path).context("failed to set current directory")?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();

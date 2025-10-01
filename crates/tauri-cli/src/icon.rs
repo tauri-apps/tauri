@@ -165,10 +165,10 @@ fn read_source(path: PathBuf) -> Result<Source> {
     } else {
       Ok(Source::DynamicImage(DynamicImage::ImageRgba8(
         open(&path)
-          .map_err(|error| Error::Image {
-            context: format!("failed to read and decode source image {}", path.display()).into(),
-            error,
-          })?
+          .context(format!(
+            "failed to read and decode source image {}",
+            path.display()
+          ))?
           .into_rgba8(),
       )))
     }
@@ -187,7 +187,12 @@ fn parse_bg_color(bg_color_string: &String) -> Result<Rgba<u8>> {
         (color.alpha * 255.) as u8,
       ])
     })
-    .map_err(|_| Error::GenericError(format!("failed to parse color {}", bg_color_string)))?;
+    .map_err(|_e| {
+      Error::Context(
+        format!("failed to parse color {}", bg_color_string),
+        "invalid RGBA color".into(),
+      )
+    })?;
 
   Ok(bg_color)
 }
@@ -264,10 +269,10 @@ fn parse_manifest(manifest_path: &Path) -> Result<Manifest> {
     &std::fs::read_to_string(manifest_path)
       .fs_context("cannot read manifest file", manifest_path)?,
   )
-  .map_err(|error| Error::Json {
-    context: format!("failed to parse manifest file {}", manifest_path.display()).into(),
-    error,
-  })?;
+  .context(format!(
+    "failed to parse manifest file {}",
+    manifest_path.display()
+  ))?;
   log::debug!("Read manifest file from {}", manifest_path.display());
   Ok(manifest)
 }
@@ -300,25 +305,16 @@ fn icns(source: &Source, out_dir: &Path) -> Result<()> {
 
     let image = source.resize_exact(size)?;
 
-    write_png(image.as_bytes(), &mut buf, size).map_err(|error| Error::Image {
-      context: "failed to write output file".into(),
-      error,
-    })?;
+    write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
-    let image = icns::Image::read_png(&buf[..]).map_err(|error| Error::Image {
-      context: "failed to read output file".into(),
-      error: image::ImageError::IoError(error),
-    })?;
+    let image = icns::Image::read_png(&buf[..]).context("failed to read output file")?;
 
     family
       .add_icon_with_type(
         &image,
         IconType::from_ostype(entry.ostype.parse().unwrap()).unwrap(),
       )
-      .map_err(|error| Error::Image {
-        context: "failed to add icon to Icns Family".into(),
-        error: image::ImageError::IoError(error),
-      })?;
+      .context("failed to add icon to Icns Family")?;
   }
 
   let icns_path = out_dir.join("icon.icns");
@@ -348,27 +344,16 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
     if size == 256 {
       let mut buf = Vec::new();
 
-      write_png(image.as_bytes(), &mut buf, size).map_err(|error| Error::Image {
-        context: "failed to write output file".into(),
-        error,
-      })?;
+      write_png(image.as_bytes(), &mut buf, size).context("failed to write output file")?;
 
       frames.push(
-        IcoFrame::with_encoded(buf, size, size, ExtendedColorType::Rgba8).map_err(|error| {
-          Error::Image {
-            context: "failed to create ico frame".into(),
-            error,
-          }
-        })?,
-      )
+        IcoFrame::with_encoded(buf, size, size, ExtendedColorType::Rgba8)
+          .context("failed to create ico frame")?,
+      );
     } else {
       frames.push(
-        IcoFrame::as_png(image.as_bytes(), size, size, ExtendedColorType::Rgba8).map_err(
-          |error| Error::Image {
-            context: "failed to create PNG frame".into(),
-            error,
-          },
-        )?,
+        IcoFrame::as_png(image.as_bytes(), size, size, ExtendedColorType::Rgba8)
+          .context("failed to create PNG frame")?,
       );
     }
   }
@@ -379,10 +364,7 @@ fn ico(source: &Source, out_dir: &Path) -> Result<()> {
   let encoder = IcoEncoder::new(&mut out_file);
   encoder
     .encode_images(&frames)
-    .map_err(|error| Error::Image {
-      context: "failed to encode images".into(),
-      error,
-    })?;
+    .context("failed to encode images")?;
   out_file
     .flush()
     .fs_context("failed to flush output file", &ico_path)?;
@@ -604,10 +586,8 @@ fn android(
     let mut out_file = BufWriter::new(
       File::create(&entry.out_path).fs_context("failed to create output file", &entry.out_path)?,
     );
-    write_png(image.as_bytes(), &mut out_file, entry.size).map_err(|error| Error::Image {
-      context: "failed to write output file".into(),
-      error,
-    })?;
+    write_png(image.as_bytes(), &mut out_file, entry.size)
+      .context("failed to write output file")?;
     out_file
       .flush()
       .fs_context("failed to flush output file", &entry.out_path)?;
@@ -830,10 +810,7 @@ fn resize_and_save_png(
   let image = resize_png(source, size, bg, scale_percent)?;
   let mut out_file =
     BufWriter::new(File::create(file_path).fs_context("failed to create output file", file_path)?);
-  write_png(image.as_bytes(), &mut out_file, size).map_err(|error| Error::Image {
-    context: "failed to write output file".into(),
-    error,
-  })?;
+  write_png(image.as_bytes(), &mut out_file, size).context("failed to write output file")?;
   out_file
     .flush()
     .fs_context("failed to save output file", file_path)

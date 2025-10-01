@@ -194,9 +194,11 @@ fn migrate_imports<'a>(
               new_module,
               Default::default(),
             )
-            .map_err(|error| Error::MagicString {
-              context: "failed to replace import source".into(),
-              error,
+            .map_err(|e| {
+              Error::Context(
+                "failed to replace import source".to_string(),
+                e.to_string().into(),
+              )
             })?;
 
           // if module was pluginified, add to packages
@@ -282,9 +284,11 @@ fn migrate_imports<'a>(
                   new_identifier,
                   Default::default(),
                 )
-                .map_err(|error| Error::MagicString {
-                  context: "failed to rename identifier".into(),
-                  error,
+                .map_err(|e| {
+                  Error::Context(
+                    "failed to rename identifier".to_string(),
+                    e.to_string().into(),
+                  )
                 })?;
             } else {
               // if None, we need to remove this specifier,
@@ -302,9 +306,11 @@ fn migrate_imports<'a>(
 
               magic_js_source
                 .remove(script_start + start as i64, script_start + end as i64)
-                .map_err(|error| Error::MagicString {
-                  context: "failed to remove identifier".into(),
-                  error,
+                .map_err(|e| {
+                  Error::Context(
+                    "failed to remove identifier".to_string(),
+                    e.to_string().into(),
+                  )
                 })?;
             }
           }
@@ -329,10 +335,7 @@ fn migrate_imports<'a>(
       for import in imports_to_add {
         magic_js_source
           .append_right(script_start as u32 + start, &import)
-          .map_err(|error| Error::MagicString {
-            context: "failed to add import".into(),
-            error,
-          })?;
+          .map_err(|e| Error::Context("failed to add import".to_string(), e.to_string().into()))?;
       }
     }
 
@@ -340,9 +343,8 @@ fn migrate_imports<'a>(
       for stmt in stmts_to_add {
         magic_js_source
           .append_right(script_start as u32 + start, stmt)
-          .map_err(|error| Error::MagicString {
-            context: "failed to add statement".into(),
-            error,
+          .map_err(|e| {
+            Error::Context("failed to add statement".to_string(), e.to_string().into())
           })?;
       }
     }

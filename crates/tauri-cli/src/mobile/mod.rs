@@ -289,10 +289,8 @@ fn use_network_address_for_dev_url(
         SocketAddr::new(ip, url.port_or_known_default().unwrap()),
         url.path()
       );
-      *url = url::Url::parse(&url_str).map_err(|error| Error::ParseUrl {
-        url: url_str,
-        error,
-      })?;
+      *url =
+        url::Url::parse(&url_str).with_context(|| format!("failed to parse URL: {url_str}"))?;
 
       dev_options
         .config
@@ -379,11 +377,13 @@ pub fn write_options(
     let server = ServerBuilder::default()
       .build("127.0.0.1:0")
       .await
-      .map_err(Error::SetupWsServer)?;
-    let addr = server.local_addr().map_err(Error::SetupWsServer)?;
+      .context("failed to build WebSocket server")?;
+    let addr = server.local_addr().context("failed to get local address")?;
 
     let mut module = RpcModule::new(());
-    module.register_method("options", move |_, _, _| Some(options.clone()))?;
+    module
+      .register_method("options", move |_, _, _| Some(options.clone()))
+      .context("failed to register options method")?;
 
     let handle = server.start(module);
 
@@ -426,9 +426,13 @@ fn read_options(config: &ConfigMetadata) -> CliOptions {
           .parse()
           .unwrap(),
         )
-        .await?;
+        .await
+        .context("failed to build WebSocket client")?;
       let client: Client = ClientBuilder::default().build_with_tokio(tx, rx);
-      let options: CliOptions = client.request("options", rpc_params![]).await?;
+      let options: CliOptions = client
+        .request("options", rpc_params![])
+        .await
+        .context("failed to request options")?;
       Ok::<CliOptions, Error>(options)
     })
     .expect("failed to read CLI options");

@@ -384,21 +384,25 @@ fn run_build(
           .skip_codesign();
       }
 
-      target.build(None, config, env, noise_level, profile, build_config)?;
+      target
+        .build(None, config, env, noise_level, profile, build_config)
+        .context("failed to build iOS app")?;
 
       let mut archive_config = ArchiveConfig::new();
       if skip_signing {
         archive_config = archive_config.skip_codesign();
       }
 
-      target.archive(
-        config,
-        env,
-        noise_level,
-        profile,
-        Some(app_version),
-        archive_config,
-      )?;
+      target
+        .archive(
+          config,
+          env,
+          noise_level,
+          profile,
+          Some(app_version),
+          archive_config,
+        )
+        .context("failed to archive iOS app")?;
 
       let out_dir = config.export_dir().join(target.arch);
 
@@ -468,7 +472,9 @@ fn run_build(
           export_config = export_config.authentication_credentials(credentials.clone());
         }
 
-        target.export(config, env, noise_level, export_config)?;
+        target
+          .export(config, env, noise_level, export_config)
+          .context("failed to export iOS app")?;
 
         if let Ok(ipa_path) = config.ipa_path() {
           fs::create_dir_all(&out_dir)

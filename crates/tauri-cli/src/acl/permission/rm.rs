@@ -11,7 +11,7 @@ use crate::{
   acl::FileFormat,
   error::{Context, ErrorExt},
   helpers::app_paths::resolve_tauri_dir,
-  Error, Result,
+  Result,
 };
 
 fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
@@ -40,10 +40,7 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
             let content = std::fs::read_to_string(&path)
               .fs_context("failed to read permission file", path.clone())?;
             (
-              toml::from_str(&content).map_err(|error| Error::DeserializeToml {
-                context: "failed to deserialize permission file".into(),
-                error,
-              })?,
+              toml::from_str(&content).context("failed to deserialize permission file")?,
               FileFormat::Toml,
             )
           }
@@ -51,10 +48,8 @@ fn rm_permission_files(identifier: &str, dir: &Path) -> Result<()> {
             let content =
               std::fs::read(&path).fs_context("failed to read permission file", path.clone())?;
             (
-              serde_json::from_slice(&content).map_err(|error| Error::Json {
-                context: "failed to parse permission file as JSON".into(),
-                error,
-              })?,
+              serde_json::from_slice(&content)
+                .context("failed to parse permission file as JSON")?,
               FileFormat::Json,
             )
           }
@@ -161,10 +156,8 @@ fn rm_permission_from_capabilities(identifier: &str, dir: &Path) -> Result<()> {
               if prev_len != permissions.len() {
                 std::fs::write(
                   &path,
-                  serde_json::to_vec_pretty(&value).map_err(|error| Error::Json {
-                    context: "failed to serialize capability JSON".into(),
-                    error,
-                  })?,
+                  serde_json::to_vec_pretty(&value)
+                    .context("failed to serialize capability JSON")?,
                 )
                 .fs_context("failed to write capability file", path.clone())?;
                 log::info!(action = "Removed"; "permission from capability at {}", dunce::simplified(&path).display());
@@ -198,7 +191,7 @@ pub struct Options {
 
 pub fn command(options: Options) -> Result<()> {
   let permissions_dir = std::env::current_dir()
-    .map_err(Error::ResolveCwd)?
+    .context("failed to resolve current directory")?
     .join("permissions");
   if permissions_dir.exists() {
     rm_permission_files(&options.identifier, &permissions_dir)?;

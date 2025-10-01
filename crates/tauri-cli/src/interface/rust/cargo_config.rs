@@ -10,7 +10,10 @@ use std::{
 
 use tauri_utils::display_path;
 
-use crate::{error::ErrorExt, Error, Result};
+use crate::{
+  error::{Context, ErrorExt},
+  Result,
+};
 
 struct PathAncestors<'a> {
   current: Option<&'a Path>,
@@ -60,14 +63,10 @@ impl Config {
     let get_config = |path: PathBuf| -> Result<ConfigSchema> {
       let contents =
         fs::read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
-      toml::from_str(&contents).map_err(|error| Error::DeserializeToml {
-        context: format!(
-          "could not parse TOML configuration in `{}`",
-          display_path(&path)
-        )
-        .into(),
-        error,
-      })
+      toml::from_str(&contents).context(format!(
+        "could not parse TOML configuration in `{}`",
+        display_path(&path)
+      ))
     };
 
     for current in PathAncestors::new(path) {

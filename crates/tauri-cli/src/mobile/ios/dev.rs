@@ -203,7 +203,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,

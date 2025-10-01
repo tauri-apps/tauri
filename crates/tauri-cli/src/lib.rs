@@ -47,6 +47,8 @@ use std::{
   sync::{Arc, Mutex},
 };
 
+use crate::error::Context;
+
 /// Tauri configuration argument option.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigValue(pub(crate) serde_json::Value);
@@ -56,29 +58,24 @@ impl FromStr for ConfigValue {
 
   fn from_str(config: &str) -> std::result::Result<Self, Self::Err> {
     if config.starts_with('{') {
-      Ok(Self(serde_json::from_str(config).map_err(|error| {
-        Error::Json {
-          context: "failed to parse as JSON".into(),
-          error,
-        }
+      Ok(Self(serde_json::from_str(config).with_context(|| {
+        format!("failed to parse config `{config}` as JSON")
       })?))
     } else {
       let path = PathBuf::from(config);
       let raw =
         read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
       match path.extension() {
-        Some(ext) if ext == "toml" => Ok(Self(::toml::from_str(&raw).map_err(|error| {
-          Error::DeserializeToml {
-            context: format!("failed to parse config at {} as TOML", path.display()).into(),
-            error,
-          }
-        })?)),
-        Some(ext) if ext == "json5" => Ok(Self(::json5::from_str(&raw).map_err(|error| {
-          Error::Json5 {
-            context: format!("failed to parse config at {} as JSON5", path.display()).into(),
-            error,
-          }
-        })?)),
+        Some(ext) if ext == "toml" => {
+          Ok(Self(::toml::from_str(&raw).with_context(|| {
+            format!("failed to parse config at {} as TOML", path.display())
+          })?))
+        }
+        Some(ext) if ext == "json5" => {
+          Ok(Self(::json5::from_str(&raw).with_context(|| {
+            format!("failed to parse config at {} as JSON5", path.display())
+          })?))
+        }
         // treat all other extensions as json
         _ => Ok(Self(
           // from tauri-utils/src/config/parse.rs:
@@ -86,10 +83,8 @@ impl FromStr for ConfigValue {
           // if the json5 is not valid the serde_json error for regular json will be returned.
           match ::json5::from_str(&raw) {
             Ok(json5) => json5,
-            Err(_) => serde_json::from_str(&raw).map_err(|error| Error::Json {
-              context: format!("failed to parse config at {} as JSON", path.display()).into(),
-              error,
-            })?,
+            Err(_) => serde_json::from_str(&raw)
+              .with_context(|| format!("failed to parse config at {} as JSON", path.display()))?,
           },
         )),
       }
@@ -355,10 +350,9 @@ impl CommandExt for Command {
     self.stdout(Stdio::piped());
     self.stderr(Stdio::piped());
 
-    let mut child = self.spawn().map_err(|error| Error::CommandFailed {
-      command: cmdline.clone(),
-      error,
-    })?;
+    let mut child = self
+      .spawn()
+      .with_context(|| format!("failed to run command `{cmdline}`"))?;
 
     let mut stdout = child.stdout.take().map(BufReader::new).unwrap();
     let stdout_lines = Arc::new(Mutex::new(Vec::new()));
@@ -398,10 +392,9 @@ impl CommandExt for Command {
       }
     });
 
-    let status = child.wait().map_err(|error| Error::CommandFailed {
-      command: cmdline.clone(),
-      error,
-    })?;
+    let status = child
+      .wait()
+      .with_context(|| format!("failed to run command `{cmdline}`"))?;
 
     let output = Output {
       status,
@@ -412,13 +405,10 @@ impl CommandExt for Command {
     if output.status.success() {
       Ok(output)
     } else {
-      Err(Error::CommandFailed {
-        command: cmdline,
-        error: std::io::Error::other(format!(
-          "command exited with status code {}",
-          output.status.code().unwrap_or(-1)
-        )),
-      })
+      crate::error::bail!(
+        "failed to run command `{cmdline}`: command exited with status code {}",
+        output.status.code().unwrap_or(-1)
+      );
     }
   }
 }

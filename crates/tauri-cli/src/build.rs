@@ -4,7 +4,7 @@
 
 use crate::{
   bundle::BundleFormat,
-  error::ErrorExt,
+  error::{Context, ErrorExt},
   helpers::{
     self,
     app_paths::{frontend_dir, tauri_dir},
@@ -12,7 +12,7 @@ use crate::{
   },
   info::plugins::check_mismatched_packages,
   interface::{rust::get_cargo_target_dir, AppInterface, Interface},
-  ConfigValue, Error, Result,
+  ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 use std::env::set_current_dir;
@@ -160,7 +160,7 @@ pub fn setup(
     }
   }
 
-  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  set_current_dir(tauri_path).context("failed to set current directory")?;
 
   let config_guard = config.lock().unwrap();
   let config_ = config_guard.as_ref().unwrap();

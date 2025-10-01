@@ -142,20 +142,25 @@ pub fn command(options: Options) -> Result<()> {
     |target: &Target| {
       if !installed_targets.contains(&target.triple().into()) {
         log::info!("Installing target {}", target.triple());
-        target.install().map_err(|error| Error::CommandFailed {
-          command: "rustup target add".to_string(),
-          error,
-        })?;
+        target
+          .install()
+          .map_err(|error| Error::CommandFailed {
+            command: "rustup target add".to_string(),
+            error,
+          })
+          .context("failed to install target")?;
       }
 
-      target.build(
-        &config,
-        &metadata,
-        &env,
-        cli_options.noise_level,
-        true,
-        profile,
-      )?;
+      target
+        .build(
+          &config,
+          &metadata,
+          &env,
+          cli_options.noise_level,
+          true,
+          profile,
+        )
+        .context("failed to build Android app")?;
 
       if !validated_lib {
         validated_lib = true;
@@ -165,7 +170,7 @@ pub fn command(options: Options) -> Result<()> {
           .target_dir(target.triple, profile)
           .join(config.so_name());
 
-        validate_lib(&lib_path)?;
+        validate_lib(&lib_path).context("failed to validate library")?;
       }
 
       Ok(())
@@ -177,11 +182,9 @@ pub fn command(options: Options) -> Result<()> {
 fn validate_lib(path: &Path) -> Result<()> {
   let so_bytes = std::fs::read(path).fs_context("failed to read library", path.to_path_buf())?;
   let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&so_bytes)
-    .map_err(Into::into)
     .context("failed to parse ELF")?;
   let (symbol_table, string_table) = elf
     .dynamic_symbol_table()
-    .map_err(Into::into)
     .context("failed to read dynsym section")?
     .context("missing dynsym tables")?;
 

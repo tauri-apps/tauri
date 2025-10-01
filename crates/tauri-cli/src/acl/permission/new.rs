@@ -10,7 +10,7 @@ use crate::{
   acl::FileFormat,
   error::{Context, ErrorExt},
   helpers::{app_paths::resolve_tauri_dir, prompts},
-  Error, Result,
+  Result,
 };
 
 use tauri_utils::acl::{manifest::PermissionFile, Commands, Permission};
@@ -74,7 +74,7 @@ pub fn command(options: Options) -> Result<()> {
     None => {
       let dir = match resolve_tauri_dir() {
         Some(t) => t,
-        None => std::env::current_dir().map_err(Error::ResolveCwd)?,
+        None => std::env::current_dir().context("failed to resolve current directory")?,
       };
       let permissions_dir = dir.join("permissions");
       permissions_dir.join(format!(

@@ -3,7 +3,10 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::{error::ErrorExt, Error, Result};
+use crate::{
+  error::{Context, ErrorExt},
+  Result,
+};
 use clap::Parser;
 use std::path::PathBuf;
 
@@ -70,7 +73,7 @@ impl From<Options> for super::init::Options {
 }
 
 pub fn command(mut options: Options) -> Result<()> {
-  let cwd = std::env::current_dir().map_err(Error::ResolveCwd)?;
+  let cwd = std::env::current_dir().context("failed to get current directory")?;
   if let Some(dir) = &options.directory {
     std::fs::create_dir_all(cwd.join(dir))
       .fs_context("failed to create crate directory", cwd.join(dir))?;

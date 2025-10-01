@@ -154,7 +154,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).map_err(Error::SetCwd)?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -178,10 +178,13 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       .map_err(|error| Error::CommandFailed {
         command: "rustup target add".to_string(),
         error,
-      })?;
+      })
+      .context("failed to install target")?;
   }
   // run an initial build to initialize plugins
-  first_target.build(&config, &metadata, &env, noise_level, true, profile)?;
+  first_target
+    .build(&config, &metadata, &env, noise_level, true, profile)
+    .context("failed to build Android app")?;
 
   let open = options.open;
   let _handle = run_build(
@@ -251,7 +254,8 @@ fn run_build(
       profile,
       get_targets_or_all(options.targets.clone().unwrap_or_default())?,
       options.split_per_abi,
-    )?
+    )
+    .context("failed to build APK")?
   } else {
     Vec::new()
   };
@@ -264,7 +268,8 @@ fn run_build(
       profile,
       get_targets_or_all(options.targets.unwrap_or_default())?,
       options.split_per_abi,
-    )?
+    )
+    .context("failed to build AAB")?
   } else {
     Vec::new()
   };

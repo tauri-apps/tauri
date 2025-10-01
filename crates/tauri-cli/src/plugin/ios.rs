@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::PluginIosFramework;
-use crate::{helpers::template, Error, Result};
+use crate::{error::Context, helpers::template, Result};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 
@@ -53,7 +53,9 @@ pub fn command(cli: Cli) -> Result<()> {
   match cli.command {
     Commands::Init(options) => {
       let plugin_name = match options.plugin_name {
-        None => super::infer_plugin_name(std::env::current_dir().map_err(Error::ResolveCwd)?)?,
+        None => super::infer_plugin_name(
+          std::env::current_dir().context("failed to get current directory")?,
+        )?,
         Some(name) => name,
       };
 

@@ -142,9 +142,11 @@ impl Interface for Rust {
       .unwrap();
       watcher
         .watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)
-        .map_err(|error| Error::Watch {
-          path: tauri_dir().join("Cargo.toml"),
-          error,
+        .with_context(|| {
+          format!(
+            "failed to watch {}",
+            tauri_dir().join("Cargo.toml").display()
+          )
         })?;
       let (manifest, modified) = rewrite_manifest(config)?;
       if modified {
@@ -416,17 +418,9 @@ fn dev_options(
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   let path = path.to_str().context("path is not UTF-8 compatible")?;
-  let res = glob(path).map_err(|error| crate::Error::GlobPattern {
-    pattern: path.to_string(),
-    error,
-  })?;
+  let res = glob(path).with_context(|| format!("failed to expand glob pattern for {}", path))?;
   let res = res
-    .map(|p| {
-      p.map_err(|error| crate::Error::Glob {
-        pattern: path.to_string(),
-        error,
-      })
-    })
+    .map(|p| p.with_context(|| format!("failed to expand glob pattern for {}", path)))
     .collect::<Result<Vec<_>, _>>()?;
   Ok(res)
 }
@@ -587,8 +581,7 @@ impl Rust {
               );
 
               let mut p = process.lock().unwrap();
-              p.kill()
-                .map_err(|error| crate::Error::KillProcess { name: "app", error })?;
+              p.kill().context("failed to kill app process")?;
 
               // wait for the process to exit
               // note that on mobile, kill() already waits for the process to exit (duct implementation)
@@ -737,10 +730,10 @@ impl CargoSettings {
     let toml_path = dir.join("Cargo.toml");
     let toml_str = std::fs::read_to_string(&toml_path)
       .fs_context("Failed to read Cargo manifest", toml_path.clone())?;
-    toml::from_str(&toml_str).map_err(|error| crate::Error::DeserializeToml {
-      context: format!("failed to parse Cargo manifest at {}", toml_path.display()).into(),
-      error,
-    })
+    toml::from_str(&toml_str).context(format!(
+      "failed to parse Cargo manifest at {}",
+      toml_path.display()
+    ))
   }
 }
 
@@ -852,10 +845,7 @@ impl AppSettings for RustAppSettings {
           .context("failed to get updater configuration: plugins > updater doesn't exist")?
           .clone(),
       )
-      .map_err(|error| crate::Error::Json {
-        context: "failed to parse updater plugin configuration".into(),
-        error,
-      })?;
+      .context("failed to parse updater plugin configuration")?;
       Some(UpdaterSettings {
         v1_compatible,
         pubkey: updater.pubkey,
@@ -883,10 +873,7 @@ impl AppSettings for RustAppSettings {
       .and_then(|c| c.get("desktop").cloned())
     {
       let protocols: DesktopDeepLinks =
-        serde_json::from_value(plugin_config).map_err(|error| Error::Json {
-          context: "failed to parse desktop deep links from Tauri configuration > plugins > deep-link > desktop".into(),
-          error,
-        })?;
+        serde_json::from_value(plugin_config).context("failed to parse desktop deep links from Tauri configuration > plugins > deep-link > desktop")?;
       settings.deep_link_protocols = Some(match protocols {
         DesktopDeepLinks::One(p) => vec![p],
         DesktopDeepLinks::List(p) => p,
@@ -1201,10 +1188,7 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
     });
   }
 
-  serde_json::from_slice(&output.stdout).map_err(|error| Error::Json {
-    context: "failed to parse cargo metadata".into(),
-    error,
-  })
+  serde_json::from_slice(&output.stdout).context("failed to parse cargo metadata")
 }
 
 /// Get the cargo target directory based on the provided arguments.
@@ -1213,7 +1197,7 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
   let path = if let Some(target) = get_cargo_option(args, "--target-dir") {
     std::env::current_dir()
-      .map_err(Error::ResolveCwd)?
+      .context("failed to get current directory")?
       .join(target)
   } else {
     get_cargo_metadata()

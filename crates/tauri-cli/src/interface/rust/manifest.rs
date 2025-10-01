@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
-  error::{Error, ErrorExt},
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{Config, PatternKind},
@@ -86,13 +86,9 @@ pub fn read_manifest(manifest_path: &Path) -> crate::Result<(DocumentMut, String
   let manifest_str = std::fs::read_to_string(manifest_path)
     .fs_context("failed to read Cargo.toml", manifest_path.to_path_buf())?;
 
-  let manifest: DocumentMut =
-    manifest_str
-      .parse::<DocumentMut>()
-      .map_err(|error| Error::DeserializeTomlEdit {
-        context: "failed to parse Cargo.toml".into(),
-        error,
-      })?;
+  let manifest: DocumentMut = manifest_str
+    .parse::<DocumentMut>()
+    .context("failed to parse Cargo.toml")?;
 
   Ok((manifest, manifest_str))
 }

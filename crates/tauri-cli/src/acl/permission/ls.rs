@@ -4,7 +4,11 @@
 
 use clap::Parser;
 
-use crate::{error::ErrorExt, helpers::app_paths::tauri_dir, Error, Result};
+use crate::{
+  error::{Context, ErrorExt},
+  helpers::app_paths::tauri_dir,
+  Result,
+};
 use colored::Colorize;
 use tauri_utils::acl::{manifest::Manifest, APP_ACL_KEY};
 
@@ -31,12 +35,8 @@ pub fn command(options: Options) -> Result<()> {
   if acl_manifests_path.exists() {
     let plugin_manifest_json = read_to_string(&acl_manifests_path)
       .fs_context("failed to read plugin manifest", acl_manifests_path.clone())?;
-    let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json).map_err(
-      |error| Error::Json {
-        context: "failed to parse plugin manifest as JSON".into(),
-        error,
-      },
-    )?;
+    let acl = serde_json::from_str::<BTreeMap<String, Manifest>>(&plugin_manifest_json)
+      .context("failed to parse plugin manifest as JSON")?;
 
     for (key, manifest) in acl {
       if options

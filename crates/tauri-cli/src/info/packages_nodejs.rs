@@ -8,6 +8,7 @@ use colored::Colorize;
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use crate::error::Context;
 use crate::{
   error::Error,
   helpers::{cross_command, npm::PackageManager},
@@ -34,10 +35,8 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         })?;
       if output.status.success() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let info: YarnVersionInfo = serde_json::from_str(&stdout).map_err(|error| Error::Json {
-          context: "failed to parse yarn info".into(),
-          error,
-        })?;
+        let info: YarnVersionInfo =
+          serde_json::from_str(&stdout).context("failed to parse yarn info")?;
         Ok(Some(info.data.last().unwrap().to_string()))
       } else {
         Ok(None)
@@ -58,10 +57,7 @@ pub fn npm_latest_version(pm: &PackageManager, name: &str) -> crate::Result<Opti
         })?;
       if output.status.success() {
         let info: crate::PackageJson = serde_json::from_reader(std::io::Cursor::new(output.stdout))
-          .map_err(|error| Error::Json {
-            context: "failed to parse yarn npm info".into(),
-            error,
-          })?;
+          .context("failed to parse yarn npm info")?;
         Ok(info.version)
       } else {
         Ok(None)

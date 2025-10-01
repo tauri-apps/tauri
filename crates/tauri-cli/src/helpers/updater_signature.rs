@@ -14,10 +14,7 @@ use std::{
   time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{
-  error::{Context, ErrorExt},
-  Error,
-};
+use crate::error::{Context, ErrorExt};
 
 /// A key pair (`PublicKey` and `SecretKey`).
 #[derive(Clone, Debug)]
@@ -54,12 +51,9 @@ pub fn generate_key(password: Option<String>) -> crate::Result<KeyPair> {
 pub fn decode_key<S: AsRef<[u8]>>(base64_key: S) -> crate::Result<String> {
   let decoded_str = &base64::engine::general_purpose::STANDARD
     .decode(base64_key)
-    .map_err(|error| Error::Base64Decode {
-      context: "failed to decode base64 key".into(),
-      error,
-    })?[..];
+    .context("failed to decode base64 key")?[..];
   Ok(String::from(
-    str::from_utf8(decoded_str).map_err(Error::Base64NotUtf8)?,
+    str::from_utf8(decoded_str).context("failed to convert base64 to utf8")?,
   ))
 }
 
@@ -144,7 +138,8 @@ where
     data_reader,
     Some(trusted_comment.as_str()),
     Some("signature from tauri secret key"),
-  )?;
+  )
+  .context("failed to sign file")?;
 
   let encoded_signature =
     base64::engine::general_purpose::STANDARD.encode(signature_box.to_string());
@@ -165,12 +160,10 @@ pub fn secret_key<S: AsRef<[u8]>>(
   password: Option<String>,
 ) -> crate::Result<SecretKey> {
   let decoded_secret = decode_key(private_key).context("failed to decode base64 secret key")?;
-  let sk_box = SecretKeyBox::from_string(&decoded_secret)
-    .map_err(Into::into)
-    .context("failed to load updater private key")?;
+  let sk_box =
+    SecretKeyBox::from_string(&decoded_secret).context("failed to load updater private key")?;
   let sk = sk_box
     .into_secret_key(password)
-    .map_err(Into::into)
     .context("incorrect updater private key password")?;
   Ok(sk)
 }
@@ -178,10 +171,11 @@ pub fn secret_key<S: AsRef<[u8]>>(
 /// Gets the updater secret key from the given private key and password.
 pub fn pub_key<S: AsRef<[u8]>>(public_key: S) -> crate::Result<PublicKey> {
   let decoded_publick = decode_key(public_key).context("failed to decode base64 pubkey")?;
-  let pk_box = PublicKeyBox::from_string(&decoded_publick)
-    .map_err(Into::into)
-    .context("failed to load updater pubkey")?;
-  let pk = pk_box.into_public_key()?;
+  let pk_box =
+    PublicKeyBox::from_string(&decoded_publick).context("failed to load updater pubkey")?;
+  let pk = pk_box
+    .into_public_key()
+    .context("failed to convert updater pubkey")?;
   Ok(pk)
 }
 

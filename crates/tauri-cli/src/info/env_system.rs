@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use super::{SectionItem, Status};
+#[cfg(windows)]
 use crate::error::Context;
 use colored::Colorize;
 #[cfg(windows)]

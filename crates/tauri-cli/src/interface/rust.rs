@@ -14,7 +14,6 @@ use std::{
   time::Duration,
 };
 
-use anyhow::Context;
 use dunce::canonicalize;
 use glob::glob;
 use ignore::gitignore::{Gitignore, GitignoreBuilder};
@@ -30,6 +29,7 @@ use tauri_utils::config::{parse::is_configuration_file, DeepLinkProtocol, Runner
 
 use super::{AppSettings, DevProcess, ExitReason, Interface};
 use crate::{
+  error::{Context, Error, ErrorExt},
   helpers::{
     app_paths::{frontend_dir, tauri_dir},
     config::{nsis_settings, reload as reload_config, wix_settings, BundleResources, Config},
@@ -140,7 +140,14 @@ impl Interface for Rust {
         }
       })
       .unwrap();
-      watcher.watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)?;
+      watcher
+        .watch(tauri_dir().join("Cargo.toml"), RecursiveMode::NonRecursive)
+        .with_context(|| {
+          format!(
+            "failed to watch {}",
+            tauri_dir().join("Cargo.toml").display()
+          )
+        })?;
       let (manifest, modified) = rewrite_manifest(config)?;
       if modified {
         // Wait for the modified event so we don't trigger a re-build later on
@@ -411,9 +418,9 @@ fn dev_options(
 // Copied from https://github.com/rust-lang/cargo/blob/69255bb10de7f74511b5cef900a9d102247b6029/src/cargo/core/workspace.rs#L665
 fn expand_member_path(path: &Path) -> crate::Result<Vec<PathBuf>> {
   let path = path.to_str().context("path is not UTF-8 compatible")?;
-  let res = glob(path).with_context(|| format!("could not parse pattern `{path}`"))?;
+  let res = glob(path).with_context(|| format!("failed to expand glob pattern for {path}"))?;
   let res = res
-    .map(|p| p.with_context(|| format!("unable to match path to pattern `{path}`")))
+    .map(|p| p.with_context(|| format!("failed to expand glob pattern for {path}")))
     .collect::<Result<Vec<_>, _>>()?;
   Ok(res)
 }
@@ -574,7 +581,7 @@ impl Rust {
               );
 
               let mut p = process.lock().unwrap();
-              p.kill().with_context(|| "failed to kill app process")?;
+              p.kill().context("failed to kill app process")?;
 
               // wait for the process to exit
               // note that on mobile, kill() already waits for the process to exit (duct implementation)
@@ -622,18 +629,19 @@ impl<T> MaybeWorkspace<T> {
   fn resolve(
     self,
     label: &str,
-    get_ws_field: impl FnOnce() -> anyhow::Result<T>,
-  ) -> anyhow::Result<T> {
+    get_ws_field: impl FnOnce() -> crate::Result<T>,
+  ) -> crate::Result<T> {
     match self {
       MaybeWorkspace::Defined(value) => Ok(value),
-      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => {
-        get_ws_field().context(format!(
-          "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
-        ))
-      }
-      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(anyhow::anyhow!(
-        "`workspace=false` is unsupported for `package.{label}`"
-      )),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: true }) => get_ws_field()
+        .with_context(|| {
+          format!(
+            "error inheriting `{label}` from workspace root manifest's `workspace.package.{label}`"
+          )
+        }),
+      MaybeWorkspace::Workspace(TomlWorkspaceField { workspace: false }) => Err(
+        crate::Error::GenericError("`workspace=false` is unsupported for `package.{label}`".into()),
+      ),
     }
   }
   fn _as_defined(&self) -> Option<&T> {
@@ -721,8 +729,11 @@ impl CargoSettings {
   fn load(dir: &Path) -> crate::Result<Self> {
     let toml_path = dir.join("Cargo.toml");
     let toml_str = std::fs::read_to_string(&toml_path)
-      .with_context(|| format!("Failed to read {}", toml_path.display()))?;
-    toml::from_str(&toml_str).with_context(|| format!("Failed to parse {}", toml_path.display()))
+      .fs_context("Failed to read Cargo manifest", toml_path.clone())?;
+    toml::from_str(&toml_str).context(format!(
+      "failed to parse Cargo manifest at {}",
+      toml_path.display()
+    ))
   }
 }
 
@@ -831,11 +842,10 @@ impl AppSettings for RustAppSettings {
           .plugins
           .0
           .get("updater")
-          .ok_or_else(|| {
-            anyhow::anyhow!("failed to get updater configuration: plugins > updater doesn't exist")
-          })?
+          .context("failed to get updater configuration: plugins > updater doesn't exist")?
           .clone(),
-      )?;
+      )
+      .context("failed to parse updater plugin configuration")?;
       Some(UpdaterSettings {
         v1_compatible,
         pubkey: updater.pubkey,
@@ -862,7 +872,8 @@ impl AppSettings for RustAppSettings {
       .get("deep-link")
       .and_then(|c| c.get("desktop").cloned())
     {
-      let protocols: DesktopDeepLinks = serde_json::from_value(plugin_config)?;
+      let protocols: DesktopDeepLinks =
+        serde_json::from_value(plugin_config).context("failed to parse desktop deep links from Tauri configuration > plugins > deep-link > desktop")?;
       settings.deep_link_protocols = Some(match protocols {
         DesktopDeepLinks::One(p) => vec![p],
         DesktopDeepLinks::List(p) => p,
@@ -1034,18 +1045,18 @@ impl AppSettings for RustAppSettings {
 impl RustAppSettings {
   pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let tauri_dir = tauri_dir();
-    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load cargo settings")?;
+    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load Cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
-        return Err(anyhow::anyhow!(
+        return Err(crate::Error::GenericError(
           "No package info in the config file".to_owned(),
         ))
       }
     };
 
     let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
-      .context("failed to load cargo settings from workspace root")?
+      .context("failed to load Cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
 
@@ -1058,7 +1069,7 @@ impl RustAppSettings {
           ws_package_settings
             .as_ref()
             .and_then(|p| p.version.clone())
-            .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `version` from workspace"))
+            .context("Couldn't inherit value for `version` from workspace")
         })
         .expect("Cargo project does not have a version")
     });
@@ -1078,9 +1089,7 @@ impl RustAppSettings {
               ws_package_settings
                 .as_ref()
                 .and_then(|v| v.description.clone())
-                .ok_or_else(|| {
-                  anyhow::anyhow!("Couldn't inherit value for `description` from workspace")
-                })
+                .context("Couldn't inherit value for `description` from workspace")
             })
             .unwrap()
         })
@@ -1091,9 +1100,7 @@ impl RustAppSettings {
             ws_package_settings
               .as_ref()
               .and_then(|v| v.homepage.clone())
-              .ok_or_else(|| {
-                anyhow::anyhow!("Couldn't inherit value for `homepage` from workspace")
-              })
+              .context("Couldn't inherit value for `homepage` from workspace")
           })
           .unwrap()
       }),
@@ -1103,7 +1110,7 @@ impl RustAppSettings {
             ws_package_settings
               .as_ref()
               .and_then(|v| v.authors.clone())
-              .ok_or_else(|| anyhow::anyhow!("Couldn't inherit value for `authors` from workspace"))
+              .context("Couldn't inherit value for `authors` from workspace")
           })
           .unwrap()
       }),
@@ -1168,16 +1175,20 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
   let output = Command::new("cargo")
     .args(["metadata", "--no-deps", "--format-version", "1"])
     .current_dir(tauri_dir())
-    .output()?;
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "cargo metadata --no-deps --format-version 1".to_string(),
+      error,
+    })?;
 
   if !output.status.success() {
-    return Err(anyhow::anyhow!(
-      "cargo metadata command exited with a non zero exit code: {}",
-      String::from_utf8_lossy(&output.stderr)
-    ));
+    return Err(Error::CommandFailed {
+      command: "cargo metadata".to_string(),
+      error: std::io::Error::other(String::from_utf8_lossy(&output.stderr)),
+    });
   }
 
-  Ok(serde_json::from_slice(&output.stdout)?)
+  serde_json::from_slice(&output.stdout).context("failed to parse cargo metadata")
 }
 
 /// Get the cargo target directory based on the provided arguments.
@@ -1185,10 +1196,12 @@ pub(crate) fn get_cargo_metadata() -> crate::Result<CargoMetadata> {
 /// Otherwise, use the target directory from cargo metadata.
 pub(crate) fn get_cargo_target_dir(args: &[String]) -> crate::Result<PathBuf> {
   let path = if let Some(target) = get_cargo_option(args, "--target-dir") {
-    std::env::current_dir()?.join(target)
+    std::env::current_dir()
+      .context("failed to get current directory")?
+      .join(target)
   } else {
     get_cargo_metadata()
-      .with_context(|| "failed to run 'cargo metadata' command to get target directory")?
+      .context("failed to run 'cargo metadata' command to get target directory")?
       .target_directory
   };
 
@@ -1383,8 +1396,8 @@ fn tauri_config_to_bundle_settings(
     copyright: config.copyright,
     category: match config.category {
       Some(category) => Some(AppCategory::from_str(&category).map_err(|e| match e {
-        Some(e) => anyhow::anyhow!("invalid category, did you mean `{}`?", e),
-        None => anyhow::anyhow!("invalid category"),
+        Some(e) => Error::GenericError(format!("invalid category, did you mean `{e}`?")),
+        None => Error::GenericError("invalid category".to_string()),
       })?),
       None => None,
     },
@@ -1508,9 +1521,7 @@ fn tauri_config_to_bundle_settings(
                 .cargo_ws_package_settings
                 .as_ref()
                 .and_then(|v| v.license.clone())
-                .ok_or_else(|| {
-                  anyhow::anyhow!("Couldn't inherit value for `license` from workspace")
-                })
+                .context("Couldn't inherit value for `license` from workspace")
             })
             .unwrap()
         })

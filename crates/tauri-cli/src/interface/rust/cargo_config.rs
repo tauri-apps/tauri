@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::{
   fs,
@@ -10,6 +9,11 @@ use std::{
 };
 
 use tauri_utils::display_path;
+
+use crate::{
+  error::{Context, ErrorExt},
+  Result,
+};
 
 struct PathAncestors<'a> {
   current: Option<&'a Path>,
@@ -57,18 +61,12 @@ impl Config {
     let mut config = Self::default();
 
     let get_config = |path: PathBuf| -> Result<ConfigSchema> {
-      let contents = fs::read_to_string(&path).with_context(|| {
-        format!(
-          "failed to read configuration file `{}`",
-          display_path(&path)
-        )
-      })?;
-      toml::from_str(&contents).with_context(|| {
-        format!(
-          "could not parse TOML configuration in `{}`",
-          display_path(&path)
-        )
-      })
+      let contents =
+        fs::read_to_string(&path).fs_context("failed to read configuration file", path.clone())?;
+      toml::from_str(&contents).context(format!(
+        "could not parse TOML configuration in `{}`",
+        display_path(&path)
+      ))
     };
 
     for current in PathAncestors::new(path) {

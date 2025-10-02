@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use once_cell_regex::regex;
 use std::{collections::BTreeSet, path::Path, process::Command};
 use x509_certificate::certificate::X509Certificate;
 
-use crate::Result;
+use crate::{Error, Result};
 
-fn get_pem_list(keychain_path: &Path, name_substr: &str) -> std::io::Result<std::process::Output> {
+fn get_pem_list(keychain_path: &Path, name_substr: &str) -> Result<std::process::Output> {
   Command::new("security")
     .arg("find-certificate")
     .args(["-p", "-a"])
@@ -19,6 +18,10 @@ fn get_pem_list(keychain_path: &Path, name_substr: &str) -> std::io::Result<std:
     .stdin(os_pipe::dup_stdin().unwrap())
     .stderr(os_pipe::dup_stderr().unwrap())
     .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "security find-certificate".to_string(),
+      error,
+    })
 }
 
 #[derive(Debug, Clone, Eq, Ord, PartialEq, PartialOrd)]
@@ -33,7 +36,7 @@ impl Team {
   fn from_x509(cert_prefix: &'static str, cert: X509Certificate) -> Result<Self> {
     let common_name = cert
       .subject_common_name()
-      .ok_or_else(|| anyhow::anyhow!("skipping cert, missing common name"))?;
+      .ok_or(Error::CertificateMissingCommonName)?;
 
     let organization = cert
       .subject_name()
@@ -62,7 +65,9 @@ impl Team {
       .iter_organizational_unit()
       .next()
       .and_then(|v| v.to_string().ok())
-      .ok_or_else(|| anyhow::anyhow!("skipping cert {common_name}: missing Organization Unit"))?;
+      .ok_or_else(|| Error::CertificateMissingOrganizationUnit {
+        common_name: common_name.clone(),
+      })?;
 
     Ok(Self {
       name,
@@ -89,10 +94,9 @@ pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
       "iOS App Development:",
       "Mac Development:",
     ] {
-      let pem_list_out =
-        get_pem_list(keychain_path, cert_prefix).context("Failed to call `security` command")?;
+      let pem_list_out = get_pem_list(keychain_path, cert_prefix)?;
       let cert_list = X509Certificate::from_pem_multiple(pem_list_out.stdout)
-        .context("Failed to parse X509 cert")?;
+        .map_err(|error| Error::X509Certificate { error })?;
       certs.extend(cert_list.into_iter().map(|cert| (cert_prefix, cert)));
     }
     certs
@@ -102,7 +106,7 @@ pub fn list(keychain_path: &Path) -> Result<Vec<Team>> {
       .into_iter()
       .flat_map(|(cert_prefix, cert)| {
         Team::from_x509(cert_prefix, cert).map_err(|err| {
-          eprintln!("{err}");
+          log::error!("{err}");
           err
         })
       })

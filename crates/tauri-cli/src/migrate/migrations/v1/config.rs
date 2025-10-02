@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use crate::Result;
+use crate::{error::Context, ErrorExt, Result};
 
 use serde_json::{Map, Value};
 use tauri_utils::acl::{
@@ -22,9 +22,17 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
   {
     let migrated = migrate_config(&mut config)?;
     if config_path.extension().is_some_and(|ext| ext == "toml") {
-      fs::write(&config_path, toml::to_string_pretty(&config)?)?;
+      fs::write(
+        &config_path,
+        toml::to_string_pretty(&config).context("failed to serialize config")?,
+      )
+      .fs_context("failed to write config", config_path.clone())?;
     } else {
-      fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
+      fs::write(
+        &config_path,
+        serde_json::to_string_pretty(&config).context("failed to serialize config")?,
+      )
+      .fs_context("failed to write config", config_path.clone())?;
     }
 
     let mut permissions: Vec<PermissionEntry> = vec!["core:default"]
@@ -34,7 +42,10 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
     permissions.extend(migrated.permissions.clone());
 
     let capabilities_path = config_path.parent().unwrap().join("capabilities");
-    fs::create_dir_all(&capabilities_path)?;
+    fs::create_dir_all(&capabilities_path).fs_context(
+      "failed to create capabilities directory",
+      capabilities_path.clone(),
+    )?;
     fs::write(
       capabilities_path.join("migrated.json"),
       serde_json::to_string_pretty(&Capability {
@@ -46,7 +57,12 @@ pub fn migrate(tauri_dir: &Path) -> Result<MigratedConfig> {
         webviews: vec![],
         permissions,
         platforms: None,
-      })?,
+      })
+      .context("failed to serialize capabilities")?,
+    )
+    .fs_context(
+      "failed to write capabilities",
+      capabilities_path.join("migrated.json"),
     )?;
 
     return Ok(migrated);
@@ -375,7 +391,8 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
     let csp = if csp_value.is_null() {
       csp_value
     } else {
-      let mut csp: tauri_utils::config_v1::Csp = serde_json::from_value(csp_value)?;
+      let mut csp: tauri_utils::config_v1::Csp =
+        serde_json::from_value(csp_value).context("failed to deserialize CSP")?;
       match &mut csp {
         tauri_utils::config_v1::Csp::Policy(csp) => {
           if csp.contains("connect-src") {
@@ -399,7 +416,7 @@ fn process_security(security: &mut Map<String, Value>) -> Result<()> {
           }
         }
       }
-      serde_json::to_value(csp)?
+      serde_json::to_value(csp).context("failed to serialize CSP")?
     };
 
     security.insert("csp".into(), csp);
@@ -423,7 +440,8 @@ fn process_allowlist(
   tauri_config: &mut Map<String, Value>,
   allowlist: Value,
 ) -> Result<tauri_utils::config_v1::AllowlistConfig> {
-  let allowlist: tauri_utils::config_v1::AllowlistConfig = serde_json::from_value(allowlist)?;
+  let allowlist: tauri_utils::config_v1::AllowlistConfig =
+    serde_json::from_value(allowlist).context("failed to deserialize allowlist")?;
 
   if allowlist.protocol.asset_scope != Default::default() {
     let security = tauri_config
@@ -435,7 +453,8 @@ fn process_allowlist(
     let mut asset_protocol = Map::new();
     asset_protocol.insert(
       "scope".into(),
-      serde_json::to_value(allowlist.protocol.asset_scope.clone())?,
+      serde_json::to_value(allowlist.protocol.asset_scope.clone())
+        .context("failed to serialize asset scope")?,
     );
     if allowlist.protocol.asset {
       asset_protocol.insert("enable".into(), true.into());
@@ -639,7 +658,10 @@ fn allowlist_to_permissions(
 
 fn process_cli(plugins: &mut Map<String, Value>, cli: Value) -> Result<()> {
   if let Some(cli) = cli.as_object() {
-    plugins.insert("cli".into(), serde_json::to_value(cli)?);
+    plugins.insert(
+      "cli".into(),
+      serde_json::to_value(cli).context("failed to serialize CLI")?,
+    );
   }
   Ok(())
 }
@@ -663,7 +685,10 @@ fn process_updater(
         .unwrap_or_default()
         || updater.get("pubkey").is_some()
       {
-        plugins.insert("updater".into(), serde_json::to_value(updater)?);
+        plugins.insert(
+          "updater".into(),
+          serde_json::to_value(updater).context("failed to serialize updater")?,
+        );
         migrated.plugins.insert("updater".to_string());
       }
     }

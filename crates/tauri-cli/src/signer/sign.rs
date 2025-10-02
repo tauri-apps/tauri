@@ -5,10 +5,10 @@
 use std::path::{Path, PathBuf};
 
 use crate::{
+  error::Context,
   helpers::updater_signature::{secret_key, sign_file},
   Result,
 };
-use anyhow::Context;
 use base64::Engine;
 use clap::Parser;
 use tauri_utils::display_path;
@@ -48,9 +48,7 @@ pub fn command(mut options: Options) -> Result<()> {
   let private_key = if let Some(pk) = options.private_key {
     pk
   } else {
-    return Err(anyhow::anyhow!(
-      "Key generation aborted: Unable to find the private key".to_string(),
-    ));
+    crate::error::bail!("Key generation aborted: Unable to find the private key");
   };
 
   if options.password.is_none() {

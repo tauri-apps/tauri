@@ -1055,9 +1055,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.20.4"
+version = "0.20.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d93c1021dbbc971a4801008e7faf1c255b56c8317a2a10970703ee46caa3343e"
+checksum = "35613119e2e16b293e56557a27da0d5bc42031f5edc0bf4f73a2b4d310d39c65"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -8484,7 +8484,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.8.4"
+version = "2.8.5"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8545,7 +8545,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.4.0"
+version = "2.4.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8613,9 +8613,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.8.3"
+version = "2.8.4"
 dependencies = [
- "anyhow",
  "ar",
  "axum",
  "base64 0.22.1",
@@ -8627,6 +8626,7 @@ dependencies = [
  "css-color",
  "ctrlc",
  "dialoguer",
+ "dirs 6.0.0",
  "duct",
  "dunce",
  "elf",
@@ -8680,6 +8680,7 @@ dependencies = [
  "tauri-macos-sign",
  "tauri-utils",
  "tempfile",
+ "thiserror 2.0.12",
  "tokio",
  "toml 0.9.4",
  "toml_edit 0.23.2",
@@ -8687,7 +8688,9 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+ "which",
  "windows-sys 0.60.2",
+ "zip 4.0.0",
 ]
 
 [[package]]
@@ -8771,7 +8774,6 @@ dependencies = [
 name = "tauri-macos-sign"
 version = "2.2.0"
 dependencies = [
- "anyhow",
  "apple-codesign",
  "chrono",
  "dirs 6.0.0",
@@ -8784,6 +8786,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.12",
  "x509-certificate 0.23.1",
 ]
 
@@ -8816,9 +8819,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-log"
-version = "2.4.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d2b582d860eb214f28323f4ce4f2797ae3b78f197e27b11677f976f9f52aedb"
+checksum = "a59139183e0907cec1499dddee4e085f5a801dc659efa0848ee224f461371426"
 dependencies = [
  "android_logger",
  "byte-unit",

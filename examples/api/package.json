@@ -19,6 +19,6 @@
     "@unocss/extractor-svelte": "^66.3.3",
     "svelte": "^5.35.6",
     "unocss": "^66.3.3",
-    "vite": "^7.0.4"
+    "vite": "^7.1.5"
   }
 }

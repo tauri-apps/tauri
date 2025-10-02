@@ -1,5 +1,11 @@
 # Changelog
 
+## \[2.4.1]
+
+### Enhancements
+
+- [`c23bec62d`](https://www.github.com/tauri-apps/tauri/commit/c23bec62d6d5724798869681aa1534423aae28e2) ([#14083](https://www.github.com/tauri-apps/tauri/pull/14083) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Tauri now ignores `macOS.minimumSystemVersion` in `tauri dev` to prevent forced rebuilds of macOS specific dependencies when using something like `rust-analyzer` at the same time as `tauri dev`.
+
 ## \[2.4.0]
 
 ### Dependencies

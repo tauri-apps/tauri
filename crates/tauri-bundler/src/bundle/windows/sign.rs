@@ -14,10 +14,6 @@ use std::sync::OnceLock;
 use std::{path::Path, process::Command};
 
 impl Settings {
-  pub(crate) fn can_sign(&self) -> bool {
-    self.windows().sign_command.is_some() || self.windows().certificate_thumbprint.is_some()
-  }
-
   pub(crate) fn sign_params(&self) -> SignParams {
     SignParams {
       product_name: self.product_name().into(),
@@ -251,7 +247,14 @@ pub fn sign<P: AsRef<Path>>(path: P, params: &SignParams) -> crate::Result<()> {
 }
 
 pub fn try_sign<P: AsRef<Path>>(file_path: P, settings: &Settings) -> crate::Result<()> {
-  if settings.can_sign() {
+  if settings.no_sign() {
+    log::warn!(
+      "Skipping signing for {} due to --no-sign flag.",
+      tauri_utils::display_path(file_path.as_ref())
+    );
+    return Ok(());
+  }
+  if settings.windows().can_sign() {
     log::info!(action = "Signing"; "{}", tauri_utils::display_path(file_path.as_ref()));
     sign(file_path, &settings.sign_params())?;
   }

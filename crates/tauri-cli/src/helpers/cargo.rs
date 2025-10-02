@@ -4,7 +4,7 @@
 
 use std::process::Command;
 
-use anyhow::Context;
+use crate::Error;
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct CargoInstallOptions<'a> {
@@ -41,7 +41,7 @@ pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
         cargo.args(["--branch", branch]);
       }
       (None, None, None) => {}
-      _ => anyhow::bail!("Only one of --tag, --rev and --branch can be specified"),
+      _ => crate::error::bail!("Only one of --tag, --rev and --branch can be specified"),
     };
   }
 
@@ -54,9 +54,12 @@ pub fn install_one(options: CargoInstallOptions) -> crate::Result<()> {
   }
 
   log::info!("Installing Cargo dependency \"{}\"...", options.name);
-  let status = cargo.status().context("failed to run `cargo add`")?;
+  let status = cargo.status().map_err(|error| Error::CommandFailed {
+    command: "cargo add".to_string(),
+    error,
+  })?;
   if !status.success() {
-    anyhow::bail!("Failed to install Cargo dependency");
+    crate::error::bail!("Failed to install Cargo dependency");
   }
 
   Ok(())
@@ -84,9 +87,12 @@ pub fn uninstall_one(options: CargoUninstallOptions) -> crate::Result<()> {
   }
 
   log::info!("Uninstalling Cargo dependency \"{}\"...", options.name);
-  let status = cargo.status().context("failed to run `cargo remove`")?;
+  let status = cargo.status().map_err(|error| Error::CommandFailed {
+    command: "cargo remove".to_string(),
+    error,
+  })?;
   if !status.success() {
-    anyhow::bail!("Failed to remove Cargo dependency");
+    crate::error::bail!("Failed to remove Cargo dependency");
   }
 
   Ok(())

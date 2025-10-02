@@ -4,14 +4,14 @@
 
 use super::{detect_target_ok, ensure_init, env, get_app, get_config, read_options, MobileTarget};
 use crate::{
+  error::{Context, ErrorExt},
   helpers::config::{get as get_tauri_config, reload as reload_tauri_config},
   interface::{AppInterface, Interface},
   mobile::CliOptions,
-  Result,
+  Error, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   android::{adb, target::Target},
   opts::Profile,
@@ -103,7 +103,7 @@ pub fn command(options: Options) -> Result<()> {
     )?;
   }
 
-  let env = env()?;
+  let env = env(std::env::var("CI").is_ok())?;
 
   if cli_options.dev {
     let dev_url = tauri_config
@@ -132,19 +132,35 @@ pub fn command(options: Options) -> Result<()> {
 
   let mut validated_lib = false;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
   call_for_targets_with_fallback(
     options.targets.unwrap_or_default().iter(),
     &detect_target_ok,
     &env,
     |target: &Target| {
-      target.build(
-        &config,
-        &metadata,
-        &env,
-        cli_options.noise_level,
-        true,
-        profile,
-      )?;
+      if !installed_targets.contains(&target.triple().into()) {
+        log::info!("Installing target {}", target.triple());
+        target
+          .install()
+          .map_err(|error| Error::CommandFailed {
+            command: "rustup target add".to_string(),
+            error,
+          })
+          .context("failed to install target")?;
+      }
+
+      target
+        .build(
+          &config,
+          &metadata,
+          &env,
+          cli_options.noise_level,
+          true,
+          profile,
+        )
+        .context("failed to build Android app")?;
 
       if !validated_lib {
         validated_lib = true;
@@ -154,17 +170,17 @@ pub fn command(options: Options) -> Result<()> {
           .target_dir(target.triple, profile)
           .join(config.so_name());
 
-        validate_lib(&lib_path)?;
+        validate_lib(&lib_path).context("failed to validate library")?;
       }
 
       Ok(())
     },
   )
-  .map_err(|e| anyhow::anyhow!(e.to_string()))?
+  .map_err(|e| Error::GenericError(e.to_string()))?
 }
 
 fn validate_lib(path: &Path) -> Result<()> {
-  let so_bytes = std::fs::read(path)?;
+  let so_bytes = std::fs::read(path).fs_context("failed to read library", path.to_path_buf())?;
   let elf = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&so_bytes)
     .context("failed to parse ELF")?;
   let (symbol_table, string_table) = elf
@@ -180,7 +196,7 @@ fn validate_lib(path: &Path) -> Result<()> {
   }
 
   if !symbols.contains(&"Java_app_tauri_plugin_PluginManager_handlePluginResponse") {
-    anyhow::bail!(
+    crate::error::bail!(
       "Library from {} does not include required runtime symbols. This means you are likely missing the tauri::mobile_entry_point macro usage, see the documentation for more information: https://v2.tauri.app/start/migrate/from-tauri-1",
       path.display()
     );
@@ -227,7 +243,7 @@ fn adb_forward_port(
     let device = devices.first().unwrap();
     Some((device.serial_no().to_string(), device.name().to_string()))
   } else if devices.len() > 1 {
-    anyhow::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
+    crate::error::bail!("Multiple Android devices are connected ({}), please disconnect devices you do not intend to use so Tauri can determine which to use",
       devices.iter().map(|d| d.name()).collect::<Vec<_>>().join(", "));
   } else {
     // when building the app without running to a device, we might have an empty devices list
@@ -239,7 +255,11 @@ fn adb_forward_port(
 
     // clear port forwarding for all devices
     for device in &devices {
-      let reverse_list_output = adb_reverse_list(env, device.serial_no())?;
+      let reverse_list_output =
+        adb_reverse_list(env, device.serial_no()).map_err(|error| Error::CommandFailed {
+          command: "adb reverse --list".to_string(),
+          error,
+        })?;
 
       // check if the device has the port forwarded
       if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
@@ -261,11 +281,20 @@ fn adb_forward_port(
       log::info!("{forward} already forwarded to {target_device_name}");
     } else {
       loop {
-        run_adb_reverse(env, &target_device_serial_no, &forward, &forward).with_context(|| {
-          format!("failed to forward port with adb, is the {target_device_name} device connected?",)
+        run_adb_reverse(env, &target_device_serial_no, &forward, &forward).map_err(|error| {
+          Error::CommandFailed {
+            command: format!("adb reverse {forward} {forward}"),
+            error,
+          }
         })?;
 
-        let reverse_list_output = adb_reverse_list(env, &target_device_serial_no)?;
+        let reverse_list_output =
+          adb_reverse_list(env, &target_device_serial_no).map_err(|error| {
+            Error::CommandFailed {
+              command: "adb reverse --list".to_string(),
+              error,
+            }
+          })?;
         // wait and retry until the port has actually been forwarded
         if String::from_utf8_lossy(&reverse_list_output.stdout).contains(&forward) {
           break;

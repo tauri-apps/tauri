@@ -1,5 +1,31 @@
 # Changelog
 
+## \[2.8.5]
+
+### Enhancements
+
+- [`07e134f70`](https://www.github.com/tauri-apps/tauri/commit/07e134f70e3a65424641f1b384a26bf059fd9c56) ([#14107](https://www.github.com/tauri-apps/tauri/pull/14107) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Improve error message for request errors on iOS when local network permission has been denied and the app tries to reach the development server.
+
+### Dependencies
+
+- Upgraded to `tauri-build@2.4.1`
+
+## \[2.8.4]
+
+### Bug Fixes
+
+- [`03e7c1193`](https://www.github.com/tauri-apps/tauri/commit/03e7c1193208716170f120a1d4a39cea0bc21064) ([#14080](https://www.github.com/tauri-apps/tauri/pull/14080) by [@lucasfernog](https://www.github.com/tauri-apps/tauri/../../lucasfernog)) Ignore initial navigation to `about:blank` so `on_new_window` does not give a warning on first navigation on macOS.
+
+### Dependencies
+
+- Upgraded to `tauri-runtime-wry@2.8.1`
+
+## \[2.8.3]
+
+### Bug Fixes
+
+- [`534998406`](https://www.github.com/tauri-apps/tauri/commit/534998406433a1be52caa9792d120763ab8339ac) ([#14054](https://www.github.com/tauri-apps/tauri/pull/14054) by [@FabianLars](https://www.github.com/tauri-apps/tauri/../../FabianLars)) Fixed an issue that caused the runtime WebView2 detection to fail for FixedRuntime installations.
+
 ## \[2.8.2]
 
 ### Bug Fixes

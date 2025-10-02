@@ -8,9 +8,12 @@ use std::{
   path::{Path, PathBuf},
 };
 
+use crate::error::ErrorExt;
+
 pub fn parse<P: AsRef<Path>>(path: P) -> crate::Result<Pbxproj> {
   let path = path.as_ref();
-  let pbxproj = std::fs::read_to_string(path)?;
+  let pbxproj =
+    std::fs::read_to_string(path).fs_context("failed to read pbxproj file", path.to_path_buf())?;
 
   let mut proj = Pbxproj {
     path: path.to_owned(),
@@ -171,7 +174,7 @@ enum State {
 }
 
 pub struct Pbxproj {
-  path: PathBuf,
+  pub path: PathBuf,
   raw_lines: Vec<String>,
   pub xc_build_configuration: BTreeMap<String, XCBuildConfiguration>,
   pub xc_configuration_list: BTreeMap<String, XCConfigurationList>,

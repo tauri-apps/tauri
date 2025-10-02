@@ -8,6 +8,7 @@ use super::{
 };
 use crate::{
   dev::Options as DevOptions,
+  error::{Context, ErrorExt},
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -16,13 +17,13 @@ use crate::{
   },
   interface::{AppInterface, Interface, MobileOptions, Options as InterfaceOptions},
   mobile::{
-    use_network_address_for_dev_url, write_options, CliOptions, DevChild, DevHost, DevProcess,
+    ios::ensure_ios_runtime_installed, use_network_address_for_dev_url, write_options, CliOptions,
+    DevChild, DevHost, DevProcess,
   },
   ConfigValue, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   apple::{
     config::Config as AppleConfig,
@@ -150,11 +151,14 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   if let Some(root_certificate_path) = &options.root_certificate_path {
     std::env::set_var(
       "TAURI_DEV_ROOT_CERTIFICATE",
-      std::fs::read_to_string(root_certificate_path).context("failed to read certificate file")?,
+      std::fs::read_to_string(root_certificate_path).fs_context(
+        "failed to read root certificate file",
+        root_certificate_path.clone(),
+      )?,
     );
   }
 
-  let env = env()?;
+  let env = env().context("failed to load iOS environment")?;
   let device = if options.open {
     None
   } else {
@@ -166,6 +170,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
       }
     }
   };
+
+  if device.is_some() {
+    ensure_ios_runtime_installed()?;
+  }
 
   let mut dev_options: DevOptions = options.clone().into();
   let target_triple = device
@@ -196,7 +204,7 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -215,7 +223,10 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     tauri_path.join("Info.plist").into(),
     tauri_path.join("Info.ios.plist").into(),
   ])?;
-  merged_info_plist.to_file_xml(&info_plist_path)?;
+  merged_info_plist
+    .to_file_xml(&info_plist_path)
+    .map_err(std::io::Error::other)
+    .fs_context("failed to save merged Info.plist file", info_plist_path)?;
 
   let mut pbxproj = load_pbxproj(&config)?;
 
@@ -233,7 +244,9 @@ fn run_command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     !options.release_mode,
   )?;
   if pbxproj.has_changes() {
-    pbxproj.save()?;
+    pbxproj
+      .save()
+      .fs_context("failed to save pbxproj file", pbxproj.path)?;
   }
 
   run_dev(
@@ -321,7 +334,7 @@ fn run_dev(
           }
           Err(e) => {
             crate::dev::kill_before_dev_process();
-            Err(e.into())
+            crate::error::bail!("failed to run iOS app: {}", e)
           }
         }
       } else {

@@ -18,6 +18,8 @@ use http::Request;
 use objc2::ClassType;
 use raw_window_handle::{DisplayHandle, HasDisplayHandle, HasWindowHandle};
 
+#[cfg(windows)]
+use tauri_runtime::webview::ScrollBarStyle;
 use tauri_runtime::{
   dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize, Position, Size},
   monitor::Monitor,
@@ -79,6 +81,8 @@ use tauri_utils::{
   Theme,
 };
 use url::Url;
+#[cfg(windows)]
+use wry::ScrollBarStyle as WryScrollBarStyle;
 use wry::{
   DragDropEvent as WryDragDropEvent, ProxyConfig, ProxyEndpoint, WebContext as WryWebContext,
   WebView, WebViewBuilder,
@@ -4578,12 +4582,15 @@ You may have it installed on another user account, but it is not available for t
   let mut webview_builder = WebViewBuilder::new_with_web_context(&mut web_context.inner)
     .with_id(&label)
     .with_focused(webview_attributes.focus)
-    .with_url(&url)
     .with_transparent(webview_attributes.transparent)
     .with_accept_first_mouse(webview_attributes.accept_first_mouse)
     .with_incognito(webview_attributes.incognito)
     .with_clipboard(webview_attributes.clipboard)
     .with_hotkeys_zoom(webview_attributes.zoom_hotkeys_enabled);
+
+  if url != "about:blank" {
+    webview_builder = webview_builder.with_url(&url);
+  }
 
   #[cfg(target_os = "macos")]
   if let Some(webview_configuration) = webview_attributes.webview_configuration {
@@ -4830,6 +4837,13 @@ You may have it installed on another user account, but it is not available for t
       TaoTheme::Light => wry::Theme::Light,
       _ => wry::Theme::Light,
     });
+
+    webview_builder =
+      webview_builder.with_scroll_bar_style(match webview_attributes.scroll_bar_style {
+        ScrollBarStyle::Default => WryScrollBarStyle::Default,
+        ScrollBarStyle::FluentOverlay => WryScrollBarStyle::FluentOverlay,
+        _ => unreachable!(),
+      });
   }
 
   #[cfg(windows)]

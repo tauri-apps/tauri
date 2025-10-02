@@ -14,13 +14,13 @@ use crate::{
       },
     },
   },
+  error::Context,
   utils::{
     fs_utils::copy_file,
     http_utils::{download_and_verify, extract_zip, HashAlgorithm},
     CommandExt,
   },
 };
-use anyhow::{bail, Context};
 use handlebars::{html_escape, to_json, Handlebars};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -279,37 +279,40 @@ fn clear_env_for_wix(cmd: &mut Command) {
   }
 }
 
-fn validate_wix_version(version_str: &str) -> anyhow::Result<()> {
+fn validate_wix_version(version_str: &str) -> crate::Result<()> {
   let components = version_str
     .split('.')
     .flat_map(|c| c.parse::<u64>().ok())
     .collect::<Vec<_>>();
 
-  anyhow::ensure!(
-    components.len() >= 3,
-    "app wix version should be in the format major.minor.patch.build (build is optional)"
-  );
+  if components.len() < 3 {
+    crate::error::bail!(
+      "app wix version should be in the format major.minor.patch.build (build is optional)"
+    );
+  }
 
   if components[0] > 255 {
-    bail!("app version major number cannot be greater than 255");
+    crate::error::bail!("app version major number cannot be greater than 255");
   }
   if components[1] > 255 {
-    bail!("app version minor number cannot be greater than 255");
+    crate::error::bail!("app version minor number cannot be greater than 255");
   }
   if components[2] > 65535 {
-    bail!("app version patch number cannot be greater than 65535");
+    crate::error::bail!("app version patch number cannot be greater than 65535");
   }
 
   if components.len() == 4 && components[3] > 65535 {
-    bail!("app version build number cannot be greater than 65535");
+    crate::error::bail!("app version build number cannot be greater than 65535");
   }
 
   Ok(())
 }
 
 // WiX requires versions to be numeric only in a `major.minor.patch.build` format
-fn convert_version(version_str: &str) -> anyhow::Result<String> {
-  let version = semver::Version::parse(version_str).context("invalid app version")?;
+fn convert_version(version_str: &str) -> crate::Result<String> {
+  let version = semver::Version::parse(version_str)
+    .map_err(Into::into)
+    .context("invalid app version")?;
   if !version.build.is_empty() {
     let build = version.build.parse::<u64>();
     if build.map(|b| b <= 65535).unwrap_or_default() {
@@ -318,7 +321,7 @@ fn convert_version(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.build
       ));
     } else {
-      bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!("optional build metadata in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
@@ -330,7 +333,7 @@ fn convert_version(version_str: &str) -> anyhow::Result<String> {
         version.major, version.minor, version.patch, version.pre
       ));
     } else {
-      bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
+      crate::error::bail!("optional pre-release identifier in app version must be numeric-only and cannot be greater than 65535 for msi target");
     }
   }
 
@@ -387,11 +390,7 @@ fn run_candle(
     cmd.arg(ext);
   }
   clear_env_for_wix(&mut cmd);
-  cmd
-    .args(&args)
-    .current_dir(cwd)
-    .output_ok()
-    .context("error running candle.exe")?;
+  cmd.args(&args).current_dir(cwd).output_ok()?;
 
   Ok(())
 }
@@ -416,11 +415,7 @@ fn run_light(
     cmd.arg(ext);
   }
   clear_env_for_wix(&mut cmd);
-  cmd
-    .args(&args)
-    .current_dir(build_path)
-    .output_ok()
-    .context("error running light.exe")?;
+  cmd.args(&args).current_dir(build_path).output_ok()?;
 
   Ok(())
 }
@@ -470,10 +465,9 @@ pub fn build_wix_app_installer(
   fs::create_dir_all(&output_path)?;
 
   // when we're performing code signing, we'll sign some WiX DLLs, so we make a local copy
-  let wix_toolset_path = if settings.can_sign() {
+  let wix_toolset_path = if settings.windows().can_sign() {
     let wix_path = output_path.join("wix");
-    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)
-      .context("failed to copy wix directory")?;
+    crate::utils::fs_utils::copy_dir(wix_toolset_path, &wix_path)?;
     wix_path
   } else {
     wix_toolset_path.to_path_buf()
@@ -773,7 +767,7 @@ pub fn build_wix_app_installer(
     let mut extensions = Vec::new();
     for cap in extension_regex.captures_iter(&fragment) {
       let path = wix_toolset_path.join(format!("Wix{}.dll", &cap[1]));
-      if settings.can_sign() {
+      if settings.windows().can_sign() {
         try_sign(&path, settings)?;
       }
       extensions.push(path);
@@ -787,7 +781,7 @@ pub fn build_wix_app_installer(
   fragment_extensions.insert(wix_toolset_path.join("WixUtilExtension.dll"));
 
   // sign default extensions
-  if settings.can_sign() {
+  if settings.windows().can_sign() {
     for path in &fragment_extensions {
       try_sign(path, settings)?;
     }
@@ -881,7 +875,7 @@ pub fn build_wix_app_installer(
     )?;
     fs::rename(&msi_output_path, &msi_path)?;
 
-    if settings.can_sign() {
+    if settings.windows().can_sign() {
       try_sign(&msi_path, settings)?;
     }
 
@@ -990,7 +984,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
     }
     added_resources.push(resource_path.clone());
 
-    if settings.can_sign() && should_sign(&resource_path)? {
+    if settings.windows().can_sign() && should_sign(&resource_path)? {
       try_sign(&resource_path, settings)?;
     }
 
@@ -1078,7 +1072,7 @@ fn generate_resource_data(settings: &Settings) -> crate::Result<ResourceMap> {
       .to_string_lossy()
       .into_owned();
     if !added_resources.iter().any(|r| r.ends_with(&relative_path)) {
-      if settings.can_sign() {
+      if settings.windows().can_sign() {
         try_sign(resource_path, settings)?;
       }
 

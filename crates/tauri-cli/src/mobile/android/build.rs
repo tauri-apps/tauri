@@ -8,6 +8,7 @@ use super::{
 };
 use crate::{
   build::Options as BuildOptions,
+  error::Context,
   helpers::{
     app_paths::tauri_dir,
     config::{get as get_tauri_config, ConfigHandle},
@@ -15,11 +16,10 @@ use crate::{
   },
   interface::{AppInterface, Interface, Options as InterfaceOptions},
   mobile::{write_options, CliOptions},
-  ConfigValue, Result,
+  ConfigValue, Error, Result,
 };
 use clap::{ArgAction, Parser};
 
-use anyhow::Context;
 use cargo_mobile2::{
   android::{aab, apk, config::Config as AndroidConfig, env::Env, target::Target},
   opts::{NoiseLevel, Profile},
@@ -99,6 +99,7 @@ impl From<Options> for BuildOptions {
       ci: options.ci,
       skip_stapling: false,
       ignore_version_mismatches: options.ignore_version_mismatches,
+      no_sign: false,
     }
   }
 }
@@ -153,7 +154,7 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
   };
 
   let tauri_path = tauri_dir();
-  set_current_dir(tauri_path).with_context(|| "failed to change current working directory")?;
+  set_current_dir(tauri_path).context("failed to set current directory to Tauri directory")?;
 
   ensure_init(
     &tauri_config,
@@ -162,13 +163,28 @@ pub fn command(options: Options, noise_level: NoiseLevel) -> Result<()> {
     MobileTarget::Android,
   )?;
 
-  let mut env = env()?;
+  let mut env = env(options.ci)?;
   configure_cargo(&mut env, &config)?;
 
   crate::build::setup(&interface, &mut build_options, tauri_config.clone(), true)?;
 
+  let installed_targets =
+    crate::interface::rust::installation::installed_targets().unwrap_or_default();
+
+  if !installed_targets.contains(&first_target.triple().into()) {
+    log::info!("Installing target {}", first_target.triple());
+    first_target
+      .install()
+      .map_err(|error| Error::CommandFailed {
+        command: "rustup target add".to_string(),
+        error,
+      })
+      .context("failed to install target")?;
+  }
   // run an initial build to initialize plugins
-  first_target.build(&config, &metadata, &env, noise_level, true, profile)?;
+  first_target
+    .build(&config, &metadata, &env, noise_level, true, profile)
+    .context("failed to build Android app")?;
 
   let open = options.open;
   let _handle = run_build(
@@ -238,7 +254,8 @@ fn run_build(
       profile,
       get_targets_or_all(options.targets.clone().unwrap_or_default())?,
       options.split_per_abi,
-    )?
+    )
+    .context("failed to build APK")?
   } else {
     Vec::new()
   };
@@ -251,7 +268,8 @@ fn run_build(
       profile,
       get_targets_or_all(options.targets.unwrap_or_default())?,
       options.split_per_abi,
-    )?
+    )
+    .context("failed to build AAB")?
   } else {
     Vec::new()
   };
@@ -275,12 +293,8 @@ fn get_targets_or_all<'a>(targets: Vec<String>) -> Result<Vec<&'a Target<'a>>> {
       .join(",");
 
     for t in targets {
-      let target = Target::for_name(&t).ok_or_else(|| {
-        anyhow::anyhow!(
-          "Target {} is invalid; the possible targets are {}",
-          t,
-          possible_targets
-        )
+      let target = Target::for_name(&t).with_context(|| {
+        format!("Target {t} is invalid; the possible targets are {possible_targets}",)
       })?;
       outs.push(target);
     }

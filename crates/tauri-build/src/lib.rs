@@ -573,8 +573,10 @@ pub fn try_build(attributes: Attributes) -> Result<()> {
       }
     }
 
-    if let Some(version) = &config.bundle.macos.minimum_system_version {
-      println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
+    if !is_dev() {
+      if let Some(version) = &config.bundle.macos.minimum_system_version {
+        println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET={version}");
+      }
     }
   }
 

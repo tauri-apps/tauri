@@ -10,6 +10,8 @@
   html_logo_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png",
   html_favicon_url = "https://github.com/tauri-apps/tauri/raw/dev/.github/icon.png"
 )]
+// file is used by multiple binaries
+#![allow(dead_code)]
 
 use std::{fs::File, io::BufReader};
 mod utils;

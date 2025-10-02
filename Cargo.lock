@@ -1055,9 +1055,9 @@ dependencies = [
 
 [[package]]
 name = "cargo-mobile2"
-version = "0.20.2"
+version = "0.20.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f2e0347234eb5a7b47eb66d33dc18560a628f031dffe58c37a7efe44b53e6f9"
+checksum = "35613119e2e16b293e56557a27da0d5bc42031f5edc0bf4f73a2b4d310d39c65"
 dependencies = [
  "colored",
  "core-foundation 0.10.0",
@@ -4112,9 +4112,9 @@ dependencies = [
 
 [[package]]
 name = "jsonschema"
-version = "0.32.1"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "24690c68dfcdde5980d676b0f1820981841016b1f29eecb4c42ad48ab4118681"
+checksum = "d46662859bc5f60a145b75f4632fbadc84e829e45df6c5de74cfc8e05acb96b5"
 dependencies = [
  "ahash 0.8.11",
  "base64 0.22.1",
@@ -6715,9 +6715,9 @@ dependencies = [
 
 [[package]]
 name = "referencing"
-version = "0.32.1"
+version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a3d769362109497b240e66462606bc28af68116436c8669bac17069533b908e"
+checksum = "9e9c261f7ce75418b3beadfb3f0eb1299fe8eb9640deba45ffa2cb783098697d"
 dependencies = [
  "ahash 0.8.11",
  "fluent-uri",
@@ -8485,7 +8485,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "2.8.2"
+version = "2.8.5"
 dependencies = [
  "anyhow",
  "bytes",
@@ -8546,7 +8546,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-build"
-version = "2.4.0"
+version = "2.4.1"
 dependencies = [
  "anyhow",
  "cargo_toml",
@@ -8568,7 +8568,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-bundler"
-version = "2.6.0"
+version = "2.6.1"
 dependencies = [
  "anyhow",
  "ar",
@@ -8614,9 +8614,8 @@ dependencies = [
 
 [[package]]
 name = "tauri-cli"
-version = "2.8.0"
+version = "2.8.4"
 dependencies = [
- "anyhow",
  "ar",
  "axum",
  "base64 0.22.1",
@@ -8628,6 +8627,7 @@ dependencies = [
  "css-color",
  "ctrlc",
  "dialoguer",
+ "dirs 6.0.0",
  "duct",
  "dunce",
  "elf",
@@ -8681,6 +8681,7 @@ dependencies = [
  "tauri-macos-sign",
  "tauri-utils",
  "tempfile",
+ "thiserror 2.0.12",
  "tokio",
  "toml 0.9.4",
  "toml_edit 0.23.2",
@@ -8688,7 +8689,9 @@ dependencies = [
  "url",
  "uuid",
  "walkdir",
+ "which",
  "windows-sys 0.60.2",
+ "zip 4.0.0",
 ]
 
 [[package]]
@@ -8772,7 +8775,6 @@ dependencies = [
 name = "tauri-macos-sign"
 version = "2.2.0"
 dependencies = [
- "anyhow",
  "apple-codesign",
  "chrono",
  "dirs 6.0.0",
@@ -8785,6 +8787,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "thiserror 2.0.12",
  "x509-certificate 0.23.1",
 ]
 
@@ -8817,9 +8820,9 @@ dependencies = [
 
 [[package]]
 name = "tauri-plugin-log"
-version = "2.4.0"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d2b582d860eb214f28323f4ce4f2797ae3b78f197e27b11677f976f9f52aedb"
+checksum = "a59139183e0907cec1499dddee4e085f5a801dc659efa0848ee224f461371426"
 dependencies = [
  "android_logger",
  "byte-unit",
@@ -8873,7 +8876,7 @@ dependencies = [
 
 [[package]]
 name = "tauri-runtime-wry"
-version = "2.8.0"
+version = "2.8.1"
 dependencies = [
  "gtk",
  "http 1.3.1",
@@ -10944,9 +10947,9 @@ checksum = "1e9df38ee2d2c3c5948ea468a8406ff0db0b29ae1ffde1bcf20ef305bcc95c51"
 
 [[package]]
 name = "wry"
-version = "0.53.1"
+version = "0.53.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5698e50a589268aec06d2219f48b143222f7b5ad9aa690118b8dce0a8dcac574"
+checksum = "e3b6763512fe4b51c80b3ce9b50939d682acb4de335dfabbdb20d7a2642199b7"
 dependencies = [
  "base64 0.22.1",
  "block2 0.6.0",

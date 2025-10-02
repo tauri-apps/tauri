@@ -1045,7 +1045,7 @@ impl AppSettings for RustAppSettings {
 impl RustAppSettings {
   pub fn new(config: &Config, manifest: Manifest, target: Option<String>) -> crate::Result<Self> {
     let tauri_dir = tauri_dir();
-    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load cargo settings")?;
+    let cargo_settings = CargoSettings::load(tauri_dir).context("failed to load Cargo settings")?;
     let cargo_package_settings = match &cargo_settings.package {
       Some(package_info) => package_info.clone(),
       None => {
@@ -1056,7 +1056,7 @@ impl RustAppSettings {
     };
 
     let ws_package_settings = CargoSettings::load(&get_workspace_dir()?)
-      .context("failed to load cargo settings from workspace root")?
+      .context("failed to load Cargo settings from workspace root")?
       .workspace
       .and_then(|v| v.package);
 

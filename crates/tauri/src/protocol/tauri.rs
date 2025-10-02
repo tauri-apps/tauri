@@ -187,8 +187,20 @@ fn get_response<R: Runtime>(
           .body(response.body.to_vec().into())?
       }
       Err(e) => {
-        log::error!("Failed to request {}: {}", url.as_str(), e);
-        return Err(Box::new(e));
+        let error_message = format!(
+          "Failed to request {}: {}{}",
+          url.as_str(),
+          e,
+          if let Some(s) = e.status() {
+            format!("status code: {}", s.as_u16())
+          } else if cfg!(target_os = "ios") {
+            ", did you grant local network permissions? That is required to reach the development server. Please grant the permission via the prompt or in `Settings > Privacy & Security > Local Network` and restart the app. See https://support.apple.com/en-us/102229 for more information.".to_string()
+          } else {
+            "".to_string()
+          }
+        );
+        log::error!("{error_message}");
+        return Err(error_message.into());
       }
     }
   };

@@ -24,8 +24,12 @@
 // generate postinst or prerm files.
 
 use super::freedesktop;
-use crate::{bundle::settings::Arch, utils::fs_utils, Settings};
-use anyhow::Context;
+use crate::{
+  bundle::settings::Arch,
+  error::{Context, ErrorExt},
+  utils::fs_utils,
+  Settings,
+};
 use flate2::{write::GzEncoder, Compression};
 use tar::HeaderMode;
 use walkdir::WalkDir;
@@ -64,30 +68,32 @@ pub fn bundle_project(settings: &Settings) -> crate::Result<Vec<PathBuf>> {
   let base_dir = settings.project_out_directory().join("bundle/deb");
   let package_dir = base_dir.join(&package_base_name);
   if package_dir.exists() {
-    fs::remove_dir_all(&package_dir)
-      .with_context(|| format!("Failed to remove old {package_base_name}"))?;
+    fs::remove_dir_all(&package_dir).fs_context(
+      "Failed to Remove old package directory",
+      package_dir.clone(),
+    )?;
   }
   let package_path = base_dir.join(&package_name);
 
   log::info!(action = "Bundling"; "{} ({})", package_name, package_path.display());
 
-  let (data_dir, _) = generate_data(settings, &package_dir)
-    .with_context(|| "Failed to build data folders and files")?;
+  let (data_dir, _) =
+    generate_data(settings, &package_dir).context("Failed to build data folders and files")?;
   fs_utils::copy_custom_files(&settings.deb().files, &data_dir)
-    .with_context(|| "Failed to copy custom files")?;
+    .context("Failed to copy custom files")?;
 
   // Generate control files.
   let control_dir = package_dir.join("control");
   generate_control_file(settings, arch, &control_dir, &data_dir)
-    .with_context(|| "Failed to create control file")?;
-  generate_scripts(settings, &control_dir).with_context(|| "Failed to create control scripts")?;
-  generate_md5sums(&control_dir, &data_dir).with_context(|| "Failed to create md5sums file")?;
+    .context("Failed to create control file")?;
+  generate_scripts(settings, &control_dir).context("Failed to create control scripts")?;
+  generate_md5sums(&control_dir, &data_dir).context("Failed to create md5sums file")?;
 
   // Generate `debian-binary` file; see
   // http://www.tldp.org/HOWTO/Debian-Binary-Package-Building-HOWTO/x60.html#AEN66
   let debian_binary_path = package_dir.join("debian-binary");
   create_file_with_data(&debian_binary_path, "2.0\n")
-    .with_context(|| "Failed to create debian-binary file")?;
+    .context("Failed to create debian-binary file")?;
 
   // Apply tar/gzip/ar to create the final package file.
   let control_tar_gz_path =

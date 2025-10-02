@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 // SPDX-License-Identifier: MIT
 
-use anyhow::Context;
 use serde::Deserialize;
 
-use crate::helpers::cross_command;
+use crate::{
+  error::{Context, Error},
+  helpers::cross_command,
+};
 use std::{collections::HashMap, fmt::Display, path::Path, process::Command};
 
 pub fn manager_version(package_manager: &str) -> Option<String> {
@@ -151,10 +153,13 @@ impl PackageManager {
     let status = command
       .current_dir(frontend_dir)
       .status()
-      .with_context(|| format!("failed to run {self}"))?;
+      .map_err(|error| Error::CommandFailed {
+        command: format!("failed to run {self}"),
+        error,
+      })?;
 
     if !status.success() {
-      anyhow::bail!("Failed to install NPM {dependencies_str}");
+      crate::error::bail!("Failed to install NPM {dependencies_str}");
     }
 
     Ok(())
@@ -189,10 +194,13 @@ impl PackageManager {
       .args(dependencies)
       .current_dir(frontend_dir)
       .status()
-      .with_context(|| format!("failed to run {self}"))?;
+      .map_err(|error| Error::CommandFailed {
+        command: format!("failed to run {self}"),
+        error,
+      })?;
 
     if !status.success() {
-      anyhow::bail!("Failed to remove NPM {dependencies_str}");
+      crate::error::bail!("Failed to remove NPM {dependencies_str}");
     }
 
     Ok(())
@@ -211,7 +219,11 @@ impl PackageManager {
           .arg(name)
           .args(["--depth", "0"])
           .current_dir(frontend_dir)
-          .output()?,
+          .output()
+          .map_err(|error| Error::CommandFailed {
+            command: "yarn list --pattern".to_string(),
+            error,
+          })?,
         None,
       ),
       PackageManager::YarnBerry => (
@@ -220,7 +232,11 @@ impl PackageManager {
           .arg(name)
           .arg("--json")
           .current_dir(frontend_dir)
-          .output()?,
+          .output()
+          .map_err(|error| Error::CommandFailed {
+            command: "yarn info --json".to_string(),
+            error,
+          })?,
         Some(regex::Regex::new("\"Version\":\"([\\da-zA-Z\\-\\.]+)\"").unwrap()),
       ),
       PackageManager::Pnpm => (
@@ -229,7 +245,11 @@ impl PackageManager {
           .arg(name)
           .args(["--parseable", "--depth", "0"])
           .current_dir(frontend_dir)
-          .output()?,
+          .output()
+          .map_err(|error| Error::CommandFailed {
+            command: "pnpm list --parseable --depth 0".to_string(),
+            error,
+          })?,
         None,
       ),
       // Bun and Deno don't support `list` command
@@ -239,7 +259,11 @@ impl PackageManager {
           .arg(name)
           .args(["version", "--depth", "0"])
           .current_dir(frontend_dir)
-          .output()?,
+          .output()
+          .map_err(|error| Error::CommandFailed {
+            command: "npm list --version --depth 0".to_string(),
+            error,
+          })?,
         None,
       ),
     };
@@ -270,14 +294,22 @@ impl PackageManager {
         .args(packages)
         .args(["--json", "--depth", "0"])
         .current_dir(frontend_dir)
-        .output()?,
+        .output()
+        .map_err(|error| Error::CommandFailed {
+          command: "pnpm list --json --depth 0".to_string(),
+          error,
+        })?,
       // Bun and Deno don't support `list` command
       PackageManager::Npm | PackageManager::Bun | PackageManager::Deno => cross_command("npm")
         .arg("list")
         .args(packages)
         .args(["--json", "--depth", "0"])
         .current_dir(frontend_dir)
-        .output()?,
+        .output()
+        .map_err(|error| Error::CommandFailed {
+          command: "npm list --json --depth 0".to_string(),
+          error,
+        })?,
     };
 
     let mut versions = HashMap::new();
@@ -300,7 +332,7 @@ impl PackageManager {
       version: String,
     }
 
-    let json: ListOutput = serde_json::from_str(&stdout)?;
+    let json: ListOutput = serde_json::from_str(&stdout).context("failed to parse npm list")?;
     for (package, dependency) in json.dependencies.into_iter().chain(json.dev_dependencies) {
       let version = dependency.version;
       if let Ok(version) = semver::Version::parse(&version) {
@@ -322,7 +354,11 @@ fn yarn_package_versions(
     .args(packages)
     .args(["--json", "--depth", "0"])
     .current_dir(frontend_dir)
-    .output()?;
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "yarn list --json --depth 0".to_string(),
+      error,
+    })?;
 
   let mut versions = HashMap::new();
   let stdout = String::from_utf8_lossy(&output.stdout);
@@ -371,7 +407,11 @@ fn yarn_berry_package_versions(
   let output = cross_command("yarn")
     .args(["info", "--json"])
     .current_dir(frontend_dir)
-    .output()?;
+    .output()
+    .map_err(|error| Error::CommandFailed {
+      command: "yarn info --json".to_string(),
+      error,
+    })?;
 
   let mut versions = HashMap::new();
   let stdout = String::from_utf8_lossy(&output.stdout);

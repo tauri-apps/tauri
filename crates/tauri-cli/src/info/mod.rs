@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 use crate::{
+  error::Context,
   helpers::app_paths::{resolve_frontend_dir, resolve_tauri_dir},
   Result,
 };
@@ -37,7 +38,7 @@ pub struct VersionMetadata {
 
 fn version_metadata() -> Result<VersionMetadata> {
   serde_json::from_str::<VersionMetadata>(include_str!("../../metadata-v2.json"))
-    .map_err(Into::into)
+    .context("failed to parse version metadata")
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
